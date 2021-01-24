@@ -15,17 +15,17 @@ module.exports = {
   devServer: {
     proxy: {
       "/ws": {
-        target: "http://localhost:50802/",
+        target: process.env.backend === "remote" ? "https://wwww.boardgamers.space" : "http://localhost:50802/",
         ws: true,
       },
       "/api/gameplay": {
-        target: "http://localhost:50803/",
+        target: process.env.backend === "remote" ? "https://wwww.boardgamers.space" : "http://localhost:50803/",
       },
       "/api": {
-        target: "http://localhost:50801/",
+        target: process.env.backend === "remote" ? "https://wwww.boardgamers.space" : "http://localhost:50801/",
       },
       "resources.localhost": {
-        target: "http://localhost:50804",
+        target: process.env.backend === "remote" ? "https://wwww.boardgamers.space" : "http://localhost:50804",
       },
     },
   },

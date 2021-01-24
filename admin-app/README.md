@@ -1,29 +1,19 @@
-# gaia-admin-webapp
+# Admin interface for BGS
 
-## Project setup
+## Setup
 
-```
-yarn
-```
+- install `node`
+- install `pnpm`
 
-### Compiles and hot-reloads for development
-
-```
-yarn serve
-```
-
-### Compiles and minifies for production
+## Running
 
 ```
-yarn build
+pnpm install
+pnpm run serve
 ```
 
-### Lints and fixes files
+This will run against a local backend. You can run against a remote backend by creating a `.env` file with:
 
+```bash
+backend=remote
 ```
-yarn lint
-```
-
-### Customize configuration
-
-See [Configuration Reference](https://cli.vuejs.org/config/).
