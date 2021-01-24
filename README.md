@@ -50,4 +50,5 @@ You may have a 403 forbidden error regarding js and css files if the folder is u
 
 We welcome contributions from everybody! Don't hesitate to ask a question.
 
-VS Code is the recommended editor. Its workspace feature is great to open multiple window, one with all the back, another with the front...
+VS Code is the recommended editor. Its workspace feature is great to open multiple windows, one with all the back, and another with the all the front.
+Install the prettier & gitmoji VS Code extensions if that is your editor!
