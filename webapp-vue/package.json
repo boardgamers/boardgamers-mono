@@ -13,6 +13,7 @@
   "dependencies": {
     "@gaia-project/vue-beautiful-chat": "^2.0.3",
     "axios": "^0.19.2",
+    "bootstrap": "^4.6.0",
     "bootstrap-vue": "^2.15.0",
     "dompurify": "^2.0.11",
     "lodash": "^4.17.15",
@@ -38,6 +39,7 @@
     "chai": "^4.1.2",
     "core-js": "^3.6.4",
     "nodemon": "^1.17.3",
+    "regenerator-runtime": "^0.13.7",
     "sass": "^1.26.3",
     "sass-loader": "^8.0.0",
     "typescript": "~3.8.3",

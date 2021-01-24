@@ -46,7 +46,7 @@ const router = new Router({
       meta: { loggedOut: true },
       beforeEnter(to, from, next) {
         if (to.query.refreshToken) {
-          const refreshToken = JSON.parse(to.query.refreshToken);
+          const refreshToken = JSON.parse(to.query.refreshToken as string);
           console.log("log in via query refresh token");
           store.commit("updateRefreshToken", refreshToken);
           next("/");
