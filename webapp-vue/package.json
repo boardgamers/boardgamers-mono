@@ -10,7 +10,6 @@
     "watch": "nodemon -w src -e ts,vue --exec npm run build-dev"
   },
   "dependencies": {
-    "@gaia-project/engine": "^3.4.0",
     "@gaia-project/vue-beautiful-chat": "^2.0.3",
     "axios": "^0.19.2",
     "bootstrap-vue": "^2.15.0",
