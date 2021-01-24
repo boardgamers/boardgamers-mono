@@ -70,10 +70,20 @@ passport.use(
         newUser.settings.mailing.newsletter = req.body.newsletter === true || req.body.newsletter === "true";
         newUser.generateConfirmKey();
 
+        const users = await User.count().limit(1);
+
+        // First user in dev mode is admin
+        if (users === 0 && !env.isProduction) {
+          newUser.authority = "admin";
+          newUser.security.confirmed = true;
+        }
+
         // save the user
         await newUser.save();
 
-        newUser.sendConfirmationEmail();
+        if (!newUser.security.confirmed) {
+          newUser.sendConfirmationEmail();
+        }
 
         return done(null, newUser);
       } catch (err) {

@@ -419,14 +419,17 @@ schema.method("isAdmin", function (this: UserDocument) {
   return this.authority === "admin";
 });
 
+// @ts-ignore
 schema.static("findByUrl", function (this: UserModel, urlComponent: string) {
   return this.findById(new ObjectId(urlComponent));
 });
 
+// @ts-ignore
 schema.static("findByUsername", function (this: UserModel, username: string) {
   return this.findOne({ "security.slug": username.toLowerCase().replace(/\s+/, "-") });
 });
 
+// @ts-ignore
 schema.static("findByEmail", function (this: UserModel, email: string) {
   return this.findOne({ "account.email": email.toLowerCase().trim() });
 });
@@ -455,7 +458,7 @@ schema.pre("save", function (this: UserDocument) {
   }
 });
 
-const User = mongoose.model<UserDocument, UserModel>("User", schema);
+const User: UserModel = mongoose.model<UserDocument, UserModel>("User", schema as any);
 
 // create the model for users and expose it to our app
 export default User;
