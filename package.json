@@ -1,7 +1,8 @@
 {
   "license": "AGPL",
   "scripts": {
-    "prettier": "prettier --write ."
+    "prettier": "prettier --write .",
+    "back": "docker-compose -f \"docker-compose.yml\" up -d --build"
   },
   "devDependencies": {
     "prettier": "^2.2.1"

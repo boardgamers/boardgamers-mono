@@ -1,5 +1,5 @@
 # You need to build from the parent directory 
-FROM node:14
+FROM node:15
 
 RUN npm install -g pnpm
 

@@ -8,15 +8,17 @@ services:
       dockerfile: ./api-node/Dockerfile
     ports:
       - "50801:50801"
-      - "50803:50803"
+      - "50802:50802"
       - "50804:50804"
     environment:
-      - dbUrl="mongodb://mongo:27017/admin"
+      - "dbUrl=mongodb://mongo:27017/admin"
+      - "listenHost=::"
   game-server:
     build:
       context: .
       dockerfile: ./game-server/Dockerfile
     ports:
-      - "50802:50802"
+      - "50803:50803"
     environment:
-      - dbUrl="mongodb://mongo:27017/admin"
+      - "dbUrl=mongodb://mongo:27017/admin"
+      - "listenHost=::"

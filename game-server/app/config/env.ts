@@ -14,7 +14,10 @@ export default {
     },
     // algorithm: process.env.jwtMode === "asymmetric" ? "RS256" : "HS256" as "RS256" | "HS256"
   },
-  port: +process.env.port || 50803,
+  listen: {
+    port: +process.env.port || 50803,
+    host: process.env.listenHost ?? "localhost",
+  },
   dbUrl: process.env.dbUrl || "mongodb://localhost:27017/admin",
   isProduction: process.env.NODE_ENV === "production",
   threads: process.env.threads || os.cpus().length,

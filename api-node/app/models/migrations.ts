@@ -130,8 +130,7 @@ export const migrations = {
 
 export async function migrate() {
   const latestVersion = pkg.version;
-  let currentVersion = ((await Settings.findById(SettingsKey.DBVersion, null, { lean: true })) ?? { value: "0.1.0" })
-    .value;
+  let currentVersion = (await Settings.findById(SettingsKey.DBVersion).lean(true))?.value ?? "0.1.0";
 
   for (const [key, migration] of Object.entries(migrations)) {
     if (semver.gt(key, currentVersion)) {

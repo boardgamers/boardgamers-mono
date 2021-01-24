@@ -26,10 +26,13 @@ export default {
     },
     algorithm: process.env.jwtMode === "asymmetric" ? "RS256" : ("HS256" as "RS256" | "HS256"),
   },
-  port: {
-    api: +process.env.port || 50801,
-    ws: +process.env.wsPort || 50802,
-    resources: +process.env.resourcesPort || 50804,
+  listen: {
+    port: {
+      api: +process.env.port || 50801,
+      ws: +process.env.wsPort || 50802,
+      resources: +process.env.resourcesPort || 50804,
+    },
+    host: process.env.listenHost ?? "localhost",
   },
   dbUrl: process.env.dbUrl || "mongodb://localhost:27017/admin",
   nodebb: "mongodb://nodebb:NodeBBPassword@localhost:27017/nodebb",

@@ -20,7 +20,7 @@ import User, { UserDocument } from "./models/user";
 import type { Server } from "http";
 import ApiError from "./models/apierror";
 
-async function listen(port = env.port.api) {
+async function listen(port = env.listen.port.api) {
   const app = new Koa<Koa.DefaultState & { user: UserDocument }>();
 
   /* Configuration */
@@ -148,14 +148,14 @@ async function listen(port = env.port.api) {
 
   try {
     let server: Server;
-    const promise = new Promise((resolve, reject) => {
-      server = app.listen(port, "localhost", () => resolve());
+    const promise = new Promise<void>((resolve, reject) => {
+      server = app.listen(port, env.listen.host, () => resolve());
       app.once("error", (err) => reject(err));
     });
 
     await promise;
 
-    console.log("app started on port", port);
+    console.log("app started on port", port, "and host", env.listen.host);
 
     return server;
   } catch (err) {

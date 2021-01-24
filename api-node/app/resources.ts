@@ -131,7 +131,7 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
     </html>`;
 });
 
-async function listen(port = env.port.resources) {
+async function listen(port = env.listen.port.resources) {
   const app = new Koa();
 
   /* Configuration */
@@ -173,8 +173,8 @@ async function listen(port = env.port.resources) {
 
   try {
     let server: Server;
-    const promise = new Promise((resolve, reject) => {
-      server = app.listen(port, "localhost", () => resolve());
+    const promise = new Promise<void>((resolve, reject) => {
+      server = app.listen(port, env.listen.host, () => resolve());
       app.once("error", (err) => reject(err));
     });
 

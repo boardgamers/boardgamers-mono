@@ -11,7 +11,7 @@ import ChatMessage from "./models/chatmessage";
 import Game, { GameDocument } from "./models/game";
 import User from "./models/user";
 
-const wss = new Server({ port: env.port.ws });
+const wss = new Server({ port: env.listen.port.ws, host: env.listen.host });
 
 type AugmentedWebSocket = WebSocket & {
   game?: string;
@@ -25,7 +25,7 @@ function clients(): AugmentedWebSocket[] {
   return [...wss.clients].filter((ws) => ws.readyState === WebSocket.OPEN);
 }
 
-wss.on("listening", () => console.log("Listening for chat messages on port", env.port.ws));
+wss.on("listening", () => console.log("Listening for chat messages on port", env.listen.port.ws));
 wss.on("error", (err) => console.error(err));
 
 wss.on("connection", (ws: AugmentedWebSocket) => {
