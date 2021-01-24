@@ -7,7 +7,7 @@
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from "vue-property-decorator";
 import { handleError, handleSuccess } from "@/utils";
-import { GameInfo } from "@gaia-project/site-lib/gameinfo";
+import { GameInfo } from "@lib/gameinfo";
 import GameEdit from "../components/GameEdit.vue";
 
 @Component({

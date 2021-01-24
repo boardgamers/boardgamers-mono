@@ -16,7 +16,7 @@
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from "vue-property-decorator";
 import { handleError } from "../utils";
-import { IUser } from "@gaia-project/site-lib/user";
+import { IUser } from "@lib/user";
 
 @Component
 export default class Users extends Vue {

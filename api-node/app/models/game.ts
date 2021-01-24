@@ -1,16 +1,16 @@
 import mongoose from "mongoose";
 import { ObjectId } from "bson";
-import { IAbstractGame } from "@gaia-project/site-lib/game";
-import schema from "@gaia-project/site-lib/dist/game";
+import { IAbstractGame } from "@lib/game";
+import schema from "@lib/schemas/game";
 
 export interface GameDocument extends IAbstractGame<ObjectId>, mongoose.Document {
   _id: string;
 }
 
 export interface GameModel extends mongoose.Model<GameDocument> {
-  findWithPlayer(playerId: ObjectId): mongoose.DocumentQuery<GameDocument[], GameDocument>;
-  findWithPlayersTurn(playerId: ObjectId): mongoose.DocumentQuery<GameDocument[], GameDocument>;
-  findWithBoardgame(boardgame: string): mongoose.DocumentQuery<GameDocument[], GameDocument>;
+  findWithPlayer(playerId: ObjectId): mongoose.Query<GameDocument[], GameDocument>;
+  findWithPlayersTurn(playerId: ObjectId): mongoose.Query<GameDocument[], GameDocument>;
+  findWithBoardgame(boardgame: string): mongoose.Query<GameDocument[], GameDocument>;
 
   /** Basics projection */
   basics(): string[];
@@ -19,16 +19,19 @@ export interface GameModel extends mongoose.Model<GameDocument> {
 // For websocket server. To find whether games have updated
 schema.index({ updatedAt: 1 });
 
+// @ts-ignore
 schema.static("findWithPlayer", function (this: GameModel, playerId: ObjectId) {
   return this.find({ "players._id": playerId }).sort("-lastMove");
 });
 
+// @ts-ignore
 schema.static("findWithPlayersTurn", function (this: GameModel, playerId: ObjectId) {
   // The first condition is to leverage the index
   const conditions = { status: "active" as "active", "currentPlayers._id": playerId };
   return this.find(conditions).sort("-lastMove");
 });
 
+// @ts-ignore
 schema.static("findWithBoardgame", function (this: GameModel, boardgame: string) {
   return this.find({ "game.name": boardgame }).sort("-lastMove");
 });
@@ -61,5 +64,6 @@ schema.pre("validate", function (this: GameDocument) {
   }
 });
 
-const Game = mongoose.model<GameDocument, GameModel>("Game", schema);
+// @ts-ignore
+const Game: GameModel = mongoose.model<GameDocument, GameModel>("Game", schema);
 export default Game;

@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
-import { GameInfo } from "@gaia-project/site-lib/gameinfo";
-import schema from "@gaia-project/site-lib/dist/gameinfo";
+import { GameInfo } from "@lib/gameinfo";
+import schema from "@lib/schemas/gameinfo";
 
 export interface GameInfoDocument extends GameInfo, mongoose.Document {
   _id: {

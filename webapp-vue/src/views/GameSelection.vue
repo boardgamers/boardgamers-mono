@@ -29,7 +29,7 @@
 import { Vue, Component, Prop, Watch } from "vue-property-decorator";
 import { handleError } from "@/utils";
 import marked from "marked";
-import { GamePreferences } from "@gaia-project/site-lib/gamepreferences";
+import { GamePreferences } from "@lib/gamepreferences";
 
 @Component
 export default class GameSelection extends Vue {

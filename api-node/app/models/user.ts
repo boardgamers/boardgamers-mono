@@ -5,7 +5,7 @@ import assert from "assert";
 import crypto from "crypto";
 import { env, sendmail } from "../config";
 import { ObjectId } from "bson";
-import { IAbstractUser } from "@gaia-project/site-lib/user";
+import { IAbstractUser } from "@lib/user";
 import _ from "lodash";
 import Game from "./game";
 

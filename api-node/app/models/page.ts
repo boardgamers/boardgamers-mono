@@ -1,4 +1,4 @@
-import type { Page as IPage } from "@gaia-project/site-lib/page";
+import type { Page as IPage } from "@lib/page";
 import mongoose from "mongoose";
 
 interface PageDocument extends mongoose.Document, IPage {

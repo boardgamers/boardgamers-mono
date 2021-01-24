@@ -1,6 +1,6 @@
 import { EventEmitter } from "events";
 import Vue from "vue";
-import { IUser } from "@gaia-project/site-lib/user";
+import { IUser } from "@lib/user";
 import { refreshTokenIfNeeded } from "./axios";
 import store from "../store";
 

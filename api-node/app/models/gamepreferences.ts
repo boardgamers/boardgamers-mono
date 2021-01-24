@@ -1,6 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 import { ObjectId } from "bson";
-import { GamePreferences as IGamePreferences } from "@gaia-project/site-lib/gamepreferences";
+import { GamePreferences as IGamePreferences } from "@lib/gamepreferences";
 
 export interface GamePreferencesDocument extends mongoose.Document, IGamePreferences<ObjectId> {}
 

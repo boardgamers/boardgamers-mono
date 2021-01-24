@@ -33,7 +33,7 @@
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from "vue-property-decorator";
 import { handleError, dateFromObjectId } from "@/utils";
-import { IUser } from "@gaia-project/site-lib/user";
+import { IUser } from "@lib/user";
 import UserGames from "../components/UserGames.vue";
 import UserPublicInfo from "../components/UserPublicInfo.vue";
 import UserElo from "../components/UserElo.vue";

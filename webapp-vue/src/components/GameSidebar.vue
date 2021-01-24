@@ -171,7 +171,7 @@ import debounce from "lodash/debounce";
 import { isEqual, keyBy } from "lodash";
 import { timerTime, oneLineMarked, handleError } from "../utils";
 import DOMPurify from "dompurify";
-import { PlayerInfo } from "@gaia-project/site-lib/game";
+import { PlayerInfo } from "@lib/game";
 
 @Component({
   created() {

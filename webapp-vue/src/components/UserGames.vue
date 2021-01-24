@@ -14,8 +14,8 @@
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from "vue-property-decorator";
 import { handleError } from "@/utils";
-import { IGame } from "@gaia-project/site-lib/game";
-import { IUser } from "@gaia-project/site-lib/user";
+import { IGame } from "@lib/game";
+import { IUser } from "@lib/user";
 import GameList from "./GameList.vue";
 
 @Component({

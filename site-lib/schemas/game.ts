@@ -1,11 +1,12 @@
-import { Schema } from "mongoose";
+import { ObjectId, Schema, Document } from "mongoose";
+import type { IAbstractGame } from "../game";
 
 const repr = {
   _id: {
     type: String,
     trim: true,
-    minlength: [2, "A game id must be at least 2 characters"],
-    maxlength: [25, "A game id must be at most 25 characters"],
+    minlength: [2, "A game id must be at least 2 characters"] as [number, string],
+    maxlength: [25, "A game id must be at most 25 characters"] as [number, string],
   },
   players: {
     type: [
@@ -123,7 +124,7 @@ const repr = {
   },
 };
 
-const schema = new Schema(repr, { timestamps: true });
+const schema = new Schema<IAbstractGame<ObjectId> & Document<string>>(repr, { timestamps: true });
 
 // To... order open games & active games & closed games
 schema.index({ status: 1, lastMove: -1 });

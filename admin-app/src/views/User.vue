@@ -49,10 +49,10 @@
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from "vue-property-decorator";
 import { handleError, handleInfo } from "@/utils";
-import { IUser } from "@gaia-project/site-lib/user";
+import { IUser } from "@lib/user";
 import { pick } from "lodash";
-import { ApiError } from "@gaia-project/site-lib/api-error";
-import { GamePreferences } from "@gaia-project/site-lib/gamepreferences";
+import { ApiError } from "@lib/api-error";
+import { GamePreferences } from "@lib/gamepreferences";
 
 @Component
 export default class User extends Vue {

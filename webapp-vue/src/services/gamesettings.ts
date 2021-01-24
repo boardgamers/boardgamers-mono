@@ -3,7 +3,7 @@ import store from "../store";
 import { makeAxios } from "../plugins/axios";
 import { handleError } from "@/utils";
 import { AxiosError } from "axios";
-import { GamePreferences } from "@gaia-project/site-lib/gamepreferences";
+import { GamePreferences } from "@lib/gamepreferences";
 
 class GameSettingsService {
   settings(game: string) {

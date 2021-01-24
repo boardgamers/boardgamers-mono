@@ -1,8 +1,8 @@
 import { ObjectId } from "bson";
 import mongoose from "mongoose";
 import locks from "mongo-locks";
-import schema from "@gaia-project/site-lib/dist/gamenotification";
-import { GameNotification } from "@gaia-project/site-lib/gamenotification";
+import schema from "@lib/schemas/gamenotification";
+import { GameNotification } from "@lib/gamenotification";
 import User, { maxKarma } from "./user";
 import Game from "./game";
 import Log, { LogItem } from "./log";

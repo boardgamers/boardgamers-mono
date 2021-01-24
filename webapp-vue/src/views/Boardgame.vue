@@ -59,7 +59,7 @@
 import { Vue, Component, Prop, Watch } from "vue-property-decorator";
 import { handleError } from "@/utils";
 import marked from "marked";
-import { GameInfo } from "@gaia-project/site-lib/gameinfo";
+import { GameInfo } from "@lib/gameinfo";
 import Games from "../views/Games.vue";
 import GameList from "../components/GameList.vue";
 import BoardgameElo from "../components/BoardgameElo.vue";

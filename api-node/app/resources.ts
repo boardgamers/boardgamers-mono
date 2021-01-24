@@ -12,7 +12,7 @@ import Router from "koa-router";
 import { AssertionError } from "assert";
 import type { Server } from "http";
 import GameInfo from "./models/gameinfo";
-import { ViewerInfo } from "@gaia-project/site-lib/gameinfo";
+import { ViewerInfo } from "@lib/gameinfo";
 
 const router = new Router();
 

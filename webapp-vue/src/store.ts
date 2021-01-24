@@ -1,7 +1,7 @@
 import Vue from "vue";
 import Vuex from "vuex";
 import { User, Game, GameInfo } from "@/types";
-import { GamePreferences } from "@gaia-project/site-lib/gamepreferences";
+import { GamePreferences } from "@lib/gamepreferences";
 
 Vue.use(Vuex);
 

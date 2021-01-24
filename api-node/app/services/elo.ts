@@ -1,10 +1,10 @@
-import type { IAbstractGame } from "@gaia-project/site-lib/game";
+import type { IAbstractGame } from "@lib/game";
 import type { Dictionary } from "lodash";
 import type { ObjectID } from "bson";
 import GamePreferences from "../models/gamepreferences";
 import { eloDiff } from "../engine/elo";
 import { keyBy, cloneDeep, omit } from "lodash";
-import type { GamePreferences as IGamePreferences } from "@gaia-project/site-lib/gamepreferences";
+import type { GamePreferences as IGamePreferences } from "@lib/gamepreferences";
 import Game from "../models/game";
 
 export default class EloService {

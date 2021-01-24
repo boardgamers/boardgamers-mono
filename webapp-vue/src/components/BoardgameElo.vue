@@ -28,7 +28,7 @@
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from "vue-property-decorator";
 import { handleError } from "@/utils";
-import { GamePreferences } from "@gaia-project/site-lib/gamepreferences";
+import { GamePreferences } from "@lib/gamepreferences";
 
 @Component
 export default class BoardgameElo extends Vue {
