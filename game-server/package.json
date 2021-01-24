@@ -1,0 +1,48 @@
+{
+  "name": "boardgamers-game-server",
+  "version": "1.0.0",
+  "main": "server.ts",
+  "license": "AGPL",
+  "private": true,
+  "scripts": {
+    "nodemon": "nodemon -w app -w node_modules -w ../site-lib -w server.ts -e js,ts --exec npm start",
+    "start": "ts-node -T -r tsconfig-paths/register server.ts",
+    "test": "mocha -r ts-node/register app/**/*.spec.ts app/*.spec.ts"
+  },
+  "dependencies": {
+    "decache": "^4.6.0",
+    "dotenv": "^8.2.0",
+    "fs-extra": "^9.0.0",
+    "http-errors": "^1.7.3",
+    "jsonwebtoken": "^8.5.1",
+    "koa": "^2.11.0",
+    "koa-bodyparser": "^4.3.0",
+    "koa-compress": "^4.0.0",
+    "koa-morgan": "^1.0.1",
+    "koa-router": "^8.0.8",
+    "lodash": "^4.17.15",
+    "mongo-locks": "^1.3.0",
+    "mongoose": "^5.9.10"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.2.11",
+    "@types/fs-extra": "^8.1.0",
+    "@types/http-errors": "^1.6.3",
+    "@types/jsonwebtoken": "^8.3.9",
+    "@types/koa": "^2.11.3",
+    "@types/koa-bodyparser": "^4.3.0",
+    "@types/koa-compress": "^2.0.9",
+    "@types/koa-morgan": "^1.0.4",
+    "@types/koa-router": "^7.4.0",
+    "@types/lodash": "^4.14.150",
+    "@types/mocha": "^7.0.2",
+    "@types/mongoose": "^5.7.14",
+    "@types/node": "^13.13.4",
+    "chai": "^4.2.0",
+    "mocha": "^7.1.2",
+    "nodemon": "^2.0.3",
+    "ts-node": "^8.9.1",
+    "tsconfig-paths": "^3.9.0",
+    "typescript": "^4.0.0"
+  }
+}

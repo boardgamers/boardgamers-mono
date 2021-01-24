@@ -1,0 +1,166 @@
+import passport from "koa-passport";
+
+/* Koa stuff */
+import Koa from "koa";
+import compression from "koa-compress";
+import bodyParser from "koa-bodyparser";
+import cookie from "koa-cookie";
+import morgan from "koa-morgan";
+import createError from "http-errors";
+import jwt from "jsonwebtoken";
+
+/* Configure passport */
+import "./config/passport";
+import env from "./config/env";
+
+/* Local stuff */
+import router from "./routes";
+import { AssertionError } from "assert";
+import User, { UserDocument } from "./models/user";
+import type { Server } from "http";
+import ApiError from "./models/apierror";
+
+async function listen(port = env.port.api) {
+  const app = new Koa<Koa.DefaultState & { user: UserDocument }>();
+
+  /* Configuration */
+  app.keys = [env.sessionSecret];
+
+  /* App stuff */
+  if (!env.silent) {
+    app.use(morgan("dev"));
+  }
+  app.proxy = true;
+  app.use(compression());
+  app.use(bodyParser());
+  app.use(cookie());
+
+  /* Required for passport */
+  app.use(passport.initialize());
+
+  // JWT auth
+  app.use(async (ctx, next) => {
+    if (ctx.get("Authorization")?.startsWith("Bearer ")) {
+      const token = ctx.get("Authorization").slice("Bearer ".length);
+
+      const decoded = jwt.verify(token, env.jwt.keys.public) as { userId: string; scopes: string[] };
+
+      if (decoded && decoded.scopes.includes("all")) {
+        ctx.state.user = await User.findById(decoded.userId);
+      }
+    }
+
+    await next();
+  });
+
+  app.use(async (ctx, next) => {
+    try {
+      await next();
+    } catch (err) {
+      if (!env.silent) {
+        console.error(err);
+      }
+      if (err instanceof createError.HttpError) {
+        ctx.status = err.statusCode;
+        ctx.body = { message: err.message };
+      } else if (err.name === "ValidationError") {
+        const keys = Object.keys(err.errors);
+        ctx.status = 422;
+        ctx.body = { message: err.errors[keys[0]].message };
+      } else if (err instanceof AssertionError) {
+        ctx.status = 422;
+        ctx.body = { message: err.message };
+      } else {
+        ctx.status = 500;
+        ctx.body = { message: "Internal error" };
+      }
+
+      try {
+        if (ctx.request.body?.password) {
+          ctx.request.body.password = "*******";
+        }
+        await ApiError.create({
+          request: {
+            url: ctx.request.originalUrl,
+            method: ctx.request.method,
+            body: JSON.stringify(ctx.request.body),
+          },
+          error: {
+            name: err.name,
+            stack: err.stack,
+            message: err.message,
+          },
+          user: ctx.state.user?._id,
+        });
+        if (process.env.NODE_ENV !== "production") {
+          console.error(err);
+        }
+      } catch (_err) {
+        console.error(_err);
+      }
+    }
+  });
+
+  app.use(async (ctx, next) => {
+    const oldUser = ctx.state.user;
+
+    await next();
+
+    const user = ctx.state.user;
+
+    if (user) {
+      if (!oldUser) {
+        await user.notifyLogin(ctx.ip);
+      } else {
+        await user.notifyLastIp(ctx.ip);
+      }
+    }
+  });
+
+  app.use(async (ctx, next) => {
+    await next();
+
+    if (ctx.state.user) {
+      const user: UserDocument = ctx.state.user;
+
+      // Token for forum SSO
+      ctx.cookies.set(
+        "token",
+        jwt.sign(
+          {
+            id: user._id.toString(),
+            username: user.account.username,
+            email: user.account.email,
+          },
+          env.jwt.keys.private,
+          { expiresIn: "1h", algorithm: env.jwt.algorithm }
+        ),
+        { httpOnly: true, sameSite: true, domain: env.domain }
+      );
+    } else if (ctx.cookies.get("token")) {
+      // Remove cookie if logged out
+      ctx.cookies.set("token", null, { maxAge: 0 });
+    }
+  });
+
+  app.use(router.routes());
+  app.use(router.allowedMethods());
+
+  try {
+    let server: Server;
+    const promise = new Promise((resolve, reject) => {
+      server = app.listen(port, "localhost", () => resolve());
+      app.once("error", (err) => reject(err));
+    });
+
+    await promise;
+
+    console.log("app started on port", port);
+
+    return server;
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+export { listen };

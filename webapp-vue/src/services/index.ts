@@ -1,0 +1,2 @@
+import "./gameinfo";
+import "./gamesettings";

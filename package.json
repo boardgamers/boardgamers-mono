@@ -1,0 +1,9 @@
+{
+  "license": "AGPL",
+  "scripts": {
+    "prettier": "prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^2.2.1"
+  }
+}
