@@ -92,11 +92,13 @@ async function listen(port = env.listen.port.api) {
           },
           user: ctx.state.user?._id,
         });
-        if (process.env.NODE_ENV !== "production") {
+        if (process.env.NODE_ENV !== "production" && !env.silent) {
           console.error(err);
         }
       } catch (_err) {
-        console.error(_err);
+        if (!env.silent) {
+          console.error(_err);
+        }
       }
     }
   });

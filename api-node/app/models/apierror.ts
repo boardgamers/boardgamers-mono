@@ -55,6 +55,4 @@ schema.index({ user: 1, createdAt: -1 });
 
 const ApiError = mongoose.model("ApiError", schema);
 
-ApiError.createIndexes();
-
 export default ApiError;
