@@ -1,11 +1,13 @@
 # Api-node
 
-## Testing locally
+## Running locally
 
-You will need to create a `.env` file in the project folder, in which you specify a custom domain like localhost. You can use
-another domain, but you need to add it to /etc/hosts as a local domain.
+You need mongodb 4.2+ running, and node/pnpm installed.
 
-You **may** also need to setup nginx / remove the /etc/nginx/sites-enabled/default!
+```
+pnpm install
+pnpm start
+```
 
 ## Environment
 
@@ -16,9 +18,9 @@ For example:
 ```bash
 #.env file
 NODE_ENV=production
-inviteOnly=true
 automatedEmails=true
 sessionSecret=customSessionSecret
 domain=my-domain.com
 automatedDrops=0
+dbUrl=<custom mongodb url>
 ```

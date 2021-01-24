@@ -6,9 +6,16 @@ Dynamically load games based on db in subfolders, using the `pnpm` command to in
 
 To see the configuration variables, check [env.ts](app/config/env.ts).
 
-## Dependencies
+This program shares a database with the api, both should be run at the same time.
 
-Install `pnpm` globally, the program uses it to dynamically install games in the `games` subfolder.
+## Running locally
+
+You need mongodb 4.2+ running, and node/pnpm installed.
+
+```
+pnpm install
+pnpm start
+```
 
 ## DB Access
 

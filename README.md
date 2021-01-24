@@ -15,12 +15,6 @@ We use `pijul` as our versioning system. It's really cool for monorepos! It's ex
 
 -->
 
-### MongoDB
-
-The site needs a mongodb backend running. It can be local or remote. By default it uses a local mongodb database running on port 27017 with no authentication, but it can be configured with a `.env` in the correct projects.
-
-MongoDB needs to at least be **4.2.0**
-
 ### pnpm
 
 We use `pnpm` as our package manager!
@@ -29,22 +23,21 @@ We use `pnpm` as our package manager!
 
 A recent version of node, 14+ ideally, is required
 
-### Nginx configuration
+## Running
 
-**Note:** nginx may not be necessary anymore in development, if you don't care about websockets / chat.
+### Frontend
 
-In the project's directory:
+The instructions to run the [webapp](./webapp-vue/README.md) and the [admin](./admin-app/README.md) are available in their README.
 
-```bash
-sudo cp api-node/app/config/nginx /etc/nginx/sites-available/gaia-project
-sudo ln -s /etc/nginx/sites-available/boardgamers /etc/nginx/sites-enabled/boardgamers
-# Give proper path for public files
-sudo sed -i -e 's:root .*;:root '`pwd`'/front/dist;:' /etc/nginx/sites-available/boardgamers
-sudo rm /etc/nginx/sites-enabled/default
-sudo service nginx restart
+### Backend
+
+You can follow the instructions in [api-node](./api-node/README.md) and [game-server](./game-server/README.md), or you can just run the following command:
+
+```
+docker-compose up
 ```
 
-You may have a 403 forbidden error regarding js and css files if the folder is under your home folder, then you need to either give more permissions to your home folder or move the project elsewhere. You can give nginx permissions like this: `sudo usermod -G <your-user-name> -a 'www-data'`
+This will take care of launching a mongodb instance as well
 
 ## Contributing
 
