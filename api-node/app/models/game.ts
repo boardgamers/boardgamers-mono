@@ -1,15 +1,13 @@
-import mongoose from "mongoose";
-import { ObjectId } from "bson";
+import mongoose, { Types } from "mongoose";
 import { IAbstractGame } from "@lib/game";
-import schema from "@lib/schemas/game";
+import makeSchema from "@lib/schemas/game";
 
-export interface GameDocument extends IAbstractGame<ObjectId>, mongoose.Document {
-  _id: string;
-}
+const schema = makeSchema<GameDocument, GameModel>();
+export interface GameDocument extends IAbstractGame<Types.ObjectId>, mongoose.Document {}
 
 export interface GameModel extends mongoose.Model<GameDocument> {
-  findWithPlayer(playerId: ObjectId): mongoose.Query<GameDocument[], GameDocument>;
-  findWithPlayersTurn(playerId: ObjectId): mongoose.Query<GameDocument[], GameDocument>;
+  findWithPlayer(playerId: Types.ObjectId): mongoose.Query<GameDocument[], GameDocument>;
+  findWithPlayersTurn(playerId: Types.ObjectId): mongoose.Query<GameDocument[], GameDocument>;
   findWithBoardgame(boardgame: string): mongoose.Query<GameDocument[], GameDocument>;
 
   /** Basics projection */
@@ -19,19 +17,16 @@ export interface GameModel extends mongoose.Model<GameDocument> {
 // For websocket server. To find whether games have updated
 schema.index({ updatedAt: 1 });
 
-// @ts-ignore
-schema.static("findWithPlayer", function (this: GameModel, playerId: ObjectId) {
+schema.static("findWithPlayer", function (this: GameModel, playerId: Types.ObjectId) {
   return this.find({ "players._id": playerId }).sort("-lastMove");
 });
 
-// @ts-ignore
-schema.static("findWithPlayersTurn", function (this: GameModel, playerId: ObjectId) {
+schema.static("findWithPlayersTurn", function (this: GameModel, playerId: Types.ObjectId) {
   // The first condition is to leverage the index
-  const conditions = { status: "active" as "active", "currentPlayers._id": playerId };
+  const conditions = { status: "active", "currentPlayers._id": playerId } as const;
   return this.find(conditions).sort("-lastMove");
 });
 
-// @ts-ignore
 schema.static("findWithBoardgame", function (this: GameModel, boardgame: string) {
   return this.find({ "game.name": boardgame }).sort("-lastMove");
 });
@@ -64,6 +59,5 @@ schema.pre("validate", function (this: GameDocument) {
   }
 });
 
-// @ts-ignore
-const Game: GameModel = mongoose.model<GameDocument, GameModel>("Game", schema);
+const Game = mongoose.model("Game", schema);
 export default Game;

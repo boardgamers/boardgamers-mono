@@ -1,4 +1,5 @@
-import { Schema } from "mongoose";
+import { GameNotification } from "../gamenotification";
+import { Schema, Document, Model, Types } from "mongoose";
 
 const repr = {
   user: {
@@ -20,9 +21,14 @@ const repr = {
   },
 };
 
-const schema = new Schema(repr, { timestamps: true });
+export default function makeSchema<
+  T extends Document & GameNotification<Types.ObjectId>,
+  U extends Model<T> = Model<T>
+>() {
+  const schema = new Schema<T, U>(repr, { timestamps: true });
 
-schema.index({ processed: 1, kind: 1 });
-schema.index({ updatedAt: 1 }, { expireAfterSeconds: 3600 * 24 * 30 });
+  schema.index({ processed: 1, kind: 1 });
+  schema.index({ updatedAt: 1 }, { expireAfterSeconds: 3600 * 24 * 30 });
 
-export default schema;
+  return schema;
+}

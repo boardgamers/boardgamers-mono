@@ -10,7 +10,7 @@ import { omit } from "lodash";
 const router = new Router();
 
 router.post("/:gameId/replay", isAdmin, async (ctx) => {
-  let free = await locks.lock("game", ctx.params.gameId);
+  const free = await locks.lock("game", ctx.params.gameId);
 
   try {
     const game = await Game.findById(ctx.params.gameId);
@@ -24,7 +24,7 @@ router.post("/:gameId/replay", isAdmin, async (ctx) => {
 
     assert(engine.replay, "The engine of this game does not support replaying");
 
-    let gameData = await engine.replay(game.data);
+    const gameData = await engine.replay(game.data);
 
     const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 
@@ -39,8 +39,8 @@ router.post("/:gameId/replay", isAdmin, async (ctx) => {
   }
 });
 
-router.post("/:gameId/move", loggedIn, async (ctx, next) => {
-  let free = await locks.lock("game", ctx.params.gameId);
+router.post("/:gameId/move", loggedIn, async (ctx) => {
+  const free = await locks.lock("game", ctx.params.gameId);
   try {
     const game = await Game.findById(ctx.params.gameId);
 

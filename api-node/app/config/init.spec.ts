@@ -10,7 +10,7 @@ let server: Server;
 mongoUnit.start({ dbName: "gaia-project", version: "4.2.7" }).then(async () => {
   console.log("fake mongo is started: ", mongoUnit.getUrl());
   await initDb(mongoUnit.getUrl(), false);
-  env.port.api = 50606;
+  env.listen.port.api = 50606;
   env.silent = true;
   server = await listen();
   run();

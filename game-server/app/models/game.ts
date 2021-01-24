@@ -1,9 +1,9 @@
-import schema from "@lib/schemas/game";
+import makeSchema from "@lib/schemas/game";
 import type { IAbstractGame } from "@lib/game";
-import type { ObjectID } from "bson";
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 
-export interface GameDocument extends mongoose.Document, IAbstractGame<ObjectID> {
+const schema = makeSchema<GameDocument>();
+export interface GameDocument extends mongoose.Document, IAbstractGame<Types.ObjectId> {
   _id: string;
 }
 
@@ -13,6 +13,6 @@ schema.pre("save", async function (this: GameDocument) {
   }
 });
 
-const Game = mongoose.model<GameDocument>("Game", schema);
+const Game = mongoose.model("Game", schema);
 
 export default Game;

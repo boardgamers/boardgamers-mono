@@ -2,15 +2,17 @@ import mongoose, { Schema } from "mongoose";
 import { ObjectId } from "bson";
 import { GamePreferences as IGamePreferences } from "@lib/gamepreferences";
 
-export interface GamePreferencesDocument extends mongoose.Document, IGamePreferences<ObjectId> {}
+export interface GamePreferencesDocument extends mongoose.Document<ObjectId>, IGamePreferences<ObjectId> {
+  _id: ObjectId;
+}
 
 export interface GamePreferencesModel extends mongoose.Model<GamePreferencesDocument> {
-  findWithPlayer(playerId: ObjectId): mongoose.DocumentQuery<GamePreferencesDocument[], GamePreferencesDocument>;
+  findWithPlayer(playerId: ObjectId): mongoose.Query<GamePreferencesDocument[], GamePreferencesDocument>;
 
   eloProjection(): string[];
 }
 
-const schema = new mongoose.Schema({
+const schema = new mongoose.Schema<GamePreferencesDocument, GamePreferencesModel>({
   user: Schema.Types.ObjectId,
   game: String,
   preferences: {},

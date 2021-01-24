@@ -3,8 +3,6 @@ import checkDiskSpace from "check-disk-space";
 import createError from "http-errors";
 import Router from "koa-router";
 import { isAdmin } from "../utils";
-import validator from "validator";
-import assert from "assert";
 import { SettingsKey } from "../../models/settings";
 import { sendAuthInfo } from "../account";
 import gameInfo from "./gameinfo";
@@ -30,7 +28,7 @@ router.get("/serverinfo", async (ctx) => {
     disk: await checkDiskSpace(process.cwd()),
     nbUsers: await User.count({}),
     announcement: (await Settings.findById(SettingsKey.Announcement))?.value,
-    chron: env.chron,
+    cron: env.cron,
   };
 });
 

@@ -115,7 +115,7 @@ router.get("/:boardgame/elo/count", async (ctx) => {
 });
 
 router.get("/:boardgame/games/:status", async (ctx) => {
-  const conditions: any = (() => {
+  const conditions: Record<string, unknown> = (() => {
     switch (ctx.params.status) {
       case "active":
         return { status: "active" };
@@ -132,6 +132,7 @@ router.get("/:boardgame/games/:status", async (ctx) => {
     conditions["players._id"] = ctx.query.user;
   }
   ctx.body = await Game.findWithBoardgame(ctx.state.foundBoardgame._id.game)
+    // @ts-ignore
     .where(conditions)
     .skip(skipCount(ctx))
     .limit(queryCount(ctx))
@@ -140,7 +141,7 @@ router.get("/:boardgame/games/:status", async (ctx) => {
 
 router.get("/:boardgame/games/:status/count", async (ctx) => {
   const boardgameName = ctx.state.foundBoardgame._id.game;
-  const conditions: any = (() => {
+  const conditions: Record<string, unknown> = (() => {
     switch (ctx.params.status) {
       case "active":
         return { "game.name": boardgameName, status: "active" };

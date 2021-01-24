@@ -50,8 +50,8 @@ const internalCache = new NodeCache({ stdTTL: 10 });
  * Could be customized to add a duration in seconds
  * @param target
  */
-export function cache(target: Function) {
-  return async function (...args: any[]) {
+export function cache(target: (..._: unknown[]) => unknown) {
+  return async function (...args: unknown[]) {
     const key = JSON.stringify([target.name, ...args]);
     let val = internalCache.get(key);
 

@@ -19,7 +19,7 @@ export default async function initDb(url = env.dbUrl, runMigrations = true) {
   mongoose.connect(url, { dbName: "gaia-project", useNewUrlParser: true });
   locks.init(mongoose.connection);
 
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     mongoose.connection.on("error", (err) => {
       reject(err);
     });

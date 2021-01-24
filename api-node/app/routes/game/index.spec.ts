@@ -44,7 +44,7 @@ describe("Game API", () => {
       headers: {
         Authorization: `Bearer ${token}`,
       },
-      baseURL: `http://localhost:${env.port.api}`,
+      baseURL: `http://localhost:${env.listen.port.api}`,
     };
   });
 

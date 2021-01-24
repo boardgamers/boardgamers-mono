@@ -19,11 +19,11 @@ interface JwtRefreshTokenDocument extends mongoose.Document {
   createAccessToken(scopes: string[], isAdmin: boolean): Promise<string>;
 }
 
-interface JwtRefreshToken extends mongoose.Model<JwtRefreshTokenDocument> {
+interface JwtRefreshTokenModel extends mongoose.Model<JwtRefreshTokenDocument> {
   accessTokenDuration(): number;
 }
 
-const schema = new Schema(
+const schema = new Schema<JwtRefreshTokenDocument, JwtRefreshTokenModel>(
   {
     user: {
       type: Schema.Types.ObjectId,
@@ -51,10 +51,10 @@ schema.method("createAccessToken", async function (this: JwtRefreshTokenDocument
   return jwt.sign({ userId: user._id, scopes, isAdmin }, env.jwt.keys.private, options);
 });
 
-schema.static("accessTokenDuration", function (this: JwtRefreshToken) {
+schema.static("accessTokenDuration", function (this: JwtRefreshTokenModel) {
   return 3600 * 1000;
 });
 
-const JwtRefreshToken = mongoose.model<JwtRefreshTokenDocument, JwtRefreshToken>("JwtRefreshToken", schema);
+const JwtRefreshToken = mongoose.model<JwtRefreshTokenDocument, JwtRefreshTokenModel>("JwtRefreshToken", schema);
 
 export default JwtRefreshToken;

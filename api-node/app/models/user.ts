@@ -19,25 +19,25 @@ export interface UserDocument extends IAbstractUser, mongoose.Document {
 
   generateHash(password: string): Promise<string>;
   validPassword(password: string): Promise<boolean>;
-  resetPassword(password: string): Promise<any>;
+  resetPassword(password: string): Promise<void>;
   email(): string;
   // Filtered user for public consumption
   publicInfo(): UserDocument;
-  changeEmail(email: string): Promise<any>;
-  generateResetLink(): Promise<any>;
+  changeEmail(email: string): Promise<void>;
+  generateResetLink(): Promise<void>;
   resetKey(): string;
   validateResetKey(key: string): void;
-  generateConfirmKey(): Promise<any>;
+  generateConfirmKey(): void;
   confirmKey(): string;
-  confirm(key: string): Promise<any>;
+  confirm(key: string): Promise<void>;
   recalculateKarma(since?: Date): Promise<void>;
-  sendConfirmationEmail(): Promise<any>;
-  sendResetEmail(): Promise<any>;
-  sendMailChangeEmail(newEmail: string): Promise<any>;
-  sendGameNotificationEmail(): Promise<any>;
+  sendConfirmationEmail(): Promise<void>;
+  sendResetEmail(): Promise<void>;
+  sendMailChangeEmail(newEmail: string): Promise<void>;
+  sendGameNotificationEmail(): Promise<void>;
   updateGameNotification(): Promise<void>;
   isSocialAccount(): boolean;
-  notifyLogin(ip: string): Promise<any>;
+  notifyLogin(ip: string): Promise<void>;
   notifyLastIp(ip: string): Promise<void>;
 }
 
@@ -48,7 +48,7 @@ interface UserModel extends mongoose.Model<UserDocument> {
 }
 
 // define the schema for our user model
-const schema = new Schema(
+const schema = new Schema<UserDocument, UserModel>(
   {
     account: {
       username: {
@@ -195,13 +195,13 @@ schema.method("publicInfo", function (this: UserDocument) {
   return _.pick(this, ["_id", "account.username", "account.karma", "createdAt"]);
 });
 
-schema.method("generateResetLink", function (this: UserDocument) {
+schema.method("generateResetLink", async function (this: UserDocument) {
   this.security.reset = {
     key: crypto.randomBytes(12).toString("base64"),
     issued: new Date(),
   };
 
-  return this.update({ "security.reset": this.security.reset });
+  await this.update({ "security.reset": this.security.reset });
 });
 
 schema.method("resetKey", function (this: UserDocument) {
@@ -363,7 +363,7 @@ schema.method("sendGameNotificationEmail", async function (this: UserDocument) {
         <p>You can also change your email settings and unsubscribe <a href='http://${
           env.site
         }/account'>here</a> with a simple click.</p>`,
-      });
+      }).catch(console.error);
     }
 
     user.meta.nextGameNotification = undefined;
@@ -419,17 +419,14 @@ schema.method("isAdmin", function (this: UserDocument) {
   return this.authority === "admin";
 });
 
-// @ts-ignore
 schema.static("findByUrl", function (this: UserModel, urlComponent: string) {
   return this.findById(new ObjectId(urlComponent));
 });
 
-// @ts-ignore
 schema.static("findByUsername", function (this: UserModel, username: string) {
   return this.findOne({ "security.slug": username.toLowerCase().replace(/\s+/, "-") });
 });
 
-// @ts-ignore
 schema.static("findByEmail", function (this: UserModel, email: string) {
   return this.findOne({ "account.email": email.toLowerCase().trim() });
 });
@@ -458,7 +455,7 @@ schema.pre("save", function (this: UserDocument) {
   }
 });
 
-const User: UserModel = mongoose.model<UserDocument, UserModel>("User", schema as any);
+const User = mongoose.model("User", schema);
 
 // create the model for users and expose it to our app
 export default User;

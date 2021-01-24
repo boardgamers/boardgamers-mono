@@ -48,13 +48,14 @@ router.get("/:userId/avatar", (ctx) => {
 });
 
 router.get("/:userId/games/open", async (ctx) => {
-  const conditions: any = { status: "open" };
+  const conditions: Record<string, unknown> = { status: "open" };
 
   if (!ctx.state.user?._id?.equals(ctx.state.foundUser._id)) {
     conditions["options.meta.unlisted"] = { $ne: true };
   }
 
   ctx.body = await Game.findWithPlayer(ctx.state.foundUser._id)
+    // @ts-ignore
     .where(conditions)
     .skip(skipCount(ctx))
     .limit(queryCount(ctx))
@@ -63,7 +64,8 @@ router.get("/:userId/games/open", async (ctx) => {
 
 router.get("/:userId/games/active", async (ctx) => {
   ctx.body = await Game.findWithPlayer(ctx.state.foundUser._id)
-    .where({ status: "active" })
+    .where("status")
+    .equals("active")
     .skip(skipCount(ctx))
     .limit(queryCount(ctx))
     .select(Game.basics());
@@ -75,14 +77,15 @@ router.get("/:userId/games/current-turn", async (ctx) => {
 
 router.get("/:userId/games/closed", async (ctx) => {
   ctx.body = await Game.findWithPlayer(ctx.state.foundUser._id)
-    .where({ status: "ended" })
+    .where("status")
+    .equals("ended")
     .skip(skipCount(ctx))
     .limit(queryCount(ctx))
     .select(Game.basics());
 });
 
 router.get("/:userId/games/count/:status", async (ctx) => {
-  const conditions: any = (() => {
+  const conditions: Record<string, unknown> = (() => {
     switch (ctx.params.status) {
       case "closed":
         return { status: "ended", "players._id": new ObjectID(ctx.state.foundUser._id) };
@@ -117,7 +120,8 @@ router.get("/:userId/games/count/:status", async (ctx) => {
 
 router.get("/:userId/games/elo", async (ctx) => {
   ctx.body = await GamePreferences.findWithPlayer(ctx.state.foundUser._id)
-    .where({ "elo.games": { $gt: 0 } })
+    .where("elo.games")
+    .gt(0)
     .skip(skipCount(ctx))
     .limit(queryCount(ctx))
     .select(GamePreferences.eloProjection())

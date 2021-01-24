@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export type GameData = any;
 
 export interface Engine {
@@ -13,10 +14,10 @@ export interface Engine {
   scores(data: GameData): number[];
 
   // Drops a player from the game
-  dropPlayer(data: any, player: number): Promise<GameData>;
+  dropPlayer(data: GameData, player: number): Promise<GameData>;
 
   // Get current player(s)
-  currentPlayer(data: any): number[] | number | undefined;
+  currentPlayer(data: GameData): number[] | number | undefined;
 
   // Returns how many log items the data has
   logLength(data: GameData): number;

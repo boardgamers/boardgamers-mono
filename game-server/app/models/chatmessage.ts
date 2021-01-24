@@ -1,14 +1,9 @@
-import mongoose from "mongoose";
-import { ObjectId } from "bson";
-import schema from "@lib/schemas/chatmessage";
+import mongoose, { Types } from "mongoose";
+import makeSchema from "@lib/schemas/chatmessage";
+import { ChatMessage } from "@lib/chatmessage";
 
-interface ChatMessageDocument extends mongoose.Document {
-  room: string;
-  author: ObjectId;
-  text: string;
-  type: string;
-}
+interface ChatMessageDocument extends mongoose.Document, ChatMessage<Types.ObjectId> {}
 
-const ChatMessage = mongoose.model<ChatMessageDocument>("ChatMessage", schema);
+const ChatMessage = mongoose.model("ChatMessage", makeSchema<ChatMessageDocument>());
 
 export default ChatMessage;

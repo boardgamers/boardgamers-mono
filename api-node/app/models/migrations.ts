@@ -50,9 +50,9 @@ export const migrations = {
   },
   "1.1.0": {
     async up() {
-      await Game.updateMany({ open: true }, { $set: { status: "open" }, $unset: ["open", "active"] });
-      await Game.updateMany({ active: true }, { $set: { status: "active" }, $unset: ["open", "active"] });
-      await Game.updateMany({ active: false }, { $set: { status: "ended" }, $unset: ["open", "active"] });
+      await Game.updateMany({ open: true }, { $set: { status: "open" }, $unset: { open: 1, active: 1 } });
+      await Game.updateMany({ active: true }, { $set: { status: "active" }, $unset: { open: 1, active: 1 } });
+      await Game.updateMany({ active: false }, { $set: { status: "ended" }, $unset: { open: 1, active: 1 } });
       await Game.updateMany({ status: { $in: ["active", "ended"] } }, [
         {
           $set: {

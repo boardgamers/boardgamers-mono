@@ -1,14 +1,14 @@
-import { ObjectId } from "bson";
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import locks from "mongo-locks";
-import schema from "@lib/schemas/gamenotification";
+import makeSchema from "@lib/schemas/gamenotification";
 import { GameNotification } from "@lib/gamenotification";
 import User, { maxKarma } from "./user";
 import Game from "./game";
 import Log, { LogItem } from "./log";
 import EloService from "../services/elo";
 
-interface GameNotificationDocument extends mongoose.Document, GameNotification<ObjectId> {}
+const schema = makeSchema<GameNotificationDocument, GameNotificationModel>();
+interface GameNotificationDocument extends mongoose.Document, GameNotification<Types.ObjectId> {}
 
 interface GameNotificationModel extends mongoose.Model<GameNotificationDocument> {
   processCurrentMove(): Promise<void>;
@@ -99,6 +99,6 @@ schema.static("processPlayerDrop", async function (this: GameNotificationModel) 
   }
 });
 
-const GameNotification = mongoose.model<GameNotificationDocument, GameNotificationModel>("GameNotification", schema);
+const GameNotification = mongoose.model("GameNotification", schema);
 
 export default GameNotification;

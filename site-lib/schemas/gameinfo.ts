@@ -1,4 +1,5 @@
-import { Schema } from "mongoose";
+import { Schema, Document, Model } from "mongoose";
+import type { GameInfo } from "../gameinfo";
 
 const repr = {
   _id: {
@@ -140,6 +141,6 @@ const repr = {
   },
 };
 
-const schema = new Schema(repr, { timestamps: true });
-
-export default schema;
+export default function makeSchema<T extends Document & GameInfo, U extends Model<T> = Model<T>>() {
+  return new Schema<T, U>(repr, { timestamps: true });
+}

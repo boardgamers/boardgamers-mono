@@ -1,5 +1,5 @@
 {
-  "license": "AGPL",
+  "license": "AGPL-3.0",
   "scripts": {
     "prettier": "prettier --write .",
     "back": "docker-compose -f \"docker-compose.yml\" up -d --build"

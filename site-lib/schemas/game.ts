@@ -1,4 +1,4 @@
-import { ObjectId, Schema, Document } from "mongoose";
+import { Types, Schema, Document, Model } from "mongoose";
 import type { IAbstractGame } from "../game";
 
 const repr = {
@@ -124,17 +124,22 @@ const repr = {
   },
 };
 
-const schema = new Schema<IAbstractGame<ObjectId> & Document<string>>(repr, { timestamps: true });
+export default function makeSchema<
+  T extends Document & IAbstractGame<Types.ObjectId>,
+  U extends Model<T> = Model<T>
+>() {
+  const schema = new Schema<T, U>(repr, { timestamps: true });
 
-// To... order open games & active games & closed games
-schema.index({ status: 1, lastMove: -1 });
+  // To... order open games & active games & closed games
+  schema.index({ status: 1, lastMove: -1 });
 
-// To check a player's (dropped) games in the last X days
-schema.index({ "players._id": 1, lastMove: -1 });
+  // To check a player's (dropped) games in the last X days
+  schema.index({ "players._id": 1, lastMove: -1 });
 
-schema.index(
-  { status: 1, scheduledStart: 1 },
-  { partialFilterExpression: { status: "open", "options.timing.scheduledStart": { $exists: true } } }
-);
+  schema.index(
+    { status: 1, scheduledStart: 1 },
+    { partialFilterExpression: { status: "open", "options.timing.scheduledStart": { $exists: true } } }
+  );
 
-export default schema;
+  return schema;
+}

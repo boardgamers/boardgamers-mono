@@ -1,14 +1,13 @@
-import type { IAbstractGame } from "@lib/game";
 import type { Dictionary } from "lodash";
-import type { ObjectID } from "bson";
+import type { Types } from "mongoose";
 import GamePreferences from "../models/gamepreferences";
 import { eloDiff } from "../engine/elo";
 import { keyBy, cloneDeep, omit } from "lodash";
 import type { GamePreferences as IGamePreferences } from "@lib/gamepreferences";
-import Game from "../models/game";
+import Game, { GameDocument } from "../models/game";
 
 export default class EloService {
-  static async processGame(game: IAbstractGame<ObjectID> & { _id: string }) {
+  static async processGame(game: GameDocument) {
     const dropped = game.players.some((pl) => pl.dropped);
     const prefs: Dictionary<IGamePreferences> = keyBy(
       await GamePreferences.find(
@@ -19,7 +18,7 @@ export default class EloService {
     );
 
     const scores: {
-      _id: ObjectID;
+      _id: Types.ObjectId;
       score: number;
       ranking?: number;
       dropped: boolean;

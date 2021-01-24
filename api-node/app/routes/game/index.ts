@@ -1,7 +1,6 @@
 import createError from "http-errors";
 import { Context } from "koa";
 import Router from "koa-router";
-import { ObjectID } from "bson";
 import { loggedIn, queryCount, isAdmin, skipCount, isConfirmed } from "../utils";
 import assert from "assert";
 import RoomMetaData, { RoomMetaDataDocument } from "../../models/roommetadata";
@@ -142,6 +141,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
       dropped: false,
       score: 0,
       name: ctx.state.user.account.username,
+      quit: false,
     });
   } else {
     // assert(false, "You need special authorization to create games without joining them!");
@@ -163,7 +163,7 @@ router.param("gameId", async (gameId, ctx, next) => {
 });
 
 router.get("/active", async (ctx) => {
-  const conditions = { status: "active" } as any;
+  const conditions: Record<string, unknown> = { status: "active" };
   if (ctx.query.user) {
     conditions["players._id"] = ctx.query.user;
   }
@@ -175,7 +175,7 @@ router.get("/active", async (ctx) => {
 });
 
 router.get("/active/count", async (ctx) => {
-  const conditions = { status: "active" } as any;
+  const conditions: Record<string, unknown> = { status: "active" };
   if (ctx.query.user) {
     conditions["players._id"] = ctx.query.user;
   }
@@ -183,7 +183,7 @@ router.get("/active/count", async (ctx) => {
 });
 
 router.get("/closed", async (ctx) => {
-  const conditions = { status: "ended" } as any;
+  const conditions: Record<string, unknown> = { status: "ended" };
   if (ctx.query.user) {
     conditions["players._id"] = ctx.query.user;
   }
@@ -196,7 +196,7 @@ router.get("/closed", async (ctx) => {
 });
 
 router.get("/closed/count", async (ctx) => {
-  const conditions = { status: "ended" } as any;
+  const conditions: Record<string, unknown> = { status: "ended" };
   if (ctx.query.user) {
     conditions["players._id"] = ctx.query.user;
   }
@@ -204,7 +204,7 @@ router.get("/closed/count", async (ctx) => {
 });
 
 router.get("/open", async (ctx) => {
-  const conditions = { status: "open", "options.meta.unlisted": { $ne: true } } as any;
+  const conditions: Record<string, unknown> = { status: "open", "options.meta.unlisted": { $ne: true } };
 
   if (ctx.query.maxKarma) {
     conditions.$or = [
@@ -232,7 +232,7 @@ router.get("/open", async (ctx) => {
 });
 
 router.get("/open/count", async (ctx) => {
-  const conditions = { status: "open", "options.meta.unlisted": { $ne: true } } as any;
+  const conditions: Record<string, unknown> = { status: "open", "options.meta.unlisted": { $ne: true } };
 
   if (ctx.query.user) {
     conditions["players._id"] = ctx.query.user;
@@ -318,10 +318,7 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
   );
 
   if (karma < 50) {
-    const games = await Game.findWithPlayer(ctx.state.user._id)
-      .where({ status: { $ne: "ended" } })
-      .limit(2)
-      .count();
+    const games = await Game.findWithPlayer(ctx.state.user._id).where("status").ne("ended").limit(2).count();
     assert(games < 2, "You can't join more than two games at the same time when your karma is less than 50");
   }
 
@@ -422,6 +419,7 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
   try {
     const game = await Game.findOne({ _id: ctx.params.gameId });
 
+    assert(game, createError(404));
     assert(game.status === "active", "The game is not ongoing");
 
     const player = game.players.find((pl) => pl._id.equals(ctx.state.user._id));

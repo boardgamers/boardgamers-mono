@@ -1,9 +1,9 @@
-import mongoose from "mongoose";
-import schema from "@lib/schemas/gamenotification";
+import mongoose, { Types } from "mongoose";
+import makeSchema from "@lib/schemas/gamenotification";
 import { GameNotification } from "@lib/gamenotification";
 
-interface GameNotificationDocument extends mongoose.Document, GameNotification {}
+interface GameNotificationDocument extends mongoose.Document, GameNotification<Types.ObjectId> {}
 
-const GameNotification = mongoose.model<GameNotificationDocument>("GameNotification", schema);
+const GameNotification = mongoose.model("GameNotification", makeSchema<GameNotificationDocument>());
 
 export default GameNotification;

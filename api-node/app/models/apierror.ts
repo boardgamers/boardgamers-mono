@@ -1,7 +1,6 @@
-import mongoose, { Schema, Model, Document } from "mongoose";
-import { ObjectID } from "mongodb";
+import mongoose, { Schema, Model, Document, Types } from "mongoose";
 
-export interface ApiError extends Document {
+export interface ApiErrorDocument extends Document {
   error: {
     name: string;
     message: string;
@@ -15,16 +14,16 @@ export interface ApiError extends Document {
      */
     body: string;
   };
-  meta?: any;
-  user: ObjectID;
+  meta?: unknown;
+  user: Types.ObjectId;
   updatedAt?: Date;
 }
 
-interface ApiErrorModel extends Model<ApiError> {
-  lastUnread(): Promise<ApiError[]>;
+interface ApiErrorModel extends Model<ApiErrorDocument> {
+  lastUnread(): Promise<ApiErrorDocument[]>;
 }
 
-const schema = new Schema(
+const schema = new Schema<ApiErrorDocument, ApiErrorModel>(
   {
     error: {
       name: String,
@@ -54,7 +53,7 @@ schema.static("lastUnread", async function (this: ApiErrorModel) {
 
 schema.index({ user: 1, createdAt: -1 });
 
-const ApiError = mongoose.model<ApiError, ApiErrorModel>("ApiError", schema);
+const ApiError = mongoose.model("ApiError", schema);
 
 ApiError.createIndexes();
 
