@@ -1,0 +1,42 @@
+image:
+  file: .gitpod.dockerfile
+
+tasks:
+  - init: |
+      touch /tmp/.npm-lock
+      cd api-node
+      pnpm install
+      cd ../game-server
+      pnpm install
+      cd ../webapp-vue
+      pnpm install
+      cd ../admin-app
+      yarn install
+      cd ..
+      rm /tmp/.npm-lock
+    command: mkdir -p /workspace/data && mongod --dbpath /workspace/data
+  - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
+    command: cd api-node && pnpm start
+  - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
+    command: cd game-server && pnpm start
+  - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
+    command: cd webapp-vue && pnpm serve
+  - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
+    command: cd admin-app && pnpm serve
+
+github:
+  prebuilds:
+    # enable for the master/default branch (defaults to true)
+    master: true
+    # enable for all branches in this repo (defaults to false)
+    branches: true
+    # enable for pull requests coming from this repo (defaults to true)
+    pullRequests: true
+    # enable for pull requests coming from forks (defaults to false)
+    pullRequestsFromForks: true
+    # add a "Review in Gitpod" button as a comment to pull requests (defaults to true)
+    addComment: true
+    # add a "Review in Gitpod" button to pull requests (defaults to false)
+    addBadge: false
+    # add a label once the prebuild is ready to pull requests (defaults to false)
+    addLabel: prebuilt-in-gitpod
