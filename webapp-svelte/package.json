@@ -5,7 +5,10 @@
     "test": "web-test-runner \"src/**/*.test.ts\""
   },
   "dependencies": {
-    "svelte": "^3.24.0"
+    "bootstrap": "4",
+    "svelte": "^3.24.0",
+    "svelte-routing": "^1.5.0",
+    "sveltestrap": "^3.12.2"
   },
   "devDependencies": {
     "@snowpack/plugin-dotenv": "^2.0.5",

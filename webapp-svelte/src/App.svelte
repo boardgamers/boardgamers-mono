@@ -1,3 +1,5 @@
+<Appbar />
+
 <div class="App">
 	<header class="App-header">
 		<div>
@@ -13,21 +15,21 @@
 </div>
 
 <script lang='typescript'>
-
-import {onMount} from 'svelte';
-let count: number = 0;
-let announcement: string = "";
-
-onMount(() => {
-	const interval = setInterval(() => count++, 1000);
-	fetch('/api/site/announcement').then(response => response.text()).then(ann => announcement = ann)
-
-	return () => {
-		clearInterval(interval);
-	};
+	import {onMount} from 'svelte';
+	import Appbar from './components/Appbar.svelte';
 	
-});
+	let count: number = 0;
+	let announcement: string = "";
 
+	onMount(() => {
+		const interval = setInterval(() => count++, 1000);
+		fetch('/api/site/announcement').then(response => response.text()).then(ann => announcement = ann)
+
+		return () => {
+			clearInterval(interval);
+		};
+		
+	});
 </script>
   
 <style>
