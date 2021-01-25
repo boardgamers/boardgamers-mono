@@ -38,6 +38,8 @@ A recent version of node, 14+ ideally, is required
 
 The instructions to run the [webapp](./webapp-vue/README.md) and the [admin](./admin-app/README.md) are available in their README.
 
+You can directly run the frontend against the website! No need to run the backend.
+
 ### Backend
 
 You can follow the instructions in [api-node](./api-node/README.md) and [game-server](./game-server/README.md), or you can just run the following command:
