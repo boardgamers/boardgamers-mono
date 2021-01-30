@@ -11,13 +11,12 @@
     <h3>Content</h3>
     <editor :options="{ usageStatistics: false }" class="page-editor mt-2" ref="content" :initialValue="page.content" />
 
-    <v-btn type="primary" color="primary" class="mt-3 float-right">Save</v-btn>
+    <v-btn type="primary" color="primary" class="mt-3 float-right" @click="updatePage">Save</v-btn>
   </div>
 </template>
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from "vue-property-decorator";
 import { Page } from "../types";
-import { set } from "lodash";
 
 @Component
 export default class PageEdit extends Vue {
