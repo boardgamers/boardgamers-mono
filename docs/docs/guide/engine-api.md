@@ -129,10 +129,17 @@ The end of the log slice. If `undefined`, it corresponds to the very end of the 
 ### setPlayerMetaData
 
 ```ts
-setPlayerMetaData(data: GameData, player: number, metaData: {name: string}): GameData
+setPlayerMetaData(data: GameData, player: number, metaData: {name: string, settings?: Record<string, unknown>}): GameData
 ```
 
-Set metadata on the player, from BGS. For now only the name is given, but other metadata such as an avatar, clan name, ... could be given in the future.
+Set metadata on the player, from BGS.
+
+- `name`: Name of the player
+- `settings`: Settings of the player that impact the game engine, for example autocharge settings in Gaia Project.
+
+If `settings` is undefined, remove all settings for player.
+
+Other metadata such as an avatar, clan name, ... could be given in the future.
 
 ### rankings
 
