@@ -1,11 +1,12 @@
 import assert from "assert";
 import Router from "koa-router";
 import Game from "../models/game";
+import GameInfo from "../models/gameinfo";
 import { loggedIn, isAdmin } from "./utils";
 import { getEngine } from "../services/engines";
 import locks from "mongo-locks";
 import { afterMove } from "../services/game";
-import { omit } from "lodash";
+import { keyBy, omit, pick } from "lodash";
 
 const router = new Router();
 
@@ -84,6 +85,77 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
         start: initialLogIndex,
         data: engine.logSlice(gameData, { start: initialLogIndex, player: playerIndex }),
       },
+    };
+  } finally {
+    free();
+  }
+});
+
+router.post("/:gameId/settings", loggedIn, async (ctx) => {
+  const game = await Game.findById(ctx.params.gameId);
+
+  if (!game) {
+    ctx.status = 404;
+    return;
+  }
+
+  const playerIndex = game.players?.findIndex((pl) => pl._id.equals(ctx.state.user.id));
+
+  assert(playerIndex !== -1, "You're not part of this game");
+  assert(game.status === "active", "You can only set settings on active games");
+
+  const gameInfo = await GameInfo.findById({ game: game.game.name, version: game.game.version })
+    .select("settings")
+    .lean(true);
+  const settings = keyBy(gameInfo.settings, "name");
+
+  // Make sure that the setting is well-formed
+  // could throw a BadRequestException instead
+  const filteredSettings = pick(ctx.request.body, Object.keys(settings));
+  for (const [key, setting] of Object.entries(filteredSettings)) {
+    switch (settings[key].type) {
+      case "checkbox":
+        if (typeof setting !== "boolean") {
+          delete filteredSettings[key];
+        }
+        break;
+      case "select":
+        if (!settings[key].items.some((item) => item.name === setting)) {
+          delete filteredSettings[key];
+        }
+        break;
+      default:
+        delete filteredSettings[key];
+    }
+  }
+
+  const engine = await getEngine(game.game.name, game.game.version);
+
+  assert(engine.setPlayerMetaData, "This game does not support custom settings");
+
+  const free = await locks.lock("game", ctx.params.gameId);
+  try {
+    const game = await Game.findById(ctx.params.gameId);
+
+    game.players[playerIndex].settings = filteredSettings;
+
+    let gameData = game.data;
+
+    gameData = engine.setPlayerMetaData(gameData, playerIndex, {
+      name: game.players[playerIndex].name,
+      settings: game.players[playerIndex].settings,
+    });
+
+    const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
+
+    if (toSave) {
+      game.data = toSave;
+    }
+
+    await game.save();
+
+    ctx.body = {
+      game: omit(game, "data"),
     };
   } finally {
     free();

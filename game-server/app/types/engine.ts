@@ -31,7 +31,11 @@ export interface Engine {
   // ************************************** OPTIONAL **************************************
   // **************************************************************************************
 
-  setPlayerMetaData(data: GameData, player: number, metaData: { name: string }): GameData;
+  setPlayerMetaData(
+    data: GameData,
+    player: number,
+    metaData: { name: string; settings?: Record<string, unknown> }
+  ): GameData;
 
   // Rankings for the players. Do it if the scores are not enough to determine the rankings,
   // for example if there is a way to differentiate ties between same scores, or if the
