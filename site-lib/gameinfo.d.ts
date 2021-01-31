@@ -24,6 +24,19 @@ export interface ViewerInfo {
   replayable: boolean;
 }
 
+type GameInfoOptions = Array<{
+  label: string;
+  type: "checkbox" | "select";
+  name: string;
+  items:
+    | [
+        {
+          name: string;
+          label: string;
+        }
+      ]
+    | null;
+}>;
 export interface GameInfo {
   _id: {
     game: string;
@@ -43,38 +56,19 @@ export interface GameInfo {
     };
     entryPoint: string;
   };
+
   // [{label: "Do not fill planets with faction color", name: 'noFactionFill', type: 'checkbox'}]
-  preferences: Array<{
-    label: string;
-    type: "checkbox" | "select";
-    name: string;
-    items:
-      | [
-          {
-            name: string;
-            label: string;
-          }
-        ]
-      | null;
-  }>;
+  preferences: GameInfoOptions;
+
+  // Player settings that affect the engine - like autocharge
+  settings: GameInfoOptions;
+
+  // [{label: "Last player <i>rotates</i> sectors before faction selection", name: "advancedRules", type: 'checkbox'}]
+  options: GameInfoOptions;
 
   // [2, 3, 4]
   players: number[];
 
-  // [{label: "Last player <i>rotates</i> sectors before faction selection", name: "advancedRules", type: 'checkbox'}]
-  options: Array<{
-    label: string;
-    type: "checkbox" | "select";
-    name: string;
-    items:
-      | [
-          {
-            name: string;
-            label: string;
-          }
-        ]
-      | null;
-  }>;
   // ['spaceships']
   expansions: Array<{
     label: string;

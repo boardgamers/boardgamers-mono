@@ -1,6 +1,40 @@
 import { Schema, Document, Model } from "mongoose";
 import type { GameInfo } from "../gameinfo";
 
+const optionSchema = [
+  {
+    _id: false,
+    label: {
+      type: String,
+      trim: true,
+      required: true,
+    },
+    type: {
+      type: String,
+      enum: ["checkbox", "select"],
+      required: true,
+    },
+    name: {
+      type: String,
+      required: true,
+    },
+    // When it's a select
+    items: [
+      {
+        _id: false,
+        name: {
+          type: String,
+          required: true,
+        },
+        label: {
+          type: String,
+          required: true,
+        },
+      },
+    ],
+  },
+];
+
 const repr = {
   _id: {
     game: {
@@ -57,71 +91,10 @@ const repr = {
     },
     entryPoint: String,
   },
-  preferences: [
-    {
-      _id: false,
-      label: {
-        type: String,
-        trim: true,
-        required: true,
-      },
-      type: {
-        type: String,
-        enum: ["checkbox", "select"],
-        items: [
-          {
-            _id: false,
-            name: {
-              type: String,
-              required: true,
-            },
-            label: {
-              type: String,
-              required: true,
-            },
-          },
-        ],
-        required: true,
-      },
-      name: {
-        type: String,
-        required: true,
-      },
-    },
-  ],
+  preferences: optionSchema,
+  settings: optionSchema,
+  options: optionSchema,
   players: [Number],
-  options: [
-    {
-      _id: false,
-      label: {
-        type: String,
-        trim: true,
-        required: true,
-      },
-      type: {
-        type: String,
-        enum: ["checkbox", "select"],
-        required: true,
-      },
-      name: {
-        type: String,
-        required: true,
-      },
-      items: [
-        {
-          _id: false,
-          name: {
-            type: String,
-            required: true,
-          },
-          label: {
-            type: String,
-            required: true,
-          },
-        },
-      ],
-    },
-  ],
   expansions: [
     {
       _id: false,

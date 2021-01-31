@@ -29,6 +29,7 @@ const repr = {
           initial: Number,
           delta: Number,
         },
+        settings: {},
       },
     ],
     default: () => [],
