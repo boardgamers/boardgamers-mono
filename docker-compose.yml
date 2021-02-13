@@ -26,3 +26,7 @@ services:
       - "dbUrl=mongodb://mongo:27017/admin"
       - "listenHost=::"
       - "cron=1"
+    volumes:
+      - games:/usr/src/app/games
+volumes:
+  games:
