@@ -2,7 +2,7 @@
 
 Game server for boardgamers.
 
-Dynamically load games based on db in subfolders, using the `pnpm` command to install them.
+Dynamically load games based on db in subfolders, using the `yarn` command to install them.
 
 To see the configuration variables, check [env.ts](app/config/env.ts).
 

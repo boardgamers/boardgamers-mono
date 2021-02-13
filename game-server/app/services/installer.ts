@@ -40,7 +40,7 @@ export async function installNewGames() {
       if (pkg.dependencies?.[key] !== value) {
         console.log("old version", pkg.dependencies?.[key], "new version", value);
         await new Promise((resolve, reject) => {
-          const process = spawn("pnpm", ["add", `${key}@${value}`], {
+          const process = spawn("yarn", ["add", `${key}@${value}`], {
             shell: true,
             cwd: "./games",
           });
