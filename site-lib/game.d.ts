@@ -13,7 +13,6 @@ export interface PlayerInfo<T = string> {
     initial?: number;
     delta?: number;
   };
-  settings?: Record<string, boolean | string | number>;
 }
 
 export interface IAbstractGame<T = string, Game = any, GameOptions = any> {

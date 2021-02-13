@@ -131,20 +131,15 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
 
   const engine = await getEngine(game.game.name, game.game.version);
 
-  assert(engine.setPlayerMetaData, "This game does not support custom settings");
+  assert(engine.setPlayerSettings, "This game does not support custom settings");
 
   const free = await locks.lock("game", ctx.params.gameId);
   try {
     const game = await Game.findById(ctx.params.gameId);
 
-    game.players[playerIndex].settings = filteredSettings;
-
     let gameData = game.data;
 
-    gameData = engine.setPlayerMetaData(gameData, playerIndex, {
-      name: game.players[playerIndex].name,
-      settings: game.players[playerIndex].settings,
-    });
+    gameData = engine.setPlayerSettings(gameData, playerIndex, filteredSettings);
 
     const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 
@@ -160,6 +155,25 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
   } finally {
     free();
   }
+});
+
+router.get("/:gameId/settings", loggedIn, async (ctx) => {
+  const game = await Game.findById(ctx.params.gameId);
+
+  if (!game) {
+    ctx.status = 404;
+    return;
+  }
+
+  const playerIndex = game.players?.findIndex((pl) => pl._id.equals(ctx.state.user.id));
+
+  assert(playerIndex !== -1, "You're not part of this game");
+  assert(game.status === "active", "You can only get settings on active games");
+
+  const engine = await getEngine(game.game.name, game.game.version);
+
+  assert(engine.playerSettings, "This game does not support custom settings");
+  ctx.body = engine.playerSettings(game, playerIndex);
 });
 
 router.get("/:gameId/log", async (ctx) => {
