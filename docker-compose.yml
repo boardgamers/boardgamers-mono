@@ -15,6 +15,7 @@ services:
     environment:
       - "dbUrl=mongodb://mongo:27017/admin"
       - "listenHost=::"
+      - "cron=1"
   game-server:
     build:
       context: .
@@ -24,3 +25,4 @@ services:
     environment:
       - "dbUrl=mongodb://mongo:27017/admin"
       - "listenHost=::"
+      - "cron=1"
