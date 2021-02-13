@@ -60,12 +60,23 @@
         >
       </div>
 
-      <div class="mt-75" v-if="gameInfo && gameInfo.settings.length > 0 && gameInfo.status === 'active' && playerUser">
+      <div class="mt-75" v-if="gameInfo && gameInfo.settings.length > 0 && game.status === 'active' && settings">
         <h3>Settings</h3>
         <div v-for="pref in gameInfo.settings" :key="pref.name">
-          <b-checkbox v-model="settings[pref.name]" @change="postSettings">
-            {{ pref.label }}
-          </b-checkbox>
+          <template v-if="pref.type === 'checkbox'">
+            <b-checkbox v-model="settings[pref.name]" @change="postSettings">
+              {{ pref.label }}
+            </b-checkbox>
+          </template>
+          <template v-else-if="pref.type === 'select'">
+            <b-form-group :label="pref.label" label-cols="auto">
+              <b-form-select
+                v-model="settings[pref.name]"
+                @change="postSettings"
+                :options="pref.items.map(({ name, label }) => ({ value: name, text: label }))"
+              ></b-form-select>
+            </b-form-group>
+          </template>
         </div>
       </div>
 
@@ -363,11 +374,14 @@ export default class GameSidebar extends Vue {
   @Watch("user._id", { immediate: true })
   async loadSettings() {
     if (this.game?.status !== "active" || !this.playerUser) {
+      this.settings = null;
       return;
     }
     const gameInfo = this.$gameInfo.info(this.game.game.name, this.game.game.version);
     if (!gameInfo || gameInfo.settings?.length > 0) {
-      this.settings = await this.$axios.get(`/gameplay/${this.game._id}/settings`);
+      this.settings = await this.$axios.get(`/gameplay/${this.game._id}/settings`).then((r) => r.data);
+    } else {
+      this.settings = null;
     }
   }
 
