@@ -44,7 +44,7 @@ async function checkDeadlines() {
 if (cluster.isMaster) {
   installGames();
 
-  if (env.chron) {
+  if (env.cron) {
     startGames();
     processQuits();
     checkDeadlines();
