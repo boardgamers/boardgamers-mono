@@ -145,12 +145,13 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
 
     if (toSave) {
       game.data = toSave;
+      game.markModified("data");
     }
 
     await game.save();
 
     ctx.body = {
-      game: omit(game, "data"),
+      settings: toSave ? engine.playerSettings(toSave, playerIndex) : null,
     };
   } finally {
     free();
@@ -173,7 +174,8 @@ router.get("/:gameId/settings", loggedIn, async (ctx) => {
   const engine = await getEngine(game.game.name, game.game.version);
 
   assert(engine.playerSettings, "This game does not support custom settings");
-  ctx.body = engine.playerSettings(game, playerIndex);
+
+  ctx.body = engine.playerSettings(game.data, playerIndex);
 });
 
 router.get("/:gameId/log", async (ctx) => {
