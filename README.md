@@ -36,10 +36,12 @@ The instructions to run the [webapp](./webapp-vue/README.md) and the [admin](./a
 You can follow the instructions in [api-node](./api-node/README.md) and [game-server](./game-server/README.md), or you can just run the following command:
 
 ```
-docker-compose up
+pnpm back
 ```
 
-This will take care of launching a mongodb instance as well
+This will take care of launching a mongodb instance as well.
+
+This is only for development. The mongodb database is exposed to the world!
 
 ## Contributing
 
