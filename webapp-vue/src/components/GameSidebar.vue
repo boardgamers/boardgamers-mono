@@ -59,6 +59,16 @@
           >Quit</b-btn
         >
       </div>
+
+      <div class="mt-75" v-if="gameInfo && gameInfo.settings.length > 0 && gameInfo.status === 'active' && playerUser">
+        <h3>Settings</h3>
+        <div v-for="pref in gameInfo.settings" :key="pref.name">
+          <b-checkbox v-model="settings[pref.name]" @change="postSettings">
+            {{ pref.label }}
+          </b-checkbox>
+        </div>
+      </div>
+
       <div class="mt-75" v-if="gameInfo && gameInfo.preferences.length > 0">
         <h3>Preferences</h3>
         <div v-for="pref in preferenceItems" :key="pref.name">
@@ -206,6 +216,8 @@ export default class GameSidebar extends Vue {
   showLog = false;
   showNotes = false;
 
+  settings = null;
+
   notes = "";
 
   get preferenceItems() {
@@ -296,6 +308,13 @@ export default class GameSidebar extends Vue {
     );
   }
 
+  async postSettings() {
+    if (!this.$store.state.user) {
+      return;
+    }
+    await this.$axios.post(`/gameplay/${this.game._id}/settings`, this.settings);
+  }
+
   async voteCancel() {
     const doIt = await this.$bvModal.msgBoxConfirm(
       "This vote cannot be taken back. If all active players vote to cancel, the game will be cancelled."
@@ -337,6 +356,19 @@ export default class GameSidebar extends Vue {
   @Watch("user._id")
   async loadPreferences() {
     this.$gameSettings.loadSettings(this.game?.game.name);
+  }
+
+  @Watch("game._id")
+  @Watch("game.status")
+  @Watch("user._id", { immediate: true })
+  async loadSettings() {
+    if (this.game?.status !== "active" || !this.playerUser) {
+      return;
+    }
+    const gameInfo = this.$gameInfo.info(this.game.game.name, this.game.game.version);
+    if (!gameInfo || gameInfo.settings?.length > 0) {
+      this.settings = await this.$axios.get(`/gameplay/${this.game._id}/settings`);
+    }
   }
 
   @Watch("notes")
