@@ -10,7 +10,7 @@
         required
         multiple
         v-model="info.players"
-        :items="[2, 3, 4, 5, 6, 7, 8, 9, 10].map((x) => ({ text: x + ' players', value: x }))"
+        :items="[2, 3, 4, 5, 6, 7, 8, 9, 10].map(x => ({ text: x + ' players', value: x }))"
       />
 
       <div v-for="(viewer, i) in [info.viewer, info.viewer.alternate]" :key="i">
@@ -56,7 +56,7 @@
     <h3 class="my-4">Settings</h3>
 
     <form @submit.prevent="updateGame">
-      <div v-for="variable in ['expansions', 'options', 'preferences']" :key="variable">
+      <div v-for="variable in ['expansions', 'options', 'preferences', 'settings']" :key="variable">
         <div v-for="i of info[variable].map((x, i) => i)" :key="i">
           <v-row>
             <v-col>
@@ -186,6 +186,7 @@ export default class GameEdit extends Vue {
     },
     preferences: [],
     options: [],
+    settings: [],
     players: [2, 3, 4],
     expansions: [],
     meta: {
@@ -222,7 +223,7 @@ export default class GameEdit extends Vue {
 
       set(data.viewer, "dependencies.scripts", data.viewer.dependencies?.scripts ?? []);
       set(data.viewer, "dependencies.stylesheets", data.viewer.dependencies?.stylesheets ?? []);
-      set(data, "engine.package", data?.engine?.package ?? { name: "", version: "" });
+      set(data, "engine.package", data.engine?.package ?? { name: "", version: "" });
       set(
         data.viewer,
         "alternate",
@@ -238,6 +239,7 @@ export default class GameEdit extends Vue {
           trusted: false,
         }
       );
+      set(data, "settings", data.settings ?? []);
 
       for (const item of [...data.options, ...data.preferences]) {
         item.items = item.items || null;
