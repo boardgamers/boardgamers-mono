@@ -447,7 +447,7 @@ export default class Game extends Vue {
 
   get resourcesLink() {
     return location.hostname === "localhost"
-      ? `//localhost:50804`
+      ? `/resources`
       : `//resources.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`; // + "?refreshToken=" + this.$store.jwt.refreshToken.code
   }
 
