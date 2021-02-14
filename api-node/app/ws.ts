@@ -50,6 +50,10 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
         delete msg.room;
       }
 
+      if (ws.readyState !== ws.OPEN) {
+        return;
+      }
+
       ws.send(
         JSON.stringify({
           room: data.room,
@@ -69,6 +73,10 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
         "security.lastActive security.lastOnline",
         { lean: true }
       );
+
+      if (ws.readyState !== ws.OPEN) {
+        return;
+      }
 
       // Send [{_id: player1, status: "online"}, {_id: player2, status: "offline"}, {_id: player3, status: "away"}]
       ws.send(
