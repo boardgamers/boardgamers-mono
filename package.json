@@ -3,6 +3,10 @@
   "scripts": {
     "prettier": "npx prettier --write .",
     "prettier-check": "npx prettier --check .",
-    "back": "docker-compose -f \"docker-compose.yml\" up -d --build"
+    "back": "docker-compose -f \"docker-compose.yml\" up -d --build",
+    "postinstall": "husky install"
+  },
+  "devDependencies": {
+    "husky": "^5.0.9"
   }
 }
