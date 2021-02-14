@@ -8,7 +8,7 @@
     "lint": "eslint server.ts app/**/*.{js,ts,tsx} --fix",
     "lint-check": "eslint server.ts app/**/*.{js,ts,tsx} --max-warnings 0",
     "nodemon": "nodemon -w app -w node_modules -w ../site-lib -w server.ts -e js,ts --exec npm start",
-    "start": "ts-node -T -r tsconfig-paths/register server.ts",
+    "start": "ts-node -T -r tsconfig-paths/register server.ts || npm start",
     "test": "mocha -r ts-node/register app/**/*.spec.ts app/*.spec.ts",
     "tsc": "tsc --noEmit"
   },
