@@ -1,5 +1,5 @@
+import { Document, Model, Schema, Types } from "mongoose";
 import { GameNotification } from "../gamenotification";
-import { Schema, Document, Model, Types } from "mongoose";
 
 const repr = {
   user: {

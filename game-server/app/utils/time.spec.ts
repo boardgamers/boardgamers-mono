@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { DateTime } from "luxon";
-import { isPaused, elapsedSeconds, deadline } from "./time";
+import { deadline, elapsedSeconds, isPaused } from "./time";
 
 const oneMinute = 60;
 const oneHour = 3600;

@@ -1,5 +1,5 @@
-import makeSchema from "@lib/schemas/gameinfo";
 import type { GameInfo as IGameInfo } from "@lib/gameinfo";
+import makeSchema from "@lib/schemas/gameinfo";
 import mongoose from "mongoose";
 
 interface GameInfoDocument extends mongoose.Document, IGameInfo {

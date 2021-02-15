@@ -1,12 +1,12 @@
 import assert from "assert";
-import createError from "http-errors";
-import Router from "koa-router";
-import { Context } from "koa";
 import { ObjectID } from "bson";
-import { queryCount, skipCount } from "../utils";
-import User from "../../models/user";
+import createError from "http-errors";
+import { Context } from "koa";
+import Router from "koa-router";
 import Game from "../../models/game";
 import GamePreferences from "../../models/gamepreferences";
+import User from "../../models/user";
+import { queryCount, skipCount } from "../utils";
 
 const router = new Router<Application.DefaultState, Context>();
 

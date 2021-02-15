@@ -1,7 +1,7 @@
+import { GameInfo, User } from "@/types";
+import { GamePreferences } from "@lib/gamepreferences";
 import Vue from "vue";
 import Vuex from "vuex";
-import { User, Game, GameInfo } from "@/types";
-import { GamePreferences } from "@lib/gamepreferences";
 
 Vue.use(Vuex);
 

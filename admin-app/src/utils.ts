@@ -1,5 +1,5 @@
-import store from "./store";
 import { AxiosError } from "axios";
+import store from "./store";
 
 function isAxiosError(err: AxiosError | any): err is AxiosError {
   return err.isAxiosError;

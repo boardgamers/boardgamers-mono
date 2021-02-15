@@ -1,5 +1,5 @@
+import { Document, Model, Schema, Types } from "mongoose";
 import type { ChatMessage } from "../chatmessage";
-import { Schema, Document, Model, Types } from "mongoose";
 
 const repr = {
   room: {

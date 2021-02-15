@@ -1,6 +1,6 @@
 import env from "../config/env";
-import User from "../models/user";
 import GameNotification from "../models/gamenotification";
+import User from "../models/user";
 import GameService from "./game";
 
 /* Check move deadlines every 10 seconds - only on one thread of the server */

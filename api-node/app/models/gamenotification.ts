@@ -1,11 +1,11 @@
-import mongoose, { Types } from "mongoose";
-import locks from "mongo-locks";
-import makeSchema from "@lib/schemas/gamenotification";
 import { GameNotification } from "@lib/gamenotification";
-import User, { maxKarma } from "./user";
+import makeSchema from "@lib/schemas/gamenotification";
+import locks from "mongo-locks";
+import mongoose, { Types } from "mongoose";
+import EloService from "../services/elo";
 import Game from "./game";
 import Log, { LogItem } from "./log";
-import EloService from "../services/elo";
+import User, { maxKarma } from "./user";
 
 const schema = makeSchema<GameNotificationDocument, GameNotificationModel>();
 interface GameNotificationDocument extends mongoose.Document, GameNotification<Types.ObjectId> {}

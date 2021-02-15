@@ -1,9 +1,9 @@
+import { Server } from "http";
 import mongoUnit from "mongo-unit";
 import mongoose from "mongoose";
-import initDb from "./db";
 import { listen } from "../app";
+import initDb from "./db";
 import env from "./env";
-import { Server } from "http";
 
 let server: Server;
 

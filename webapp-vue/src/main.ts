@@ -1,14 +1,14 @@
-import { BootstrapVue, BootstrapVueIcons } from "bootstrap-vue";
 import Chat from "@gaia-project/vue-beautiful-chat";
+import { BootstrapVue, BootstrapVueIcons } from "bootstrap-vue";
+import PortalVue from "portal-vue";
 import Vue from "vue";
 import App from "./App.vue";
-import router from "./router";
-import store from "./store";
-import PortalVue from "portal-vue";
 import "./filters";
 // import './registerServiceWorker';
 import "./plugins";
+import router from "./router";
 import "./services";
+import store from "./store";
 
 // import VueNativeSock from 'vue-native-websocket';
 // Vue.use(VueNativeSock, `ws://${window.location.host}:50802/chat`, {reconnection: true, store, format: 'json'});

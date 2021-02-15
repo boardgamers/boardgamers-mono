@@ -1,18 +1,16 @@
 /* Koa stuff */
+import { ViewerInfo } from "@lib/gameinfo";
+import { AssertionError } from "assert";
+import type { Server } from "http";
+import createError from "http-errors";
 import Koa from "koa";
 import compression from "koa-compress";
 import morgan from "koa-morgan";
-import createError from "http-errors";
-
-/* Configure passport */
-import env from "./config/env";
-
 /* Local stuff */
 import Router from "koa-router";
-import { AssertionError } from "assert";
-import type { Server } from "http";
+/* Configure passport */
+import env from "./config/env";
 import GameInfo from "./models/gameinfo";
-import { ViewerInfo } from "@lib/gameinfo";
 
 const router = new Router();
 

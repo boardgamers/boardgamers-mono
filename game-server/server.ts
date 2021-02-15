@@ -1,6 +1,5 @@
-import "dotenv/config";
 import cluster from "cluster";
-
+import "dotenv/config";
 import env from "./app/config/env";
 
 // In production, run a process for each CPU

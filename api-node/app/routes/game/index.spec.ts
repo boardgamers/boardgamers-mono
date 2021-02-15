@@ -1,14 +1,14 @@
+import axios, { AxiosError, AxiosRequestConfig } from "axios";
+import { ObjectId } from "bson";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { ObjectId } from "bson";
 import mongoUnit from "mongo-unit";
-import User from "../../models/user";
-import GameInfo from "../../models/gameinfo";
-import JwtRefreshToken from "../../models/jwtrefreshtokens";
-import axios, { AxiosRequestConfig, AxiosError } from "axios";
 import env from "../../config/env";
 import Game from "../../models/game";
+import GameInfo from "../../models/gameinfo";
 import GamePreferences from "../../models/gamepreferences";
+import JwtRefreshToken from "../../models/jwtrefreshtokens";
+import User from "../../models/user";
 
 chai.use(chaiAsPromised);
 

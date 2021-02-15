@@ -1,16 +1,16 @@
 import assert from "assert";
-import { Context } from "koa";
-import Router from "koa-router";
-import { merge, pick, fromPairs } from "lodash";
-import passport from "koa-passport";
-import { loggedOut, loggedIn } from "../utils";
 import createError from "http-errors";
-import GamePreferences from "../../models/gamepreferences";
-import Log from "../../models/log";
+import { Context } from "koa";
+import passport from "koa-passport";
+import Router from "koa-router";
+import { fromPairs, merge, pick } from "lodash";
 import GameInfo from "../../models/gameinfo";
-import User, { UserDocument } from "../../models/user";
-import auth from "./auth";
+import GamePreferences from "../../models/gamepreferences";
 import JwtRefreshToken from "../../models/jwtrefreshtokens";
+import Log from "../../models/log";
+import User, { UserDocument } from "../../models/user";
+import { loggedIn, loggedOut } from "../utils";
+import auth from "./auth";
 import { sendAuthInfo } from "./utils";
 
 const router = new Router<Application.DefaultState, Context>();

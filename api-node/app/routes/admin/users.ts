@@ -1,10 +1,10 @@
+import assert from "assert";
 import { Context } from "koa";
 import Router from "koa-router";
-import User from "../../models/user";
-import assert from "assert";
+import ApiError from "../../models/apierror";
 import GameInfo from "../../models/gameinfo";
 import GamePreferences from "../../models/gamepreferences";
-import ApiError from "../../models/apierror";
+import User from "../../models/user";
 
 const router = new Router<Application.DefaultState, Context>();
 

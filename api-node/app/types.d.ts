@@ -1,9 +1,9 @@
 /* eslint-disable */
 
 // declare module 'sendmail';
-import { UserDocument } from "./models/user";
 import { GameDocument } from "./models/game";
 import { GameInfoDocument } from "./models/gameinfo";
+import { UserDocument } from "./models/user";
 
 declare global {
   namespace Application {

@@ -1,9 +1,8 @@
-import "dotenv/config";
-import initDb from "./app/config/db";
 import cluster from "cluster";
-
-import env from "./app/config/env";
+import "dotenv/config";
 import { listen } from "./app/app";
+import initDb from "./app/config/db";
+import env from "./app/config/env";
 import { listen as listenResources } from "./app/resources";
 
 initDb();

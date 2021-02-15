@@ -1,8 +1,8 @@
-import Vue from "vue";
-import store from "../store";
-import { makeAxios } from "../plugins/axios";
 import { handleError } from "@/utils";
 import { sortBy, uniqBy } from "lodash";
+import Vue from "vue";
+import { makeAxios } from "../plugins/axios";
+import store from "../store";
 
 class GameInfoService {
   key(game: string, version: number | "latest") {

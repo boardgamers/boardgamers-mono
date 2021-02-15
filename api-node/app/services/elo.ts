@@ -1,10 +1,10 @@
-import type { Dictionary } from "lodash";
-import type { Types } from "mongoose";
-import GamePreferences from "../models/gamepreferences";
-import { eloDiff } from "../engine/elo";
-import { keyBy, cloneDeep, omit } from "lodash";
 import type { GamePreferences as IGamePreferences } from "@lib/gamepreferences";
+import type { Dictionary } from "lodash";
+import { cloneDeep, keyBy, omit } from "lodash";
+import type { Types } from "mongoose";
+import { eloDiff } from "../engine/elo";
 import Game, { GameDocument } from "../models/game";
+import GamePreferences from "../models/gamepreferences";
 
 export default class EloService {
   static async processGame(game: GameDocument) {

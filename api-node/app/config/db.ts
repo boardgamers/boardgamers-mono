@@ -1,8 +1,8 @@
+import cluster from "cluster";
 import locks from "mongo-locks";
 import mongoose from "mongoose";
-import env from "./env";
 import { migrate } from "../models/migrations";
-import cluster from "cluster";
+import env from "./env";
 
 mongoose.Promise = global.Promise; // native promises
 

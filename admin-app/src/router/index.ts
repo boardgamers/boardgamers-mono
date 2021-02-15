@@ -1,16 +1,16 @@
+import { makeAxios } from "@/plugins/axios";
+import { handleError } from "@/utils";
 import Vue from "vue";
-import VueRouter, { RouteConfig, Route, Location } from "vue-router";
-import Home from "../views/Home.vue";
+import VueRouter, { Location, Route, RouteConfig } from "vue-router";
+import store from "../store";
 import Game from "../views/Game.vue";
+import Home from "../views/Home.vue";
 import Login from "../views/Login.vue";
 import NewGame from "../views/NewGame.vue";
 import NewPage from "../views/NewPage.vue";
 import Page from "../views/Page.vue";
 import User from "../views/User.vue";
 import Users from "../views/Users.vue";
-import store from "../store";
-import { makeAxios } from "@/plugins/axios";
-import { handleError } from "@/utils";
 
 Vue.use(VueRouter);
 

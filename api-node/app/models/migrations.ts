@@ -1,9 +1,8 @@
 import semver from "semver";
 import pkg from "../../package.json";
-
-import User from "./user";
 import Game from "./game";
 import Settings, { SettingsKey } from "./settings";
+import User from "./user";
 
 export const migrations = {
   "1.0.0": {

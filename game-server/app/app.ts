@@ -1,18 +1,16 @@
 /* Koa stuff */
-import Koa from "koa";
-import compression from "koa-compress";
-import bodyParser from "koa-bodyparser";
-import morgan from "koa-morgan";
+import { AssertionError } from "assert";
 import createError from "http-errors";
 import jwt from "jsonwebtoken";
-
+import Koa from "koa";
+import bodyParser from "koa-bodyparser";
+import compression from "koa-compress";
+import morgan from "koa-morgan";
+import "./config/db";
 /* Configure passport */
 import env from "./config/env";
-import "./config/db";
-
 /* Local stuff */
 import router from "./routes";
-import { AssertionError } from "assert";
 
 const app = new Koa<Koa.DefaultState & { user: { id: string; isAdmin: boolean } }>();
 

@@ -1,7 +1,6 @@
-import Vue from "vue";
 import marked from "marked";
-
-import { niceDate, dateFromObjectId, timerTime } from "./utils";
+import Vue from "vue";
+import { dateFromObjectId, niceDate, timerTime } from "./utils";
 
 function pluralize(count: number, str: string, { showCount = true } = { showCount: true }) {
   return showCount ? `${count} ${str}${+count >= 2 ? "s" : ""}` : `${str}${+count >= 2 ? "s" : ""}`;

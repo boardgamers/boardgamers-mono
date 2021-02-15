@@ -1,12 +1,12 @@
 import assert from "assert";
 import Router from "koa-router";
+import { keyBy, omit, pick } from "lodash";
+import locks from "mongo-locks";
 import Game from "../models/game";
 import GameInfo from "../models/gameinfo";
-import { loggedIn, isAdmin } from "./utils";
 import { getEngine } from "../services/engines";
-import locks from "mongo-locks";
 import { afterMove } from "../services/game";
-import { keyBy, omit, pick } from "lodash";
+import { isAdmin, loggedIn } from "./utils";
 
 const router = new Router();
 

@@ -1,19 +1,18 @@
-import { Context } from "koa";
 import checkDiskSpace from "check-disk-space";
 import createError from "http-errors";
+import { Context } from "koa";
 import Router from "koa-router";
-import { isAdmin } from "../utils";
-import { SettingsKey } from "../../models/settings";
-import { sendAuthInfo } from "../account";
-import gameInfo from "./gameinfo";
-import page from "./pages";
-import users from "./users";
 import { env } from "../../config";
-import User from "../../models/user";
-import Settings from "../../models/settings";
 import Game from "../../models/game";
 import GameNotification from "../../models/gamenotification";
 import Log from "../../models/log";
+import Settings, { SettingsKey } from "../../models/settings";
+import User from "../../models/user";
+import { sendAuthInfo } from "../account";
+import { isAdmin } from "../utils";
+import gameInfo from "./gameinfo";
+import page from "./pages";
+import users from "./users";
 
 const router = new Router<Application.DefaultState, Context>();
 

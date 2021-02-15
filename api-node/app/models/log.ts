@@ -1,5 +1,5 @@
-import mongoose from "mongoose";
 import { ObjectId } from "bson";
+import mongoose from "mongoose";
 
 export interface LogItem {
   kind: "processGameEnded" | "processPlayerDrop" | "mailChange";

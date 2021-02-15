@@ -1,6 +1,6 @@
-import mongoose, { Schema } from "mongoose";
-import { ObjectId } from "bson";
 import { GamePreferences as IGamePreferences } from "@lib/gamepreferences";
+import { ObjectId } from "bson";
+import mongoose, { Schema } from "mongoose";
 
 export interface GamePreferencesDocument extends mongoose.Document<ObjectId>, IGamePreferences<ObjectId> {
   _id: ObjectId;

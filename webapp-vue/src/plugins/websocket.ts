@@ -1,8 +1,8 @@
+import { IUser } from "@lib/user";
 import { EventEmitter } from "events";
 import Vue from "vue";
-import { IUser } from "@lib/user";
-import { refreshTokenIfNeeded } from "./axios";
 import store from "../store";
+import { refreshTokenIfNeeded } from "./axios";
 
 class WebsocketHandler extends EventEmitter {
   ws: WebSocket = null;

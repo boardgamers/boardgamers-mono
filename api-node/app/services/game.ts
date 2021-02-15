@@ -1,7 +1,7 @@
-import Game, { GameDocument } from "../models/game";
-import ChatMessage from "../models/chatmessage";
-import GameNotification from "../models/gamenotification";
 import locks from "mongo-locks";
+import ChatMessage from "../models/chatmessage";
+import Game, { GameDocument } from "../models/game";
+import GameNotification from "../models/gamenotification";
 
 export default class GameService {
   static async notifyGameStart(game: GameDocument) {

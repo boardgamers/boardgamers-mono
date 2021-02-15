@@ -1,6 +1,6 @@
-import mongoose from "mongoose";
 import { GameInfo } from "@lib/gameinfo";
 import makeSchema from "@lib/schemas/gameinfo";
+import mongoose from "mongoose";
 
 const schema = makeSchema<GameInfoDocument, GameInfoModel>();
 

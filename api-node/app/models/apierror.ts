@@ -1,4 +1,4 @@
-import mongoose, { Schema, Model, Document, Types } from "mongoose";
+import mongoose, { Document, Model, Schema, Types } from "mongoose";
 
 export interface ApiErrorDocument extends Document {
   error: {

@@ -1,4 +1,4 @@
-import { Types, Schema, Document, Model } from "mongoose";
+import { Document, Model, Schema, Types } from "mongoose";
 import type { IAbstractGame } from "../game";
 
 const repr = {

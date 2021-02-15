@@ -1,5 +1,5 @@
-import Router from "koa-router";
 import { Context } from "koa";
+import Router from "koa-router";
 import Settings, { SettingsKey } from "../../models/settings";
 
 const router = new Router<Application.DefaultState, Context>();

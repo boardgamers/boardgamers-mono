@@ -1,16 +1,15 @@
+import { GameNotification as IGameNotification } from "@lib/gamenotification";
 import assert from "assert";
 import type { ObjectID } from "bson";
 import crypto from "crypto";
 import locks from "mongo-locks";
-
-import type { GameData, Engine } from "../types/engine";
-import ChatMessage from "../models/chatmessage";
-import GameNotification from "../models/gamenotification";
-import { GameNotification as IGameNotification } from "@lib/gamenotification";
-import Game, { GameDocument } from "../models/game";
-import { getEngine } from "./engines";
 import env from "../config/env";
+import ChatMessage from "../models/chatmessage";
+import Game, { GameDocument } from "../models/game";
+import GameNotification from "../models/gamenotification";
+import type { Engine, GameData } from "../types/engine";
 import { deadline, elapsedSeconds } from "../utils/time";
+import { getEngine } from "./engines";
 
 export async function handleMessages(engine: Engine, gameId: string, gameData: GameData): Promise<GameData> {
   if (engine.messages) {

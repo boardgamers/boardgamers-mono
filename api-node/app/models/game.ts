@@ -1,6 +1,6 @@
-import mongoose, { Types } from "mongoose";
 import { IAbstractGame } from "@lib/game";
 import makeSchema from "@lib/schemas/game";
+import mongoose, { Types } from "mongoose";
 
 const schema = makeSchema<GameDocument, GameModel>();
 export interface GameDocument extends IAbstractGame<Types.ObjectId>, mongoose.Document {}

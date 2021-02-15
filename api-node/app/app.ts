@@ -1,24 +1,21 @@
-import passport from "koa-passport";
-
-/* Koa stuff */
-import Koa from "koa";
-import compression from "koa-compress";
-import bodyParser from "koa-bodyparser";
-import cookie from "koa-cookie";
-import morgan from "koa-morgan";
+import { AssertionError } from "assert";
+import type { Server } from "http";
 import createError from "http-errors";
 import jwt from "jsonwebtoken";
-
+/* Koa stuff */
+import Koa from "koa";
+import bodyParser from "koa-bodyparser";
+import compression from "koa-compress";
+import cookie from "koa-cookie";
+import morgan from "koa-morgan";
+import passport from "koa-passport";
+import env from "./config/env";
 /* Configure passport */
 import "./config/passport";
-import env from "./config/env";
-
+import ApiError from "./models/apierror";
+import User, { UserDocument } from "./models/user";
 /* Local stuff */
 import router from "./routes";
-import { AssertionError } from "assert";
-import User, { UserDocument } from "./models/user";
-import type { Server } from "http";
-import ApiError from "./models/apierror";
 
 async function listen(port = env.listen.port.api) {
   const app = new Koa<Koa.DefaultState & { user: UserDocument }>();

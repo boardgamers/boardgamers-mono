@@ -1,4 +1,4 @@
-import { Schema, Document, Model } from "mongoose";
+import { Document, Model, Schema } from "mongoose";
 import type { GameInfo } from "../gameinfo";
 
 const optionSchema = [

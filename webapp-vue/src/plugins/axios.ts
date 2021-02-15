@@ -1,5 +1,5 @@
-import Vue from "vue";
 import axios, { AxiosError } from "axios";
+import Vue from "vue";
 import store from "../store";
 
 const baseURL = "/api/";

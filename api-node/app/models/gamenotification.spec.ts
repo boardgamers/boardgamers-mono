@@ -1,11 +1,11 @@
+import { ObjectId } from "bson";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { ObjectId } from "bson";
 import mongoUnit from "mongo-unit";
-import User, { defaultKarma, maxKarma } from "./user";
+import Game from "./game";
 import GameNotification from "./gamenotification";
 import GamePreferences from "./gamepreferences";
-import Game from "./game";
+import User, { defaultKarma, maxKarma } from "./user";
 
 chai.use(chaiAsPromised);
 

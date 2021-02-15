@@ -1,9 +1,9 @@
-import "../config/db";
 import cluster from "cluster";
-import { installNewGames } from "./installer";
-import { delay } from "../utils/delay";
-import { startNextGame, checkMoveDeadlines, processNextQuit } from "./game";
+import "../config/db";
 import env from "../config/env";
+import { delay } from "../utils/delay";
+import { checkMoveDeadlines, processNextQuit, startNextGame } from "./game";
+import { installNewGames } from "./installer";
 
 async function installGames() {
   while (1) {

@@ -1,9 +1,9 @@
-import Vue from "vue";
-import store from "../store";
-import { makeAxios } from "../plugins/axios";
 import { handleError } from "@/utils";
-import { AxiosError } from "axios";
 import { GamePreferences } from "@lib/gamepreferences";
+import { AxiosError } from "axios";
+import Vue from "vue";
+import { makeAxios } from "../plugins/axios";
+import store from "../store";
 
 class GameSettingsService {
   settings(game: string) {

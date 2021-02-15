@@ -1,16 +1,15 @@
 import assert from "assert";
-import passport from "koa-passport";
-import validator from "validator";
 import createError from "http-errors";
 import jwt from "jsonwebtoken";
-import env from "./env";
-
-import { Strategy as LocalStrategy } from "passport-local";
-import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { Strategy as FacebookStrategy } from "passport-facebook";
-import { Strategy as DiscordStrategy } from "passport-discord";
+import passport from "koa-passport";
 import type { Strategy } from "passport";
+import { Strategy as DiscordStrategy } from "passport-discord";
+import { Strategy as FacebookStrategy } from "passport-facebook";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { Strategy as LocalStrategy } from "passport-local";
+import validator from "validator";
 import User, { UserDocument } from "../models/user";
+import env from "./env";
 
 // =========================================================================
 // LOCAL SIGNUP ============================================================

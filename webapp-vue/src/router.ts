@@ -1,21 +1,21 @@
+import { handleError, handleInfo } from "@/utils";
 import Vue from "vue";
-import Router, { Route, Location } from "vue-router";
-import Home from "./views/Home.vue";
-import NotFoundComponent from "./views/NotFound.vue";
+import Router, { Location, Route } from "vue-router";
+import { makeAxios } from "./plugins/axios";
+import store from "./store";
+import Account from "./views/Account.vue";
 import Boardgame from "./views/Boardgame.vue";
 import BoardgameLayout from "./views/BoardgameLayout.vue";
-import Signup from "./views/Signup.vue";
-import Login from "./views/Login.vue";
-import Account from "./views/Account.vue";
 import Games from "./views/Games.vue";
-import NewGame from "./views/NewGame.vue";
 import GameSelection from "./views/GameSelection.vue";
+import Home from "./views/Home.vue";
+import Login from "./views/Login.vue";
+import NewGame from "./views/NewGame.vue";
+import NotFoundComponent from "./views/NotFound.vue";
 import Page from "./views/Page.vue";
 import Rankings from "./views/Rankings.vue";
+import Signup from "./views/Signup.vue";
 import User from "./views/User.vue";
-import store from "./store";
-import { handleError, handleInfo } from "@/utils";
-import { makeAxios } from "./plugins/axios";
 
 Vue.use(Router);
 
