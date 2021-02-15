@@ -7,4 +7,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v1
-      - run: npm run prettier-check
+      - uses: pnpm/action-setup@v1.2.0
+      - run: pnpm install
+      - run: pnpm run prettier-check
