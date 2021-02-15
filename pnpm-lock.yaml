@@ -3,6 +3,8 @@ devDependencies:
   lint-staged: 10.5.4
   prettier: 2.2.1
   prettier-plugin-organize-imports: 1.1.1_prettier@2.2.1+typescript@4.1.5
+  prettier-plugin-svelte: 2.1.4_prettier@2.2.1+svelte@3.32.3
+  svelte: 3.32.3
   typescript: 4.1.5
 lockfileVersion: 5.2
 packages:
@@ -537,6 +539,16 @@ packages:
       typescript: '>=2.8.2'
     resolution:
       integrity: sha512-rFA1lnek1FYkMGthm4xBKME41qUKItTovuo24bCGZu/Vu1n3gW71UPLAkIdwewwkZCe29gRVweSOPXvAdckFuw==
+  /prettier-plugin-svelte/2.1.4_prettier@2.2.1+svelte@3.32.3:
+    dependencies:
+      prettier: 2.2.1
+      svelte: 3.32.3
+    dev: true
+    peerDependencies:
+      prettier: ^1.16.4 || ^2.0.0
+      svelte: ^3.2.0
+    resolution:
+      integrity: sha512-fQfcIyl04VNWI3+JeseT+gLljs2bJJifbKmrTe8yMnTCdv0unfM1jnY2p4etzCfOj6skC1FPFaqBayYk3+7ZZg==
   /prettier/2.2.1:
     dev: true
     engines:
@@ -672,6 +684,12 @@ packages:
       node: '>=8'
     resolution:
       integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==
+  /svelte/3.32.3:
+    dev: true
+    engines:
+      node: '>= 8'
+    resolution:
+      integrity: sha512-5etu/wDwtewhnYO/631KKTjSmFrKohFLWNm1sWErVHXqGZ8eJLqrW0qivDSyYTcN8GbUqsR4LkIhftNFsjNehg==
   /through/2.3.8:
     dev: true
     resolution:
@@ -745,4 +763,6 @@ specifiers:
   lint-staged: ^10.5.4
   prettier: ^2.2.1
   prettier-plugin-organize-imports: ^1.1.1
+  prettier-plugin-svelte: ^2.1.4
+  svelte: ^3.32.3
   typescript: ^4.1.5
