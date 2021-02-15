@@ -34,13 +34,13 @@ let user = false;
             <div class="col-md-12">
               Log in with
               <div class="social-buttons">
-                <Button href="/api/account/auth/google" variant="google">Google</Button>
-                <Button href="/api/account/auth/discord" variant="discord">Discord</Button>
-                <Button href="/api/account/auth/facebook" variant="facebook">Facebook</Button>
+                <Button href="/api/account/auth/google" class="google">Google</Button>
+                <Button href="/api/account/auth/discord" class="discord">Discord</Button>
+                <Button href="/api/account/auth/facebook" class="facebook">Facebook</Button>
               </div>
               or
             </div>
-            <div class="bottom text-center">
+            <div class="bottom text-center bg-red-300">
               New ? <a href="/signup"><b>Join us</b></a>
             </div>
           </div>
@@ -50,7 +50,7 @@ let user = false;
   </Nav>
 </Navbar>
 
-<style type="text/scss" global>
+<style lang="postcss" global>
   .login-dp {
     min-width: 250px;
     padding: 14px 14px 0;
@@ -73,6 +73,21 @@ let user = false;
       a {
         width: 46%;
         margin-bottom: 8px;
+      }
+
+      .google {
+        background-color: #d74a38 !important;
+        border-color: #d74a38 !important;
+      }
+
+      .facebook {
+        background-color: #3a63bf;
+        border-color: #3a63bf;
+      }
+
+      .discord {
+        background-color: #7289da;
+        border-color: #7289da;
       }
     }
   }
