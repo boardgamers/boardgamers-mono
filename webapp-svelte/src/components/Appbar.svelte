@@ -1,3 +1,20 @@
+<script lang="ts">
+import {
+  Navbar,
+  NavbarBrand,
+  Nav,
+  NavItem,
+  UncontrolledDropdown,
+  DropdownToggle,
+  DropdownMenu,
+  Button,
+  Form,
+  FormGroup
+} from 'sveltestrap';
+
+let user = false;
+
+</script>
 
 <Navbar color="light" light expand>
   <!-- todo: reload game lists if on same page -->
@@ -29,28 +46,9 @@
           </div>
         </DropdownMenu>
       </UncontrolledDropdown>
-    {:else}
-    {/if}
+    {:else}{/if}
   </Nav>
 </Navbar>
-
-<script lang="ts">
-import {
-  Navbar,
-  NavbarBrand,
-  Nav,
-  NavItem,
-  UncontrolledDropdown,
-  DropdownToggle,
-  DropdownMenu,
-  Button,
-  Form,
-  FormGroup
-} from 'sveltestrap';
-
-let user = false;
-
-</script>
 
 <style type="text/scss" global>
   .login-dp {

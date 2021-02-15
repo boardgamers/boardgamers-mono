@@ -1,20 +1,4 @@
-<Appbar />
-
-<div class="App">
-	<header class="App-header">
-		<div>
-			{@html announcement}
-		</div>
-		<p>
-		<br/>
-		<a class="App-link" href="https://svelte.dev" target="_blank" rel="noopener noreferrer">
-			Learn Svelte
-		</a>
-		</p>
-	</header>
-</div>
-
-<script lang='typescript'>
+<script lang="typescript">
 	import {onMount} from 'svelte';
 	import Appbar from './components/Appbar.svelte';
 	
@@ -31,39 +15,49 @@
 		
 	});
 </script>
-  
+
+<Appbar />
+
+<div class="App">
+  <header class="App-header">
+    <div>
+      {@html announcement}
+    </div>
+    <p>
+      <br />
+      <a class="App-link" href="https://svelte.dev" target="_blank" rel="noopener noreferrer"> Learn Svelte </a>
+    </p>
+  </header>
+</div>
+
 <style>
+  :global(body) {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  .App {
+    text-align: center;
+  }
+  .App code {
+    background: #0002;
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+  .App p {
+    margin: 0.4rem;
+  }
 
-:global(body) {
-	margin: 0;
-	font-family: Arial, Helvetica, sans-serif;
-}
-.App {
-	text-align: center;
-}
-.App code {
-	background: #0002;
-	padding: 4px 8px;
-	border-radius: 4px;
-}
-.App p {
-	margin: 0.4rem;
-}
-
-.App-header {
-	background-color: #f9f6f6;
-	color: #333;
-	min-height: 100vh;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	font-size: calc(10px + 2vmin);
-}
-.App-link {
-	color: #ff3e00;
-}
-
+  .App-header {
+    background-color: #f9f6f6;
+    color: #333;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(10px + 2vmin);
+  }
+  .App-link {
+    color: #ff3e00;
+  }
 </style>
-  
-  
