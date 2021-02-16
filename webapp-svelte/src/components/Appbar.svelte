@@ -8,15 +8,18 @@ import {
   DropdownToggle,
   DropdownMenu,
   Button,
+  Input,
   Form,
-  FormGroup
+  FormGroup,
+  Label,
+  FormText
 } from 'sveltestrap';
 
 let user = false;
 
 </script>
 
-<Navbar color="light" light expand>
+<Navbar color="primary" dark expand>
   <!-- todo: reload game lists if on same page -->
   <NavbarBrand href="/">BGS</NavbarBrand>
   <!-- todo: mobile-only boardgame list -->
@@ -39,6 +42,22 @@ let user = false;
                 <Button href="/api/account/auth/facebook" class="facebook">Facebook</Button>
               </div>
               or
+              <Form class="mt-3">
+                <FormGroup>
+                  <Label hidden for="email">Email</Label>
+                  <Input id="email" type="email" required autofocus />
+                </FormGroup>
+                <FormGroup>
+                  <Label hidden for="password">Password</Label>
+                  <Input id="password" type="password" required />
+                  <FormText class="mt-2 pt-2">
+                    <a href="/forgotten-password">Forgotten password ?</a>
+                  </FormText>
+                </FormGroup>
+                <FormGroup>
+                  <Button type="submit" color="primary" block>Log in</Button>
+                </FormGroup>
+              </Form>
             </div>
             <div class="bottom text-center bg-red-300">
               New ? <a href="/signup"><b>Join us</b></a>
@@ -54,6 +73,7 @@ let user = false;
   .login-dp {
     min-width: 250px;
     padding: 14px 14px 0;
+    margin-top: 8px;
     overflow: hidden;
     background-color: rgba(255, 255, 255, 0.8);
 

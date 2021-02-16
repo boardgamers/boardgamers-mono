@@ -2,17 +2,10 @@
 	import {onMount} from 'svelte';
 	import Appbar from './components/Appbar.svelte';
 	
-	let count: number = 0;
 	let announcement: string = "";
 
 	onMount(() => {
-		const interval = setInterval(() => count++, 1000);
-		fetch('/api/site/announcement').then(response => response.text()).then(ann => announcement = ann)
-
-		return () => {
-			clearInterval(interval);
-		};
-		
+		fetch('/api/site/announcement').then(response => response.text()).then(ann => announcement = ann)	
 	});
 </script>
 
@@ -30,11 +23,12 @@
   </header>
 </div>
 
-<style>
+<style lang="postcss">
   :global(body) {
     margin: 0;
     font-family: Arial, Helvetica, sans-serif;
   }
+
   .App {
     text-align: center;
   }
