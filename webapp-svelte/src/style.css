@@ -1,0 +1,12 @@
+.btn-primary {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.bg-primary {
+  background-color: var(--primary) !important;
+}
+
+body {
+  --primary: #16508f;
+}

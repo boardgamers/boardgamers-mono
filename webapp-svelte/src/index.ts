@@ -1,5 +1,6 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import App from "./App.svelte";
+import "./style.css";
 
 var app = new App({
   target: document.body,
