@@ -92,7 +92,7 @@ const repr = {
     entryPoint: String,
   },
   preferences: optionSchema,
-  settings: optionSchema,
+  settings: [{ ...optionSchema[0], faction: String }],
   options: optionSchema,
   players: [Number],
   expansions: [

@@ -71,6 +71,12 @@
                 :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} name`"
               />
             </v-col>
+            <v-col v-if="variable === 'settings'">
+              <v-text-field
+                v-model.trim="info[variable][i].faction"
+                :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} faction`"
+              />
+            </v-col>
             <v-col cols="auto" v-if="variable !== 'expansions'">
               <v-select
                 :items="[
@@ -201,6 +207,13 @@ export default class GameEdit extends Vue {
   updateGame() {
     this.info.rules = (this.$refs.rules as any).invoke("getMarkdown");
     this.info.description = (this.$refs.description as any).invoke("getMarkdown");
+
+    // Remove empty faction strings
+    for (const setting of this.info.settings ?? []) {
+      if (!setting.faction) {
+        delete setting.faction;
+      }
+    }
 
     this.$emit("game:update", this.info);
   }

@@ -62,7 +62,12 @@
 
       <div class="mt-75" v-if="gameInfo && gameInfo.settings.length > 0 && game.status === 'active' && settings">
         <h3>Settings</h3>
-        <div v-for="pref in gameInfo.settings" :key="pref.name">
+        <div
+          v-for="pref in gameInfo.settings.filter(
+            (setting) => !setting.faction || setting.faction === playerUser.faction
+          )"
+          :key="pref.name"
+        >
           <template v-if="pref.type === 'checkbox'">
             <b-checkbox v-model="settings[pref.name]" @change="postSettings">
               {{ pref.label }}

@@ -24,7 +24,7 @@ export interface ViewerInfo {
   replayable: boolean;
 }
 
-type GameInfoOptions = Array<{
+type GameInfoOption = {
   label: string;
   type: "checkbox" | "select";
   name: string;
@@ -36,7 +36,7 @@ type GameInfoOptions = Array<{
         }
       ]
     | null;
-}>;
+};
 export interface GameInfo {
   _id: {
     game: string;
@@ -58,13 +58,13 @@ export interface GameInfo {
   };
 
   // [{label: "Do not fill planets with faction color", name: 'noFactionFill', type: 'checkbox'}]
-  preferences: GameInfoOptions;
+  preferences: GameInfoOption[];
 
   // Player settings that affect the engine - like autocharge
-  settings: GameInfoOptions;
+  settings: Array<GameInfoOption & { faction?: string }>;
 
   // [{label: "Last player <i>rotates</i> sectors before faction selection", name: "advancedRules", type: 'checkbox'}]
-  options: GameInfoOptions;
+  options: GameInfoOption[];
 
   // [2, 3, 4]
   players: number[];
