@@ -26,6 +26,7 @@ The game server needs to have a user with a role that has:
 - Read / Write access to the `gamenotifications` collection (`["insert", "find", "remove"]`)
 - Read / Write access to the `locks` collection (`["insert", "find", "remove", "update"]`)
 - Read access to the `gameinfos` collection, to load the game engines (`["find"]`)
+- Write access to the `apierrors` colletion (`["insert"]`)
 
 Due to mongoose (they should use `{authorizedCollections: true, nameOnly: true}`), this is also needed
 
@@ -35,6 +36,7 @@ For exemaple, in db shell:
 
 ```
 db.createRole({role: "game-server", privileges: [
+  {resource: {db: "gaia-project", collection: "apierrors"}, actions: ["insert"]},
   {resource: {db: "gaia-project", collection: "chatmessages"}, actions: ["insert"]},
   {resource: {db: "gaia-project", collection: "gameinfos"}, actions: ["find"]},
   {resource: {db: "gaia-project", collection: "gamenotifications"}, actions: ["insert", "find", "remove", "update"]},
@@ -42,6 +44,20 @@ db.createRole({role: "game-server", privileges: [
   {resource: {db: "gaia-project", collection: "locks"}, actions: ["insert", "find", "remove", "update"]},
   {resource: {db: "gaia-project", collection: ""}, actions: ["listCollections"]}
 ], roles: []});
+
+// or
+
+db.updateRole("game-server", {privileges: [
+  {resource: {db: "gaia-project", collection: "apierrors"}, actions: ["insert"]},
+  {resource: {db: "gaia-project", collection: "chatmessages"}, actions: ["insert"]},
+  {resource: {db: "gaia-project", collection: "gameinfos"}, actions: ["find"]},
+  {resource: {db: "gaia-project", collection: "gamenotifications"}, actions: ["insert", "find", "remove", "update"]},
+  {resource: {db: "gaia-project", collection: "games"}, actions: ["find", "update"]},
+  {resource: {db: "gaia-project", collection: "locks"}, actions: ["insert", "find", "remove", "update"]},
+  {resource: {db: "gaia-project", collection: ""}, actions: ["listCollections"]}
+], roles: []});
+
+// and
 
 db.createUser({
   user: "<name>",

@@ -88,6 +88,9 @@ async function listen(port = env.listen.port.api) {
             message: err.message,
           },
           user: ctx.state.user?._id,
+          meta: {
+            source: "api-node",
+          },
         });
         if (process.env.NODE_ENV !== "production" && !env.silent) {
           console.error(err);

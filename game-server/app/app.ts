@@ -9,6 +9,7 @@ import morgan from "koa-morgan";
 import "./config/db";
 /* Configure passport */
 import env from "./config/env";
+import ApiError from "./models/apierror";
 /* Local stuff */
 import router from "./routes";
 
@@ -59,6 +60,23 @@ app.use(async (ctx, next) => {
       ctx.status = 500;
       ctx.body = { message: "Internal error" };
     }
+
+    await ApiError.create({
+      request: {
+        url: ctx.request.originalUrl,
+        method: ctx.request.method,
+        body: JSON.stringify(ctx.request.body),
+      },
+      error: {
+        name: err.name,
+        stack: err.stack,
+        message: err.message,
+      },
+      user: ctx.state.user?.id,
+      meta: {
+        source: "game-server",
+      },
+    });
   }
 });
 
