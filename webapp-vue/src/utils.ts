@@ -20,6 +20,7 @@ export function handleError(err: Error | AxiosError | string) {
     store.commit("error", err);
   } else if (isAxiosError(err) && err.response?.data?.message) {
     store.commit("error", err.response.data.message);
+    console.error(err.response.data);
   } else if (isError(err)) {
     store.commit("error", err.message);
   } else {

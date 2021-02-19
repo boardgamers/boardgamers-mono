@@ -58,7 +58,7 @@ app.use(async (ctx, next) => {
       ctx.body = { message: err.message };
     } else {
       ctx.status = 500;
-      ctx.body = { message: "Internal error" };
+      ctx.body = { message: "Internal error: " + err.message, stack: err.stack };
     }
 
     await ApiError.create({
