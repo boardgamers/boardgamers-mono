@@ -79,7 +79,11 @@
                 v-model="settings[pref.name]"
                 @change="postSettings"
                 :options="pref.items.map(({ name, label }) => ({ value: name, text: label }))"
-              ></b-form-select>
+              >
+              </b-form-select>
+              <template #label>
+                <span v-html="oneLineMarked(pref.label)" />
+              </template>
             </b-form-group>
           </template>
         </div>
