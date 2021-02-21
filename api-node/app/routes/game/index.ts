@@ -437,6 +437,7 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
       await ChatMessage.create({ room: game._id, type: "system", data: { text: `Game cancelled` } });
       game.status = "ended";
       game.cancelled = true;
+      game.currentPlayers = null;
     }
 
     await game.save();
