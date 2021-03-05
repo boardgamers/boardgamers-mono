@@ -92,7 +92,7 @@
           <label for="timePerGame">Time per player per game</label>
           <select v-model="timePerGame" id="timePerGame" class="form-control">
             <option
-              v-for="x in [600, 1800, 3600, 6 * 3600, 24 * 3600, 3 * 24 * 3600, 10 * 24 * 3600]"
+              v-for="x in [300, 600, 1800, 3600, 6 * 3600, 24 * 3600, 3 * 24 * 3600, 10 * 24 * 3600]"
               :value="x"
               :key="x"
             >
@@ -104,7 +104,7 @@
         <div class="form-group col-md-6">
           <label for="timePerMove">Additional time per move</label>
           <select v-model="timePerMove" id="timePerMove" class="form-control">
-            <option v-for="x in [60, 5 * 60, 15 * 60, 3600, 2 * 3600, 6 * 3600, 24 * 3600]" :value="x" :key="x">
+            <option v-for="x in [30, 60, 5 * 60, 15 * 60, 3600, 2 * 3600, 6 * 3600, 24 * 3600]" :value="x" :key="x">
               {{ x | duration }}
             </option>
           </select>
