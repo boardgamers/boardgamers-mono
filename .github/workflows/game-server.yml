@@ -5,6 +5,8 @@ on:
       - ".github/workflows/game-server.yml"
       - "game-server/**"
       - "site-lib/**"
+    branches:
+      - master
   pull_request:
     paths:
       - ".github/workflows/game-server.yml"

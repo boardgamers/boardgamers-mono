@@ -5,6 +5,8 @@ on:
       - ".github/workflows/api-node.yml"
       - "api-node/**"
       - "site-lib/**"
+    branches:
+      - master
   pull_request:
     paths:
       - ".github/workflows/api-node.yml"
