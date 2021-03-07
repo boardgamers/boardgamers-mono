@@ -18,7 +18,12 @@ export default {
     port: +process.env.port || 50803,
     host: process.env.listenHost ?? "localhost",
   },
-  dbUrl: process.env.dbUrl || "mongodb://localhost:27017/admin",
+  database: {
+    bgs: {
+      url: process.env.dbUrl || "mongodb://localhost:27017/admin",
+      name: process.env.dbName || "gaia-project",
+    },
+  },
   isProduction: process.env.NODE_ENV === "production",
   threads: process.env.threads || os.cpus().length,
   seedEncryptionKey: process.env.seedEncryptionKey || "hashing key for seed",

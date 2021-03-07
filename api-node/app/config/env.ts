@@ -34,8 +34,13 @@ export default {
     },
     host: process.env.listenHost ?? "localhost",
   },
-  dbUrl: process.env.dbUrl || "mongodb://localhost:27017/admin",
-  nodebb: "mongodb://nodebb:NodeBBPassword@localhost:27017/nodebb",
+  database: {
+    bgs: {
+      url: process.env.dbUrl || "mongodb://localhost:27017/admin",
+      name: process.env.dbName || "gaia-project",
+    },
+    nodebb: "mongodb://nodebb:NodeBBPassword@localhost:27017/nodebb",
+  },
   isProduction: process.env.NODE_ENV === "production",
   threads: process.env.threads || os.cpus().length,
   /** Is the computer able to send emails? If not, let the main server send the emails */

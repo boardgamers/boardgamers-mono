@@ -7,7 +7,9 @@ import env from "./env";
 
 let server: Server;
 
-mongoUnit.start({ dbName: "gaia-project", version: "4.2.7" }).then(async () => {
+env.database.bgs.name += "-test";
+
+mongoUnit.start({ dbName: env.database.bgs.name, version: "4.2.7" }).then(async () => {
   console.log("fake mongo is started: ", mongoUnit.getUrl());
   await initDb(mongoUnit.getUrl(), false);
   env.listen.port.api = 50606;
