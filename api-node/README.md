@@ -31,6 +31,5 @@ NODE_ENV=production
 automatedEmails=true
 sessionSecret=customSessionSecret
 domain=my-domain.com
-automatedDrops=0
 dbUrl=<custom mongodb url>
 ```
