@@ -3,9 +3,9 @@ import makeSchema from "@lib/schemas/gamenotification";
 import locks from "mongo-locks";
 import mongoose, { Types } from "mongoose";
 import EloService from "../services/elo";
-import Game from "./game";
-import Log, { LogItem } from "./log";
-import User, { maxKarma } from "./user";
+import { Game } from "./game";
+import { Log, LogItem } from "./log";
+import { maxKarma, User } from "./user";
 
 const schema = makeSchema<GameNotificationDocument, GameNotificationModel>();
 interface GameNotificationDocument extends mongoose.Document, GameNotification<Types.ObjectId> {}
@@ -101,4 +101,4 @@ schema.static("processPlayerDrop", async function (this: GameNotificationModel) 
 
 const GameNotification = mongoose.model("GameNotification", schema);
 
-export default GameNotification;
+export { GameNotification };

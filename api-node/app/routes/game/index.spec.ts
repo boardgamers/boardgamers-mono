@@ -4,11 +4,7 @@ import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import mongoose from "mongoose";
 import env from "../../config/env";
-import Game from "../../models/game";
-import GameInfo from "../../models/gameinfo";
-import GamePreferences from "../../models/gamepreferences";
-import JwtRefreshToken from "../../models/jwtrefreshtokens";
-import User from "../../models/user";
+import { Game, GameInfo, GamePreferences, JwtRefreshToken, User } from "../../models";
 
 chai.use(chaiAsPromised);
 

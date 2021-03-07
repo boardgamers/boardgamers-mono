@@ -3,8 +3,7 @@ import type { Dictionary } from "lodash";
 import { cloneDeep, keyBy, omit } from "lodash";
 import type { Types } from "mongoose";
 import { eloDiff } from "../engine/elo";
-import Game, { GameDocument } from "../models/game";
-import GamePreferences from "../models/gamepreferences";
+import { Game, GameDocument, GamePreferences } from "../models";
 
 export default class EloService {
   static async processGame(game: GameDocument) {

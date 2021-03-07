@@ -6,9 +6,7 @@ import cache from "node-cache";
 import WebSocket, { Server } from "ws";
 import "./config/db";
 import env from "./config/env";
-import ChatMessage from "./models/chatmessage";
-import Game, { GameDocument } from "./models/game";
-import User from "./models/user";
+import { ChatMessage, Game, GameDocument, User } from "./models";
 
 const wss = new Server({ port: env.listen.port.ws, host: env.listen.host });
 

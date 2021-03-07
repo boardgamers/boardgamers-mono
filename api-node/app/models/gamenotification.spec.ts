@@ -2,10 +2,7 @@ import { ObjectId } from "bson";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import mongoose from "mongoose";
-import Game from "./game";
-import GameNotification from "./gamenotification";
-import GamePreferences from "./gamepreferences";
-import User, { defaultKarma, maxKarma } from "./user";
+import { defaultKarma, Game, GameNotification, GamePreferences, maxKarma, User } from "./index";
 
 chai.use(chaiAsPromised);
 

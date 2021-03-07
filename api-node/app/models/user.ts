@@ -7,7 +7,7 @@ import _ from "lodash";
 import locks from "mongo-locks";
 import mongoose from "mongoose";
 import { env, sendmail } from "../config";
-import Game from "./game";
+import { Game } from "./game";
 
 const Schema = mongoose.Schema;
 
@@ -456,6 +456,4 @@ schema.pre("save", function (this: UserDocument) {
 });
 
 const User = mongoose.model("User", schema);
-
-// create the model for users and expose it to our app
-export default User;
+export { User };

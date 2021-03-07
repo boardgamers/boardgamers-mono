@@ -29,4 +29,4 @@ const schema = new mongoose.Schema(
 
 const Log = mongoose.model<LogDocument>("log", schema);
 
-export default Log;
+export { Log };

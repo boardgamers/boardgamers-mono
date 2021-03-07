@@ -2,9 +2,7 @@ import assert from "assert";
 import createError from "http-errors";
 import { Context } from "koa";
 import Router from "koa-router";
-import Game from "../../models/game";
-import GameInfo from "../../models/gameinfo";
-import GamePreferences from "../../models/gamepreferences";
+import { Game, GameInfo, GamePreferences } from "../../models";
 import GameInfoService from "../../services/gameinfo";
 import { queryCount, skipCount } from "../utils";
 

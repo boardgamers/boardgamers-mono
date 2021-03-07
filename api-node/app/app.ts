@@ -12,8 +12,7 @@ import passport from "koa-passport";
 import env from "./config/env";
 /* Configure passport */
 import "./config/passport";
-import ApiError from "./models/apierror";
-import User, { UserDocument } from "./models/user";
+import { ApiError, User, UserDocument } from "./models";
 /* Local stuff */
 import router from "./routes";
 

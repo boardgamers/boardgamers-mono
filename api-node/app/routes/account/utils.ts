@@ -1,5 +1,5 @@
 import { Context } from "koa";
-import JwtRefreshToken from "../../models/jwtrefreshtokens";
+import { JwtRefreshToken } from "../../models";
 
 export async function sendAuthInfo(ctx: Context) {
   const refreshToken = new JwtRefreshToken({

@@ -3,7 +3,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import { env } from "../config";
-import User from "./user";
+import { User } from "./user";
 
 const Schema = mongoose.Schema;
 
@@ -57,4 +57,4 @@ schema.static("accessTokenDuration", function (this: JwtRefreshTokenModel) {
 
 const JwtRefreshToken = mongoose.model<JwtRefreshTokenDocument, JwtRefreshTokenModel>("JwtRefreshToken", schema);
 
-export default JwtRefreshToken;
+export { JwtRefreshToken };

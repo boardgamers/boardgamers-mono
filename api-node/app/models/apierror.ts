@@ -3,4 +3,4 @@ import mongoose from "mongoose";
 
 const ApiError = mongoose.model("ApiError", makeSchema());
 
-export default ApiError;
+export { ApiError };

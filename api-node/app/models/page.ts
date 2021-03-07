@@ -20,4 +20,4 @@ const schema = new mongoose.Schema({
 
 const Page = mongoose.model<PageDocument>("page", schema);
 
-export default Page;
+export { Page };

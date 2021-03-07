@@ -40,4 +40,4 @@ schema.static("eloProjection", () => {
 
 const GamePreferences = mongoose.model<GamePreferencesDocument, GamePreferencesModel>("GamePreferences", schema);
 
-export default GamePreferences;
+export { GamePreferences };

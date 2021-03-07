@@ -10,9 +10,11 @@ const schema = new mongoose.Schema({
   value: String,
 });
 
-export default mongoose.model<SettingsDocument>("settings", schema);
+const Settings = mongoose.model<SettingsDocument>("settings", schema);
 
 export enum SettingsKey {
   Announcement = "announcement",
   DBVersion = "dbVersion",
 }
+
+export { Settings };

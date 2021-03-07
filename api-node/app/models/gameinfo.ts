@@ -24,4 +24,4 @@ schema.static("findWithVersion", function (this: GameInfoModel, game: string, ve
 
 const GameInfo = mongoose.model("GameInfo", schema);
 
-export default GameInfo;
+export { GameInfo };

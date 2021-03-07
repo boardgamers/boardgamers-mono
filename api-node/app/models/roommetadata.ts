@@ -31,4 +31,4 @@ roomDataSchema.index({ room: 1, user: 1 }, { unique: true });
 
 const RoomMetaData = mongoose.model<RoomMetaDataDocument>("RoomMetaData", roomDataSchema);
 
-export default RoomMetaData;
+export { RoomMetaData };

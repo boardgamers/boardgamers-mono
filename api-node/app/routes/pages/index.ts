@@ -1,6 +1,6 @@
 import { Context } from "koa";
 import Router from "koa-router";
-import Page from "../../models/page";
+import { Page } from "../../models";
 
 const router = new Router<Application.DefaultState, Context>();
 

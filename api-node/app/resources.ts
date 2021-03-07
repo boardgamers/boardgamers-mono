@@ -10,7 +10,7 @@ import morgan from "koa-morgan";
 import Router from "koa-router";
 /* Configure passport */
 import env from "./config/env";
-import GameInfo from "./models/gameinfo";
+import { GameInfo } from "./models";
 
 const router = new Router();
 

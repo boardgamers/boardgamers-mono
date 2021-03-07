@@ -8,7 +8,7 @@ import { Strategy as FacebookStrategy } from "passport-facebook";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as LocalStrategy } from "passport-local";
 import validator from "validator";
-import User, { UserDocument } from "../models/user";
+import { User, UserDocument } from "../models";
 import env from "./env";
 
 // =========================================================================
@@ -68,14 +68,6 @@ passport.use(
         newUser.account.password = await newUser.generateHash(password);
         newUser.settings.mailing.newsletter = req.body.newsletter === true || req.body.newsletter === "true";
         newUser.generateConfirmKey();
-
-        const users = await User.count().limit(1);
-
-        // First user in dev mode is admin
-        if (users === 0 && !env.isProduction) {
-          newUser.authority = "admin";
-          newUser.security.confirmed = true;
-        }
 
         // save the user
         await newUser.save();

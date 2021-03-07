@@ -3,9 +3,7 @@ import { ObjectID } from "bson";
 import createError from "http-errors";
 import { Context } from "koa";
 import Router from "koa-router";
-import Game from "../../models/game";
-import GamePreferences from "../../models/gamepreferences";
-import User from "../../models/user";
+import { Game, GamePreferences, User } from "../../models";
 import { queryCount, skipCount } from "../utils";
 
 const router = new Router<Application.DefaultState, Context>();

@@ -1,7 +1,7 @@
 import { Context } from "koa";
 import Router from "koa-router";
 import { omit } from "lodash";
-import GameInfo from "../../models/gameinfo";
+import { GameInfo } from "../../models";
 
 const router = new Router<Application.DefaultState, Context>();
 

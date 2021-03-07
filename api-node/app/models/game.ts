@@ -60,4 +60,4 @@ schema.pre("validate", function (this: GameDocument) {
 });
 
 const Game = mongoose.model("Game", schema);
-export default Game;
+export { Game };

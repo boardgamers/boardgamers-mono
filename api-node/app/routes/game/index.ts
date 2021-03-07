@@ -5,13 +5,16 @@ import Router from "koa-router";
 import { omit, shuffle } from "lodash";
 import locks from "mongo-locks";
 import { timerDuration } from "../../engine/time-utils";
-import ChatMessage from "../../models/chatmessage";
-import Game from "../../models/game";
-import GameInfo from "../../models/gameinfo";
-import GameNotification from "../../models/gamenotification";
-import GamePreferences from "../../models/gamepreferences";
-import RoomMetaData, { RoomMetaDataDocument } from "../../models/roommetadata";
-import User from "../../models/user";
+import {
+  ChatMessage,
+  Game,
+  GameInfo,
+  GameNotification,
+  GamePreferences,
+  RoomMetaData,
+  RoomMetaDataDocument,
+  User,
+} from "../../models";
 import GameService from "../../services/game";
 import { isAdmin, isConfirmed, loggedIn, queryCount, skipCount } from "../utils";
 
