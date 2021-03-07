@@ -1,5 +1,4 @@
 import { Server } from "http";
-import mongoUnit from "mongo-unit";
 import mongoose from "mongoose";
 import { listen } from "../app";
 import initDb from "./db";
@@ -9,17 +8,22 @@ let server: Server;
 
 env.database.bgs.name += "-test";
 
-mongoUnit.start({ dbName: env.database.bgs.name, version: "4.2.7" }).then(async () => {
-  console.log("fake mongo is started: ", mongoUnit.getUrl());
-  await initDb(mongoUnit.getUrl(), false);
+async function init() {
+  await initDb(env.database.bgs.url, false);
+  await mongoose.connection.db.dropDatabase();
+
   env.listen.port.api = 50606;
   env.silent = true;
-  server = await listen();
-  run();
-});
 
-after(() => {
+  server = await listen();
+
+  run();
+}
+
+init();
+
+after(async () => {
   server.close();
-  mongoose.connection.close();
-  return mongoUnit.stop();
+  await mongoose.connection.db.dropDatabase();
+  await mongoose.connection.close();
 });

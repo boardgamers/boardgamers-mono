@@ -1,7 +1,7 @@
 import { ObjectId } from "bson";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import mongoUnit from "mongo-unit";
+import mongoose from "mongoose";
 import Game from "./game";
 import GameNotification from "./gamenotification";
 import GamePreferences from "./gamepreferences";
@@ -32,7 +32,7 @@ describe("GameNotification", () => {
           ],
         });
       });
-      after(() => mongoUnit.drop());
+      after(() => mongoose.connection.db.dropDatabase());
 
       it("should add karma to the active player and no karma to the dropped player", async () => {
         await GameNotification.create({ kind: "gameEnded", game: "test" });
@@ -78,7 +78,7 @@ describe("GameNotification", () => {
         await GamePreferences.create({ game: "gaia-project", user: userId2, elo: { value: 110, games: 110 } });
         await GamePreferences.create({ game: "gaia-project", user: userId3, elo: { value: 105, games: 5 } });
       });
-      afterEach(async () => mongoUnit.drop());
+      afterEach(() => mongoose.connection.db.dropDatabase());
 
       it("should add elo to player and player2, and min elo 100 to player3, set elo 1 to beginner player4 ", async () => {
         await GameNotification.create({ kind: "gameEnded", game: "test" });
@@ -170,7 +170,7 @@ describe("GameNotification", () => {
       await User.create({ _id: userId2, account: { username: "test2", email: "test2@test.com" } });
     });
 
-    after(() => mongoUnit.drop());
+    after(() => mongoose.connection.db.dropDatabase());
 
     it("should drop 10 karma after dropping out", async () => {
       await GameNotification.create({
