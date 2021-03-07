@@ -8,7 +8,7 @@ mongoose.Promise = global.Promise; // native promises
 
 let dbInit = false;
 
-export default async function initDb(url = env.dbUrl, runMigrations = true) {
+export default async function initDb(url = env.database.bgs.url, runMigrations = true) {
   if (dbInit) {
     console.log("DB already initialized");
     return;
@@ -16,7 +16,7 @@ export default async function initDb(url = env.dbUrl, runMigrations = true) {
 
   dbInit = true;
 
-  mongoose.connect(url, { dbName: "gaia-project", useNewUrlParser: true });
+  mongoose.connect(url, { dbName: env.database.bgs.name, useNewUrlParser: true });
   locks.init(mongoose.connection);
 
   return new Promise<void>((resolve, reject) => {
