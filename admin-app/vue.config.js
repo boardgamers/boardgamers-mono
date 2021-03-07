@@ -9,7 +9,8 @@ module.exports = {
       },
     },
     port: "8613",
-    allowedHosts: ["admin.gaia.local", "localhost:8613"],
+    // For gitpod, it needs to be disabled
+    disableHostCheck: true,
   },
   transpileDependencies: ["vuetify"],
 };

@@ -18,7 +18,7 @@ tasks:
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
     command: cd api-node && pnpm seed && pnpm start
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
-    command: cd game-server && pnpm start
+    command: cd game-server && echo cron=1 > .env && pnpm start
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
     command: cd webapp-vue && pnpm serve
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
@@ -44,3 +44,7 @@ github:
     addBadge: false
     # add a label once the prebuild is ready to pull requests (defaults to false)
     addLabel: prebuilt-in-gitpod
+
+vscode:
+  extensions:
+    - octref.vetur@0.32.0:03mwRhlVpWDul4qBChcVUA==
