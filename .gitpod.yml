@@ -16,7 +16,7 @@ tasks:
       rm /tmp/.npm-lock
     command: mkdir -p /workspace/data && mongod --dbpath /workspace/data
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
-    command: cd api-node && pnpm start
+    command: cd api-node && pnpm seed && pnpm start
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
     command: cd game-server && pnpm start
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
