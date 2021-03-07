@@ -19,7 +19,7 @@
       },
       "authority": "admin",
       "security": {
-        "confirmKey": "zOULoPQ4YvOJuexp",
+        "confirmed": true,
         "slug": "admin",
         "lastIp": "127.0.0.1",
         "lastLogin": {
@@ -48,7 +48,7 @@
         }
       },
       "security": {
-        "confirmKey": "jna4yqZzK9FgOjLt",
+        "confirmed": true,
         "slug": "user",
         "lastIp": "127.0.0.1",
         "lastLogin": {

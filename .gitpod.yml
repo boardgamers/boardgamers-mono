@@ -16,20 +16,24 @@ tasks:
       rm /tmp/.npm-lock
     command: mkdir -p /workspace/data && mongod --dbpath /workspace/data
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
-    command: cd api-node && pnpm seed && pnpm start
+    command: cd api-node && pnpm seed && echo cron=1 > .env && pnpm start
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
-    command: cd game-server && pnpm start
+    command: cd game-server && echo cron=1 > .env && pnpm start
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
     command: cd webapp-vue && pnpm serve
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
     command: cd admin-app && pnpm serve
 
+ports:
+  - port: 8612
+    onOpen: open-preview
+  - port: 8613
+    onOpen: ignore
+
 github:
   prebuilds:
     # enable for the master/default branch (defaults to true)
     master: true
-    # enable for all branches in this repo (defaults to false)
-    branches: true
     # enable for pull requests coming from this repo (defaults to true)
     pullRequests: true
     # enable for pull requests coming from forks (defaults to false)
@@ -40,3 +44,7 @@ github:
     addBadge: false
     # add a label once the prebuild is ready to pull requests (defaults to false)
     addLabel: prebuilt-in-gitpod
+
+vscode:
+  extensions:
+    - octref.vetur@0.32.0:03mwRhlVpWDul4qBChcVUA==

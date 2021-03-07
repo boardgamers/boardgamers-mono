@@ -1,18 +1,10 @@
 module.exports = {
   lintOnSave: false,
-  pwa: {
-    // Should only be enabled for IOS >= 11.3
-    appleMobileWebAppCapable: "yes",
-    appleMobileWebAppStatusBarStyle: "#16508f",
-    // Settings should also be changed in public/manifest.json
-    // name: 'The Pulsometer', // Also edit in public/index.html
-    themeColor: "#16508f",
-    // msTileColor: '#000000',
-    name: "BGS",
-  },
 
   // For development with vue hot reloading, contact correct backend
   devServer: {
+    // For gitpod, it needs to be disabled
+    disableHostCheck: true,
     proxy: {
       "/ws": {
         target: process.env.backend === "remote" ? "https://www.boardgamers.space" : "http://localhost:50802/",

@@ -29,6 +29,7 @@ For example:
 #.env file
 NODE_ENV=production
 automatedEmails=true
+cron=1
 sessionSecret=customSessionSecret
 domain=my-domain.com
 automatedDrops=0
