@@ -2,7 +2,7 @@ import cluster from "cluster";
 import "../config/db";
 import env from "../config/env";
 import { delay } from "../utils/delay";
-import { checkMoveDeadlines, processNextQuit, startNextGame } from "./game";
+import { processNextQuit, startNextGame } from "./game";
 import { installNewGames } from "./installer";
 
 async function installGames() {
@@ -23,21 +23,17 @@ async function startGames() {
 
 async function processQuits() {
   while (1) {
-    while (await processNextQuit()) {}
+    while (await processNextQuit("playerQuit")) {}
 
     await delay(1000);
   }
 }
 
-async function checkDeadlines() {
+async function processDrops() {
   while (1) {
-    try {
-      await checkMoveDeadlines();
-    } catch (err) {
-      console.error(err);
-    }
+    while (await processNextQuit("dropPlayer")) {}
 
-    await delay(10 * 1000);
+    await delay(1000);
   }
 }
 
@@ -47,6 +43,6 @@ if (cluster.isMaster) {
   if (env.cron) {
     startGames();
     processQuits();
-    checkDeadlines();
+    processDrops();
   }
 }

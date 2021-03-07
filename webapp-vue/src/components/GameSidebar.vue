@@ -48,16 +48,31 @@
           size="sm"
           :disabled="playerUser.dropped || playerUser.voteCancel || playerUser.quit"
           @click="voteCancel"
-          >Vote to cancel</b-btn
         >
+          Vote to cancel
+        </b-btn>
         <b-btn
           size="sm"
           class="ml-2"
           v-if="game.players.some((pl) => !!pl.dropped)"
           :disabled="playerUser.dropped || playerUser.quit"
           @click="quit"
-          >Quit</b-btn
         >
+          Quit
+        </b-btn>
+        <b-btn
+          size="sm"
+          class="ml-2"
+          variant="danger"
+          v-for="player in game.players.filter(
+            (pl) => remainingTime(pl) <= 0 && isCurrentPlayer(pl._id) && !pl.dropped && !pl.quit
+          )"
+          :key="player._id"
+          :disabled="requestedDrop[player._id]"
+          @click="requestDrop(player._id)"
+        >
+          Drop {{ player.name }}
+        </b-btn>
       </div>
       <div class="mt-75" v-if="gameInfo && gameInfo.settings.length > 0 && game.status === 'active' && settings">
         <h3>
@@ -241,6 +256,7 @@ export default class GameSidebar extends Vue {
   showNotes = false;
 
   settings = null;
+  requestedDrop: Record<string, boolean> = {};
 
   notes = "";
 
@@ -353,6 +369,12 @@ export default class GameSidebar extends Vue {
     await this.$axios.post(`/game/${this.game._id}/quit`).catch(handleError);
   }
 
+  async requestDrop(playerId: string) {
+    await this.$axios
+      .post(`/game/${this.game._id}/drop/${playerId}`)
+      .then(() => (this.requestedDrop[playerId] = true), handleError);
+  }
+
   startReplay() {
     this.$emit("replay:start");
   }
@@ -396,6 +418,11 @@ export default class GameSidebar extends Vue {
     } else {
       this.settings = null;
     }
+  }
+
+  @Watch("game._id")
+  resetRequests() {
+    this.requestedDrop = {};
   }
 
   @Watch("notes")
