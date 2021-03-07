@@ -7,7 +7,6 @@
           <v-card-text v-if="serverInfo">
             Available space: {{ serverInfo.disk.free | filesize }} / {{ serverInfo.disk.size | filesize }} <br />
             Users: {{ serverInfo.nbUsers }} <br />
-            Auto dropping players: {{ serverInfo.automatedDrops ? "yes" : "no" }}
 
             <v-textarea v-model="announcement"></v-textarea>
           </v-card-text>
