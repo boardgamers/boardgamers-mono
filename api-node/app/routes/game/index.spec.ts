@@ -2,7 +2,7 @@ import axios, { AxiosError, AxiosRequestConfig } from "axios";
 import { ObjectId } from "bson";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import mongoUnit from "mongo-unit";
+import mongoose from "mongoose";
 import env from "../../config/env";
 import Game from "../../models/game";
 import GameInfo from "../../models/gameinfo";
@@ -138,5 +138,5 @@ describe("Game API", () => {
     expect(await Game.countDocuments({ _id: "test" })).to.equal(0, "Game should be deleted after creator unjoins");
   });
 
-  after(() => mongoUnit.drop());
+  after(() => mongoose.connection.db.dropDatabase());
 });

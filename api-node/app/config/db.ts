@@ -16,30 +16,18 @@ export default async function initDb(url = env.database.bgs.url, runMigrations =
 
   dbInit = true;
 
-  mongoose.connect(url, { dbName: env.database.bgs.name, useNewUrlParser: true });
+  await mongoose.connect(url, { dbName: env.database.bgs.name, useNewUrlParser: true });
   locks.init(mongoose.connection);
 
-  return new Promise<void>((resolve, reject) => {
-    mongoose.connection.on("error", (err) => {
-      reject(err);
-    });
-
-    mongoose.connection.on("open", async () => {
-      console.log("connected to database!");
-
-      if (cluster.isMaster && runMigrations) {
-        let free = () => {};
-        try {
-          free = await locks.lock("migration");
-          await migrate();
-        } catch (err) {
-          console.error(err);
-        } finally {
-          free();
-        }
-      }
-
-      resolve();
-    });
-  });
+  if (cluster.isMaster && runMigrations) {
+    let free = () => {};
+    try {
+      free = await locks.lock("migration");
+      await migrate();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      free();
+    }
+  }
 }
