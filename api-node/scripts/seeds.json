@@ -1,0 +1,221 @@
+{
+  "User": [
+    {
+      "_id": "604508365769e01a781f9538",
+      "account": {
+        "karma": 75,
+        "email": "admin@test.com",
+        "username": "admin",
+        "termsAndConditions": "2021-03-07T17:07:02.202Z",
+        "password": "$2a$08$Sks1Maugi8qImAVMrv6K/ew6iNKKsyowG0ZC4ZL5LfNlt7MD3nDpW"
+      },
+      "settings": {
+        "mailing": {
+          "newsletter": false
+        },
+        "home": {
+          "showMyGames": true
+        }
+      },
+      "authority": "admin",
+      "security": {
+        "confirmKey": "zOULoPQ4YvOJuexp",
+        "slug": "admin",
+        "lastIp": "127.0.0.1",
+        "lastLogin": {
+          "date": "2021-03-07T17:07:02.289Z",
+          "ip": "127.0.0.1"
+        },
+        "lastActive": "2021-03-07T17:07:26.331Z",
+        "lastOnline": "2021-03-07T17:07:06.499Z"
+      }
+    },
+    {
+      "_id": "6045084f9e8a692e38661f5a",
+      "account": {
+        "karma": 75,
+        "email": "user@test.com",
+        "username": "user",
+        "termsAndConditions": "2021-03-07T17:07:27.300Z",
+        "password": "$2a$08$yEfkAXKAA7UMaj8vASckb.1u2/D/lSVy6OZf89Y6cTMPixcVi7G5i"
+      },
+      "settings": {
+        "mailing": {
+          "newsletter": false
+        },
+        "home": {
+          "showMyGames": true
+        }
+      },
+      "security": {
+        "confirmKey": "jna4yqZzK9FgOjLt",
+        "slug": "user",
+        "lastIp": "127.0.0.1",
+        "lastLogin": {
+          "date": "2021-03-07T17:07:27.375Z",
+          "ip": "127.0.0.1"
+        },
+        "lastActive": "2021-03-07T17:07:51.758Z",
+        "lastOnline": "2021-03-07T17:07:33.775Z"
+      }
+    }
+  ],
+  "GameInfo": [
+    {
+      "_id": {
+        "game": "gaia-project",
+        "version": 1
+      },
+      "description": "Terra Mystica's successor, Gaia Project is a game with perfect information.\n\nPlay as one of the **14** factions and prepare for a 3 hour game!",
+      "engine": {
+        "package": {
+          "name": "@gaia-project/engine",
+          "version": "4.6.7"
+        },
+        "entryPoint": "dist/wrapper.js"
+      },
+      "expansions": [],
+      "label": " 🌏 Gaia Project",
+      "meta": {
+        "public": true,
+        "needOwnership": true
+      },
+      "options": [
+        {
+          "name": "layout",
+          "label": "Map layout",
+          "type": "select",
+          "items": [
+            {
+              "name": "standard",
+              "label": "Standard"
+            },
+            {
+              "name": "xshape",
+              "label": "X shape (8 sectors)"
+            }
+          ]
+        },
+        {
+          "name": "advancedRules",
+          "label": "Last player rotates sectors",
+          "type": "checkbox",
+          "items": []
+        },
+        {
+          "name": "auction",
+          "label": "[Auction](/page/gaia-project/auction) factions at the beginning",
+          "type": "checkbox",
+          "items": []
+        }
+      ],
+      "players": [2, 3, 4],
+      "preferences": [
+        {
+          "name": "noFactionFill",
+          "label": "Planets keep their original color",
+          "type": "checkbox",
+          "items": null
+        },
+        {
+          "name": "flatBuildings",
+          "label": "Use flat buildings",
+          "type": "checkbox",
+          "items": null
+        },
+        {
+          "name": "accessibleSpaceMap",
+          "label": "Red / green planets have distinctive borders",
+          "type": "checkbox",
+          "items": null
+        },
+        {
+          "name": "highlightRecentActions",
+          "label": "Highlight recent actions on the map",
+          "type": "checkbox",
+          "items": null
+        }
+      ],
+      "rules": "* [Rules for the base game](https://images.zmangames.com/filer_public/ce/89/ce890bfd-227e-4249-a52a-976bc5f20d19/en_gaia_rulebook_lo.pdf)\n* [Rules for auction](/page/gaia-project/auction)\n* [Game settings](/page/gaia-project/settings)\n* [Federation FAQ](https://boardgamegeek.com/thread/2120375/official-federation-faq)",
+      "viewer": {
+        "url": "//cdn.jsdelivr.net/npm/@gaia-project/viewer@5.8.10/dist/package/viewer.umd.min.js",
+        "topLevelVariable": "gaiaViewer",
+        "dependencies": {
+          "scripts": [
+            "//cdn.jsdelivr.net/npm/vue@^2/dist/vue.min.js",
+            "//cdn.jsdelivr.net/npm/bootstrap-vue@^2/dist/bootstrap-vue.min.js"
+          ],
+          "stylesheets": ["//cdn.jsdelivr.net/npm/@gaia-project/viewer@5.8.10/dist/package/viewer.css"]
+        },
+        "replayable": true,
+        "alternate": {
+          "url": "//cdn.jsdelivr.net/npm/@gaia-project/viewer@5.6.2-alternate/dist/package/viewer.umd.min.js",
+          "topLevelVariable": "gaiaViewer",
+          "dependencies": {
+            "scripts": [
+              "//cdn.jsdelivr.net/npm/vue@^2/dist/vue.min.js",
+              "//cdn.jsdelivr.net/npm/bootstrap-vue@^2/dist/bootstrap-vue.min.js"
+            ],
+            "stylesheets": ["//cdn.jsdelivr.net/npm/@gaia-project/viewer@5.6.2-alternate/dist/package/viewer.css"]
+          },
+          "fullScreen": false,
+          "replayable": true,
+          "trusted": false
+        }
+      },
+      "settings": [
+        {
+          "name": "autoCharge",
+          "label": "Auto charge",
+          "type": "select",
+          "items": [
+            {
+              "name": "0",
+              "label": "Decline if it costs anything"
+            },
+            {
+              "name": "1",
+              "label": "When there's no downside"
+            },
+            {
+              "name": "2",
+              "label": "2 power (costs 1 VP)"
+            },
+            {
+              "name": "3",
+              "label": "3 power (costs 2 VP)"
+            },
+            {
+              "name": "4",
+              "label": "4 power (costs 3 VP)"
+            },
+            {
+              "name": "5",
+              "label": "5 power (costs 4 VP)"
+            }
+          ]
+        },
+        {
+          "name": "autoIncome",
+          "label": "Automated income",
+          "type": "checkbox",
+          "items": null
+        },
+        {
+          "name": "autoBrainstone",
+          "label": "Automated brainstone",
+          "type": "checkbox",
+          "items": null,
+          "faction": "taklons"
+        },
+        {
+          "name": "itarsAutoChargeToArea3",
+          "label": "Auto charge to area 3",
+          "type": "checkbox",
+          "items": null,
+          "faction": "itars"
+        }
+      ]
+    }
+  ]
+}

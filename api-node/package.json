@@ -72,6 +72,7 @@
   },
   "scripts": {
     "start": "ts-node -T -r tsconfig-paths/register server.ts || npm start",
+    "seed": "ts-node -T -r tsconfig-paths/register scripts/seed.ts",
     "nodemon": "nodemon -w app -w lib -w node_modules -w server.ts -e js,ts --exec npm start",
     "test": "mocha -r ts-node/register -r tsconfig-paths/register app/**/*.spec.ts app/*/*/*.spec.ts --delay",
     "lint": "eslint server.ts app/**/*.{js,ts,tsx} --fix",
