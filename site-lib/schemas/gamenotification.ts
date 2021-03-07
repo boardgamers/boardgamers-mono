@@ -12,7 +12,7 @@ const repr = {
   },
   kind: {
     type: String,
-    enum: ["currentMove", "gameEnded", "gameStarted", "playerDrop", "playerQuit"],
+    enum: ["currentMove", "gameEnded", "gameStarted", "playerDrop", "playerQuit", "dropPlayer"],
     index: true,
   },
   processed: {

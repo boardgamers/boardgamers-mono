@@ -1,6 +1,4 @@
-import { GameNotification as IGameNotification } from "@lib/gamenotification";
 import assert from "assert";
-import type { ObjectID } from "bson";
 import crypto from "crypto";
 import locks from "mongo-locks";
 import env from "../config/env";
@@ -104,10 +102,10 @@ export async function startNextGame(): Promise<boolean> {
   }
 }
 
-export async function processNextQuit() {
+export async function processNextQuit(kind: "playerQuit" | "dropPlayer") {
   let free = locks.noop;
   try {
-    const notification = await GameNotification.findOne({ kind: "playerQuit", processed: false });
+    const notification = await GameNotification.findOne({ kind, processed: false });
 
     if (!notification) {
       return false;
@@ -138,11 +136,19 @@ export async function processNextQuit() {
       gameData,
       game.players.findIndex((pl) => pl._id.equals(player._id))
     );
-    player.quit = true;
+    if (kind === "playerQuit") {
+      player.quit = true;
+    } else {
+      player.dropped = true;
+    }
 
-    ChatMessage.create({ room: game._id, type: "system", data: { text: `${player.name} quit the game` } }).catch(
-      console.error
-    );
+    ChatMessage.create({
+      room: game._id,
+      type: "system",
+      data: {
+        text: kind === "playerQuit" ? `${player.name} quit the game` : `${player.name} was dropped from the game`,
+      },
+    }).catch(console.error);
 
     if (engine.toSave) {
       gameData = engine.toSave(gameData);
@@ -150,6 +156,13 @@ export async function processNextQuit() {
 
     if (gameData) {
       await afterMove(engine, game, gameData);
+
+      // Here to only trigger if the game is saved
+      if (kind === "dropPlayer") {
+        GameNotification.create({ kind: "playerDrop", game: notification.game, user: notification.user }).catch(
+          console.error
+        );
+      }
     }
     await notification.update({ processed: true });
 
@@ -226,13 +239,19 @@ export async function afterMove(engine: Engine, game: GameDocument, gameData: Ga
   }
 
   if (!engine.ended(gameData)) {
+    /**
+     * Update time of players who just played
+     */
     for (const oldPlayer of oldPlayers.filter((pl) => !game.currentPlayers?.some((pl2) => pl2._id.equals(pl._id)))) {
       const player = game.players.find((pl) => pl._id.equals(oldPlayer._id))!;
-      player.remainingTime = Math.min(
-        game.options.timing.timePerGame,
-        (player.remainingTime ?? game.options.timing.timePerGame) -
-          elapsedSeconds(oldPlayer.timerStart, game.options.timing.timer) +
-          game.options.timing.timePerMove
+      player.remainingTime = Math.max(
+        Math.min(
+          game.options.timing.timePerGame,
+          (player.remainingTime ?? game.options.timing.timePerGame) -
+            elapsedSeconds(oldPlayer.timerStart, game.options.timing.timer) +
+            game.options.timing.timePerMove
+        ),
+        game.options.timing.timePerMove
       );
     }
 
@@ -250,77 +269,5 @@ export async function afterMove(engine: Engine, game: GameDocument, gameData: Ga
   }
   if (game.status === "ended" && !alreadyEnded) {
     await GameNotification.create({ game: game._id, kind: "gameEnded" });
-  }
-}
-
-export async function checkMoveDeadline(gameId: string) {
-  // Prevent multiple moves being executed at the same time
-  const free = await locks.lock("game", gameId);
-
-  try {
-    // Once inside the lock, refresh the game
-    const game = await Game.findById(gameId);
-
-    if (game.status !== "active" || !game.currentPlayers?.some((player) => player.deadline < new Date())) {
-      return;
-    }
-
-    console.log("move deadline expired for game", game._id);
-
-    const engine = await getEngine(game.game.name, game.game.version);
-
-    if (!engine) {
-      console.log("no engine for game", gameId);
-      return;
-    }
-
-    const playerIds = game.currentPlayers.filter((player) => player.deadline < new Date());
-    const players = game.players.filter((player) => playerIds.some((id) => player._id.equals(id._id)));
-
-    let gameData = game.data;
-
-    for (const player of players) {
-      gameData = await engine.dropPlayer(
-        gameData,
-        game.players.findIndex((pl) => pl._id.equals(player._id))
-      );
-      player.dropped = true;
-
-      ChatMessage.create({
-        room: game._id,
-        type: "system",
-        data: { text: `${player.name} dropped for inactivity` },
-      }).catch(console.error);
-      GameNotification.create({
-        user: player._id,
-        game: game._id,
-        kind: "playerDrop",
-      } as IGameNotification<ObjectID>).catch(console.error);
-    }
-
-    if (engine.toSave) {
-      gameData = engine.toSave(gameData);
-    }
-
-    if (gameData) {
-      await afterMove(engine, game, gameData);
-    }
-  } finally {
-    free();
-  }
-}
-
-export async function checkMoveDeadlines() {
-  for (const game of await Game.find({
-    status: "active",
-    "currentPlayers.deadline": { $lt: new Date() },
-  })
-    .select("_id")
-    .lean(true)) {
-    try {
-      await checkMoveDeadline(game._id);
-    } catch (err) {
-      console.error(err);
-    }
   }
 }

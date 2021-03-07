@@ -465,7 +465,7 @@ router.post("/:gameId/quit", loggedIn, async (ctx) => {
   const free = await locks.lock("game-cancel", ctx.params.gameId);
 
   try {
-    const game = await Game.findOne({ _id: ctx.params.gameId });
+    const game = await Game.findOne({ _id: ctx.params.gameId }).select("players status").lean(true);
 
     assert(game.status === "active", "The game is not ongoing");
 
@@ -474,6 +474,40 @@ router.post("/:gameId/quit", loggedIn, async (ctx) => {
     assert(!player.quit && !player.dropped, "You already quit the game");
 
     await GameNotification.create({ kind: "playerQuit", user: ctx.state.user._id, game: game._id });
+  } finally {
+    free();
+  }
+
+  ctx.status = 200;
+});
+
+router.post("/:gameId/drop/:userId", loggedIn, async (ctx) => {
+  assert(
+    ctx.state.user && ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id)),
+    "You must be a player of the game!"
+  );
+  const targetId = ctx.params.userId;
+  assert(
+    targetId && ctx.state.game.players.some((pl) => pl._id.equals(targetId), "The target must be a player of the game!")
+  );
+
+  const free = await locks.lock("game-cancel", ctx.params.gameId);
+
+  try {
+    const game = await Game.findOne({ _id: ctx.params.gameId }).select("currentPlayers players status").lean(true);
+
+    assert(game.status === "active", "The game is not ongoing");
+
+    const player = game.players.find((pl) => pl._id.equals(targetId));
+
+    assert(!player.quit && !player.dropped, "That player already quit the game");
+
+    const currentPlayer = game.currentPlayers.find((pl) => pl._id.equals(targetId));
+
+    assert(currentPlayer, "It's not that player's turn to play");
+    assert(currentPlayer.deadline < new Date(), "The player's time is not elapsed");
+
+    await GameNotification.create({ kind: "dropPlayer", user: targetId, game: game._id });
   } finally {
     free();
   }
