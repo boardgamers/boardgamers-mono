@@ -3,13 +3,17 @@ on:
   push:
     paths:
       - ".github/workflows/api-node.yml"
-      - "api-node"
-      - "site-lib"
+      - "api-node/**"
+      - "site-lib/**"
   pull_request:
     paths:
       - ".github/workflows/api-node.yml"
-      - "api-node"
-      - "site-lib"
+      - "api-node/**"
+      - "site-lib/**"
+
+defaults:
+  run:
+    working-directory: api-node
 
 jobs:
   lint_and_test:
@@ -20,7 +24,6 @@ jobs:
       - uses: pnpm/action-setup@v1.2.1
         with:
           version: 5.17.1
-      - run: cd api-node
       - run: pnpm install
       - run: pnpm run lint-check
       - run: pnpm run tsc

@@ -3,13 +3,17 @@ on:
   push:
     paths:
       - ".github/workflows/game-server.yml"
-      - "game-server"
-      - "site-lib"
+      - "game-server/**"
+      - "site-lib/**"
   pull_request:
     paths:
       - ".github/workflows/game-server.yml"
-      - "game-server"
-      - "site-lib"
+      - "game-server/**"
+      - "site-lib/**"
+
+defaults:
+  run:
+    working-directory: game-server
 
 jobs:
   lint:
@@ -20,7 +24,6 @@ jobs:
       - uses: pnpm/action-setup@v1.2.1
         with:
           version: 5.17.1
-      - run: cd game-server
       - run: pnpm install
       - run: pnpm run lint-check
       - run: pnpm run tsc
