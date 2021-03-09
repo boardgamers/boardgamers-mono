@@ -1,11 +1,12 @@
 <script lang="typescript">
 	import {onMount} from 'svelte';
 	import Appbar from './components/Appbar.svelte';
+  import { get } from "@/api";
 	
 	let announcement: string = "";
 
 	onMount(() => {
-		fetch('/api/site/announcement').then(response => response.text()).then(ann => announcement = ann)	
+		get('/site/announcement').then(ann => announcement = ann)	
 	});
 </script>
 
