@@ -14,8 +14,17 @@ import {
   Label,
   FormText
 } from 'sveltestrap';
+import { user } from "@/store";
+import { login } from '@/api';
 
-let user = false;
+let email = '';
+let password = '';
+
+const handleSubmit = (event: Event) => {
+  event.preventDefault();
+
+  login(email, password);
+}
 
 </script>
 
@@ -25,7 +34,7 @@ let user = false;
   <!-- todo: mobile-only boardgame list -->
 
   <Nav class="ml-auto" navbar>
-    {#if !user}
+    {#if !$user}
       <!-- todo: hide on mobile -->
       <NavItem>
         <span class="navbar-text">Have an account?</span>
@@ -42,14 +51,14 @@ let user = false;
                 <Button href="/api/account/auth/facebook" class="facebook">Facebook</Button>
               </div>
               or
-              <Form class="mt-3">
+              <Form class="mt-3" on:submit={handleSubmit}>
                 <FormGroup>
                   <Label hidden for="email">Email</Label>
-                  <Input id="email" type="email" required autofocus />
+                  <Input id="email" type="email" required bind:value={email} autofocus />
                 </FormGroup>
                 <FormGroup>
                   <Label hidden for="password">Password</Label>
-                  <Input id="password" type="password" required />
+                  <Input id="password" type="password" bind:value={password} required />
                   <FormText class="mt-2 pt-2">
                     <a href="/forgotten-password">Forgotten password ?</a>
                   </FormText>
