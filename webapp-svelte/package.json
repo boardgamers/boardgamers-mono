@@ -5,6 +5,7 @@
     "test": "web-test-runner \"src/**/*.test.ts\""
   },
   "dependencies": {
+    "awesome-notifications": "^3.1.1",
     "bootstrap": "4",
     "svelte": "^3.24.0",
     "svelte-routing": "^1.5.0",
