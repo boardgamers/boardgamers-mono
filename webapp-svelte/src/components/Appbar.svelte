@@ -16,6 +16,7 @@ import {
 } from 'sveltestrap';
 import { user } from "@/store";
 import { login } from '@/api';
+import { handleError } from '@/utils';
 
 let email = '';
 let password = '';
@@ -23,7 +24,7 @@ let password = '';
 const handleSubmit = (event: Event) => {
   event.preventDefault();
 
-  login(email, password);
+  login(email, password).catch(handleError);
 }
 
 </script>
