@@ -11,3 +11,9 @@ export async function login(email: string, password: string) {
 
   user.set(data.user);
 }
+
+export async function logout() {
+  await post("/account/signout");
+
+  user.set(null);
+}
