@@ -33,11 +33,7 @@
   .App {
     text-align: center;
   }
-  .App code {
-    background: #0002;
-    padding: 4px 8px;
-    border-radius: 4px;
-  }
+
   .App p {
     margin: 0.4rem;
   }

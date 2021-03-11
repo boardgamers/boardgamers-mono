@@ -12,10 +12,12 @@ import {
   Form,
   FormGroup,
   Label,
-  FormText
+  FormText,
+  NavLink,
 } from 'sveltestrap';
+import Icon from './Icon.svelte';
 import { user } from "@/store";
-import { login } from '@/api';
+import { login, logout } from '@/api';
 import { handleError } from '@/utils';
 
 let email = '';
@@ -26,6 +28,13 @@ const handleSubmit = (event: Event) => {
 
   login(email, password).catch(handleError);
 }
+
+const logOut = () => {
+  logout().catch(handleError);
+}
+
+$ : admin = $user?.authority === "admin"
+$ : adminLink = location.hostname === "localhost" ? "http://localhost:8613": `${location.protocol}//admin.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`
 
 </script>
 
@@ -75,7 +84,20 @@ const handleSubmit = (event: Event) => {
           </div>
         </DropdownMenu>
       </UncontrolledDropdown>
-    {:else}{/if}
+    {:else}
+      {#if admin}
+        <NavLink href={adminLink}>
+          <Icon name="gear-fill" class="mr-1" /> Admin
+        </NavLink>
+      {/if}
+      <NavLink href={`/user/${$user.account.username}`}>
+        <Icon name="person-fill" class="mr-1" />
+        {$user.account.username}
+      </NavLink>
+      <NavLink on:click={logOut}>
+        <Icon name="power" class="mr-1" /> Log out
+      </NavLink>
+    {/if}
   </Nav>
 </Navbar>
 

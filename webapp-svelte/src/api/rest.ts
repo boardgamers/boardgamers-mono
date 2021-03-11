@@ -17,7 +17,7 @@ export async function get(url: string) {
   return response.json();
 }
 
-export async function post(url: string, data: Record<string, unknown>) {
+export async function post(url: string, data: Record<string, unknown> = {}) {
   const response = await fetch(transformUrl(url), {
     method: "POST",
     body: JSON.stringify(data),
