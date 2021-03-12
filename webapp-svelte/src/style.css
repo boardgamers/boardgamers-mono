@@ -9,4 +9,7 @@
 
 body {
   --primary: #16508f;
+
+  --footer-margin: 30px;
+  --footer-height: 60px;
 }

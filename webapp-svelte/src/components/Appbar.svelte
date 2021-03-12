@@ -22,6 +22,10 @@ import { handleError } from '@/utils';
 
 let email = '';
 let password = '';
+let className = '';
+
+export { className as class };
+export let name = '';
 
 const handleSubmit = (event: Event) => {
   event.preventDefault();
@@ -38,7 +42,7 @@ $ : adminLink = location.hostname === "localhost" ? "http://localhost:8613": `${
 
 </script>
 
-<Navbar color="primary" dark expand>
+<Navbar color="primary" class={className} dark expand>
   <!-- todo: reload game lists if on same page -->
   <NavbarBrand href="/">BGS</NavbarBrand>
   <!-- todo: mobile-only boardgame list -->
