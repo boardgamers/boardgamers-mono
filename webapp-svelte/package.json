@@ -7,6 +7,7 @@
   "dependencies": {
     "awesome-notifications": "^3.1.1",
     "bootstrap": "4",
+    "page": "^1.11.6",
     "svelte": "^3.24.0",
     "svelte-routing": "^1.5.0",
     "sveltestrap": "^3.12.2"
@@ -19,6 +20,7 @@
     "@testing-library/svelte": "^3.0.0",
     "@types/chai": "^4.2.13",
     "@types/mocha": "^8.2.0",
+    "@types/page": "^1.11.1",
     "@types/snowpack-env": "^2.3.2",
     "@web/test-runner": "^0.12.0",
     "chai": "^4.2.0",

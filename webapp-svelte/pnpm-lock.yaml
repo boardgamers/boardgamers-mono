@@ -1,6 +1,7 @@
 dependencies:
   awesome-notifications: 3.1.1
   bootstrap: 4.6.0
+  page: 1.11.6
   svelte: 3.31.2
   svelte-routing: 1.5.0_svelte@3.31.2
   sveltestrap: 3.12.2_svelte@3.31.2
@@ -12,6 +13,7 @@ devDependencies:
   '@testing-library/svelte': 3.0.3_svelte@3.31.2
   '@types/chai': 4.2.14
   '@types/mocha': 8.2.0
+  '@types/page': 1.11.1
   '@types/snowpack-env': 2.3.3
   '@web/test-runner': 0.12.6
   chai: 4.2.0
@@ -312,6 +314,10 @@ packages:
     dev: true
     resolution:
       integrity: sha512-g+f/qj/cNcqKkc3tFqlXOYjrmZA+jNBiDzbP3kH+B+otKFqAdPgVTGP1IeKRdMml/aE69as5S4FqtxAbl+LaMw==
+  /@types/page/1.11.1:
+    dev: true
+    resolution:
+      integrity: sha512-BpOTA/w+PgZeQ1iJqy0le9VSXOKV7qcoX/+m/obCtzENwPOrtVybdAaOAFD6xwAdieAq+GimObGJjWTCIBz4nA==
   /@types/parse5/5.0.3:
     dev: true
     resolution:
@@ -1510,6 +1516,10 @@ packages:
       node: '>=8'
     resolution:
       integrity: sha512-fKzAra0rGJUUBwGBgNkHZuToZcn+TtXHpeCgmkMJMMYx1sQDYaCSyjJBSCa2nH1DGm7s3n1oBnohoVTBaN7Lww==
+  /isarray/0.0.1:
+    dev: false
+    resolution:
+      integrity: sha1-ihis/Kmo9Bd+Cav8YDiTmwXR7t8=
   /isbinaryfile/4.0.6:
     dev: true
     engines:
@@ -1876,6 +1886,12 @@ packages:
       node: '>=6'
     resolution:
       integrity: sha512-R4nPAVTAU0B9D35/Gk3uJf/7XYbQcyohSKdvAxIRSNghFl4e71hVoGnBNQz9cWaXxO2I10KTC+3jMdvvoKw6dQ==
+  /page/1.11.6:
+    dependencies:
+      path-to-regexp: 1.2.1
+    dev: false
+    resolution:
+      integrity: sha512-P6e2JfzkBrPeFCIPplLP7vDDiU84RUUZMrWdsH4ZBGJ8OosnwFkcUkBHp1DTIjuipLliw9yQn/ZJsXZvarsO+g==
   /parse5/6.0.1:
     dev: true
     resolution:
@@ -1908,6 +1924,12 @@ packages:
     dev: true
     resolution:
       integrity: sha512-GSmOT2EbHrINBf9SR7CDELwlJ8AENk3Qn7OikK4nFYAu3Ote2+JYNVvkpAEQm3/TLNEJFD/xZJjzyxg3KBWOzw==
+  /path-to-regexp/1.2.1:
+    dependencies:
+      isarray: 0.0.1
+    dev: false
+    resolution:
+      integrity: sha1-szcFwUAjTYc8hyHHuf2LVB7Tr/k=
   /path-type/4.0.0:
     dev: true
     engines:
@@ -2633,6 +2655,7 @@ specifiers:
   '@testing-library/svelte': ^3.0.0
   '@types/chai': ^4.2.13
   '@types/mocha': ^8.2.0
+  '@types/page': ^1.11.1
   '@types/snowpack-env': ^2.3.2
   '@web/test-runner': ^0.12.0
   awesome-notifications: ^3.1.1
@@ -2640,6 +2663,7 @@ specifiers:
   chai: ^4.2.0
   dotenv: ^8.2.0
   http-proxy: ^1.18.1
+  page: ^1.11.6
   postcss: ^8.2.6
   postcss-nested: ^5.0.3
   snowpack: ^3.0.1
