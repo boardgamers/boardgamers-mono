@@ -21,7 +21,7 @@ const routes: RouteConfig[] = [
     name: "login",
     component: NotFound,
     meta: {
-      loggedIn: true,
+      loggedOut: true,
     },
   },
   {
@@ -29,7 +29,7 @@ const routes: RouteConfig[] = [
     name: "account",
     component: NotFound,
     meta: {
-      loggedOut: true,
+      loggedIn: true,
     },
   },
   {
