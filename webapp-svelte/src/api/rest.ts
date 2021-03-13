@@ -8,17 +8,22 @@ function transformUrl(url: string) {
   return url.startsWith("http") || url.startsWith("//") ? url : baseUrl + url;
 }
 
-export async function get(url: string) {
+export async function get<T = any>(url: string, query?: Record<string, unknown>) {
   const token = await getAccessToken(url);
-  return getResponseData(
-    await fetch(transformUrl(url), { headers: token ? { Authorization: `Bearer ${token.code}` } : {} })
+  return getResponseData<T>(
+    await fetch(
+      transformUrl(url) + (query ? "?" + new URLSearchParams(query as Record<string, string>).toString() : ""),
+      {
+        headers: { ...(token && { Authorization: `Bearer ${token.code}` }) },
+      }
+    )
   );
 }
 
-export async function post(url: string, data: Record<string, unknown> = {}) {
+export async function post<T = any>(url: string, data: Record<string, unknown> = {}) {
   const token = await getAccessToken(url);
 
-  return getResponseData(
+  return getResponseData<T>(
     await fetch(transformUrl(url), {
       method: "POST",
       body: JSON.stringify(data),
@@ -27,7 +32,7 @@ export async function post(url: string, data: Record<string, unknown> = {}) {
   );
 }
 
-async function getResponseData(response: Response) {
+async function getResponseData<T = any>(response: Response): Promise<T> {
   const body = response.headers.get("content-type")?.startsWith("application/json")
     ? await response.json()
     : await response.text();
@@ -58,7 +63,7 @@ async function getAccessToken(url: string): Promise<Token | null> {
     return $ref;
   }
 
-  const body = await getResponseData(
+  const body = await getResponseData<Token>(
     await fetch(transformUrl("/account/refresh"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
