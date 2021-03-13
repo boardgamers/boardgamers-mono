@@ -27,14 +27,22 @@ export function handleSuccess(info: string) {
   notifier.success(info);
 }
 
-export function defer(target: Function, callback: () => unknown) {
+/**
+ * Creates a function that will execute the target function, handle thrown error, and finally
+ * execute `callback`
+ *
+ * @param target Function to wrap
+ * @param callback Callback to always execute at the end
+ * @returns wrapped function
+ */
+export function defer(target: Function, callback?: () => unknown) {
   return async (...args: any[]) => {
     try {
       return await target(...args);
     } catch (err) {
       handleError(err);
     } finally {
-      callback();
+      callback?.();
     }
   };
 }

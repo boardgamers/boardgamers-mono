@@ -80,3 +80,7 @@ export function duration(seconds: number) {
     }
   }
 }
+
+export function dateFromObjectId(objectId: string) {
+  return new Date(parseInt(objectId.substring(0, 8), 16) * 1000);
+}

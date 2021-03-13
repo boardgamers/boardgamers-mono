@@ -1,7 +1,6 @@
 <script lang="ts">
 import {
   Navbar,
-  NavbarBrand,
   Nav,
   NavItem,
   UncontrolledDropdown,

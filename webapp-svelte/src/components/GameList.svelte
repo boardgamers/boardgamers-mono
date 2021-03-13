@@ -25,7 +25,6 @@
   const prefix = () => boardgameId ? `/boardgame/${boardgameId}/games/${gameStatus}` : `/game/${gameStatus}`
 
   const loadGames = defer(async (refresh: boolean) => {
-    console.log("load games", refresh);
     const queryParams = {
       count: perPage, 
       skip: currentPage * perPage,
@@ -93,9 +92,7 @@
   */
 </script>
 
-{#if loadingGames}
-  <Loading />
-{:else}
+<Loading loading={loadingGames}>
   <h3 class="card-title">
     {title}
     {#if !topRecords && !sample}
@@ -178,7 +175,7 @@
       <p>No games to show</p>
     {/if}
   </div>
-{/if}
+</Loading>
 
 <style lang="postcss">
   .list-group.game-list {
