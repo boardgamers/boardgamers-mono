@@ -185,7 +185,7 @@ router.get("/active/count", async (ctx) => {
   ctx.body = await Game.count(conditions).exec();
 });
 
-router.get("/closed", async (ctx) => {
+router.get("/(closed|ended)", async (ctx) => {
   const conditions: Record<string, unknown> = { status: "ended" };
   if (ctx.query.user) {
     conditions["players._id"] = ctx.query.user;
@@ -198,7 +198,7 @@ router.get("/closed", async (ctx) => {
     .lean(true);
 });
 
-router.get("/closed/count", async (ctx) => {
+router.get("/(closed|ended)/count", async (ctx) => {
   const conditions: Record<string, unknown> = { status: "ended" };
   if (ctx.query.user) {
     conditions["players._id"] = ctx.query.user;

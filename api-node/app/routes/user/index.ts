@@ -73,7 +73,7 @@ router.get("/:userId/games/current-turn", async (ctx) => {
   ctx.body = await Game.findWithPlayersTurn(ctx.state.foundUser._id).limit(queryCount(ctx)).select(Game.basics());
 });
 
-router.get("/:userId/games/closed", async (ctx) => {
+router.get("/:userId/games/(ended|closed)", async (ctx) => {
   ctx.body = await Game.findWithPlayer(ctx.state.foundUser._id)
     .where("status")
     .equals("ended")
@@ -86,6 +86,7 @@ router.get("/:userId/games/count/:status", async (ctx) => {
   const conditions: Record<string, unknown> = (() => {
     switch (ctx.params.status) {
       case "closed":
+      case "ended":
         return { status: "ended", "players._id": new ObjectID(ctx.state.foundUser._id) };
       case "dropped":
         return {
