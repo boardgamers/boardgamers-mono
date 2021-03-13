@@ -1,15 +1,7 @@
 <script lang="typescript">
-	import {onMount} from 'svelte';
 	import Appbar from './components/Appbar.svelte';
 	import Footer from './components/Footer.svelte';
-  import { get } from "@/api";
   import { RouterView } from './modules/router';
-	
-	let announcement: string = "";
-
-	onMount(() => {
-		get('/site/announcement').then(ann => announcement = ann)	
-	});
 </script>
 
 <div id="app">
@@ -32,7 +24,6 @@
 
   :global(body) {
     margin: 0;
-    font-family: Arial, Helvetica, sans-serif;
     min-height: 100%;
     height: 100%;
   }

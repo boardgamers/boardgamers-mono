@@ -2,4 +2,4 @@
   import { route } from "@/modules/router"
 </script>
 
-Page of user {$route.params.username}
+Page of user {$route?.params.username}

@@ -16,7 +16,7 @@ import {
   NavLink,
 } from 'sveltestrap';
 import Icon from './Icon.svelte';
-import { user } from "@/store";
+import { user, logoClicks } from "@/store";
 import { loadAccountIfNeeded, login, logout } from '@/api';
 import { handleError } from '@/utils';
 
@@ -44,7 +44,7 @@ $ : adminLink = location.hostname === "localhost" ? "http://localhost:8613": `${
 
 <Navbar color="primary" class={className} dark expand>
   <!-- todo: reload game lists if on same page -->
-  <NavbarBrand href="/">BGS</NavbarBrand>
+  <a href="/" on:click={() => ($logoClicks += 1)} class="navbar-brand">BGS</a>
   <!-- todo: mobile-only boardgame list -->
 
   {#await loadAccountIfNeeded() then _}

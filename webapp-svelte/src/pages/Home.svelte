@@ -1,18 +1,33 @@
 <script lang="typescript">
-	import {onMount} from 'svelte';
   import { get } from "@/api";
-	
-	let announcement: string = "";
-
-	onMount(() => {
-		get('/site/announcement').then(ann => announcement = ann)	
-	});
+  import { Col, Row } from 'sveltestrap';
+  import GameList from '@/components/GameList.svelte';
+  import { user, activeGames } from '@/store';
 </script>
 
 <div class="text-center container">
   <p class="lead py-2 mt-4">
-    {@html announcement}
+    {#await get("/site/announcement") then announcement}
+      {@html announcement}
+    {/await}
   </p>
+
+  <Row>
+    <Col lg="6" class="mt-3">
+      {#if $activeGames?.length}
+        <GameList gameStatus="active" userId={$user?._id} perPage={5} title="My games" />
+      {:else}
+        <GameList gameStatus="active" topRecords={true} perPage={5} title="Featured games" />
+      {/if}
+    </Col>
+    <Col lg="6" class="mt-3">
+      <GameList sample={true} perPage={5} gameStatus="open" title="Lobby" />
+    </Col>
+  </Row>
+  <div class="text-center mt-3">
+    <a class="btn btn-secondary" href="/games" role="button">All games</a>
+    <a class="btn btn-primary ml-3" href="/new-game" role="button">New Game</a>
+  </div>
 </div>
 
 <style>
