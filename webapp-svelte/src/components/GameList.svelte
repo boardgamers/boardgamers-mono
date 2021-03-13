@@ -5,7 +5,7 @@
   import { get } from "@/api"
   import { logoClicks } from "@/store";
   import { onDestroy } from "svelte";
-  import { skipOnce, watch } from "@/utils/watch";
+  import { createWatcher, skipOnce, watch } from "@/utils/watch";
   import { Badge } from "sveltestrap";
   import Icon from "sveltestrap/src/Icon.svelte";
 
@@ -72,10 +72,10 @@
     loadGames(true)
   })))
 
-  let options = {skipOnce: true}
+  const onCurrentPageChanged = createWatcher(() => loadGames(false), {immediate: false});
 
   $: watch(() => loadGames(true), [userId, boardgameId])
-  $: watch(() => loadGames(false), [currentPage], options)
+  $: onCurrentPageChanged(currentPage)
 
   /* 
     Todo: smart pagination 
