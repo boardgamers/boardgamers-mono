@@ -55,7 +55,7 @@ const timeRanges = [
   },
 ];
 
-function pluralize(count: number, str: string, { showCount = true } = { showCount: true }) {
+export function pluralize(count: number, str: string, { showCount = true } = { showCount: true }) {
   return showCount ? `${count} ${str}${+count >= 2 ? "s" : ""}` : `${str}${+count >= 2 ? "s" : ""}`;
 }
 
