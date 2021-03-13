@@ -42,8 +42,6 @@ module.exports = {
     "@lib": "../site-lib",
   },
   routes: [
-    /* Enable an SPA Fallback in development: */
-    // {"match": "routes", "src": ".*", "dest": "/index.html"},
     {
       src: "/ws",
       dest: (req, res) => proxyWs.web(req, res),
@@ -60,6 +58,8 @@ module.exports = {
       src: "resources.localhost",
       dest: (req, res) => proxyResources.web(req, res),
     },
+    /* Enable an SPA Fallback in development: */
+    { match: "routes", src: ".*", dest: "/index.html" },
   ],
   optimize: {
     /* Example: Bundle your final build: */
