@@ -3,7 +3,7 @@ import { boardgameInfo, get, loadBoardgame } from "@/api";
 import { defer, handleError, pluralize } from "@/utils";
 
 import type { GamePreferences } from "@lib/gamepreferences";
-import Icon from "sveltestrap/src/Icon.svelte";
+import { Icon } from "@cdk";
 
 export let userId: string;
 

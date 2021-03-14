@@ -13,6 +13,7 @@
       //     "*": [".snowpack/types/*"]
       // More info: https://www.snowpack.dev/guides/streaming-imports
       "@/*": ["src/*"],
+      "@cdk": ["src/module/cdk"],
       "@lib/*": ["../site-lib/*"]
     },
     /* noEmit - Snowpack builds (emits) files, not tsc. */
