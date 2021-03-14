@@ -17,11 +17,11 @@
       {#if $activeGames?.length}
         <GameList gameStatus="active" userId={$user?._id} perPage={5} title="My games" />
       {:else}
-        <GameList gameStatus="active" topRecords={true} perPage={5} title="Featured games" />
+        <GameList gameStatus="active" topRecords perPage={5} title="Featured games" />
       {/if}
     </Col>
     <Col lg="6" class="mt-3">
-      <GameList sample={true} perPage={5} gameStatus="open" title="Lobby" />
+      <GameList sample perPage={5} gameStatus="open" title="Lobby" />
     </Col>
   </Row>
   <div class="text-center mt-3">
