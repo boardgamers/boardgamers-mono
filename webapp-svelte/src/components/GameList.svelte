@@ -8,6 +8,7 @@
   import { createWatcher, skipOnce, watch } from "@/utils/watch";
   import { Badge } from "sveltestrap";
   import Icon from "sveltestrap/src/Icon.svelte";
+  import Pagination from "./Pagination.svelte";
 
   export let title = 'Games';
   export let perPage = 20;
@@ -77,19 +78,6 @@
   $: watch(() => loadGames(true), [userId, boardgameId])
   $: onCurrentPageChanged(currentPage)
 
-  /* 
-    Todo: smart pagination 
-  
-    <b-pagination
-      class="mt-1"
-      v-if="!topRecords && count > perPage"
-      size="md"
-      align="right"
-      :total-rows="count"
-      v-model="currentPage"
-      :per-page="perPage"
-    />
-  */
 </script>
 
 <Loading loading={loadingGames}>
@@ -169,7 +157,7 @@
         {/each}
       </ul>
       {#if !topRecords && count > perPage}
-        pagination
+        <Pagination {count} {perPage} bind:currentPage align="right" class="mt-2" />
       {/if}
     {:else}
       <p>No games to show</p>

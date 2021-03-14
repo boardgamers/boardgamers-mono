@@ -22,6 +22,8 @@ import { handleError } from '@/utils';
 let email = '';
 let password = '';
 let className = '';
+let admin: boolean;
+let adminLink: string;
 
 export { className as class };
 export let name = '';
