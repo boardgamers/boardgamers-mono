@@ -5,10 +5,8 @@
   import UserPublicInfo from "@/components/UserPublicInfo.svelte";
   import UserElo from "@/components/UserElo.svelte";
   import { get } from "@/api";
-  import Loading from "@/components/Loading.svelte";
-  import { Row, Col, Container, CardHeader, CardBody } from "sveltestrap";
+  import { Row, Col, Container, Card, Loading } from "@cdk";
   import { user as ownUser } from "@/store"
-  import Card from "sveltestrap/src/Card.svelte";
 
   export let username: string;
   let user: IUser;
@@ -31,19 +29,16 @@
     <UserPublicInfo class="mt-4" {user} />
     <UserGames userId={user._id} />
 
-    <Card class="border-info mt-4">
-      <CardHeader>Statistics</CardHeader>
-      <CardBody>
-        <Row>
-          <Col lg={6} class="mb-3">
-            <UserElo userId={user._id} />
-          </Col>
-          <Col>
-            <h3 class="card-title">Tournaments</h3>
-            <p>No Tournament info available</p>
-          </Col>
-        </Row>
-      </CardBody>
+    <Card class="border-info mt-4" header="Statistics">
+      <Row>
+        <Col lg={6} class="mb-3">
+          <UserElo userId={user._id} />
+        </Col>
+        <Col>
+          <h3 class="card-title">Tournaments</h3>
+          <p>No Tournament info available</p>
+        </Col>
+      </Row>
     </Card>
   </Loading>
 </Container>

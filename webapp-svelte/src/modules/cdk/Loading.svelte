@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Spinner } from "sveltestrap";
+import { Spinner } from "@cdk";
 
 export let loading: boolean
 </script>

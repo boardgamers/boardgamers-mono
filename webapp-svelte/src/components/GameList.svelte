@@ -1,14 +1,11 @@
 <script lang="ts">
   import { timerTime, defer, duration, niceDate } from "@/utils";
   import type { IGame } from "@lib/game";
-  import Loading from "./Loading.svelte";
   import { get } from "@/api"
   import { logoClicks } from "@/store";
   import { onDestroy } from "svelte";
-  import { createWatcher, skipOnce, watch } from "@/utils/watch";
-  import { Badge } from "sveltestrap";
-  import Icon from "sveltestrap/src/Icon.svelte";
-  import Pagination from "./Pagination.svelte";
+  import { createWatcher, skipOnce } from "@/utils/watch";
+  import { Badge, Icon, Pagination, Loading } from "@cdk";
 
   export let title = 'Games';
   export let perPage = 20;
@@ -73,9 +70,9 @@
     loadGames(true)
   })))
 
-  const onCurrentPageChanged = createWatcher(() => loadGames(false), {immediate: false});
+  const onCurrentPageChanged = createWatcher(() => loadGames(false));
 
-  $: watch(() => loadGames(true), [userId, boardgameId])
+  $: loadGames(true), [userId, boardgameId]
   $: onCurrentPageChanged(currentPage)
 
 </script>

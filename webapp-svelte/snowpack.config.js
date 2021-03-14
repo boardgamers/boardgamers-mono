@@ -39,6 +39,7 @@ module.exports = {
   plugins: ["@snowpack/plugin-svelte", "@snowpack/plugin-dotenv", "@snowpack/plugin-typescript"],
   alias: {
     "@": "./src",
+    "@cdk": "./src/modules/cdk",
     "@lib": "../site-lib",
   },
   routes: [

@@ -13,8 +13,8 @@ import {
   Label,
   FormText,
   NavLink,
-} from 'sveltestrap';
-import Icon from './Icon.svelte';
+  Icon
+} from '@cdk';
 import { user, logoClicks } from "@/store";
 import { loadAccountIfNeeded, login, logout } from '@/api';
 import { handleError } from '@/utils';
