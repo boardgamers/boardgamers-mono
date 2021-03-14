@@ -7,6 +7,16 @@
   background-color: var(--primary) !important;
 }
 
+.page-link {
+  color: var(--primary);
+}
+
+.page-item.active .page-link {
+  color: #fff;
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
 h1 {
   font-size: var(--h1-font-size);
 }
