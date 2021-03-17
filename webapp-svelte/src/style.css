@@ -44,3 +44,12 @@ body {
   --h3-font-size: 1.25rem;
   --h4-font-size: 1rem;
 }
+
+i.bi {
+  line-height: 0 !important;
+  vertical-align: 0.1em;
+}
+
+.big {
+  font-size: 125%;
+}
