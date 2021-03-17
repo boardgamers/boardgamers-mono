@@ -93,15 +93,15 @@ $ : adminLink = location.hostname === "localhost" ? "http://localhost:8613": `${
       {:else}
         {#if admin}
           <NavLink href={adminLink}>
-            <Icon name="gear-fill" class="mr-1" /> Admin
+            <Icon name="gear-fill" class="mr-1 big" /> Admin
           </NavLink>
         {/if}
         <NavLink href={`/user/${$user.account.username}`}>
-          <Icon name="person-fill" class="mr-1" />
+          <Icon name="person-fill" class="mr-1 big" />
           {$user.account.username}
         </NavLink>
         <NavLink on:click={logOut}>
-          <Icon name="power" class="mr-1" /> Log out
+          <Icon name="power" class="mr-1 big" /> Log out
         </NavLink>
       {/if}
     </Nav>
