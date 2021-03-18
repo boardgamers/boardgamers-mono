@@ -3,7 +3,7 @@
 </script>
 
 {#if $route && $route.component}
-  <svelte:component this={$route.component} {...$route.params} />
+  <svelte:component this={$route.component} {...$route.props ? $route.props($route) : $route.params} />
 {:else}
   <div><slot /></div>
 {/if}
