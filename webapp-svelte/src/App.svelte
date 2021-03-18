@@ -7,7 +7,7 @@
 <div id="app">
   <div id="app-layout">
     <div style="flex-grow: 1; display: flex; flex-direction: column">
-      <Appbar class="mb-2" />
+      <Appbar class="mb-3" />
       <main class="container-fluid p-relative mb-auto">
         <RouterView />
       </main>

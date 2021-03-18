@@ -19,6 +19,12 @@ export function boardgameInfo(name: string, version: number | "latest") {
   return $boardgames[boardgameKey(name, version)];
 }
 
+export function latestBoardgames() {
+  return Object.keys($boardgames)
+    .filter((key) => key.endsWith("/latest"))
+    .map((key) => $boardgames[key]);
+}
+
 export async function loadBoardgames() {
   if (promise) {
     return promise;

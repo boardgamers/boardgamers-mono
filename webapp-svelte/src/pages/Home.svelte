@@ -6,7 +6,7 @@
 </script>
 
 <div class="text-center container">
-  <p class="lead py-2 mt-4">
+  <p class="lead py-2">
     {#await get("/site/announcement") then announcement}
       {@html announcement}
     {/await}

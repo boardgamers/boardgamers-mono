@@ -1,17 +1,19 @@
 import { get } from "svelte/store";
 import { loadAccountIfNeeded } from "./api";
 import { createRouter, navigate, route, RouteConfig } from "./modules/router";
+import BoardgameLayout from "./pages/BoardgameLayout.svelte";
 import Home from "./pages/Home.svelte";
 import NotFound from "./pages/NotFound.svelte";
 import Page from "./pages/Page.svelte";
 import User from "./pages/User.svelte";
-import { user } from "./store";
+import { logoClicks, user } from "./store";
 import { handleError } from "./utils";
 
 const routes: RouteConfig[] = [
   {
     path: "/",
     component: Home,
+    layout: BoardgameLayout,
   },
   {
     path: "/user/:username",
@@ -43,6 +45,19 @@ const routes: RouteConfig[] = [
     props: (route) => ({
       page: `${route.params.part1}:${route.params.part2}`,
     }),
+  },
+  {
+    path: "/refresh-games",
+    guard(_route) {
+      logoClicks.update((val) => val + 1);
+      // stay at current url
+      return window.location.pathname + window.location.search + window.location.hash;
+    },
+  },
+  {
+    path: "/boardgame/:boardgameId",
+    name: "boardgame",
+    component: NotFound,
   },
   {
     path: "*",
