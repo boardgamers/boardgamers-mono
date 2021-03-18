@@ -1,10 +1,8 @@
 import { get } from "@/api";
 import { boardgames } from "@/store";
+import type { RemoveReadable } from "@/utils";
 import type { GameInfo } from "@lib/gameinfo";
 import { sortBy, uniqBy } from "lodash";
-import type { Readable } from "svelte/store";
-
-type RemoveReadable<T> = T extends Readable<infer U> ? U : T;
 
 let lastLoad = 0;
 let promise: Promise<void> | undefined;

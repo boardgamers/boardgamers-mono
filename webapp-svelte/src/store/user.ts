@@ -1,3 +1,4 @@
+import { skipOnce } from "@/utils";
 import type { IUser } from "@lib/user";
 import { writable } from "svelte/store";
 
@@ -16,3 +17,13 @@ refreshToken.subscribe((newVal) =>
 export const accessToken = writable<Token | null>(null);
 export const gamesAccessToken = writable<Token | null>(null);
 export const accountLoaded = writable(false);
+
+user.subscribe(
+  skipOnce((newVal) => {
+    if (!newVal) {
+      refreshToken.set(null);
+      accessToken.set(null);
+      gamesAccessToken.set(null);
+    }
+  })
+);

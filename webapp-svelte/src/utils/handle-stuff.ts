@@ -27,6 +27,16 @@ export function handleSuccess(info: string) {
   notifier.success(info);
 }
 
+export function confirm(text: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    notifier.confirm(
+      text,
+      () => resolve(true),
+      () => resolve(false)
+    );
+  });
+}
+
 /**
  * Creates a function that will execute the target function, handle thrown error, and finally
  * execute `callback`
