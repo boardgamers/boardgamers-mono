@@ -133,21 +133,6 @@ $ : adminLink = location.hostname === "localhost" ? "http://localhost:8613": `${
         width: 46%;
         margin-bottom: 8px;
       }
-
-      .google {
-        background-color: #d74a38 !important;
-        border-color: #d74a38 !important;
-      }
-
-      .facebook {
-        background-color: #3a63bf;
-        border-color: #3a63bf;
-      }
-
-      .discord {
-        background-color: #7289da;
-        border-color: #7289da;
-      }
     }
   }
 </style>

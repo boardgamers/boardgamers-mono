@@ -53,3 +53,18 @@ i.bi {
 .big {
   font-size: 125%;
 }
+
+.btn.google {
+  background-color: #d74a38 !important;
+  border-color: #d74a38 !important;
+}
+
+.btn.facebook {
+  background-color: #3a63bf;
+  border-color: #3a63bf;
+}
+
+.btn.discord {
+  background-color: #7289da;
+  border-color: #7289da;
+}

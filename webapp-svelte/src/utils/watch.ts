@@ -32,14 +32,14 @@ export function createWatcher(
   };
 }
 
-export function skipOnce(callback: () => unknown) {
+export function skipOnce(callback: (...args: any[]) => unknown) {
   let skipped = false;
-  return () => {
+  return (...args: any[]) => {
     if (!skipped) {
       skipped = true;
       return;
     }
 
-    callback();
+    callback(...args);
   };
 }
