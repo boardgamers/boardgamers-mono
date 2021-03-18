@@ -31,6 +31,11 @@ export type RouteConfig = {
    */
   meta?: Record<string, any>;
   guard?: RouteGuard;
+  /**
+   * Props passed to the svelte component. By default it's route.params,
+   * but you can use a function instead to generate them
+   */
+  props?: (route: Route) => Record<string, any>;
 };
 
 export type RouterConfig = {
@@ -107,6 +112,7 @@ export function createRouter(config: RouterConfig) {
       component: config.component,
       meta: config.meta ?? {},
       name: config.name,
+      props: config.props,
       query: ctx.querystring ? parseQuery(ctx.querystring) : {},
     });
 
