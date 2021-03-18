@@ -8,6 +8,7 @@ export type RouteTarget =
       name: string;
       query?: Record<string, string>;
       params?: Record<string, string>;
+      hash?: string;
     };
 
 /**
@@ -21,6 +22,13 @@ export type RouteGuard = (route: Route) => Promise<void | RouteTarget> | void | 
 export type RouteConfig = {
   path: string;
   component?: typeof SvelteComponent;
+  /**
+   * Layout for the route, makes it easy to reuse the same
+   * layout for multiple routes
+   *
+   * Just call <RouterView/> inside the layout to render the component
+   */
+  layout?: typeof SvelteComponent;
   redirect?: string;
   /**
    * Used to identify the route easily and navigate to it
@@ -45,7 +53,9 @@ export type RouterConfig = {
 
 export type Route = {
   component?: typeof SvelteComponent;
+  layout?: typeof SvelteComponent;
   query: Record<string, string>;
+  hash: string;
   meta: Record<string, any>;
   name?: string;
 } & PageJS.Context;
@@ -76,7 +86,7 @@ export function routePath(to: RouteTarget) {
   let path = route.path;
 
   if (to.params) {
-    path = route.path.replace(/:([A-Za-z-_]+)[^/]+/g, (match: string, capture: string) => {
+    path = route.path.replace(/:([A-Za-z-_]+)/g, (match: string, capture: string) => {
       if (capture in to.params!) {
         return to.params![capture];
       }
@@ -89,6 +99,10 @@ export function routePath(to: RouteTarget) {
     if (queryString) {
       path += "?" + queryString;
     }
+  }
+
+  if (to.hash) {
+    path += "#" + to.hash;
   }
 
   return path;
@@ -108,13 +122,14 @@ export function createRouter(config: RouterConfig) {
   routes = config.routes;
 
   const augment = (ctx: PageJS.Context, config: RouteConfig) =>
-    Object.assign(ctx, {
+    (Object.assign(ctx, {
       component: config.component,
       meta: config.meta ?? {},
       name: config.name,
+      layout: config.layout,
       props: config.props,
       query: ctx.querystring ? parseQuery(ctx.querystring) : {},
-    });
+    }) as any) as Route; // cast needed because current typings of PageJS.Context do not include hash
 
   const handleGuard: (guard: RouteGuard, config: RouteConfig) => PageJS.Callback = (guard, config) => async (
     ctx,
