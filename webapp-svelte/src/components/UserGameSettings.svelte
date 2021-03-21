@@ -18,21 +18,24 @@ $: prefs = $gameSettings[game._id.game]
 
 $: ownership = prefs?.access?.ownership ?? false
 
-async function postOwnership() {
-  if (ownership) {
+async function postOwnership(event: InputEvent) {
+  const newVal = (event.target! as HTMLInputElement).checked
+
+  if (newVal) {
     const res = await confirm("I certify on my honor that I own a copy of the game");
 
     if (!res) {
       ownership = false;
+      (event.target! as HTMLInputElement).checked = false;
       return;
     }
   }
 
   try {
     await post(`/account/games/${game._id.game}/ownership`, {
-      access: { ...prefs.access, ownership },
+      access: { ...prefs.access, ownership: newVal },
     });
-    prefs.access = {...prefs.access, ownership}
+    prefs.access = {...prefs.access, ownership: newVal}
   } catch (err) {
     handleError(err);
   }
@@ -48,7 +51,7 @@ async function postPreferences() {
 <Card class="border-secondary text-center" header={title || game.label}>
   <CardText class="text-left">
     <Loading loading={!prefs}>
-      <Checkbox bind:value={ownership} on:change={postOwnership}>I own this game</Checkbox>
+      <Checkbox value={ownership} on:change={postOwnership}>I own this game</Checkbox>
       {#if game.preferences?.length > 0}
         <hr />
         {#each game.preferences as pref}
