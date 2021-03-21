@@ -13,6 +13,6 @@ import { classnames } from "@/utils";
 </script>
 
 <div class={classes}>
-  <input type="checkbox" class="form-check-input" id={name} on:change on:blur bind:checked={value} />
+  <input type="checkbox" class="form-check-input" id={name} bind:checked={value} on:change on:blur />
   <label class="form-check-label" for={name}><slot /></label>
 </div>
