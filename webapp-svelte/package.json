@@ -1,4 +1,5 @@
 {
+  "license": "AGPL",
   "scripts": {
     "start": "snowpack dev --port 8615",
     "build": "snowpack build",
