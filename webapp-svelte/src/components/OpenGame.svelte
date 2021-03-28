@@ -1,12 +1,13 @@
 <script lang="ts">
  import { boardgameInfo } from "@/api";
-import { duration, handleError, niceDate, oneLineMarked, pluralize, timerTime } from "@/utils";
+import { duration, handleError, niceDate, oneLineMarked, pluralize, timerTime, confirm } from "@/utils";
 import type { IGame, PlayerInfo } from "@lib/game";
 import marked from "marked"
 import { Badge, Button } from "@/modules/cdk";
 import { user } from "@/store";
 import { joinGame, unjoinGame } from "@/api/game";
 import Icon from "sveltestrap/src/Icon.svelte";
+import { navigate, route } from "@/modules/router";
 
   export let game: IGame
   export let players: PlayerInfo[]
@@ -30,11 +31,28 @@ import Icon from "sveltestrap/src/Icon.svelte";
     }
   };
 
-  const leaveGame = async() => {
+  const leave = async() => {
     if (await confirm("Are you sure you want to leave this game?")) {
       unjoinGame(game._id).catch(handleError);
     }
   };
+
+  const join = async() => {
+    if (!$user) {
+      navigate({ name: "login", query: { redirect: $route!.canonicalPath } });
+      return;
+    }
+
+    if (game.options.timing.timePerGame <= 24 * 3600) {
+      if (!await confirm(
+        "This game has a short duration. You need to keep yourself available in order to play the game until the end."
+      )) {
+        return;
+      }
+    }
+
+    joinGame(game._id).catch(handleError)
+  }
 </script>
 
 <div class="container pb-3">
@@ -143,8 +161,8 @@ import Icon from "sveltestrap/src/Icon.svelte";
   </div>
 
   {#if game.players.some((pl) => pl._id === $user?._id)}
-    <Button color="warning" on:click={() => leaveGame()}>Leave</Button>
+    <Button color="warning" on:click={leave}>Leave</Button>
   {:else}
-    <Button color="secondary" on:click={() => joinGame(game._id)}>Join!</Button>
+    <Button color="secondary" on:click={join}>Join!</Button>
   {/if}
 </div>
