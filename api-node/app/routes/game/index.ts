@@ -284,7 +284,8 @@ router.get("/:gameId/players", async (ctx) => {
   }).lean(true);
   for (const user of users) {
     const gamePref = gamePrefs.find((pref) => pref.user.equals(user._id));
-    ret.push({ id: user._id, name: user.account.username, elo: gamePref?.elo?.value ?? 0 });
+    // @fixme: Remove 'id' when fully moved to svelte frontend
+    ret.push({ id: user._id, _id: user._id, name: user.account.username, elo: gamePref?.elo?.value ?? 0 });
   }
   ctx.body = ret;
 });
