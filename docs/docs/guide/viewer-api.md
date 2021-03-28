@@ -136,6 +136,14 @@ You can send them this way:
 emitter.emit("event", data);
 ```
 
+### ready
+
+```ts
+emitter.emit("ready");
+```
+
+The DOM is ready, and the game can be shown to the player.
+
 ### move
 
 ```ts

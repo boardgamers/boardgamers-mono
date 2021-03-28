@@ -369,7 +369,11 @@ function launch(...) {
   });
 
   // When we receive new state
-  emitter.on("state", state => props.state = state);
+  emitter.on("state", state => {
+    props.state = state;
+    // wait for the DOM to render, and emit the ready event
+    vue.$nextTick().then(() => emitter.emit("ready"));
+  });
 
   // When we receive log slices, when executing a move
   emitter.on("gamelog", (logData) => {
