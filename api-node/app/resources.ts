@@ -54,7 +54,6 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
             case 'state': {
               console.log('updating state', event.data.state);
               gameObj.emit('state', event.data.state);
-              parent.postMessage({type: 'displayReady'}, '*');
               break;
             }
             case 'state:updated': {
@@ -90,6 +89,9 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
         });
         gameObj.on('move', move => {
           parent.postMessage({type: 'gameMove', move}, '*');
+        });
+        gameObj.on('ready', () => {
+          parent.postMessage({type: 'displayReady'}, '*');
         });
         gameObj.on('fetchState', () => {
           parent.postMessage({type: 'fetchState'}, '*');
