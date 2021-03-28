@@ -3,6 +3,7 @@ import { loadAccountIfNeeded } from "./api";
 import { createRouter, navigate, route, RouteConfig } from "./modules/router";
 import Account from "./pages/Account.svelte";
 import BoardgameLayout from "./pages/BoardgameLayout.svelte";
+import Game from "./pages/Game.svelte";
 import Home from "./pages/Home.svelte";
 import NotFound from "./pages/NotFound.svelte";
 import Page from "./pages/Page.svelte";
@@ -36,6 +37,10 @@ const routes: RouteConfig[] = [
     meta: {
       loggedIn: true,
     },
+  },
+  {
+    path: "/game/:gameId",
+    component: Game,
   },
   {
     path: "/page/:page",
