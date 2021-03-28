@@ -56,8 +56,11 @@ module.exports = {
       dest: (req, res) => proxy.web(req, res),
     },
     {
-      src: "resources.localhost",
-      dest: (req, res) => proxyResources.web(req, res),
+      src: "/resources/.*",
+      dest: (req, res) => {
+        req.url = req.url.replace(/^\/resources/, "");
+        proxyResources.web(req, res);
+      },
     },
     /* Enable an SPA Fallback in development: */
     { match: "routes", src: ".*", dest: "/index.html" },
