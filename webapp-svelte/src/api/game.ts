@@ -6,6 +6,10 @@ export async function loadGame(gameId: string) {
   return { game, players };
 }
 
+export async function loadGameData(gameId: string) {
+  return get(`/gameplay/${gameId}`);
+}
+
 export async function unjoinGame(gameId: string) {
   return post(`/game/${gameId}/unjoin`);
 }
