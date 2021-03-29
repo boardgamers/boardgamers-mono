@@ -1,6 +1,7 @@
 <script lang="typescript">
 	import Appbar from './components/Appbar.svelte';
 	import Footer from './components/Footer.svelte';
+	import Sidebar from './components/Sidebar.svelte';
   import { RouterView } from './modules/router';
 </script>
 
@@ -13,6 +14,7 @@
       </main>
       <Footer />
     </div>
+    <Sidebar />
   </div>
 </div>
 

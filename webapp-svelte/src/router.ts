@@ -41,6 +41,10 @@ const routes: RouteConfig[] = [
   {
     path: "/game/:gameId",
     component: Game,
+    name: "game",
+    meta: {
+      sidebar: true,
+    },
   },
   {
     path: "/page/:page",

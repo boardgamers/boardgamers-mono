@@ -48,6 +48,8 @@ body {
   --navbar-height: 56px;
   --navbar-margin: 16px;
   --top-height: var(--navbar-height) + var(--navbar-margin);
+  --fab-bottom: 15px;
+  --fab-right: 25px;
 }
 
 i.bi {
