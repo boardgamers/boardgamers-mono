@@ -128,7 +128,7 @@ const router = new Router({
       path: "/game/:gameId",
       component: loadView("Game"),
       name: "game",
-      meta: { noFooter: true },
+      meta: { noFooter: true, sidebar: true },
     },
     {
       path: "/user/:username",
