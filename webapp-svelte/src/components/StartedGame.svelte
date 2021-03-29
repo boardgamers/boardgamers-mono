@@ -32,6 +32,9 @@ import { handleError } from "@/utils";
   }
 
   $: postUser(), [user]
+  $: prefs = $gameSettings[game.game.name]
+  $: postPreferences(), [prefs]
+
   
   function postGamedata() {
     gameIframe()?.contentWindow?.postMessage({ type: "state", state: game.data }, "*");
@@ -45,13 +48,19 @@ import { handleError } from "@/utils";
     gameIframe()?.contentWindow?.postMessage({ type: "gameLog", data: logObject }, "*");
   }
 
+  function postPreferences() {
+    if (gameIframe()) {
+      gameIframe()!.contentWindow?.postMessage({ type: "preferences", preferences: prefs }, "*");
+    }
+  }
+
   async function handleGameMessage(event: MessageEvent) {
     try {
       console.log("receive event", event.data.type);
       if (event.data.type === "gameReady") {
         console.log("game ready, posting user & pref");
         postUser();
-        // this.postPreferences();
+        postPreferences();
         postGamedata();
       } else if (event.data.type === "gameHeight") {
         gameIframe()!.height =
