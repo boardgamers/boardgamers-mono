@@ -17,6 +17,11 @@
   border-color: var(--primary);
 }
 
+.text-light a {
+  color: #fff;
+  font-weight: 600;
+}
+
 h1 {
   font-size: var(--h1-font-size);
 }
@@ -59,6 +64,10 @@ i.bi {
 
 .big {
   font-size: 125%;
+}
+
+.mt-75 {
+  margin-top: 0.75rem !important;
 }
 
 .btn.google {
