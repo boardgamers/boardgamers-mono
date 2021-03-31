@@ -5,6 +5,7 @@ dependencies:
   marked: 2.0.1
   page: 1.11.6
   svelte: 3.31.2
+  svelte-portal: 2.1.2
   svelte-routing: 1.5.0_svelte@3.31.2
   sveltestrap: 3.12.2_svelte@3.31.2
 devDependencies:
@@ -2369,6 +2370,10 @@ packages:
       svelte: '>=3.19.0'
     resolution:
       integrity: sha512-AEPtbwF6h+B5jI/aQhvk61wXrW6bxOGQecI/GmRd+LCvg+s4P0VQ3Xseg18foAM6ZemBZrGCRCopeZZS4+X7cg==
+  /svelte-portal/2.1.2:
+    dev: false
+    resolution:
+      integrity: sha512-u1ONI4ZJDNhVJPDW7tH6RH1ZIzALt6kJZbF00Hz9bgNIVRlzvzimsnwf35rGFMtPFA+FYenvsTHUR815yYNc9A==
   /svelte-preprocess/4.6.3_a1262e10501a33db1d6f101089c74634:
     dependencies:
       '@types/pug': 2.0.4
@@ -2695,6 +2700,7 @@ specifiers:
   postcss-nested: ^5.0.3
   snowpack: ^3.0.1
   svelte: ^3.24.0
+  svelte-portal: ^2.1.2
   svelte-preprocess: ^4.0.8
   svelte-routing: ^1.5.0
   sveltestrap: ^3.12.2
