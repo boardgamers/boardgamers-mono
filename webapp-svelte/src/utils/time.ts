@@ -81,6 +81,30 @@ export function duration(seconds: number) {
   }
 }
 
+export function shortDuration(seconds: number) {
+  for (let i = 0; i < timeRanges.length; i++) {
+    if (i === timeRanges.length - 1 || timeRanges[i + 1].value > seconds) {
+      const n = seconds / timeRanges[i].value;
+      const gap = timeRanges[i].value;
+      if (
+        gap < seconds &&
+        seconds % gap !== 0 &&
+        i > 0 &&
+        Math.floor((seconds - gap * Math.floor(n)) / timeRanges[i - 1].value) > 0
+      ) {
+        return (
+          Math.floor(n) +
+          timeRanges[i].name[0] +
+          " " +
+          Math.floor((seconds - gap * Math.floor(n)) / timeRanges[i - 1].value) +
+          timeRanges[i - 1].name[0]
+        );
+      }
+      return pluralize(Math.floor(n), timeRanges[i].name);
+    }
+  }
+}
+
 export function dateFromObjectId(objectId: string) {
   return new Date(parseInt(objectId.substring(0, 8), 16) * 1000);
 }

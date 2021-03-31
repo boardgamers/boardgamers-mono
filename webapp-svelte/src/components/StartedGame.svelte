@@ -1,7 +1,6 @@
 <script lang="ts">
 import { boardgameInfo, get } from "@/api";
 import { loadGameData } from "@/api/game";
-import { loadGameSettings } from "@/api/gamesettings";
 
   import Loading from "@/modules/cdk/Loading.svelte";
 import { navigate } from "@/modules/router";
@@ -16,8 +15,6 @@ import { handleError } from "@/utils";
   const resourcesLink = location.hostname === "localhost" || location.hostname.endsWith("gitpod.io") ? `/resources` : `//resources.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`;
 
   const gameIframe = () => document.querySelector<HTMLIFrameElement>("#game-iframe")
-
-  loadGameSettings(game.game.name).catch(handleError);
 
   $: src = `${resourcesLink}/game/${gameInfo._id.game}/${gameInfo._id.version}/iframe?alternate=${
     $gameSettings[game.game.name]?.preferences?.alternateUI ? 1 : 0

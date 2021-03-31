@@ -14,7 +14,7 @@ import { route } from "@/modules/router";
   <div class="sidebar-container" class:open>
     <transition name="slide">
       <div class="px-3 pb-3 sidebar thin-scrollbar text-light" v-if="open">
-        <portal-target name="sidebar" />
+        <div id="sidebar" />
       </div>
     </transition>
     <Button

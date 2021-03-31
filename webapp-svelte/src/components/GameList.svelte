@@ -198,7 +198,7 @@
     }
   }
 
-  .player-avatar {
+  :global(.player-avatar) {
     height: 2em;
     width: 2em;
     display: inline-block;
@@ -207,7 +207,7 @@
     vertical-align: middle;
     background-size: cover;
 
-    .vp {
+    :global(.vp) {
       position: absolute;
       right: -5px;
       bottom: -5px;
@@ -219,10 +219,10 @@
       text-align: center;
     }
 
-    &.current {
+    :global(&.current) {
       border: 3px solid #333;
 
-      .vp {
+      :global(.vp) {
         background-color: #6673bc;
       }
     }
