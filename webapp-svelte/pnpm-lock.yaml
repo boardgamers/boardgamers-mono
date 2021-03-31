@@ -1,6 +1,7 @@
 dependencies:
   awesome-notifications: 3.1.1
   bootstrap: 4.6.0
+  dompurify: 2.2.7
   lodash: 4.17.21
   marked: 2.0.1
   page: 1.11.6
@@ -15,6 +16,7 @@ devDependencies:
   '@snowpack/web-test-runner-plugin': 0.2.1_297c9c6067fe54a5175efdf02e3ff31c
   '@testing-library/svelte': 3.0.3_svelte@3.31.2
   '@types/chai': 4.2.14
+  '@types/dompurify': 2.2.1
   '@types/lodash': 4.14.168
   '@types/marked': 2.0.0
   '@types/mocha': 8.2.0
@@ -239,6 +241,12 @@ packages:
     dev: true
     resolution:
       integrity: sha512-FK4U5Qyn7/Sc5ih233OuHO0qAkOpEcD/eG6584yEiLKizTFRny86qHLe/rej3HFQrkBuUjF4whFliAdODbVN/w==
+  /@types/dompurify/2.2.1:
+    dependencies:
+      '@types/trusted-types': 2.0.0
+    dev: true
+    resolution:
+      integrity: sha512-3JwbEeRVQ3n6+JgBW/hCdkydRk9/vWT+UEglcXEJqLJEcUganDH37zlfLznxPKTZZfDqA9K229l1qN458ubcOQ==
   /@types/estree/0.0.39:
     dev: true
     resolution:
@@ -370,6 +378,10 @@ packages:
     dev: true
     resolution:
       integrity: sha512-riJuu2fR3qhBfpWJtqQtNwYJFvquiXfqdprXvZjSNmscnZbIVyHoM49ZVEM1bciKM1mWOCdjXymOYHyGh2WLtg==
+  /@types/trusted-types/2.0.0:
+    dev: true
+    resolution:
+      integrity: sha512-I8MnZqNXsOLHsU111oHbn3khtvKMi5Bn4qVFsIWSJcCP1KKDiXX5AEw8UPk0nSopeC+Hvxt6yAy1/a5PailFqg==
   /@types/ws/7.4.0:
     dependencies:
       '@types/node': 14.14.22
@@ -1069,6 +1081,10 @@ packages:
     dev: true
     resolution:
       integrity: sha512-TvrjBckDy2c6v6RLxPv5QXOnU+SmF9nBII5621Ve5fu6Z/BDrENurBEvlC1f44lKEUVqOpK4w9E5Idc5/EgkLQ==
+  /dompurify/2.2.7:
+    dev: false
+    resolution:
+      integrity: sha512-jdtDffdGNY+C76jvodNTu9jt5yYj59vuTUyx+wXdzcSwAGTYZDAQkQ7Iwx9zcGrA4ixC1syU4H3RZROqRxokxg==
   /dotenv-expand/5.1.0:
     dev: true
     resolution:
@@ -2682,6 +2698,7 @@ specifiers:
   '@snowpack/web-test-runner-plugin': ^0.2.0
   '@testing-library/svelte': ^3.0.0
   '@types/chai': ^4.2.13
+  '@types/dompurify': ^2.2.1
   '@types/lodash': ^4.14.168
   '@types/marked': ^2.0.0
   '@types/mocha': ^8.2.0
@@ -2691,6 +2708,7 @@ specifiers:
   awesome-notifications: ^3.1.1
   bootstrap: '4'
   chai: ^4.2.0
+  dompurify: ^2.2.7
   dotenv: ^8.2.0
   http-proxy: ^1.18.1
   lodash: ^4.17.21
