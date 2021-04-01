@@ -244,15 +244,17 @@ export async function afterMove(engine: Engine, game: GameDocument, gameData: Ga
      */
     for (const oldPlayer of oldPlayers.filter((pl) => !game.currentPlayers?.some((pl2) => pl2._id.equals(pl._id)))) {
       const player = game.players.find((pl) => pl._id.equals(oldPlayer._id))!;
-      player.remainingTime = Math.max(
-        Math.min(
-          game.options.timing.timePerGame,
-          (player.remainingTime ?? game.options.timing.timePerGame) -
-            elapsedSeconds(oldPlayer.timerStart, game.options.timing.timer) +
-            game.options.timing.timePerMove
-        ),
-        game.options.timing.timePerMove
-      );
+      if (!player.dropped) {
+        player.remainingTime = Math.max(
+          Math.min(
+            game.options.timing.timePerGame,
+            (player.remainingTime ?? game.options.timing.timePerGame) -
+              elapsedSeconds(oldPlayer.timerStart, game.options.timing.timer) +
+              game.options.timing.timePerMove
+          ),
+          game.options.timing.timePerMove
+        );
+      }
     }
 
     game.markModified("players");
