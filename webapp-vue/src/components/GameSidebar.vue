@@ -74,7 +74,10 @@
           Drop {{ player.name }}
         </b-btn>
       </div>
-      <div class="mt-75" v-if="gameInfo && gameInfo.settings.length > 0 && game.status === 'active' && settings">
+      <div
+        class="mt-75"
+        v-if="gameInfo && gameInfo.settings && gameInfo.settings.length > 0 && game.status === 'active' && settings"
+      >
         <h3>
           Settings
           <router-link :to="`/page/${game.game.name}/settings`">
