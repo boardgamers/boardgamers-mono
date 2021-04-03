@@ -1,0 +1,33 @@
+name: Docs
+on:
+  push:
+    paths:
+      - ".github/workflows/docs.yml"
+      - "docs/**"
+    branches:
+      - master
+
+defaults:
+  run:
+    working-directory: docs
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
+      - uses: pnpm/action-setup@v1.2.1
+        with:
+          version: 5.17.1
+      - run: echo "${{ secrets.GIT_PAGES_PRIVATEKEY }}" > ~/key 
+      - run: chmod 600 ~/key
+      - run: git config --global core.sshCommand "ssh -i ~/key -F /dev/null"
+      - run: pnpm install
+      - run: pnpm run build
+      - run: git clone git@github.com:boardgamers/boardgamers.github.io pages --depth 1
+      - run: rm -Rf pages/*
+      - run: cp -R docs/.vuepress/dist/* pages
+      - run: git config --global user.name github-actions
+      - run: git config --global user.email bot@github.com
+      - run: cd pages && git add . && git commit -m '📝 update doc' && git push
