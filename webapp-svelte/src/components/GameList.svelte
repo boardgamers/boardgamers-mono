@@ -8,7 +8,7 @@
   import { Badge, Icon, Pagination, Loading } from "@cdk";
 
   export let title = 'Games';
-  export let perPage = 20;
+  export let perPage = 10;
   export let topRecords = false;
   export let sample = false;
   export let gameStatus: IGame['status'];
