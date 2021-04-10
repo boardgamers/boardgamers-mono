@@ -58,18 +58,20 @@
     />
   </PaginationItem>
   {#each Array(pageItems) as _, position (pageFor(position) + "_" + position)}
-    <PaginationItem disabled={typeof pageFor(position) !== "number"} active={pageFor(position) === currentPage}>
-      <PaginationLink
-        href="#"
-        on:click={(e) => {
-          e.preventDefault();
-          currentPage = +pageFor(position);
-        }}
-        ariaLabel={typeof pageFor(position) === "number" && `Go to page ${+pageFor(position) + 1}`}
-      >
-        {typeof pageFor(position) === "number" ? +pageFor(position) + 1 : pageFor(position)}
-      </PaginationLink>
-    </PaginationItem>
+    {#if !(pageFor(position) < 0)}
+      <PaginationItem disabled={typeof pageFor(position) !== "number"} active={pageFor(position) === currentPage}>
+        <PaginationLink
+          href="#"
+          on:click={(e) => {
+            e.preventDefault();
+            currentPage = +pageFor(position);
+          }}
+          ariaLabel={typeof pageFor(position) === "number" && `Go to page ${+pageFor(position) + 1}`}
+        >
+          {typeof pageFor(position) === "number" ? +pageFor(position) + 1 : pageFor(position)}
+        </PaginationLink>
+      </PaginationItem>
+    {/if}
   {/each}
   <PaginationItem disabled={currentPage === totalPages - 1}>
     <PaginationLink
