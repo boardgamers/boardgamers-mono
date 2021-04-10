@@ -295,9 +295,9 @@ function toggleNotes() {
 
     <Input
       type="textarea"
-      class={"mt-2 vertical-textarea" + !showNotes ? " d-none" : ""}
+      class={"mt-2 vertical-textarea" + (!showNotes ? " d-none" : "")}
       bind:value={notes}
-      on:change={updateNotesDebounce}
+      on:input={updateNotesDebounce}
       rows="3"
       max-rows="8"
       placeholder="You can make plans here..."
