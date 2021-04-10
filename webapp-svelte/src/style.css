@@ -17,6 +17,20 @@
   border-color: var(--primary);
 }
 
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+  background-color: var(--primary);
+}
+
+a {
+  color: var(--primary);
+}
+
+a:hover {
+  color: var(--primary);
+  filter: brightness(85%);
+}
+
 .text-light a {
   color: #fff;
   font-weight: 600;
