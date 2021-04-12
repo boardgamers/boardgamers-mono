@@ -9,6 +9,7 @@ dependencies:
   svelte-portal: 2.1.2
   svelte-routing: 1.5.0_svelte@3.31.2
   sveltestrap: 3.12.2_svelte@3.31.2
+  type-fest: 1.0.1
 devDependencies:
   '@snowpack/plugin-dotenv': 2.0.5
   '@snowpack/plugin-svelte': 3.5.2_a1262e10501a33db1d6f101089c74634
@@ -2542,6 +2543,12 @@ packages:
       node: '>=8'
     resolution:
       integrity: sha512-OdjXJxnCN1AvyLSzeKIgXTXxV+99ZuXl3Hpo9XpJAv9MBcHrrJOQ5kV7ypXOuQie+AmWG25hLbiKdwYTifzcfQ==
+  /type-fest/1.0.1:
+    dev: false
+    engines:
+      node: '>=10'
+    resolution:
+      integrity: sha512-+UTPE7JT3O+sUpRroRgQAbbSfIRBwOHh+o/oruB1JJE6g6uBm3Y0D82fO3xu8VHfxJLQjeRp0PEY6mRmh/lElA==
   /type-is/1.6.18:
     dependencies:
       media-typer: 0.3.0
@@ -2722,4 +2729,5 @@ specifiers:
   svelte-preprocess: ^4.0.8
   svelte-routing: ^1.5.0
   sveltestrap: ^3.12.2
+  type-fest: ^1.0.1
   typescript: ^4.0.0
