@@ -47,7 +47,7 @@ import { handleError } from "@/utils";
 
   function postPreferences() {
     if (gameIframe()) {
-      gameIframe()!.contentWindow?.postMessage({ type: "preferences", preferences: prefs }, "*");
+      gameIframe()!.contentWindow?.postMessage({ type: "preferences", preferences: prefs.preferences }, "*");
     }
   }
 

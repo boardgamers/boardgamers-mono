@@ -92,6 +92,9 @@ let updateNotesDebounce = debounce(async () => {
 }, 800, { leading: false, trailing: true });
 
 async function postPreferences() {
+  // Trigger update to subscribers
+  $gameSettings = {...$gameSettings}
+
   if (!$user) {
     return;
   }
@@ -267,7 +270,7 @@ function toggleNotes() {
       {/each}
     </div>
   {/if}
-  {#if gameInfo.preferences.length > 0}
+  {#if preferenceItems.length > 0}
     <div class="mt-75">
       <h3>
         Preferences
@@ -275,7 +278,7 @@ function toggleNotes() {
           <Icon name="info-circle-fill" class="small" />
         </a>
       </h3>
-      {#each gameInfo.preferences as preference}
+      {#each preferenceItems as preference}
         <Checkbox bind:value={preferences[preference.name]} on:change={postPreferences}>
           {preference.label}
         </Checkbox>
