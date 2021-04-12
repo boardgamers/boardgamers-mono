@@ -56,6 +56,8 @@ body {
   --primary-rgb: 22, 80, 143;
   --primary: rgb(var(--primary-rgb));
 
+  --info: #17a2b8;
+
   --footer-margin: 30px;
   --footer-height: 60px;
 

@@ -5,6 +5,7 @@ import Account from "./pages/Account.svelte";
 import BoardgameLayout from "./pages/BoardgameLayout.svelte";
 import Game from "./pages/Game.svelte";
 import Games from "./pages/Games.svelte";
+import GameSelection from "./pages/GameSelection.svelte";
 import Home from "./pages/Home.svelte";
 import NotFound from "./pages/NotFound.svelte";
 import Page from "./pages/Page.svelte";
@@ -52,6 +53,11 @@ const routes: RouteConfig[] = [
     component: Games,
     name: "games",
     layout: BoardgameLayout,
+  },
+  {
+    path: "/new-game",
+    component: GameSelection,
+    props: () => ({ newGame: true, title: "Choose which game to play" }),
   },
   {
     path: "/page/:page",
