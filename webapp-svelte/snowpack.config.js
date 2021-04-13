@@ -3,13 +3,15 @@ const httpProxy = require("http-proxy");
 
 const remote = process.env.backend === "remote";
 
-console.log(process.env.backend, "back");
-
 const proxy = httpProxy.createServer({
   target: remote ? "https://www.boardgamers.space" : "http://localhost:50801",
   changeOrigin: true,
 });
-const proxyWs = remote ? proxy : httpProxy.createServer({ target: "http://localhost:50802" });
+const proxyWs = httpProxy.createServer({
+  target: remote ? "https://www.boardgamers.space" : "http://localhost:50802",
+  changeOrigin: true,
+  ws: true,
+});
 const proxyGames = remote ? proxy : httpProxy.createServer({ target: "http://localhost:50803" });
 const proxyResources = httpProxy.createServer({
   target: remote ? "https://resources.boardgamers.space" : "http://localhost:50804",
@@ -23,10 +25,8 @@ proxyResources.on("proxyRes", function (proxyRes, req, res) {
   res.setHeader("Host", req.headers["host"]);
 });
 
-proxy.on("upgrade", function (req, socket, head) {
-  proxy.ws(req, socket, head);
-});
 proxyWs.on("upgrade", function (req, socket, head) {
+  console.log("upgrated2");
   proxyWs.ws(req, socket, head);
 });
 
@@ -45,7 +45,7 @@ module.exports = {
   routes: [
     {
       src: "/ws",
-      dest: (req, res) => proxyWs.web(req, res),
+      dest: (req, res) => proxyWs.ws(req, res.socket),
     },
     {
       src: "/api/gameplay",
@@ -73,6 +73,8 @@ module.exports = {
     /* ... */
   },
   devOptions: {
+    // Have to specify a different port so that websockets still work
+    hmrPort: 5007,
     /* ... */
   },
   buildOptions: {

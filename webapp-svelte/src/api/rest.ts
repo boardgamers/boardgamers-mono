@@ -1,6 +1,7 @@
+import { omit } from "lodash";
 import { get as $ } from "svelte/store";
 import type { Token } from "../store";
-import { accessToken, gamesAccessToken, refreshToken } from "../store";
+import { accessTokens, refreshToken } from "../store";
 
 const baseUrl = "/api";
 
@@ -44,33 +45,47 @@ async function getResponseData<T = any>(response: Response): Promise<T> {
   return body;
 }
 
+export function setAccessToken(token: Token | null, scopes: string[] = ["all"]) {
+  if (token) {
+    accessTokens.set({ ...$(accessTokens), [scopes.join(",")]: token });
+  } else {
+    accessTokens.set({ ...omit($(accessTokens), scopes.join(",")) });
+  }
+}
+
 /**
  * Get accessToken, generating from refreshToken if needed, with the correct scopes
  * @param url Used to determine the scopes needed for the accessToken
  * @returns Access token or null if logged out
  */
-async function getAccessToken(url: string): Promise<Token | null> {
+export async function getAccessToken(url: string): Promise<Token | null> {
   if (!$(refreshToken)) {
     return null;
   }
 
-  const isGames = url.startsWith("/gameplay");
+  let scopes = ["all"];
 
-  const ref = isGames ? gamesAccessToken : accessToken;
-  const $ref = $(ref);
+  if (url.startsWith("/gameplay")) {
+    scopes = ["gameplay"];
+  } else if (url.startsWith("ws")) {
+    scopes = ["site"];
+  }
 
-  if ($ref && $ref.expiresAt > Date.now() + 5 * 60 * 1000) {
-    return $ref;
+  const accessToken = $(accessTokens)[scopes.join(",")];
+
+  if (accessToken?.expiresAt > Date.now() + 5 * 60 * 1000) {
+    return accessToken;
   }
 
   const body = await getResponseData<Token>(
     await fetch(transformUrl("/account/refresh"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: $(refreshToken)!.code, scopes: isGames ? ["gameplay"] : ["all"] }),
+      body: JSON.stringify({ code: $(refreshToken)!.code, scopes }),
     })
   );
 
-  ref.set(body);
+  setAccessToken(body, scopes);
+
   return body;
 }
