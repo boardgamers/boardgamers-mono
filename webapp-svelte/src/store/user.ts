@@ -14,16 +14,17 @@ refreshToken.subscribe((newVal) =>
   newVal ? localStorage.setItem("refreshToken", JSON.stringify(newVal)) : localStorage.removeItem("refreshToken")
 );
 
-export const accessToken = writable<Token | null>(null);
-export const gamesAccessToken = writable<Token | null>(null);
+/**
+ * Access tokens by scope
+ */
+export const accessTokens = writable<Record<string, Token>>({});
 export const accountLoaded = writable(false);
 
 user.subscribe(
   skipOnce((newVal) => {
     if (!newVal) {
       refreshToken.set(null);
-      accessToken.set(null);
-      gamesAccessToken.set(null);
+      accessTokens.set({});
     }
   })
 );

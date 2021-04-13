@@ -1,6 +1,6 @@
-import { accessToken, accountLoaded, refreshToken, user } from "@/store";
+import { accountLoaded, refreshToken, user } from "@/store";
 import type { IUser } from "@lib/user";
-import { get, post } from "./rest";
+import { get, post, setAccessToken } from "./rest";
 
 export async function login(email: string, password: string) {
   const data: {
@@ -11,7 +11,7 @@ export async function login(email: string, password: string) {
 
   user.set(data.user);
   refreshToken.set(data.refreshToken);
-  accessToken.set(data.accessToken);
+  setAccessToken(data.accessToken);
 }
 
 export async function logout() {

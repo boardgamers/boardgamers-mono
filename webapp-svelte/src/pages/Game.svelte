@@ -7,16 +7,20 @@ import OpenGame from "@/components/OpenGame.svelte"
 import GameSidebar from "@/components/GameSidebar.svelte"
 import StartedGame from "@/components/StartedGame.svelte"
 import Loading from "@/modules/cdk/Loading.svelte"
-import { boardgames } from "@/store";
+import { boardgames, currentGameId, currentRoom } from "@/store";
 import { defer } from "@/utils";
 import type { IGame, PlayerInfo } from "@lib/game";
 import { loadGameSettings } from "@/api/gamesettings";
+import { onDestroy } from "svelte";
 
 export let gameId: string;
 let game: IGame | null = null;
 let players: PlayerInfo[] = [];
 
 const load = defer(async () => {
+  currentGameId.set(gameId)
+  currentRoom.set(gameId)
+
   // Reset game on gameId change
   if (game !== null && game?._id !== gameId) {
     game = null;
@@ -36,6 +40,11 @@ const load = defer(async () => {
 });
 
 $: load(), [gameId]
+
+onDestroy(() => {
+  currentGameId.set(null);
+  currentRoom.set(null);
+})
 </script>
 
 <Loading loading={!game || !$boardgames[boardgameKey(game.game.name, game.game.version)]?.viewer}>
