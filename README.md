@@ -1,5 +1,12 @@
 # Boardgamers
 
+<p align="center">
+	<a href="https://gitmoji.dev">
+		<img src="https://img.shields.io/badge/gitmoji-%20😜%20😍-FFDD67.svg?style=flat-square"
+			 alt="Gitmoji">
+	</a>
+</p>
+
 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/boardgamers/boardgamers-mono)
 
 Mono-repo for the whole architecture of boardgamers.space. The great advantage of a mono-repo is
@@ -48,4 +55,4 @@ This is only for development. The mongodb database is exposed to the world!
 We welcome contributions from everybody! Don't hesitate to ask a question.
 
 VS Code is the recommended editor. Its workspace feature is great to open multiple windows, one with all the back, and another with the all the front.
-Install the prettier & gitmoji extensions!
+Install the prettier & [gitmoji](https://github.com/carloscuesta/gitmoji) extensions!
