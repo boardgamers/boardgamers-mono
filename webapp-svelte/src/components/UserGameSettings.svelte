@@ -51,11 +51,11 @@ async function postPreferences() {
 <Card class="border-secondary text-center" header={title || game.label}>
   <CardText class="text-left">
     <Loading loading={!prefs}>
-      <Checkbox value={ownership} on:change={postOwnership}>I own this game</Checkbox>
+      <Checkbox checked={ownership} on:change={postOwnership}>I own this game</Checkbox>
       {#if game.preferences?.length > 0}
         <hr />
         {#each game.preferences as pref}
-          <Checkbox bind:value={prefs.preferences[pref.name]} on:change={postPreferences}>
+          <Checkbox bind:checked={prefs.preferences[pref.name]} on:change={postPreferences}>
             {pref.label}
           </Checkbox>
         {/each}

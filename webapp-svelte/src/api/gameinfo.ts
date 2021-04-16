@@ -85,4 +85,6 @@ export async function loadBoardgame(game: string, version: number | "latest") {
       }
     )
   );
+
+  return loading.get(id);
 }

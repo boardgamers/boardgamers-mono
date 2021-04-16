@@ -151,7 +151,7 @@ $: onNotificationsChanged(notifications)
         {/each}
       </p>
       {#if !$user.account.termsAndConditions}
-        <Checkbox bind:value={tc} on:change={acceptTC} class="mb-3">
+        <Checkbox bind:checked={tc} on:change={acceptTC} class="mb-3">
           I agree to the <a href="/page/terms-and-conditions">Terms and Conditions</a>
         </Checkbox>
       {:else}
@@ -161,10 +161,11 @@ $: onNotificationsChanged(notifications)
         </p>
       {/if}
       <hr />
-      <Checkbox bind:value={newsletter} on:change={updateAccount}>Get newsletter, up to six emails per year.</Checkbox>
+      <Checkbox bind:checked={newsletter} on:change={updateAccount}>Get newsletter, up to six emails per year.</Checkbox
+      >
       <div class="form-row align-items-center">
         <div class="col-auto">
-          <Checkbox bind:value={gameNotification} on:change={updateAccount}>
+          <Checkbox bind:checked={gameNotification} on:change={updateAccount}>
             Receive an email when it's your turn after a delay of
           </Checkbox>
         </div>
@@ -187,10 +188,10 @@ $: onNotificationsChanged(notifications)
       </div>
     </Card>
     <Card class="mt-4 border-info" header="Game Settings">
-      <Checkbox bind:value={soundNotification} on:change={updateAccount}>
+      <Checkbox bind:checked={soundNotification} on:change={updateAccount}>
         Play a sound when it's your turn in one of your games
       </Checkbox>
-      <Checkbox bind:value={notifications}>Notification on this device when it's your turn</Checkbox>
+      <Checkbox bind:checked={notifications}>Notification on this device when it's your turn</Checkbox>
     </Card>
   </Container>
 {/if}
