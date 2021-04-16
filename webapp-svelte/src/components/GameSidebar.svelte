@@ -4,7 +4,7 @@ import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration
 import DOMPurify from "dompurify";
 import type { IGame, PlayerInfo } from "@lib/game";
 import Portal from "svelte-portal";
-import { gameSettings, user } from "@/store";
+import { gameSettings, playerStatus, user } from "@/store";
 import { Button, FormGroup, Icon, Input, Badge, Checkbox, Label } from "@/modules/cdk";
 import { boardgameInfo, get, post } from "@/api";
 import { createEventDispatcher, onDestroy } from "svelte";
@@ -56,7 +56,7 @@ const preferenceItems = gameInfo?.viewer?.alternate?.url ? [
 $: playerUser = game.players.find((pl) => pl._id === userId)
 
 function status(playerId: string) {
-  return 'offline' //this.$store.state.playerStatus.find((pl) => pl._id === playerId)?.status;
+  return $playerStatus?.find(pl => pl._id === playerId)?.status ?? 'offline'
 }
 
 function playerElo(playerId: string) {
@@ -75,6 +75,19 @@ $: currentPlayersById = keyBy(game?.currentPlayers ?? [], "_id");
 function isCurrentPlayer(id: string) {
   return game.status !== "ended" && !!currentPlayersById[id];
 }
+
+let remainingTimes: Record<string, number> = {}
+
+function updateRemainingTimes() {
+  const ret: Record<string, number> = {}
+  for (const player of game.players) {
+    ret[player._id] = remainingTime(player)
+  }
+
+  remainingTimes = ret
+}
+
+$: updateRemainingTimes(), [secondsCounter]
 
 function remainingTime(player: PlayerInfo) {
   const currentPlayer = currentPlayersById[player._id];
@@ -194,7 +207,7 @@ function toggleNotes() {
           {/if}
         </sup>
         {#if game.status === "active"}
-          <span class="ml-1"> - {shortDuration(remainingTime(player))}</span>
+          <span class="ml-1"> - {shortDuration(remainingTimes[player._id])}</span>
         {/if}
       </div>
     </div>
