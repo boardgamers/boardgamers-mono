@@ -7,6 +7,7 @@ import Game from "./pages/Game.svelte";
 import Games from "./pages/Games.svelte";
 import GameSelection from "./pages/GameSelection.svelte";
 import Home from "./pages/Home.svelte";
+import NewGame from "./pages/NewGame.svelte";
 import NotFound from "./pages/NotFound.svelte";
 import Page from "./pages/Page.svelte";
 import User from "./pages/User.svelte";
@@ -58,6 +59,10 @@ const routes: RouteConfig[] = [
     path: "/new-game",
     component: GameSelection,
     props: () => ({ newGame: true, title: "Choose which game to play" }),
+  },
+  {
+    path: "/new-game/:boardgameId",
+    component: NewGame,
   },
   {
     path: "/page/:page",

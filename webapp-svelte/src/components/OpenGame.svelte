@@ -33,7 +33,7 @@ import { navigate, route } from "@/modules/router";
 
   const leave = async() => {
     if (await confirm("Are you sure you want to leave this game?")) {
-      unjoinGame(game._id).catch(handleError);
+      unjoinGame(game._id).then(() => navigate('/'), handleError);
     }
   };
 

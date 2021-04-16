@@ -266,13 +266,13 @@ function toggleNotes() {
       {#each gameInfo.settings as setting}
         {#if !setting.faction || setting.faction === playerUser.faction}
           {#if setting.type === "checkbox"}
-            <Checkbox bind:value={settings[setting.name]} on:change={postSettings}>
+            <Checkbox bind:checked={settings[setting.name]} on:change={postSettings}>
               {setting.label}
             </Checkbox>
           {:else if setting.type === "select"}
             <FormGroup>
               <Label>{@html oneLineMarked(setting.label)}</Label>
-              <Input type="select" bind:value={settings[setting.name]} on:change={postSettings}>
+              <Input type="select" bind:checked={settings[setting.name]} on:change={postSettings}>
                 {#each setting.items as item}
                   <option value={item.name}>{item.label}</option>
                 {/each}
