@@ -114,9 +114,24 @@
       <div class="mt-75" v-if="gameInfo && gameInfo.preferences.length > 0">
         <h3>Preferences</h3>
         <div v-for="pref in preferenceItems" :key="pref.name">
-          <b-checkbox v-model="preferences[pref.name]" @change="postPreferences">
-            {{ pref.label }}
-          </b-checkbox>
+          <template v-if="pref.type === 'checkbox'">
+            <b-checkbox v-model="preferences[pref.name]" @change="postPreferences">
+              {{ pref.label }}
+            </b-checkbox>
+          </template>
+          <template v-else-if="pref.type === 'select'">
+            <b-form-group :label="pref.label" label-cols="auto">
+              <b-form-select
+                v-model="preferences[pref.name]"
+                @change="postPreferences"
+                :options="pref.items.map(({ name, label }) => ({ value: name, text: label }))"
+              >
+              </b-form-select>
+              <template #label>
+                <span v-html="oneLineMarked(pref.label)" />
+              </template>
+            </b-form-group>
+          </template>
         </div>
       </div>
 
@@ -265,6 +280,14 @@ export default class GameSidebar extends Vue {
 
   get preferenceItems() {
     let data = this.gameInfo?.preferences;
+
+    if (this.preferences) {
+      for (const item of data) {
+        if (item.type === "select") {
+          this.preferences[item.name] = this.preferences[item.name] ?? item.items[0].name;
+        }
+      }
+    }
 
     if (data && this.gameInfo?.viewer?.alternate?.url) {
       data = [{ name: "alternateUI", label: "Use alternate UI", type: "checkbox", items: null }, ...data];
