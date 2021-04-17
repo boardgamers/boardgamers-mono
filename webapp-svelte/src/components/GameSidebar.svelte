@@ -4,10 +4,11 @@ import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration
 import DOMPurify from "dompurify";
 import type { IGame, PlayerInfo } from "@lib/game";
 import Portal from "svelte-portal";
-import { gameSettings, playerStatus, user } from "@/store";
+import { playerStatus, user } from "@/store";
 import { Button, FormGroup, Icon, Input, Badge, Checkbox, Label } from "@/modules/cdk";
 import { boardgameInfo, get, post } from "@/api";
 import { createEventDispatcher, onDestroy } from "svelte";
+import PreferencesChooser from "./Settings/PreferencesChooser.svelte";
 
 export let game: IGame;
 export let players: PlayerInfo[]
@@ -24,8 +25,6 @@ const interval = setInterval(() => {
   }
 }, 1000);
 onDestroy(() => clearInterval(interval))
-
-$: preferences = $gameSettings[game.game.name]?.preferences || {}
 
 let showLog = !!localStorage.getItem("show-log");
 let showNotes = localStorage.getItem("show-notes") !== "false";
@@ -48,10 +47,7 @@ $: loadNotes(), [userId]
 let  settings: Record<string, unknown> | null = null;
 let  requestedDrop: Record<string, boolean> = {};
 
-const preferenceItems = gameInfo?.viewer?.alternate?.url ? [
-  { name: "alternateUI", label: "Use alternate UI", type: "checkbox", items: null },
-  ...gameInfo.preferences
-] : gameInfo.preferences
+$: showPreferences = !!gameInfo?.viewer?.alternate?.url || gameInfo.preferences?.length > 0
 
 $: playerUser = game.players.find((pl) => pl._id === userId)
 
@@ -103,19 +99,6 @@ let updateNotesDebounce = debounce(async () => {
     await post(`/game/${game._id}/notes`, { notes });
   }
 }, 800, { leading: false, trailing: true });
-
-async function postPreferences() {
-  // Trigger update to subscribers
-  $gameSettings = {...$gameSettings}
-
-  if (!$user) {
-    return;
-  }
-  await post(
-    `/account/games/${game.game.name}/preferences/${game.game.version}`, 
-    preferences
-  );
-}
 
 async function postSettings() {
   if (!$user) {
@@ -270,9 +253,9 @@ function toggleNotes() {
               {setting.label}
             </Checkbox>
           {:else if setting.type === "select"}
-            <FormGroup>
-              <Label>{@html oneLineMarked(setting.label)}</Label>
-              <Input type="select" bind:checked={settings[setting.name]} on:change={postSettings}>
+            <FormGroup class="d-flex align-items-center mt-2">
+              <Label class="nowrap mr-2 mb-0">{@html oneLineMarked(setting.label)}</Label>
+              <Input type="select" bind:value={settings[setting.name]} on:change={postSettings}>
                 {#each setting.items as item}
                   <option value={item.name}>{item.label}</option>
                 {/each}
@@ -283,7 +266,7 @@ function toggleNotes() {
       {/each}
     </div>
   {/if}
-  {#if preferenceItems.length > 0}
+  {#if showPreferences}
     <div class="mt-75">
       <h3>
         Preferences
@@ -291,11 +274,7 @@ function toggleNotes() {
           <Icon name="info-circle-fill" class="small" />
         </a>
       </h3>
-      {#each preferenceItems as preference}
-        <Checkbox bind:value={preferences[preference.name]} on:change={postPreferences}>
-          {preference.label}
-        </Checkbox>
-      {/each}
+      <PreferencesChooser game={gameInfo} />
     </div>
   {/if}
 

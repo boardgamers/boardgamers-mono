@@ -141,3 +141,7 @@ i.bi {
   -webkit-print-color-adjust: exact;
   color-adjust: exact;
 }
+
+.nowrap {
+  white-space: nowrap;
+}
