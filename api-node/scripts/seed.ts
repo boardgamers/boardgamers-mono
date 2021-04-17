@@ -3,9 +3,7 @@ import initDb from "../app/config/db";
 import * as models from "../app/models";
 import data from "./seeds.json";
 
-async function run() {
-  await initDb();
-
+export async function seed() {
   for (const collection of Object.keys(data)) {
     const coll: Collection = models[collection];
 
@@ -23,8 +21,15 @@ async function run() {
 
     await coll.insertMany(data[collection]);
   }
+}
+
+async function run() {
+  await initDb();
+  await seed();
 
   mongoose.connection.close();
 }
 
-run();
+if (process.env.NODE_ENV !== "test") {
+  run();
+}

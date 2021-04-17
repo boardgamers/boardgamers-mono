@@ -3,6 +3,13 @@ import os from "os";
 import path from "path";
 
 const domain = process.env.domain || "boardgamers.space";
+let dbName = process.env.dbName ?? "bgs";
+
+if (process.env.NODE_ENV === "test") {
+  dbName += "-test";
+} else if (process.env.NODE_ENV !== "production") {
+  dbName += "-dev";
+}
 
 export default {
   domain,
@@ -37,7 +44,7 @@ export default {
   database: {
     bgs: {
       url: process.env.dbUrl || "mongodb://localhost:27017/admin",
-      name: process.env.dbName || "gaia-project",
+      name: dbName,
     },
     nodebb: "mongodb://nodebb:NodeBBPassword@localhost:27017/nodebb",
   },

@@ -2,6 +2,14 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
+let dbName = process.env.dbName ?? "bgs";
+
+if (process.env.NODE_ENV === "test") {
+  dbName += "-test";
+} else if (process.env.NODE_ENV !== "production") {
+  dbName += "-dev";
+}
+
 export default {
   jwt: {
     keys: {
@@ -21,7 +29,7 @@ export default {
   database: {
     bgs: {
       url: process.env.dbUrl || "mongodb://localhost:27017/admin",
-      name: process.env.dbName || "gaia-project",
+      name: dbName,
     },
   },
   isProduction: process.env.NODE_ENV === "production",

@@ -6,8 +6,6 @@ import env from "./env";
 
 let server: Server;
 
-env.database.bgs.name += "-test";
-
 async function init() {
   await initDb(env.database.bgs.url, false);
   await mongoose.connection.db.dropDatabase();

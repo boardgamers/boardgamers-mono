@@ -70,7 +70,7 @@
       "engine": {
         "package": {
           "name": "@gaia-project/engine",
-          "version": "4.6.7"
+          "version": "4.7.1"
         },
         "entryPoint": "dist/wrapper.js"
       },
@@ -148,25 +148,25 @@
       ],
       "rules": "* [Rules for the base game](https://images.zmangames.com/filer_public/ce/89/ce890bfd-227e-4249-a52a-976bc5f20d19/en_gaia_rulebook_lo.pdf)\n* [Rules for auction](/page/gaia-project/auction)\n* [Game settings](/page/gaia-project/settings)\n* [Federation FAQ](https://boardgamegeek.com/thread/2120375/official-federation-faq)",
       "viewer": {
-        "url": "//cdn.jsdelivr.net/npm/@gaia-project/viewer@5.8.10/dist/package/viewer.umd.min.js",
+        "url": "//cdn.jsdelivr.net/npm/@gaia-project/viewer@5.8.16/dist/package/viewer.umd.min.js",
         "topLevelVariable": "gaiaViewer",
         "dependencies": {
           "scripts": [
             "//cdn.jsdelivr.net/npm/vue@^2/dist/vue.min.js",
             "//cdn.jsdelivr.net/npm/bootstrap-vue@^2/dist/bootstrap-vue.min.js"
           ],
-          "stylesheets": ["//cdn.jsdelivr.net/npm/@gaia-project/viewer@5.8.10/dist/package/viewer.css"]
+          "stylesheets": ["//cdn.jsdelivr.net/npm/@gaia-project/viewer@5.8.16/dist/package/viewer.css"]
         },
         "replayable": true,
         "alternate": {
-          "url": "//cdn.jsdelivr.net/npm/@gaia-project/viewer@5.6.2-alternate/dist/package/viewer.umd.min.js",
+          "url": "//cdn.jsdelivr.net/npm/@gaia-project/viewer@5.6.3-alternate/dist/package/viewer.umd.min.js",
           "topLevelVariable": "gaiaViewer",
           "dependencies": {
             "scripts": [
               "//cdn.jsdelivr.net/npm/vue@^2/dist/vue.min.js",
               "//cdn.jsdelivr.net/npm/bootstrap-vue@^2/dist/bootstrap-vue.min.js"
             ],
-            "stylesheets": ["//cdn.jsdelivr.net/npm/@gaia-project/viewer@5.6.2-alternate/dist/package/viewer.css"]
+            "stylesheets": ["//cdn.jsdelivr.net/npm/@gaia-project/viewer@5.6.3-alternate/dist/package/viewer.css"]
           },
           "fullScreen": false,
           "replayable": true,
@@ -237,7 +237,7 @@
       },
       "game": {
         "name": "gaia-project",
-        "version": 2,
+        "version": 1,
         "expansions": [],
         "options": { "auction": true, "layout": "standard" }
       },

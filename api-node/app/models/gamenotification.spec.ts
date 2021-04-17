@@ -15,6 +15,8 @@ describe("GameNotification", () => {
   describe("processGameEnded", () => {
     describe("karma", () => {
       before(async () => {
+        await mongoose.connection.db.dropDatabase();
+
         await User.create({ _id: userId, account: { username: "test", email: "test@test.com" } });
         await User.create({ _id: userId2, account: { username: "test2", email: "test2@test.com" } });
         await Game.create({
