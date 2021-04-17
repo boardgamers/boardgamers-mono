@@ -1,6 +1,6 @@
 <script lang="ts">
 import { handleError, confirm, niceDate, duration, createWatcher } from "@/utils";
-import UserGameSettings from "@/components/UserGameSettings.svelte";
+import UserGameSettings from "@/components/Settings/UserGameSettings.svelte";
 import { Card, CardDeck , InputGroupAddon, Button, Col, Container, FormGroup, Input, InputGroup, Row, Label, Checkbox } from "@/modules/cdk";
 import { boardgames, user } from "@/store";
 import { routePath } from "@/modules/router";
