@@ -134,6 +134,16 @@
           "label": "Highlight recent actions on the map",
           "type": "checkbox",
           "items": null
+        },
+        {
+          "name": "logPlacement",
+          "label": "Log placement",
+          "type": "select",
+          "items": [
+            { "name": "bottom", "label": "Bottom" },
+            { "name": "top", "label": "Top" },
+            { "name": "off", "label": "None" }
+          ]
         }
       ],
       "rules": "* [Rules for the base game](https://images.zmangames.com/filer_public/ce/89/ce890bfd-227e-4249-a52a-976bc5f20d19/en_gaia_rulebook_lo.pdf)\n* [Rules for auction](/page/gaia-project/auction)\n* [Game settings](/page/gaia-project/settings)\n* [Federation FAQ](https://boardgamegeek.com/thread/2120375/official-federation-faq)",
