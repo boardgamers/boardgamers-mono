@@ -3,7 +3,7 @@ import createError from "http-errors";
 import { Context } from "koa";
 import passport from "koa-passport";
 import Router from "koa-router";
-import { fromPairs, merge, pick } from "lodash";
+import { merge, pick } from "lodash";
 import { GameInfo, GamePreferences, JwtRefreshToken, Log, User, UserDocument } from "../../models";
 import { loggedIn, loggedOut } from "../utils";
 import auth from "./auth";
@@ -105,6 +105,22 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
     return;
   }
 
+  let newPrefs: Record<string, boolean | string> = {};
+
+  for (const pref of gameInfo.preferences) {
+    const newVal = ctx.request.body[pref.name];
+    if (pref.type === "checkbox") {
+      newPrefs[pref.name] = !!newVal;
+    } else if (pref.type === "select") {
+      newPrefs[pref.name] = pref.items.some((it) => it.name === newVal) ? newVal : pref.items[0]?.name;
+    } else {
+    }
+  }
+
+  if (gameInfo.viewer?.alternate?.url) {
+    newPrefs.alternateUI = !!ctx.request.body.alternateUI;
+  }
+
   await GamePreferences.updateOne(
     {
       user: ctx.state.user._id,
@@ -112,11 +128,7 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
     },
     {
       $set: {
-        preferences: fromPairs(
-          [...gameInfo.preferences, gameInfo.viewer?.alternate?.url ? { name: "alternateUI" } : null]
-            .filter((x) => !!x)
-            .map((pref) => [pref.name, !!ctx.request.body[pref.name]])
-        ),
+        preferences: newPrefs,
       },
     },
     {
