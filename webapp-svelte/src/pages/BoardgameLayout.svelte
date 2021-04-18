@@ -1,5 +1,5 @@
 <script lang="ts">
-  import GameListSidebar from "@/components/GameListSidebar.svelte";
+  import { GameListSidebar } from "@/components";
   import RouterView from "@/modules/router/RouterView.svelte";
 </script>
 

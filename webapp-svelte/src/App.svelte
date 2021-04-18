@@ -1,8 +1,6 @@
 <script lang="typescript">
-	import Appbar from './components/Appbar.svelte';
-	import Footer from './components/Footer.svelte';
-	import Sidebar from './components/Sidebar.svelte';
-  import { RouterView } from './modules/router';
+	import { Appbar, Footer, Sidebar} from '@/components';
+  import RouterView from '@/modules/router/RouterView.svelte';
 </script>
 
 <div id="app">

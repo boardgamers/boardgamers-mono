@@ -1,40 +1,39 @@
 <script lang="ts">
-import { boardgameInfo, get } from "@/api";
-import { loadGameData } from "@/api/game";
+  import { get } from "@/api";
+  import { loadGameData } from "@/api/game";
 
   import Loading from "@/modules/cdk/Loading.svelte";
-import { navigate } from "@/modules/router";
-import { gameSettings, user } from "@/store";
-import { handleError } from "@/utils";
-  import type { IGame } from "@lib/game";
-  export let game: IGame
-  let gameInfo = boardgameInfo(game.game.name, game.game.version);
+  import { navigate } from "@/modules/router";
+  import type { GameContext } from "@/pages/Game.svelte";
+  import { gameSettings, user } from "@/store";
+  import { handleError } from "@/utils";
+  import { getContext } from "svelte";
+
+  const {game, replayData, gameInfo, emitter, log}: GameContext= getContext("game")
   let stateSent = false;
-  let log: string[] = []
 
   const resourcesLink = location.hostname === "localhost" || location.hostname.endsWith("gitpod.io") ? `/resources` : `//resources.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`;
 
   const gameIframe = () => document.querySelector<HTMLIFrameElement>("#game-iframe")
 
-  $: src = `${resourcesLink}/game/${gameInfo._id.game}/${gameInfo._id.version}/iframe?alternate=${
-    $gameSettings[game.game.name]?.preferences?.alternateUI ? 1 : 0
+  $: src = `${resourcesLink}/game/${$gameInfo._id.game}/${$gameInfo._id.version}/iframe?alternate=${
+    $gameSettings[$game.game.name]?.preferences?.alternateUI ? 1 : 0
   }`
 
   function postUser() {
     if (gameIframe()) {
-      const index = game.players.findIndex((pl) => pl._id === $user?._id);
+      const index = $game.players.findIndex((pl) => pl._id === $user?._id);
       const message = { type: "player", player: { index: index !== -1 ? index : undefined } };
       gameIframe()!.contentWindow?.postMessage(message, "*");
     }
   }
 
   $: postUser(), [user]
-  $: prefs = $gameSettings[game.game.name]
+  $: prefs = $gameSettings[$game.game.name]
   $: postPreferences(), [prefs]
-
   
   function postGamedata() {
-    gameIframe()?.contentWindow?.postMessage({ type: "state", state: game.data }, "*");
+    gameIframe()?.contentWindow?.postMessage({ type: "state", state: $game.data }, "*");
   }
 
   function postUpdatePresent() {
@@ -50,6 +49,19 @@ import { handleError } from "@/utils";
       gameIframe()!.contentWindow?.postMessage({ type: "preferences", preferences: prefs.preferences }, "*");
     }
   }
+
+  emitter.on('replay:start', () => {
+    gameIframe()?.contentWindow?.postMessage({ type: "replay:start" }, "*");
+  })
+
+  emitter.on('replay:to', dest => {
+    gameIframe()?.contentWindow?.postMessage({ type: "replay:to", to: dest }, "*");
+  })
+
+  emitter.on('replay:end', () => {
+    gameIframe()?.contentWindow?.postMessage({ type: "replay:end" }, "*");
+    $replayData = null
+  })
 
   async function handleGameMessage(event: MessageEvent) {
     try {
@@ -73,18 +85,18 @@ import { handleError } from "@/utils";
       } else if (event.data.type === "displayReady") {
         stateSent = true;
       } else if (event.data.type === "fetchState") {
-        await loadGameData(game._id).then(g => game = g);
+        await loadGameData($game._id).then(g => $game = g);
         postGamedata();
       } else if (event.data.type === "fetchLog") {
-        const logData = await get(`/gameplay/${game._id}/log`, { params: event.data.data })
+        const logData = await get(`/gameplay/${$game._id}/log`, { params: event.data.data })
           .then((r) => r.data);
         postGameLog(logData);
       } else if (event.data.type === "addLog") {
-        log.push(...event.data.data);
+        $log = [...$log, ...event.data.data];
       } else if (event.data.type === "replaceLog") {
-        log = event.data.data;
+        $log = event.data.data;
       } else if (event.data.type === "replay:info") {
-        // this.replayData = event.data.data;
+        $replayData = event.data.data;
       }
     } catch (err) {
       handleError(err);
