@@ -15,7 +15,7 @@ import {
   NavLink,
   Icon
 } from '@cdk';
-import { user, logoClicks } from "@/store";
+import { user, logoClicks, activeGames } from "@/store";
 import { loadAccountIfNeeded, login, logout } from '@/api';
 import { handleError } from '@/utils';
 
@@ -44,8 +44,20 @@ $ : adminLink = location.hostname === "localhost" ? "http://localhost:8613": `${
 </script>
 
 <Navbar color="primary" class={className} dark expand>
-  <!-- todo: reload game lists if on same page -->
   <a href="/" on:click={() => ($logoClicks += 1)} class="navbar-brand">BGS</a>
+
+  {#if $user}
+    <a
+      class="btn btn-sm mr-auto"
+      class:btn-success={$activeGames.length > 0}
+      class:btn-secondary={$activeGames.length === 0}
+      href="/next-game"
+      title="Jump to next active game"
+      id="active-game-count"
+    >
+      {$activeGames.length}
+    </a>
+  {/if}
   <!-- todo: mobile-only boardgame list -->
 
   {#await loadAccountIfNeeded() then _}
@@ -134,5 +146,10 @@ $ : adminLink = location.hostname === "localhost" ? "http://localhost:8613": `${
         margin-bottom: 8px;
       }
     }
+  }
+
+  #active-game-count {
+    border-radius: 50%;
+    padding: 0.1rem 0.5rem;
   }
 </style>

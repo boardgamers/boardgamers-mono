@@ -1,4 +1,4 @@
-import { get } from "svelte/store";
+import { get as $, get } from "svelte/store";
 import { loadAccountIfNeeded } from "./api";
 import { createRouter, navigate, route, RouteConfig } from "./modules/router";
 import Account from "./pages/Account.svelte";
@@ -11,7 +11,7 @@ import NewGame from "./pages/NewGame.svelte";
 import NotFound from "./pages/NotFound.svelte";
 import Page from "./pages/Page.svelte";
 import User from "./pages/User.svelte";
-import { logoClicks, user } from "./store";
+import { activeGames, logoClicks, user } from "./store";
 import { handleError } from "./utils";
 
 const routes: RouteConfig[] = [
@@ -87,6 +87,21 @@ const routes: RouteConfig[] = [
     path: "/boardgame/:boardgameId",
     name: "boardgame",
     component: NotFound,
+  },
+  {
+    path: "/next-game",
+    guard(_to) {
+      if ($(activeGames).length > 0) {
+        const games = $(activeGames);
+        const currentIdx = games.indexOf($(route)?.params?.gameId);
+        const gameId = games[(currentIdx + 1) % games.length];
+
+        return "/game/" + gameId;
+      }
+
+      return { name: "user", params: { username: $(user)!.account.username }, hash: "active" };
+    },
+    meta: { loggedIn: true },
   },
   {
     path: "*",
