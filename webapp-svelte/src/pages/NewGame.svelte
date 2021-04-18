@@ -2,14 +2,13 @@
   import { handleError,  oneLineMarked, duration } from "@/utils";
   import marked from "marked";
   import { fromPairs, upperFirst } from "lodash";
-  import { Button, Col, Input, NavItem, Row, Loading, Container } from "@/modules/cdk";
+  import { Button, Col, Input, Checkbox, Row, Loading, Container } from "@/modules/cdk";
   import { boardgameInfo, loadBoardgame, post } from "@/api";
   import { navigate } from "@/modules/router";
-  import Checkbox from "@/modules/cdk/Checkbox.svelte";
   import { user } from "@/store";
   import { adjectives, nouns } from "@/data";
   import type { GameInfo } from "@lib/gameinfo";
-import type { SetOptional } from "type-fest";
+  import type { SetOptional } from "type-fest";
   
   export let boardgameId: string
   

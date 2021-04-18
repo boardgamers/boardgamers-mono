@@ -1,6 +1,6 @@
 <script lang="ts">
 import { Card, Col, Row } from "@cdk";
-import GameList from "./GameList.svelte";
+import GameList from "../GameList.svelte";
 
 export let userId: string;
 </script>

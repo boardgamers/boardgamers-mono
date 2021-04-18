@@ -1,11 +1,9 @@
 <script lang="ts">
   import { defer } from "@/utils";
   import type { IUser } from "@lib/user";
-  import UserGames from "@/components/UserGames.svelte";
-  import UserPublicInfo from "@/components/UserPublicInfo.svelte";
-  import UserElo from "@/components/UserElo.svelte";
+  import { UserGames, UserPublicInfo, UserElo} from "@/components";
   import { get } from "@/api";
-  import { Row, Col, Container, Card, Loading } from "@cdk";
+  import { Row, Col, Container, Card, Loading } from "@/modules/cdk";
   import { user as ownUser } from "@/store"
 
   export let username: string;

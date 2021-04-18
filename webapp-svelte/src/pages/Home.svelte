@@ -1,7 +1,7 @@
 <script lang="typescript">
   import { get } from "@/api";
   import { Col, Row } from 'sveltestrap';
-  import GameList from '@/components/GameList.svelte';
+  import { GameList } from '@/components';
   import { user, activeGames } from '@/store';
 </script>
 

@@ -1,42 +1,74 @@
+<script context="module">
+
+import type {Writable} from 'svelte/store'
+
+export type GameContext = {
+  game: Writable<IGame>,
+  players: Writable<PlayerInfo[]>,
+  gameInfo: Writable<GameInfo>
+  replayData: Writable<{ start: number; end: number; current: number } | null>,
+  emitter: EventEmitter,
+  log: Writable<string[]>
+}
+
+</script>
+
 <script lang="ts">
-import { boardgameKey, loadBoardgame } from "@/api";
+import { boardgameInfo, loadBoardgame } from "@/api";
 
 import { loadGame } from "@/api/game";
 
-import OpenGame from "@/components/OpenGame.svelte"
-import GameSidebar from "@/components/GameSidebar.svelte"
-import StartedGame from "@/components/StartedGame.svelte"
-import Loading from "@/modules/cdk/Loading.svelte"
-import { boardgames, currentGameId, currentRoom } from "@/store";
+import { GameSidebar, OpenGame, StartedGame } from "@/components"
+import { Loading } from "@/modules/cdk"
+import { currentGameId, currentRoom } from "@/store";
 import { defer } from "@/utils";
 import type { IGame, PlayerInfo } from "@lib/game";
 import { loadGameSettings } from "@/api/gamesettings";
-import { onDestroy } from "svelte";
+import { onDestroy, setContext } from "svelte";
+import { writable } from "svelte/store";
+import type { GameInfo } from "@lib/gameinfo";
+import EventEmitter from "eventemitter3";
 
 export let gameId: string;
-let game: IGame | null = null;
-let players: PlayerInfo[] = [];
+
+const context = {
+  game: writable<IGame | null>(null),
+  players: writable<PlayerInfo[]>([]),
+  gameInfo: writable<GameInfo | null>(null),
+  replayData: writable<{ start: number; end: number; current: number } | null>(null),
+  emitter: new EventEmitter(),
+  log: writable<string[]>([])
+}
+
+setContext('game', context)
+
+const {game, players, gameInfo, replayData, log} = context;
 
 const load = defer(async () => {
   currentGameId.set(gameId)
   currentRoom.set(gameId)
 
   // Reset game on gameId change
-  if (game !== null && game?._id !== gameId) {
-    game = null;
-    players = [];
+  if ($game !== null && $game._id !== gameId) {
+    $game = null;
+    $gameInfo = null;
+    $players = [];
+    $replayData = null
+    $log = []
   }
   // Load new game
   const {game: g, players: p} = await loadGame(gameId)
   if (g._id !== gameId) {
     return;
   }
-  game = g;
-  players = p;
   await Promise.all([
-    loadBoardgame(game!.game.name, game!.game.version),
-    loadGameSettings(game!.game.name)
+    loadBoardgame(g.game.name, g.game.version),
+    loadGameSettings(g.game.name)
   ])
+
+  $game = g;
+  $players = p;
+  $gameInfo = boardgameInfo($game!.game.name, $game!.game.version) as GameInfo
 });
 
 $: load(), [gameId]
@@ -47,11 +79,11 @@ onDestroy(() => {
 })
 </script>
 
-<Loading loading={!game || !$boardgames[boardgameKey(game.game.name, game.game.version)]?.viewer}>
-  {#if game.status === "open" || game.status === "pending"}
-    <OpenGame {game} {players} />
+<Loading loading={!$game || !$gameInfo}>
+  {#if $game.status === "open" || $game.status === "pending"}
+    <OpenGame />
   {:else}
-    <StartedGame {game} {players} />
+    <StartedGame />
   {/if}
-  <GameSidebar {game} {players} />
+  <GameSidebar />
 </Loading>

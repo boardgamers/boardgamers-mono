@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
-  import GameList from "../components/GameList.svelte";
+  import { GameList } from "@/components";
   import { Col, Container, Nav, NavItem, NavLink, Row } from "@/modules/cdk";
   import { route } from "@/modules/router";
   

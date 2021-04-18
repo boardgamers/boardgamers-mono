@@ -1,6 +1,7 @@
+import type { IGame, PlayerInfo } from "@lib/game";
 import { get, post } from "./rest";
 
-export async function loadGame(gameId: string) {
+export async function loadGame(gameId: string): Promise<{ game: IGame; players: PlayerInfo[] }> {
   const [game, players] = await Promise.all([get(`/gameplay/${gameId}`), get(`/game/${gameId}/players`)]);
 
   return { game, players };
