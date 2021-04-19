@@ -83,7 +83,7 @@ function connect() {
       chatMessages.set(obj.messages);
     } else if (obj.command === "newMessages") {
       chatMessages.update((msg) => [...msg, ...obj.messages]);
-    } else if (obj.command === "game:lastUpdate" && obj.game === currentGameId) {
+    } else if (obj.command === "game:lastUpdate" && obj.game === $gameId) {
       lastGameUpdate.set(new Date(obj.lastUpdate));
     } else if (obj.command === "game:playerStatus") {
       playerStatus.set(obj.players);
