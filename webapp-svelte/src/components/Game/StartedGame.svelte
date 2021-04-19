@@ -5,9 +5,9 @@
   import Loading from "@/modules/cdk/Loading.svelte";
   import { navigate } from "@/modules/router";
   import type { GameContext } from "@/pages/Game.svelte";
-  import { gameSettings, user } from "@/store";
-  import { handleError } from "@/utils";
-  import { getContext } from "svelte";
+  import { gameSettings, lastGameUpdate, user } from "@/store";
+  import { handleError, skipOnce } from "@/utils";
+  import { getContext, onDestroy } from "svelte";
 
   const {game, replayData, gameInfo, emitter, log}: GameContext= getContext("game")
   let stateSent = false;
@@ -31,6 +31,12 @@
   $: postUser(), [user]
   $: prefs = $gameSettings[$game.game.name]
   $: postPreferences(), [prefs]
+
+  onDestroy(lastGameUpdate.subscribe(skipOnce(() => {
+    if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
+      postUpdatePresent()
+    }
+  })))
   
   function postGamedata() {
     gameIframe()?.contentWindow?.postMessage({ type: "state", state: $game.data }, "*");
@@ -63,6 +69,12 @@
     $replayData = null
   })
 
+  onDestroy(() => {
+    emitter.off('replay:start');
+    emitter.off('replay:to');
+    emitter.off('replay:end');
+  })
+
   async function handleGameMessage(event: MessageEvent) {
     try {
       console.log("receive event", event.data.type);
@@ -85,8 +97,12 @@
       } else if (event.data.type === "displayReady") {
         stateSent = true;
       } else if (event.data.type === "fetchState") {
-        await loadGameData($game._id).then(g => $game = g);
-        postGamedata();
+        await loadGameData($game._id).then(g => {
+          if (g._id === $game?._id) {
+            $game = g
+            postGamedata();
+          }
+        });
       } else if (event.data.type === "fetchLog") {
         const logData = await get(`/gameplay/${$game._id}/log`, { params: event.data.data })
           .then((r) => r.data);
