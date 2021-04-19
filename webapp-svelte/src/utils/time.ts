@@ -108,3 +108,10 @@ export function shortDuration(seconds: number) {
 export function dateFromObjectId(objectId: string) {
   return new Date(parseInt(objectId.substring(0, 8), 16) * 1000);
 }
+
+export function dateTime(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(
+    2,
+    "0"
+  )} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}

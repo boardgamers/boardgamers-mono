@@ -1,17 +1,12 @@
 <script lang="ts">
   import { Button, Icon } from "@/modules/cdk";
-import { route } from "@/modules/router";
-  
-  let open = localStorage.getItem("showSidebar") === "1";
-  
-  function toggleOpen() {
-    open = !open;
-    localStorage.setItem("showSidebar", open ? "1" : "0");
-  }
+  import { route } from "@/modules/router";
+  import { sidebarOpen } from "@/store";
+
 </script>
 
 {#if $route?.meta.sidebar}
-  <div class="sidebar-container" class:open>
+  <div class="sidebar-container" class:open={$sidebarOpen}>
     <transition name="slide">
       <div class="px-3 pb-3 sidebar thin-scrollbar text-light" v-if="open">
         <div id="sidebar" />
@@ -19,8 +14,8 @@ import { route } from "@/modules/router";
     </transition>
     <Button
       color="secondary"
-      on:click={toggleOpen}
-      class={"rounded-circle b-avater sidebar-fab" + (false ? " chatOpen" : "")}
+      on:click={() => ($sidebarOpen = !$sidebarOpen)}
+      class={"rounded-circle b-avatar sidebar-fab" + (false ? " chatOpen" : "")}
     >
       <Icon name="gear" />
     </Button>
@@ -43,7 +38,7 @@ import { route } from "@/modules/router";
   }
   .sidebar,
   .sidebar-container.open {
-    width: 320px;
+    width: var(--sidebar-width);
   }
 
   .sidebar {
