@@ -31,7 +31,7 @@ specifiers:
   svelte-portal: ^2.1.2
   svelte-preprocess: ^4.0.8
   svelte-routing: ^1.5.0
-  sveltestrap: ^3.12.2
+  sveltestrap: ^3.14.1
   type-fest: ^1.0.1
   typescript: ^4.0.0
 
@@ -46,7 +46,7 @@ dependencies:
   svelte: 3.31.2
   svelte-portal: 2.1.2
   svelte-routing: 1.5.0_svelte@3.31.2
-  sveltestrap: 3.12.2_svelte@3.31.2
+  sveltestrap: 3.14.1_svelte@3.31.2
   type-fest: 1.0.1
 
 devDependencies:
@@ -1672,17 +1672,9 @@ packages:
     resolution: {integrity: sha1-soqmKIorn8ZRA1x3EfZathkDMaY=}
     dev: true
 
-  /lodash.isobject/3.0.2:
-    resolution: {integrity: sha1-PI+41bW/S/kK4G4U8qUwpO2TXh0=}
-    dev: false
-
   /lodash.sortby/4.7.0:
     resolution: {integrity: sha1-7dFMgk4sycHgsKG0K7UhBRakJDg=}
     dev: true
-
-  /lodash.tonumber/4.0.3:
-    resolution: {integrity: sha1-C5azGzVnJ5Prf1pj7nkfG56QJdk=}
-    dev: false
 
   /lodash/4.17.20:
     resolution: {integrity: sha512-PlhdFcillOINfeV7Ni6oF1TAEayyZBoZ8bcshTHqOYJYlrqzRK5hagpagky5o4HfCzzd1TRkXPMFq6cKk9rGmA==}
@@ -2377,14 +2369,12 @@ packages:
     engines: {node: '>= 8'}
     dev: false
 
-  /sveltestrap/3.12.2_svelte@3.31.2:
-    resolution: {integrity: sha512-PfcYLr9WDrBu0heumBvmPp2ykwgSWuw+IMlDic5NYacggIFrwZfY5JFtTZrtHAPQ/iaz9H+FFh+wBB21HNukKA==}
+  /sveltestrap/3.14.1_svelte@3.31.2:
+    resolution: {integrity: sha512-0gspULuzeN3VBkllKXjBPfAKjP4bM/yuEkUOf9BzshoeY7tugr3OeeSI6TVeOsD/V97pbrjia03NWUPPNenChQ==}
     peerDependencies:
       svelte: ^3.4.4
     dependencies:
       '@popperjs/core': 2.6.0
-      lodash.isobject: 3.0.2
-      lodash.tonumber: 4.0.3
       svelte: 3.31.2
     dev: false
 

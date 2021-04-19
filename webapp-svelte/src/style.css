@@ -71,6 +71,7 @@ body {
   --top-height: var(--navbar-height) + var(--navbar-margin);
   --fab-bottom: 15px;
   --fab-right: 25px;
+  --sidebar-width: 320px;
 }
 
 i.bi {

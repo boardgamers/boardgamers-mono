@@ -18,7 +18,7 @@ import { boardgameInfo, loadBoardgame } from "@/api";
 
 import { loadGame } from "@/api/game";
 
-import { GameSidebar, OpenGame, StartedGame } from "@/components"
+import { GameSidebar, OpenGame, StartedGame, ChatRoom } from "@/components"
 import { Loading } from "@/modules/cdk"
 import { currentGameId, currentRoom } from "@/store";
 import { defer } from "@/utils";
@@ -85,5 +85,6 @@ onDestroy(() => {
   {:else}
     <StartedGame />
   {/if}
+  <ChatRoom />
   <GameSidebar />
 </Loading>
