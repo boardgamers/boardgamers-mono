@@ -105,7 +105,7 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
     return;
   }
 
-  let newPrefs: Record<string, boolean | string> = {};
+  const newPrefs: Record<string, boolean | string> = {};
 
   for (const pref of gameInfo.preferences) {
     const newVal = ctx.request.body[pref.name];
@@ -114,6 +114,7 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
     } else if (pref.type === "select") {
       newPrefs[pref.name] = pref.items.some((it) => it.name === newVal) ? newVal : pref.items[0]?.name;
     } else {
+      // not handled
     }
   }
 

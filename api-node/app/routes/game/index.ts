@@ -34,7 +34,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
     minimumKarma,
     scheduledStart,
   } = body;
-  const options = body.options ?? {};
+  const options: Record<string, string | boolean> = {};
 
   const gameInfo = await GameInfo.findOne({ _id: gameInfoId });
 
@@ -83,6 +83,38 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
     throw createError(400, `A game with the id '${gameId}' already exists`);
   }
 
+  for (const [key, val] of Object.entries(body.options ?? {})) {
+    if (typeof val !== "string" && typeof val !== "boolean") {
+      continue;
+    }
+
+    if (val === "$none") {
+      continue;
+    }
+
+    if (["join", "unlisted", "randomOrder"].includes(key)) {
+      assert(typeof val === "boolean", "Invalid value for option: " + key);
+    } else {
+      const item = gameInfo.options.find((opt) => opt.name === key);
+      if (!item) {
+        continue;
+      }
+
+      if (item.type === "checkbox") {
+        assert(typeof val === "boolean", "Invalid value for option: " + key);
+      } else if (item.type === "select") {
+        assert(
+          typeof val === "string" && item.items?.some((it) => it.name === val),
+          "Invalid value for option: " + key
+        );
+      } else {
+        continue;
+      }
+    }
+
+    options[key] = val;
+  }
+
   const game = new Game();
 
   game.creator = ctx.state.user._id;
@@ -95,8 +127,8 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
   };
   game.options.setup.seed = seed;
   game.options.setup.nbPlayers = players;
-  game.options.setup.randomPlayerOrder = options.randomOrder;
-  game.options.meta.unlisted = options.unlisted;
+  game.options.setup.randomPlayerOrder = options.randomOrder as boolean;
+  game.options.meta.unlisted = options.unlisted as boolean;
   game.options.timing.timePerMove = timePerMove;
   game.options.timing.timePerGame = timePerGame;
 
