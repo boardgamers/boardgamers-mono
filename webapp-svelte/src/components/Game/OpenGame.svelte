@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { duration, handleError, niceDate, oneLineMarked, pluralize, timerTime, confirm } from "@/utils";
+  import { duration, handleError, niceDate, oneLineMarked, pluralize, timerTime, confirm, localTimezone } from "@/utils";
   import marked from "marked"
   import { Badge, Button } from "@/modules/cdk";
   import { user } from "@/store";
@@ -23,7 +23,7 @@
 
   const playTime = () => {
     if (timer?.start !== undefined) {
-      return `active between ${timerTime(timer?.start)} and ${timerTime(timer?.end)}`;
+      return `active between ${timerTime(timer?.start)} and ${timerTime(timer?.end)}, in your local time (${localTimezone()})`;
     } else {
       return "always active";
     }
