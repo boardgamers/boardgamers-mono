@@ -49,7 +49,7 @@
       }
     }
 
-    joinGame(gameId).catch(handleError)
+    joinGame(gameId).then((newGame) => $game = newGame).catch(handleError)
   }
 </script>
 
