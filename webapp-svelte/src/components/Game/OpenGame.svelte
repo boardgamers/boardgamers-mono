@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { duration, handleError, niceDate, oneLineMarked, pluralize, timerTime, confirm, localTimezone } from "@/utils";
+  import { duration, handleError, niceDate, oneLineMarked, pluralize, timerTime, confirm, localTimezone, skipOnce } from "@/utils";
   import marked from "marked"
   import { Badge, Button } from "@/modules/cdk";
-  import { user } from "@/store";
-  import { joinGame, unjoinGame } from "@/api/game";
+  import { lastGameUpdate, user } from "@/store";
+  import { joinGame, loadGame, unjoinGame } from "@/api/game";
   import Icon from "sveltestrap/src/Icon.svelte";
   import { navigate, route } from "@/modules/router";
-  import { getContext } from "svelte";
+  import { getContext, onDestroy } from "svelte";
   import type { GameContext } from "@/pages/Game.svelte";
 
   const {game, players, gameInfo}: GameContext= getContext("game")
@@ -51,6 +51,18 @@
 
     joinGame(gameId).then((newGame) => $game = newGame).catch(handleError)
   }
+
+  // Autorefresh when another player joins
+  onDestroy(lastGameUpdate.subscribe(skipOnce(async () => {
+    if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
+      const {game: g, players: p} = await loadGame(gameId)
+
+      if ($game && gameId === g._id) {
+        $game = g;
+        $players = p;
+      }
+    }
+  })))
 </script>
 
 <div class="container pb-3">
