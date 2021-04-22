@@ -9,6 +9,7 @@ import { post } from "@/api";
 import { getContext, onDestroy } from "svelte";
 import {GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings} from './GameSidebar';
 import type { GameContext } from "@/pages/Game.svelte";
+import PlayerGameAvatar from "./components/PlayerGameAvatar.svelte";
 
 const {game, players, gameInfo}: GameContext = getContext("game")
 
@@ -86,17 +87,8 @@ async function requestDrop(playerId: string) {
 <Portal target="#sidebar">
   <h3 class="mt-75">Players</h3>
   {#each $game.players as player}
-    <div class="mb-1 d-flex align-items-center player-row" class:active={isCurrentPlayer(player._id)}>
-      <div
-        style={`background-image: url('${
-          player.faction ? `/images/factions/icons/${player.faction}.svg` : `/api/user/${player._id}/avatar`
-        }')`}
-        title={player.faction || "unknown"}
-        class="player-avatar mr-2"
-        class:current={player._id === userId}
-      >
-        <span class={"vp " + status(player._id)}>{player.score}</span>
-      </div>
+    <div class={"mb-1 d-flex align-items-center player-row"} class:active={isCurrentPlayer(player._id)}>
+      <PlayerGameAvatar {player} status={status(player._id)} class="mr-2" />
 
       <div>
         <a href={`/user/${player.name}`} class="player-name" class:dropped={player.dropped}>
@@ -165,7 +157,7 @@ async function requestDrop(playerId: string) {
 
   <GamePreferences />
 
-  <GameNotes />
+  <GameNotes {gameId} />
 
   {#if $gameInfo.expansions?.length > 0}
     <div class="mt-75">
@@ -231,14 +223,6 @@ async function requestDrop(playerId: string) {
         width: 18px;
         border-radius: 5px;
         font-size: 0.6em;
-
-        &.online {
-          background-color: #25ee25;
-        }
-
-        &.away {
-          background-color: orange;
-        }
       }
     }
   }

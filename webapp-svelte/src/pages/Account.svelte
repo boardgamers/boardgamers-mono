@@ -83,6 +83,10 @@ const onNotificationsChanged = createWatcher(() => {
 $: onNotificationsChanged(notifications)
 </script>
 
+<svelte:head>
+  <title>Account - Boardgamers 🌌</title>
+</svelte:head>
+
 {#if $user}
   <Container>
     <Row>

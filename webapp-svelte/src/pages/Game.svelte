@@ -79,12 +79,16 @@ onDestroy(() => {
 })
 </script>
 
+<svelte:head>
+  <title>{gameId} - Boardgamers 🌌</title>
+</svelte:head>
+
 <Loading loading={!$game || !$gameInfo}>
   {#if $game.status === "open" || $game.status === "pending"}
     <OpenGame />
   {:else}
     <StartedGame />
   {/if}
-  <ChatRoom />
+  <ChatRoom room={gameId} />
   <GameSidebar />
 </Loading>

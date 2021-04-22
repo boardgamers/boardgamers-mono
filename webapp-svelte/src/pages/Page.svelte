@@ -21,6 +21,12 @@ const loadPage = defer(async (page: string) => {
 $: loadPage(page);
 </script>
 
+<svelte:head>
+  {#if !loading}
+    <title>{pageContent.title} - Boardgamers 🌌</title>
+  {/if}
+</svelte:head>
+
 <div class="page container">
   <Loading {loading}>
     <h1>{pageContent.title}</h1>
