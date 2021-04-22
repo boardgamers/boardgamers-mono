@@ -121,6 +121,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>New game - Boardgamers 🌌</title>
+</svelte:head>
+
 <Container>
   <Loading loading={!info}>
     <h1 class="mb-4">{info.label}</h1>

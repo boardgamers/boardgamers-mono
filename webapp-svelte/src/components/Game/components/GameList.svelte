@@ -5,7 +5,8 @@
   import { logoClicks } from "@/store";
   import { onDestroy } from "svelte";
   import { createWatcher, skipOnce } from "@/utils/watch";
-  import { Badge, Icon, Pagination, Loading } from "@cdk";
+  import { Badge, Icon, Pagination, Loading } from "@/modules/cdk";
+  import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
 
   export let title = 'Games';
   export let perPage = 10;
@@ -135,16 +136,7 @@
             {#if game.status !== "open"}
               <div class="row no-gutters factions">
                 {#each game.players as player}
-                  <div
-                    style={`background-image: url('${
-                      player.faction ? `/images/factions/icons/${player.faction}.svg` : `/api/user/${player._id}/avatar`
-                    }')`}
-                    title={player.faction ?? "unknown"}
-                    class="player-avatar mr-1"
-                    class:current={userId && player._id === userId}
-                  >
-                    <span class="vp">{player.score}</span>
-                  </div>
+                  <PlayerGameAvatar {player} class="mr-1" />
                 {/each}
               </div>
             {:else}
@@ -194,36 +186,6 @@
 
       .game-name {
         /* font-weight: 600; */
-      }
-    }
-  }
-
-  :global(.player-avatar) {
-    height: 2em;
-    width: 2em;
-    display: inline-block;
-    position: relative;
-    border-radius: 50%;
-    vertical-align: middle;
-    background-size: cover;
-
-    :global(.vp) {
-      position: absolute;
-      right: -5px;
-      bottom: -5px;
-      font-size: 0.7em;
-      border-radius: 5px;
-      color: white;
-      background-color: #838383;
-      width: 20px;
-      text-align: center;
-    }
-
-    :global(&.current) {
-      border: 3px solid #333;
-
-      :global(.vp) {
-        background-color: #6673bc;
       }
     }
   }

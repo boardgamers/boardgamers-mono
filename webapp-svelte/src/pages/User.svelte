@@ -12,6 +12,10 @@
   defer(() => get(`/user/infoByName/${encodeURIComponent(username)}`).then(r => user = r))()
 </script>
 
+<svelte:head>
+  <title>{username} - Boardgamers 🌌</title>
+</svelte:head>
+
 <Container>
   <Row>
     <Col>

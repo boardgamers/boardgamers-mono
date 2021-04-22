@@ -13,7 +13,7 @@
   export let backdropDuration = 0;
   export let scrollable = false;
   export let size = '';
-  export let toggle = undefined;
+  export let toggle: () => void;
   export let labelledBy = '';
   export let backdrop = true;
   export let onEnter = undefined;

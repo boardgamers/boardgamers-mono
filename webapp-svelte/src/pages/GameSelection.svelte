@@ -42,6 +42,10 @@ const onGameClick  = async (gameInfo: SetOptional<GameInfo, 'viewer'>) => {
 }
 </script>
 
+<svelte:head>
+  <title>Pick a boardgame - Boardgamers 🌌</title>
+</svelte:head>
+
 <div class="container">
   <h1 class="mb-4">{title}</h1>
   <Loading {loading}>
