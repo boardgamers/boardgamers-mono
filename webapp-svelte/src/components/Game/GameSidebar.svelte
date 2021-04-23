@@ -3,7 +3,7 @@ import { keyBy } from "lodash";
 import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
 import type { PlayerInfo } from "@lib/game";
 import Portal from "svelte-portal";
-import { playerStatus, user } from "@/store";
+import { addActiveGame, playerStatus, removeActiveGame, user } from "@/store";
 import { Button, Icon, Badge } from "@/modules/cdk";
 import { post } from "@/api";
 import { getContext, onDestroy } from "svelte";
@@ -43,6 +43,18 @@ $: currentPlayersById = keyBy($game.currentPlayers ?? [], "_id");
 function isCurrentPlayer(id: string) {
   return $game.status !== "ended" && !!currentPlayersById[id];
 }
+
+const onGameChanged = () => {
+  if (userId) {
+    if (isCurrentPlayer(userId)) {
+      addActiveGame(gameId)
+    } else {
+      removeActiveGame(gameId)
+    }
+  }
+}
+
+$: onGameChanged(), [userId, $game]
 
 let remainingTimes: Record<string, number> = {}
 
