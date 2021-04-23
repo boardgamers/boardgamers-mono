@@ -7,11 +7,9 @@
 
 {#if $route?.meta.sidebar}
   <div class="sidebar-container" class:open={$sidebarOpen}>
-    <transition name="slide">
-      <div class="px-3 pb-3 sidebar thin-scrollbar text-light" v-if="open">
-        <div id="sidebar" />
-      </div>
-    </transition>
+    <div class="px-3 pb-3 sidebar thin-scrollbar text-light">
+      <div id="sidebar" />
+    </div>
     <Button
       color="secondary"
       on:click={() => ($sidebarOpen = !$sidebarOpen)}
@@ -57,9 +55,13 @@
   }
 
   @media screen and (max-width: 600px) {
-    .sidebar-container,
     .sidebar-container.open {
       width: 0;
+
+      .sidebar {
+        opacity: 1;
+        pointer-events: auto;
+      }
     }
 
     .sidebar {
@@ -67,6 +69,9 @@
       width: 100vw;
       top: 0;
       right: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s ease;
     }
 
     .slide-enter,
@@ -85,14 +90,6 @@
     .bi {
       font-size: 24px;
       margin-left: -2px;
-    }
-  }
-
-  /* Only way found to not have sidebar button overlap open chat window
-// when the chat window is fullscreen */
-  @media screen and (max-width: 450px) {
-    .sidebar-fab.chatOpen {
-      opacity: 0;
     }
   }
 

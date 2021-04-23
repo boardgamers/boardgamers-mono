@@ -101,12 +101,6 @@ $: onMessagesChanged(), [$chatMessages, isOpen]
 >
 
 <style lang="postcss" global>
-  .sidebar-fab.chat-button {
-    &.sidebar-open {
-      right: calc(var(--fab-right) + var(--sidebar-width));
-    }
-  }
-
   .modal {
     pointer-events: none;
   }
@@ -176,10 +170,39 @@ $: onMessagesChanged(), [$chatMessages, isOpen]
     position: absolute;
     bottom: 50px;
 
-    right: var(--fab-right);
+    right: calc(var(--fab-right) + 4em);
+    transition: all 0.3s ease;
 
     &.sidebar-open {
       right: calc(var(--fab-right) + var(--sidebar-width));
+    }
+  }
+
+  .sidebar-fab.chat-button {
+    right: calc(var(--fab-right) + 4em);
+    transition: all 0.3s ease;
+
+    &.sidebar-open {
+      right: calc(var(--fab-right) + var(--sidebar-width));
+    }
+  }
+
+  @media screen and (max-width: 600px) {
+    .chat-modal {
+      position: absolute;
+      bottom: 70px;
+
+      right: auto;
+      left: auto;
+      transition: all 0.3s ease;
+
+      &.sidebar-open {
+        right: auto;
+      }
+    }
+
+    .sidebar-fab.chat-button.sidebar-open {
+      right: calc(var(--fab-right) + 4em);
     }
   }
 </style>
