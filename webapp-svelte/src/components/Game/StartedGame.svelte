@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { get } from "@/api";
+  import { get, post } from "@/api";
   import { loadGameData } from "@/api/game";
 
   import Loading from "@/modules/cdk/Loading.svelte";
@@ -31,6 +31,7 @@
   $: postUser(), [user]
   $: prefs = $gameSettings[$game.game.name]
   $: postPreferences(), [prefs]
+  $: gameId = $game?._id
 
   onDestroy(lastGameUpdate.subscribe(skipOnce(() => {
     if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
@@ -93,7 +94,7 @@
       } else if (event.data.type === "playerClick") {
         navigate("/user/" + encodeURIComponent(event.data.player.name));
       } else if (event.data.type === "gameMove") {
-        // await this.addMove(event.data.move);
+        await addMove(event.data.move);
       } else if (event.data.type === "displayReady") {
         stateSent = true;
       } else if (event.data.type === "fetchState") {
@@ -118,6 +119,16 @@
       handleError(err);
     }
   }
+
+  async function addMove(move: string) {
+    const { game: newGame, log } = await post(`/gameplay/${gameId}/move`, { move });
+
+    if (newGame._id === gameId && !(newGame.updatedAt < $game?.updatedAt)) {
+      $game = newGame
+      postGameLog(log);
+    }
+  }
+
 </script>
 
 <svelte:window on:message={handleGameMessage} />
