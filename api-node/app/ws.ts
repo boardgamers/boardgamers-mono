@@ -63,7 +63,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
       ws.game = data.game;
       ws.gameUpdate = null;
     }
-    if ("fetchPlayerStatus" && ws.game && gameCache.get(ws.game)) {
+    if ("fetchPlayerStatus" in data && ws.game && gameCache.get(ws.game)) {
       const game = gameCache.get<GameDocument>(ws.game);
       const users = await User.find(
         { _id: { $in: game.players.map((x) => x._id) } },
@@ -98,6 +98,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
         if (decoded) {
           ws.user = new ObjectID(decoded.userId);
           updateActivity(ws.user, true);
+          sendActiveGames(ws);
         } else {
           ws.user = null;
         }
@@ -129,17 +130,21 @@ setInterval(function ping() {
     ws.isAlive = false;
     ws.ping(() => {});
 
-    if (ws.user) {
-      Game.findWithPlayersTurn(ws.user)
-        .select("_id")
-        .lean(true)
-        .then((games) => {
-          ws.send(JSON.stringify({ command: "games:currentTurn", games: games.map((game) => game._id) }));
-        })
-        .catch(console.error);
-    }
+    sendActiveGames(ws);
   }
 }, 20000);
+
+function sendActiveGames(ws: AugmentedWebSocket) {
+  if (ws.user) {
+    Game.findWithPlayersTurn(ws.user)
+      .select("_id")
+      .lean(true)
+      .then((games) => {
+        ws.send(JSON.stringify({ command: "games:currentTurn", games: games.map((game) => game._id) }));
+      })
+      .catch(console.error);
+  }
+}
 
 let lastChecked: ObjectID = ObjectID.createFromTime(Math.floor(Date.now() / 1000));
 
