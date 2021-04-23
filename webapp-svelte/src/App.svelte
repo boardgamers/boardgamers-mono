@@ -1,7 +1,17 @@
 <script lang="typescript">
 	import { Appbar, Footer, Sidebar} from '@/components';
   import RouterView from '@/modules/router/RouterView.svelte';
+  import { activeGames } from './store';
 </script>
+
+<svelte:head>
+  <link
+    rel="shortcut icon"
+    type="image/png"
+    id="favicon-site"
+    href={$activeGames.length > 0 ? "/favicon-active.ico" : "/favicon.ico"}
+  />
+</svelte:head>
 
 <div id="app">
   <div id="app-layout">
