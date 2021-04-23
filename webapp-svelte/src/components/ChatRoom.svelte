@@ -5,7 +5,7 @@ import { Modal, ModalHeader, Icon, ModalBody, ModalFooter, Input, InputGroup, In
 import type { GameContext } from "@/pages/Game.svelte";
 import { chatMessages, currentGameId, sidebarOpen, user } from "@/store";
 import { defer } from "lodash";
-import { dateFromObjectId, dateTime } from "@/utils";
+import { dateFromObjectId, dateTime, handleError } from "@/utils";
 import type { PlayerInfo } from "@lib/game";
 import { getContext } from "svelte";
 import { fly } from "svelte/transition";
@@ -17,13 +17,20 @@ export let room: string;
 
 let currentMessage = "";
 
-const sendMessage = defer(async () => {
+const sendMessage = async () => {
+  console.log('send message')
   const msg = currentMessage;
   currentMessage = "";
 
   // Mark message as delivered? by adding meta: 'Delivered'
-  return post(`/game/${room}/chat`, msg)
-})
+  return post(`/game/${room}/chat`, {
+    author: "me",
+    data: {
+      text: msg
+    },
+    type: "text"
+  }).catch(handleError)
+}
 
 const {game}: GameContext= getContext("game")
 
@@ -63,7 +70,7 @@ $: onMessagesChanged(), [$chatMessages, isOpen]
           title={"Sent at " + dateTime(dateFromObjectId(message._id))}
         >
           {message.data.text}
-          {#if !message.data.author}
+          {#if !message.author}
             <p class="message-meta">
               {dateTime(dateFromObjectId(message._id))}
             </p>
@@ -75,7 +82,7 @@ $: onMessagesChanged(), [$chatMessages, isOpen]
     <span style="height: 0">&nbsp;</span>
   </ModalBody>
   <ModalFooter>
-    <form on:submit|preventDefault={sendMessage}>
+    <form on:submit|preventDefault={sendMessage} style="width: 100%">
       <InputGroup>
         <Input type="text" bind:value={currentMessage} />
         <InputGroupAddon addonType="append">
@@ -159,6 +166,8 @@ $: onMessagesChanged(), [$chatMessages, isOpen]
       &.sent .message {
         margin-left: auto;
         margin-right: 1em;
+        color: white;
+        background-color: rgb(78, 140, 255);
       }
     }
   }

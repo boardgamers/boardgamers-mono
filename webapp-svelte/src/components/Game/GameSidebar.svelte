@@ -40,7 +40,6 @@ const alwaysActive = $game.options.timing.timer?.start === $game.options.timing.
 
 $: currentPlayersById = keyBy($game.currentPlayers ?? [], "_id");
 
-
 function isCurrentPlayer(id: string) {
   return $game.status !== "ended" && !!currentPlayersById[id];
 }
@@ -119,11 +118,13 @@ async function requestDrop(playerId: string) {
       <b> Game ended! </b>
     </div>
   {/if}
-  {#if $user && isCurrentPlayer($user._id)}
-    <div class="mt-75">
-      <b class="your-turn">Your turn!</b>
-    </div>
-  {/if}
+  {#key $game.currentPlayers}
+    {#if $user && isCurrentPlayer($user._id)}
+      <div class="mt-75">
+        <b class="your-turn">Your turn!</b>
+      </div>
+    {/if}
+  {/key}
   {#if playerUser && $game.status !== "ended"}
     <div class="mt-75">
       <Button
