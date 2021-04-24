@@ -154,7 +154,8 @@
       />
 
       <div v-for="select in info.options.filter((opt) => opt.type === 'select')" :key="select.name" class="mt-2">
-        <b-form-group :label-for="select.name" :label="select.label + ': '">
+        <b-form-group :label-for="select.name">
+          <template #label><span v-html="oneLineMarked(select.label)"></span> </template>
           <b-form-select
             :id="select.name"
             :options="
