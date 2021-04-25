@@ -203,6 +203,7 @@ async function requestDrop(playerId: string) {
       {/each}
     </div>
   {/if}
+  <div class="my-3" />
 </Portal>
 
 <style lang="postcss" global>

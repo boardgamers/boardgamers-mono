@@ -1,10 +1,9 @@
 <script lang="ts">
-import { post } from "@/api";
+import { get, post } from "@/api";
 
-import { Modal, ModalHeader, Icon, ModalBody, ModalFooter, Input, InputGroup, InputGroupAddon, Button } from "@/modules/cdk";
+import { Modal, ModalHeader, Icon, ModalBody, ModalFooter, Input, InputGroup, InputGroupAddon, Button, Badge } from "@/modules/cdk";
 import type { GameContext } from "@/pages/Game.svelte";
 import { chatMessages, currentGameId, sidebarOpen, user } from "@/store";
-import { defer } from "lodash";
 import { dateFromObjectId, dateTime, handleError } from "@/utils";
 import type { PlayerInfo } from "@lib/game";
 import { getContext } from "svelte";
@@ -13,6 +12,7 @@ import { PlayerGameAvatar} from "./Game";
 
 let isOpen = false
 let toggle = () => {isOpen = !isOpen}
+let lastRead: number = 0;
 export let room: string;
 
 let currentMessage = "";
@@ -41,11 +41,45 @@ function onMessagesChanged() {
       messagesContainer.scrollTop = messagesContainer.scrollHeight
     }
   })
+
+  if (isOpen) {
+    postLastRead();
+  }
+}
+
+async function loadLastRead() {
+  if (userId) {
+    lastRead = await get(`/game/${room}/chat/lastRead`)
+  } else {
+    lastRead = 0;
+  }
+}
+
+async function postLastRead() {
+  const lastMessage = $chatMessages.slice(-1).pop();
+
+  if (!lastMessage) {
+    return;
+  }
+
+  const lastMessageTime = dateFromObjectId(lastMessage._id).getTime();
+
+  if (lastMessageTime <= lastRead) {
+    return;
+  }
+
+  lastRead = Date.now();
+
+  if (userId) {
+    await post(`/game/${room}/chat/lastRead`, {lastRead}).catch(handleError);
+  }
 }
 
 $: userId = $user?._id
 $: players = ($game?.players??[]).reduce((obj, player) => ({...obj, [player._id]: player}), {} as Record<string, PlayerInfo>)
 $: onMessagesChanged(), [$chatMessages, isOpen]
+$: loadLastRead(), [userId, room]
+$: unreadMessages = $chatMessages.filter(msg => dateFromObjectId(msg._id).getTime() > lastRead).length
 
 </script>
 
@@ -97,8 +131,12 @@ $: onMessagesChanged(), [$chatMessages, isOpen]
   color="primary"
   on:click={toggle}
   class={"rounded-circle b-avatar sidebar-fab chat-button" + ($sidebarOpen ? " sidebar-open" : "")}
-  ><Icon name="chat" /></Button
 >
+  <Icon name="chat" />
+  {#if unreadMessages}
+    <Badge pill color="danger">{unreadMessages}</Badge>
+  {/if}
+</Button>
 
 <style lang="postcss" global>
   .modal {
@@ -184,6 +222,14 @@ $: onMessagesChanged(), [$chatMessages, isOpen]
 
     &.sidebar-open {
       right: calc(var(--fab-right) + var(--sidebar-width));
+    }
+
+    .badge {
+      position: absolute;
+      bottom: -3px;
+      top: auto;
+      right: -6px;
+      padding: 0.3em 0.5em;
     }
   }
 
