@@ -75,7 +75,12 @@ const repr = {
         type: Number,
         default: 2,
       },
-      seed: String,
+      seed: {
+        type: String,
+        trim: true,
+        minlength: [2, "A game seed must be at least 2 characters"] as [number, string],
+        maxlength: [25, "A game seed must be at most 25 characters"] as [number, string],
+      },
     },
     timing: {
       timePerMove: {
