@@ -6,7 +6,7 @@
   import { boardgames, gameSettings, user } from "@/store";
   import { navigate, routePath } from "@/modules/router";
   import { CardDeck, Card, Row, Col, Loading } from "@/modules/cdk";
-  import { UserGameSettings, GameList } from "@/components";
+  import { UserGameSettings, GameList, BoardgameElo } from "@/components";
   
   export let boardgameId: string;
 
@@ -77,7 +77,7 @@
       </Col>
       <Col lg={6} class="mt-3">
         <!-- Todo: show rank of current player if possible with mongodb in an optimized way in the list -->
-        <!-- <BoardgameElo :boardgameId="boardgameId" :top="5" /> -->
+        <BoardgameElo {boardgameId} top perPage={7} />
       </Col>
     </Row>
   </Loading>
