@@ -2,6 +2,7 @@ import { get as $, get } from "svelte/store";
 import { loadAccountIfNeeded } from "./api";
 import { createRouter, navigate, route, RouteConfig } from "./modules/router";
 import Account from "./pages/Account.svelte";
+import Boardgame from "./pages/Boardgame.svelte";
 import BoardgameLayout from "./pages/BoardgameLayout.svelte";
 import Game from "./pages/Game.svelte";
 import Games from "./pages/Games.svelte";
@@ -86,7 +87,20 @@ const routes: RouteConfig[] = [
   {
     path: "/boardgame/:boardgameId",
     name: "boardgame",
+    component: Boardgame,
+    layout: BoardgameLayout,
+  },
+  {
+    path: "/boardgame/:boardgameId/games",
+    name: "bg-games",
+    component: Games,
+    layout: BoardgameLayout,
+  },
+  {
+    path: "/boardgame/:boardgameId/rankings",
+    name: "bg-rankings",
     component: NotFound,
+    layout: BoardgameLayout,
   },
   {
     path: "/next-game",
