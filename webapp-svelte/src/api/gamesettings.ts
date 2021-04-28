@@ -56,6 +56,9 @@ export async function loadGameSettings(game: string) {
 let lastUpdate = 0;
 let promise: Promise<void> | undefined;
 export async function loadAllGameSettings() {
+  if (!storeGet(user)) {
+    return;
+  }
   if (promise) {
     return promise;
   }

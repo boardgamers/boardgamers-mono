@@ -48,7 +48,7 @@ module.exports = {
       dest: (req, res) => proxyWs.ws(req, res.socket),
     },
     {
-      src: "/api/gameplay",
+      src: "/api/gameplay/.*",
       dest: (req, res) => proxyGames.web(req, res),
     },
     {
