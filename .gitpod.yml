@@ -8,7 +8,7 @@ tasks:
       pnpm install
       cd ../game-server
       pnpm install
-      cd ../webapp-vue
+      cd ../webapp-svelte
       pnpm install
       cd ../admin-app
       yarn install
@@ -20,12 +20,12 @@ tasks:
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
     command: cd game-server && echo cron=1 > .env && pnpm start
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
-    command: cd webapp-vue && pnpm serve
+    command: cd webapp-svelte && pnpm start
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
     command: cd admin-app && pnpm serve
 
 ports:
-  - port: 8612
+  - port: 8615
     onOpen: open-preview
   - port: 8613
     onOpen: ignore
