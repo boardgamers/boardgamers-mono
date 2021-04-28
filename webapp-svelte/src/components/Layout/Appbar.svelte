@@ -48,7 +48,7 @@ $ : adminLink = location.hostname === "localhost" ? "http://localhost:8613": `${
 
   {#if $user}
     <a
-      class="btn btn-sm mr-auto"
+      class="btn btn-sm mr-3"
       class:btn-success={$activeGames.length > 0}
       class:btn-secondary={$activeGames.length === 0}
       href="/next-game"
@@ -58,7 +58,10 @@ $ : adminLink = location.hostname === "localhost" ? "http://localhost:8613": `${
       {$activeGames.length}
     </a>
   {/if}
-  <!-- todo: mobile-only boardgame list -->
+
+  <a href="/boardgames" title="Boardgames list">
+    <img src="/images/icons/dice.svg" height="28" alt="boardgames list" />
+  </a>
 
   {#await loadAccountIfNeeded() then _}
     <Nav class="ml-auto" navbar>
