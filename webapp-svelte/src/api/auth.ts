@@ -30,6 +30,10 @@ export async function resetPassword(params: { email: string; resetKey: string; p
   return auth("/account/reset", params);
 }
 
+export async function confirmAccount(params: { key: string; email: string }) {
+  return auth("/account/confirm", params);
+}
+
 async function auth(url: string, params: Record<string, unknown>) {
   const data: {
     user: IUser;

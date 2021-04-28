@@ -1,5 +1,5 @@
-import { get as $, get } from "svelte/store";
-import { loadAccountIfNeeded } from "./api";
+import { get as $ } from "svelte/store";
+import { confirmAccount, loadAccountIfNeeded } from "./api";
 import { createRouter, navigate, route, RouteConfig } from "./modules/router";
 import Account from "./pages/Account.svelte";
 import { ForgottenPassword, Login, ResetPassword, Signup } from "./pages/auth";
@@ -15,7 +15,7 @@ import Page from "./pages/Page.svelte";
 import Rankings from "./pages/Rankings.svelte";
 import User from "./pages/User.svelte";
 import { activeGames, logoClicks, user } from "./store";
-import { handleError } from "./utils";
+import { handleError, handleInfo } from "./utils";
 
 const routes: RouteConfig[] = [
   {
@@ -173,6 +173,21 @@ const routes: RouteConfig[] = [
     meta: { loggedIn: true },
   },
   {
+    path: "/confirm",
+    guard(to) {
+      return confirmAccount({ key: to.query.key, email: to.query.email }).then(
+        () => {
+          handleInfo("Your account has been confirmed");
+          return "/account";
+        },
+        (err: Error) => {
+          handleError(err);
+          return "/";
+        }
+      );
+    },
+  },
+  {
     path: "*",
     component: NotFound,
     meta: {
@@ -190,7 +205,7 @@ createRouter({
     await loadAccountIfNeeded().catch(handleError);
     routing = false;
 
-    const $user = get(user);
+    const $user = $(user);
     if (to.meta.loggedOut && $user) {
       console.log("trying to access " + to.path + " while logged in");
       return to.query.redirect || "/account";
@@ -207,7 +222,7 @@ user.subscribe((user) => {
     return;
   }
 
-  const $route = get(route);
+  const $route = $(route);
 
   if ($route?.meta.loggedIn && !user) {
     navigate({ name: "login", query: { redirect: $route.path } });
