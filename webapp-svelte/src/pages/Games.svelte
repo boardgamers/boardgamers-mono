@@ -12,10 +12,6 @@
   $ : firstTab = $route!.hash !== 'open'
 </script>
 
-<svelte:head>
-  <title>Games - Boardgamers 🌌</title>
-</svelte:head>
-
 <Container>
   <Nav pills>
     <h1 class="mr-3">Games</h1>

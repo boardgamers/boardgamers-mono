@@ -5,10 +5,6 @@
   import { user, activeGames } from '@/store';
 </script>
 
-<svelte:head>
-  <title>Home - Boardgamers 🌌</title>
-</svelte:head>
-
 <div class="text-center container">
   <p class="lead py-2">
     {#await get("/site/announcement") then announcement}

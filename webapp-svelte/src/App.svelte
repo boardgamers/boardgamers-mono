@@ -1,6 +1,7 @@
 <script lang="typescript">
 	import { Appbar, Footer, Sidebar} from '@/components';
   import RouterView from '@/modules/router/RouterView.svelte';
+  import { route } from './modules/router';
   import { activeGames } from './store';
 </script>
 
@@ -11,6 +12,10 @@
     id="favicon-site"
     href={$activeGames.length > 0 ? "/favicon-active.ico" : "/favicon.ico"}
   />
+
+  {#if $route?.meta?.title}
+    <title>{$route.meta.title} - Boardgamers 🌌</title>
+  {/if}
 </svelte:head>
 
 <div id="app">
