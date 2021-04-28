@@ -96,7 +96,15 @@ const routes: RouteConfig[] = [
     component: GameSelection,
     props: () => ({ newGame: true, title: "Choose which game to play" }),
     meta: {
-      title: "Pick a boardgame",
+      title: "Choose which game to play",
+    },
+  },
+  {
+    path: "/boardgames",
+    component: GameSelection,
+    props: () => ({ title: "Games on the platform" }),
+    meta: {
+      title: "Games on the platform",
     },
   },
   {
