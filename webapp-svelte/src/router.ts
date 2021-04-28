@@ -2,6 +2,7 @@ import { get as $, get } from "svelte/store";
 import { loadAccountIfNeeded } from "./api";
 import { createRouter, navigate, route, RouteConfig } from "./modules/router";
 import Account from "./pages/Account.svelte";
+import { ForgottenPassword, Login, ResetPassword, Signup } from "./pages/auth";
 import Boardgame from "./pages/Boardgame.svelte";
 import BoardgameLayout from "./pages/BoardgameLayout.svelte";
 import Game from "./pages/Game.svelte";
@@ -21,6 +22,9 @@ const routes: RouteConfig[] = [
     path: "/",
     component: Home,
     layout: BoardgameLayout,
+    meta: {
+      title: "Home",
+    },
   },
   {
     path: "/user/:username",
@@ -30,9 +34,35 @@ const routes: RouteConfig[] = [
   {
     path: "/login",
     name: "login",
-    component: NotFound,
+    component: Login,
     meta: {
       loggedOut: true,
+      title: "Login",
+    },
+  },
+  {
+    path: "/signup",
+    name: "signup",
+    component: Signup,
+    meta: {
+      loggedOut: true,
+      title: "Signup",
+    },
+  },
+  {
+    path: "/reset",
+    component: ResetPassword,
+    meta: {
+      title: "Reset password",
+      loggedOut: true,
+    },
+  },
+  {
+    path: "/forgotten-password",
+    component: ForgottenPassword,
+    meta: {
+      loggedOut: true,
+      title: "Forgotten password",
     },
   },
   {
@@ -41,6 +71,7 @@ const routes: RouteConfig[] = [
     component: Account,
     meta: {
       loggedIn: true,
+      title: "Account",
     },
   },
   {
@@ -56,15 +87,24 @@ const routes: RouteConfig[] = [
     component: Games,
     name: "games",
     layout: BoardgameLayout,
+    meta: {
+      title: "Games",
+    },
   },
   {
     path: "/new-game",
     component: GameSelection,
     props: () => ({ newGame: true, title: "Choose which game to play" }),
+    meta: {
+      title: "Pick a boardgame",
+    },
   },
   {
     path: "/new-game/:boardgameId",
     component: NewGame,
+    meta: {
+      title: "New game",
+    },
   },
   {
     path: "/page/:page",
@@ -96,12 +136,18 @@ const routes: RouteConfig[] = [
     name: "bg-games",
     component: Games,
     layout: BoardgameLayout,
+    meta: {
+      title: "Games",
+    },
   },
   {
     path: "/boardgame/:boardgameId/rankings",
     name: "bg-rankings",
     component: Rankings,
     layout: BoardgameLayout,
+    meta: {
+      title: "Rankings",
+    },
   },
   {
     path: "/next-game",
@@ -121,6 +167,9 @@ const routes: RouteConfig[] = [
   {
     path: "*",
     component: NotFound,
+    meta: {
+      title: "404",
+    },
   },
 ];
 

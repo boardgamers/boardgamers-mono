@@ -32,6 +32,10 @@
   }
 </script>
 
+<svelte:head>
+  <title>{boardgame?.label} - Boardgamers 🌌</title>
+</svelte:head>
+
 <div class="home container">
   <Loading {loading}>
     <h1>{boardgame.label}</h1>
