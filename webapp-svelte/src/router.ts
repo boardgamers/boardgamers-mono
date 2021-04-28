@@ -11,6 +11,7 @@ import Home from "./pages/Home.svelte";
 import NewGame from "./pages/NewGame.svelte";
 import NotFound from "./pages/NotFound.svelte";
 import Page from "./pages/Page.svelte";
+import Rankings from "./pages/Rankings.svelte";
 import User from "./pages/User.svelte";
 import { activeGames, logoClicks, user } from "./store";
 import { handleError } from "./utils";
@@ -99,7 +100,7 @@ const routes: RouteConfig[] = [
   {
     path: "/boardgame/:boardgameId/rankings",
     name: "bg-rankings",
-    component: NotFound,
+    component: Rankings,
     layout: BoardgameLayout,
   },
   {
