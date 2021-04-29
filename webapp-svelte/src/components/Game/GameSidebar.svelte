@@ -25,8 +25,8 @@ onDestroy(() => clearInterval(interval))
 let  requestedDrop: Record<string, boolean> = {};
 
 $: userId = $user?._id
-$: playerUser = $game.players.find((pl) => pl._id === userId)
-$: gameId = $game._id
+$: playerUser = $game?.players.find((pl) => pl._id === userId)
+$: gameId = $game?._id
 
 function status(playerId: string) {
   return $playerStatus?.find(pl => pl._id === playerId)?.status ?? 'offline'
@@ -36,12 +36,12 @@ function playerElo(playerId: string) {
   return $players.find((pl) => pl._id === playerId)?.elo ?? 0;
 }
 
-const alwaysActive = $game.options.timing.timer?.start === $game.options.timing.timer?.end
+$: alwaysActive = $game?.options.timing.timer?.start === $game?.options.timing.timer?.end
 
-$: currentPlayersById = keyBy($game.currentPlayers ?? [], "_id");
+$: currentPlayersById = keyBy($game?.currentPlayers ?? [], "_id");
 
 function isCurrentPlayer(id: string) {
-  return $game.status !== "ended" && !!currentPlayersById[id];
+  return $game?.status !== "ended" && !!currentPlayersById[id];
 }
 
 const onGameChanged = () => {

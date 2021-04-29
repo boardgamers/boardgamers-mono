@@ -19,7 +19,7 @@ function endReplay() {
 }
 </script>
 
-{#if $gameInfo.viewer?.replayable}
+{#if $gameInfo?.viewer?.replayable}
   <div class="mt-75">
     {#if !$replayData}
       <Button color="info" size="sm" on:click={startReplay}>Replay</Button>

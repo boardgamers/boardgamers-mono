@@ -1,8 +1,9 @@
 <script lang="ts">
   import { get, post } from "@/api";
   import { loadGameData } from "@/api/game";
+  import type { GamePreferences } from "@lib/gamepreferences"
 
-  import Loading from "@/modules/cdk/Loading.svelte";
+  import { Loading } from "@/modules/cdk";
   import { navigate } from "@/modules/router";
   import type { GameContext } from "@/pages/Game.svelte";
   import { gameSettings, lastGameUpdate, user } from "@/store";
@@ -16,9 +17,9 @@
 
   const gameIframe = () => document.querySelector<HTMLIFrameElement>("#game-iframe")
 
-  $: src = `${resourcesLink}/game/${$gameInfo._id.game}/${$gameInfo._id.version}/iframe?alternate=${
-    $gameSettings[$game.game.name]?.preferences?.alternateUI ? 1 : 0
-  }`
+  let src = ''
+  let prefs: GamePreferences
+  
 
   function postUser() {
     if (gameIframe()) {
@@ -28,10 +29,20 @@
     }
   }
 
-  $: postUser(), [user]
-  $: prefs = $gameSettings[$game.game.name]
+  $: gameName = $game?.game.name
+  $: postUser(), [$user]
+  $: prefs = $gameSettings[gameName]
   $: postPreferences(), [prefs]
   $: gameId = $game?._id
+
+  const updateSrc = () => {
+    if ($gameInfo) {
+      src = `${resourcesLink}/game/${gameName}/${$gameInfo._id.version}/iframe?alternate=${
+        $gameSettings[gameName]?.preferences?.alternateUI ? 1 : 0
+      }`
+    }
+  }
+  $: updateSrc(), [$gameInfo]
 
   onDestroy(lastGameUpdate.subscribe(skipOnce(() => {
     if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
@@ -52,7 +63,7 @@
   }
 
   function postPreferences() {
-    if (gameIframe()) {
+    if (gameIframe() && prefs) {
       gameIframe()!.contentWindow?.postMessage({ type: "preferences", preferences: prefs.preferences }, "*");
     }
   }

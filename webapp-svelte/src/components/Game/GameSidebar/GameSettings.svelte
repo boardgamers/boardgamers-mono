@@ -10,12 +10,12 @@
   let  settings: Record<string, unknown> | null = null;
 
   $: userId = $user?._id
-  $: playerUser = $game.players.find((pl) => pl._id === userId)
-  $: gameStatus = $game.status
-  $: gameId = $game._id
+  $: playerUser = $game?.players.find((pl) => pl._id === userId)
+  $: gameStatus = $game?.status
+  $: gameId = $game?._id
 
   async function loadSettings() {
-    if (gameStatus !== "active" || !playerUser) {
+    if (gameStatus !== "active" || !playerUser || !$gameInfo) {
       settings = null;
       return;
     }
@@ -26,7 +26,7 @@
     }
   }
 
-  $: loadSettings(), [gameStatus, userId]
+  $: loadSettings(), [gameStatus, userId, $gameInfo]
 
   async function postSettings() {
     if (!$user) {
@@ -36,7 +36,7 @@
   }
 </script>
 
-{#if $gameInfo.settings.length > 0 && $game.status === "active" && settings && playerUser}
+{#if $gameInfo?.settings.length > 0 && $game.status === "active" && settings && playerUser}
   <div class="mt-75">
     <h3>
       Settings
