@@ -36,7 +36,7 @@
       required
     />
     <div class="text-right mt-1">
-      <router-link to="/forgotten-password"><small>Forgotten password ?</small></router-link>
+      <a href="/forgotten-password"><small>Forgotten password ?</small></a>
     </div>
   </FormGroup>
   <Button type="submit" color="primary" class="pull-right">Login</Button>
@@ -44,4 +44,4 @@
 
 <hr />
 
-<p>Need an account ? <router-link to="/signup">Register</router-link></p>
+<p>Need an account ? <a href="/signup">Register</a></p>
