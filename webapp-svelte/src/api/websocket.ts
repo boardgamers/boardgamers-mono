@@ -49,7 +49,7 @@ async function sendUser() {
   if (ws?.readyState === WebSocket.OPEN) {
     const token = await getAccessToken(url);
 
-    ws.send(JSON.stringify({ jwt: token?.code }));
+    ws.send(JSON.stringify({ jwt: token?.code ?? null }));
   }
 }
 
