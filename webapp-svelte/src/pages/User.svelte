@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { defer } from "@/utils";
+  import { handleError } from "@/utils";
   import type { IUser } from "@lib/user";
   import { UserGames, UserPublicInfo, UserElo} from "@/components";
   import { get } from "@/api";
@@ -8,8 +8,9 @@
 
   export let username: string;
   let user: IUser;
-  
-  defer(() => get(`/user/infoByName/${encodeURIComponent(username)}`).then(r => user = r))()
+
+  const onUserNameChanged = () => get(`/user/infoByName/${encodeURIComponent(username)}`).then(r => user = r).catch(handleError)  
+  $: onUserNameChanged(), [username]
 </script>
 
 <svelte:head>

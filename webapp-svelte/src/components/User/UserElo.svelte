@@ -1,6 +1,6 @@
 <script lang="ts">
 import { boardgameInfo, get, loadBoardgame } from "@/api";
-import { defer, handleError, pluralize } from "@/utils";
+import { handleError, pluralize } from "@/utils";
 
 import type { GamePreferences } from "@lib/gamepreferences";
 import { Icon } from "@cdk";
@@ -9,7 +9,9 @@ export let userId: string;
 
 let gamePreferences: GamePreferences[] = [];
 
-defer(() => get<GamePreferences[]>(`/user/${userId}/games/elo`).then(prefs => gamePreferences = prefs))();
+const onUserIdChanged = () => get<GamePreferences[]>(`/user/${userId}/games/elo`).then(prefs => gamePreferences = prefs).catch(handleError)
+
+$: onUserIdChanged(), [userId]
 
 async function gameName(game: string): Promise<string> {
   const info = boardgameInfo(game, "latest");

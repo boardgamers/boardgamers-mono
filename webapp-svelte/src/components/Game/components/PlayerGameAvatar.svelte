@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { user } from "@/store";
   import type { PlayerInfo } from "@lib/game";
   import { classnames } from "@/utils"
+  import { user } from "@/store";
 
   export let player: PlayerInfo
   export let showVp = true
@@ -9,7 +9,8 @@
   let className = ''
   export { className as class }
 
-  $: userId = $user?._id
+  export let userId: string | undefined;
+  $: highlightedPlayerId = userId ?? $user?._id
 </script>
 
 <div
@@ -18,7 +19,7 @@
   }')`}
   title={player.name}
   class={classnames("player-avatar", className)}
-  class:current={userId && player._id === userId}
+  class:current={highlightedPlayerId && player._id === highlightedPlayerId}
 >
   {#if showVp}
     <span class={`vp ${status}`}>{player.score}</span>

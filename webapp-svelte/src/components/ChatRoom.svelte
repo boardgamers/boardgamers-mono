@@ -96,7 +96,7 @@ $: unreadMessages = $chatMessages.filter(msg => dateFromObjectId(msg._id).getTim
     {#each $chatMessages as message}
       <div class="message-container" class:sent={message.author === userId}>
         {#if message.author && message.author in players}
-          <PlayerGameAvatar player={players[message.author]} showVp={false} />
+          <PlayerGameAvatar {userId} player={players[message.author]} showVp={false} />
         {/if}
         <div
           class="message"

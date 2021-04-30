@@ -136,7 +136,7 @@
             {#if game.status !== "open"}
               <div class="row no-gutters factions">
                 {#each game.players as player}
-                  <PlayerGameAvatar {player} class="mr-1" />
+                  <PlayerGameAvatar {userId} {player} class="mr-1" />
                 {/each}
               </div>
             {:else}
