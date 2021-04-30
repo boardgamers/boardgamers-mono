@@ -118,6 +118,7 @@ router.get("/:boardgame/games/:status", async (ctx) => {
       case "active":
         return { status: "active" };
       case "closed":
+      case "ended":
         return { status: "ended" };
       case "open":
         return { status: "open", "options.meta.unlisted": { $ne: true } };
@@ -144,6 +145,7 @@ router.get("/:boardgame/games/:status/count", async (ctx) => {
       case "active":
         return { "game.name": boardgameName, status: "active" };
       case "closed":
+      case "ended":
         return { "game.name": boardgameName, status: "ended" };
       case "open":
         return { "game.name": boardgameName, status: "open", "options.meta.unlisted": { $ne: true } };
