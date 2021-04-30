@@ -145,6 +145,7 @@ $: onNotificationsChanged(notifications)
             href={`/api/account/auth/${social}`}
             aria-disabled={!!($user.account.social && $user.account.social[social])}
             role="button"
+            rel="external"
           >
             {upperFirst(social)}
           </a>
