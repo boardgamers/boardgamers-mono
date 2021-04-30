@@ -540,7 +540,12 @@ router.post("/:gameId/drop/:userId", loggedIn, async (ctx) => {
     assert(currentPlayer, "It's not that player's turn to play");
     assert(currentPlayer.deadline < new Date(), "The player's time is not elapsed");
 
-    await GameNotification.create({ kind: "dropPlayer", user: targetId, game: game._id });
+    await GameNotification.create({
+      kind: "dropPlayer",
+      user: targetId,
+      game: game,
+      meta: { dropper: ctx.state.user._id },
+    });
   } finally {
     free();
   }

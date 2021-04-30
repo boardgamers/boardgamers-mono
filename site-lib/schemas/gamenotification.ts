@@ -19,6 +19,7 @@ const repr = {
     type: Boolean,
     default: false,
   },
+  meta: {},
 };
 
 export default function makeSchema<

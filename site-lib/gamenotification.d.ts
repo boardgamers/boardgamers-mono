@@ -9,4 +9,5 @@ export interface GameNotification<T = string> {
   createAt?: Date;
   kind: notificationKind;
   processed: boolean;
+  meta?: Record<string, any>;
 }
