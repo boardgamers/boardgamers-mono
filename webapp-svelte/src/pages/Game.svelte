@@ -14,9 +14,7 @@ export type GameContext = {
 </script>
 
 <script lang="ts">
-import { boardgameInfo, loadBoardgame } from "@/api";
-
-import { loadGame } from "@/api/game";
+import { boardgameInfo, loadBoardgame, loadGamePlayers, loadGameData } from "@/api";
 
 import { GameSidebar, OpenGame, StartedGame, ChatRoom } from "@/components"
 import { Loading } from "@/modules/cdk"
@@ -57,7 +55,7 @@ const load = defer(async () => {
     $log = []
   }
   // Load new game
-  const {game: g, players: p} = await loadGame(gameId)
+  const [g, p] = await Promise.all([loadGameData(gameId), loadGamePlayers(gameId)])
   if (g._id !== gameId) {
     return;
   }

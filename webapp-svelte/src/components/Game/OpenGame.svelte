@@ -3,7 +3,7 @@
   import marked from "marked"
   import { Badge, Button } from "@/modules/cdk";
   import { lastGameUpdate, user } from "@/store";
-  import { joinGame, loadGame, unjoinGame } from "@/api/game";
+  import { joinGame, loadGameData, loadGamePlayers, unjoinGame } from "@/api/game";
   import Icon from "sveltestrap/src/Icon.svelte";
   import { navigate, route } from "@/modules/router";
   import { getContext, onDestroy } from "svelte";
@@ -49,13 +49,13 @@
       }
     }
 
-    joinGame(gameId).then((newGame) => $game = newGame).catch(handleError)
+    joinGame(gameId).catch(handleError)
   }
 
   // Autorefresh when another player joins
   onDestroy(lastGameUpdate.subscribe(skipOnce(async () => {
     if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
-      const {game: g, players: p} = await loadGame(gameId)
+      const [g, p] = await Promise.all([loadGameData(gameId), loadGamePlayers(gameId)])
 
       if ($game && gameId === g._id) {
         $game = g;

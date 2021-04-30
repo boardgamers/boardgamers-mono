@@ -1,10 +1,13 @@
 import type { IGame, PlayerInfo } from "@lib/game";
 import { get, post } from "./rest";
 
-export async function loadGame(gameId: string): Promise<{ game: IGame; players: PlayerInfo[] }> {
-  const [game, players] = await Promise.all([get(`/gameplay/${gameId}`), get(`/game/${gameId}/players`)]);
-
-  return { game, players };
+/**
+ * Load game players - with Elo filled in even when the game is ongoing
+ * @param gameId
+ * @returns
+ */
+export async function loadGamePlayers(gameId: string): Promise<PlayerInfo[]> {
+  return get(`/game/${gameId}/players`);
 }
 
 export async function loadGameData(gameId: string) {
@@ -15,6 +18,6 @@ export async function unjoinGame(gameId: string) {
   return post(`/game/${gameId}/unjoin`);
 }
 
-export async function joinGame(gameId: string) {
+export async function joinGame(gameId: string): Promise<IGame> {
   return post(`/game/${gameId}/join`);
 }
