@@ -14,7 +14,7 @@ import {
   FormText,
   NavLink,
   Icon
-} from '@cdk';
+} from '@/modules/cdk';
 import { user, logoClicks, activeGames } from "@/store";
 import { loadAccountIfNeeded, login, logout } from '@/api';
 import { handleError } from '@/utils';
@@ -77,9 +77,9 @@ $ : adminLink = location.hostname === "localhost" ? "http://localhost:8613": `${
               <div class="col-md-12">
                 Log in with
                 <div class="social-buttons">
-                  <Button href="/api/account/auth/google" class="google">Google</Button>
-                  <Button href="/api/account/auth/discord" class="discord">Discord</Button>
-                  <Button href="/api/account/auth/facebook" class="facebook">Facebook</Button>
+                  <Button href="/api/account/auth/google" rel="external" class="google">Google</Button>
+                  <Button href="/api/account/auth/discord" rel="external" class="discord">Discord</Button>
+                  <Button href="/api/account/auth/facebook" rel="external" class="facebook">Facebook</Button>
                 </div>
                 or
                 <Form class="mt-3" on:submit={handleSubmit}>

@@ -41,6 +41,16 @@ async function auth(url: string, params: Record<string, unknown>) {
     refreshToken: { code: string; expiresAt: number };
   } = await post(url, params);
 
+  setAuthTokens(data);
+}
+
+type AuthTokens = {
+  user: IUser;
+  accessToken: { code: string; expiresAt: number };
+  refreshToken: { code: string; expiresAt: number };
+};
+
+export function setAuthTokens(data: AuthTokens) {
   user.set(data.user);
   refreshToken.set(data.refreshToken);
   setAccessToken(data.accessToken);

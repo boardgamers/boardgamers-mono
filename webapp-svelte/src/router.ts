@@ -1,5 +1,5 @@
 import { get as $ } from "svelte/store";
-import { confirmAccount, loadAccountIfNeeded } from "./api";
+import { confirmAccount, get, loadAccountIfNeeded, setAuthTokens } from "./api";
 import { createRouter, navigate, route, RouteConfig } from "./modules/router";
 import Account from "./pages/Account.svelte";
 import { ForgottenPassword, Login, ResetPassword, Signup } from "./pages/auth";
@@ -181,6 +181,25 @@ const routes: RouteConfig[] = [
           return "/account";
         },
         (err: Error) => {
+          handleError(err);
+          return "/";
+        }
+      );
+    },
+  },
+  {
+    path: "/auth/:provider/callback",
+    guard(to) {
+      return get(`/account/auth/${to.params.provider}/callback`, to.query).then(
+        (response) => {
+          if (response.createSocialAccount) {
+            return { name: "signup", query: response };
+          } else {
+            setAuthTokens(response);
+            return "/account";
+          }
+        },
+        (err) => {
           handleError(err);
           return "/";
         }
