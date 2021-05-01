@@ -24,7 +24,7 @@
   $: needOwnership = boardgame?.meta?.needOwnership
 
   async function newGame() {
-    if (needOwnership && hasOwnership) {
+    if (needOwnership && !hasOwnership) {
       await confirm("You need to have game ownership to host a new game. You can set game ownership in your account settings.");
     } else {
       navigate(`/new-game/${boardgameId}`)

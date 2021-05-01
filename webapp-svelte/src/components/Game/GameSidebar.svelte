@@ -99,7 +99,7 @@ async function requestDrop(playerId: string) {
   <h3 class="mt-75">Players</h3>
   {#each $game.players as player}
     <div class={"mb-1 d-flex align-items-center player-row"} class:active={isCurrentPlayer(player._id)}>
-      <PlayerGameAvatar {player} status={status(player._id)} class="mr-2" />
+      <PlayerGameAvatar {userId} {player} status={status(player._id)} class="mr-2" />
 
       <div>
         <a href={`/user/${player.name}`} class="player-name" class:dropped={player.dropped}>

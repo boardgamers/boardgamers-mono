@@ -14,7 +14,7 @@ import NotFound from "./pages/NotFound.svelte";
 import Page from "./pages/Page.svelte";
 import Rankings from "./pages/Rankings.svelte";
 import User from "./pages/User.svelte";
-import { activeGames, logoClicks, user } from "./store";
+import { activeGames, user } from "./store";
 import { handleError, handleInfo } from "./utils";
 
 const routes: RouteConfig[] = [
@@ -124,14 +124,6 @@ const routes: RouteConfig[] = [
     props: (route) => ({
       page: `${route.params.part1}:${route.params.part2}`,
     }),
-  },
-  {
-    path: "/refresh-games",
-    guard(_route) {
-      logoClicks.update((val) => val + 1);
-      // stay at current url
-      return window.location.pathname + window.location.search + window.location.hash;
-    },
   },
   {
     path: "/boardgame/:boardgameId",
