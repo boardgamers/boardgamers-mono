@@ -1,0 +1,31 @@
+---
+- name: "Create logical volume for mongodb database"
+  hosts: databases[2]
+  become: true
+  become_user: root
+  become_method: sudo
+  tasks:
+    - name: "Install LVM"
+      apt:
+        pkg: lvm2
+        state: present
+    - name: Unmount /dev/sda1
+      ansible.posix.mount:
+        path: /
+        src: /dev/sda1
+        state: unmounted
+    - name: "Create volume group dbs"
+      community.general.lvg:
+        vg: dbs
+        pvs: /dev/sda1
+        pesize: "{{ lookup('env', 'MONGODB_LVM_SIZE') }}"
+    - name: Mount /dev/sda1
+      ansible.posix.mount:
+        path: /
+        src: /dev/sda1
+        state: mounted
+    - name: "Create LVM"
+      community.general.lvol:
+        lv: mongodb
+        vg: dbs
+        size: "{{ lookup('env', 'MONGODB_LVM_SIZE') }}"
