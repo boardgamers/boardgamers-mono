@@ -1,0 +1,16 @@
+---
+webservers:
+  hosts:
+    app[01:02].boardgamers.space:
+  vars:
+    ansible_user: debian
+
+databases:
+  hosts:
+    db[01:03].boardgamers.space:
+  vars:
+    ansible_user: debian
+
+loadbalancers:
+  hosts:
+    balancer.boardgamers.space:

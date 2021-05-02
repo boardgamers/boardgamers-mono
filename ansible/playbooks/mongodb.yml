@@ -1,0 +1,105 @@
+---
+- name: "Install pymongo"
+  hosts: databases
+  become: true
+  become_user: root
+  become_method: sudo
+  tasks:
+    - name: Install or update pip
+      apt:
+        pkg: python-pip
+        state: present
+    - pip:
+        name: pymongo
+
+- name: "Install mongodb"
+  hosts: databases
+  collections:
+    - community.mongodb
+  roles:
+    - mongodb_repository
+    - mongodb_install
+    - mongodb_mongod
+  become: true
+  become_user: root
+  become_method: sudo
+  vars:
+    mongodb_version: "4.4"
+    openssl_keyfile_content: "{{ lookup('env', 'MONGODB_KEYFILE_CONTENTS') }}"
+    repl_set_name: "bgs"
+    skip_restart: false
+    bind_ip: localhost,db01.boardgamers.space,db02.boardgamers.space,db03.boardgamers.space,app01.boardgamers.space,app02.boardgamers.space
+    # db_path: /dev/dbs/mongodb
+
+- name: "Ensure replicaset bgs exists"
+  hosts: databases[0]
+  collections:
+    - community.mongodb
+  tasks:
+    - name: "Try with no login"
+      ignore_errors: true
+      mongodb_replicaset:
+        replica_set: bgs
+        login_host: localhost
+        members:
+          - db01.boardgamers.space:27017
+          - db02.boardgamers.space:27017
+          - db03.boardgamers.space:27017
+      notify:
+        - Delay
+    - name: "Try with a login"
+      mongodb_replicaset:
+        login_user: "{{ lookup('env', 'MONGODB_ADMIN_USER') }}"
+        login_password: "{{ lookup('env', 'MONGODB_ADMIN_PASSWORD') }}"
+        replica_set: bgs
+        login_host: localhost
+        members:
+          - host: db01.boardgamers.space:27017
+            priority: 1
+          - host: db02.boardgamers.space:27017
+            priority: 1
+          - host: db03.boardgamers.space:27017
+            hidden: true
+            priority: 0
+      notify:
+        - Delay
+    # We need some time between creating a replicaset and adding auth, otherwise we get an error
+    - name: Flush handlers
+      meta: flush_handlers
+  handlers:
+    - name: Delay
+      ansible.builtin.wait_for:
+        timeout: 5
+
+- name: "Create admin and users"
+  hosts: databases[0]
+  collections:
+    - community.mongodb
+  roles:
+    - mongodb_auth
+  become: true
+  become_user: root
+  become_method: sudo
+  vars:
+    mongodb_admin_user: "{{ lookup('env', 'MONGODB_ADMIN_USER') }}"
+    mongodb_admin_pwd: "{{ lookup('env', 'MONGODB_ADMIN_PASSWORD') }}"
+    mongodb_users:
+      - db: admin
+        user: site
+        pwd: "{{ lookup('env', 'MONGODB_SITE_PASSWORD') }}"
+        roles:
+          - { db: bgs, role: readWrite }
+        state: present
+      - db: admin
+        user: game-server
+        pwd: "{{ lookup('env', 'MONGODB_GAMESERVER_PASSWORD') }}"
+        # Todo: finetune collections access as seen in gameserver's readme
+        roles:
+          - { db: bgs, role: readWrite }
+        state: present
+      - db: admin
+        user: nodebb
+        pwd: "{{ lookup('env', 'MONGODB_NODEBB_PASSWORD') }}"
+        roles:
+          - { db: nodebb, role: readWrite }
+        state: present
