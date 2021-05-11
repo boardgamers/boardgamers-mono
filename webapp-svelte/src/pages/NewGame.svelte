@@ -268,7 +268,7 @@
       {#each info.options.filter((opt) => opt.type === "select") as select}
         <div class="form-group mt-2">
           <label for={select.name}>{@html oneLineMarked(select.label)}</label>
-          <Input type="select" bind:value={selects[selects.name]} required>
+          <Input type="select" bind:value={selects[select.name]} required>
             {#each select.items || [] as item}
               <option value={item.name}>{marked(item.label).replace(/<[^>]+>/g, "")}</option>
             {/each}
