@@ -79,7 +79,7 @@ $: userId = $user?._id
 $: players = ($game?.players??[]).reduce((obj, player) => ({...obj, [player._id]: player}), {} as Record<string, PlayerInfo>)
 $: onMessagesChanged(), [$chatMessages, isOpen]
 $: loadLastRead(), [userId, room]
-$: unreadMessages = $chatMessages.filter(msg => dateFromObjectId(msg._id).getTime() > lastRead).length
+$: unreadMessages = $chatMessages.filter(msg => msg.type !== "system" && dateFromObjectId(msg._id).getTime() > lastRead).length
 
 </script>
 
