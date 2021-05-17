@@ -38,11 +38,15 @@
   const updateSrc = () => {
     if ($gameInfo) {
       src = `${resourcesLink}/game/${gameName}/${$gameInfo._id.version}/iframe?alternate=${
-        $gameSettings[gameName]?.preferences?.alternateUI ? 1 : 0
+        prefs?.preferences?.alternateUI ? 1 : 0
       }`
     }
   }
-  $: updateSrc(), [$gameInfo]
+  $: updateSrc(), [$gameInfo, prefs]
+  
+  const onSrcChanged = () => stateSent = false;
+
+  $: onSrcChanged(), [src]
 
   onDestroy(lastGameUpdate.subscribe(skipOnce(() => {
     if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
