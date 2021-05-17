@@ -31,7 +31,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
   ws.isAlive = true;
   ws.on("pong", () => {
     ws.isAlive = true;
-    updateActivity(ws.user, false);
+    updateActivity(ws.user, false).catch(console.error);
   });
 
   ws.on("message", async (message) => {
@@ -97,7 +97,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
 
         if (decoded) {
           ws.user = new ObjectID(decoded.userId);
-          updateActivity(ws.user, true);
+          updateActivity(ws.user, true).catch(console.error);
           sendActiveGames(ws);
         } else {
           ws.user = null;
@@ -107,7 +107,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
       }
     }
     if (data.online && ws.user) {
-      updateActivity(ws.user, true);
+      updateActivity(ws.user, true).catch(console.error);
     }
   });
 
@@ -243,7 +243,10 @@ async function run() {
   }
 }
 
-run();
+run().catch((err: Error) => {
+  console.error(err);
+  process.exit(1);
+});
 
 async function updateActivity(user: ObjectID, online: boolean) {
   try {

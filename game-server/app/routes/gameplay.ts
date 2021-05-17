@@ -36,7 +36,7 @@ router.post("/:gameId/replay", isAdmin, async (ctx) => {
       ctx.status = 500;
     }
   } finally {
-    free();
+    free().catch(console.error);
   }
 });
 
@@ -87,7 +87,7 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
       },
     };
   } finally {
-    free();
+    free().catch(console.error);
   }
 });
 
@@ -154,7 +154,7 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
       settings: toSave ? engine.playerSettings(toSave, playerIndex) : null,
     };
   } finally {
-    free();
+    free().catch(console.error);
   }
 });
 

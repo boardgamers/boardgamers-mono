@@ -373,7 +373,7 @@ schema.method("sendGameNotificationEmail", async function (this: UserDocument) {
   } catch (err) {
     console.error(err);
   } finally {
-    free();
+    free().catch(console.error);
   }
 });
 

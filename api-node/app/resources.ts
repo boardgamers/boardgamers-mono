@@ -171,21 +171,17 @@ async function listen(port = env.listen.port.resources) {
   app.use(router.routes());
   app.use(router.allowedMethods());
 
-  try {
-    let server: Server;
-    const promise = new Promise<void>((resolve, reject) => {
-      server = app.listen(port, env.listen.host, () => resolve());
-      app.once("error", (err) => reject(err));
-    });
+  let server: Server;
+  const promise = new Promise<void>((resolve, reject) => {
+    server = app.listen(port, env.listen.host, () => resolve());
+    app.once("error", (err) => reject(err));
+  });
 
-    await promise;
+  await promise;
 
-    console.log("resources started on port", port);
+  console.log("resources started on port", port);
 
-    return server;
-  } catch (err) {
-    console.error(err);
-  }
+  return server;
 }
 
 export { listen };

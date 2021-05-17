@@ -5,7 +5,12 @@ import initDb from "./app/config/db";
 import env from "./app/config/env";
 import { listen as listenResources } from "./app/resources";
 
-initDb();
+const handleError = (err: Error) => {
+  console.error(err);
+  process.exit(1);
+};
+
+initDb().catch(handleError);
 
 // In production, run a process for each CPU
 if (cluster.isMaster && env.isProduction) {
@@ -13,8 +18,8 @@ if (cluster.isMaster && env.isProduction) {
     cluster.fork();
   }
 } else {
-  listen();
-  listenResources();
+  listen().catch(handleError);
+  listenResources().catch(handleError);
   // tslint:disable-next-line no-var-requires
   require("./app/ws");
 }

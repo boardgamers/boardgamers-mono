@@ -8,12 +8,22 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 12,
     sourceType: "module",
+    project: "./tsconfig.json",
   },
   plugins: ["@typescript-eslint"],
   rules: {
     "@typescript-eslint/ban-ts-comment": "off",
     "@typescript-eslint/explicit-module-boundary-types": "off",
     "@typescript-eslint/no-empty-function": "off",
+    "@typescript-eslint/no-floating-promises": "error",
     "no-constant-condition": ["error", { checkLoops: false }],
   },
+  overrides: [
+    {
+      files: ["*.spec.ts"],
+      rules: {
+        "@typescript-eslint/no-floating-promises": "off",
+      },
+    },
+  ],
 };

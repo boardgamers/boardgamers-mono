@@ -84,18 +84,17 @@ app.use(router.routes());
 app.use(router.allowedMethods());
 
 async function listen() {
-  try {
-    const promise = new Promise<void>((resolve, reject) => {
-      app.listen(env.listen.port, env.listen.host, () => resolve());
-      app.once("error", (err) => reject(err));
-    });
+  const promise = new Promise<void>((resolve, reject) => {
+    app.listen(env.listen.port, env.listen.host, () => resolve());
+    app.once("error", (err) => reject(err));
+  });
 
-    await promise;
+  await promise;
 
-    console.log("app started on port", env.listen.port);
-  } catch (err) {
-    console.error(err);
-  }
+  console.log("app started on port", env.listen.port);
 }
 
-listen();
+listen().catch((err: Error) => {
+  console.error(err);
+  process.exit(1);
+});

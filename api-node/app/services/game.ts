@@ -34,7 +34,7 @@ export default class GameService {
         }
       }
     } finally {
-      free();
+      free().catch(console.error);
     }
   }
 }

@@ -98,7 +98,7 @@ export async function startNextGame(): Promise<boolean> {
     console.error(err);
     return false;
   } finally {
-    free();
+    free().catch(console.error);
   }
 }
 
@@ -171,7 +171,7 @@ export async function processNextQuit(kind: "playerQuit" | "dropPlayer") {
     console.error(err);
     return false;
   } finally {
-    free();
+    free().catch(console.error);
   }
 }
 

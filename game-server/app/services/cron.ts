@@ -38,11 +38,11 @@ async function processDrops() {
 }
 
 if (cluster.isMaster) {
-  installGames();
+  void installGames();
 
   if (env.cron) {
-    startGames();
-    processQuits();
-    processDrops();
+    void startGames();
+    void processQuits();
+    void processDrops();
   }
 }

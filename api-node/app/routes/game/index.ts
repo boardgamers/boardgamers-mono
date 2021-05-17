@@ -409,7 +409,7 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
       await GameService.notifyGameStart(game);
     }
   } finally {
-    free();
+    free().catch(console.error);
   }
   ctx.body = omit(ctx.state.game, "data");
 });
@@ -439,7 +439,7 @@ router.post("/:gameId/unjoin", loggedIn, async (ctx) => {
 
     ctx.state.game = game;
   } finally {
-    free();
+    free().catch(console.error);
   }
   ctx.body = omit(ctx.state.game, "data");
 });
@@ -483,7 +483,7 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
       await GameNotification.create({ kind: "gameEnded", game: game._id });
     }
   } finally {
-    free();
+    free().catch(console.error);
   }
 
   ctx.status = 200;
@@ -508,7 +508,7 @@ router.post("/:gameId/quit", loggedIn, async (ctx) => {
 
     await GameNotification.create({ kind: "playerQuit", user: ctx.state.user._id, game: game._id });
   } finally {
-    free();
+    free().catch(console.error);
   }
 
   ctx.status = 200;
@@ -547,7 +547,7 @@ router.post("/:gameId/drop/:userId", loggedIn, async (ctx) => {
       meta: { dropper: ctx.state.user._id },
     });
   } finally {
-    free();
+    free().catch(console.error);
   }
 
   ctx.status = 200;

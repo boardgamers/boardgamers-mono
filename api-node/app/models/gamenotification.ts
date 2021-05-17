@@ -64,7 +64,7 @@ schema.static("processGameEnded", async function (this: GameNotificationModel) {
       ]);
     }
   } finally {
-    free();
+    free().catch(console.error);
   }
 });
 
@@ -95,7 +95,7 @@ schema.static("processPlayerDrop", async function (this: GameNotificationModel) 
       this.updateMany({ _id: { $in: notifications.map((x) => x._id) } }, { $set: { processed: true } }),
     ]);
   } finally {
-    free();
+    free().catch(console.error);
   }
 });
 

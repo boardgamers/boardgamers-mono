@@ -73,7 +73,7 @@ passport.use(
         await newUser.save();
 
         if (!newUser.security.confirmed) {
-          newUser.sendConfirmationEmail();
+          await newUser.sendConfirmationEmail();
         }
 
         return done(null, newUser);

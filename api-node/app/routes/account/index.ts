@@ -40,7 +40,7 @@ router.post("/email", loggedIn, async (ctx) => {
 
   await Log.create({ kind: "mailChange", data: { player: user._id, change: { from: user.account.email, to: email } } });
 
-  user.sendMailChangeEmail(email);
+  user.sendMailChangeEmail(email).catch(console.error);
 
   user.account.email = email;
   user.security.confirmed = false;
