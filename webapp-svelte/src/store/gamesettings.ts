@@ -1,9 +1,15 @@
-import { skipOnce } from "@/utils";
 import type { GamePreferences } from "@lib/gamepreferences";
-import { writable } from "svelte/store";
+import { get as $, writable } from "svelte/store";
 import { user } from "./user";
 
 export const gameSettings = writable<Record<string, GamePreferences>>({});
 
 // Reset gamesettings each time user changes
-user.subscribe(skipOnce(() => gameSettings.set({})));
+let $userId = $(user)?._id;
+user.subscribe((user) => {
+  if ($userId === user?._id) {
+    return;
+  }
+  $userId = user?._id;
+  gameSettings.set({});
+});

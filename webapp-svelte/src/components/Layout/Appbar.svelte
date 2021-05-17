@@ -24,6 +24,7 @@ let password = '';
 let className = '';
 let admin: boolean;
 let adminLink: string;
+let hasGames: boolean;
 
 export { className as class };
 export let name = '';
@@ -40,6 +41,22 @@ const logOut = () => {
 
 $ : admin = $user?.authority === "admin"
 $ : adminLink = location.hostname === "localhost" ? "http://localhost:8613": `${location.protocol}//admin.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`
+$ : hasGames = $activeGames.length > 0
+
+const onHasGamesChanged = () => {
+  if (hasGames) {
+    if (document.hidden) {
+      if ($user?.settings?.game?.soundNotification) {
+        (document.getElementById("sound-notification") as HTMLAudioElement).play();
+      }
+      if (localStorage.getItem("notifications")) {
+        new Notification("Boardgamers 🌌", { icon: "/favicon-active.ico", body: "It's your turn!" });
+      }
+    }
+  }
+}
+
+$: onHasGamesChanged(), [hasGames]
 
 </script>
 
@@ -49,8 +66,8 @@ $ : adminLink = location.hostname === "localhost" ? "http://localhost:8613": `${
   {#if $user}
     <a
       class="btn btn-sm mr-3"
-      class:btn-success={$activeGames.length > 0}
-      class:btn-secondary={$activeGames.length === 0}
+      class:btn-success={hasGames}
+      class:btn-secondary={!hasGames}
       href="/next-game"
       title="Jump to next active game"
       id="active-game-count"
@@ -62,6 +79,11 @@ $ : adminLink = location.hostname === "localhost" ? "http://localhost:8613": `${
   <a href="/boardgames" title="Boardgames list">
     <img src="/images/icons/dice.svg" height="28" alt="boardgames list" />
   </a>
+
+  <audio preload="none" id="sound-notification">
+    <source src="/audio/notification.mp3" type="audio/mpeg" />
+    <source src="/audio/notification.ogg" type="audio/ogg" />
+  </audio>
 
   {#await loadAccountIfNeeded() then _}
     <Nav class="ml-auto" navbar>
