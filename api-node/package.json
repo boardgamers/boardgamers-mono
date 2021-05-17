@@ -26,7 +26,6 @@
     "passport-google-oauth20": "^2.0.0",
     "passport-local": "^1.0.0",
     "semver": "^7.2.2",
-    "sendmail": "^1.4.1",
     "validator": "^9.4.1",
     "ws": "^6.0.0"
   },

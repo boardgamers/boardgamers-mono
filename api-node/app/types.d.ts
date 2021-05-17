@@ -1,6 +1,5 @@
 /* eslint-disable */
 
-// declare module 'sendmail';
 import { GameDocument } from "./models/game";
 import { GameInfoDocument } from "./models/gameinfo";
 import { UserDocument } from "./models/user";
