@@ -14,6 +14,8 @@ const Schema = mongoose.Schema;
 export const defaultKarma = 75;
 export const maxKarma = 100;
 
+const secureId = () => crypto.randomBytes(12).toString("base64").replace(/+/g, "_").replace(/\//g, "-");
+
 export interface UserDocument extends IAbstractUser, mongoose.Document {
   isAdmin(): boolean;
 
@@ -182,7 +184,7 @@ schema.method("changeEmail", async function (this: UserDocument, email: string) 
 
   this.account.email = email;
   this.security.confirmed = false;
-  this.security.confirmKey = crypto.randomBytes(12).toString("base64");
+  this.generateConfirmKey();
 
   await this.update({
     "account.email": email,
@@ -197,7 +199,7 @@ schema.method("publicInfo", function (this: UserDocument) {
 
 schema.method("generateResetLink", async function (this: UserDocument) {
   this.security.reset = {
-    key: crypto.randomBytes(12).toString("base64"),
+    key: secureId(),
     issued: new Date(),
   };
 
@@ -222,7 +224,7 @@ schema.method("validateResetKey", function (this: UserDocument, key: string) {
 });
 
 schema.method("generateConfirmKey", function (this: UserDocument) {
-  this.security.confirmKey = crypto.randomBytes(12).toString("base64");
+  this.security.confirmKey = secureId();
 });
 
 schema.method("confirmKey", function (this: UserDocument) {
