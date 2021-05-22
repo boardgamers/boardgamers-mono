@@ -56,10 +56,7 @@
     };
 
     if (scheduledDay && scheduledTime) {
-      const date = new Date(scheduledDay)
-      date.setHours(+scheduledTime.slice(0, 2));
-      date.setMinutes(+scheduledTime.slice(3, 5));
-      dataObj.scheduledStart = date.getTime();
+      dataObj.scheduledStart = Date.parse(`${scheduledDay}T${scheduledTime}`);
     } else {
       delete dataObj.scheduledStart;
     }
