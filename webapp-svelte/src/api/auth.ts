@@ -56,21 +56,20 @@ export function setAuthTokens(data: AuthTokens) {
   setAccessToken(data.accessToken);
 }
 
+export async function loadAccount() {
+  user.set(await get("/account"));
+  accountLoaded.set(true);
+}
+
 let promise: Promise<void> | undefined;
 export async function loadAccountIfNeeded() {
   if (promise) {
     return promise;
   }
 
-  return (promise = get("/account").then(
-    (data) => {
-      user.set(data);
-      accountLoaded.set(true);
-    },
-    (err) => {
-      // do not keep throwing past the first call of this function
-      promise = undefined;
-      return Promise.reject(err);
-    }
-  ));
+  return (promise = loadAccount().catch((err) => {
+    // do not keep throwing past the first call of this function
+    promise = undefined;
+    return Promise.reject(err);
+  }));
 }

@@ -1,5 +1,5 @@
 import { get as $ } from "svelte/store";
-import { confirmAccount, get, loadAccountIfNeeded, setAuthTokens } from "./api";
+import { confirmAccount, get, loadAccount, loadAccountIfNeeded, setAuthTokens } from "./api";
 import { createRouter, navigate, route, RouteConfig } from "./modules/router";
 import Account from "./pages/Account.svelte";
 import { ForgottenPassword, Login, ResetPassword, Signup } from "./pages/auth";
@@ -14,7 +14,7 @@ import NotFound from "./pages/NotFound.svelte";
 import Page from "./pages/Page.svelte";
 import Rankings from "./pages/Rankings.svelte";
 import User from "./pages/User.svelte";
-import { activeGames, user } from "./store";
+import { activeGames, refreshToken, user } from "./store";
 import { handleError, handleInfo } from "./utils";
 
 const routes: RouteConfig[] = [
@@ -38,6 +38,15 @@ const routes: RouteConfig[] = [
     meta: {
       loggedOut: true,
       title: "Login",
+    },
+    async guard(to) {
+      if (to.query.refreshToken) {
+        console.log("log in via query refresh token");
+        const passedRefreshToken = JSON.parse(to.query.refreshToken);
+        refreshToken.set(passedRefreshToken);
+        await loadAccount().catch(handleError);
+        return "/";
+      }
     },
   },
   {
@@ -237,7 +246,7 @@ user.subscribe((user) => {
 
   if ($route?.meta.loggedIn && !user) {
     navigate({ name: "login", query: { redirect: $route.path } });
-  } else if ($route?.meta.loggedOut && user) {
+  } else if ($route?.meta.loggedOut && user && !$route.query.refreshToken) {
     navigate($route.query.redirect || "/account");
   }
 });
