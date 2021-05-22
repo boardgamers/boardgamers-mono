@@ -1,0 +1,90 @@
+---
+- name: "Install git & pnpm"
+  hosts: webservers
+  become: true
+  roles:
+    - geerlingguy.nodejs
+  vars:
+    nodejs_npm_global_packages:
+      - name: pnpm
+  tasks:
+    - name: Install or update git
+      apt:
+        pkg:
+          - git
+          - git-lfs
+        state: present
+
+- name: "Install config files"
+  hosts: webservers
+  tasks:
+    - name: "Install pm2 api config file"
+      ansible.builtin.template:
+        src: api.json
+        dest: /home/debian/api.json
+    - name: "Install pm2 game config file"
+      ansible.builtin.template:
+        src: game.json
+        dest: /home/debian/game.json
+
+- name: "Clone & install"
+  hosts: webservers
+  tasks:
+    - name: Clone boardgamers-mono
+      ansible.builtin.git:
+        repo: "http://github.com/boardgamers/boardgamers-mono"
+        dest: /home/debian/boardgamers
+    - name: Install project
+      ansible.builtin.command: npx pnpm install
+      args:
+        chdir: /home/debian/boardgamers
+    - name: Copy JWT public key to api-node
+      ansible.builtin.copy:
+        content: "{{ lookup('env', 'JWT_PUBLIC_KEY') }}"
+        dest: /home/debian/boardgamers/api-node/app/config/public.pem
+    - name: Copy JWT private key to api-node
+      ansible.builtin.copy:
+        content: "{{ lookup('env', 'JWT_PRIVATE_KEY') }}"
+        dest: /home/debian/boardgamers/api-node/app/config/private.key
+    - name: Copy JWT public key to game-server
+      ansible.builtin.copy:
+        content: "{{ lookup('env', 'JWT_PUBLIC_KEY') }}"
+        dest: /home/debian/boardgamers/game-server/app/config/public.pem
+
+- name: "Configure pm2"
+  become: true
+  hosts: webservers
+  roles:
+    - weareinteractive.pm2
+  vars:
+    # Common
+    pm2_service_name: pm2-root
+    pm2_apps:
+      - run: api.json
+        path: "/home/debian"
+        cmd: startOrGracefulReload
+        env:
+          NODE_ENV: production
+          automatedEmails: true
+          cron: true
+          jwtMode: asymmetric
+          domain: boardgamers.space
+          dbUrl: "mongodb://site:{{ lookup('env', 'MONGODB_SITE_PASSWORD') }}@db01.boardgamers.space:27017,db02.boardgamers.space:27017/?authSource=admin&replicaSet=bgs"
+          mailingApiKey: "{{ lookup('env', 'MAILING_API_KEY') }}"
+          emailDomain: "{{ lookup('env', 'MAILING_DOMAIN') }}"
+          sessionSecret: "{{ lookup('env', 'SESSION_SECRET') }}"
+          googleId: "{{ lookup('env', 'SOCIAL_GOOGLE_ID') }}"
+          googleSecret: "{{ lookup('env', 'SOCIAL_GOOGLE_SECRET') }}"
+          facebookId: "{{ lookup('env', 'SOCIAL_FACEBOOK_ID') }}"
+          facebookSecret: "{{ lookup('env', 'SOCIAL_FACEBOOK_SECRET') }}"
+          discordId: "{{ lookup('env', 'SOCIAL_DISCORD_ID') }}"
+          discordSecret: "{{ lookup('env', 'SOCIAL_DISCORD_SECRET') }}"
+
+      - run: game.json
+        path: "/home/debian"
+        cmd: startOrGracefulReload
+        env:
+          NODE_ENV: production
+          cron: true
+          jwtMode: asymmetric
+          dbUrl: "mongodb://game-server:{{ lookup('env', 'MONGODB_GAMESERVER_PASSWORD') }}@db01.boardgamers.space:27017,db02.boardgamers.space:27017/?authSource=admin&replicaSet=bgs"

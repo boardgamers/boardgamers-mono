@@ -1,0 +1,10 @@
+{
+  "apps": [
+    {
+      "name": "api-node",
+      "cwd": "/home/debian/boardgamers/api-node",
+      "script": "npm",
+      "args": "start"
+    }
+  ]
+}

@@ -1,4 +1,8 @@
 ---
+roles:
+  - geerlingguy.nodejs
+  - weareinteractive.pm2
+
 collections:
   - community.mongodb
   - community.general

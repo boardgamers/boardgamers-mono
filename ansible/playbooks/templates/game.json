@@ -1,0 +1,10 @@
+{
+  "apps": [
+    {
+      "name": "game-server",
+      "cwd": "/home/debian/boardgamers/game-server",
+      "script": "npm",
+      "args": "start"
+    }
+  ]
+}
