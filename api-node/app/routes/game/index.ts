@@ -544,7 +544,12 @@ router.post("/:gameId/drop/:userId", loggedIn, async (ctx) => {
       kind: "dropPlayer",
       user: targetId,
       game: game,
-      meta: { dropper: ctx.state.user._id },
+      meta: {
+        dropper: ctx.state.user._id,
+        deadline: currentPlayer.deadline,
+        timerStart: currentPlayer.timerStart,
+        remainingTime: player.remainingTime,
+      },
     });
   } finally {
     free().catch(console.error);
