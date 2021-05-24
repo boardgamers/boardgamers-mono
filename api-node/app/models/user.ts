@@ -14,7 +14,7 @@ const Schema = mongoose.Schema;
 export const defaultKarma = 75;
 export const maxKarma = 100;
 
-const secureId = () => crypto.randomBytes(12).toString("base64").replace(/+/g, "_").replace(/\//g, "-");
+const secureId = () => crypto.randomBytes(12).toString("base64").replace(/\+/g, "_").replace(/\//g, "-");
 
 export interface UserDocument extends IAbstractUser, mongoose.Document {
   isAdmin(): boolean;
