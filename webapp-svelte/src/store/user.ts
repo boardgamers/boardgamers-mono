@@ -10,9 +10,22 @@ export const refreshToken = writable<Token | null>(
   localStorage.getItem("refreshToken") ? JSON.parse(localStorage.getItem("refreshToken")!) : null
 );
 
-refreshToken.subscribe((newVal) =>
-  newVal ? localStorage.setItem("refreshToken", JSON.stringify(newVal)) : localStorage.removeItem("refreshToken")
-);
+let $refreshToken: Token | null;
+refreshToken.subscribe((newVal) => {
+  $refreshToken = newVal;
+
+  if (newVal) {
+    localStorage.setItem("refreshToken", JSON.stringify(newVal));
+
+    setTimeout(() => {
+      if ($refreshToken && $refreshToken.expiresAt < Date.now()) {
+        refreshToken.set(null);
+      }
+    }, Date.now() - newVal.expiresAt + 10);
+  } else {
+    localStorage.removeItem("refreshToken");
+  }
+});
 
 /**
  * Access tokens by scope

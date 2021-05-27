@@ -77,13 +77,17 @@ export async function getAccessToken(url: string): Promise<Token | null> {
     return accessToken;
   }
 
-  const body = await getResponseData<Token>(
-    await fetch(transformUrl("/account/refresh"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: $(refreshToken)!.code, scopes }),
-    })
-  );
+  const response = await fetch(transformUrl("/account/refresh"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: $(refreshToken)!.code, scopes }),
+  });
+
+  if (response.status === 404) {
+    refreshToken.set(null);
+    return null;
+  }
+  const body = await getResponseData<Token>(response);
 
   setAccessToken(body, scopes);
 
