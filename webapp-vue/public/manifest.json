@@ -1,7 +1,7 @@
 {
-  "name": "Boardgamers",
-  "short_name": "BGS",
+  "background_color": "#ffffff",
   "description": "Play Gaia Project online",
+  "display": "standalone",
   "icons": [
     {
       "src": "img/icons/android-chrome-192x192.png",
@@ -14,8 +14,8 @@
       "type": "image/png"
     }
   ],
+  "name": "Boardgamers",
+  "short_name": "BGS",
   "start_url": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
   "theme_color": "#16508f"
 }

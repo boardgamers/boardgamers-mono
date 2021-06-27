@@ -5,6 +5,7 @@ specifiers:
   lint-staged: ^10.5.4
   prettier: ^2.2.1
   prettier-plugin-organize-imports: ^1.1.1
+  prettier-plugin-sort-json: ^0.0.2
   prettier-plugin-svelte: ^2.1.4
   svelte: ^3.32.3
   typescript: ^4.1.5
@@ -14,6 +15,7 @@ devDependencies:
   lint-staged: 10.5.4
   prettier: 2.2.1
   prettier-plugin-organize-imports: 1.1.1_prettier@2.2.1+typescript@4.1.5
+  prettier-plugin-sort-json: 0.0.2_prettier@2.2.1
   prettier-plugin-svelte: 2.1.4_prettier@2.2.1+svelte@3.32.3
   svelte: 3.32.3
   typescript: 4.1.5
@@ -40,6 +42,10 @@ packages:
 
   /@types/parse-json/4.0.0:
     resolution: {integrity: sha512-//oorEZjL6sbPcKUaCdIGlIUeH26mgzimjBB77G6XRgnDl/L5wOnpyBGRe/Mmf5CVW3PwEBE1NjiMZ/ssFh4wA==}
+    dev: true
+
+  /@types/prettier/2.3.0:
+    resolution: {integrity: sha512-hkc1DATxFLQo4VxPDpMH1gCkPpBbpOoJ/4nhuXw4n63/0R6bCpQECj4+K226UJ4JO/eJQz+1mC2I7JsWanAdQw==}
     dev: true
 
   /aggregate-error/3.1.0:
@@ -501,6 +507,15 @@ packages:
     dependencies:
       prettier: 2.2.1
       typescript: 4.1.5
+    dev: true
+
+  /prettier-plugin-sort-json/0.0.2_prettier@2.2.1:
+    resolution: {integrity: sha512-St9zu6Alb+cA+FmnIFmjFOrTmBFWohYPReVjcMAI2y9mE0YJcW+RIchjLuOeXkLdh+eQlQtXy+3/6W6ZgyllQw==}
+    peerDependencies:
+      prettier: ^2.1.0
+    dependencies:
+      '@types/prettier': 2.3.0
+      prettier: 2.2.1
     dev: true
 
   /prettier-plugin-svelte/2.1.4_prettier@2.2.1+svelte@3.32.3:
