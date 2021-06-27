@@ -102,6 +102,10 @@
       }
     }
 
+    if (!info.players.includes(numPlayers)) {
+      numPlayers = info.players[0];
+    }
+
     selects = newVal;
   }
 
