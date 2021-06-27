@@ -1915,6 +1915,56 @@
           "faction": "itars"
         }
       ]
+    },
+    {
+      "_id": {
+        "game": "container",
+        "version": 1
+      },
+      "viewer": {
+        "dependencies": {
+          "scripts": [
+            "//cdn.jsdelivr.net/npm/vue@^2/dist/vue.min.js",
+            "//cdn.jsdelivr.net/npm/bootstrap-vue@^2/dist/bootstrap-vue.min.js"
+          ],
+          "stylesheets": ["//cdn.jsdelivr.net/npm/container-viewer@1.0.10/dist/container-viewer.css"]
+        },
+        "alternate": {
+          "dependencies": {
+            "scripts": [],
+            "stylesheets": []
+          },
+          "url": "",
+          "topLevelVariable": "",
+          "fullScreen": false,
+          "replayable": false,
+          "trusted": false
+        },
+        "url": "//cdn.jsdelivr.net/npm/container-viewer@1.0.10/dist/container-viewer.umd.min.js",
+        "topLevelVariable": "container",
+        "replayable": false,
+        "fullScreen": true
+      },
+      "engine": {
+        "package": {
+          "name": "container-engine",
+          "version": "1.0.1"
+        },
+        "entryPoint": "dist/wrapper.js"
+      },
+      "meta": {
+        "public": true,
+        "needOwnership": true
+      },
+      "players": [3, 4, 5],
+      "description": "Container board game.",
+      "expansions": [],
+      "label": " Container",
+      "options": [],
+      "preferences": [],
+      "rules": "",
+      "settings": [],
+      "__v": 0
     }
   ],
   "User": [
