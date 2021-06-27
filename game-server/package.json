@@ -9,6 +9,7 @@
     "lint-check": "eslint server.ts app/**/*.{js,ts,tsx} --max-warnings 0",
     "nodemon": "nodemon -w app -w node_modules -w ../site-lib -w server.ts -e js,ts --exec npm start",
     "start": "ts-node -T -r tsconfig-paths/register server.ts || npm start",
+    "dev": "ts-node-dev -T -r tsconfig-paths/register server.ts",
     "test": "mocha -r ts-node/register app/**/*.spec.ts app/*.spec.ts",
     "tsc": "tsc --noEmit"
   },
@@ -50,6 +51,7 @@
     "mocha": "^7.1.2",
     "nodemon": "^2.0.3",
     "ts-node": "^8.9.1",
+    "ts-node-dev": "^1.1.6",
     "tsconfig-paths": "^3.9.0",
     "typescript": "^4.0.0"
   }
