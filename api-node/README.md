@@ -17,7 +17,7 @@ To get started easier, you can inject some data with:
 pnpm seed
 ```
 
-This will create two users, with emails `admin@test.com` and `user@test.com`, and password `password`.
+This will create three users, with emails `admin@test.com`, `user@test.com` and `user2@test.com`, and password `password`.
 
 ## 🔧 Environment
 

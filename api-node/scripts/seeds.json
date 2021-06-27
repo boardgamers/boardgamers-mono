@@ -2026,6 +2026,35 @@
         "lastActive": "2021-03-07T17:07:51.758Z",
         "lastOnline": "2021-03-07T17:07:33.775Z"
       }
+    },
+    {
+      "_id": "6045084f9e8a692e38661f5d",
+      "account": {
+        "karma": 75,
+        "email": "user2@test.com",
+        "username": "user2",
+        "termsAndConditions": "2021-03-07T17:07:27.300Z",
+        "password": "$2a$08$yEfkAXKAA7UMaj8vASckb.1u2/D/lSVy6OZf89Y6cTMPixcVi7G5i"
+      },
+      "settings": {
+        "mailing": {
+          "newsletter": false
+        },
+        "home": {
+          "showMyGames": true
+        }
+      },
+      "security": {
+        "confirmed": true,
+        "slug": "user2",
+        "lastIp": "127.0.0.1",
+        "lastLogin": {
+          "date": "2021-03-07T17:07:27.375Z",
+          "ip": "127.0.0.1"
+        },
+        "lastActive": "2021-03-07T17:07:51.758Z",
+        "lastOnline": "2021-03-07T17:07:33.775Z"
+      }
     }
   ]
 }
