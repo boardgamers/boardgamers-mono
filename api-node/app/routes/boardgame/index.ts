@@ -14,6 +14,10 @@ router.param("boardgame", async (boardgame, ctx, next) => {
   );
 
   if (!ctx.state.foundBoardgame) {
+    ctx.state.foundBoardgame = await GameInfoService.lastAccessibleVersion(ctx.params.boardgame, ctx.state.user);
+  }
+
+  if (!ctx.state.foundBoardgame) {
     throw createError(404, "Boardgame not found");
   }
 
