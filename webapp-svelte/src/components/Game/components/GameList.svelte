@@ -1,7 +1,7 @@
 <script lang="ts">
   import { timerTime, defer, duration, niceDate } from "@/utils";
   import type { IGame } from "@lib/game";
-  import { get } from "@/api"
+  import { boardgameInfo, get, loadBoardgames } from "@/api"
   import { logoClicks } from "@/store";
   import { onDestroy } from "svelte";
   import { createWatcher, skipOnce } from "@/utils/watch";
@@ -40,6 +40,9 @@
     }
 
     games = await get(prefix(), queryParams );
+
+    // TODO: only load boardgames present in games
+    await loadBoardgames();
   }, () => loadingGames = false);
 
   function playerEloChange(game: IGame) {
@@ -63,7 +66,9 @@
   }
 
   function gameIcon(name: string) {
-    return name === "take6" ? "6️⃣" : "🌏"
+    const game = boardgameInfo(name, "latest");
+
+    return game?.label.trim().slice(0, game?.label.trim().indexOf(" "));
   }
 
   // Refresh game list each time logo is clicked
