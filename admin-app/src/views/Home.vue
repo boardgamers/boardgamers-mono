@@ -24,9 +24,17 @@
             <v-btn color="primary" @click="replayGame(gameId)">Replay</v-btn>
             <v-btn color="error" @click="deleteGame(gameId)">Delete</v-btn>
           </v-card-actions>
-          <!-- <v-card-actions>
-            <v-btn color="primary" @click="recreate">Recreate game ended notifications</v-btn>
-          </v-card-actions> -->
+        </v-card>
+
+        <v-card class="mt-6">
+          <v-card-title> Mass game management </v-card-title>
+          <v-card-text>
+            <v-textarea label="Game IDs" v-model="gameIds" hint="Game ids separated by newlines" />
+          </v-card-text>
+          <v-divider />
+          <v-card-actions>
+            <v-btn color="primary" @click="replayGames()">Mass replay</v-btn>
+          </v-card-actions>
         </v-card>
       </v-col>
 
@@ -55,6 +63,7 @@ export default class Home extends Vue {
   email = "";
   username = "";
   gameId = "";
+  gameIds = "";
   announcement = "";
 
   constructor() {
@@ -81,6 +90,13 @@ export default class Home extends Vue {
 
   replayGame(gameId: string) {
     this.$axios.post(`/gameplay/${gameId}/replay`, {}).then((info) => handleInfo("Game replayed."), handleError);
+  }
+
+  replayGames() {
+    handleInfo("Batch replay started");
+    this.$axios
+      .post(`/gameplay/batch/replay`, { gameIds: this.gameIds.split("\n").map((x) => x.trim()) })
+      .then((info) => handleInfo("Games replayed: " + info.data.success), handleError);
   }
 
   redoKarma(username: string) {

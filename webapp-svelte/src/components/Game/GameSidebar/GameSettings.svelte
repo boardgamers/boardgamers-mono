@@ -36,7 +36,7 @@
   }
 </script>
 
-{#if $gameInfo?.settings.length > 0 && $game.status === "active" && settings && playerUser}
+{#if $gameInfo?.settings?.length > 0 && $game.status === "active" && settings && playerUser}
   <div class="mt-75">
     <h3>
       Settings

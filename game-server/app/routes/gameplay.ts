@@ -10,6 +10,55 @@ import { isAdmin, loggedIn } from "./utils";
 
 const router = new Router();
 
+router.post("/batch/replay", isAdmin, async (ctx) => {
+  const free = await locks.lock("batch-replay");
+  const interval = setInterval(() => locks.refresh("batch-replay"));
+  let count = 0;
+
+  try {
+    const gameIds = ctx.request.body.gameIds;
+
+    for (const gameId of gameIds) {
+      try {
+        const game = await Game.findById(gameId);
+        if (!game) {
+          console.log("could not find game", gameId);
+          continue;
+        }
+        const engine = await getEngine(game.game.name, game.game.version);
+        if (!engine?.replay) {
+          console.log("no replayability for game", gameId);
+          continue;
+        }
+
+        let gameData = await engine.replay(game.data);
+
+        if (engine.setPlayerMetaData) {
+          game.players.forEach((player, i) => {
+            gameData = engine.setPlayerMetaData(gameData, i, { name: player.name });
+          });
+        }
+
+        const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
+        if (toSave) {
+          count++;
+          await afterMove(engine, game, toSave, game.status === "ended");
+        } else {
+          console.log("no game data to save for game", gameId);
+        }
+      } catch (err) {
+        console.error(err);
+        continue;
+      }
+    }
+  } finally {
+    clearInterval(interval);
+    free().catch(console.error);
+  }
+
+  ctx.body = { success: count };
+});
+
 router.post("/:gameId/replay", isAdmin, async (ctx) => {
   const free = await locks.lock("game", ctx.params.gameId);
 
