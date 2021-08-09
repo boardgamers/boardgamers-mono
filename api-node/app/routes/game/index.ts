@@ -254,8 +254,11 @@ router.get("/open", async (ctx) => {
   if (ctx.query.sample) {
     ctx.body = await Game.aggregate()
       .match(conditions)
-      .sample(queryCount(ctx))
-      .project(Game.basics().reduce((acc, item) => ({ ...acc, [item]: 1 }), {}));
+      .sample(queryCount(ctx) * 5)
+      .project(Object.fromEntries(Game.basics().map((x) => [x, 1])))
+      .group({ _id: "$creator", data: { $first: "$$ROOT" } })
+      .limit(queryCount(ctx))
+      .replaceRoot("$data");
   } else {
     ctx.body = await Game.find(conditions)
       .sort("-createdAt")
