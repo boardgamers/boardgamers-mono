@@ -1,0 +1,6 @@
+packages:
+  - "api-node"
+  - "game-server"
+  #- "site-lib"
+  - "webapp-svelte"
+  # - "admin-app"
