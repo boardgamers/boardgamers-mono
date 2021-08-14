@@ -1,7 +1,9 @@
 import checkDiskSpace from "check-disk-space";
+import fs from "fs";
 import createError from "http-errors";
 import { Context } from "koa";
 import Router from "koa-router";
+import path from "path";
 import { env } from "../../config";
 import { Game, GameNotification, Log, Settings, SettingsKey, User } from "../../models";
 import { sendAuthInfo } from "../account";
@@ -73,6 +75,26 @@ router.post("/compute-all-karma", async (ctx) => {
   }
 
   ctx.status = 200;
+});
+
+router.post("/load-games", async (ctx) => {
+  const dirPath = ctx.request.body?.path;
+
+  for (const file of fs.readdirSync(dirPath)) {
+    if (!file.endsWith("json")) {
+      continue;
+    }
+    const gameId = file.replace(/\.json$/, "");
+    const json = JSON.parse(fs.readFileSync(path.join(dirPath, file)).toString("utf-8"));
+
+    const game = await Game.findById(gameId);
+
+    for (const key of Object.keys(json)) {
+      game[key] = json[key];
+    }
+
+    await game.save();
+  }
 });
 
 router.post("/announcement", async (ctx) => {

@@ -34,6 +34,7 @@
           <v-divider />
           <v-card-actions>
             <v-btn color="primary" @click="replayGames()">Mass replay</v-btn>
+            <v-btn @click="loadReplays()">Load replays</v-btn>
           </v-card-actions>
         </v-card>
       </v-col>
@@ -97,6 +98,11 @@ export default class Home extends Vue {
     this.$axios
       .post(`/gameplay/batch/replay`, { gameIds: this.gameIds.split("\n").map((x) => x.trim()) })
       .then((info) => handleInfo("Games replayed: " + info.data.success), handleError);
+  }
+
+  loadReplays() {
+    handleInfo("Loading replays");
+    this.$axios.post("/admin/load-games", { path: "/root/replay" });
   }
 
   redoKarma(username: string) {
