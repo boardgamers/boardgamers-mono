@@ -1,0 +1,1741 @@
+[
+  {
+    "_id": "Costly-demand-3088",
+    "options": {
+      "setup": {
+        "randomPlayerOrder": true,
+        "nbPlayers": 2,
+        "seed": "Costly-demand-3088"
+      },
+      "timing": {
+        "timePerMove": 7200,
+        "timePerGame": 259200
+      }
+    },
+    "game": {
+      "name": "gaia-project",
+      "version": 1,
+      "expansions": [],
+      "options": {
+        "auction": true,
+        "layout": "standard"
+      }
+    },
+    "status": "active",
+    "players": [
+      {
+        "_id": "604508365769e01a781f9538",
+        "remainingTime": 259200,
+        "dropped": false,
+        "score": 10,
+        "name": "admin",
+        "quit": false
+      },
+      {
+        "_id": "6045084f9e8a692e38661f5a",
+        "remainingTime": 259200,
+        "quit": false,
+        "dropped": false,
+        "score": 10,
+        "name": "user",
+        "faction": "itars"
+      }
+    ],
+    "currentPlayers": [
+      {
+        "_id": "604508365769e01a781f9538",
+        "timerStart": "2021-04-17T11:16:23.141Z",
+        "deadline": "2021-04-20T11:16:23.141Z"
+      }
+    ],
+    "creator": "604508365769e01a781f9538",
+    "createdAt": "2021-04-16T19:22:01.125Z",
+    "updatedAt": "2021-04-17T11:16:23.144Z",
+    "__v": 30,
+    "context": {
+      "round": 0
+    },
+    "data": {
+      "players": [
+        {
+          "player": 0,
+          "data": {
+            "victoryPoints": 10,
+            "bid": 24,
+            "credits": 0,
+            "ores": 0,
+            "qics": 0,
+            "knowledge": 0,
+            "power": {
+              "area1": 0,
+              "area2": 0,
+              "area3": 0,
+              "gaia": 0
+            },
+            "research": {
+              "terra": 0,
+              "nav": 0,
+              "int": 0,
+              "gaia": 0,
+              "eco": 0,
+              "sci": 0
+            },
+            "range": 1,
+            "gaiaformers": 0,
+            "gaiaformersInGaia": 0,
+            "terraformCostDiscount": 0,
+            "tiles": {
+              "booster": null,
+              "techs": [],
+              "federations": []
+            },
+            "satellites": 0,
+            "brainstone": null,
+            "tokenModifier": 1,
+            "buildings": {
+              "m": 0,
+              "ts": 0,
+              "lab": 0,
+              "PI": 0,
+              "ac1": 0,
+              "ac2": 0,
+              "gf": 0,
+              "sp": 0
+            },
+            "federationCount": 0,
+            "lostPlanet": 0
+          },
+          "settings": {
+            "autoChargePower": 1,
+            "autoIncome": false,
+            "autoBrainstone": false,
+            "itarsAutoChargeToArea3": false
+          },
+          "events": {
+            ">": [],
+            "+": [],
+            ">>": [],
+            "=>": [],
+            "|": [],
+            "PA->4pw": []
+          },
+          "name": "admin"
+        },
+        {
+          "player": 1,
+          "faction": "itars",
+          "data": {
+            "victoryPoints": 10,
+            "bid": 25,
+            "credits": 0,
+            "ores": 0,
+            "qics": 0,
+            "knowledge": 0,
+            "power": {
+              "area1": 0,
+              "area2": 0,
+              "area3": 0,
+              "gaia": 0
+            },
+            "research": {
+              "terra": 0,
+              "nav": 0,
+              "int": 0,
+              "gaia": 0,
+              "eco": 0,
+              "sci": 0
+            },
+            "range": 1,
+            "gaiaformers": 0,
+            "gaiaformersInGaia": 0,
+            "terraformCostDiscount": 0,
+            "tiles": {
+              "booster": null,
+              "techs": [],
+              "federations": []
+            },
+            "satellites": 0,
+            "brainstone": null,
+            "tokenModifier": 1,
+            "buildings": {
+              "m": 0,
+              "ts": 0,
+              "lab": 0,
+              "PI": 0,
+              "ac1": 0,
+              "ac2": 0,
+              "gf": 0,
+              "sp": 0
+            },
+            "federationCount": 0,
+            "lostPlanet": 0
+          },
+          "settings": {
+            "autoChargePower": 1,
+            "autoIncome": false,
+            "autoBrainstone": false,
+            "itarsAutoChargeToArea3": false
+          },
+          "events": {
+            ">": [],
+            "+": [],
+            ">>": [],
+            "=>": [],
+            "|": [],
+            "PA->4pw": []
+          },
+          "name": "user"
+        }
+      ],
+      "setup": ["gleens", "itars"],
+      "options": {
+        "auction": true,
+        "layout": "standard",
+        "map": {
+          "sectors": [
+            {
+              "sector": "5B",
+              "rotation": 5,
+              "center": {
+                "q": 0,
+                "r": 0,
+                "s": 0
+              }
+            },
+            {
+              "sector": "3",
+              "rotation": 3,
+              "center": {
+                "q": 5,
+                "r": -2,
+                "s": -3
+              }
+            },
+            {
+              "sector": "4",
+              "rotation": 5,
+              "center": {
+                "q": 2,
+                "r": 3,
+                "s": -5
+              }
+            },
+            {
+              "sector": "7B",
+              "rotation": 5,
+              "center": {
+                "q": -3,
+                "r": 5,
+                "s": -2
+              }
+            },
+            {
+              "sector": "1",
+              "rotation": 0,
+              "center": {
+                "q": -5,
+                "r": 2,
+                "s": 3
+              }
+            },
+            {
+              "sector": "6B",
+              "rotation": 1,
+              "center": {
+                "q": -2,
+                "r": -3,
+                "s": 5
+              }
+            },
+            {
+              "sector": "2",
+              "rotation": 2,
+              "center": {
+                "q": 3,
+                "r": -5,
+                "s": 2
+              }
+            }
+          ],
+          "mirror": false
+        }
+      },
+      "tiles": {
+        "boosters": {
+          "booster6": true,
+          "booster8": true,
+          "booster9": true,
+          "booster7": true,
+          "booster5": true
+        },
+        "techs": {
+          "terra": {
+            "tile": "tech8",
+            "count": 4
+          },
+          "nav": {
+            "tile": "tech6",
+            "count": 4
+          },
+          "int": {
+            "tile": "tech2",
+            "count": 4
+          },
+          "gaia": {
+            "tile": "tech5",
+            "count": 4
+          },
+          "eco": {
+            "tile": "tech4",
+            "count": 4
+          },
+          "sci": {
+            "tile": "tech3",
+            "count": 4
+          },
+          "free1": {
+            "tile": "tech1",
+            "count": 4
+          },
+          "free2": {
+            "tile": "tech9",
+            "count": 4
+          },
+          "free3": {
+            "tile": "tech7",
+            "count": 4
+          },
+          "adv-terra": {
+            "tile": "advtech10",
+            "count": 1
+          },
+          "adv-nav": {
+            "tile": "advtech6",
+            "count": 1
+          },
+          "adv-int": {
+            "tile": "advtech14",
+            "count": 1
+          },
+          "adv-gaia": {
+            "tile": "advtech1",
+            "count": 1
+          },
+          "adv-eco": {
+            "tile": "advtech11",
+            "count": 1
+          },
+          "adv-sci": {
+            "tile": "advtech13",
+            "count": 1
+          }
+        },
+        "scorings": {
+          "round": ["score2", "score3", "score8", "score7", "score4", "score6"],
+          "final": ["satellite", "planetType"]
+        },
+        "federations": {
+          "fed1": 2,
+          "fed2": 3,
+          "fed3": 3,
+          "fed4": 3,
+          "fed5": 3,
+          "fed6": 3
+        }
+      },
+      "boardActions": {
+        "power1": null,
+        "power2": null,
+        "power3": null,
+        "power4": null,
+        "power5": null,
+        "power6": null,
+        "power7": null,
+        "qic1": null,
+        "qic2": null,
+        "qic3": null
+      },
+      "availableCommands": [
+        {
+          "name": "bid",
+          "player": 0,
+          "data": {
+            "bids": [
+              {
+                "faction": "gleens",
+                "bid": [0, 1, 2, 3, 4, 5, 6, 7, 8]
+              },
+              {
+                "faction": "itars",
+                "bid": [26, 27, 28, 29, 30, 31, 32, 33, 34]
+              }
+            ]
+          }
+        }
+      ],
+      "phase": "setupAuction",
+      "subPhase": "beforeMove",
+      "round": 0,
+      "turnOrder": [1],
+      "tempTurnOrder": [],
+      "leechSources": [],
+      "moveHistory": [
+        "init 2 Costly-demand-3088",
+        "p1 faction gleens",
+        "p2 faction itars",
+        "p1 bid itars 0",
+        "p2 bid itars 1",
+        "p1 bid itars 2",
+        "p2 bid itars 3",
+        "p1 bid itars 4",
+        "p2 bid itars 5",
+        "p1 bid itars 6",
+        "p2 bid itars 7",
+        "p1 bid itars 8",
+        "p2 bid itars 9",
+        "p1 bid itars 10",
+        "p2 bid itars 11",
+        "p1 bid itars 12",
+        "p2 bid itars 13",
+        "p1 bid itars 14",
+        "p2 bid itars 15",
+        "p1 bid itars 16",
+        "p2 bid itars 17",
+        "p1 bid itars 18",
+        "p2 bid itars 19",
+        "p1 bid itars 20",
+        "p2 bid itars 21",
+        "p1 bid itars 22",
+        "p2 bid itars 23",
+        "p1 bid itars 24",
+        "p2 bid itars 25"
+      ],
+      "advancedLog": [
+        {
+          "player": 0,
+          "move": 1
+        },
+        {
+          "player": 1,
+          "move": 2
+        },
+        {
+          "player": 0,
+          "move": 3
+        },
+        {
+          "player": 1,
+          "move": 4
+        },
+        {
+          "player": 0,
+          "move": 5
+        },
+        {
+          "player": 1,
+          "move": 6
+        },
+        {
+          "player": 0,
+          "move": 7
+        },
+        {
+          "player": 1,
+          "move": 8
+        },
+        {
+          "player": 0,
+          "move": 9
+        },
+        {
+          "player": 1,
+          "move": 10
+        },
+        {
+          "player": 0,
+          "move": 11
+        },
+        {
+          "player": 1,
+          "move": 12
+        },
+        {
+          "player": 0,
+          "move": 13
+        },
+        {
+          "player": 1,
+          "move": 14
+        },
+        {
+          "player": 0,
+          "move": 15
+        },
+        {
+          "player": 1,
+          "move": 16
+        },
+        {
+          "player": 0,
+          "move": 17
+        },
+        {
+          "player": 1,
+          "move": 18
+        },
+        {
+          "player": 0,
+          "move": 19
+        },
+        {
+          "player": 1,
+          "move": 20
+        },
+        {
+          "player": 0,
+          "move": 21
+        },
+        {
+          "player": 1,
+          "move": 22
+        },
+        {
+          "player": 0,
+          "move": 23
+        },
+        {
+          "player": 1,
+          "move": 24
+        },
+        {
+          "player": 0,
+          "move": 25
+        },
+        {
+          "player": 1,
+          "move": 26
+        },
+        {
+          "player": 0,
+          "move": 27
+        },
+        {
+          "player": 1,
+          "move": 28
+        }
+      ],
+      "turnMoves": [],
+      "newTurn": true,
+      "terraformingFederation": "fed1",
+      "currentPlayer": 0,
+      "availableCommand": null,
+      "oldPhase": "setupAuction",
+      "processedPlayer": 1,
+      "map": [
+        {
+          "q": 2,
+          "r": -2,
+          "s": 0,
+          "data": {
+            "planet": "i",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": 2,
+          "r": -1,
+          "s": -1,
+          "data": {
+            "planet": "e",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": 2,
+          "r": 0,
+          "s": -2,
+          "data": {
+            "planet": "m",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": 1,
+          "r": 1,
+          "s": -2,
+          "data": {
+            "planet": "o",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": 0,
+          "r": 2,
+          "s": -2,
+          "data": {
+            "planet": "e",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": -1,
+          "r": 2,
+          "s": -1,
+          "data": {
+            "planet": "e",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": -2,
+          "r": 2,
+          "s": 0,
+          "data": {
+            "planet": "e",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": -2,
+          "r": 1,
+          "s": 1,
+          "data": {
+            "planet": "v",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": -2,
+          "r": 0,
+          "s": 2,
+          "data": {
+            "planet": "e",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": -1,
+          "r": -1,
+          "s": 2,
+          "data": {
+            "planet": "e",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": 0,
+          "r": -2,
+          "s": 2,
+          "data": {
+            "planet": "e",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": 1,
+          "r": -2,
+          "s": 1,
+          "data": {
+            "planet": "e",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": 1,
+          "r": -1,
+          "s": 0,
+          "data": {
+            "planet": "e",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": 1,
+          "r": 0,
+          "s": -1,
+          "data": {
+            "planet": "e",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": 0,
+          "r": 1,
+          "s": -1,
+          "data": {
+            "planet": "e",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": -1,
+          "r": 1,
+          "s": 0,
+          "data": {
+            "planet": "e",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": -1,
+          "r": 0,
+          "s": 1,
+          "data": {
+            "planet": "e",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": 0,
+          "r": -1,
+          "s": 1,
+          "data": {
+            "planet": "g",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": 0,
+          "r": 0,
+          "s": 0,
+          "data": {
+            "planet": "e",
+            "sector": "5B"
+          }
+        },
+        {
+          "q": 3,
+          "r": -2,
+          "s": -1,
+          "data": {
+            "planet": "m",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 4,
+          "r": -3,
+          "s": -1,
+          "data": {
+            "planet": "e",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 5,
+          "r": -4,
+          "s": -1,
+          "data": {
+            "planet": "e",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 6,
+          "r": -4,
+          "s": -2,
+          "data": {
+            "planet": "t",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 7,
+          "r": -4,
+          "s": -3,
+          "data": {
+            "planet": "e",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 7,
+          "r": -3,
+          "s": -4,
+          "data": {
+            "planet": "e",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 7,
+          "r": -2,
+          "s": -5,
+          "data": {
+            "planet": "d",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 6,
+          "r": -1,
+          "s": -5,
+          "data": {
+            "planet": "r",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 5,
+          "r": 0,
+          "s": -5,
+          "data": {
+            "planet": "e",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 4,
+          "r": 0,
+          "s": -4,
+          "data": {
+            "planet": "e",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 3,
+          "r": 0,
+          "s": -3,
+          "data": {
+            "planet": "e",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 3,
+          "r": -1,
+          "s": -2,
+          "data": {
+            "planet": "e",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 4,
+          "r": -2,
+          "s": -2,
+          "data": {
+            "planet": "e",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 5,
+          "r": -3,
+          "s": -2,
+          "data": {
+            "planet": "e",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 6,
+          "r": -3,
+          "s": -3,
+          "data": {
+            "planet": "i",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 6,
+          "r": -2,
+          "s": -4,
+          "data": {
+            "planet": "e",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 5,
+          "r": -1,
+          "s": -4,
+          "data": {
+            "planet": "e",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 4,
+          "r": -1,
+          "s": -3,
+          "data": {
+            "planet": "g",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 5,
+          "r": -2,
+          "s": -3,
+          "data": {
+            "planet": "e",
+            "sector": "3"
+          }
+        },
+        {
+          "q": 4,
+          "r": 1,
+          "s": -5,
+          "data": {
+            "planet": "t",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 4,
+          "r": 2,
+          "s": -6,
+          "data": {
+            "planet": "e",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 4,
+          "r": 3,
+          "s": -7,
+          "data": {
+            "planet": "e",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 3,
+          "r": 4,
+          "s": -7,
+          "data": {
+            "planet": "e",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 2,
+          "r": 5,
+          "s": -7,
+          "data": {
+            "planet": "r",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 1,
+          "r": 5,
+          "s": -6,
+          "data": {
+            "planet": "e",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 0,
+          "r": 5,
+          "s": -5,
+          "data": {
+            "planet": "e",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 0,
+          "r": 4,
+          "s": -4,
+          "data": {
+            "planet": "e",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 0,
+          "r": 3,
+          "s": -3,
+          "data": {
+            "planet": "e",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 1,
+          "r": 2,
+          "s": -3,
+          "data": {
+            "planet": "i",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 2,
+          "r": 1,
+          "s": -3,
+          "data": {
+            "planet": "e",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 3,
+          "r": 1,
+          "s": -4,
+          "data": {
+            "planet": "e",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 3,
+          "r": 2,
+          "s": -5,
+          "data": {
+            "planet": "o",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 3,
+          "r": 3,
+          "s": -6,
+          "data": {
+            "planet": "e",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 2,
+          "r": 4,
+          "s": -6,
+          "data": {
+            "planet": "s",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 1,
+          "r": 4,
+          "s": -5,
+          "data": {
+            "planet": "e",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 1,
+          "r": 3,
+          "s": -4,
+          "data": {
+            "planet": "v",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 2,
+          "r": 2,
+          "s": -4,
+          "data": {
+            "planet": "e",
+            "sector": "4"
+          }
+        },
+        {
+          "q": 2,
+          "r": 3,
+          "s": -5,
+          "data": {
+            "planet": "e",
+            "sector": "4"
+          }
+        },
+        {
+          "q": -1,
+          "r": 3,
+          "s": -2,
+          "data": {
+            "planet": "e",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -1,
+          "r": 4,
+          "s": -3,
+          "data": {
+            "planet": "e",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -1,
+          "r": 5,
+          "s": -4,
+          "data": {
+            "planet": "e",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -2,
+          "r": 6,
+          "s": -4,
+          "data": {
+            "planet": "e",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -3,
+          "r": 7,
+          "s": -4,
+          "data": {
+            "planet": "e",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -4,
+          "r": 7,
+          "s": -3,
+          "data": {
+            "planet": "e",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -5,
+          "r": 7,
+          "s": -2,
+          "data": {
+            "planet": "t",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -5,
+          "r": 6,
+          "s": -1,
+          "data": {
+            "planet": "e",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -5,
+          "r": 5,
+          "s": 0,
+          "data": {
+            "planet": "e",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -4,
+          "r": 4,
+          "s": 0,
+          "data": {
+            "planet": "e",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -3,
+          "r": 3,
+          "s": 0,
+          "data": {
+            "planet": "m",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -2,
+          "r": 3,
+          "s": -1,
+          "data": {
+            "planet": "e",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -2,
+          "r": 4,
+          "s": -2,
+          "data": {
+            "planet": "g",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -2,
+          "r": 5,
+          "s": -3,
+          "data": {
+            "planet": "e",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -3,
+          "r": 6,
+          "s": -3,
+          "data": {
+            "planet": "s",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -4,
+          "r": 6,
+          "s": -2,
+          "data": {
+            "planet": "e",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -4,
+          "r": 5,
+          "s": -1,
+          "data": {
+            "planet": "g",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -3,
+          "r": 4,
+          "s": -1,
+          "data": {
+            "planet": "e",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -3,
+          "r": 5,
+          "s": -2,
+          "data": {
+            "planet": "e",
+            "sector": "7B"
+          }
+        },
+        {
+          "q": -3,
+          "r": 2,
+          "s": 1,
+          "data": {
+            "planet": "e",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -4,
+          "r": 3,
+          "s": 1,
+          "data": {
+            "planet": "e",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -5,
+          "r": 4,
+          "s": 1,
+          "data": {
+            "planet": "e",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -6,
+          "r": 4,
+          "s": 2,
+          "data": {
+            "planet": "m",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -7,
+          "r": 4,
+          "s": 3,
+          "data": {
+            "planet": "e",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -7,
+          "r": 3,
+          "s": 4,
+          "data": {
+            "planet": "v",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -7,
+          "r": 2,
+          "s": 5,
+          "data": {
+            "planet": "o",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -6,
+          "r": 1,
+          "s": 5,
+          "data": {
+            "planet": "e",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -5,
+          "r": 0,
+          "s": 5,
+          "data": {
+            "planet": "e",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -4,
+          "r": 0,
+          "s": 4,
+          "data": {
+            "planet": "d",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -3,
+          "r": 0,
+          "s": 3,
+          "data": {
+            "planet": "e",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -3,
+          "r": 1,
+          "s": 2,
+          "data": {
+            "planet": "e",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -4,
+          "r": 2,
+          "s": 2,
+          "data": {
+            "planet": "e",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -5,
+          "r": 3,
+          "s": 2,
+          "data": {
+            "planet": "r",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -6,
+          "r": 3,
+          "s": 3,
+          "data": {
+            "planet": "e",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -6,
+          "r": 2,
+          "s": 4,
+          "data": {
+            "planet": "e",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -5,
+          "r": 1,
+          "s": 4,
+          "data": {
+            "planet": "e",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -4,
+          "r": 1,
+          "s": 3,
+          "data": {
+            "planet": "s",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -5,
+          "r": 2,
+          "s": 3,
+          "data": {
+            "planet": "e",
+            "sector": "1"
+          }
+        },
+        {
+          "q": -2,
+          "r": -1,
+          "s": 3,
+          "data": {
+            "planet": "e",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": -3,
+          "r": -1,
+          "s": 4,
+          "data": {
+            "planet": "m",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": -4,
+          "r": -1,
+          "s": 5,
+          "data": {
+            "planet": "e",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": -4,
+          "r": -2,
+          "s": 6,
+          "data": {
+            "planet": "e",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": -4,
+          "r": -3,
+          "s": 7,
+          "data": {
+            "planet": "d",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": -3,
+          "r": -4,
+          "s": 7,
+          "data": {
+            "planet": "m",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": -2,
+          "r": -5,
+          "s": 7,
+          "data": {
+            "planet": "e",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": -1,
+          "r": -5,
+          "s": 6,
+          "data": {
+            "planet": "e",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": 0,
+          "r": -5,
+          "s": 5,
+          "data": {
+            "planet": "e",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": 0,
+          "r": -4,
+          "s": 4,
+          "data": {
+            "planet": "e",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": 0,
+          "r": -3,
+          "s": 3,
+          "data": {
+            "planet": "e",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": -1,
+          "r": -2,
+          "s": 3,
+          "data": {
+            "planet": "e",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": -2,
+          "r": -2,
+          "s": 4,
+          "data": {
+            "planet": "e",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": -3,
+          "r": -2,
+          "s": 5,
+          "data": {
+            "planet": "r",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": -3,
+          "r": -3,
+          "s": 6,
+          "data": {
+            "planet": "e",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": -2,
+          "r": -4,
+          "s": 6,
+          "data": {
+            "planet": "g",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": -1,
+          "r": -4,
+          "s": 5,
+          "data": {
+            "planet": "e",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": -1,
+          "r": -3,
+          "s": 4,
+          "data": {
+            "planet": "e",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": -2,
+          "r": -3,
+          "s": 5,
+          "data": {
+            "planet": "e",
+            "sector": "6B"
+          }
+        },
+        {
+          "q": 1,
+          "r": -3,
+          "s": 2,
+          "data": {
+            "planet": "t",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 1,
+          "r": -4,
+          "s": 3,
+          "data": {
+            "planet": "e",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 1,
+          "r": -5,
+          "s": 4,
+          "data": {
+            "planet": "e",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 2,
+          "r": -6,
+          "s": 4,
+          "data": {
+            "planet": "d",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 3,
+          "r": -7,
+          "s": 4,
+          "data": {
+            "planet": "e",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 4,
+          "r": -7,
+          "s": 3,
+          "data": {
+            "planet": "m",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 5,
+          "r": -7,
+          "s": 2,
+          "data": {
+            "planet": "e",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 5,
+          "r": -6,
+          "s": 1,
+          "data": {
+            "planet": "o",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 5,
+          "r": -5,
+          "s": 0,
+          "data": {
+            "planet": "e",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 4,
+          "r": -4,
+          "s": 0,
+          "data": {
+            "planet": "e",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 3,
+          "r": -3,
+          "s": 0,
+          "data": {
+            "planet": "e",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 2,
+          "r": -3,
+          "s": 1,
+          "data": {
+            "planet": "v",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 2,
+          "r": -4,
+          "s": 2,
+          "data": {
+            "planet": "e",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 2,
+          "r": -5,
+          "s": 3,
+          "data": {
+            "planet": "i",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 3,
+          "r": -6,
+          "s": 3,
+          "data": {
+            "planet": "e",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 4,
+          "r": -6,
+          "s": 2,
+          "data": {
+            "planet": "e",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 4,
+          "r": -5,
+          "s": 1,
+          "data": {
+            "planet": "s",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 3,
+          "r": -4,
+          "s": 1,
+          "data": {
+            "planet": "e",
+            "sector": "2"
+          }
+        },
+        {
+          "q": 3,
+          "r": -5,
+          "s": 2,
+          "data": {
+            "planet": "e",
+            "sector": "2"
+          }
+        }
+      ],
+      "expansions": 0,
+      "turnOrderAfterSetupAuction": [-1, 1],
+      "playerToMove": 0,
+      "ended": false,
+      "isLastRound": false
+    },
+    "lastMove": "2021-04-17T11:16:23.142Z"
+  }
+]

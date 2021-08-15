@@ -1,0 +1,90 @@
+[
+  {
+    "_id": "604508365769e01a781f9538",
+    "account": {
+      "karma": 75,
+      "email": "admin@test.com",
+      "username": "admin",
+      "termsAndConditions": "2021-03-07T17:07:02.202Z",
+      "password": "$2a$08$Sks1Maugi8qImAVMrv6K/ew6iNKKsyowG0ZC4ZL5LfNlt7MD3nDpW"
+    },
+    "settings": {
+      "mailing": {
+        "newsletter": false
+      },
+      "home": {
+        "showMyGames": true
+      }
+    },
+    "authority": "admin",
+    "security": {
+      "confirmed": true,
+      "slug": "admin",
+      "lastIp": "127.0.0.1",
+      "lastLogin": {
+        "date": "2021-03-07T17:07:02.289Z",
+        "ip": "127.0.0.1"
+      },
+      "lastActive": "2021-03-07T17:07:26.331Z",
+      "lastOnline": "2021-03-07T17:07:06.499Z"
+    }
+  },
+  {
+    "_id": "6045084f9e8a692e38661f5a",
+    "account": {
+      "karma": 75,
+      "email": "user@test.com",
+      "username": "user",
+      "termsAndConditions": "2021-03-07T17:07:27.300Z",
+      "password": "$2a$08$yEfkAXKAA7UMaj8vASckb.1u2/D/lSVy6OZf89Y6cTMPixcVi7G5i"
+    },
+    "settings": {
+      "mailing": {
+        "newsletter": false
+      },
+      "home": {
+        "showMyGames": true
+      }
+    },
+    "security": {
+      "confirmed": true,
+      "slug": "user",
+      "lastIp": "127.0.0.1",
+      "lastLogin": {
+        "date": "2021-03-07T17:07:27.375Z",
+        "ip": "127.0.0.1"
+      },
+      "lastActive": "2021-03-07T17:07:51.758Z",
+      "lastOnline": "2021-03-07T17:07:33.775Z"
+    }
+  },
+  {
+    "_id": "6045084f9e8a692e38661f5d",
+    "account": {
+      "karma": 75,
+      "email": "user2@test.com",
+      "username": "user2",
+      "termsAndConditions": "2021-03-07T17:07:27.300Z",
+      "password": "$2a$08$yEfkAXKAA7UMaj8vASckb.1u2/D/lSVy6OZf89Y6cTMPixcVi7G5i"
+    },
+    "settings": {
+      "mailing": {
+        "newsletter": false
+      },
+      "home": {
+        "showMyGames": true
+      }
+    },
+    "security": {
+      "confirmed": true,
+      "slug": "user2",
+      "lastIp": "127.0.0.1",
+      "lastLogin": {
+        "date": "2021-03-07T17:07:27.375Z",
+        "ip": "127.0.0.1"
+      },
+      "lastActive": "2021-03-07T17:07:51.758Z",
+      "lastOnline": "2021-03-07T17:07:33.775Z"
+    }
+  }
+]

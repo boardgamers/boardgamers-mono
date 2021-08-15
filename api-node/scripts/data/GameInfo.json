@@ -1,0 +1,224 @@
+[
+  {
+    "_id": {
+      "game": "gaia-project",
+      "version": 1
+    },
+    "description": "Terra Mystica's successor, Gaia Project is a game with perfect information.\n\nPlay as one of the **14** factions and prepare for a 3 hour game!",
+    "engine": {
+      "package": {
+        "name": "@gaia-project/engine",
+        "version": "*"
+      },
+      "entryPoint": "dist/wrapper.js"
+    },
+    "expansions": [],
+    "label": " 🌏 Gaia Project",
+    "meta": {
+      "public": true,
+      "needOwnership": true
+    },
+    "options": [
+      {
+        "name": "layout",
+        "label": "Map layout",
+        "type": "select",
+        "items": [
+          {
+            "name": "standard",
+            "label": "Standard"
+          },
+          {
+            "name": "xshape",
+            "label": "X shape (8 sectors)"
+          }
+        ]
+      },
+      {
+        "name": "advancedRules",
+        "label": "Last player rotates sectors",
+        "type": "checkbox",
+        "items": []
+      },
+      {
+        "name": "auction",
+        "label": "[Auction](/page/gaia-project/auction) factions at the beginning",
+        "type": "checkbox",
+        "items": []
+      }
+    ],
+    "players": [2, 3, 4],
+    "preferences": [
+      {
+        "name": "noFactionFill",
+        "label": "Planets keep their original color",
+        "type": "checkbox",
+        "items": null
+      },
+      {
+        "name": "flatBuildings",
+        "label": "Use flat buildings",
+        "type": "checkbox",
+        "items": null
+      },
+      {
+        "name": "accessibleSpaceMap",
+        "label": "Red / green planets have distinctive borders",
+        "type": "checkbox",
+        "items": null
+      },
+      {
+        "name": "highlightRecentActions",
+        "label": "Highlight recent actions on the map",
+        "type": "checkbox",
+        "items": null
+      },
+      {
+        "name": "logPlacement",
+        "label": "Log placement",
+        "type": "select",
+        "items": [
+          {
+            "name": "bottom",
+            "label": "Bottom"
+          },
+          {
+            "name": "top",
+            "label": "Top"
+          },
+          {
+            "name": "off",
+            "label": "None"
+          }
+        ]
+      }
+    ],
+    "rules": "* [Rules for the base game](https://images.zmangames.com/filer_public/ce/89/ce890bfd-227e-4249-a52a-976bc5f20d19/en_gaia_rulebook_lo.pdf)\n* [Rules for auction](/page/gaia-project/auction)\n* [Game settings](/page/gaia-project/settings)\n* [Federation FAQ](https://boardgamegeek.com/thread/2120375/official-federation-faq)",
+    "viewer": {
+      "url": "//cdn.jsdelivr.net/npm/@gaia-project/viewer/dist/package/viewer.umd.min.js",
+      "topLevelVariable": "gaiaViewer",
+      "dependencies": {
+        "scripts": [
+          "//cdn.jsdelivr.net/npm/vue@^2/dist/vue.min.js",
+          "//cdn.jsdelivr.net/npm/bootstrap-vue@^2/dist/bootstrap-vue.min.js"
+        ],
+        "stylesheets": ["//cdn.jsdelivr.net/npm/@gaia-project/viewer/dist/package/viewer.css"]
+      },
+      "replayable": true,
+      "alternate": {
+        "url": "//cdn.jsdelivr.net/npm/@gaia-project/viewer@5.6.3-alternate/dist/package/viewer.umd.min.js",
+        "topLevelVariable": "gaiaViewer",
+        "dependencies": {
+          "scripts": [
+            "//cdn.jsdelivr.net/npm/vue@^2/dist/vue.min.js",
+            "//cdn.jsdelivr.net/npm/bootstrap-vue@^2/dist/bootstrap-vue.min.js"
+          ],
+          "stylesheets": ["//cdn.jsdelivr.net/npm/@gaia-project/viewer@5.6.3-alternate/dist/package/viewer.css"]
+        },
+        "fullScreen": false,
+        "replayable": true,
+        "trusted": false
+      }
+    },
+    "settings": [
+      {
+        "name": "autoCharge",
+        "label": "Auto charge",
+        "type": "select",
+        "items": [
+          {
+            "name": "0",
+            "label": "Decline if it costs anything"
+          },
+          {
+            "name": "1",
+            "label": "When there's no downside"
+          },
+          {
+            "name": "2",
+            "label": "2 power (costs 1 VP)"
+          },
+          {
+            "name": "3",
+            "label": "3 power (costs 2 VP)"
+          },
+          {
+            "name": "4",
+            "label": "4 power (costs 3 VP)"
+          },
+          {
+            "name": "5",
+            "label": "5 power (costs 4 VP)"
+          }
+        ]
+      },
+      {
+        "name": "autoIncome",
+        "label": "Automated income",
+        "type": "checkbox",
+        "items": null
+      },
+      {
+        "name": "autoBrainstone",
+        "label": "Automated brainstone",
+        "type": "checkbox",
+        "items": null,
+        "faction": "taklons"
+      },
+      {
+        "name": "itarsAutoChargeToArea3",
+        "label": "Auto charge to area 3",
+        "type": "checkbox",
+        "items": null,
+        "faction": "itars"
+      }
+    ]
+  },
+  {
+    "_id": {
+      "game": "container",
+      "version": 1
+    },
+    "viewer": {
+      "dependencies": {
+        "scripts": ["//cdn.jsdelivr.net/npm/vue@^2/dist/vue.min.js"],
+        "stylesheets": ["//cdn.jsdelivr.net/npm/@boardgamers/container-viewer@1.0.17/dist/container-viewer.css"]
+      },
+      "alternate": {
+        "dependencies": {
+          "scripts": [],
+          "stylesheets": []
+        },
+        "url": "",
+        "topLevelVariable": "",
+        "fullScreen": false,
+        "replayable": false,
+        "trusted": false
+      },
+      "url": "//cdn.jsdelivr.net/npm/@boardgamers/container-viewer@1.0.17/dist/container-viewer.umd.min.js",
+      "topLevelVariable": "container",
+      "replayable": false,
+      "fullScreen": true
+    },
+    "engine": {
+      "package": {
+        "name": "container-engine",
+        "version": "1.0.1"
+      },
+      "entryPoint": "dist/wrapper.js"
+    },
+    "meta": {
+      "public": true,
+      "needOwnership": true
+    },
+    "players": [3, 4, 5],
+    "description": "Container board game.",
+    "expansions": [],
+    "label": " Container",
+    "options": [],
+    "preferences": [],
+    "rules": "",
+    "settings": [],
+    "__v": 0
+  }
+]

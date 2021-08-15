@@ -1,10 +1,14 @@
 import mongoose, { Collection } from "mongoose";
 import initDb from "../app/config/db";
 import * as models from "../app/models";
-import data from "./seeds.json";
+import * as data from "./data";
 
-export async function seed() {
-  for (const collection of Object.keys(data)) {
+/**
+ *
+ * @param collections Collection names to seed. If undefined, all collections in the seed file
+ */
+export async function seed(collections?: string[], dropIfExists?: boolean) {
+  for (const collection of collections ?? Object.keys(data)) {
     const coll: Collection = models[collection];
 
     if (!coll) {
@@ -12,7 +16,14 @@ export async function seed() {
       continue;
     }
 
-    if ((await coll.estimatedDocumentCount()) > 0) {
+    if (!(collection in data)) {
+      console.error(`Collection ${collection} does not have a seeding file`);
+      continue;
+    }
+
+    if (dropIfExists) {
+      await coll.deleteMany({});
+    } else if ((await coll.estimatedDocumentCount()) > 0) {
       console.warn(`Collection ${collection} is not empty, skipping`);
       continue;
     }
