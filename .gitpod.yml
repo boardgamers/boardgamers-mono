@@ -4,13 +4,8 @@ image:
 tasks:
   - init: |
       touch /tmp/.npm-lock
-      cd api-node
       pnpm install
-      cd ../game-server
-      pnpm install
-      cd ../webapp-svelte
-      pnpm install
-      cd ../admin-app
+      cd admin-app
       yarn install
       cd ..
       rm /tmp/.npm-lock
