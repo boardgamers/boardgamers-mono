@@ -17,5 +17,5 @@
     },
     "baseUrl": "."
   },
-  "include": ["app/**/*.ts", "server.ts", "../site-lib/**/*.ts", "../site-lib/**/*.ts"]
+  "include": ["app/**/*.ts", "server.ts", "../site-lib/**/*.ts", "../site-lib/**/*.ts", "scripts/**/*.ts"]
 }
