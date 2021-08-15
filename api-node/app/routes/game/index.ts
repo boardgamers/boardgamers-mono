@@ -1,9 +1,11 @@
+import GameInfoService from "app/services/gameinfo";
 import assert from "assert";
 import createError from "http-errors";
 import { Context } from "koa";
 import Router from "koa-router";
 import { omit, shuffle } from "lodash";
 import locks from "mongo-locks";
+import type { Types } from "mongoose";
 import { timerDuration } from "../../engine/time-utils";
 import {
   ChatMessage,
@@ -197,8 +199,24 @@ router.param("gameId", async (gameId, ctx, next) => {
   await next();
 });
 
+const filterAccessibleGames = async (userId: Types.ObjectId) => {
+  const games = await GameInfoService.latestAccessibleGames(userId);
+
+  if (!games.size) {
+    return {};
+  }
+
+  return {
+    $and: [
+      {
+        $or: [...games.entries()].map(([game, version]) => ({ "game.name": game, "game.version": { $lte: version } })),
+      },
+    ],
+  };
+};
+
 router.get("/active", async (ctx) => {
-  const conditions: Record<string, unknown> = { status: "active" };
+  const conditions: Record<string, unknown> = { status: "active", ...(await filterAccessibleGames(ctx.state.user)) };
   if (ctx.query.user) {
     conditions["players._id"] = ctx.query.user;
   }
@@ -210,7 +228,7 @@ router.get("/active", async (ctx) => {
 });
 
 router.get("/active/count", async (ctx) => {
-  const conditions: Record<string, unknown> = { status: "active" };
+  const conditions: Record<string, unknown> = { status: "active", ...(await filterAccessibleGames(ctx.state.user)) };
   if (ctx.query.user) {
     conditions["players._id"] = ctx.query.user;
   }
@@ -218,7 +236,7 @@ router.get("/active/count", async (ctx) => {
 });
 
 router.get("/(closed|ended)", async (ctx) => {
-  const conditions: Record<string, unknown> = { status: "ended" };
+  const conditions: Record<string, unknown> = { status: "ended", ...(await filterAccessibleGames(ctx.state.user)) };
   if (ctx.query.user) {
     conditions["players._id"] = ctx.query.user;
   }
@@ -231,7 +249,7 @@ router.get("/(closed|ended)", async (ctx) => {
 });
 
 router.get("/(closed|ended)/count", async (ctx) => {
-  const conditions: Record<string, unknown> = { status: "ended" };
+  const conditions: Record<string, unknown> = { status: "ended", ...(await filterAccessibleGames(ctx.state.user)) };
   if (ctx.query.user) {
     conditions["players._id"] = ctx.query.user;
   }
@@ -239,7 +257,11 @@ router.get("/(closed|ended)/count", async (ctx) => {
 });
 
 router.get("/open", async (ctx) => {
-  const conditions: Record<string, unknown> = { status: "open", "options.meta.unlisted": { $ne: true } };
+  const conditions: Record<string, unknown> = {
+    status: "open",
+    "options.meta.unlisted": { $ne: true },
+    ...(await filterAccessibleGames(ctx.state.user)),
+  };
 
   if (ctx.query.maxKarma) {
     conditions.$or = [
@@ -250,6 +272,8 @@ router.get("/open", async (ctx) => {
   if (ctx.query.user) {
     conditions["players._id"] = ctx.query.user;
   }
+
+  console.log(conditions);
 
   if (ctx.query.sample) {
     ctx.body = await Game.aggregate()
@@ -270,7 +294,11 @@ router.get("/open", async (ctx) => {
 });
 
 router.get("/open/count", async (ctx) => {
-  const conditions: Record<string, unknown> = { status: "open", "options.meta.unlisted": { $ne: true } };
+  const conditions: Record<string, unknown> = {
+    status: "open",
+    "options.meta.unlisted": { $ne: true },
+    ...(await filterAccessibleGames(ctx.state.user)),
+  };
 
   if (ctx.query.user) {
     conditions["players._id"] = ctx.query.user;
@@ -284,22 +312,6 @@ router.get("/open/count", async (ctx) => {
   }
 
   ctx.body = await Game.count(conditions).exec();
-});
-
-router.get("/stats", async (ctx) => {
-  const [active, open, total, finished] = await Promise.all([
-    Game.count({ status: "active" }).exec(),
-    Game.count({ status: "open", "options.meta.unlisted": { $ne: true } }).exec(),
-    Game.count({}).exec(),
-    Game.count({ status: "ended" }).exec(),
-  ]);
-
-  ctx.body = {
-    active,
-    open,
-    total,
-    finished,
-  };
 });
 
 // Metadata about the game

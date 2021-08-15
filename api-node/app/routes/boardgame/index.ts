@@ -24,23 +24,6 @@ router.param("boardgame", async (boardgame, ctx, next) => {
   await next();
 });
 
-router.get("/:boardgame/games/stats", async (ctx) => {
-  const boardgameName = ctx.state.foundBoardgame._id.game;
-  const [active, open, total, finished] = await Promise.all([
-    Game.count({ status: "active", "game.name": boardgameName }).exec(),
-    Game.count({ status: "open", "game.name": boardgameName, "options.meta.unlisted": { $ne: true } }).exec(),
-    Game.count({ "game.name": boardgameName }).exec(),
-    Game.count({ status: "ended", "game.name": boardgameName }).exec(),
-  ]);
-
-  ctx.body = {
-    active,
-    open,
-    total,
-    finished,
-  };
-});
-
 router.get("/info", async (ctx) => {
   const ownGames = ctx.state.user
     ? await GamePreferences.find(
