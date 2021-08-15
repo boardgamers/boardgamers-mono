@@ -1,9 +1,10 @@
-import Game from "app/models/game";
+import Game, { GameDocument } from "app/models/game";
 import locks from "mongo-locks";
+import type { FilterQuery } from "mongoose";
 import { getEngine } from "./engines";
 import { afterMove } from "./game";
 
-export async function batchReplay(cond: Record<string, any>) {
+export async function batchReplay(cond: FilterQuery<GameDocument>) {
   let success = 0;
   let total = 0;
 
@@ -39,7 +40,7 @@ export async function batchReplay(cond: Record<string, any>) {
       console.error(err);
       continue;
     } finally {
-      free().catch();
+      void free().catch();
     }
   }
 
