@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type GameData = any;
 
+type Many<T> = T | T[];
+
 export interface Engine {
   init(players: number, expansions: string[], options: any, seed?: string): Promise<GameData>;
 
@@ -68,4 +70,7 @@ export interface Engine {
 
   // Replays the game, after GameData was manually edited by an admin
   replay(data: GameData): GameData;
+
+  // Get global stats on the game
+  stats(data: GameData): Record<string, Many<Record<string, string | number>>>;
 }

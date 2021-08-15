@@ -242,3 +242,33 @@ replay (data: GameData): GameData
 Replays a game.
 
 It can be called after the database is manually edited, or the game engine is updated.
+
+### stats
+
+```ts
+stats (data: GameData): Record<string, Many<Record<string, number | string>>>
+```
+
+Gets stats on a game, to be used to write to CSV. The `Many` type is `type Many<T> = T | T[]`.
+
+For example, here is what it could return for _one_ game:
+
+```ts
+{
+  basic: {
+    point: 120,
+    turns: 500
+  },
+  detailed: [{
+    player: 0,
+    boosters: 5,
+    turns: 120
+  }, {
+    player: 1,
+    boosters: 9,
+    turns: 100
+  }]
+}
+```
+
+Here two CSVs would be generated, `basic.csv` and `detailed.csv`.
