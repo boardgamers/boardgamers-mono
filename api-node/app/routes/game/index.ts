@@ -273,8 +273,6 @@ router.get("/open", async (ctx) => {
     conditions["players._id"] = ctx.query.user;
   }
 
-  console.log(conditions);
-
   if (ctx.query.sample) {
     ctx.body = await Game.aggregate()
       .match(conditions)
