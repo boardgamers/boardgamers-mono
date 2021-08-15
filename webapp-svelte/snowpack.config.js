@@ -3,6 +3,14 @@ const httpProxy = require("http-proxy");
 
 const remote = process.env.backend === "remote";
 
+const handleError = (fn) => {
+  try {
+    fn();
+  } catch (err) {
+    console.error(err);
+  }
+};
+
 const proxy = httpProxy.createServer({
   target: remote ? "https://www.boardgamers.space" : "http://localhost:50801",
   changeOrigin: true,
@@ -45,22 +53,22 @@ module.exports = {
   routes: [
     {
       src: "/ws",
-      dest: (req, res) => proxyWs.ws(req, res.socket),
+      dest: handleError((req, res) => proxyWs.ws(req, res.socket)),
     },
     {
       src: "/api/gameplay/.*",
-      dest: (req, res) => proxyGames.web(req, res),
+      dest: (req, res) => handleError(proxyGames.web(req, res)),
     },
     {
       src: "/api/.*",
-      dest: (req, res) => proxy.web(req, res),
+      dest: (req, res) => handleError(proxy.web(req, res)),
     },
     {
       src: "/resources/.*",
-      dest: (req, res) => {
+      dest: handleError((req, res) => {
         req.url = req.url.replace(/^\/resources/, "");
         proxyResources.web(req, res);
-      },
+      }),
     },
     /* Enable an SPA Fallback in development: */
     { match: "routes", src: ".*", dest: "/index.html" },
