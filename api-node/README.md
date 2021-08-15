@@ -34,3 +34,17 @@ sessionSecret=customSessionSecret
 domain=my-domain.com
 dbUrl=<custom mongodb url>
 ```
+
+## ✅ Testing
+
+To run all tests
+
+```
+npm run test
+```
+
+To run specific tests
+
+```
+npm run test-only **/gameinfo.spec.ts
+```

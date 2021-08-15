@@ -76,7 +76,8 @@
     "dev": "ts-node-dev -T -r tsconfig-paths/register server.ts",
     "seed": "ts-node -T -r tsconfig-paths/register scripts/seed.ts",
     "nodemon": "nodemon -w app -w lib -w node_modules -w server.ts -e js,ts --exec npm start",
-    "test": "cross-env NODE_ENV=test mocha -r ts-node/register -r tsconfig-paths/register app/**/*.spec.ts app/*/*/*.spec.ts scripts/*.spec.ts --delay",
+    "test": "cross-env NODE_ENV=test mocha -r ts-node/register -r tsconfig-paths/register --delay **/*.spec.ts",
+    "test-only": "cross-env NODE_ENV=test mocha -r ts-node/register -r tsconfig-paths/register --delay **/init.spec.ts",
     "lint": "eslint server.ts app/**/*.{js,ts,tsx} --fix",
     "lint-check": "eslint server.ts app/**/*.{js,ts,tsx} --max-warnings 0",
     "tsc": "tsc --noEmit"
