@@ -3,4 +3,5 @@ packages:
   - "game-server"
   #- "site-lib"
   - "webapp-svelte"
+  - "docs"
   # - "admin-app"
