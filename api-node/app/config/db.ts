@@ -16,7 +16,12 @@ export default async function initDb(url = env.database.bgs.url, runMigrations =
 
   dbInit = true;
 
-  await mongoose.connect(url, { dbName: env.database.bgs.name, useNewUrlParser: true });
+  const connect = () =>
+    mongoose
+      .connect(url, { dbName: env.database.bgs.name, useNewUrlParser: true })
+      .then(() => console.log("successfully connected to database"));
+  await connect();
+
   locks.init(mongoose.connection);
 
   if (cluster.isMaster && runMigrations) {
@@ -30,4 +35,13 @@ export default async function initDb(url = env.database.bgs.url, runMigrations =
       free();
     }
   }
+
+  mongoose.connection.on("error", (err) => {
+    console.error("db error", err);
+  });
+
+  mongoose.connection.on("disconnected", () => {
+    console.log("attempt to reconnect to database");
+    setTimeout(() => connect().catch(console.error), 5000);
+  });
 }
