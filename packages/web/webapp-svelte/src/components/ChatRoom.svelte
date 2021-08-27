@@ -5,7 +5,7 @@ import { Modal, ModalHeader, Icon, ModalBody, ModalFooter, Input, InputGroup, In
 import type { GameContext } from "@/pages/Game.svelte";
 import { chatMessages, currentGameId, sidebarOpen, user } from "@/store";
 import { dateFromObjectId, dateTime, handleError } from "@/utils";
-import type { PlayerInfo } from "@lib/game";
+import type { PlayerInfo } from "@shared/types/game";
 import { getContext } from "svelte";
 import { fly } from "svelte/transition";
 import { PlayerGameAvatar} from "./Game";

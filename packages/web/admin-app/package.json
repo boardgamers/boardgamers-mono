@@ -6,10 +6,10 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint",
-    "deploy": "rm -Rf ../../www-boardgamers-admin && mv dist ../../www-boardgamers-admin"
+    "lint": "vue-cli-service lint"
   },
   "dependencies": {
+    "@shared/types": "workspace:*",
     "@toast-ui/vue-editor": "^2.0.1",
     "axios": "^0.19.2",
     "core-js": "^3.6.4",

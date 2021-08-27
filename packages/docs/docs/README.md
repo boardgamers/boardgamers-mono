@@ -11,7 +11,7 @@ xfeatures:
     details: We provide a module to help standardize turn-based game implementations
   - title: Community
     details: Check us out at <a href="//boardgamers.space">boardgamers.space</a>!
-footer: Made by coyotte508 and zuli with ❤️
+footer: Made with ❤️
 ---
 
 <div class="features">

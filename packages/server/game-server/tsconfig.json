@@ -12,10 +12,7 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "types": ["node", "mocha", "chai"],
-    "paths": {
-      "@lib/*": ["../site-lib/*"]
-    },
     "baseUrl": "."
   },
-  "include": ["app/**/*.ts", "server.ts", "../site-lib/**/*.ts", "../site-lib/**/*.ts", "scripts/**/*.ts"]
+  "include": ["app/**/*.ts", "server.ts", "scripts/**/*.ts"]
 }

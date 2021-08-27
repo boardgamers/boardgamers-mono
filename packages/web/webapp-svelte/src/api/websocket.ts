@@ -1,6 +1,6 @@
 import { activeGames, currentGameId, lastGameUpdate, playerStatus, user } from "@/store";
 import { chatMessages, currentRoom } from "@/store/room";
-import type { IUser } from "@lib/user";
+import type { IUser } from "@shared/types/user";
 import { getAccessToken } from "./rest";
 
 let ws: WebSocket | null = null;

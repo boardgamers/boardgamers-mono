@@ -1,6 +1,7 @@
 lockfileVersion: 5.3
 
 specifiers:
+  '@shared/types': workspace:*
   '@snowpack/plugin-dotenv': ^2.0.5
   '@snowpack/plugin-svelte': ^3.5.0
   '@snowpack/plugin-typescript': ^1.2.0
@@ -36,6 +37,7 @@ specifiers:
   typescript: ^4.0.0
 
 dependencies:
+  '@shared/types': link:../../shared/types
   awesome-notifications: 3.1.1
   bootstrap: 4.6.0
   dompurify: 2.2.7

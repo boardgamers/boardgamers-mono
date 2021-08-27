@@ -9,8 +9,7 @@
 
 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/boardgamers/boardgamers-mono)
 
-Mono-repo for the whole architecture of boardgamers.space. The great advantage of a mono-repo is
-to share `site-lib` without having to publish it to NPM.
+Mono-repo for the whole architecture of boardgamers.space.
 
 <!-- With `pijul` as the versioning system, you can clone / update only select folders. This is perfect
 if you only want to run the game server, etc. -->
@@ -36,13 +35,13 @@ A recent version of node, 14+ ideally, is required
 
 ### Frontend
 
-The instructions to run the [webapp](./webapp-vue/README.md) and the [admin](./admin-app/README.md) are available in their README.
+The instructions to run the [webapp](./packages/web/webapp-vue/README.md) and the [admin](./packages/web/admin-app/README.md) are available in their README.
 
 You can directly run the frontend against the website! No need to run the backend.
 
 ### Backend
 
-You can follow the instructions in [api-node](./api-node/README.md) and [game-server](./game-server/README.md), or you can just run the following command:
+You can follow the instructions in [api-node](./packages/server/api-node/README.md) and [game-server](./packages/server/game-server/README.md), or you can just run the following command:
 
 ```
 pnpm back

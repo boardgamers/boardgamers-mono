@@ -1,5 +1,5 @@
-import { ChatMessage } from "@lib/chatmessage";
-import makeSchema from "@lib/schemas/chatmessage";
+import makeSchema from "@shared/models/chatmessage";
+import { ChatMessage } from "@shared/types/chatmessage";
 import { ObjectId } from "bson";
 import mongoose from "mongoose";
 

@@ -1,5 +1,5 @@
 import { skipOnce } from "@/utils";
-import type { IUser } from "@lib/user";
+import type { IUser } from "@shared/types/user";
 import { writable } from "svelte/store";
 
 export const user = writable<IUser | null>(null);

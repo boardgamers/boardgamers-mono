@@ -3,13 +3,13 @@ on:
   push:
     paths:
       - ".github/workflows/docs.yml"
-      - "docs/**"
+      - "packages/docs/**"
     branches:
       - master
 
 defaults:
   run:
-    working-directory: docs
+    working-directory: packages/docs
 
 jobs:
   deploy:
@@ -25,7 +25,7 @@ jobs:
       - run: echo "${{ secrets.GIT_PAGES_PRIVATEKEY }}" > ~/key 
       - run: chmod 600 ~/key
       - run: git config --global core.sshCommand "ssh -i ~/key -F /dev/null"
-      - run: pnpm install
+      - run: pnpm install --filter {./}...
       - run: pnpm run build
       - run: git clone git@github.com:boardgamers/boardgamers.github.io pages --depth 1
       - run: rm -Rf pages/*

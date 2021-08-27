@@ -1,7 +1,7 @@
 <script lang="ts">
   import { get, post } from "@/api";
   import { loadGameData } from "@/api/game";
-  import type { GamePreferences } from "@lib/gamepreferences"
+  import type { GamePreferences } from "@shared/types/gamepreferences"
 
   import { Loading } from "@/modules/cdk";
   import { navigate } from "@/modules/router";

@@ -49,10 +49,10 @@
 <script lang="ts">
 import { Vue, Component, Prop, Watch } from "vue-property-decorator";
 import { handleError, handleInfo } from "@/utils";
-import { IUser } from "@lib/user";
+import { IUser } from "@shared/types/user";
 import { pick } from "lodash";
-import { ApiError } from "@lib/api-error";
-import { GamePreferences } from "@lib/gamepreferences";
+import { ApiError } from "@shared/types/api-error";
+import { GamePreferences } from "@shared/types/gamepreferences";
 
 @Component
 export default class User extends Vue {

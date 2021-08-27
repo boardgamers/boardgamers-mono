@@ -1,5 +1,5 @@
-import type { IAbstractGame } from "@lib/game";
-import makeSchema from "@lib/schemas/game";
+import makeSchema from "@shared/models/game";
+import type { IAbstractGame } from "@shared/types/game";
 import mongoose, { Types } from "mongoose";
 
 const schema = makeSchema<GameDocument>();

@@ -1,4 +1,4 @@
-import type { GamePreferences } from "@lib/gamepreferences";
+import type { GamePreferences } from "@shared/types/gamepreferences";
 import { get as $, writable } from "svelte/store";
 import { user } from "./user";
 

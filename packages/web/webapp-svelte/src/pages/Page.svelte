@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defer } from "@/utils";
-import type { Page as IPage } from "@lib/page";
+import type { Page as IPage } from "@shared/types/page";
 import marked from "marked";
 import Loading from "@/modules/cdk/Loading.svelte";
 import { get } from "@/api";

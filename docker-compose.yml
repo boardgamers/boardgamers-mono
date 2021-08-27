@@ -7,7 +7,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: ./api-node/Dockerfile
+      dockerfile: ./packages/server/api-node/Dockerfile
     ports:
       - "50801:50801"
       - "50802:50802"
@@ -19,7 +19,7 @@ services:
   game-server:
     build:
       context: .
-      dockerfile: ./game-server/Dockerfile
+      dockerfile: ./packages/server/game-server/Dockerfile
     ports:
       - "50803:50803"
     environment:

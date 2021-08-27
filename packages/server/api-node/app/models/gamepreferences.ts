@@ -1,4 +1,4 @@
-import { GamePreferences as IGamePreferences } from "@lib/gamepreferences";
+import { GamePreferences as IGamePreferences } from "@shared/types/gamepreferences";
 import { ObjectId } from "bson";
 import mongoose, { Schema } from "mongoose";
 

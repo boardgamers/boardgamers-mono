@@ -1,5 +1,5 @@
-import { GameNotification } from "@lib/gamenotification";
-import makeSchema from "@lib/schemas/gamenotification";
+import makeSchema from "@shared/models/gamenotification";
+import { GameNotification } from "@shared/types/gamenotification";
 import locks from "mongo-locks";
 import mongoose, { Types } from "mongoose";
 import EloService from "../services/elo";

@@ -13,8 +13,7 @@
     "baseUrl": ".",
     "types": ["webpack-env", "vuetify"],
     "paths": {
-      "@/*": ["src/*"],
-      "@lib/*": ["../site-lib/*"]
+      "@/*": ["src/*"]
     },
     "lib": ["esnext", "dom", "dom.iterable", "scripthost"]
   },

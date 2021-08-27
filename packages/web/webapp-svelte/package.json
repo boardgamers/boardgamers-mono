@@ -3,10 +3,11 @@
   "scripts": {
     "start": "snowpack dev --port 8615",
     "build": "snowpack build",
-    "move-front": "[ -d build ] && rm -Rf ../../www-boardgamers-backup && mkdir -p ../../www-boardgamers && mv ../../www-boardgamers ../../www-boardgamers-backup && mv build ../../www-boardgamers",
+    "move-front": "[ -d build ] && rm -Rf ../../../../www-boardgamers-backup && mkdir -p ../../../../www-boardgamers && mv ../../../../www-boardgamers ../../../../www-boardgamers-backup && mv build ../../../../www-boardgamers",
     "test": "web-test-runner \"src/**/*.test.ts\""
   },
   "dependencies": {
+    "@shared/types": "workspace:*",
     "awesome-notifications": "^3.1.1",
     "bootstrap": "4",
     "dompurify": "^2.2.7",

@@ -1,5 +1,5 @@
 /* Koa stuff */
-import { ViewerInfo } from "@lib/gameinfo";
+import { ViewerInfo } from "@shared/types/gameinfo";
 import { AssertionError } from "assert";
 import type { Server } from "http";
 import createError from "http-errors";

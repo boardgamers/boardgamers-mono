@@ -3,19 +3,19 @@ on:
   push:
     paths:
       - ".github/workflows/game-server.yml"
-      - "game-server/**"
-      - "site-lib/**"
+      - "packages/server/game-server/**"
+      - "packages/shared/**"
     branches:
       - master
   pull_request:
     paths:
       - ".github/workflows/game-server.yml"
-      - "game-server/**"
-      - "site-lib/**"
+      - "packages/server/game-server/**"
+      - "packages/shared/**"
 
 defaults:
   run:
-    working-directory: game-server
+    working-directory: packages/server/game-server
 
 jobs:
   lint:
@@ -28,6 +28,6 @@ jobs:
       - uses: pnpm/action-setup@v1.2.1
         with:
           version: 5.17.1
-      - run: pnpm install
+      - run: pnpm install --filter {./}...
       - run: pnpm run lint-check
       - run: pnpm run tsc

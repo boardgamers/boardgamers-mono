@@ -1,5 +1,5 @@
-import { GameInfo } from "@lib/gameinfo";
-import makeSchema from "@lib/schemas/gameinfo";
+import makeSchema from "@shared/models/gameinfo";
+import { GameInfo } from "@shared/types/gameinfo";
 import mongoose from "mongoose";
 
 const schema = makeSchema<GameInfoDocument, GameInfoModel>();

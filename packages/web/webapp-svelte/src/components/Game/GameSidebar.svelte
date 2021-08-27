@@ -1,7 +1,7 @@
 <script lang="ts">
 import { keyBy } from "lodash";
 import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
-import type { PlayerInfo } from "@lib/game";
+import type { PlayerInfo } from "@shared/types/game";
 import Portal from "svelte-portal";
 import { addActiveGame, playerStatus, removeActiveGame, user } from "@/store";
 import { Button, Icon, Badge } from "@/modules/cdk";

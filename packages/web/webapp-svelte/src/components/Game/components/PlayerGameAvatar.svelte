@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PlayerInfo } from "@lib/game";
+  import type { PlayerInfo } from "@shared/types/game";
   import { classnames } from "@/utils"
   import { user } from "@/store";
 

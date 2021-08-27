@@ -1,5 +1,5 @@
 import { accountLoaded, refreshToken, user } from "@/store";
-import type { IUser } from "@lib/user";
+import type { IUser } from "@shared/types/user";
 import { get, post, setAccessToken } from "./rest";
 
 export async function login(email: string, password: string) {

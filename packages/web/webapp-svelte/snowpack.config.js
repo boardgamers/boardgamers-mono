@@ -48,7 +48,6 @@ module.exports = {
   alias: {
     "@": "./src",
     "@cdk": "./src/modules/cdk",
-    "@lib": "../site-lib",
   },
   routes: [
     {

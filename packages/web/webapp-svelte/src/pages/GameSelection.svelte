@@ -6,7 +6,7 @@ import Loading from "@/modules/cdk/Loading.svelte";
 import { navigate } from "@/modules/router";
 import { gameSettings, user } from "@/store";
 import { handleError, confirm, createWatcher } from "@/utils";
-import type { GameInfo } from "@lib/gameinfo";
+import type { GameInfo } from "@shared/types/gameinfo";
 import type { SetOptional } from "type-fest";
 
 import marked from "marked";

@@ -1,18 +1,22 @@
 # You need to build from the parent directory 
-FROM node:15
+FROM node:14
 
 RUN npm install -g pnpm
 
 WORKDIR /usr/src/app
 
-COPY ./game-server/package.json ./
-COPY ./game-server/pnpm-lock.yaml ./
+COPY ./packages/server/game-server/package.json ./packages/server/game-server/
+COPY ./packages/server/game-server/pnpm-lock.yaml ./packages/server/game-server/
+COPY .nmprc ./
+COPY .pnpm-workspace.yaml ./
 
-RUN pnpm install
+RUN pnpm install --filter game-server...
 
-COPY ./game-server .
-COPY ./site-lib ../site-lib
+COPY ./packages/shared ./packages/shared
+COPY ./packages/server/game-server ./packages/server/game-server
 
 EXPOSE 50803
+
+WORKDIR /usr/src/app/packages/server/game-server
 
 CMD ["pnpm", "start"]

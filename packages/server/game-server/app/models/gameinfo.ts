@@ -1,5 +1,5 @@
-import type { GameInfo as IGameInfo } from "@lib/gameinfo";
-import makeSchema from "@lib/schemas/gameinfo";
+import makeSchema from "@shared/models/gameinfo";
+import type { GameInfo as IGameInfo } from "@shared/types/gameinfo";
 import mongoose from "mongoose";
 
 interface GameInfoDocument extends mongoose.Document, IGameInfo {

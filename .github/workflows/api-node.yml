@@ -3,19 +3,19 @@ on:
   push:
     paths:
       - ".github/workflows/api-node.yml"
-      - "api-node/**"
-      - "site-lib/**"
+      - "packages/server/api-node/**"
+      - "packages/shared/**"
     branches:
       - master
   pull_request:
     paths:
       - ".github/workflows/api-node.yml"
-      - "api-node/**"
-      - "site-lib/**"
+      - "packages/server/api-node/**"
+      - "packages/shared/**"
 
 defaults:
   run:
-    working-directory: api-node
+    working-directory: packages/server/api-node
 
 jobs:
   lint_and_test:
@@ -34,7 +34,7 @@ jobs:
       - uses: pnpm/action-setup@v1.2.1
         with:
           version: 5.17.1
-      - run: pnpm install
+      - run: pnpm install --filter {./}...
       - run: pnpm run lint-check
       - run: pnpm run tsc
       - run: pnpm run test

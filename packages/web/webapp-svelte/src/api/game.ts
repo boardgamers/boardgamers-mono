@@ -1,4 +1,4 @@
-import type { IGame, PlayerInfo } from "@lib/game";
+import type { IGame, PlayerInfo } from "@shared/types/game";
 import { get, post } from "./rest";
 
 /**

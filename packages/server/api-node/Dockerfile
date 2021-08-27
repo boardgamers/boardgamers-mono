@@ -1,17 +1,19 @@
-# You need to build from the parent directory 
-FROM node:15
+# You need to build from the mono repo root directory 
+FROM node:14
 
 RUN npm install -g pnpm
 
 WORKDIR /usr/src/app
 
-COPY ./api-node/package.json ./
-COPY ./api-node/pnpm-lock.yaml ./
+COPY ./packages/server/api-node/package.json ./packages/server/api-node/
+COPY ./packages/server/api-node/pnpm-lock.yaml ./packages/server/api-node/
+COPY .nmprc ./
+COPY .pnpm-workspace.yaml ./
 
-RUN pnpm install
+RUN pnpm install --filter api-node...
 
-COPY ./api-node .
-COPY ./site-lib ../site-lib
+COPY ./packages/shared ./packages/shared
+COPY ./packages/server/api-node ./packages/server/api-node
 
 # API
 EXPOSE 50801
@@ -19,5 +21,7 @@ EXPOSE 50801
 EXPOSE 50802
 # RESOURCES
 EXPOSE 50804
+
+WORKDIR /usr/src/app/packages/server/api-node
 
 CMD ["pnpm", "start"]

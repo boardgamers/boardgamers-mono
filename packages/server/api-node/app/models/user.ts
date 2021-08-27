@@ -1,4 +1,4 @@
-import { IAbstractUser } from "@lib/user";
+import { IAbstractUser } from "@shared/types/user";
 import assert from "assert";
 import bcrypt from "bcryptjs";
 import { ObjectId } from "bson";

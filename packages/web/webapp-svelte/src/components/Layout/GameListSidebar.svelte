@@ -4,7 +4,7 @@ import { ListGroup } from "@/modules/cdk";
 import { route, routePath } from "@/modules/router";
 import { boardgames, logoClicks } from "@/store";
 import { handleError } from "@/utils";
-import type { GameInfo } from "@lib/gameinfo";
+import type { GameInfo } from "@shared/types/gameinfo";
 
 loadBoardgames().catch(handleError)
 
