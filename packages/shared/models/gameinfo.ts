@@ -1,5 +1,5 @@
+import type { GameInfo } from "@shared/types/gameinfo";
 import { Document, Model, Schema } from "mongoose";
-import type { GameInfo } from "../gameinfo";
 
 const optionSchema = [
   {

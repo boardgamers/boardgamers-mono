@@ -1,5 +1,5 @@
+import type { IAbstractGame } from "@shared/types/game";
 import { Document, Model, Schema, Types } from "mongoose";
-import type { IAbstractGame } from "../game";
 
 const repr = {
   _id: {

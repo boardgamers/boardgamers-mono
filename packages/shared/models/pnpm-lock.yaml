@@ -1,0 +1,7 @@
+lockfileVersion: 5.3
+
+specifiers:
+  '@shared/types': workspace:*
+
+dependencies:
+  '@shared/types': link:../types

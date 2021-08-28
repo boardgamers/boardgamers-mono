@@ -1,5 +1,5 @@
+import type { ChatMessage } from "@shared/types/chatmessage";
 import { Document, Model, Schema, Types } from "mongoose";
-import type { ChatMessage } from "../chatmessage";
 
 const repr = {
   room: {

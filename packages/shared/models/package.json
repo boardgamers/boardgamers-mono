@@ -1,5 +1,8 @@
 {
   "name": "@shared/models",
+  "dependencies": {
+    "@shared/types": "workspace:*"
+  },
   "peerDependencies": {
     "mongoose": "^6.0.2"
   }
