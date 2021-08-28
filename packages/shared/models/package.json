@@ -1,3 +1,6 @@
 {
-  "name": "@shared/models"
+  "name": "@shared/models",
+  "peerDependencies": {
+    "mongoose": "^6.0.2"
+  }
 }
