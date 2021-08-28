@@ -1,14 +1,13 @@
-import { ObjectID } from "bson";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
+import mongoose, { ObjectId } from "mongoose";
 import { env } from "../config";
 import { User } from "./user";
 
 const Schema = mongoose.Schema;
 
 interface JwtRefreshTokenDocument extends mongoose.Document {
-  user: ObjectID;
+  user: ObjectId;
   code: string;
 
   createdAt: Date;

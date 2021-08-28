@@ -12,7 +12,7 @@ const repr = {
   },
   kind: {
     type: String,
-    enum: ["currentMove", "gameEnded", "gameStarted", "playerDrop", "playerQuit", "dropPlayer"],
+    enum: ["currentMove", "gameEnded", "gameStarted", "playerDrop", "playerQuit", "dropPlayer"] as const,
     index: true,
   },
   processed: {
@@ -26,7 +26,7 @@ export default function makeSchema<
   T extends Document & GameNotification<Types.ObjectId>,
   U extends Model<T> = Model<T>
 >() {
-  const schema = new Schema<T, U>(repr, { timestamps: true });
+  const schema = new Schema<T, U>(repr as any, { timestamps: true });
 
   schema.index({ processed: 1, kind: 1 });
   schema.index({ updatedAt: 1 }, { expireAfterSeconds: 3600 * 24 * 30 });

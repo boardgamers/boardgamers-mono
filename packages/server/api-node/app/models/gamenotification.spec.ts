@@ -1,8 +1,9 @@
-import { ObjectId } from "bson";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { defaultKarma, Game, GameNotification, GamePreferences, maxKarma, User } from "./index";
+
+const { ObjectId } = Types;
 
 chai.use(chaiAsPromised);
 

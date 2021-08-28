@@ -1,5 +1,5 @@
 import type { GameInfo } from "@shared/types/gameinfo";
-import { Document, Model, Schema } from "mongoose";
+import { Model, Schema } from "mongoose";
 
 const optionSchema = [
   {
@@ -114,6 +114,6 @@ const repr = {
   },
 };
 
-export default function makeSchema<T extends Document & GameInfo, U extends Model<T> = Model<T>>() {
-  return new Schema<T, U>(repr, { timestamps: true });
+export default function makeSchema<U extends Model<GameInfo> = Model<GameInfo>>() {
+  return new Schema<GameInfo, U>(repr, { timestamps: true });
 }

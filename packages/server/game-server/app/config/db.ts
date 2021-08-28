@@ -4,7 +4,7 @@ import env from "./env";
 
 const connect = () =>
   mongoose
-    .connect(env.database.bgs.url, { dbName: env.database.bgs.name, useNewUrlParser: true })
+    .connect(env.database.bgs.url, { dbName: env.database.bgs.name })
     .then(() => console.log("successfully connected to database"));
 
 connect().catch((err) => {

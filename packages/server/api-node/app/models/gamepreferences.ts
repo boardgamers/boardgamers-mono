@@ -1,13 +1,12 @@
 import { GamePreferences as IGamePreferences } from "@shared/types/gamepreferences";
-import { ObjectId } from "bson";
-import mongoose, { Schema } from "mongoose";
+import mongoose, { Schema, Types } from "mongoose";
 
-export interface GamePreferencesDocument extends mongoose.Document<ObjectId>, IGamePreferences<ObjectId> {
-  _id: ObjectId;
+export interface GamePreferencesDocument extends mongoose.Document<Types.ObjectId>, IGamePreferences<Types.ObjectId> {
+  _id: Types.ObjectId;
 }
 
 export interface GamePreferencesModel extends mongoose.Model<GamePreferencesDocument> {
-  findWithPlayer(playerId: ObjectId): mongoose.Query<GamePreferencesDocument[], GamePreferencesDocument>;
+  findWithPlayer(playerId: Types.ObjectId): mongoose.Query<GamePreferencesDocument[], GamePreferencesDocument>;
 
   eloProjection(): string[];
 }
@@ -30,7 +29,7 @@ schema.index({ user: 1, game: 1 }, { unique: true });
 
 schema.index({ game: 1, "elo.value": -1 }, { partialFilterExpression: { "elo.value": { $gt: 0 } } });
 
-schema.static("findWithPlayer", function (this: GamePreferencesModel, playerId: ObjectId) {
+schema.static("findWithPlayer", function (this: GamePreferencesModel, playerId: Types.ObjectId) {
   return this.find({ user: playerId }).sort("-game");
 });
 

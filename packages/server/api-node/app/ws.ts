@@ -1,7 +1,7 @@
-import { ObjectID } from "bson";
 import delay from "delay";
 import jwt from "jsonwebtoken";
-import _ from "lodash";
+import { groupBy, keyBy, sortBy, uniqBy } from "lodash";
+import { Types } from "mongoose";
 import cache from "node-cache";
 import WebSocket, { Server } from "ws";
 import "./config/db";
@@ -13,7 +13,7 @@ const wss = new Server({ port: env.listen.port.ws, host: env.listen.host });
 type AugmentedWebSocket = WebSocket & {
   game?: string;
   room?: string;
-  user?: ObjectID;
+  user?: Types.ObjectId;
   gameUpdate?: Date;
   isAlive?: boolean;
 };
@@ -96,7 +96,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
         const decoded = jwt.verify(data.jwt, env.jwt.keys.public) as { userId: string; scopes: string[] };
 
         if (decoded) {
-          ws.user = new ObjectID(decoded.userId);
+          ws.user = new Types.ObjectId(decoded.userId);
           updateActivity(ws.user, true).catch(console.error);
           sendActiveGames(ws);
         } else {
@@ -146,7 +146,7 @@ function sendActiveGames(ws: AugmentedWebSocket) {
   }
 }
 
-let lastChecked: ObjectID = ObjectID.createFromTime(Math.floor(Date.now() / 1000));
+let lastChecked = Types.ObjectId.createFromTime(Math.floor(Date.now() / 1000));
 
 const gameCache = new cache({ stdTTL: 24 * 3600 });
 
@@ -156,8 +156,10 @@ const gameCache = new cache({ stdTTL: 24 * 3600 });
 async function run() {
   while (1) {
     // Find new messages
-    const messages = await ChatMessage.find({ _id: { $gt: lastChecked } }).lean();
-    const messagesPerRooms = _.groupBy(messages, (msg) => msg.room.toString());
+    const messages = await ChatMessage.find()
+      .where({ _id: { $gt: lastChecked } })
+      .lean();
+    const messagesPerRooms = groupBy(messages, (msg) => msg.room.toString());
 
     for (const msg of messages) {
       delete msg.room;
@@ -179,7 +181,7 @@ async function run() {
       lastChecked = messages[messages.length - 1]._id;
     }
 
-    const gameConditions = _.uniqBy(_.sortBy([...clients()], "gameUpdate"), "game").map((x) => ({
+    const gameConditions = uniqBy(sortBy([...clients()], "gameUpdate"), "game").map((x) => ({
       _id: x.game,
       updatedAt: { $gt: x.gameUpdate ?? new Date(0) },
     }));
@@ -202,7 +204,7 @@ async function run() {
         const users = await User.find({ _id: { $in: playerIds } }, "security.lastActive security.lastOnline", {
           lean: true,
         });
-        const usersById = _.keyBy<typeof users[0]>(users, (user) => user._id.toString());
+        const usersById = keyBy<typeof users[0]>(users, (user) => user._id.toString());
 
         for (const ws of clients()) {
           if (ws.readyState !== WebSocket.OPEN) {
@@ -248,7 +250,7 @@ run().catch((err: Error) => {
   process.exit(1);
 });
 
-async function updateActivity(user: ObjectID, online: boolean) {
+async function updateActivity(user: Types.ObjectId, online: boolean) {
   try {
     if (online) {
       await User.updateOne(

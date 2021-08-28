@@ -1,15 +1,14 @@
 import axios, { AxiosError, AxiosRequestConfig } from "axios";
-import { ObjectId } from "bson";
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import env from "../../config/env";
 import { Game, GameInfo, GamePreferences, JwtRefreshToken, User } from "../../models";
 
 chai.use(chaiAsPromised);
 
 describe("Game API", () => {
-  const userId = new ObjectId();
+  const userId = new Types.ObjectId();
   let axiosConfig: AxiosRequestConfig = {};
 
   before(async () => {

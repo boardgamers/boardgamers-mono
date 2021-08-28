@@ -1,8 +1,8 @@
 import assert from "assert";
-import { ObjectID } from "bson";
 import createError from "http-errors";
 import { Context } from "koa";
 import Router from "koa-router";
+import { Types } from "mongoose";
 import { Game, GamePreferences, User } from "../../models";
 import { queryCount, skipCount } from "../utils";
 
@@ -87,12 +87,12 @@ router.get("/:userId/games/count/:status", async (ctx) => {
     switch (ctx.params.status) {
       case "closed":
       case "ended":
-        return { status: "ended", "players._id": new ObjectID(ctx.state.foundUser._id) };
+        return { status: "ended", "players._id": new Types.ObjectId(ctx.state.foundUser._id) };
       case "dropped":
         return {
           players: {
             $elemMatch: {
-              _id: new ObjectID(ctx.state.foundUser._id),
+              _id: new Types.ObjectId(ctx.state.foundUser._id),
               dropped: true,
             },
           },

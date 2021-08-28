@@ -1,10 +1,9 @@
 import makeSchema from "@shared/models/chatmessage";
 import { ChatMessage } from "@shared/types/chatmessage";
-import { ObjectId } from "bson";
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 
-export interface ChatMessageDocument extends mongoose.Document, ChatMessage<ObjectId> {
-  _id: ObjectId;
+export interface ChatMessageDocument extends mongoose.Document, ChatMessage<Types.ObjectId> {
+  _id: Types.ObjectId;
 }
 
 const ChatMessage = mongoose.model("ChatMessage", makeSchema<ChatMessageDocument>());

@@ -2,13 +2,10 @@ import makeSchema from "@shared/models/gameinfo";
 import { GameInfo } from "@shared/types/gameinfo";
 import mongoose from "mongoose";
 
-const schema = makeSchema<GameInfoDocument, GameInfoModel>();
+const schema = makeSchema<GameInfoModel>();
 
 export interface GameInfoDocument extends GameInfo, mongoose.Document {
-  _id: {
-    game: string;
-    version: number;
-  };
+  _id: GameInfo["_id"];
 }
 
 export interface GameInfoModel extends mongoose.Model<GameInfoDocument> {

@@ -1,5 +1,26 @@
-import type { IAbstractGame } from "@shared/types/game";
-import { Document, Model, Schema, Types } from "mongoose";
+import { IAbstractGame, PlayerInfo } from "@shared/types/game";
+import { Model, Schema, Types } from "mongoose";
+
+const playerInfoSchema = new Schema<PlayerInfo<Types.ObjectId>>({
+  _id: {
+    type: Schema.Types.ObjectId,
+    ref: "User",
+    index: true,
+  },
+
+  name: String,
+  remainingTime: Number,
+  score: Number,
+  dropped: Boolean,
+  quit: Boolean,
+  faction: String,
+  voteCancel: Boolean,
+  ranking: Number,
+  elo: {
+    initial: Number,
+    delta: Number,
+  },
+});
 
 const repr = {
   _id: {
@@ -8,31 +29,7 @@ const repr = {
     minlength: [2, "A game id must be at least 2 characters"] as [number, string],
     maxlength: [25, "A game id must be at most 25 characters"] as [number, string],
   },
-  players: {
-    type: [
-      {
-        _id: {
-          type: Schema.Types.ObjectId,
-          ref: "User",
-          index: true,
-        },
-
-        name: String,
-        remainingTime: Number,
-        score: Number,
-        dropped: Boolean,
-        quit: Boolean,
-        faction: String,
-        voteCancel: Boolean,
-        ranking: Number,
-        elo: {
-          initial: Number,
-          delta: Number,
-        },
-      },
-    ],
-    default: () => [],
-  },
+  players: [playerInfoSchema],
   creator: {
     type: Schema.Types.ObjectId,
     index: true,
@@ -58,7 +55,7 @@ const repr = {
   data: {},
   status: {
     type: String,
-    enum: ["open", "pending", "active", "ended"],
+    enum: ["open", "pending", "active", "ended"] as const,
     default: "open",
   },
   cancelled: {
@@ -129,11 +126,8 @@ const repr = {
   },
 };
 
-export default function makeSchema<
-  T extends Document & IAbstractGame<Types.ObjectId>,
-  U extends Model<T> = Model<T>
->() {
-  const schema = new Schema<T, U>(repr, { timestamps: true });
+export default function makeSchema<T extends IAbstractGame<Types.ObjectId>, U extends Model<T> = Model<T>>() {
+  const schema = new Schema<T, U>(repr as any, { timestamps: true });
 
   // To... order open games & active games & closed games
   schema.index({ status: 1, lastMove: -1 });

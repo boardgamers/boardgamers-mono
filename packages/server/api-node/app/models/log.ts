@@ -1,11 +1,10 @@
-import { ObjectId } from "bson";
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 
 export interface LogItem {
   kind: "processGameEnded" | "processPlayerDrop" | "mailChange";
   data: {
     game?: string;
-    player?: ObjectId;
+    player?: Types.ObjectId;
     change?: {
       from: string;
       to: string;

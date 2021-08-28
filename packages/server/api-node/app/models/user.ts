@@ -1,11 +1,10 @@
 import { IAbstractUser } from "@shared/types/user";
 import assert from "assert";
 import bcrypt from "bcryptjs";
-import { ObjectId } from "bson";
 import crypto from "crypto";
-import _ from "lodash";
+import { isEmpty, pick } from "lodash";
 import locks from "mongo-locks";
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { env, sendmail } from "../config";
 import { Game } from "./game";
 
@@ -194,7 +193,7 @@ schema.method("changeEmail", async function (this: UserDocument, email: string) 
 });
 
 schema.method("publicInfo", function (this: UserDocument) {
-  return _.pick(this, ["_id", "account.username", "account.karma", "createdAt"]);
+  return pick(this, ["_id", "account.username", "account.karma", "createdAt"]);
 });
 
 schema.method("generateResetLink", async function (this: UserDocument) {
@@ -412,7 +411,7 @@ schema.method("notifyLastIp", async function (this: UserDocument, ip: string) {
     this.security.lastActive = new Date();
     update["security.lastActive"] = new Date();
   }
-  if (!_.isEmpty(update)) {
+  if (!isEmpty(update)) {
     await this.update(update);
   }
 });
@@ -422,7 +421,7 @@ schema.method("isAdmin", function (this: UserDocument) {
 });
 
 schema.static("findByUrl", function (this: UserModel, urlComponent: string) {
-  return this.findById(new ObjectId(urlComponent));
+  return this.findById(new Types.ObjectId(urlComponent));
 });
 
 schema.static("findByUsername", function (this: UserModel, username: string) {

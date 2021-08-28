@@ -1,5 +1,4 @@
-import { ObjectId } from "bson";
-import mongoose from "mongoose";
+import mongoose, { ObjectId } from "mongoose";
 
 const Schema = mongoose.Schema;
 

@@ -1,5 +1,5 @@
 import type { ChatMessage } from "@shared/types/chatmessage";
-import { Document, Model, Schema, Types } from "mongoose";
+import { Model, Schema, Types } from "mongoose";
 
 const repr = {
   room: {
@@ -22,12 +22,12 @@ const repr = {
     type: String,
     required: true,
     default: "text",
-    enum: ["text", "emoji", "system"],
+    enum: ["text", "emoji", "system"] as const,
   },
 };
 
-export default function makeSchema<T extends Document & ChatMessage<Types.ObjectId>, U extends Model<T> = Model<T>>() {
-  return new Schema<T, U>(repr, {
+export default function makeSchema<T extends ChatMessage<Types.ObjectId>, U extends Model<T> = Model<T>>() {
+  return new Schema<T, U>(repr as any, {
     // We only keep 100MB of chat logs
     capped: 100 * 1024 * 1024,
   });
