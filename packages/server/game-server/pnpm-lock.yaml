@@ -34,7 +34,7 @@ specifiers:
   luxon: ^1.25.0
   mocha: ^7.1.2
   mongo-locks: ^2.0.0
-  mongoose: ^6.0.2
+  mongoose: ^6.0.3
   ts-node: ^8.9.1
   ts-node-dev: ^1.1.6
   tsconfig-paths: ^3.9.0
@@ -52,8 +52,8 @@ dependencies:
   koa-morgan: 1.0.1
   koa-router: 8.0.8
   lodash: 4.17.20
-  mongo-locks: 2.0.0_mongoose@6.0.2
-  mongoose: 6.0.2
+  mongo-locks: 2.0.0_mongoose@6.0.3
+  mongoose: 6.0.3
 
 devDependencies:
   '@shared/models': link:../../shared/models
@@ -1976,12 +1976,12 @@ packages:
       yargs-unparser: 1.6.0
     dev: true
 
-  /mongo-locks/2.0.0_mongoose@6.0.2:
+  /mongo-locks/2.0.0_mongoose@6.0.3:
     resolution: {integrity: sha512-+yfONvw4A64N/TD52hdPp648XyXuc1JnTZ9btQJL56dHbAgW3Xuvdavbv476Kae+BmMSFApNterG6pXHeRyyDQ==}
     peerDependencies:
       mongoose: '>=4.7.6'
     dependencies:
-      mongoose: 6.0.2
+      mongoose: 6.0.3
     dev: false
 
   /mongodb-connection-string-url/2.0.0:
@@ -2002,8 +2002,8 @@ packages:
       saslprep: 1.0.3
     dev: false
 
-  /mongoose/6.0.2:
-    resolution: {integrity: sha512-4zrCcScAItE9aefaPMeG9+IPLaJJ2c8sFLXlLvTVPdArZija10rto61qkzIxmhf6zkDmW2W9bh3DS59KuTPCfQ==}
+  /mongoose/6.0.3:
+    resolution: {integrity: sha512-0gu3Z34j3VdvGnqcs0lZdRnE0agiuERvXKkSrKjGqXsZS+ym5v9Oq1dQUuhtOYPQGtlpHpeVYjHHY+2sn5CMrg==}
     engines: {node: '>=12.0.0'}
     dependencies:
       bson: 4.5.1

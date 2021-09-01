@@ -26,7 +26,7 @@
     "koa-router": "^8.0.8",
     "lodash": "^4.17.15",
     "mongo-locks": "^2.0.0",
-    "mongoose": "^6.0.2"
+    "mongoose": "^6.0.3"
   },
   "devDependencies": {
     "@shared/models": "workspace:*",
