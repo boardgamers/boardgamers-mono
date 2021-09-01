@@ -52,22 +52,23 @@ module.exports = {
   routes: [
     {
       src: "/ws",
-      dest: handleError((req, res) => proxyWs.ws(req, res.socket)),
+      dest: (req, res) => handleError(() => proxyWs.ws(req, res.socket)),
     },
     {
       src: "/api/gameplay/.*",
-      dest: (req, res) => handleError(proxyGames.web(req, res)),
+      dest: (req, res) => handleError(() => proxyGames.web(req, res)),
     },
     {
       src: "/api/.*",
-      dest: (req, res) => handleError(proxy.web(req, res)),
+      dest: (req, res) => handleError(() => proxy.web(req, res)),
     },
     {
       src: "/resources/.*",
-      dest: handleError((req, res) => {
-        req.url = req.url.replace(/^\/resources/, "");
-        proxyResources.web(req, res);
-      }),
+      dest: (req, res) =>
+        handleError(() => {
+          req.url = req.url.replace(/^\/resources/, "");
+          proxyResources.web(req, res);
+        }),
     },
     /* Enable an SPA Fallback in development: */
     { match: "routes", src: ".*", dest: "/index.html" },
