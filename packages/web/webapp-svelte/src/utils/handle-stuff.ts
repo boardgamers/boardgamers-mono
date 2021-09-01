@@ -50,7 +50,7 @@ export function defer(target: Function, callback?: () => unknown) {
     try {
       return await target(...args);
     } catch (err) {
-      handleError(err);
+      handleError(err as Error);
     } finally {
       callback?.();
     }
