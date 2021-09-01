@@ -1,7 +1,7 @@
 import { IAbstractUser } from "@shared/types/user";
-// import {IAbstractGame} from '@shared/types/game';
-import { AxiosInstance } from "axios";
+import { ViteSSGContext } from 'vite-ssg';
 
+export type UserModule = (ctx: ViteSSGContext) => void;
 export interface User extends IAbstractUser {
   _id: string;
 }
@@ -15,7 +15,6 @@ export { Page } from "@shared/types/page";
 
 declare module "vue/types/vue" {
   interface Vue {
-    $axios: AxiosInstance;
     $message: any;
   }
 }

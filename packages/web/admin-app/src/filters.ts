@@ -1,5 +1,3 @@
-import Vue from "vue";
-
 const ranges = [
   {
     name: "bytes",
@@ -23,10 +21,10 @@ const ranges = [
   },
 ];
 
-Vue.filter("filesize", (value: number) => {
+export function filesize(value: number) {
   for (let i = 0; i < ranges.length; i++) {
     if (i === ranges.length - 1 || ranges[i + 1].value > value) {
       return `${(value / ranges[i].value).toPrecision(3)} ${ranges[i].name}`;
     }
   }
-});
+}

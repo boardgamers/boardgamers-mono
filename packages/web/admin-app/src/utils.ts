@@ -5,11 +5,11 @@ function isAxiosError(err: AxiosError | any): err is AxiosError {
   return err.isAxiosError;
 }
 
-function isError(err: Error): err is Error {
-  return (<any>err).message;
+function isError(err: Error | unknown): err is Error {
+  return (<any>err)?.message;
 }
 
-export function handleError(err: Error | AxiosError | string) {
+export function handleError(err: Error | AxiosError | string | unknown) {
   if (!err) {
     return;
   }

@@ -1,60 +1,59 @@
-<template>
-  <div>
-    <form @submit.prevent="updatePage">
-      <v-text-field label="Page title" v-model="page.title" required></v-text-field>
-      <v-text-field label="Page id" v-model="page._id.name" required :disabled="mode !== 'new'"></v-text-field>
-      <v-text-field label="Page language" v-model="page._id.lang" :disabled="mode !== 'new'" required />
+<script setup lang="ts">
+import { ref, watch } from "vue-demi";
+import type { Page } from "../types";
 
-      <input type="submit" class="d-none" />
-    </form>
-
-    <h3>Content</h3>
-    <editor :options="{ usageStatistics: false }" class="page-editor mt-2" ref="content" :initialValue="page.content" />
-
-    <v-btn type="primary" color="primary" class="mt-3 float-right" @click="updatePage">Save</v-btn>
-  </div>
-</template>
-<script lang="ts">
-import { Vue, Component, Prop, Watch } from "vue-property-decorator";
-import { Page } from "../types";
-
-@Component
-export default class PageEdit extends Vue {
-  @Prop()
-  value?: Page;
-
-  page: Page = {
+const props = withDefaults(defineProps<{value?: Page; mode?: "new" | "edit"}>(), {
+  value: () => ({
     _id: {
       name: "",
       lang: "en",
     },
     title: "",
     content: "",
-  };
+  }as Page),
+  mode: "edit"
+});
 
-  @Prop({ default: "edit" })
-  mode!: "new" | "edit";
+const emit = defineEmits<{(e: "update:value", value: Page): void; (e: "save", value: Page): void}>();
 
-  updatePage() {
-    this.page.content = (this.$refs.content as any).invoke("getMarkdown");
+watch(() => props.value, () => emit("update:value", props.value), { deep: true });
 
-    this.$emit("page:update", this.page);
-  }
+const content = ref<any>(null);
 
-  @Watch("value", { immediate: true })
-  replace() {
-    if (this.value) {
-      const data: Page = JSON.parse(JSON.stringify(this.value));
+function updatePage() {
+  props.value.content = content.value.invoke("getMarkdown");
+  emit("update:value", props.value);
 
-      this.page = data;
-
-      if (this.$refs.content) {
-        (this.$refs.content as any).invoke("setMarkdown", data.content, false);
-      }
-    }
-  }
+  emit("save", props.value);
 }
+
+watch(() => props.value.content, () => {
+  if (content.value && props.value.content) {
+    content.value.invoke("setMarkdown", props.value.content, false);
+  }
+});
 </script>
+<template>
+  <div>
+    <form @submit.prevent="updatePage">
+      <v-text-field v-model="value.title" label="Page title" required></v-text-field>
+      <v-text-field v-model="value._id.name" label="Page id" required :disabled="mode !== 'new'"></v-text-field>
+      <v-text-field v-model="value._id.lang" label="Page language" :disabled="mode !== 'new'" required />
+
+      <input type="submit" class="d-none" />
+    </form>
+
+    <h3>Content</h3>
+    <editor
+      ref="content"
+      :options="{ usageStatistics: false }"
+      class="page-editor mt-2"
+      :initial-value="value.content"
+    />
+
+    <v-btn type="primary" color="primary" class="mt-3 float-right" @click="updatePage"> Save </v-btn>
+  </div>
+</template>
 <style lang="scss" scoped>
 .page-editor {
   height: 500px !important;

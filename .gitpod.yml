@@ -17,7 +17,7 @@ tasks:
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
     command: cd packages/web/webapp-svelte && pnpm start
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
-    command: cd packages/web/admin-app && pnpm serve
+    command: cd packages/web/admin-app && pnpm start
 
 ports:
   - port: 8615

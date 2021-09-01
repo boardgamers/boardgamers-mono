@@ -1,3 +1,14 @@
+<script lang="ts" setup>
+import { get } from "~/api/rest";
+import { useGameStore } from "~/store/games";
+import { usePageStore } from "~/store/pages";
+
+const games = useGameStore();
+const pages = usePageStore();
+
+get("/admin/gameinfo").then(data => games.$patch({ games: data }));
+get("/admin/page").then(data => pages.$patch({ pages: data }));
+</script>
 <template>
   <v-navigation-drawer dark :permanent="true" :value="true" left app>
     <v-list>
@@ -30,7 +41,7 @@
         </v-list-item>
 
         <v-list-item
-          v-for="game in games"
+          v-for="game in games.games"
           :key="game._id.game + '-' + game._id.version"
           :to="`/game/${game._id.game}/${game._id.version}`"
         >
@@ -54,7 +65,7 @@
         </v-list-item>
 
         <v-list-item
-          v-for="page in pages"
+          v-for="page in pages.pages"
           :key="page._id.name + '-' + page._id.lang"
           :to="`/page/${page._id.name}/${page._id.lang}`"
         >
@@ -65,32 +76,3 @@
     </v-list>
   </v-navigation-drawer>
 </template>
-<script lang="ts">
-import { Vue, Component, Prop, Watch } from "vue-property-decorator";
-
-@Component({
-  async created(this: NavigationDrawer) {
-    this.$store.commit("games", await this.$axios.get("/admin/gameinfo").then((r) => r.data));
-    this.$store.commit("pages", await this.$axios.get("/admin/page").then((r) => r.data));
-  },
-})
-export default class NavigationDrawer extends Vue {
-  isCollapse = false;
-
-  get games() {
-    return this.$store.state.games;
-  }
-
-  get pages() {
-    return this.$store.state.pages;
-  }
-
-  handleOpen() {}
-
-  handleClose() {}
-
-  logOut() {
-    this.$store.commit("updateUser", null);
-  }
-}
-</script>
