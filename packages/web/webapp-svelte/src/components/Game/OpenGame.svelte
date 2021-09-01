@@ -103,7 +103,7 @@
       {#if $game.options.setup.seed}
         <span title="Game seed"> 🌱 {$game.options.setup.seed}</span>
       {/if}
-      <span class="pl-1" title="Timezone"> <Icon name="clock-history" /> {shortPlayTime()}</span>
+      <span class="ps-1" title="Timezone"> <Icon name="clock-history" /> {shortPlayTime()}</span>
     </small>
   </p>
 
@@ -137,10 +137,10 @@
     <h3>Setup options</h3>
 
     {#if $game.options.setup.randomPlayerOrder}
-      <Badge color="secondary" class="mr-1">Random player order</Badge>
+      <Badge color="secondary" class="me-1">Random player order</Badge>
     {/if}
     {#each $gameInfo.options.filter((x) => !!($game.game.options || {})[x.name]) as pref}
-      <Badge color="secondary" class="mr-1">
+      <Badge color="secondary" class="me-1">
         {#if pref.type === "checkbox"}
           {@html oneLineMarked(pref.label)}
         {:else if pref.type === "select" && pref.items && pref.items.some((x) => x.name === $game.game.options[pref.name])}

@@ -40,7 +40,7 @@
 {/each}
 {#each preferenceItems.filter((item) => item.type === "select") as item}
   <FormGroup class="d-flex align-items-center mt-2">
-    <Label class="nowrap mr-2 mb-0">{@html oneLineMarked(item.label)}</Label>
+    <Label class="nowrap me-2 mb-0">{@html oneLineMarked(item.label)}</Label>
     <Input type="select" bind:value={preferences[item.name]} on:change={postPreferences} size="sm">
       {#each item.items as option}
         <option value={option.name}>{option.label}</option>

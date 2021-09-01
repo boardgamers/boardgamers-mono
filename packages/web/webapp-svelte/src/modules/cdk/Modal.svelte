@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import { classnames, browserEvent } from '@/utils';
   import { onDestroy, onMount, afterUpdate } from 'svelte';
   import { fade as fadeTransition } from 'svelte/transition';

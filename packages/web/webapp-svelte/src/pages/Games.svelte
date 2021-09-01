@@ -14,7 +14,7 @@
 
 <Container>
   <Nav pills>
-    <h1 class="mr-3">Games</h1>
+    <h1 class="me-3">Games</h1>
     <NavItem><NavLink href="#started" active={firstTab}>Started</NavLink></NavItem>
     <NavItem><NavLink href="#open" active={!firstTab}>Open</NavLink></NavItem>
   </Nav>

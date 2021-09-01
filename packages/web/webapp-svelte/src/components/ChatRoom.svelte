@@ -1,7 +1,7 @@
 <script lang="ts">
 import { get, post } from "@/api";
 
-import { Modal, ModalHeader, Icon, ModalBody, ModalFooter, Input, InputGroup, InputGroupAddon, Button, Badge } from "@/modules/cdk";
+import { Modal, ModalHeader, Icon, ModalBody, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
 import type { GameContext } from "@/pages/Game.svelte";
 import { chatMessages, currentGameId, sidebarOpen, user } from "@/store";
 import { dateFromObjectId, dateTime, handleError } from "@/utils";
@@ -119,9 +119,7 @@ $: unreadMessages = $chatMessages.filter(msg => msg.type !== "system" && dateFro
     <form on:submit|preventDefault={sendMessage} style="width: 100%">
       <InputGroup>
         <Input type="text" bind:value={currentMessage} />
-        <InputGroupAddon addonType="append">
-          <Button type="submit" color="secondary" outline>Send</Button>
-        </InputGroupAddon>
+        <Button type="submit" color="secondary" outline>Send</Button>
       </InputGroup>
     </form>
   </ModalFooter>

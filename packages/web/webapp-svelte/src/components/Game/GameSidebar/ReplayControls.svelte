@@ -25,7 +25,7 @@ function endReplay() {
       <Button color="info" size="sm" on:click={startReplay}>Replay</Button>
     {:else}
       <div class="d-flex align-items-center">
-        <Button size="sm" class="mr-1" on:click={() => replayTo($replayData.start)}>
+        <Button size="sm" class="me-1" on:click={() => replayTo($replayData.start)}>
           <Icon name="skip-backward-fill" />
         </Button>
         <Button size="sm" class="mx-1" on:click={() => replayTo(Math.max($replayData.start, $replayData.current - 1))}>
@@ -43,7 +43,7 @@ function endReplay() {
         <Button size="sm" class="mx-1" on:click={() => replayTo($replayData.end)}
           ><Icon name="skip-forward-fill" /></Button
         >
-        <Button size="sm" class="ml-1" on:click={endReplay}><Icon name="stop-fill" color="danger" /></Button>
+        <Button size="sm" class="ms-1" on:click={endReplay}><Icon name="stop-fill" color="danger" /></Button>
       </div>
     {/if}
   </div>

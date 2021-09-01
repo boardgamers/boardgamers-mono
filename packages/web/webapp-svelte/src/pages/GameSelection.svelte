@@ -1,7 +1,7 @@
 <script lang="ts">
 import { latestBoardgames, loadBoardgames } from "@/api";
 import { loadAllGameSettings } from "@/api/gamesettings";
-import { CardDeck, Card, CardText } from "@/modules/cdk";
+import { Card, CardText, Col } from "@/modules/cdk";
 import Loading from "@/modules/cdk/Loading.svelte";
 import { navigate } from "@/modules/router";
 import { gameSettings, user } from "@/store";
@@ -45,26 +45,28 @@ const onGameClick  = async (gameInfo: SetOptional<GameInfo, 'viewer'>) => {
 <div class="container">
   <h1 class="mb-4">{title}</h1>
   <Loading {loading}>
-    <CardDeck class="game-choice">
+    <div class="row row-cols-1 row-cols-md-3 g-4 game-choice">
       {#each info as game}
-        <Card header={game.label} class="border-secondary text-center" on:click={() => onGameClick(game)}>
-          <CardText class="text-left">
-            {@html marked(game.description)}
-          </CardText>
-          <span
-            slot="footer"
-            class:text-info={$gameSettings[game._id.game]?.access?.ownership}
-            class:text-secondary={!$gameSettings[game._id.game]?.access?.ownership}
-          >
-            {#if $gameSettings[game._id.game]?.access?.ownership}
-              You own this game
-            {:else}
-              You do not own this game
-            {/if}
-          </span>
-        </Card>
+        <Col>
+          <Card header={game.label} class="border-secondary text-center h-100" on:click={() => onGameClick(game)}>
+            <CardText class="text-start">
+              {@html marked(game.description)}
+            </CardText>
+            <span
+              slot="footer"
+              class:text-info={$gameSettings[game._id.game]?.access?.ownership}
+              class:text-secondary={!$gameSettings[game._id.game]?.access?.ownership}
+            >
+              {#if $gameSettings[game._id.game]?.access?.ownership}
+                You own this game
+              {:else}
+                You do not own this game
+              {/if}
+            </span>
+          </Card>
+        </Col>
       {/each}
-    </CardDeck>
+    </div>
   </Loading>
 </div>
 

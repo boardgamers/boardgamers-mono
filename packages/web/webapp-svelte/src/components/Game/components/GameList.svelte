@@ -5,7 +5,7 @@
   import { logoClicks } from "@/store";
   import { onDestroy } from "svelte";
   import { createWatcher, skipOnce } from "@/utils/watch";
-  import { Badge, Icon, Pagination, Loading } from "@/modules/cdk";
+  import { Badge, Icon, Pagination, Loading, Row } from "@/modules/cdk";
   import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
 
   export let title = 'Games';
@@ -92,11 +92,11 @@
   </h3>
   <div>
     {#if games.length > 0}
-      <ul class="list-group text-left game-list">
+      <ul class="list-group text-start game-list">
         {#each games as game}
           <a
             href={`/game/${game._id}`}
-            class="list-group-item list-group-item-action pr-1 pl-0"
+            class="list-group-item list-group-item-action pe-1 ps-0"
             class:active-game={game.status === "active"}
             class:current-turn={game.currentPlayers?.some((pl) => pl._id === userId)}
           >
@@ -104,16 +104,16 @@
               {gameIcon(game.game.name)}
             </span>
 
-            <div class="mr-auto" style="line-height: 1.1">
+            <div class="me-auto" style="line-height: 1.1">
               <div>
                 {#if game.status === "active"}
-                  <Badge class="small">R{game.data.round}</Badge>
+                  <Badge class="small text-light">R{game.data.round}</Badge>
                 {/if}
                 <span class="game-name">
                   {game._id}
                 </span>
                 {#if playerEloChange(game)}
-                  <sup class="ml-1">
+                  <sup class="ms-1">
                     {playerEloChange(game)}
                   </sup>
                 {/if}
@@ -139,13 +139,13 @@
             </div>
 
             {#if game.status !== "open"}
-              <div class="row no-gutters factions">
+              <Row class="factions g-0">
                 {#each game.players as player}
-                  <PlayerGameAvatar {userId} {player} class="mr-1" />
+                  <PlayerGameAvatar {userId} {player} class="me-1" />
                 {/each}
-              </div>
+              </Row>
             {:else}
-              <span class="mr-3"> {game.players.length} / {game.options.setup.nbPlayers} </span>
+              <span class="me-3"> {game.players.length} / {game.options.setup.nbPlayers} </span>
             {/if}
           </a>
         {/each}

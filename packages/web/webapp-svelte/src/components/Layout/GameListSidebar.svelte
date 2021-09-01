@@ -47,7 +47,7 @@ function handleClick(event: MouseEvent & {currentTarget: HTMLAnchorElement}) {
 
 </script>
 
-<ListGroup flush class="d-none d-lg-block ml-n3" style="width: 250px">
+<ListGroup flush class="d-none d-lg-block ms-n3" style="width: 250px">
   {#key boardgameId}
     {#each games as game}
       <a

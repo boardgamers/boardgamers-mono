@@ -35,7 +35,7 @@
       bind:value={password}
       required
     />
-    <div class="text-right mt-1">
+    <div class="text-end mt-1">
       <a href="/forgotten-password"><small>Forgotten password ?</small></a>
     </div>
   </FormGroup>

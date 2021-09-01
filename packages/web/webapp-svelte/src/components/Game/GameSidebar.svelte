@@ -99,13 +99,13 @@ async function requestDrop(playerId: string) {
   <h3 class="mt-75">Players</h3>
   {#each $game.players as player}
     <div class={"mb-1 d-flex align-items-center player-row"} class:active={isCurrentPlayer(player._id)}>
-      <PlayerGameAvatar {userId} {player} status={status(player._id)} class="mr-2" />
+      <PlayerGameAvatar {userId} {player} status={status(player._id)} class="me-2" />
 
       <div>
         <a href={`/user/${player.name}`} class="player-name" class:dropped={player.dropped}>
           {player.name}
         </a>
-        <sup class="ml-1">
+        <sup class="ms-1">
           {#if player.elo}
             {player.elo.initial} {player.elo.delta >= 0 ? "+" : "-"} {Math.abs(player.elo.delta)} elo
           {:else}
@@ -113,13 +113,13 @@ async function requestDrop(playerId: string) {
           {/if}
         </sup>
         {#if $game.status === "active"}
-          <span class="ml-1"> - {shortDuration(remainingTimes[player._id])}</span>
+          <span class="ms-1"> - {shortDuration(remainingTimes[player._id])}</span>
         {/if}
       </div>
     </div>
   {/each}
   <div class="mt-75">
-    <Icon name="clock-history" class="mr-1" />
+    <Icon name="clock-history" class="me-1" />
     {alwaysActive
       ? "24h"
       : `${timerTime($game.options.timing.timer.start)}-${timerTime($game.options.timing.timer.end)}`}
@@ -148,13 +148,13 @@ async function requestDrop(playerId: string) {
         Vote to cancel
       </Button>
       {#if $game.players.some((pl) => !!pl.dropped)}
-        <Button size="sm" class="ml-2" disabled={playerUser.dropped || playerUser.quit} on:click={quit}>Quit</Button>
+        <Button size="sm" class="ms-2" disabled={playerUser.dropped || playerUser.quit} on:click={quit}>Quit</Button>
       {/if}
       {#each $game.players as player}
         {#if remainingTime(player) <= 0 && isCurrentPlayer(player._id) && !player.dropped && !player.quit}
           <Button
             size="sm"
-            class="ml-2"
+            class="ms-2"
             color="danger"
             disabled={requestedDrop[player._id]}
             on:click={() => requestDrop(player._id)}
@@ -176,7 +176,7 @@ async function requestDrop(playerId: string) {
     <div class="mt-75">
       <h3>Expansions</h3>
       {#each $game.game.expansions as expansion}
-        <Badge color="info" class="mr-1">
+        <Badge color="info" class="me-1">
           {$gameInfo.expansions.find((xp) => xp.name === expansion)?.label}
         </Badge>
       {/each}
@@ -191,7 +191,7 @@ async function requestDrop(playerId: string) {
     <div class="mt-75">
       <h3>Setup options</h3>
       {#each $gameInfo.options.filter((x) => !!$game.game.options[x.name]) as pref}
-        <Badge color="secondary" class="mr-1">
+        <Badge color="secondary" class="me-1">
           {#if pref.type === "checkbox"}
             {@html oneLineMarked(pref.label)}
           {:else if pref.type === "select" && pref.items && pref.items.some((x) => x.name === $game.game.options[pref.name])}

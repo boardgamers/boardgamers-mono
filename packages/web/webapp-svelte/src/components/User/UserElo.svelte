@@ -30,7 +30,7 @@ async function gameName(game: string): Promise<string> {
     <h3 class="card-title">
       Elo <a href="/page/elo"><Icon name="info-circle-fill" class="text-secondary small" /></a>
     </h3>
-    <ul class="list-group text-left">
+    <ul class="list-group text-start">
       {#each gamePreferences.filter((pref) => !!pref.elo) as gamePref}
         <div class="list-group-item list-group-item-action py-2">
           <span>

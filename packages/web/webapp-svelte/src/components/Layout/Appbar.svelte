@@ -2,8 +2,7 @@
 import {
   Navbar,
   Nav,
-  NavItem,
-  UncontrolledDropdown,
+  Dropdown,
   DropdownToggle,
   DropdownMenu,
   Button,
@@ -27,7 +26,6 @@ let adminLink: string;
 let hasGames: boolean;
 
 export { className as class };
-export let name = '';
 
 const handleSubmit = (event: Event) => {
   event.preventDefault();
@@ -65,7 +63,7 @@ $: onHasGamesChanged(), [hasGames]
 
   {#if $user}
     <a
-      class="btn btn-sm mr-3"
+      class="btn btn-sm me-3"
       class:btn-success={hasGames}
       class:btn-secondary={!hasGames}
       href="/next-game"
@@ -86,13 +84,11 @@ $: onHasGamesChanged(), [hasGames]
   </audio>
 
   {#await loadAccountIfNeeded() then _}
-    <Nav class="ml-auto" navbar>
+    <Nav class="ms-auto" navbar>
       {#if !$user}
         <!-- todo: hide on mobile -->
-        <NavItem>
-          <span class="navbar-text">Have an account?</span>
-        </NavItem>
-        <UncontrolledDropdown nav inNavbar>
+        <span class="navbar-text">Have an account?</span>
+        <Dropdown nav inNavbar>
           <DropdownToggle nav caret>Login</DropdownToggle>
           <DropdownMenu right class="login-dp">
             <div class="row">
@@ -126,20 +122,20 @@ $: onHasGamesChanged(), [hasGames]
               </div>
             </div>
           </DropdownMenu>
-        </UncontrolledDropdown>
+        </Dropdown>
       {:else}
         {#if admin}
           <NavLink href={adminLink}>
-            <Icon name="gear-fill" class="mr-1 big" />
+            <Icon name="gear-fill" class="me-1 big" />
             <span class="d-none d-sm-inline">Admin</span>
           </NavLink>
         {/if}
         <NavLink href={`/user/${$user.account.username}`}>
-          <Icon name="person-fill" class="mr-1 big" />
+          <Icon name="person-fill" class="me-1 big" />
           <span class="d-none d-sm-inline">{$user.account.username}</span>
         </NavLink>
         <NavLink on:click={logOut}>
-          <Icon name="power" class="mr-1 big" />
+          <Icon name="power" class="me-1 big" />
           <span class="d-none d-sm-inline">Log out</span>
         </NavLink>
       {/if}
@@ -153,6 +149,7 @@ $: onHasGamesChanged(), [hasGames]
     padding: 14px 14px 0;
     margin-top: 8px;
     overflow: hidden;
+    right: 0;
     background-color: rgba(255, 255, 255, 0.8);
 
     .bottom {

@@ -31,5 +31,5 @@ import { classnames } from "@/utils";
 
 <div class={classes}>
   <input type="checkbox" class="form-check-input" {id} bind:checked on:change on:blur {value} />
-  <label class="form-check-label" for={id}><slot /></label>
+  <label class="form-check-label" for={id} style="cursor: pointer"><slot /></label>
 </div>

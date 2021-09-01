@@ -1,7 +1,7 @@
 <script lang="ts">
 import { handleError, confirm, niceDate, duration, createWatcher } from "@/utils";
 import { UserGameSettings } from "@/components";
-import { Card, CardDeck , InputGroupAddon, Button, Col, Container, FormGroup, Input, InputGroup, Row, Label, Checkbox } from "@/modules/cdk";
+import { Card, Button, Col, Container, FormGroup, Input, InputGroup, Row, Checkbox } from "@/modules/cdk";
 import { boardgames, user } from "@/store";
 import { routePath } from "@/modules/router";
 import { upperFirst, debounce } from "lodash";
@@ -89,7 +89,7 @@ $: onNotificationsChanged(notifications)
       <Col>
         <h1>{$user.account.username}</h1>
       </Col>
-      <Col class="text-right">
+      <Col class="text-end">
         <a
           class="btn btn-primary"
           href={routePath({ name: "user", params: { username: $user.account.username } })}
@@ -98,11 +98,13 @@ $: onNotificationsChanged(notifications)
       </Col>
     </Row>
 
-    <CardDeck class="game-choice mt-4">
+    <div class="row row-cols-1 row-cols-md-3 g-4 mt-4 game-choice">
       {#each games as game}
-        <UserGameSettings {game} />
+        <Col>
+          <UserGameSettings {game} />
+        </Col>
       {/each}
-    </CardDeck>
+    </div>
 
     <Card class="mt-4 border-info" header="User Settings">
       <p>
@@ -125,13 +127,11 @@ $: onNotificationsChanged(notifications)
             disabled={!editingEmail}
           />
 
-          <InputGroupAddon addonType="append">
-            {#if !editingEmail}
-              <Button outline color="secondary" on:click={() => (editingEmail = true)}>Edit</Button>
-            {:else}
-              <Button outline color="success" on:click={saveEmail}>Save</Button>
-            {/if}
-          </InputGroupAddon>
+          {#if !editingEmail}
+            <Button outline color="secondary" on:click={() => (editingEmail = true)}>Edit</Button>
+          {:else}
+            <Button outline color="success" on:click={saveEmail}>Save</Button>
+          {/if}
         </InputGroup>
         <small>{$user.security.confirmed ? "Your email is confirmed." : "Your email is not confirmed."}</small>
       </FormGroup>

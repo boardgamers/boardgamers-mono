@@ -39,7 +39,7 @@
 <div class="mt-75">
   <div class="d-flex align-items-baseline">
     <h3 class="mb-0">Notes</h3>
-    <div class="ml-2" style="font-size: smaller">
+    <div class="ms-2" style="font-size: smaller">
       (<a href="#" style="font-weight: unset !important" on:click|preventDefault={toggleNotes}
         >{showNotes ? "hide" : "show"}</a
       >)

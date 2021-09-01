@@ -45,7 +45,7 @@ $: onPageChange(currentPage)
 <div>
   <h3>{title}</h3>
   <Loading {loading}>
-    <ul class="list-group text-left">
+    <ul class="list-group text-start">
       {#each boardgameElo as bgElo, pos}
         <a
           href={routePath({ name: "user", params: { username: bgElo.userData[0].account.username }, hash: "elo" })}

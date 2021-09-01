@@ -5,7 +5,7 @@
   import { boardgameInfo, loadBoardgame, loadGameSettings } from "@/api";
   import { boardgames, gameSettings, user } from "@/store";
   import { navigate, routePath } from "@/modules/router";
-  import { CardDeck, Card, Row, Col, Loading } from "@/modules/cdk";
+  import { Card, Row, Col, Loading } from "@/modules/cdk";
   import { UserGameSettings, GameList, BoardgameElo } from "@/components";
   
   export let boardgameId: string;
@@ -40,12 +40,16 @@
   <Loading {loading}>
     <h1>{boardgame.label}</h1>
 
-    <CardDeck class="mt-3">
-      <Card class="border-secondary" header="Description">
-        {@html marked(boardgame.description)}
-      </Card>
-      <UserGameSettings title="Settings" game={boardgame} />
-    </CardDeck>
+    <div class="row row-cols-1 row-cols-md-2 g-4">
+      <Col>
+        <Card class="border-secondary h-100" header="Description">
+          {@html marked(boardgame.description)}
+        </Card>
+      </Col>
+      <Col>
+        <UserGameSettings title="Settings" game={boardgame} class="h-100" />
+      </Col>
+    </div>
 
     <Row>
       <Col lg={6} class="mt-3">

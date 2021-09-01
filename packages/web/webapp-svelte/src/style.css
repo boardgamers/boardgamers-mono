@@ -1,3 +1,7 @@
+.ms-n3 {
+  margin-left: -1rem;
+}
+
 .btn-primary {
   border-color: var(--primary);
   background-color: var(--primary);
@@ -76,7 +80,6 @@ body {
 
 i.bi {
   line-height: 0 !important;
-  vertical-align: 0.1em;
 }
 
 .big {

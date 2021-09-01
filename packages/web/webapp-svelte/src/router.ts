@@ -1,6 +1,7 @@
 import { get as $ } from "svelte/store";
 import { confirmAccount, get, loadAccount, loadAccountIfNeeded, setAuthTokens } from "./api";
-import { createRouter, navigate, route, RouteConfig } from "./modules/router";
+import type { RouteConfig } from "./modules/router";
+import { createRouter, navigate, route } from "./modules/router";
 import Account from "./pages/Account.svelte";
 import { ForgottenPassword, Login, ResetPassword, Signup } from "./pages/auth";
 import Boardgame from "./pages/Boardgame.svelte";

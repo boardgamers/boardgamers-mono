@@ -22,7 +22,7 @@
     <Col>
       <h1>{username}</h1>
     </Col>
-    <Col class="text-right">
+    <Col class="text-end">
       {#if user && $ownUser?._id === user._id}
         <a class="btn btn-primary" href="/account" role="button">Settings</a>
       {/if}

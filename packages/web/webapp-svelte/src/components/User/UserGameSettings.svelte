@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { GameInfo } from "@shared/types/gameinfo";
-import { handleError, confirm } from "@/utils";
+import { handleError, confirm, classnames } from "@/utils";
 import Card from "@/modules/cdk/Card.svelte";
 import { CardText } from "@/modules/cdk";
 import Checkbox from "@/modules/cdk/Checkbox.svelte";
@@ -12,6 +12,8 @@ import PreferencesChooser from "./PreferencesChooser.svelte";
 
 export let title = "";
 export let game: GameInfo;
+let className = '';
+export { className as class };
 
 $: loadGameSettings(game._id.game);
 
@@ -42,10 +44,12 @@ async function postOwnership(event: Event) {
   }
 }
 
+$: classes = classnames(className, 'border-secondary text-center');
+
 </script>
 
-<Card class="border-secondary text-center" header={title || game.label}>
-  <CardText class="text-left">
+<Card class={classes} header={title || game.label}>
+  <CardText class="text-start">
     <Loading loading={!prefs}>
       <Checkbox checked={ownership} on:change={postOwnership}>I own this game</Checkbox>
       {#if game.preferences?.length > 0}

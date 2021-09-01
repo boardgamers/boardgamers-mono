@@ -53,7 +53,7 @@
           </Checkbox>
         {:else if setting.type === "select"}
           <FormGroup class="d-flex align-items-center mt-2">
-            <Label class="nowrap mr-2 mb-0">{@html oneLineMarked(setting.label)}</Label>
+            <Label class="nowrap me-2 mb-0">{@html oneLineMarked(setting.label)}</Label>
             <Input type="select" bind:value={settings[setting.name]} on:change={postSettings} size="sm">
               {#each setting.items as item}
                 <option value={item.name}>{item.label}</option>
