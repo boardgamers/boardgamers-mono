@@ -1,0 +1,3 @@
+button:
+  toggle_dark: "Switch Dark / Light mode"
+  toggle_langs: "Switch language"

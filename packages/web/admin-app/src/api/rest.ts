@@ -3,6 +3,7 @@
 // import type { Token } from "../store";
 // import { accessTokens, refreshToken } from "../store";
 import type { JsonObject } from "type-fest";
+import { Token, useUserStore } from "~/store/user";
 
 const baseUrl = "/api";
 
@@ -58,7 +59,51 @@ async function getResponseData<T = any>(response: Response): Promise<T> {
   return body;
 }
 
-export async function getAccessToken(url: string): Promise<void | { code: string }> {}
+/**
+ * Get accessToken, generating from refreshToken if needed, with the correct scopes
+ * @param url Used to determine the scopes needed for the accessToken
+ * @returns Access token or null if logged out
+ */
+export async function getAccessToken(url: string): Promise<Token | null> {
+  const user = useUserStore();
+
+  if (!user.refreshToken) {
+    return null;
+  }
+
+  let scopes = ["all"];
+
+  if (url.startsWith("/gameplay")) {
+    scopes = ["gameplay"];
+  }
+
+  const key = scopes.join(",");
+
+  const accessToken = user.accessTokens[key];
+
+  if (accessToken?.expiresAt > Date.now() + 5 * 60 * 1000) {
+    return accessToken;
+  }
+
+  const response = await fetch(transformUrl("/account/refresh"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: user.refreshToken.code, scopes }),
+  });
+
+  if (response.status === 404) {
+    user.logOut();
+    return null;
+  }
+
+  const body = await getResponseData<Token>(response);
+
+  user.$patch(() => {
+    user.accessTokens[key] = body;
+  });
+
+  return body;
+}
 
 // export function setAccessToken(token: Token | null, scopes: string[] = ["all"]) {
 //   if (token) {

@@ -1,35 +1,16 @@
+<script setup lang="ts">
+import { useHead } from '@vueuse/head';
+// https://github.com/vueuse/head
+// you can use this to manipulate the document head in any components,
+// they will be rendered correctly in the html results with vite-ssg
+useHead({
+  title: 'BGS Admin',
+  meta: [
+    { name: 'description', content: 'Admin for boardgamers.space' },
+  ],
+});
+</script>
+
 <template>
-  <v-app>
-    <div id="app-navigation">
-      <nav-bar />
-      <navigation-drawer v-if="$route.meta && $route.meta.loggedIn" />
-    </div>
-    <v-main>
-      <v-container class="main-content px-5 pt-5" fluid>
-        <router-view />
-      </v-container>
-    </v-main>
-    <toaster />
-  </v-app>
+  <router-view />
 </template>
-
-<style lang="scss">
-@import "./style/main.scss";
-
-#app {
-  font-family: "Avenir", Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color: #2c3e50;
-}
-
-body {
-  margin: 0;
-}
-
-html,
-body,
-#app {
-  height: 100%;
-}
-</style>

@@ -3,11 +3,16 @@
 
 declare module 'vue' {
   export interface GlobalComponents {
+    CarbonLanguage: typeof import('~icons/carbon/language')['default']
+    CarbonMoon: typeof import('~icons/carbon/moon')['default']
+    CarbonSun: typeof import('~icons/carbon/sun')['default']
     GameEdit: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/GameEdit.vue')['default']
     NavBar: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/NavBar.vue')['default']
     NavigationDrawer: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/NavigationDrawer.vue')['default']
     PageEdit: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/PageEdit.vue')['default']
     Toaster: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/Toaster.vue')['default']
+    VBtn: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VBtn.vue')['default']
+    VTextField: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VTextField.vue')['default']
   }
 }
 

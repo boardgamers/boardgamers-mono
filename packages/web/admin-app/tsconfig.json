@@ -3,20 +3,23 @@
     "target": "esnext",
     "module": "esnext",
     "strict": true,
-    "jsx": "preserve",
     "importHelpers": true,
+    "resolveJsonModule": true,
+    "noUnusedLocals": true,
+    "strictNullChecks": true,
+    "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
     "experimentalDecorators": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,
     "baseUrl": ".",
-    "types": ["webpack-env", "vuetify"],
+    "types": ["vite/client", "vite-plugin-pages/client", "vite-plugin-vue-layouts/client"],
     "paths": {
-      "~/*": ["src/*"]
+      "~/*": ["src/*"],
+      "~cdk/*": ["src/components/cdk/*"]
     },
-    "lib": ["esnext", "dom", "dom.iterable", "scripthost"]
+    "lib": ["esnext", "dom"]
   },
-  "exclude": ["node_modules"],
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "tests/**/*.ts", "tests/**/*.tsx"]
+  "exclude": ["dist", "node_modules"]
 }

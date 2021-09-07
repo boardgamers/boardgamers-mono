@@ -1,18 +1,21 @@
-import path from "path";
-import { defineConfig } from "vite";
-import Vue from "@vitejs/plugin-vue";
-import Pages from "vite-plugin-pages";
-import Layouts from "vite-plugin-vue-layouts";
-import Icons from "unplugin-icons/vite";
-import IconsResolver from "unplugin-icons/resolver";
-import Components from "unplugin-vue-components/vite";
-import AutoImport from "unplugin-auto-import/vite";
-import Markdown from "vite-plugin-md";
-import WindiCSS from "vite-plugin-windicss";
-import { VitePWA } from "vite-plugin-pwa";
 import VueI18n from "@intlify/vite-plugin-vue-i18n";
-import Prism from "markdown-it-prism";
+import Vue from "@vitejs/plugin-vue";
+import "dotenv/config";
 import LinkAttributes from "markdown-it-link-attributes";
+import Prism from "markdown-it-prism";
+import path from "path";
+import AutoImport from "unplugin-auto-import/vite";
+import IconsResolver from "unplugin-icons/resolver";
+import Icons from "unplugin-icons/vite";
+import Components from "unplugin-vue-components/vite";
+import { defineConfig } from "vite";
+import Markdown from "vite-plugin-md";
+import Pages from "vite-plugin-pages";
+import { VitePWA } from "vite-plugin-pwa";
+import Layouts from "vite-plugin-vue-layouts";
+import WindiCSS from "vite-plugin-windicss";
+
+const remote = process.env.backend === "remote";
 
 const markdownWrapperClasses = "prose prose-sm m-auto text-left";
 
@@ -20,6 +23,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "~/": `${path.resolve(__dirname, "src")}/`,
+      "~cdk/": `${path.resolve(__dirname, "src/components/cdk")}/`,
     },
   },
   plugins: [
@@ -128,6 +132,12 @@ export default defineConfig({
   server: {
     fs: {
       strict: true,
+    },
+    proxy: {
+      "/api": {
+        target: remote ? "https://www.boardgamers.space" : "http://localhost:50801",
+        changeOrigin: true,
+      },
     },
   },
 

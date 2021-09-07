@@ -1,38 +1,30 @@
-import { AxiosError } from "axios";
-import store from "./store";
-
-function isAxiosError(err: AxiosError | any): err is AxiosError {
-  return err.isAxiosError;
-}
+import { notifications } from "./events/notifications";
 
 function isError(err: Error | unknown): err is Error {
   return (<any>err)?.message;
 }
 
-export function handleError(err: Error | AxiosError | string | unknown) {
+export function handleError(err: Error | string | unknown) {
   if (!err) {
     return;
   }
   console.error(err);
 
   if (typeof err !== "object") {
-    store.commit("error", err);
-  } else if (isAxiosError(err) && err.response?.data?.message) {
-    store.commit("error", err.response.data.message);
-    console.error(err.response.data);
+    notifications.emit({ type: "error", message: (err as unknown) as string });
   } else if (isError(err)) {
-    store.commit("error", err.message);
+    notifications.emit({ type: "error", message: err.message });
   } else {
-    store.commit("error", "Unknown error");
+    notifications.emit({ type: "error", message: "Unknown error" });
   }
 }
 
 export function handleInfo(info: string) {
-  store.commit("info", info);
+  notifications.emit({ type: "info", message: info });
 }
 
 export function handleSuccess(info: string) {
-  store.commit("success", info);
+  notifications.emit({ type: "success", message: info });
 }
 
 export function upperFirst(str: string) {
