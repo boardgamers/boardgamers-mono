@@ -3,15 +3,28 @@
 
 declare module 'vue' {
   export interface GlobalComponents {
+    CarbonChevronDown: typeof import('~icons/carbon/chevron-down')['default']
+    CarbonChevronUp: typeof import('~icons/carbon/chevron-up')['default']
+    CarbonHome: typeof import('~icons/carbon/home')['default']
     CarbonLanguage: typeof import('~icons/carbon/language')['default']
     CarbonMoon: typeof import('~icons/carbon/moon')['default']
     CarbonSun: typeof import('~icons/carbon/sun')['default']
+    CarbonUserMultiple: typeof import('~icons/carbon/user-multiple')['default']
     GameEdit: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/GameEdit.vue')['default']
+    MdiAlbum: typeof import('~icons/mdi/album')['default']
+    MdiBookOpenPageVariant: typeof import('~icons/mdi/book-open-page-variant')['default']
+    MdiFilePlus: typeof import('~icons/mdi/file-plus')['default']
+    MdiPlusCircle: typeof import('~icons/mdi/plus-circle')['default']
     NavBar: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/NavBar.vue')['default']
     NavigationDrawer: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/NavigationDrawer.vue')['default']
     PageEdit: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/PageEdit.vue')['default']
     Toaster: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/Toaster.vue')['default']
     VBtn: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VBtn.vue')['default']
+    VList: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VList.vue')['default']
+    VListGroup: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VListGroup.vue')['default']
+    VListItem: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VListItem.vue')['default']
+    VListItemGroup: typeof import("C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VListItemGroup.vue")["default"];
+    VListItemIcon: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VListItemIcon.vue')['default']
     VTextField: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VTextField.vue')['default']
   }
 }

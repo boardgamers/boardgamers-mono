@@ -2,6 +2,10 @@
 import { get } from "~/api/rest";
 import { useGameStore } from "~/store/games";
 import { usePageStore } from "~/store/pages";
+import VListItem from "~cdk/VListItem.vue";
+import VListItemIcon from "~cdk/VListItemIcon.vue";
+import VList from "~cdk/VList.vue";
+import VListGroup from "~cdk/VListGroup.vue";
 
 const games = useGameStore();
 const pages = usePageStore();
@@ -10,34 +14,35 @@ get("/admin/gameinfo").then(data => games.$patch({ games: data }));
 get("/admin/page").then(data => pages.$patch({ pages: data }));
 </script>
 <template>
-  <v-navigation-drawer dark :permanent="true" :value="true" left app>
+  <div>
     <v-list>
       <v-list-item to="/">
         <v-list-item-icon>
-          <v-icon>mdi-home-outline</v-icon>
+          <carbon-home />
         </v-list-item-icon>
-        <v-list-item-title>Home</v-list-item-title>
+        Home
       </v-list-item>
 
       <v-list-item to="/users">
         <v-list-item-icon>
-          <v-icon>mdi-account-multiple</v-icon>
+          <carbon-user-multiple />
         </v-list-item-icon>
-        <v-list-item-title>Users</v-list-item-title>
+        Users
       </v-list-item>
 
-      <v-list-group prepend-icon="mdi-album">
+      <v-list-group>
         <template #activator>
-          <v-list-item-content>
-            <v-list-item-title>Boardgames</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-icon>
+            <mdi-album />
+          </v-list-item-icon>
+          Boardgames
         </template>
 
         <v-list-item to="/game/new">
           <v-list-item-icon>
-            <v-icon>mdi-plus-circle</v-icon>
+            <mdi-plus-circle />
           </v-list-item-icon>
-          <v-list-item-title>New game</v-list-item-title>
+          New game
         </v-list-item>
 
         <v-list-item
@@ -46,22 +51,23 @@ get("/admin/page").then(data => pages.$patch({ pages: data }));
           :to="`/game/${game._id.game}/${game._id.version}`"
         >
           <v-list-item-icon>{{ game._id.version }}</v-list-item-icon>
-          <v-list-item-title>{{ game._id.game }}</v-list-item-title>
+          {{ game._id.game }}
         </v-list-item>
       </v-list-group>
 
-      <v-list-group prepend-icon="mdi-book-open-page-variant">
+      <v-list-group>
         <template #activator>
-          <v-list-item-content>
-            <v-list-item-title>Pages</v-list-item-title>
-          </v-list-item-content>
+          <v-list-item-icon>
+            <mdi-book-open-page-variant />
+          </v-list-item-icon>
+          Pages
         </template>
 
         <v-list-item to="/page/new">
           <v-list-item-icon>
-            <v-icon>mdi-file-plus</v-icon>
+            <mdi-file-plus />
           </v-list-item-icon>
-          <v-list-item-title>New page</v-list-item-title>
+          New page
         </v-list-item>
 
         <v-list-item
@@ -70,9 +76,9 @@ get("/admin/page").then(data => pages.$patch({ pages: data }));
           :to="`/page/${page._id.name}/${page._id.lang}`"
         >
           <v-list-item-icon>{{ page._id.lang }}</v-list-item-icon>
-          <v-list-item-title>{{ page._id.name }}</v-list-item-title>
+          {{ page._id.name }}
         </v-list-item>
       </v-list-group>
     </v-list>
-  </v-navigation-drawer>
+  </div>
 </template>

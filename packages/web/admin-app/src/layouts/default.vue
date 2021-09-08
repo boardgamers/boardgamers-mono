@@ -8,7 +8,7 @@ const isLoggedIn = computed(() => !!user.refreshToken);
 <template>
   <main class="text-gray-700 dark:text-gray-200 h-full" :class="{ isLoggedIn }">
     <nav-bar class="header" />
-    <navigation-drawer v-if="$route.meta.requiresAuth !== false" class="nav-drawer" />
+    <navigation-drawer v-if="isLoggedIn" class="nav-drawer bg-dark-700 overflow-y-auto" />
     <router-view class="content mx-4 py-4" />
     <toaster v-show="false" />
   </main>
@@ -20,12 +20,12 @@ main {
   grid-template-rows: min-content 1fr;
 
   .header {
-    grid-column: span 2;
+    grid-column: 2 / span 1;
   }
 
   .nav-drawer {
     grid-column: span 1;
-    grid-row: 2 / span 1;
+    grid-row: 1 / span 2;
   }
 
   .content {
