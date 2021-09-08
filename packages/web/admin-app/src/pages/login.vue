@@ -14,22 +14,26 @@ const form = reactive({
   password: "",
 });
 
+function leave() {
+  if (route.query.redirect) {
+    router.push(route.query.redirect as string);
+  }
+  else {
+    router.push("/");
+  }
+}
+
 async function login() {
   try {
     const data = await post("/account/login", { email: form.email, password: form.password });
     user.updateAuth(data);
-
-    if (route.query.redirect) {
-      router.push(route.query.redirect as string);
-    }
-    else {
-      router.push("/");
-    }
   }
   catch (err) {
     handleError(err);
   }
 }
+
+whenever(() => !!user.user, leave, { immediate: true });
 </script>
 
 <template>
