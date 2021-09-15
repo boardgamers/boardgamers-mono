@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { GameInfo } from "@shared/types/gameinfo";
-import { PropType, ref, watch } from "vue";
 import { set } from "lodash";
 import { useRouter } from "vue-router";
 import { post } from "~/api/rest";
@@ -9,7 +8,7 @@ import VRow from "~cdk/VRow.vue";
 import VSelect from "~cdk/VSelect.vue";
 import Editor from "~/components/Editor.vue";
 
-const props = defineProps({ mode: { type: String as PropType<"new" | "edit">, default: "edit" }, gameInfo: { type: Object as PropType<GameInfo> } });
+const props = withDefaults(defineProps<{ mode: "new" | "edit"; gameInfo: GameInfo }>(), { mode: "edit" });
 
 const emit = defineEmits<{(e: "update:game", value: GameInfo): void}>();
 

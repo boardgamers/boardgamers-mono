@@ -33,7 +33,7 @@ watch(() => [props.name, props.lang], async () => {
 </script>
 <template>
   <div>
-    <h2 v-if="page">{{ page._id.name }} - {{ page._id.lang }}</h2>
+    <h2 v-if="page" class="text-lg uppercase font-bold my-4">{{ page._id.name }} - {{ page._id.lang }}</h2>
     <page-edit v-if="page" v-model="page" mode="edit" @save="save" />
   </div>
 </template>

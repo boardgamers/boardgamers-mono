@@ -13,8 +13,10 @@ defineExpose({
   }
 });
 
+const props = defineProps<{initialValue?: string}>();
+
 onMounted(() => {
-  uiEditor = new ToastUIEditor({ el: editor.value!, usageStatistics: false, previewStyle: "vertical" });
+  uiEditor = new ToastUIEditor({ el: editor.value!, usageStatistics: false, previewStyle: "vertical", initialValue: props.initialValue });
 });
 
 onUnmounted(() => {

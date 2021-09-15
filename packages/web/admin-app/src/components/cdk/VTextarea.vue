@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import type { PropType } from "vue";
 import { useUid } from "~/logic/useUid";
 
 const uid = useUid();
-const props = defineProps({
-  required: { type: Boolean, default: false },
-  label: String,
-  modelValue: String
-});
+const props = defineProps<{
+  required?: boolean;
+  label?: string;
+  modelValue: string;
+}>();
 </script>
 
 <template>

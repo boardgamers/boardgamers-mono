@@ -1,10 +1,6 @@
 <script setup lang="ts">
-import { PropType } from "vue";
 
-const props = defineProps({
-  type: { type: String as PropType<"button" | "submit">, default: "button" },
-  icon: Boolean
-});
+const props = withDefaults(defineProps<{type: "button" | "submit"; icon?: boolean}>(), { type: "button" });
 </script>
 
 <template>
