@@ -4,6 +4,7 @@ import { GameInfo } from "@shared/types/gameinfo";
 import { PropType, ref, watch } from "vue";
 import { set } from "lodash";
 import { useRouter } from "vue-router";
+import VCheckbox from "~cdk/VCheckbox.vue";
 import VRow from "~cdk/VRow.vue";
 import VSelect from "~cdk/VSelect.vue";
 import { post } from "~/api/rest";
@@ -144,7 +145,7 @@ watch(() => props.gameInfo, (gameInfo) => {
       />
 
       <div v-for="(viewer, i) in [info.viewer, info.viewer.alternate]" :key="i">
-        <h3 class="my-4">
+        <h3>
           {{ i > 0 ? "Alternate viewer" : "Viewer" }}
         </h3>
         <v-text-field v-model="viewer.url" label="Viewer URL" required />
@@ -168,7 +169,7 @@ watch(() => props.gameInfo, (gameInfo) => {
         <v-checkbox v-model="viewer.trusted" label="⚠ TRUSTED" hide-details />
       </div>
 
-      <h3 class="my-4">Engine</h3>
+      <h3>Engine</h3>
 
       <v-text-field v-model="info.engine.package.name" label="Package name" required />
       <v-text-field v-model="info.engine.package.version" label="Package version" required />
@@ -176,16 +177,16 @@ watch(() => props.gameInfo, (gameInfo) => {
       <v-checkbox v-model="info.meta.public" hide-details label="Public" />
       <v-checkbox v-model="info.meta.needOwnership" hide-details label="Need ownership" />
 
-      <input type="submit" class="d-none" />
+      <input v-show="false" type="submit" />
     </form>
 
-    <h3 class="my-4">Description</h3>
+    <h3>Description</h3>
     <editor ref="description" :options="{ usageStatistics: false }" :initial-value="info.description" />
 
-    <h3 class="my-4">Rules</h3>
+    <h3>Rules</h3>
     <editor ref="rules" :options="{ usageStatistics: false }" :initial-value="info.rules" />
 
-    <h3 class="my-4">Settings</h3>
+    <h3>Settings</h3>
 
     <form @submit.prevent="updateGame">
       <div v-for="variable in ['expansions', 'options', 'preferences', 'settings']" :key="variable">
@@ -253,3 +254,8 @@ watch(() => props.gameInfo, (gameInfo) => {
     </form>
   </div>
 </template>
+<style scoped>
+h3 {
+  @apply font-bold my-4;
+}
+</style>

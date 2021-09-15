@@ -25,6 +25,7 @@ declare module 'vue' {
     Toaster: typeof import("C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/Toaster.vue")["default"];
     VBtn: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VBtn.vue')['default']
     VCard: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VCard.vue')['default']
+    VCheckbox: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VCheckbox.vue')['default']
     VList: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VList.vue')['default']
     VListGroup: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VListGroup.vue')['default']
     VListItem: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VListItem.vue')['default']
