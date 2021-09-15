@@ -26,6 +26,8 @@ declare module 'vue' {
     VListItem: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VListItem.vue')['default']
     VListItemGroup: typeof import("C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VListItemGroup.vue")["default"];
     VListItemIcon: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VListItemIcon.vue')['default']
+    VTextarea: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VTextarea.vue')['default']
+    VTextArea: typeof import("C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VTextArea.vue")["default"];
     VTextField: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VTextField.vue')['default']
   }
 }

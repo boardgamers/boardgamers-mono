@@ -2,6 +2,7 @@
 import { ref, watch } from "vue-demi";
 import { handleError, handleInfo } from "../utils";
 import VCard from "~cdk/VCard.vue";
+import VTextarea from "~/components/cdk/VTextarea.vue";
 import { deleteApi, get, post } from "~/api/rest";
 import { filesize } from "~/filters";
 
@@ -70,12 +71,13 @@ watch(serverInfo, (serverInfo) => {
   <div class="grid grid-flow-row-dense grid-cols-2 gap-4">
     <v-card :loading="!serverInfo">
       <template #title> Server info </template>
-      <template v-if="serverInfo">
-        Available space: {{ filesize(serverInfo.disk.free) }} / {{ filesize(serverInfo.disk.size) }} <br />
-        Users: {{ serverInfo.nbUsers }} <br />
-
-        <v-textarea v-model="announcement"></v-textarea>
-      </template>
+      <div v-if="serverInfo" class="flex-col flex h-full">
+        <ul>
+          <li>Available space: {{ filesize(serverInfo.disk.free) }} / {{ filesize(serverInfo.disk.size) }}</li>
+          <li>Users: {{ serverInfo.nbUsers }}</li>
+        </ul>
+        <v-textarea v-model="announcement" label="Announcement" class="flex-grow"></v-textarea>
+      </div>
       <template #actions>
         <v-btn color="primary" @click="updateAnnouncement"> Update </v-btn>
       </template>

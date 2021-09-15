@@ -15,6 +15,7 @@ const props = defineProps({ type: String as PropType<"text" | "email" | "passwor
       :required="props.required"
       :placeholder="props.label"
       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:bg-gray-700 dark:text-gray-300 leading-tight focus:outline-none focus:shadow-outline"
+      :value="props.modelValue"
       @input="$emit('update:modelValue', $event.target.value)"
     />
   </div>
