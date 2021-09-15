@@ -19,7 +19,7 @@ async function save() {
   }
 }
 
-watch([props.name, props.lang], async () => {
+watch(() => [props.name, props.lang], async () => {
   try {
     page.value = await get(`/page/${props.name}/${props.lang}`);
   }

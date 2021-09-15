@@ -4,6 +4,8 @@ import { GameInfo } from "@shared/types/gameinfo";
 import { PropType, ref, watch } from "vue";
 import { set } from "lodash";
 import { useRouter } from "vue-router";
+import VRow from "~cdk/VRow.vue";
+import VSelect from "~cdk/VSelect.vue";
 import { post } from "~/api/rest";
 
 const props = defineProps({ mode: { type: String as PropType<"new" | "edit">, default: "edit" }, gameInfo: { type: Object as PropType<GameInfo> } });
@@ -156,8 +158,8 @@ watch(() => props.gameInfo, (gameInfo) => {
             append-outer-icon="mdi-delete"
             @click:append-outer="viewer.dependencies[variable].splice(i, 1)"
           />
-          <v-btn color="primary" class="mb-3" @click="viewer.dependencies[variable].push('')">
-            <v-icon class="mr-2"> mdi-plus-circle </v-icon>Add {{ variable.slice(0, -1) }}
+          <v-btn class="my-3" @click="viewer.dependencies[variable].push('')">
+            <mdi-plus-circle /> Add {{ variable.slice(0, -1) }}
           </v-btn>
         </div>
 
@@ -189,92 +191,64 @@ watch(() => props.gameInfo, (gameInfo) => {
       <div v-for="variable in ['expansions', 'options', 'preferences', 'settings']" :key="variable">
         <div v-for="i of info[variable].map((x, i) => i)" :key="i">
           <v-row>
-            <v-col>
+            <v-text-field
+              v-model="info[variable][i].name"
+              :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} ID`"
+            />
+            <v-text-field
+              v-model="info[variable][i].label"
+              class="flex-grow"
+              :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} name`"
+            />
+            <v-text-field
+              v-if="variable === 'settings'"
+              v-model.trim="info[variable][i].faction"
+              :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} faction`"
+            />
+            <v-select
+              v-if="variable !== 'expansions'"
+              v-model="info[variable][i].type"
+              :items="[
+                { text: 'checkbox', value: 'checkbox' },
+                { text: 'select', value: 'select' },
+              ]"
+              label="Type"
+              class="flex-grow"
+            ></v-select>
+            <v-btn icon @click="info[variable].splice(i, 1)">
+              <mdi-delete />
+            </v-btn>
+          </v-row>
+          <v-card v-if="info[variable][i].type === 'select'" class="m-4">
+            <template #title> Items for {{ info[variable][i].name }} </template>
+            <v-row v-for="(item, j) in info[variable][i].items || []" :key="j">
+              <v-text-field v-model="item.name" :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} ID`" />
               <v-text-field
-                v-model="info[variable][i].name"
-                :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} ID`"
-              />
-            </v-col>
-            <v-col>
-              <v-text-field
-                v-model="info[variable][i].label"
+                v-model="item.label"
+                class="flex-grow"
                 :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} name`"
               />
-            </v-col>
-            <v-col v-if="variable === 'settings'">
-              <v-text-field
-                v-model.trim="info[variable][i].faction"
-                :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} faction`"
-              />
-            </v-col>
-            <v-col v-if="variable !== 'expansions'" cols="auto">
-              <v-select
-                v-model="info[variable][i].type"
-                :items="[
-                  { text: 'checkbox', value: 'checkbox' },
-                  { text: 'select', value: 'select' },
-                ]"
-                label="Type"
-              ></v-select>
-            </v-col>
-            <v-col cols="auto">
-              <v-btn icon>
-                <v-icon @click="info[variable].splice(i, 1)"> mdi-delete </v-icon>
+              <v-btn icon @click="info[variable][i].items.splice(j, 1)">
+                <mdi-delete />
               </v-btn>
-            </v-col>
-          </v-row>
-          <v-card v-if="info[variable][i].type === 'select'" class="mb-4">
-            <v-card-title>Items for {{ info[variable][i].name }}</v-card-title>
-            <v-card-text>
-              <v-row v-for="(item, j) in info[variable][i].items || []" :key="j">
-                <v-col>
-                  <v-text-field
-                    v-model="item.name"
-                    :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} ID`"
-                  />
-                </v-col>
-                <v-col>
-                  <v-text-field
-                    v-model="item.label"
-                    :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} name`"
-                  />
-                </v-col>
-                <v-col cols="auto">
-                  <v-btn icon>
-                    <v-icon @click="info[variable][i].items.splice(j, 1)"> mdi-delete </v-icon>
-                  </v-btn>
-                </v-col>
-              </v-row>
-            </v-card-text>
-            <hr />
-            <v-card-actions>
-              <v-btn
-                color="secondary"
-                @click="info[variable][i].items = [...(info[variable][i].items || []), { name: '', label: '' }]"
-              >
-                <v-icon class="mr-2"> mdi-plus-circle-outline </v-icon> Add item
+            </v-row>
+            <template #action>
+              <v-btn @click="info[variable][i].items = [...(info[variable][i].items || []), { name: '', label: '' }]">
+                <mdi-plus-circle-outline /> Add item
               </v-btn>
-            </v-card-actions>
+            </template>
           </v-card>
         </div>
-        <v-btn
-          color="primary"
-          class="mb-3"
-          @click="info[variable].push({ name: '', label: '', type: 'checkbox', items: null })"
-        >
-          <v-icon class="mr-2"> mdi-plus-circle </v-icon>Add {{ variable.slice(0, -1) }}
+        <v-btn class="my-3" @click="info[variable].push({ name: '', label: '', type: 'checkbox', items: null })">
+          <mdi-plus-circle /> Add {{ variable.slice(0, -1) }}
         </v-btn>
       </div>
 
       <v-row>
-        <v-col cols="auto">
-          <v-btn v-if="mode === 'edit'" color="secondary" @click="duplicate">
-            <v-icon class="mr-2"> mdi-content-duplicate </v-icon>Duplicate to next version
-          </v-btn>
-        </v-col>
-        <v-col cols="auto">
-          <v-btn color="primary" type="submit"> <v-icon class="mr-2"> mdi-floppy </v-icon>Save </v-btn>
-        </v-col>
+        <v-btn v-if="mode === 'edit'" color="secondary" @click="duplicate">
+          <mdi-content-duplicate /> Duplicate to next version
+        </v-btn>
+        <v-btn color="primary" type="submit"> <mdi-floppy /> Save </v-btn>
       </v-row>
     </form>
   </div>

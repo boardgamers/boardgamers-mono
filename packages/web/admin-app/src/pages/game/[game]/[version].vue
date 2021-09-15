@@ -19,7 +19,7 @@ async function updateGame(info: GameInfo) {
   }
 }
 
-watch([props.game, props.version], async () => {
+watch(() => [props.game, props.version], async () => {
   loading.value = true;
   try {
     gameInfo.value = await get(`/admin/gameinfo/${props.game}/${props.version}`);
@@ -31,13 +31,10 @@ watch([props.game, props.version], async () => {
     loading.value = false;
   }
 }, { immediate: true });
-
 </script>
 <template>
   <div>
-    <h2 v-if="gameInfo">
-      {{ gameInfo.label }} - version {{ gameInfo._id.version }}
-    </h2>
+    <h2 v-if="gameInfo">{{ gameInfo.label }} - version {{ gameInfo._id.version }}</h2>
     <game-edit v-if="gameInfo" :game-info="gameInfo" mode="edit" @game:update="updateGame($event)" />
   </div>
 </template>

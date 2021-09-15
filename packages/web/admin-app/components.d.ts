@@ -13,12 +13,16 @@ declare module 'vue' {
     GameEdit: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/GameEdit.vue')['default']
     MdiAlbum: typeof import('~icons/mdi/album')['default']
     MdiBookOpenPageVariant: typeof import('~icons/mdi/book-open-page-variant')['default']
+    MdiContentDuplicate: typeof import('~icons/mdi/content-duplicate')['default']
+    MdiDelete: typeof import('~icons/mdi/delete')['default']
     MdiFilePlus: typeof import('~icons/mdi/file-plus')['default']
+    MdiFloppy: typeof import('~icons/mdi/floppy')['default']
     MdiPlusCircle: typeof import('~icons/mdi/plus-circle')['default']
+    MdiPlusCircleOutline: typeof import('~icons/mdi/plus-circle-outline')['default']
     NavBar: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/NavBar.vue')['default']
     NavigationDrawer: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/NavigationDrawer.vue')['default']
     PageEdit: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/PageEdit.vue')['default']
-    Toaster: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/Toaster.vue')['default']
+    Toaster: typeof import("C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/Toaster.vue")["default"];
     VBtn: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VBtn.vue')['default']
     VCard: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VCard.vue')['default']
     VList: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VList.vue')['default']
@@ -26,6 +30,8 @@ declare module 'vue' {
     VListItem: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VListItem.vue')['default']
     VListItemGroup: typeof import("C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VListItemGroup.vue")["default"];
     VListItemIcon: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VListItemIcon.vue')['default']
+    VRow: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VRow.vue')['default']
+    VSelect: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VSelect.vue')['default']
     VTextarea: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VTextarea.vue')['default']
     VTextArea: typeof import("C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VTextArea.vue")["default"];
     VTextField: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/cdk/VTextField.vue')['default']
