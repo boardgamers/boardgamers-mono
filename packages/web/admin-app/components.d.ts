@@ -10,6 +10,7 @@ declare module 'vue' {
     CarbonMoon: typeof import('~icons/carbon/moon')['default']
     CarbonSun: typeof import('~icons/carbon/sun')['default']
     CarbonUserMultiple: typeof import('~icons/carbon/user-multiple')['default']
+    Editor: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/Editor.vue')['default']
     GameEdit: typeof import('C:/Users/Eliott Coyac/code/boardgamers-mono/packages/web/admin-app/src/components/GameEdit.vue')['default']
     MdiAlbum: typeof import('~icons/mdi/album')['default']
     MdiBookOpenPageVariant: typeof import('~icons/mdi/book-open-page-variant')['default']

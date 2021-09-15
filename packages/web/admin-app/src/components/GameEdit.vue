@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import ToastUIEditor from "@toast-ui/editor";
 import { GameInfo } from "@shared/types/gameinfo";
 import { PropType, ref, watch } from "vue";
 import { set } from "lodash";
 import { useRouter } from "vue-router";
+import { post } from "~/api/rest";
 import VCheckbox from "~cdk/VCheckbox.vue";
 import VRow from "~cdk/VRow.vue";
 import VSelect from "~cdk/VSelect.vue";
-import { post } from "~/api/rest";
+import Editor from "~/components/Editor.vue";
 
 const props = defineProps({ mode: { type: String as PropType<"new" | "edit">, default: "edit" }, gameInfo: { type: Object as PropType<GameInfo> } });
 
@@ -61,8 +61,8 @@ const info = ref<GameInfo>({
   },
 });
 
-const rules = ref<ToastUIEditor>();
-const description = ref<ToastUIEditor>();
+const rules = ref<typeof Editor>();
+const description = ref<typeof Editor>();
 
 const updateGame = () => {
   info.value.rules = rules.value!.getMarkdown();
@@ -122,8 +122,8 @@ watch(() => props.gameInfo, (gameInfo) => {
     item.items = item.items || null;
   }
 
-  setTimeout(() => rules.value?.setMarkdown(data.rules, false));
-  setTimeout(() => rules.value?.setMarkdown(data.description, false));
+  setTimeout(() => rules.value?.setMarkdown(data.rules));
+  setTimeout(() => description.value?.setMarkdown(data.description));
 
   info.value = data;
 }, { immediate: true });
@@ -181,10 +181,10 @@ watch(() => props.gameInfo, (gameInfo) => {
     </form>
 
     <h3>Description</h3>
-    <editor ref="description" :options="{ usageStatistics: false }" :initial-value="info.description" />
+    <editor ref="description" />
 
     <h3>Rules</h3>
-    <editor ref="rules" :options="{ usageStatistics: false }" :initial-value="info.rules" />
+    <editor ref="rules" />
 
     <h3>Settings</h3>
 
