@@ -150,14 +150,17 @@ watch(() => props.gameInfo, (gameInfo) => {
         <v-text-field v-model="viewer.url" label="Viewer URL" required />
         <v-text-field v-model="viewer.topLevelVariable" label="Viewer variable" required />
         <div v-for="variable in ['scripts', 'stylesheets']" :key="variable">
-          <v-text-field
-            v-for="i of viewer.dependencies[variable].map((x, i) => i)"
-            :key="i"
-            v-model="viewer.dependencies[variable][i]"
-            :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} URL`"
-            append-outer-icon="mdi-delete"
-            @click:append-outer="viewer.dependencies[variable].splice(i, 1)"
-          />
+          <v-row v-for="i of viewer.dependencies[variable].map((x, i) => i)" :key="i">
+            <v-text-field
+              v-model="viewer.dependencies[variable][i]"
+              :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} URL`"
+              class="flex-grow"
+              @click="viewer.dependencies[variable].splice(i, 1)"
+            />
+            <v-btn icon class="bg-red-600 mt-5">
+              <mdi-delete />
+            </v-btn>
+          </v-row>
           <v-btn class="my-3" @click="viewer.dependencies[variable].push('')">
             <mdi-plus-circle /> Add {{ variable.slice(0, -1) }}
           </v-btn>
@@ -215,7 +218,7 @@ watch(() => props.gameInfo, (gameInfo) => {
               label="Type"
               class="flex-grow"
             ></v-select>
-            <v-btn icon @click="info[variable].splice(i, 1)">
+            <v-btn icon class="bg-red-600 mt-5" @click="info[variable].splice(i, 1)">
               <mdi-delete />
             </v-btn>
           </v-row>
@@ -228,7 +231,7 @@ watch(() => props.gameInfo, (gameInfo) => {
                 class="flex-grow"
                 :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} name`"
               />
-              <v-btn icon @click="info[variable][i].items.splice(j, 1)">
+              <v-btn icon class="bg-red-600 mt-5" @click="info[variable][i].items.splice(j, 1)">
                 <mdi-delete />
               </v-btn>
             </v-row>
