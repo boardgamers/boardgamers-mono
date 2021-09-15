@@ -10,7 +10,6 @@ const isLoggedIn = computed(() => !!user.refreshToken);
     <nav-bar class="header" />
     <navigation-drawer v-if="isLoggedIn" class="nav-drawer dark:bg-dark-700 bg-blue-400 overflow-y-auto" />
     <router-view class="content mx-4 py-4" />
-    <toaster v-show="false" />
   </main>
 </template>
 <style scoped lang="scss">

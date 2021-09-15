@@ -1,4 +1,7 @@
-import { notifications } from "./events/notifications";
+import AWN from "awesome-notifications";
+import "awesome-notifications/dist/style.css";
+
+const notifier = new AWN({ icons: { enabled: false } });
 
 function isError(err: Error | unknown): err is Error {
   return (<any>err)?.message;
@@ -11,22 +14,18 @@ export function handleError(err: Error | string | unknown) {
   console.error(err);
 
   if (typeof err !== "object") {
-    notifications.emit({ type: "error", message: (err as unknown) as string });
+    notifier.alert(err);
   } else if (isError(err)) {
-    notifications.emit({ type: "error", message: err.message });
+    notifier.alert(err.message);
   } else {
-    notifications.emit({ type: "error", message: "Unknown error" });
+    notifier.alert("Uknown error");
   }
 }
 
 export function handleInfo(info: string) {
-  notifications.emit({ type: "info", message: info });
+  notifier.info(info);
 }
 
 export function handleSuccess(info: string) {
-  notifications.emit({ type: "success", message: info });
-}
-
-export function upperFirst(str: string) {
-  return str[0].toUpperCase() + str.slice(1);
+  notifier.success(info);
 }

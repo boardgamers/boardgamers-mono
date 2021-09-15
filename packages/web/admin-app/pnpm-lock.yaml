@@ -14,6 +14,7 @@ specifiers:
   '@vue/server-renderer': ^3.2.6
   '@vueuse/core': ^6.0.0
   '@vueuse/head': ^0.6.0
+  awesome-notifications: ^3.1.1
   critters: ^0.0.10
   cross-env: ^7.0.3
   dotenv: ^8.2.0
@@ -49,6 +50,7 @@ dependencies:
   '@toast-ui/editor': 3.0.3
   '@vueuse/core': 6.0.0_vue@3.2.6
   '@vueuse/head': 0.6.0_vue@3.2.6
+  awesome-notifications: 3.1.1
   lodash: 4.17.21
   nprogress: 0.2.0
   pinia: 2.0.0-rc.6_typescript@4.4.2+vue@3.2.6
@@ -2140,6 +2142,10 @@ packages:
     resolution: {integrity: sha512-DMD0KiN46eipeziST1LPP/STfDU0sufISXmjSgvVsoU2tqxctQeASejWcfNtxYKqETM1UxQ8sp2OrSBWpHY6sw==}
     engines: {node: '>= 0.4'}
     dev: true
+
+  /awesome-notifications/3.1.1:
+    resolution: {integrity: sha512-JeWVPLJq9ozLCh1uNuUf3tFIuRSiyfpIwkei1cJ9t7Ivh+Fpac63JHCTrGyx8gtpTvSgth0Q2xKyUOBkZEk7gA==}
+    dev: false
 
   /babel-plugin-dynamic-import-node/2.3.3:
     resolution: {integrity: sha512-jZVI+s9Zg3IqA/kdi0i6UDCybUI3aSBLnglhYbSSjKlV7yF1F/5LWv8MakQmvYpnbJDS6fcBL2KzHSxNCMtWSQ==}
