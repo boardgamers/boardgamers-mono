@@ -155,9 +155,8 @@ watch(() => props.gameInfo, (gameInfo) => {
               v-model="viewer.dependencies[variable][i]"
               :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} URL`"
               class="flex-grow"
-              @click="viewer.dependencies[variable].splice(i, 1)"
             />
-            <v-btn icon class="bg-red-600 mt-5">
+            <v-btn icon class="bg-red-600 mt-5" @click="viewer.dependencies[variable].splice(i, 1)">
               <mdi-delete />
             </v-btn>
           </v-row>
