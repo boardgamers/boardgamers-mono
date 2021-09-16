@@ -20,7 +20,7 @@ const props = defineProps<{
       class="cursor-pointer disabled:cursor-not-allowed"
       type="checkbox"
       :checked="props.modelValue"
-      @input="$emit('update:modelValue', $event.target.value)"
+      @input="$emit('update:modelValue', $event.target.value === 'on')"
     />
     <label v-if="props.label" class="w-full ml-2 cursor-pointer disabled:cursor-not-allowed" :for="uid">{{
       props.label
