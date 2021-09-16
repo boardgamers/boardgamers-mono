@@ -1,61 +1,63 @@
 <script lang="ts">
-import {
-  Navbar,
-  Nav,
-  Dropdown,
-  DropdownToggle,
-  DropdownMenu,
-  Button,
-  Input,
-  Form,
-  FormGroup,
-  Label,
-  FormText,
-  NavLink,
-  Icon
-} from '@/modules/cdk';
-import { user, logoClicks, activeGames } from "@/store";
-import { loadAccountIfNeeded, login, logout } from '@/api';
-import { handleError } from '@/utils';
+  import {
+    Navbar,
+    Nav,
+    Dropdown,
+    DropdownToggle,
+    DropdownMenu,
+    Button,
+    Input,
+    Form,
+    FormGroup,
+    Label,
+    FormText,
+    NavLink,
+    Icon,
+  } from "@/modules/cdk";
+  import { user, logoClicks, activeGames } from "@/store";
+  import { loadAccountIfNeeded, login, logout } from "@/api";
+  import { handleError } from "@/utils";
 
-let email = '';
-let password = '';
-let className = '';
-let admin: boolean;
-let adminLink: string;
-let hasGames: boolean;
+  let email = "";
+  let password = "";
+  let className = "";
+  let admin: boolean;
+  let adminLink: string;
+  let hasGames: boolean;
 
-export { className as class };
+  export { className as class };
 
-const handleSubmit = (event: Event) => {
-  event.preventDefault();
+  const handleSubmit = (event: Event) => {
+    event.preventDefault();
 
-  login(email, password).catch(handleError);
-}
+    login(email, password).catch(handleError);
+  };
 
-const logOut = () => {
-  logout().catch(handleError);
-}
+  const logOut = () => {
+    logout().catch(handleError);
+  };
 
-$ : admin = $user?.authority === "admin"
-$ : adminLink = location.hostname === "localhost" ? "http://localhost:8613": `${location.protocol}//admin.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`
-$ : hasGames = $activeGames.length > 0
+  $: admin = $user?.authority === "admin";
+  $: adminLink =
+    location.hostname === "localhost"
+      ? "http://localhost:8613"
+      : `${location.protocol}//admin.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`;
+  $: hasGames = $activeGames.length > 0;
 
-const onHasGamesChanged = () => {
-  if (hasGames) {
-    if (document.hidden) {
-      if ($user?.settings?.game?.soundNotification) {
-        (document.getElementById("sound-notification") as HTMLAudioElement).play();
-      }
-      if (localStorage.getItem("notifications")) {
-        new Notification("Boardgamers 🌌", { icon: "/favicon-active.ico", body: "It's your turn!" });
+  const onHasGamesChanged = () => {
+    if (hasGames) {
+      if (document.hidden) {
+        if ($user?.settings?.game?.soundNotification) {
+          (document.getElementById("sound-notification") as HTMLAudioElement).play();
+        }
+        if (localStorage.getItem("notifications")) {
+          new Notification("Boardgamers 🌌", { icon: "/favicon-active.ico", body: "It's your turn!" });
+        }
       }
     }
-  }
-}
+  };
 
-$: onHasGamesChanged(), [hasGames]
-
+  $: onHasGamesChanged(), [hasGames];
 </script>
 
 <Navbar color="primary" class={className} dark expand>

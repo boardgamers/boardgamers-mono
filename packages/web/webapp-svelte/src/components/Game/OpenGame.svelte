@@ -1,6 +1,16 @@
 <script lang="ts">
-  import { duration, handleError, niceDate, oneLineMarked, pluralize, timerTime, confirm, localTimezone, skipOnce } from "@/utils";
-  import marked from "marked"
+  import {
+    duration,
+    handleError,
+    niceDate,
+    oneLineMarked,
+    pluralize,
+    timerTime,
+    confirm,
+    localTimezone,
+    skipOnce,
+  } from "@/utils";
+  import marked from "marked";
   import { Badge, Button } from "@/modules/cdk";
   import { lastGameUpdate, user } from "@/store";
   import { joinGame, loadGameData, loadGamePlayers, unjoinGame } from "@/api/game";
@@ -9,9 +19,9 @@
   import { getContext, onDestroy } from "svelte";
   import type { GameContext } from "@/pages/Game.svelte";
 
-  const {game, players, gameInfo}: GameContext= getContext("game")
-  $: timer = $game.options.timing.timer
-  $: gameId = $game._id
+  const { game, players, gameInfo }: GameContext = getContext("game");
+  $: timer = $game.options.timing.timer;
+  $: gameId = $game._id;
 
   const shortPlayTime = () => {
     if (timer?.start !== timer?.end) {
@@ -23,46 +33,54 @@
 
   const playTime = () => {
     if (timer?.start !== undefined) {
-      return `active between ${timerTime(timer?.start)} and ${timerTime(timer?.end)}, in your local time (${localTimezone()})`;
+      return `active between ${timerTime(timer?.start)} and ${timerTime(
+        timer?.end
+      )}, in your local time (${localTimezone()})`;
     } else {
       return "always active";
     }
   };
 
-  const leave = async() => {
+  const leave = async () => {
     if (await confirm("Are you sure you want to leave this game?")) {
-      unjoinGame(gameId).then(() => navigate('/'), handleError);
+      unjoinGame(gameId).then(() => navigate("/"), handleError);
     }
   };
 
-  const join = async() => {
+  const join = async () => {
     if (!$user) {
       navigate({ name: "login", query: { redirect: $route!.canonicalPath } });
       return;
     }
 
     if ($game.options.timing.timePerGame <= 24 * 3600) {
-      if (!await confirm(
-        "This game has a short duration. You need to keep yourself available in order to play the game until the end."
-      )) {
+      if (
+        !(await confirm(
+          "This game has a short duration. You need to keep yourself available in order to play the game until the end."
+        ))
+      ) {
         return;
       }
     }
 
-    joinGame(gameId).catch(handleError)
-  }
+    joinGame(gameId).catch(handleError);
+  };
 
   // Autorefresh when another player joins
-  onDestroy(lastGameUpdate.subscribe(skipOnce(async () => {
-    if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
-      const [g, p] = await Promise.all([loadGameData(gameId), loadGamePlayers(gameId)])
+  onDestroy(
+    lastGameUpdate.subscribe(
+      skipOnce(async () => {
+        if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
+          const [g, p] = await Promise.all([loadGameData(gameId), loadGamePlayers(gameId)]);
 
-      if ($game && gameId === g._id) {
-        $game = g;
-        $players = p;
-      }
-    }
-  })))
+          if ($game && gameId === g._id) {
+            $game = g;
+            $players = p;
+          }
+        }
+      })
+    )
+  );
 </script>
 
 <div class="container pb-3">

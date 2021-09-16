@@ -4,11 +4,11 @@
   import { route } from "@/modules/router";
   import { handleError } from "@/utils";
   import { upperFirst } from "lodash";
-  
+
   let email = $route!.query.user ?? "";
   let isSocial = $route!.query.createSocialAccount;
-  let provider = $route!.query.provider
-  
+  let provider = $route!.query.provider;
+
   let password = "";
   let passwordConfirm = "";
   let username = "";

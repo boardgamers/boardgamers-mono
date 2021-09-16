@@ -1,8 +1,8 @@
 <script lang="typescript">
-	import { Appbar, Footer, Sidebar} from '@/components';
-  import RouterView from '@/modules/router/RouterView.svelte';
-  import { route } from './modules/router';
-  import { activeGames } from './store';
+  import { Appbar, Footer, Sidebar } from "@/components";
+  import RouterView from "@/modules/router/RouterView.svelte";
+  import { route } from "./modules/router";
+  import { activeGames } from "./store";
 </script>
 
 <svelte:head>

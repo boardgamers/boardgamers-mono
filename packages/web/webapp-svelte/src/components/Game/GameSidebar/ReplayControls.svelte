@@ -1,22 +1,22 @@
 <script lang="ts">
-import { Button, Icon } from "@/modules/cdk";
-import type { GameContext } from "@/pages/Game.svelte";
+  import { Button, Icon } from "@/modules/cdk";
+  import type { GameContext } from "@/pages/Game.svelte";
 
-import { getContext } from "svelte";
+  import { getContext } from "svelte";
 
-const { gameInfo, replayData, emitter } = getContext("game") as GameContext
- 
-function startReplay() {
-  emitter.emit("replay:start");
-}
+  const { gameInfo, replayData, emitter } = getContext("game") as GameContext;
 
-function replayTo(dest: number) {
-  emitter.emit("replay:to", dest);
-}
+  function startReplay() {
+    emitter.emit("replay:start");
+  }
 
-function endReplay() {
-  emitter.emit("replay:end");
-}
+  function replayTo(dest: number) {
+    emitter.emit("replay:to", dest);
+  }
+
+  function endReplay() {
+    emitter.emit("replay:end");
+  }
 </script>
 
 {#if $gameInfo?.viewer?.replayable}

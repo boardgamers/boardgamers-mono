@@ -1,86 +1,84 @@
 <script lang="ts">
-import { handleError, confirm, niceDate, duration, createWatcher } from "@/utils";
-import { UserGameSettings } from "@/components";
-import { Card, Button, Col, Container, FormGroup, Input, InputGroup, Row, Checkbox } from "@/modules/cdk";
-import { boardgames, user } from "@/store";
-import { routePath } from "@/modules/router";
-import { upperFirst, debounce } from "lodash";
-import { latestBoardgames, loadBoardgames, post } from "@/api";
-import type { GameInfo } from "@shared/types/gameinfo";
+  import { handleError, confirm, niceDate, duration, createWatcher } from "@/utils";
+  import { UserGameSettings } from "@/components";
+  import { Card, Button, Col, Container, FormGroup, Input, InputGroup, Row, Checkbox } from "@/modules/cdk";
+  import { boardgames, user } from "@/store";
+  import { routePath } from "@/modules/router";
+  import { upperFirst, debounce } from "lodash";
+  import { latestBoardgames, loadBoardgames, post } from "@/api";
+  import type { GameInfo } from "@shared/types/gameinfo";
 
-loadBoardgames().catch(handleError)
+  loadBoardgames().catch(handleError);
 
-let games: GameInfo[]
-$: games = latestBoardgames() as GameInfo[], [$boardgames]
+  let games: GameInfo[];
+  $: (games = latestBoardgames() as GameInfo[]), [$boardgames];
 
-let email = $user!.account.email;
-let editingEmail = false;
-let notifications = !!localStorage.getItem("notifications");
-let newsletter = $user!.settings?.mailing?.newsletter;
-let soundNotification = $user!.settings?.game?.soundNotification;
-let gameNotification = $user!.settings?.mailing?.game?.activated;
-let gameNotificationDelay = $user!.settings?.mailing?.game?.delay ?? 30 * 60;
-let tc = false;
+  let email = $user!.account.email;
+  let editingEmail = false;
+  let notifications = !!localStorage.getItem("notifications");
+  let newsletter = $user!.settings?.mailing?.newsletter;
+  let soundNotification = $user!.settings?.game?.soundNotification;
+  let gameNotification = $user!.settings?.mailing?.game?.activated;
+  let gameNotificationDelay = $user!.settings?.mailing?.game?.delay ?? 30 * 60;
+  let tc = false;
 
-async function acceptTC() {
-  const accepted = await confirm(
-    "The terms and conditions will be marked as accepted at today's date."
-  );
+  async function acceptTC() {
+    const accepted = await confirm("The terms and conditions will be marked as accepted at today's date.");
 
-  if (!accepted) {
-    tc = false;
-    return;
-  }
+    if (!accepted) {
+      tc = false;
+      return;
+    }
 
-  try {
-    user.set(await post("/account/terms-and-conditions"));
-  } catch (err) {
-    handleError(err);
-  }
-}
-
-const updateAccount = debounce(() => {
-  post("/account", {
-    settings: {
-      mailing: {
-        newsletter,
-        game: {
-          activated: gameNotification,
-          delay: gameNotificationDelay,
-        },
-      },
-      game: {
-        soundNotification,
-      },
-    },
-  })
-  .then(
-    (r) => user.set(r),
-    handleError
-  );
-}, 800, {leading: false});
-
-async function saveEmail() {
-  try {
-    user.set(await post("/account/email", { email }));
-  } catch (err) {
-    handleError(err);
-  }
-}
-
-const onNotificationsChanged = createWatcher(() => {
-  if (notifications) {
-    if (Notification.permission !== "granted") {
-      Notification.requestPermission();
+    try {
+      user.set(await post("/account/terms-and-conditions"));
+    } catch (err) {
+      handleError(err);
     }
   }
 
-  if (!!localStorage.getItem("notifications") !== notifications) {
-    localStorage.setItem("notifications", notifications ? "1" : "");
-  }
-})
+  const updateAccount = debounce(
+    () => {
+      post("/account", {
+        settings: {
+          mailing: {
+            newsletter,
+            game: {
+              activated: gameNotification,
+              delay: gameNotificationDelay,
+            },
+          },
+          game: {
+            soundNotification,
+          },
+        },
+      }).then((r) => user.set(r), handleError);
+    },
+    800,
+    { leading: false }
+  );
 
-$: onNotificationsChanged(notifications)
+  async function saveEmail() {
+    try {
+      user.set(await post("/account/email", { email }));
+    } catch (err) {
+      handleError(err);
+    }
+  }
+
+  const onNotificationsChanged = createWatcher(() => {
+    if (notifications) {
+      if (Notification.permission !== "granted") {
+        Notification.requestPermission();
+      }
+    }
+
+    if (!!localStorage.getItem("notifications") !== notifications) {
+      localStorage.setItem("notifications", notifications ? "1" : "");
+    }
+  });
+
+  $: onNotificationsChanged(notifications);
 </script>
 
 {#if $user}

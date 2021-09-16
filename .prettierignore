@@ -1,2 +1,4 @@
 pnpm-lock.yaml
 .github
+dist
+admin-app

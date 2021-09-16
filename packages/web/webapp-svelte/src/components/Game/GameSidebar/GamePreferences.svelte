@@ -1,13 +1,12 @@
 <script lang="ts">
   import PreferencesChooser from "@/components/User/PreferencesChooser.svelte";
-  import {Icon} from "@/modules/cdk";
+  import { Icon } from "@/modules/cdk";
   import type { GameContext } from "@/pages/Game.svelte";
   import { getContext } from "svelte";
 
-  const {gameInfo} = getContext("game") as GameContext
+  const { gameInfo } = getContext("game") as GameContext;
 
-  $: showPreferences = !!$gameInfo?.viewer?.alternate?.url || $gameInfo?.preferences?.length > 0
-
+  $: showPreferences = !!$gameInfo?.viewer?.alternate?.url || $gameInfo?.preferences?.length > 0;
 </script>
 
 {#if showPreferences}

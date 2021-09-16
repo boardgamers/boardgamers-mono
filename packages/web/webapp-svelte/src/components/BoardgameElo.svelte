@@ -1,45 +1,45 @@
 <script lang="ts">
-import { get } from "@/api";
-import { Loading, Pagination } from "@/modules/cdk";
-import { routePath } from "@/modules/router";
-import { createWatcher, handleError, pluralize } from "@/utils";
+  import { get } from "@/api";
+  import { Loading, Pagination } from "@/modules/cdk";
+  import { routePath } from "@/modules/router";
+  import { createWatcher, handleError, pluralize } from "@/utils";
 
-export let boardgameId: string;
-export let top = false;
-export let perPage = 5;
+  export let boardgameId: string;
+  export let top = false;
+  export let perPage = 5;
 
-let count = 0;
-let currentPage = 0;
-let boardgameElo: any[] = [];
-let loading = true;
+  let count = 0;
+  let currentPage = 0;
+  let boardgameElo: any[] = [];
+  let loading = true;
 
-$: title = top ? "Top ranked players": "Elo"
+  $: title = top ? "Top ranked players" : "Elo";
 
-async function load(refresh: boolean) {
-  const baseURL = `/boardgame/${boardgameId}/elo`;
+  async function load(refresh: boolean) {
+    const baseURL = `/boardgame/${boardgameId}/elo`;
 
-  try {
-    if (refresh) {
-      loading = true;
+    try {
+      if (refresh) {
+        loading = true;
 
-      if (!top) {
-        count = await get(`${baseURL}/count`);
+        if (!top) {
+          count = await get(`${baseURL}/count`);
+        }
       }
+
+      boardgameElo = await get(baseURL, { skip: currentPage * perPage, count: perPage });
+    } catch (err) {
+      handleError(err);
+    } finally {
+      loading = false;
     }
-
-    boardgameElo = await get(baseURL, { skip: currentPage * perPage, count: perPage});
-  } catch (err) {
-    handleError(err);
-  } finally {
-    loading = false;
   }
-}
 
-$: load(true), [boardgameId]
+  $: load(true), [boardgameId];
 
-const onPageChange = createWatcher(() => load(false))
+  const onPageChange = createWatcher(() => load(false));
 
-$: onPageChange(currentPage)
+  $: onPageChange(currentPage);
 </script>
 
 <div>

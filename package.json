@@ -3,19 +3,19 @@
   "scripts": {
     "back": "docker-compose -f \"docker-compose.yml\" up -d --build",
     "lint-staged": "lint-staged",
-    "postinstall": "husky install",
+    "prepare": "husky install",
     "prettier": "prettier --plugin-search-dir=. --write .",
     "prettier-check": "prettier --plugin-search-dir=. --check ."
   },
   "devDependencies": {
-    "husky": "^5.0.9",
-    "lint-staged": "^10.5.4",
-    "prettier": "^2.2.1",
-    "prettier-plugin-organize-imports": "^1.1.1",
+    "husky": "^7.0.2",
+    "lint-staged": "^11.1.2",
+    "prettier": "^2.4.1",
+    "prettier-plugin-organize-imports": "^2.3.3",
     "prettier-plugin-sort-json": "^0.0.2",
-    "prettier-plugin-svelte": "^2.1.4",
-    "svelte": "^3.32.3",
-    "typescript": "^4.1.5"
+    "prettier-plugin-svelte": "^2.4.0",
+    "svelte": "^3.42.6",
+    "typescript": "^4.4.3"
   },
   "lint-staged": {
     "*.{css,scss,graphql,html,json,js,jsx,md,mdx,svelte,ts,tsx,vue,yaml,yml}": "prettier --plugin-search-dir=. --write"

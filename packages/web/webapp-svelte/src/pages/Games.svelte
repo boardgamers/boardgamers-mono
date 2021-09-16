@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { fade } from 'svelte/transition';
+  import { fade } from "svelte/transition";
   import { GameList } from "@/components";
   import { Col, Container, Nav, NavItem, NavLink, Row } from "@/modules/cdk";
   import { route } from "@/modules/router";
-  
-  export let boardgameId: string
-  let firstTab: boolean
 
-  let animating = false
+  export let boardgameId: string;
+  let firstTab: boolean;
 
-  $ : firstTab = $route!.hash !== 'open'
+  let animating = false;
+
+  $: firstTab = $route!.hash !== "open";
 </script>
 
 <Container>

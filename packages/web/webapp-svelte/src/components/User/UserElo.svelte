@@ -1,28 +1,36 @@
 <script lang="ts">
-import { boardgameInfo, get, loadBoardgame } from "@/api";
-import { handleError, pluralize } from "@/utils";
+  import { boardgameInfo, get, loadBoardgame } from "@/api";
+  import { handleError, pluralize } from "@/utils";
 
-import type { GamePreferences } from "@shared/types/gamepreferences";
-import { Icon } from "@cdk";
+  import type { GamePreferences } from "@shared/types/gamepreferences";
+  import { Icon } from "@cdk";
 
-export let userId: string;
+  export let userId: string;
 
-let gamePreferences: GamePreferences[] = [];
+  let gamePreferences: GamePreferences[] = [];
 
-const onUserIdChanged = () => get<GamePreferences[]>(`/user/${userId}/games/elo`).then(prefs => gamePreferences = prefs).catch(handleError)
+  const onUserIdChanged = () =>
+    get<GamePreferences[]>(`/user/${userId}/games/elo`)
+      .then((prefs) => (gamePreferences = prefs))
+      .catch(handleError);
 
-$: onUserIdChanged(), [userId]
+  $: onUserIdChanged(), [userId];
 
-async function gameName(game: string): Promise<string> {
-  const info = boardgameInfo(game, "latest");
+  async function gameName(game: string): Promise<string> {
+    const info = boardgameInfo(game, "latest");
 
-  if (!info) {
-    return loadBoardgame(game, "latest").then(() => gameName(game), err => {handleError(err); return "error"});
+    if (!info) {
+      return loadBoardgame(game, "latest").then(
+        () => gameName(game),
+        (err) => {
+          handleError(err);
+          return "error";
+        }
+      );
+    }
+
+    return info.label;
   }
-
-  return info.label;
-}
-
 </script>
 
 {#if gamePreferences.some((pref) => pref.elo)}

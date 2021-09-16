@@ -6,34 +6,37 @@
 
   let showNotes = localStorage.getItem("show-notes") !== "false";
 
-  let notes = ''
-  let lastReceivedNotes: string | null = null
-  let notesLoaded = false
+  let notes = "";
+  let lastReceivedNotes: string | null = null;
+  let notesLoaded = false;
 
-  let userId: string  | undefined
-  export let gameId: string
+  let userId: string | undefined;
+  export let gameId: string;
 
   async function loadNotes() {
     if (userId) {
       lastReceivedNotes = notes = await get(`/game/${gameId}/notes`);
-      notesLoaded = true
+      notesLoaded = true;
     }
   }
-  
+
   function toggleNotes() {
-    showNotes = !showNotes
+    showNotes = !showNotes;
     localStorage.setItem("show-notes", showNotes ? "true" : "");
   }
-  
-  let updateNotesDebounce = debounce(async () => {
-    if ($user && notes !== lastReceivedNotes) {
-      await post(`/game/${gameId}/notes`, { notes });
-    }
-  }, 800, { leading: false, trailing: true });
 
+  let updateNotesDebounce = debounce(
+    async () => {
+      if ($user && notes !== lastReceivedNotes) {
+        await post(`/game/${gameId}/notes`, { notes });
+      }
+    },
+    800,
+    { leading: false, trailing: true }
+  );
 
-  $: userId = $user?._id
-  $: loadNotes(), [userId]
+  $: userId = $user?._id;
+  $: loadNotes(), [userId];
 </script>
 
 <div class="mt-75">

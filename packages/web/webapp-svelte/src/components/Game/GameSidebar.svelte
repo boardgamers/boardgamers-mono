@@ -1,98 +1,101 @@
 <script lang="ts">
-import { keyBy } from "lodash";
-import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
-import type { PlayerInfo } from "@shared/types/game";
-import Portal from "svelte-portal";
-import { addActiveGame, playerStatus, removeActiveGame, user } from "@/store";
-import { Button, Icon, Badge } from "@/modules/cdk";
-import { post } from "@/api";
-import { getContext, onDestroy } from "svelte";
-import {GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings} from './GameSidebar';
-import type { GameContext } from "@/pages/Game.svelte";
-import PlayerGameAvatar from "./components/PlayerGameAvatar.svelte";
+  import { keyBy } from "lodash";
+  import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
+  import type { PlayerInfo } from "@shared/types/game";
+  import Portal from "svelte-portal";
+  import { addActiveGame, playerStatus, removeActiveGame, user } from "@/store";
+  import { Button, Icon, Badge } from "@/modules/cdk";
+  import { post } from "@/api";
+  import { getContext, onDestroy } from "svelte";
+  import { GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings } from "./GameSidebar";
+  import type { GameContext } from "@/pages/Game.svelte";
+  import PlayerGameAvatar from "./components/PlayerGameAvatar.svelte";
 
-const {game, players, gameInfo}: GameContext = getContext("game")
+  const { game, players, gameInfo }: GameContext = getContext("game");
 
-let secondsCounter = 0;
+  let secondsCounter = 0;
 
-const interval = setInterval(() => {
-  if (!document.hidden) {
-    secondsCounter += 1;
+  const interval = setInterval(() => {
+    if (!document.hidden) {
+      secondsCounter += 1;
+    }
+  }, 1000);
+  onDestroy(() => clearInterval(interval));
+
+  let requestedDrop: Record<string, boolean> = {};
+
+  $: userId = $user?._id;
+  $: playerUser = $game?.players.find((pl) => pl._id === userId);
+  $: gameId = $game?._id;
+
+  function status(playerId: string) {
+    return $playerStatus?.find((pl) => pl._id === playerId)?.status ?? "offline";
   }
-}, 1000);
-onDestroy(() => clearInterval(interval))
 
-let  requestedDrop: Record<string, boolean> = {};
+  function playerElo(playerId: string) {
+    return $players.find((pl) => pl._id === playerId)?.elo ?? 0;
+  }
 
-$: userId = $user?._id
-$: playerUser = $game?.players.find((pl) => pl._id === userId)
-$: gameId = $game?._id
+  $: alwaysActive = $game?.options.timing.timer?.start === $game?.options.timing.timer?.end;
 
-function status(playerId: string) {
-  return $playerStatus?.find(pl => pl._id === playerId)?.status ?? 'offline'
-}
+  $: currentPlayersById = keyBy($game?.currentPlayers ?? [], "_id");
 
-function playerElo(playerId: string) {
-  return $players.find((pl) => pl._id === playerId)?.elo ?? 0;
-}
+  function isCurrentPlayer(id: string) {
+    return $game?.status !== "ended" && !!currentPlayersById[id];
+  }
 
-$: alwaysActive = $game?.options.timing.timer?.start === $game?.options.timing.timer?.end
+  const onGameChanged = () => {
+    if (userId) {
+      if (isCurrentPlayer(userId)) {
+        addActiveGame(gameId);
+      } else {
+        removeActiveGame(gameId);
+      }
+    }
+  };
 
-$: currentPlayersById = keyBy($game?.currentPlayers ?? [], "_id");
+  $: onGameChanged(), [userId, $game];
 
-function isCurrentPlayer(id: string) {
-  return $game?.status !== "ended" && !!currentPlayersById[id];
-}
+  let remainingTimes: Record<string, number> = {};
 
-const onGameChanged = () => {
-  if (userId) {
-    if (isCurrentPlayer(userId)) {
-      addActiveGame(gameId)
-    } else {
-      removeActiveGame(gameId)
+  function updateRemainingTimes() {
+    const ret: Record<string, number> = {};
+    for (const player of $game.players) {
+      ret[player._id] = remainingTime(player);
+    }
+
+    remainingTimes = ret;
+  }
+
+  $: updateRemainingTimes(), [secondsCounter];
+
+  function remainingTime(player: PlayerInfo) {
+    const currentPlayer = currentPlayersById[player._id];
+    if (currentPlayer) {
+      // Trick to update every second
+      return Math.floor((new Date(currentPlayer.deadline).getTime() - Date.now() + (secondsCounter % 1)) / 1000);
+    }
+    return Math.max(player.remainingTime, 0);
+  }
+
+  async function voteCancel() {
+    if (
+      await confirm("This vote cannot be taken back. If all active players vote to cancel, the game will be cancelled.")
+    ) {
+      await post(`/game/${gameId}/cancel`).catch(handleError);
     }
   }
-}
 
-$: onGameChanged(), [userId, $game]
-
-let remainingTimes: Record<string, number> = {}
-
-function updateRemainingTimes() {
-  const ret: Record<string, number> = {}
-  for (const player of $game.players) {
-    ret[player._id] = remainingTime(player)
+  async function quit() {
+    await post(`/game/${gameId}/quit`).catch(handleError);
   }
 
-  remainingTimes = ret
-}
-
-$: updateRemainingTimes(), [secondsCounter]
-
-function remainingTime(player: PlayerInfo) {
-  const currentPlayer = currentPlayersById[player._id];
-  if (currentPlayer) {
-    // Trick to update every second
-    return Math.floor((new Date(currentPlayer.deadline).getTime() - Date.now() + (secondsCounter % 1)) / 1000);
+  async function requestDrop(playerId: string) {
+    await post(`/game/${gameId}/drop/${playerId}`).then(
+      () => (requestedDrop = { ...requestedDrop, [playerId]: true }),
+      handleError
+    );
   }
-  return Math.max(player.remainingTime, 0);
-}
-
-async function voteCancel() {
-  if (await confirm("This vote cannot be taken back. If all active players vote to cancel, the game will be cancelled.")) {
-    await post(`/game/${gameId}/cancel`).catch(handleError);
-  }
-}
-
-async function quit() {
-  await post(`/game/${gameId}/quit`).catch(handleError);
-}
-
-async function requestDrop(playerId: string) {
-  await post(`/game/${gameId}/drop/${playerId}`)
-    .then(() => (requestedDrop = {...requestedDrop, [playerId]: true}), handleError);
-}
-
 </script>
 
 <Portal target="#sidebar">

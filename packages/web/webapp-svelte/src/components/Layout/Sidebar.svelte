@@ -2,7 +2,6 @@
   import { Button, Icon } from "@/modules/cdk";
   import { route } from "@/modules/router";
   import { sidebarOpen } from "@/store";
-
 </script>
 
 {#if $route?.meta.sidebar}

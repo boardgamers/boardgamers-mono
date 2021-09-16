@@ -2,11 +2,11 @@
   import { classnames } from "@/utils";
   import Icon from "sveltestrap/src/Icon.svelte";
 
-  let className = '';
+  let className = "";
   export { className as class };
-  export let name = '';
+  export let name = "";
 
-  $: classes = classnames(className, 'bi');
+  $: classes = classnames(className, "bi");
 </script>
 
 <Icon {...$$restProps} class={classes} {name} />

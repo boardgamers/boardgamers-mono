@@ -4,31 +4,30 @@
   import DOMPurify from "dompurify";
   import { getContext } from "svelte";
 
-  const { log }: GameContext = getContext('game')
+  const { log }: GameContext = getContext("game");
 
   let showLog = !!localStorage.getItem("show-log");
-  let logElement: HTMLDivElement
+  let logElement: HTMLDivElement;
 
   // Scroll to top of log
   function onLogChanged() {
     setTimeout(() => {
       if (logElement) {
-        logElement.scrollTop = -logElement.scrollHeight
+        logElement.scrollTop = -logElement.scrollHeight;
       }
-    })
+    });
   }
 
-  $: onLogChanged(), [$log, showLog]
+  $: onLogChanged(), [$log, showLog];
 
   function toggleShowLog() {
-    showLog = !showLog
+    showLog = !showLog;
     localStorage.setItem("show-log", showLog ? "true" : "");
   }
-  
+
   function logToHtml(log: string) {
     return DOMPurify.sanitize(oneLineMarked(log));
   }
-
 </script>
 
 {#if $log.length > 0}

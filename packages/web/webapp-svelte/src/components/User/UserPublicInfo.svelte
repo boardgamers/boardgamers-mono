@@ -3,13 +3,13 @@
   import { classnames, dateFromObjectId } from "@/utils";
   import { Card } from "@cdk";
 
-  export let user: IUser
+  export let user: IUser;
 
-  let className = '';
+  let className = "";
   export { className as class };
 
-  $: classes = classnames(className, 'border-info');
-  $: joinDate = user && dateFromObjectId(user._id)
+  $: classes = classnames(className, "border-info");
+  $: joinDate = user && dateFromObjectId(user._id);
 </script>
 
 <Card class={classes} header="About">

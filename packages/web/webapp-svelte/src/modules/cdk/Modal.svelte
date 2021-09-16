@@ -1,29 +1,29 @@
 <script lang="ts">
-  import { classnames, browserEvent } from '@/utils';
-  import { onDestroy, onMount, afterUpdate } from 'svelte';
-  import { fade as fadeTransition } from 'svelte/transition';
+  import { classnames, browserEvent } from "@/utils";
+  import { onDestroy, onMount, afterUpdate } from "svelte";
+  import { fade as fadeTransition } from "svelte/transition";
 
   function noop() {}
 
-  let className = '';
+  let className = "";
   export { className as class };
   export let isOpen = false;
   export let autoFocus = true;
   export let centered = false;
   export let backdropDuration = 0;
   export let scrollable = false;
-  export let size = '';
+  export let size = "";
   export let toggle: () => void;
-  export let labelledBy = '';
+  export let labelledBy = "";
   export let backdrop = true;
   export let onEnter = undefined;
   export let onExit = undefined;
   export let onOpened = noop;
   export let onClosed = noop;
-  export let wrapClassName = '';
-  export let modalClassName = '';
-  export let backdropClassName = '';
-  export let contentClassName = '';
+  export let wrapClassName = "";
+  export let modalClassName = "";
+  export let backdropClassName = "";
+  export let contentClassName = "";
   export let fade = true;
   export let zIndex = 1050;
   export let unmountOnClose = true;
@@ -46,7 +46,7 @@
       hasOpened = true;
     }
 
-    if (typeof onEnter === 'function') {
+    if (typeof onEnter === "function") {
       onEnter();
     }
 
@@ -56,7 +56,7 @@
   });
 
   onDestroy(() => {
-    if (typeof onExit === 'function') {
+    if (typeof onExit === "function") {
       onExit();
     }
 
@@ -81,11 +81,7 @@
   });
 
   function setFocus() {
-    if (
-      _dialog &&
-      _dialog.parentNode &&
-      typeof _dialog.parentNode.focus === 'function'
-    ) {
+    if (_dialog && _dialog.parentNode && typeof _dialog.parentNode.focus === "function") {
       _dialog.parentNode.focus();
     }
   }
@@ -102,10 +98,7 @@
 
   function manageFocusAfterClose() {
     if (_triggeringElement) {
-      if (
-        typeof _triggeringElement.focus === 'function' &&
-        returnFocusAfterClose
-      ) {
+      if (typeof _triggeringElement.focus === "function" && returnFocusAfterClose) {
         _triggeringElement.focus();
       }
 
@@ -136,8 +129,8 @@
   }
 
   function onModalOpened() {
-    _removeEscListener = browserEvent(document, 'keydown', (event) => {
-      if (event.key && event.key === 'Escape') {
+    _removeEscListener = browserEvent(document, "keydown", (event) => {
+      if (event.key && event.key === "Escape") {
         toggle(event);
       }
     });
@@ -166,12 +159,12 @@
     _mouseDownElement = e.target;
   }
 
-  const dialogBaseClass = 'modal-dialog';
+  const dialogBaseClass = "modal-dialog";
 
   $: classes = classnames(dialogBaseClass, className, {
     [`modal-${size}`]: size,
     [`${dialogBaseClass}-centered`]: centered,
-    [`${dialogBaseClass}-scrollable`]: scrollable
+    [`${dialogBaseClass}-scrollable`]: scrollable,
   });
 </script>
 

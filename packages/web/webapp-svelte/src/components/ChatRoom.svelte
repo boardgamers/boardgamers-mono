@@ -1,86 +1,92 @@
 <script lang="ts">
-import { get, post } from "@/api";
+  import { get, post } from "@/api";
 
-import { Modal, ModalHeader, Icon, ModalBody, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
-import type { GameContext } from "@/pages/Game.svelte";
-import { chatMessages, currentGameId, sidebarOpen, user } from "@/store";
-import { dateFromObjectId, dateTime, handleError } from "@/utils";
-import type { PlayerInfo } from "@shared/types/game";
-import { getContext } from "svelte";
-import { fly } from "svelte/transition";
-import { PlayerGameAvatar} from "./Game";
+  import { Modal, ModalHeader, Icon, ModalBody, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
+  import type { GameContext } from "@/pages/Game.svelte";
+  import { chatMessages, currentGameId, sidebarOpen, user } from "@/store";
+  import { dateFromObjectId, dateTime, handleError } from "@/utils";
+  import type { PlayerInfo } from "@shared/types/game";
+  import { getContext } from "svelte";
+  import { fly } from "svelte/transition";
+  import { PlayerGameAvatar } from "./Game";
 
-let isOpen = false
-let toggle = () => {isOpen = !isOpen}
-let lastRead: number = 0;
-export let room: string;
+  let isOpen = false;
+  let toggle = () => {
+    isOpen = !isOpen;
+  };
+  let lastRead: number = 0;
+  export let room: string;
 
-let currentMessage = "";
+  let currentMessage = "";
 
-const sendMessage = async () => {
-  console.log('send message')
-  const msg = currentMessage;
-  currentMessage = "";
+  const sendMessage = async () => {
+    console.log("send message");
+    const msg = currentMessage;
+    currentMessage = "";
 
-  // Mark message as delivered? by adding meta: 'Delivered'
-  return post(`/game/${room}/chat`, {
-    author: "me",
-    data: {
-      text: msg
-    },
-    type: "text"
-  }).catch(handleError)
-}
+    // Mark message as delivered? by adding meta: 'Delivered'
+    return post(`/game/${room}/chat`, {
+      author: "me",
+      data: {
+        text: msg,
+      },
+      type: "text",
+    }).catch(handleError);
+  };
 
-const {game}: GameContext= getContext("game")
+  const { game }: GameContext = getContext("game");
 
-function onMessagesChanged() {
-  setTimeout(() => {
-    const messagesContainer = document.querySelector('.chat-messages');
-    if (messagesContainer) {
-      messagesContainer.scrollTop = messagesContainer.scrollHeight
+  function onMessagesChanged() {
+    setTimeout(() => {
+      const messagesContainer = document.querySelector(".chat-messages");
+      if (messagesContainer) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+    });
+
+    if (isOpen) {
+      postLastRead();
     }
-  })
-
-  if (isOpen) {
-    postLastRead();
-  }
-}
-
-async function loadLastRead() {
-  if (userId) {
-    lastRead = await get(`/game/${room}/chat/lastRead`)
-  } else {
-    lastRead = 0;
-  }
-}
-
-async function postLastRead() {
-  const lastMessage = $chatMessages.slice(-1).pop();
-
-  if (!lastMessage) {
-    return;
   }
 
-  const lastMessageTime = dateFromObjectId(lastMessage._id).getTime();
-
-  if (lastMessageTime <= lastRead) {
-    return;
+  async function loadLastRead() {
+    if (userId) {
+      lastRead = await get(`/game/${room}/chat/lastRead`);
+    } else {
+      lastRead = 0;
+    }
   }
 
-  lastRead = Date.now();
+  async function postLastRead() {
+    const lastMessage = $chatMessages.slice(-1).pop();
 
-  if (userId) {
-    await post(`/game/${room}/chat/lastRead`, {lastRead}).catch(handleError);
+    if (!lastMessage) {
+      return;
+    }
+
+    const lastMessageTime = dateFromObjectId(lastMessage._id).getTime();
+
+    if (lastMessageTime <= lastRead) {
+      return;
+    }
+
+    lastRead = Date.now();
+
+    if (userId) {
+      await post(`/game/${room}/chat/lastRead`, { lastRead }).catch(handleError);
+    }
   }
-}
 
-$: userId = $user?._id
-$: players = ($game?.players??[]).reduce((obj, player) => ({...obj, [player._id]: player}), {} as Record<string, PlayerInfo>)
-$: onMessagesChanged(), [$chatMessages, isOpen]
-$: loadLastRead(), [userId, room]
-$: unreadMessages = $chatMessages.filter(msg => msg.type !== "system" && dateFromObjectId(msg._id).getTime() > lastRead).length
-
+  $: userId = $user?._id;
+  $: players = ($game?.players ?? []).reduce(
+    (obj, player) => ({ ...obj, [player._id]: player }),
+    {} as Record<string, PlayerInfo>
+  );
+  $: onMessagesChanged(), [$chatMessages, isOpen];
+  $: loadLastRead(), [userId, room];
+  $: unreadMessages = $chatMessages.filter(
+    (msg) => msg.type !== "system" && dateFromObjectId(msg._id).getTime() > lastRead
+  ).length;
 </script>
 
 <Modal

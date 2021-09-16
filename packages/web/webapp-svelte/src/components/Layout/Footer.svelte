@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { route } from "@/modules/router"
+  import { route } from "@/modules/router";
 </script>
 
 {#if !$route?.meta?.noFooter}

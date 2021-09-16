@@ -1,8 +1,8 @@
 <script lang="typescript">
   import { get } from "@/api";
-  import { Col, Row } from 'sveltestrap';
-  import { GameList } from '@/components';
-  import { user, activeGames } from '@/store';
+  import { Col, Row } from "sveltestrap";
+  import { GameList } from "@/components";
+  import { user, activeGames } from "@/store";
 </script>
 
 <div class="text-center container">

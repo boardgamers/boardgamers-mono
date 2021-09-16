@@ -3,7 +3,7 @@
   import { route } from "./router";
 
   const key = "router-context-key";
-  
+
   let n = getContext<number>(key) ?? 0;
   setContext(key, n + 1);
 </script>

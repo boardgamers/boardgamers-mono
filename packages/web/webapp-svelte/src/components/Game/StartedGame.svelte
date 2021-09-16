@@ -1,7 +1,7 @@
 <script lang="ts">
   import { get, post } from "@/api";
   import { loadGameData } from "@/api/game";
-  import type { GamePreferences } from "@shared/types/gamepreferences"
+  import type { GamePreferences } from "@shared/types/gamepreferences";
 
   import { Loading } from "@/modules/cdk";
   import { navigate } from "@/modules/router";
@@ -10,16 +10,18 @@
   import { handleError, skipOnce } from "@/utils";
   import { getContext, onDestroy } from "svelte";
 
-  const {game, replayData, gameInfo, emitter, log}: GameContext= getContext("game")
+  const { game, replayData, gameInfo, emitter, log }: GameContext = getContext("game");
   let stateSent = false;
 
-  const resourcesLink = location.hostname === "localhost" || location.hostname.endsWith("gitpod.io") ? `/resources` : `//resources.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`;
+  const resourcesLink =
+    location.hostname === "localhost" || location.hostname.endsWith("gitpod.io")
+      ? `/resources`
+      : `//resources.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`;
 
-  const gameIframe = () => document.querySelector<HTMLIFrameElement>("#game-iframe")
+  const gameIframe = () => document.querySelector<HTMLIFrameElement>("#game-iframe");
 
-  let src = ''
-  let prefs: GamePreferences
-  
+  let src = "";
+  let prefs: GamePreferences;
 
   function postUser() {
     if (gameIframe()) {
@@ -29,31 +31,35 @@
     }
   }
 
-  $: gameName = $game?.game.name
-  $: postUser(), [$user]
-  $: prefs = $gameSettings[gameName]
-  $: postPreferences(), [prefs]
-  $: gameId = $game?._id
+  $: gameName = $game?.game.name;
+  $: postUser(), [$user];
+  $: prefs = $gameSettings[gameName];
+  $: postPreferences(), [prefs];
+  $: gameId = $game?._id;
 
   const updateSrc = () => {
     if ($gameInfo) {
       src = `${resourcesLink}/game/${gameName}/${$gameInfo._id.version}/iframe?alternate=${
         prefs?.preferences?.alternateUI ? 1 : 0
-      }`
+      }`;
     }
-  }
-  $: updateSrc(), [$gameInfo, prefs]
-  
-  const onSrcChanged = () => stateSent = false;
+  };
+  $: updateSrc(), [$gameInfo, prefs];
 
-  $: onSrcChanged(), [src]
+  const onSrcChanged = () => (stateSent = false);
 
-  onDestroy(lastGameUpdate.subscribe(skipOnce(() => {
-    if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
-      postUpdatePresent()
-    }
-  })))
-  
+  $: onSrcChanged(), [src];
+
+  onDestroy(
+    lastGameUpdate.subscribe(
+      skipOnce(() => {
+        if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
+          postUpdatePresent();
+        }
+      })
+    )
+  );
+
   function postGamedata() {
     gameIframe()?.contentWindow?.postMessage({ type: "state", state: $game.data }, "*");
   }
@@ -72,24 +78,24 @@
     }
   }
 
-  emitter.on('replay:start', () => {
+  emitter.on("replay:start", () => {
     gameIframe()?.contentWindow?.postMessage({ type: "replay:start" }, "*");
-  })
+  });
 
-  emitter.on('replay:to', dest => {
+  emitter.on("replay:to", (dest) => {
     gameIframe()?.contentWindow?.postMessage({ type: "replay:to", to: dest }, "*");
-  })
+  });
 
-  emitter.on('replay:end', () => {
+  emitter.on("replay:end", () => {
     gameIframe()?.contentWindow?.postMessage({ type: "replay:end" }, "*");
-    $replayData = null
-  })
+    $replayData = null;
+  });
 
   onDestroy(() => {
-    emitter.off('replay:start');
-    emitter.off('replay:to');
-    emitter.off('replay:end');
-  })
+    emitter.off("replay:start");
+    emitter.off("replay:to");
+    emitter.off("replay:end");
+  });
 
   async function handleGameMessage(event: MessageEvent) {
     try {
@@ -100,12 +106,12 @@
         postPreferences();
         postGamedata();
       } else if (event.data.type === "gameHeight") {
-        gameIframe()!.height =
-          String(
+        gameIframe()!.height = String(
           Math.max(
             +window.getComputedStyle(gameIframe()!, null).getPropertyValue("min-height").replace(/px/, ""),
             +event.data.height
-          ));
+          )
+        );
       } else if (event.data.type === "playerClick") {
         navigate("/user/" + encodeURIComponent(event.data.player.name));
       } else if (event.data.type === "gameMove") {
@@ -113,15 +119,14 @@
       } else if (event.data.type === "displayReady") {
         stateSent = true;
       } else if (event.data.type === "fetchState") {
-        await loadGameData($game._id).then(g => {
+        await loadGameData($game._id).then((g) => {
           if (g._id === $game?._id) {
-            $game = g
+            $game = g;
             postGamedata();
           }
         });
       } else if (event.data.type === "fetchLog") {
-        const logData = await get(`/gameplay/${$game._id}/log`, { params: event.data.data })
-          .then((r) => r.data);
+        const logData = await get(`/gameplay/${$game._id}/log`, { params: event.data.data }).then((r) => r.data);
         postGameLog(logData);
       } else if (event.data.type === "addLog") {
         $log = [...$log, ...event.data.data];
@@ -139,11 +144,10 @@
     const { game: newGame, log } = await post(`/gameplay/${gameId}/move`, { move });
 
     if (newGame._id === gameId && !(newGame.updatedAt < $game?.updatedAt)) {
-      $game = newGame
+      $game = newGame;
       postGameLog(log);
     }
   }
-
 </script>
 
 <svelte:window on:message={handleGameMessage} />

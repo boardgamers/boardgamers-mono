@@ -1,16 +1,19 @@
 <script lang="ts">
   import { handleError } from "@/utils";
   import type { IUser } from "@shared/types/user";
-  import { UserGames, UserPublicInfo, UserElo} from "@/components";
+  import { UserGames, UserPublicInfo, UserElo } from "@/components";
   import { get } from "@/api";
   import { Row, Col, Container, Card, Loading } from "@/modules/cdk";
-  import { user as ownUser } from "@/store"
+  import { user as ownUser } from "@/store";
 
   export let username: string;
   let user: IUser;
 
-  const onUserNameChanged = () => get(`/user/infoByName/${encodeURIComponent(username)}`).then(r => user = r).catch(handleError)  
-  $: onUserNameChanged(), [username]
+  const onUserNameChanged = () =>
+    get(`/user/infoByName/${encodeURIComponent(username)}`)
+      .then((r) => (user = r))
+      .catch(handleError);
+  $: onUserNameChanged(), [username];
 </script>
 
 <svelte:head>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { handleError,  oneLineMarked, duration } from "@/utils";
+  import { handleError, oneLineMarked, duration } from "@/utils";
   import marked from "marked";
   import { fromPairs, upperFirst } from "lodash";
   import { Button, Col, Input, Checkbox, Row, Loading, Container } from "@/modules/cdk";
@@ -9,31 +9,31 @@
   import { adjectives, nouns } from "@/data";
   import type { GameInfo } from "@shared/types/gameinfo";
   import type { SetOptional } from "type-fest";
-  
-  export let boardgameId: string
-  
+
+  export let boardgameId: string;
+
   let gameId = randomId();
   let seed = "";
   let numPlayers = 2;
-  
+
   let options = ["join", "randomOrder"];
   let selects: Record<string, string> = {};
   let expansions: string[] = [];
-  
+
   let timePerMove = 2 * 3600;
   let timePerGame = 3 * 24 * 3600;
   let submitting = false;
   let timerEnd = "22:00";
   let timerStart = "09:00";
-  
+
   let scheduledDay = null as string | null;
   let scheduledTime = "";
-  
+
   let enableKarma = false;
   let minimumKarma = Math.min(75, $user!.account.karma - 5);
-  
-  let info: SetOptional<GameInfo, 'viewer'>
-  
+
+  let info: SetOptional<GameInfo, "viewer">;
+
   function createGame() {
     submitting = true;
 
@@ -81,18 +81,15 @@
     }
 
     post("/game/new-game", dataObj)
-      .then(
-        () => navigate("/game/" + gameId),
-        handleError
-      )
+      .then(() => navigate("/game/" + gameId), handleError)
       .finally(() => (submitting = false));
   }
-  
-  $: gameId = gameId.trim().replace(/ /g, "-")
-  
+
+  $: gameId = gameId.trim().replace(/ /g, "-");
+
   const onBoardgameIdChanged = async () => {
     await loadBoardgame(boardgameId, "latest");
-    info = boardgameInfo(boardgameId, "latest")
+    info = boardgameInfo(boardgameId, "latest");
     // Load default values for multiple choice options
     const newVal: Record<string, string> = {};
 
@@ -107,10 +104,10 @@
     }
 
     selects = newVal;
-  }
+  };
 
-  $: onBoardgameIdChanged().catch(handleError), [boardgameId]
-  
+  $: onBoardgameIdChanged().catch(handleError), [boardgameId];
+
   function randomId() {
     return (
       upperFirst(adjectives[Math.floor(Math.random() * adjectives.length)]) +

@@ -1,18 +1,18 @@
 <script lang="ts">
   import { timerTime, defer, duration, niceDate } from "@/utils";
   import type { IGame } from "@shared/types/game";
-  import { boardgameInfo, get, loadBoardgames } from "@/api"
+  import { boardgameInfo, get, loadBoardgames } from "@/api";
   import { logoClicks } from "@/store";
   import { onDestroy } from "svelte";
   import { createWatcher, skipOnce } from "@/utils/watch";
   import { Badge, Icon, Pagination, Loading, Row } from "@/modules/cdk";
   import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
 
-  export let title = 'Games';
+  export let title = "Games";
   export let perPage = 10;
   export let topRecords = false;
   export let sample = false;
-  export let gameStatus: IGame['status'];
+  export let gameStatus: IGame["status"];
   export let boardgameId: string | undefined = undefined;
   export let userId: string | undefined = undefined;
 
@@ -21,29 +21,32 @@
   let currentPage = 0;
   let games: IGame[] = [];
 
-  const prefix = () => boardgameId ? `/boardgame/${boardgameId}/games/${gameStatus}` : `/game/${gameStatus}`
+  const prefix = () => (boardgameId ? `/boardgame/${boardgameId}/games/${gameStatus}` : `/game/${gameStatus}`);
 
-  const loadGames = defer(async (refresh: boolean) => {
-    const queryParams = {
-      count: perPage, 
-      skip: currentPage * perPage,
-      ... (sample && {sample: true}),
-      ... (userId && {user: userId})
-    };
+  const loadGames = defer(
+    async (refresh: boolean) => {
+      const queryParams = {
+        count: perPage,
+        skip: currentPage * perPage,
+        ...(sample && { sample: true }),
+        ...(userId && { user: userId }),
+      };
 
-    if (refresh) {
-      loadingGames = true;
+      if (refresh) {
+        loadingGames = true;
 
-      if (!sample && !topRecords) {
-        count = await get<number>(`${prefix()}/count`, queryParams);
+        if (!sample && !topRecords) {
+          count = await get<number>(`${prefix()}/count`, queryParams);
+        }
       }
-    }
 
-    games = await get(prefix(), queryParams );
+      games = await get(prefix(), queryParams);
 
-    // TODO: only load boardgames present in games
-    await loadBoardgames();
-  }, () => loadingGames = false);
+      // TODO: only load boardgames present in games
+      await loadBoardgames();
+    },
+    () => (loadingGames = false)
+  );
 
   function playerEloChange(game: IGame) {
     const pl = game.players.find((pl) => pl._id === userId);
@@ -72,15 +75,18 @@
   }
 
   // Refresh game list each time logo is clicked
-  onDestroy(logoClicks.subscribe(skipOnce(() => {
-    loadGames(true)
-  })))
+  onDestroy(
+    logoClicks.subscribe(
+      skipOnce(() => {
+        loadGames(true);
+      })
+    )
+  );
 
   const onCurrentPageChanged = createWatcher(() => loadGames(false));
 
-  $: loadGames(true), [userId, boardgameId]
-  $: onCurrentPageChanged(currentPage)
-
+  $: loadGames(true), [userId, boardgameId];
+  $: onCurrentPageChanged(currentPage);
 </script>
 
 <Loading loading={loadingGames}>

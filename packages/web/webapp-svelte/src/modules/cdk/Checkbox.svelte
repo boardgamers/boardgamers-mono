@@ -1,5 +1,5 @@
 <script lang="ts">
-import { classnames } from "@/utils";
+  import { classnames } from "@/utils";
 
   export let value: string = "";
   export let checked: boolean = false;
@@ -9,24 +9,24 @@ import { classnames } from "@/utils";
     checked = true;
   }
 
-  let className = '';
+  let className = "";
   export { className as class };
 
-  const id = "check-" + Math.random().toString().slice(2, 9)
+  const id = "check-" + Math.random().toString().slice(2, 9);
 
-  $: classes = classnames(className, 'form-check');
+  $: classes = classnames(className, "form-check");
 
   const onValueChanged = () => {
     if (group && value) {
       if (checked && !group.includes(value)) {
-        group = [...group, value]
+        group = [...group, value];
       } else if (!checked && group.includes(value)) {
-        group = group.filter(x => x !== value)
+        group = group.filter((x) => x !== value);
       }
     }
-  }
+  };
 
-  $: onValueChanged(), [checked]
+  $: onValueChanged(), [checked];
 </script>
 
 <div class={classes}>

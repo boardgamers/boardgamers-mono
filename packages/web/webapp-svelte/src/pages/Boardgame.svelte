@@ -7,7 +7,7 @@
   import { navigate, routePath } from "@/modules/router";
   import { Card, Row, Col, Loading } from "@/modules/cdk";
   import { UserGameSettings, GameList, BoardgameElo } from "@/components";
-  
+
   export let boardgameId: string;
 
   let boardgame: GameInfo;
@@ -15,19 +15,21 @@
   const onUserChanged = () => {
     loadBoardgame(boardgameId, "latest").catch(handleError);
     loadGameSettings(boardgameId).catch(handleError);
-  }
+  };
 
-  $: onUserChanged(), [$user, boardgameId]
-  $: boardgame = boardgameInfo(boardgameId, "latest") as GameInfo, [$boardgames]
-  $: loading = !boardgame
-  $: hasOwnership = $gameSettings[boardgameId]?.access?.ownership
-  $: needOwnership = boardgame?.meta?.needOwnership
+  $: onUserChanged(), [$user, boardgameId];
+  $: (boardgame = boardgameInfo(boardgameId, "latest") as GameInfo), [$boardgames];
+  $: loading = !boardgame;
+  $: hasOwnership = $gameSettings[boardgameId]?.access?.ownership;
+  $: needOwnership = boardgame?.meta?.needOwnership;
 
   async function newGame() {
     if (needOwnership && !hasOwnership) {
-      await confirm("You need to have game ownership to host a new game. You can set game ownership in your account settings.");
+      await confirm(
+        "You need to have game ownership to host a new game. You can set game ownership in your account settings."
+      );
     } else {
-      navigate(`/new-game/${boardgameId}`)
+      navigate(`/new-game/${boardgameId}`);
     }
   }
 </script>

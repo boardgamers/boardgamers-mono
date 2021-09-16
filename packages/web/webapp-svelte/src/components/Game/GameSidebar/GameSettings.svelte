@@ -1,18 +1,18 @@
 <script lang="ts">
-  import {Icon,Checkbox, Label, Input, FormGroup} from "@/modules/cdk"
+  import { Icon, Checkbox, Label, Input, FormGroup } from "@/modules/cdk";
   import { handleError, oneLineMarked } from "@/utils";
   import { user } from "@/store";
   import { post, get } from "@/api";
   import type { GameContext } from "@/pages/Game.svelte";
   import { getContext } from "svelte";
 
-  const {game, gameInfo}: GameContext = getContext('game')
-  let  settings: Record<string, unknown> | null = null;
+  const { game, gameInfo }: GameContext = getContext("game");
+  let settings: Record<string, unknown> | null = null;
 
-  $: userId = $user?._id
-  $: playerUser = $game?.players.find((pl) => pl._id === userId)
-  $: gameStatus = $game?.status
-  $: gameId = $game?._id
+  $: userId = $user?._id;
+  $: playerUser = $game?.players.find((pl) => pl._id === userId);
+  $: gameStatus = $game?.status;
+  $: gameId = $game?._id;
 
   async function loadSettings() {
     if (gameStatus !== "active" || !playerUser || !$gameInfo) {
@@ -26,7 +26,7 @@
     }
   }
 
-  $: loadSettings(), [gameStatus, userId, $gameInfo]
+  $: loadSettings(), [gameStatus, userId, $gameInfo];
 
   async function postSettings() {
     if (!$user) {

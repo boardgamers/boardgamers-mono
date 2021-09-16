@@ -2,7 +2,7 @@
   import { login } from "@/api";
   import { Button, FormGroup, Label } from "@/modules/cdk";
   import { handleError } from "@/utils";
-  
+
   let email = "";
   let password = "";
 

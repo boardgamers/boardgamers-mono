@@ -3,19 +3,19 @@
   import { route } from "@/modules/router";
   import { handleError, handleInfo } from "@/utils";
 
-  let email = $route?.query.email ?? $route?.query.user ?? ""
-  let key = $route?.query.key ?? ""
-  
+  let email = $route?.query.email ?? $route?.query.user ?? "";
+  let key = $route?.query.key ?? "";
+
   let password = "";
   let passwordConfirm = "";
-  
+
   function handleSubmit() {
     if (password !== passwordConfirm) {
       handleError("The passwords don't match");
       return;
     }
 
-    resetPassword({email, resetKey: key, password}).then(() => handleInfo("Your password was reset"), handleError)
+    resetPassword({ email, resetKey: key, password }).then(() => handleInfo("Your password was reset"), handleError);
   }
 </script>
 

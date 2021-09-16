@@ -1,7 +1,7 @@
 <script lang="ts">
-import { Spinner } from "@cdk";
+  import { Spinner } from "@cdk";
 
-export let loading: boolean
+  export let loading: boolean;
 </script>
 
 {#if loading}

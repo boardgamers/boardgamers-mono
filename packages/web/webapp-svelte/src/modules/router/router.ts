@@ -122,27 +122,25 @@ export function createRouter(config: RouterConfig) {
   routes = config.routes;
 
   const augment = (ctx: PageJS.Context, config: RouteConfig) =>
-    (Object.assign(ctx, {
+    Object.assign(ctx, {
       component: config.component,
       meta: config.meta ?? {},
       name: config.name,
       layout: config.layout,
       props: config.props,
       query: ctx.querystring ? parseQuery(ctx.querystring) : {},
-    }) as any) as Route; // cast needed because current typings of PageJS.Context do not include hash
+    }) as any as Route; // cast needed because current typings of PageJS.Context do not include hash
 
-  const handleGuard: (guard: RouteGuard, config: RouteConfig) => PageJS.Callback = (guard, config) => async (
-    ctx,
-    next
-  ) => {
-    const res = await guard(augment(ctx, config));
+  const handleGuard: (guard: RouteGuard, config: RouteConfig) => PageJS.Callback =
+    (guard, config) => async (ctx, next) => {
+      const res = await guard(augment(ctx, config));
 
-    if (res === undefined) {
-      next();
-    } else {
-      navigate(res, true);
-    }
-  };
+      if (res === undefined) {
+        next();
+      } else {
+        navigate(res, true);
+      }
+    };
 
   for (const routeConfig of config.routes) {
     if (routeConfig.redirect) {

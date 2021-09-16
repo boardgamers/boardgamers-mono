@@ -1,45 +1,49 @@
 <script lang="ts">
-import { latestBoardgames, loadBoardgames } from "@/api";
-import { loadAllGameSettings } from "@/api/gamesettings";
-import { Card, CardText, Col } from "@/modules/cdk";
-import Loading from "@/modules/cdk/Loading.svelte";
-import { navigate } from "@/modules/router";
-import { gameSettings, user } from "@/store";
-import { handleError, confirm, createWatcher } from "@/utils";
-import type { GameInfo } from "@shared/types/gameinfo";
-import type { SetOptional } from "type-fest";
+  import { latestBoardgames, loadBoardgames } from "@/api";
+  import { loadAllGameSettings } from "@/api/gamesettings";
+  import { Card, CardText, Col } from "@/modules/cdk";
+  import Loading from "@/modules/cdk/Loading.svelte";
+  import { navigate } from "@/modules/router";
+  import { gameSettings, user } from "@/store";
+  import { handleError, confirm, createWatcher } from "@/utils";
+  import type { GameInfo } from "@shared/types/gameinfo";
+  import type { SetOptional } from "type-fest";
 
-import marked from "marked";
+  import marked from "marked";
 
-export let newGame = false;
-export let title = "Game selection"
+  export let newGame = false;
+  export let title = "Game selection";
 
-let info = latestBoardgames();
-let loading = info.length === 0;
+  let info = latestBoardgames();
+  let loading = info.length === 0;
 
-loadBoardgames().then(() => {
-  loading = false;
-  info = latestBoardgames()
-}).catch(handleError)
+  loadBoardgames()
+    .then(() => {
+      loading = false;
+      info = latestBoardgames();
+    })
+    .catch(handleError);
 
-loadAllGameSettings().catch(handleError)
+  loadAllGameSettings().catch(handleError);
 
-const watcher = createWatcher(() => Promise.all([loadBoardgames(), loadAllGameSettings()]))
+  const watcher = createWatcher(() => Promise.all([loadBoardgames(), loadAllGameSettings()]));
 
-$: watcher($user) 
+  $: watcher($user);
 
-const onGameClick  = async (gameInfo: SetOptional<GameInfo, 'viewer'>) => {
-  if (newGame) {
-    if (gameInfo.meta.needOwnership && !$gameSettings[gameInfo._id.game]?.access?.ownership) {
-      await confirm("You need to have game ownership to host a new game. You can set game ownership in your account settings.");
-    } else {
-      navigate(`/new-game/${gameInfo._id.game}`)
+  const onGameClick = async (gameInfo: SetOptional<GameInfo, "viewer">) => {
+    if (newGame) {
+      if (gameInfo.meta.needOwnership && !$gameSettings[gameInfo._id.game]?.access?.ownership) {
+        await confirm(
+          "You need to have game ownership to host a new game. You can set game ownership in your account settings."
+        );
+      } else {
+        navigate(`/new-game/${gameInfo._id.game}`);
+      }
+      return;
     }
-    return;
-  }
 
-  navigate(`/boardgame/${gameInfo._id.game}`);
-}
+    navigate(`/boardgame/${gameInfo._id.game}`);
+  };
 </script>
 
 <div class="container">

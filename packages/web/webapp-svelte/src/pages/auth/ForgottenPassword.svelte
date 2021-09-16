@@ -1,14 +1,11 @@
 <script lang="ts">
   import { post } from "@/api";
   import { handleError, handleInfo } from "@/utils";
-  
+
   let email = "";
-  
+
   function handleSubmit() {
-    post("/account/forget", { email }).then(
-      () => handleInfo("An email was sent to reset your password"),
-      handleError
-    );
+    post("/account/forget", { email }).then(() => handleInfo("An email was sent to reset your password"), handleError);
   }
 </script>
 

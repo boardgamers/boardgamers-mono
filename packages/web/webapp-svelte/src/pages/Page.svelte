@@ -1,24 +1,27 @@
 <script lang="ts">
-import { defer } from "@/utils";
-import type { Page as IPage } from "@shared/types/page";
-import marked from "marked";
-import Loading from "@/modules/cdk/Loading.svelte";
-import { get } from "@/api";
+  import { defer } from "@/utils";
+  import type { Page as IPage } from "@shared/types/page";
+  import marked from "marked";
+  import Loading from "@/modules/cdk/Loading.svelte";
+  import { get } from "@/api";
 
-let loading = true;
-let pageContent: Partial<IPage> = {
-  content: "",
-  title: "",
-}
+  let loading = true;
+  let pageContent: Partial<IPage> = {
+    content: "",
+    title: "",
+  };
 
-export let page: string;
+  export let page: string;
 
-const loadPage = defer(async (page: string) => {
-  loading = true;
-  pageContent = await get(`/page/${page}`);
-}, () => loading = false)
+  const loadPage = defer(
+    async (page: string) => {
+      loading = true;
+      pageContent = await get(`/page/${page}`);
+    },
+    () => (loading = false)
+  );
 
-$: loadPage(page);
+  $: loadPage(page);
 </script>
 
 <svelte:head>

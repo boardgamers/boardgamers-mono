@@ -1,16 +1,16 @@
 <script lang="ts">
   import type { PlayerInfo } from "@shared/types/game";
-  import { classnames } from "@/utils"
+  import { classnames } from "@/utils";
   import { user } from "@/store";
 
-  export let player: PlayerInfo
-  export let showVp = true
-  export let status = ''
-  let className = ''
-  export { className as class }
+  export let player: PlayerInfo;
+  export let showVp = true;
+  export let status = "";
+  let className = "";
+  export { className as class };
 
   export let userId: string | undefined;
-  $: highlightedPlayerId = userId ?? $user?._id
+  $: highlightedPlayerId = userId ?? $user?._id;
 </script>
 
 <div

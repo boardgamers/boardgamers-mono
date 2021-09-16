@@ -1,8 +1,8 @@
 <script lang="ts">
   import { BoardgameElo } from "@/components";
   import { Col, Row } from "@/modules/cdk";
-  
-   export let boardgameId: string
+
+  export let boardgameId: string;
 </script>
 
 <div class="container">

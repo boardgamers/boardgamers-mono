@@ -6,30 +6,26 @@
   import { oneLineMarked } from "@/utils";
   import type { GameInfo } from "@shared/types/gameinfo";
 
-  let gameInfo: GameInfo
-  export {gameInfo as game}
+  let gameInfo: GameInfo;
+  export { gameInfo as game };
 
-  $: boardgameId = gameInfo._id.game
-  $: boardgameVersion = gameInfo._id.version
+  $: boardgameId = gameInfo._id.game;
+  $: boardgameVersion = gameInfo._id.version;
 
-  $: preferences = $gameSettings[boardgameId]?.preferences || {}
+  $: preferences = $gameSettings[boardgameId]?.preferences || {};
 
-  const preferenceItems = gameInfo?.viewer?.alternate?.url ? [
-    { name: "alternateUI", label: "Use alternate UI", type: "checkbox", items: null },
-    ...gameInfo.preferences
-  ] : gameInfo.preferences
+  const preferenceItems = gameInfo?.viewer?.alternate?.url
+    ? [{ name: "alternateUI", label: "Use alternate UI", type: "checkbox", items: null }, ...gameInfo.preferences]
+    : gameInfo.preferences;
 
   async function postPreferences() {
     // Trigger update to subscribers
-    $gameSettings = {...$gameSettings}
+    $gameSettings = { ...$gameSettings };
 
     if (!$user) {
       return;
     }
-    await post(
-      `/account/games/${boardgameId}/preferences/${boardgameVersion}`, 
-      preferences
-    );
+    await post(`/account/games/${boardgameId}/preferences/${boardgameVersion}`, preferences);
   }
 </script>
 

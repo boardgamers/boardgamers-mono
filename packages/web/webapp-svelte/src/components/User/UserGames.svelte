@@ -1,8 +1,8 @@
 <script lang="ts">
-import { Card, Col, Row } from "@/modules/cdk";
-import GameList from "../Game/components/GameList.svelte";
+  import { Card, Col, Row } from "@/modules/cdk";
+  import GameList from "../Game/components/GameList.svelte";
 
-export let userId: string;
+  export let userId: string;
 </script>
 
 <Card class="mt-4 border-info" header="Games">
