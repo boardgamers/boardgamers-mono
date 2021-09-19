@@ -36,14 +36,20 @@ async function listen(port = env.listen.port.api) {
 
   // JWT auth
   app.use(async (ctx, next) => {
-    if (ctx.get("Authorization")?.startsWith("Bearer ")) {
-      const token = ctx.get("Authorization").slice("Bearer ".length);
-
+    const processToken = async (token: string) => {
       const decoded = jwt.verify(token, env.jwt.keys.public) as { userId: string; scopes: string[] };
 
       if (decoded && decoded.scopes.includes("all")) {
         ctx.state.user = await User.findById(decoded.userId);
       }
+    };
+
+    if (ctx.get("Authorization")?.startsWith("Bearer ")) {
+      const token = ctx.get("Authorization").slice("Bearer ".length);
+
+      await processToken(token);
+    } else if (ctx.query.token) {
+      await processToken(ctx.query.token);
     }
 
     await next();
