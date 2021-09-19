@@ -102,7 +102,7 @@ watch(serverInfo, (serverInfo) => {
         Backups
       </template>
       <ul>
-        <v-list-item :to="`/api/admin/backup/games?token=${encodeURIComponent(user.accessTokens.all.code)}`" class="px-2">
+        <v-list-item :to="`/api/admin/backup/games?token=${encodeURIComponent(user.accessTokens.all.code)}`" class="px-2" target="_blank">
           Games
         </v-list-item>
       </ul>

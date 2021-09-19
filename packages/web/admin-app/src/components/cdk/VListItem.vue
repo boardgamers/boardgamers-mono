@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useAttrs } from "vue";
 
-const props = defineProps<{to?: string; selected?: boolean}>();
+const props = defineProps<{to?: string; selected?: boolean; target?: string}>();
 const attrs = useAttrs<{onClick?: Function}>();
 
 const dynamic = computed(() => props.to !== undefined || attrs.onClick);
@@ -9,8 +9,9 @@ const dynamic = computed(() => props.to !== undefined || attrs.onClick);
 
 <template>
   <component
-    :is="props.to === undefined ? 'li' : 'router-link'"
-    :to="to"
+    :is="to === undefined ? 'li' : (props.target ? 'a' : 'router-link')"
+    :[props.target?`href`:`to`]="to"
+    :target="target"
     class="h-10 flex items-center"
     :class="{
       'dark:hover:bg-dark-400': dynamic,
