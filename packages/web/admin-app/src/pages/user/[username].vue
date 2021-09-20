@@ -5,6 +5,7 @@ import { ApiError } from "@shared/types/api-error";
 import { ref, watch } from "vue-demi";
 import { handleError, handleInfo } from "~/utils";
 import { get, post } from "~/api/rest";
+import VDataTable from "~cdk/VDataTable.vue";
 
 const props = defineProps<{username: string}>();
 const gameName = ref("");
@@ -150,7 +151,7 @@ async function updateKarma(value: number) {
       >
         <template #expanded-item="{ item }">
           <td :colspan="apiHeaders.length">
-            <pre>{{ JSON.stringify(item, null, 2) }}</pre>
+            <pre>{{ JSON.stringify(item, null, 2).replaceAll('\\n', '\n') }}</pre>
           </td>
         </template>
       </v-data-table>
