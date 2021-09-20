@@ -13,6 +13,7 @@ const emit = defineEmits<{(e: 'update:searchInput', value: string): void; (e: 'u
       ref="target"
       :label="props.label"
       :model-value="props.searchInput"
+      autocomplete="off"
       @update:modelValue="emit('update:searchInput', $event)"
       @focus="hasFocus = true"
       @blur="hasFocus = false"

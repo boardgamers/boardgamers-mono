@@ -6,7 +6,7 @@ const props = withDefaults(defineProps<{
   disabled?: boolean;
   label?: string;
   modelValue: string;
-  type: "text" | "email" | "password";
+  type: "text" | "email" | "password" | "number";
   required?: boolean;
 }>(), { type: "text" });
 

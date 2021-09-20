@@ -100,39 +100,46 @@ async function updateKarma(value: number) {
 <template>
   <div>
     <v-card :loading="loading">
-      <v-card-title> User management </v-card-title>
-      <v-card-text>
-        <v-text-field
-          v-model.number="user.account.karma"
-          label="Karma"
-          type="number"
-          @change="updateKarma"
-        ></v-text-field>
-      </v-card-text>
-      <v-divider />
-      <v-card-actions>
-        <v-btn :disabled="user && user.security && user.security.confirmed" @click="confirmUser"> Confirm user </v-btn>
-        <v-btn @click="login"> Log in as </v-btn>
-      </v-card-actions>
+      <template #title>
+        User management
+      </template>
+      <v-text-field
+        v-if="user"
+        v-model.number="user.account.karma"
+        label="Karma"
+        type="number"
+        @change="updateKarma"
+      />
+      <template #actions>
+        <v-btn :disabled="user?.security?.confirmed" @click="confirmUser">
+          Confirm user
+        </v-btn>
+        <v-btn @click="login">
+          Log in as
+        </v-btn>
+      </template>
     </v-card>
     <v-card class="mt-4" :loading="loading">
-      <v-card-title> Boardgame management </v-card-title>
-      <v-card-text>
-        <v-text-field v-model="gameName" label="Boardgame name" />
-        <v-text-field v-model.number="elo" type="number" label="Elo" />
-      </v-card-text>
-      <v-divider />
-      <v-card-actions>
+      <template #title>
+        Boardgame management
+      </template>
+      <v-text-field v-model="gameName" label="Boardgame name" />
+      <v-text-field v-model.number="elo" type="number" label="Elo" />
+      <template #actions>
         <v-btn @click="grantAccess">
-          <v-icon class="mr-2"> mdi-check </v-icon>
+          <mdi-check />
           Grant access
         </v-btn>
-        <v-btn @click="changeElo"> Change elo </v-btn>
-      </v-card-actions>
+        <v-btn @click="changeElo">
+          Change elo
+        </v-btn>
+      </template>
     </v-card>
 
     <v-card class="mt-4">
-      <v-card-title>Api Errors</v-card-title>
+      <template #title>
+        Api Errors
+      </template>
       <v-data-table
         :headers="apiHeaders"
         :items="apiErrors"
