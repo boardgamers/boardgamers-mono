@@ -81,7 +81,7 @@ const router = useRouter();
 
 const duplicate = async () => {
   await post(`/admin/gameinfo/${info.value._id.game}/${info.value._id.version + 1}`, {
-    ...info,
+    ...info.value,
     meta: { public: false },
   });
   router.push({
@@ -222,7 +222,9 @@ watch(() => props.gameInfo, (gameInfo) => {
             </v-btn>
           </v-row>
           <v-card v-if="info[variable][i].type === 'select'" class="m-4">
-            <template #title> Items for {{ info[variable][i].name }} </template>
+            <template #title>
+              Items for {{ info[variable][i].name }}
+            </template>
             <v-row v-for="(item, j) in info[variable][i].items || []" :key="j">
               <v-text-field v-model="item.name" :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} ID`" />
               <v-text-field
@@ -250,7 +252,9 @@ watch(() => props.gameInfo, (gameInfo) => {
         <v-btn v-if="mode === 'edit'" color="secondary" @click="duplicate">
           <mdi-content-duplicate /> Duplicate to next version
         </v-btn>
-        <v-btn color="primary" type="submit"> <mdi-floppy /> Save </v-btn>
+        <v-btn color="primary" type="submit">
+          <mdi-floppy /> Save
+        </v-btn>
       </v-row>
     </form>
   </div>
