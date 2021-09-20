@@ -12,7 +12,7 @@ const dynamic = computed(() => props.to !== undefined || attrs.onClick);
     :is="to === undefined ? 'li' : (props.target ? 'a' : 'router-link')"
     :[props.target?`href`:`to`]="to"
     :target="target"
-    class="h-10 flex items-center"
+    class="h-10 flex items-center p-2"
     :class="{
       'dark:hover:bg-dark-400': dynamic,
       'hover:bg-blue-100': dynamic,

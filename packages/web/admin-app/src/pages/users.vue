@@ -4,6 +4,7 @@ import { ref, watch } from "vue-demi";
 import { useRouter } from "vue-router";
 import { handleError } from "../utils";
 import { get } from "~/api/rest";
+import VAutocomplete from "~cdk/VAutocomplete.vue";
 
 const username = ref("");
 const email = ref("");
@@ -19,7 +20,7 @@ watch(search, async (search: string) => {
     try {
       loading.value = true;
 
-      const users: Array<IUser> = await get('/admin/users/search', { query: search });
+      const users: Array<IUser> = await get('/admin/users/search', { query: search, count: 10 });
 
       items.value = users.map(user => ({ text: user.account.username, value: user.account.username }));
     }
@@ -40,7 +41,7 @@ watch(emailSearch, async (query: string) => {
     try {
       emailLoading.value = true;
 
-      const users: Array<IUser> = await get(`/admin/users/search`, { query, mode: "email" });
+      const users: Array<IUser> = await get(`/admin/users/search`, { query, count: 10, mode: "email" });
 
       emailItems.value = users.map(user => ({ text: user.account.username, value: user.account.username }));
     }
@@ -66,16 +67,13 @@ watch(username, (username) => {
 </script>
 <template>
   <div>
-    <v-autocomplete v-model="username" v-model:search-input="search" label="Username" :loading="loading" :items="items">
-    </v-autocomplete>
-
+    <v-autocomplete v-model="username" v-model:searchInput="search" label="Username" :loading="loading" :items="items" />
     <v-autocomplete
       v-model="email"
-      v-model:search-input="emailSearch"
+      v-model:searchInput="emailSearch"
       label="Email"
       :loading="emailLoading"
       :items="emailItems"
-    >
-    </v-autocomplete>
+    />
   </div>
 </template>

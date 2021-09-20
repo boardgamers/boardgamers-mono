@@ -2,6 +2,7 @@ import assert from "assert";
 import { Context } from "koa";
 import Router from "koa-router";
 import { ApiError, GameInfo, GamePreferences, User } from "../../models";
+import { queryCount } from "../utils";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -17,7 +18,7 @@ router.get("/search", async (ctx) => {
       ? { "account.email": new RegExp("^" + query.toLowerCase()) }
       : { "security.slug": new RegExp("^" + query.toLowerCase()) };
 
-  const users = await User.find(conditions, "account").lean(true).limit(50);
+  const users = await User.find(conditions, "account").lean(true).limit(queryCount(ctx));
   ctx.body = users;
 });
 
