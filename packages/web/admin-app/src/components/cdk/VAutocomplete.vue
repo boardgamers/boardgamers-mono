@@ -10,7 +10,6 @@ const emit = defineEmits<{(e: 'update:searchInput', value: string): void; (e: 'u
 <template>
   <div>
     <v-text-field
-      ref="target"
       :label="props.label"
       :model-value="props.searchInput"
       autocomplete="off"
