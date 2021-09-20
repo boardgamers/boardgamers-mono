@@ -1,5 +1,5 @@
 {
-  "name": "boardgamers-admin-app",
+  "name": "@bgs/admin-app",
   "version": "0.1.0",
   "private": true,
   "license": "AGPL-3.0",
