@@ -4,5 +4,6 @@ packages:
   - "packages/server/game-server"
   - "packages/shared/types"
   - "packages/shared/models"
+  - "packages/shared/utils"
   - "packages/web/admin-app"
   - "packages/web/webapp-svelte"

@@ -1,6 +1,6 @@
 import { gameSettings, user } from "@/store";
 import type { RemoveReadable } from "@/utils";
-import type { GamePreferences } from "@shared/types/gamepreferences";
+import type { GamePreferences } from "@bgs/types/gamepreferences";
 import { isEmpty } from "lodash";
 import { get as storeGet } from "svelte/store";
 import { get } from "./rest";

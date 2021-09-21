@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { GameInfo } from "@shared/types/gameinfo";
+  import type { GameInfo } from "@bgs/types/gameinfo";
   import { handleError, confirm, classnames } from "@/utils";
   import Card from "@/modules/cdk/Card.svelte";
   import { CardText } from "@/modules/cdk";

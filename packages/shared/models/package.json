@@ -1,7 +1,7 @@
 {
-  "name": "@shared/models",
+  "name": "@bgs/models",
   "dependencies": {
-    "@shared/types": "workspace:*"
+    "@bgs/types": "workspace:*"
   },
   "peerDependencies": {
     "mongoose": "^6.0.2"

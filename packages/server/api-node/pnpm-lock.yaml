@@ -1,8 +1,9 @@
 lockfileVersion: 5.3
 
 specifiers:
-  '@shared/models': workspace:*
-  '@shared/types': workspace:*
+  '@bgs/models': workspace:*
+  '@bgs/types': workspace:*
+  '@bgs/utils': workspace:*
   '@types/bcryptjs': ^2.4.1
   '@types/chai': ^4.2.11
   '@types/chai-as-promised': ^7.1.2
@@ -68,8 +69,9 @@ specifiers:
   ws: ^6.0.0
 
 dependencies:
-  '@shared/models': link:../../shared/models
-  '@shared/types': link:../../shared/types
+  '@bgs/models': link:../../shared/models
+  '@bgs/types': link:../../shared/types
+  '@bgs/utils': link:../../shared/utils
   bcryptjs: 2.4.3
   check-disk-space: 2.1.0
   cookie-parser: 1.4.5

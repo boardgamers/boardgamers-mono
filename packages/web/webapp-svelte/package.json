@@ -8,7 +8,7 @@
     "test": "web-test-runner \"src/**/*.test.ts\""
   },
   "dependencies": {
-    "@shared/types": "workspace:*",
+    "@bgs/types": "workspace:*",
     "awesome-notifications": "^3.1.1",
     "bootstrap": "^5.1.0",
     "bootstrap-icons": "^1.5.0",

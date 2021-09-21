@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { IUser } from "@shared/types/user";
+  import type { IUser } from "@bgs/types/user";
   import { classnames, dateFromObjectId } from "@/utils";
   import { Card } from "@cdk";
 

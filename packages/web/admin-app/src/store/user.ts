@@ -1,4 +1,4 @@
-import { IUser } from "@shared/types/user";
+import { IUser } from "@bgs/types/user";
 import { defineStore } from "pinia";
 
 export type Token = { code: string; expiresAt: number };

@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { DateTime } from "luxon";
-import { deadline, elapsedSeconds, isPaused } from "./time-utils";
+import { deadline, elapsedSeconds, isPaused } from "./time";
 
 const oneMinute = 60;
 const oneHour = 3600;
@@ -8,22 +8,28 @@ const oneHourMs = oneHour * 1000;
 const oneDayMs = oneHourMs * 24;
 
 describe("Time Utils", () => {
-  const summerDate = DateTime.fromObject({
-    year: 2020,
-    month: 4,
-    day: 16,
-    hour: 9,
-    minute: 47,
-    zone: "Europe/Paris",
-  }).toJSDate();
-  const winterDate = DateTime.fromObject({
-    year: 2020,
-    month: 3,
-    day: 16,
-    hour: 9,
-    minute: 47,
-    zone: "Europe/Paris",
-  }).toJSDate();
+  const summerDate = DateTime.fromObject(
+    {
+      year: 2020,
+      month: 4,
+      day: 16,
+      hour: 9,
+      minute: 47,
+    },
+    { zone: "Europe/Paris" }
+  ).toJSDate();
+  const winterDate = DateTime.fromObject(
+    {
+      year: 2020,
+      month: 3,
+      day: 16,
+      hour: 9,
+      minute: 47,
+    },
+    {
+      zone: "Europe/Paris",
+    }
+  ).toJSDate();
 
   describe("isPaused", () => {
     it("should be paused when time is before a in [a, b] and a < b", () => {

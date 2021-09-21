@@ -1,0 +1,15 @@
+{
+  "name": "@bgs/utils",
+  "scripts": {
+    "test": "mocha -r ts-node/register *.spec.ts"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.2.22",
+    "@types/luxon": "^2.0.4",
+    "@types/mocha": "^9.0.0",
+    "chai": "^4.3.4",
+    "luxon": "^2.0.2",
+    "mocha": "^9.1.1",
+    "ts-node": "^10.2.1"
+  }
+}

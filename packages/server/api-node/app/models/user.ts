@@ -1,4 +1,4 @@
-import { IAbstractUser } from "@shared/types/user";
+import { IAbstractUser } from "@bgs/types/user";
 import assert from "assert";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";

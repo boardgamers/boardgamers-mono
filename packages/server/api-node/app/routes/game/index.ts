@@ -1,3 +1,4 @@
+import { timerDuration } from "@bgs/utils/time";
 import GameInfoService from "app/services/gameinfo";
 import assert from "assert";
 import createError from "http-errors";
@@ -6,7 +7,6 @@ import Router from "koa-router";
 import { omit, shuffle } from "lodash";
 import locks from "mongo-locks";
 import type { Types } from "mongoose";
-import { timerDuration } from "../../engine/time-utils";
 import {
   ChatMessage,
   Game,

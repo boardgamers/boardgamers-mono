@@ -6,7 +6,7 @@
   import { routePath } from "@/modules/router";
   import { upperFirst, debounce } from "lodash";
   import { latestBoardgames, loadBoardgames, post } from "@/api";
-  import type { GameInfo } from "@shared/types/gameinfo";
+  import type { GameInfo } from "@bgs/types/gameinfo";
 
   loadBoardgames().catch(handleError);
 

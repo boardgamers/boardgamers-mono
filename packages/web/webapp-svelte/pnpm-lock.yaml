@@ -1,7 +1,7 @@
 lockfileVersion: 5.3
 
 specifiers:
-  '@shared/types': workspace:*
+  '@bgs/types': workspace:*
   '@sveltejs/vite-plugin-svelte': ^1.0.0-next.20
   '@testing-library/svelte': ^3.0.0
   '@types/chai': ^4.2.13
@@ -32,7 +32,7 @@ specifiers:
   vite: ^2.5.3
 
 dependencies:
-  '@shared/types': link:../../shared/types
+  '@bgs/types': link:../../shared/types
   awesome-notifications: 3.1.1
   bootstrap: 5.1.0
   bootstrap-icons: 1.5.0

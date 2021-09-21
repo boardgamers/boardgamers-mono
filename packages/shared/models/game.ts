@@ -1,4 +1,4 @@
-import { IAbstractGame, PlayerInfo } from "@shared/types/game";
+import { IAbstractGame, PlayerInfo } from "@bgs/types/game";
 import { Model, Schema, Types } from "mongoose";
 
 const playerInfoSchema = new Schema<PlayerInfo<Types.ObjectId>>({

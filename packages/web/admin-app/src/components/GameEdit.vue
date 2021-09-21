@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { GameInfo } from "@shared/types/gameinfo";
+import { GameInfo } from "@bgs/types/gameinfo";
 import { set } from "lodash";
 import { useRouter } from "vue-router";
 import { post } from "~/api/rest";

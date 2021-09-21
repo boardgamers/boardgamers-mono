@@ -1,7 +1,7 @@
 lockfileVersion: 5.3
 
 specifiers:
-  '@shared/types': workspace:*
+  '@bgs/types': workspace:*
 
 dependencies:
-  '@shared/types': link:../types
+  '@bgs/types': link:../types

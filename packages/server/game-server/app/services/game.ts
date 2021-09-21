@@ -1,3 +1,4 @@
+import { deadline, elapsedSeconds } from "@bgs/utils/time";
 import assert from "assert";
 import crypto from "crypto";
 import locks from "mongo-locks";
@@ -6,7 +7,6 @@ import ChatMessage from "../models/chatmessage";
 import Game, { GameDocument } from "../models/game";
 import GameNotification from "../models/gamenotification";
 import type { Engine, GameData } from "../types/engine";
-import { deadline, elapsedSeconds } from "../utils/time";
 import { getEngine } from "./engines";
 
 export async function handleMessages(engine: Engine, gameId: string, gameData: GameData): Promise<GameData> {

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { GameInfo } from "@shared/types/gameinfo";
+import type { GameInfo } from "@bgs/types/gameinfo";
 import { ref, watch } from "vue-demi";
 import { get, post } from "~/api/rest";
 import { handleError, handleSuccess } from "~/utils";

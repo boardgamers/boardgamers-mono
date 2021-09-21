@@ -4,8 +4,9 @@
   "license": "AGPL-3.0",
   "private": true,
   "dependencies": {
-    "@shared/models": "workspace:*",
-    "@shared/types": "workspace:*",
+    "@bgs/models": "workspace:*",
+    "@bgs/types": "workspace:*",
+    "@bgs/utils": "workspace:*",
     "bcryptjs": "^2.4.3",
     "check-disk-space": "^2.1.0",
     "cookie-parser": "^1.4.3",

@@ -4,7 +4,7 @@
   import Checkbox from "@/modules/cdk/Checkbox.svelte";
   import { gameSettings, user } from "@/store";
   import { oneLineMarked } from "@/utils";
-  import type { GameInfo } from "@shared/types/gameinfo";
+  import type { GameInfo } from "@bgs/types/gameinfo";
 
   let gameInfo: GameInfo;
   export { gameInfo as game };

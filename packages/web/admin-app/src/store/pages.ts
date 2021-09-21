@@ -1,4 +1,4 @@
-import { Page } from "@shared/types/page";
+import { Page } from "@bgs/types/page";
 import { defineStore } from "pinia";
 import { ref } from "vue-demi";
 

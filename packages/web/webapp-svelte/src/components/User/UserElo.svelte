@@ -2,7 +2,7 @@
   import { boardgameInfo, get, loadBoardgame } from "@/api";
   import { handleError, pluralize } from "@/utils";
 
-  import type { GamePreferences } from "@shared/types/gamepreferences";
+  import type { GamePreferences } from "@bgs/types/gamepreferences";
   import { Icon } from "@cdk";
 
   export let userId: string;

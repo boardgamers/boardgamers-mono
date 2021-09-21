@@ -18,11 +18,11 @@
   import { Loading } from "@/modules/cdk";
   import { currentGameId, currentRoom } from "@/store";
   import { defer } from "@/utils";
-  import type { IGame, PlayerInfo } from "@shared/types/game";
+  import type { IGame, PlayerInfo } from "@bgs/types/game";
   import { loadGameSettings } from "@/api/gamesettings";
   import { onDestroy, setContext } from "svelte";
   import { writable } from "svelte/store";
-  import type { GameInfo } from "@shared/types/gameinfo";
+  import type { GameInfo } from "@bgs/types/gameinfo";
   import EventEmitter from "eventemitter3";
 
   export let gameId: string;

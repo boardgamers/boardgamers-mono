@@ -2,20 +2,18 @@ name: Game-Server
 on:
   push:
     paths:
-      - ".github/workflows/game-server.yml"
-      - "packages/server/game-server/**"
-      - "packages/shared/**"
+      - ".github/workflows/utils.yml"
+      - "packages/shared/utils/**"
     branches:
       - master
   pull_request:
     paths:
-      - ".github/workflows/game-server.yml"
-      - "packages/server/game-server/**"
-      - "packages/shared/**"
+      - ".github/workflows/utils.yml"
+      - "packages/shared/utils/**"
 
 defaults:
   run:
-    working-directory: packages/server/game-server
+    working-directory: packages/shared/utils
 
 jobs:
   lint:
@@ -29,5 +27,4 @@ jobs:
         with:
           version: 6.14.3
       - run: pnpm install --filter {./}...
-      - run: pnpm run lint-check
-      - run: pnpm run tsc
+      - run: pnpm test

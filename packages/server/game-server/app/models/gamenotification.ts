@@ -1,5 +1,5 @@
-import makeSchema from "@shared/models/gamenotification";
-import { GameNotification } from "@shared/types/gamenotification";
+import makeSchema from "@bgs/models/gamenotification";
+import { GameNotification } from "@bgs/types/gamenotification";
 import mongoose, { Types } from "mongoose";
 
 interface GameNotificationDocument extends mongoose.Document, GameNotification<Types.ObjectId> {}

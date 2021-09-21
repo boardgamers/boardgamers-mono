@@ -1,4 +1,4 @@
-import type { Page as IPage } from "@shared/types/page";
+import type { Page as IPage } from "@bgs/types/page";
 import mongoose from "mongoose";
 
 interface PageDocument extends mongoose.Document, IPage {

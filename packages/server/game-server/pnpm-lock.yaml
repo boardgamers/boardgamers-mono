@@ -1,8 +1,9 @@
 lockfileVersion: 5.3
 
 specifiers:
-  '@shared/models': workspace:*
-  '@shared/types': workspace:*
+  '@bgs/models': workspace:*
+  '@bgs/types': workspace:*
+  '@bgs/utils': workspace:*
   '@types/chai': ^4.2.11
   '@types/fs-extra': ^8.1.0
   '@types/http-errors': ^1.6.3
@@ -41,6 +42,8 @@ specifiers:
   typescript: ^4.4.2
 
 dependencies:
+  '@bgs/models': link:../../shared/models
+  '@bgs/utils': link:../../shared/utils
   decache: 4.6.0
   dotenv: 8.2.0
   fs-extra: 9.1.0
@@ -56,8 +59,7 @@ dependencies:
   mongoose: 6.0.3
 
 devDependencies:
-  '@shared/models': link:../../shared/models
-  '@shared/types': link:../../shared/types
+  '@bgs/types': link:../../shared/types
   '@types/chai': 4.2.14
   '@types/fs-extra': 8.1.1
   '@types/http-errors': 1.8.0
@@ -1370,7 +1372,6 @@ packages:
 
   /graceful-fs/4.2.6:
     resolution: {integrity: sha512-nTnJ528pbqxYanhpDYsi4Rd8MAeaBA67+RZ10CM1m3bTAVFEDcd5AuA4a6W5YkGZ1iNXHzZz8T6TBKLeBuNriQ==}
-    dev: true
 
   /growl/1.10.5:
     resolution: {integrity: sha512-qBr4OuELkhPenW6goKVXiv47US3clb3/IbuWF9KNKEijAy9oeHxU9IgzjvJhHkUzhaj7rOUD7+YGWqUjLp5oSA==}
@@ -1638,7 +1639,7 @@ packages:
     dependencies:
       universalify: 2.0.0
     optionalDependencies:
-      graceful-fs: 4.2.4
+      graceful-fs: 4.2.6
     dev: false
 
   /jsonwebtoken/8.5.1:

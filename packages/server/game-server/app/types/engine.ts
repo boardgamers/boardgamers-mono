@@ -1,4 +1,4 @@
-/* eslint-disable @shared/typescript-eslint/no-explicit-any */
+/* eslint-disable @bgs/typescript-eslint/no-explicit-any */
 export type GameData = any;
 
 type Many<T> = T | T[];

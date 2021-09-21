@@ -1,4 +1,4 @@
-import type { ChatMessage } from "@shared/types/chatmessage";
+import type { ChatMessage } from "@bgs/types/chatmessage";
 import { Model, Schema, Types } from "mongoose";
 
 const repr = {

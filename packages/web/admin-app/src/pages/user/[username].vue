@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { IUser } from "@shared/types/user";
+import { IUser } from "@bgs/types/user";
 import { pick } from "lodash";
-import { ApiError } from "@shared/types/api-error";
+import { ApiError } from "@bgs/types/api-error";
 import { ref, watch } from "vue-demi";
 import { handleError, handleInfo } from "~/utils";
 import { get, post } from "~/api/rest";

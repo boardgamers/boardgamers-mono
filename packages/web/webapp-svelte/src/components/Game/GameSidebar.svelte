@@ -1,7 +1,7 @@
 <script lang="ts">
   import { keyBy } from "lodash";
   import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
-  import type { PlayerInfo } from "@shared/types/game";
+  import type { PlayerInfo } from "@bgs/types/game";
   import Portal from "svelte-portal";
   import { addActiveGame, playerStatus, removeActiveGame, user } from "@/store";
   import { Button, Icon, Badge } from "@/modules/cdk";
@@ -72,6 +72,7 @@
   function remainingTime(player: PlayerInfo) {
     const currentPlayer = currentPlayersById[player._id];
     if (currentPlayer) {
+      const start = currentPlayer.timerStart;
       // Trick to update every second
       return Math.floor((new Date(currentPlayer.deadline).getTime() - Date.now() + (secondsCounter % 1)) / 1000);
     }
