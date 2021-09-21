@@ -2,12 +2,12 @@ import mongoose from "mongoose";
 
 interface SettingsDocument extends mongoose.Document {
   _id: string;
-  value: string;
+  value: any;
 }
 
 const schema = new mongoose.Schema({
   _id: String,
-  value: String,
+  value: {},
 });
 
 const Settings = mongoose.model<SettingsDocument>("settings", schema);

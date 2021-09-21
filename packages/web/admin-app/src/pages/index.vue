@@ -9,10 +9,10 @@ import { useUserStore } from "~/store/user";
 
 const user = useUserStore();
 
-const serverInfo = ref<{ disk: { free: number; size: number }; nbUsers: number; announcement: string } | null>(null);
+const serverInfo = ref<{ disk: { free: number; size: number }; nbUsers: number; announcement: {content: string, title: string} } | null>(null);
 const gameId = ref("");
 const gameIds = ref("");
-const announcement = ref("");
+const announcement = reactive({title: "", content: ""});
 
 get("/admin/serverinfo").then(data => serverInfo.value = data, handleError);
 
@@ -36,13 +36,13 @@ function loadReplays() {
 }
 
 function updateAnnouncement() {
-  post("/admin/announcement", { announcement: announcement.value })
+  post("/admin/announcement", { announcement })
     .then(() => handleInfo("Announcement updated"), handleError);
 }
 
 watch(serverInfo, (serverInfo) => {
   if (serverInfo?.announcement) {
-    announcement.value = serverInfo.announcement;
+    Object.assign(announcement, serverInfo.announcement);
   }
 });
 </script>
@@ -58,7 +58,8 @@ watch(serverInfo, (serverInfo) => {
           <li>Available space: {{ filesize(serverInfo.disk.free) }} / {{ filesize(serverInfo.disk.size) }}</li>
           <li>Users: {{ serverInfo.nbUsers }}</li>
         </ul>
-        <v-textarea v-model="announcement" label="Announcement" class="flex-grow"></v-textarea>
+        <v-text-field v-model="announcement.title" label="Title"></v-text-field>
+        <v-textarea v-model="announcement.content" label="Announcement" class="flex-grow"></v-textarea>
       </div>
       <template #actions>
         <v-btn color="primary" @click="updateAnnouncement">
