@@ -1,4 +1,4 @@
-<script lang="typescript">
+<script lang="ts">
   import { get } from "@/api";
   import { Col, Row } from "sveltestrap";
   import { GameList } from "@/components";

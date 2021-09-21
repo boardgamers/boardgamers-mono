@@ -1,5 +1,6 @@
 <script lang="ts">
   import { keyBy } from "lodash";
+  import { elapsedSeconds } from "@bgs/utils/time";
   import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
   import type { PlayerInfo } from "@bgs/types/game";
   import Portal from "svelte-portal";
@@ -72,9 +73,9 @@
   function remainingTime(player: PlayerInfo) {
     const currentPlayer = currentPlayersById[player._id];
     if (currentPlayer) {
-      const start = currentPlayer.timerStart;
+      const spent = elapsedSeconds(new Date(currentPlayer.timerStart as any), $game.options.timing.timer);
       // Trick to update every second
-      return Math.floor((new Date(currentPlayer.deadline).getTime() - Date.now() + (secondsCounter % 1)) / 1000);
+      return Math.max(player.remainingTime - spent, 0) + (secondsCounter % 1);
     }
     return Math.max(player.remainingTime, 0);
   }
