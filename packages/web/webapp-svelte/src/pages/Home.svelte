@@ -10,16 +10,16 @@
   }
 </script>
 
-<div class="text-center container">
+<div class="container">
   <div class="lead py-2" style="display: flex; flex-direction: column">
     {#await loadAnnouncement() then announcement}
-      <p>
+      <p class="text-center">
         Play <b>Gaia Project</b> and <b>Container</b> online<br />Want to set up live games? Join the
         <a href="https://discord.gg/EgqK3rD">discord</a>!
       </p>
-      <div class="text-left mx-auto card border-info px-3 pb-3 d-block">
+      <div class="mx-auto card border-info px-3 pb-3 d-block">
         <div class="text-center announcement-title py-1">{announcement?.title}</div>
-        <div class="announcement-content">
+        <div class="text-start announcement-content">
           {@html marked(announcement?.content)}
         </div>
       </div>
