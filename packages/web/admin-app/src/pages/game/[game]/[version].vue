@@ -34,7 +34,14 @@ watch(() => [props.game, props.version], async () => {
 </script>
 <template>
   <div>
-    <h2 v-if="gameInfo">{{ gameInfo.label }} - version {{ gameInfo._id.version }}</h2>
+    <h2 v-if="gameInfo">
+      {{ gameInfo.label }} - version {{ gameInfo._id.version }}
+    </h2>
     <game-edit v-if="gameInfo" :game-info="gameInfo" mode="edit" @update:game="updateGame($event)" />
   </div>
 </template>
+<route>
+{
+  name: "game"
+}
+</route>

@@ -1,5 +1,6 @@
 {
   "license": "AGPL",
+  "name": "@bgs/webapp",
   "scripts": {
     "start": "vite --port 8615",
     "build": "vite build",

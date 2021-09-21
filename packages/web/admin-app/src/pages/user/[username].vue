@@ -57,11 +57,9 @@ async function confirmUser() {
 }
 
 async function login() {
-  post("/admin/login-as", { username: user.value!.account.username }).then(({ data }) => {
-    const { refreshToken } = data;
-
+  post("/admin/login-as", { username: user.value!.account.username }).then(({ refreshToken }) => {
     if (location.hostname === "localhost") {
-      location.href = `http://localhost:8612/login?refreshToken=${encodeURIComponent(JSON.stringify(refreshToken))}`;
+      location.href = `http://localhost:8615/login?refreshToken=${encodeURIComponent(JSON.stringify(refreshToken))}`;
     }
     else {
       location.href
