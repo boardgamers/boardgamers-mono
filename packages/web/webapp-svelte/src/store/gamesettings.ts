@@ -13,3 +13,13 @@ user.subscribe((user) => {
   $userId = user?._id;
   gameSettings.set({});
 });
+
+export type DevGameSettings = {
+  viewerUrl: string;
+};
+
+export const devGameSettings = writable<Record<string, DevGameSettings>>(
+  JSON.parse(localStorage.getItem("devGameSettings") ?? "{}")
+);
+
+devGameSettings.subscribe((val) => localStorage.setItem("devGameSettings", JSON.stringify(val)));

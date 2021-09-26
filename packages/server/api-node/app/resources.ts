@@ -31,13 +31,14 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
 
   const viewer: ViewerInfo =
     gameInfo?.viewer?.alternate?.url && ctx.query.alternate === "1" ? gameInfo?.viewer.alternate : gameInfo.viewer;
+  const viewerUrl = ctx.query.customViewerUrl || viewer.url;
 
   ctx.body = `
     <html>
       <head>
         <meta charset="UTF-8">
         ${viewer.dependencies.scripts.map((dep) => `<${"script"} src='${dep}'></${"script"}>`).join("\n")}
-        <${"script"} src='${viewer.url}' type='text/javascript'> </${"script"}>
+        <${"script"} src='${viewerUrl}' type='text/javascript'> </${"script"}>
         ${viewer.dependencies.stylesheets
           .map((dep) => `<link type='text/css' rel='stylesheet' href='${dep}'></link>`)
           .join("\n")}

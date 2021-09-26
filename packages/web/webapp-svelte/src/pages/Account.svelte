@@ -2,7 +2,7 @@
   import { handleError, confirm, niceDate, duration, createWatcher } from "@/utils";
   import { UserGameSettings } from "@/components";
   import { Card, Button, Col, Container, FormGroup, Input, InputGroup, Row, Checkbox } from "@/modules/cdk";
-  import { boardgames, user } from "@/store";
+  import { boardgames, user, developerSettings } from "@/store";
   import { routePath } from "@/modules/router";
   import { upperFirst, debounce } from "lodash";
   import { latestBoardgames, loadBoardgames, post } from "@/api";
@@ -99,7 +99,7 @@
     <div class="row row-cols-1 row-cols-md-3 g-4 mt-4 game-choice">
       {#each games as game}
         <Col>
-          <UserGameSettings {game} />
+          <UserGameSettings {game} class="h-100" />
         </Col>
       {/each}
     </div>
@@ -151,7 +151,7 @@
       </p>
       {#if !$user.account.termsAndConditions}
         <Checkbox bind:checked={tc} on:change={acceptTC} class="mb-3">
-          I agree to the <a href="/page/terms-and-conditions">Terms and Conditions</a>
+          I agree to the <a href="/page/terms-and-conditions">Terms and Conditions</a> 📝
         </Checkbox>
       {:else}
         <p>
@@ -185,6 +185,8 @@
           </select>
         </div>
       </div>
+      <hr />
+      <Checkbox bind:checked={$developerSettings}>🔧 Enable developper settings on this device</Checkbox>
     </Card>
     <Card class="mt-4 border-info" header="Game Settings">
       <Checkbox bind:checked={soundNotification} on:change={updateAccount}>

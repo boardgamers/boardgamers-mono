@@ -10,6 +10,18 @@ export const refreshToken = writable<Token | null>(
   localStorage.getItem("refreshToken") ? JSON.parse(localStorage.getItem("refreshToken")!) : null
 );
 
+export const developerSettings = writable<boolean>(
+  localStorage.getItem("developerSettings") ? JSON.parse(localStorage.getItem("developerSettings")!) : false
+);
+
+developerSettings.subscribe((newVal) => {
+  if (newVal) {
+    localStorage.setItem("developerSettings", JSON.stringify(newVal));
+  } else {
+    localStorage.removeItem("developerSettings");
+  }
+});
+
 let $refreshToken: Token | null;
 refreshToken.subscribe((newVal) => {
   $refreshToken = newVal;

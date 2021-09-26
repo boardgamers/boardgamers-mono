@@ -1,13 +1,14 @@
 <script lang="ts">
+  import { set } from "lodash";
   import type { GameInfo } from "@bgs/types/gameinfo";
   import { handleError, confirm, classnames } from "@/utils";
   import Card from "@/modules/cdk/Card.svelte";
-  import { CardText } from "@/modules/cdk";
+  import { CardText, FormGroup, Input } from "@/modules/cdk";
   import Checkbox from "@/modules/cdk/Checkbox.svelte";
   import Loading from "@/modules/cdk/Loading.svelte";
   import { loadGameSettings } from "@/api/gamesettings";
-  import { gameSettings } from "@/store";
-  import { post } from "@/api";
+  import { developerSettings, devGameSettings, gameSettings } from "@/store";
+  import { boardgameKey, post } from "@/api";
   import PreferencesChooser from "./PreferencesChooser.svelte";
 
   export let title = "";
@@ -45,15 +46,39 @@
   }
 
   $: classes = classnames(className, "border-secondary text-center");
+  $: key = boardgameKey(game._id.game, game._id.version);
+
+  let customViewerUrl = $devGameSettings[boardgameKey(game._id.game, game._id.version)]?.viewerUrl;
+
+  function updateDevSettings() {
+    set($devGameSettings, `${key}.viewerUrl`, customViewerUrl);
+    $devGameSettings = { ...$devGameSettings };
+  }
+
+  function updateViewerUrl() {
+    $devGameSettings[key]?.viewerUrl;
+  }
+
+  $: updateDevSettings(), [customViewerUrl];
+  $: updateViewerUrl(), [key];
 </script>
 
 <Card class={classes} header={title || game.label}>
-  <CardText class="text-start">
+  <CardText class="text-start h-100 d-flex" style="flex-direction: column">
     <Loading loading={!prefs}>
-      <Checkbox checked={ownership} on:change={postOwnership}>I own this game</Checkbox>
-      {#if game.preferences?.length > 0}
+      <div style="flex-grow: 1">
+        <Checkbox checked={ownership} on:change={postOwnership}>I own this game</Checkbox>
+        {#if game.preferences?.length > 0}
+          <hr />
+          <PreferencesChooser {game} />
+        {/if}
+      </div>
+      {#if $developerSettings}
         <hr />
-        <PreferencesChooser {game} />
+        <FormGroup>
+          <label for="viewerUrl">Custom Viewer URL ({key})</label>
+          <Input type="text" placeholder="Viewer URL" bind:value={customViewerUrl} />
+        </FormGroup>
       {/if}
     </Loading>
   </CardText>

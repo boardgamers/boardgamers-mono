@@ -3,7 +3,7 @@ import "awesome-notifications/dist/style.css";
 
 const notifier = new AWN({ icons: { enabled: false } });
 
-export function handleError(err: Error | string) {
+export function handleError(err: Error | string | unknown) {
   if (!err) {
     return;
   }
@@ -12,8 +12,8 @@ export function handleError(err: Error | string) {
 
   if (typeof err === "string") {
     notifier.alert(err);
-  } else if ("message" in err) {
-    notifier.alert(err.message);
+  } else if ("message" in (err as any)) {
+    notifier.alert((err as any).message);
   } else {
     notifier.alert("Unknown error");
   }

@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { get, post } from "@/api";
+  import { boardgameKey, get, post } from "@/api";
   import { loadGameData } from "@/api/game";
   import type { GamePreferences } from "@bgs/types/gamepreferences";
 
   import { Loading } from "@/modules/cdk";
   import { navigate } from "@/modules/router";
   import type { GameContext } from "@/pages/Game.svelte";
-  import { gameSettings, lastGameUpdate, user } from "@/store";
+  import { developerSettings, devGameSettings, gameSettings, lastGameUpdate, user } from "@/store";
   import { handleError, skipOnce } from "@/utils";
   import { getContext, onDestroy } from "svelte";
 
@@ -39,9 +39,13 @@
 
   const updateSrc = () => {
     if ($gameInfo) {
+      const customUrl = developerSettings
+        ? encodeURIComponent($devGameSettings[boardgameKey($gameInfo._id.game, $gameInfo._id.version)]?.viewerUrl ?? "")
+        : "";
+
       src = `${resourcesLink}/game/${gameName}/${$gameInfo._id.version}/iframe?alternate=${
         prefs?.preferences?.alternateUI ? 1 : 0
-      }`;
+      }&customViewerUrl=${customUrl}`;
     }
   };
   $: updateSrc(), [$gameInfo, prefs];
