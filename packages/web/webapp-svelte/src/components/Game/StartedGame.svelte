@@ -39,7 +39,7 @@
 
   const updateSrc = () => {
     if ($gameInfo) {
-      const customUrl = developerSettings
+      const customUrl = $developerSettings
         ? encodeURIComponent($devGameSettings[boardgameKey($gameInfo._id.game, $gameInfo._id.version)]?.viewerUrl ?? "")
         : "";
 
