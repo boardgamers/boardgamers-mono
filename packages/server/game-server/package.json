@@ -16,6 +16,7 @@
   "dependencies": {
     "@bgs/models": "workspace:*",
     "@bgs/utils": "workspace:*",
+    "@bgs/types": "workspace:*",
     "decache": "^4.6.0",
     "dotenv": "^8.2.0",
     "fs-extra": "^9.0.0",
@@ -31,7 +32,6 @@
     "mongoose": "^6.0.3"
   },
   "devDependencies": {
-    "@bgs/types": "workspace:*",
     "@types/chai": "^4.2.11",
     "@types/fs-extra": "^8.1.0",
     "@types/http-errors": "^1.6.3",

@@ -34,5 +34,6 @@ jobs:
       - run: npm install -g pnpm
       - run: pnpm install --filter {./}...
       - run: pnpm run lint-check
+      - run: pnpm install --filter "@bgs/models"
       - run: pnpm run tsc
       - run: pnpm run test

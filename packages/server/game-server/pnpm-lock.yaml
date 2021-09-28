@@ -43,6 +43,7 @@ specifiers:
 
 dependencies:
   '@bgs/models': link:../../shared/models
+  '@bgs/types': link:../../shared/types
   '@bgs/utils': link:../../shared/utils
   decache: 4.6.0
   dotenv: 8.2.0
@@ -59,7 +60,6 @@ dependencies:
   mongoose: 6.0.3
 
 devDependencies:
-  '@bgs/types': link:../../shared/types
   '@types/chai': 4.2.14
   '@types/fs-extra': 8.1.1
   '@types/http-errors': 1.8.0
