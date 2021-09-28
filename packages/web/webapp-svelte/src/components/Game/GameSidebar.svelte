@@ -2,7 +2,7 @@
   import { keyBy } from "lodash";
   import { elapsedSeconds } from "@bgs/utils/time";
   import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
-  import type { PlayerInfo } from "@bgs/types/game";
+  import type { PlayerInfo } from "@bgs/types";
   import Portal from "svelte-portal";
   import { addActiveGame, playerStatus, removeActiveGame, user } from "@/store";
   import { Button, Icon, Badge } from "@/modules/cdk";

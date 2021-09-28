@@ -1,5 +1,5 @@
 import makeSchema from "@bgs/models/gamenotification";
-import { GameNotification } from "@bgs/types/gamenotification";
+import { GameNotification } from "@bgs/types";
 import locks from "mongo-locks";
 import mongoose, { Types } from "mongoose";
 import EloService from "../services/elo";

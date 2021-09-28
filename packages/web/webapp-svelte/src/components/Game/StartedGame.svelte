@@ -1,7 +1,7 @@
 <script lang="ts">
   import { boardgameKey, get, post } from "@/api";
   import { loadGameData } from "@/api/game";
-  import type { GamePreferences } from "@bgs/types/gamepreferences";
+  import type { GamePreferences } from "@bgs/types";
 
   import { Loading } from "@/modules/cdk";
   import { navigate } from "@/modules/router";

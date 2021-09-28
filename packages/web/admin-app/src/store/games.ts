@@ -1,4 +1,4 @@
-import { GameInfo } from "@bgs/types/gameinfo";
+import { GameInfo } from "@bgs/types";
 import { defineStore } from "pinia";
 import { ref } from "vue-demi";
 

@@ -1,5 +1,5 @@
 import makeSchema from "@bgs/models/chatmessage";
-import { ChatMessage } from "@bgs/types/chatmessage";
+import { ChatMessage } from "@bgs/types";
 import mongoose, { Types } from "mongoose";
 
 interface ChatMessageDocument extends mongoose.Document, ChatMessage<Types.ObjectId> {

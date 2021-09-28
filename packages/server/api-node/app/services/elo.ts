@@ -1,4 +1,4 @@
-import type { GamePreferences as IGamePreferences } from "@bgs/types/gamepreferences";
+import type { GamePreferences as IGamePreferences } from "@bgs/types";
 import type { Dictionary } from "lodash";
 import { cloneDeep, keyBy, omit } from "lodash";
 import type { Types } from "mongoose";

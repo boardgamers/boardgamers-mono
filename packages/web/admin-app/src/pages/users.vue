@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { IUser } from "@bgs/types/user";
+import type { IUser } from "@bgs/types";
 import { ref, watch } from "vue-demi";
 import { useRouter } from "vue-router";
 import { handleError } from "../utils";

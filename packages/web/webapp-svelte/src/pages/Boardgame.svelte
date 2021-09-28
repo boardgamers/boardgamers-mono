@@ -1,7 +1,7 @@
 <script lang="ts">
   import { confirm, handleError } from "@/utils";
   import marked from "marked";
-  import type { GameInfo } from "@bgs/types/gameinfo";
+  import type { GameInfo } from "@bgs/types";
   import { boardgameInfo, loadBoardgame, loadGameSettings } from "@/api";
   import { boardgames, gameSettings, user } from "@/store";
   import { navigate, routePath } from "@/modules/router";

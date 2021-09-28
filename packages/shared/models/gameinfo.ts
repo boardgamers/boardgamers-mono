@@ -1,4 +1,4 @@
-import type { GameInfo } from "@bgs/types/gameinfo";
+import type { GameInfo } from "@bgs/types";
 import { Model, Schema } from "mongoose";
 
 const optionSchema = [

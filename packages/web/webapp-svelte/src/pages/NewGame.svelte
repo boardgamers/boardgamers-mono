@@ -7,7 +7,7 @@
   import { navigate } from "@/modules/router";
   import { user } from "@/store";
   import { adjectives, nouns } from "@/data";
-  import type { GameInfo } from "@bgs/types/gameinfo";
+  import type { GameInfo } from "@bgs/types";
   import type { SetOptional } from "type-fest";
 
   export let boardgameId: string;

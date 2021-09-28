@@ -1,4 +1,4 @@
-import { IAbstractUser } from "@bgs/types/user";
+import { IAbstractUser } from "@bgs/types";
 import assert from "assert";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";

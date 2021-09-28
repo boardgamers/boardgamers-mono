@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PlayerInfo } from "@bgs/types/game";
+  import type { PlayerInfo } from "@bgs/types";
   import { classnames } from "@/utils";
   import { user } from "@/store";
 

@@ -1,4 +1,4 @@
-import type { IGame, PlayerInfo } from "@bgs/types/game";
+import type { IGame, PlayerInfo } from "@bgs/types";
 import { get, post } from "./rest";
 
 /**

@@ -1,5 +1,5 @@
 import makeSchema from "@bgs/models/gameinfo";
-import { GameInfo } from "@bgs/types/gameinfo";
+import { GameInfo } from "@bgs/types";
 import mongoose from "mongoose";
 
 const schema = makeSchema<GameInfoModel>();

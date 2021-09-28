@@ -1,7 +1,7 @@
 import { get } from "@/api";
 import { boardgames } from "@/store";
 import type { RemoveReadable } from "@/utils";
-import type { GameInfo } from "@bgs/types/gameinfo";
+import type { GameInfo } from "@bgs/types";
 import { sortBy, uniqBy } from "lodash";
 
 let lastLoad = 0;

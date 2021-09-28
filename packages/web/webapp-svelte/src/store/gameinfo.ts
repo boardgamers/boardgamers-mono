@@ -1,4 +1,4 @@
-import type { GameInfo } from "@bgs/types/gameinfo";
+import type { GameInfo } from "@bgs/types";
 import { writable } from "svelte/store";
 import type { SetOptional } from "type-fest";
 

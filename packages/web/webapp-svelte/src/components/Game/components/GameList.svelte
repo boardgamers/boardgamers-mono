@@ -1,6 +1,6 @@
 <script lang="ts">
   import { timerTime, defer, duration, niceDate } from "@/utils";
-  import type { IGame } from "@bgs/types/game";
+  import type { IGame } from "@bgs/types";
   import { boardgameInfo, get, loadBoardgames } from "@/api";
   import { logoClicks } from "@/store";
   import { onDestroy } from "svelte";

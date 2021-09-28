@@ -1,3 +1,4 @@
 {
-  "name": "@bgs/types"
+  "name": "@bgs/types",
+  "main": "index.ts"
 }

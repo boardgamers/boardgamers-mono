@@ -1,4 +1,4 @@
-import { GameNotification } from "@bgs/types/gamenotification";
+import { GameNotification } from "@bgs/types";
 import { Document, Model, Schema, Types } from "mongoose";
 
 const repr = {

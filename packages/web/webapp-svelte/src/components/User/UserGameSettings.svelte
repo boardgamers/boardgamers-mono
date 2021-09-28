@@ -1,6 +1,6 @@
 <script lang="ts">
   import { set } from "lodash";
-  import type { GameInfo } from "@bgs/types/gameinfo";
+  import type { GameInfo } from "@bgs/types";
   import { handleError, confirm, classnames } from "@/utils";
   import Card from "@/modules/cdk/Card.svelte";
   import { CardText, FormGroup, Input } from "@/modules/cdk";

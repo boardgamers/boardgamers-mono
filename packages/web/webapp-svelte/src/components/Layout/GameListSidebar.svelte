@@ -4,7 +4,7 @@
   import { route, routePath } from "@/modules/router";
   import { boardgames, logoClicks } from "@/store";
   import { handleError } from "@/utils";
-  import type { GameInfo } from "@bgs/types/gameinfo";
+  import type { GameInfo } from "@bgs/types";
 
   loadBoardgames().catch(handleError);
 

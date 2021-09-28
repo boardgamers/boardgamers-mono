@@ -1,5 +1,5 @@
 import makeSchema from "@bgs/models/game";
-import { IAbstractGame } from "@bgs/types/game";
+import { IAbstractGame } from "@bgs/types";
 import mongoose, { Types } from "mongoose";
 
 const schema = makeSchema<GameDocument, GameModel>();

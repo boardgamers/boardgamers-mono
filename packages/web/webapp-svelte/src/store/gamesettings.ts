@@ -1,4 +1,4 @@
-import type { GamePreferences } from "@bgs/types/gamepreferences";
+import type { GamePreferences } from "@bgs/types";
 import { get as $, writable } from "svelte/store";
 import { user } from "./user";
 

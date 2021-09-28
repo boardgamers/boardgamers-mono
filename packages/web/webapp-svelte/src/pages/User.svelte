@@ -1,6 +1,6 @@
 <script lang="ts">
   import { handleError } from "@/utils";
-  import type { IUser } from "@bgs/types/user";
+  import type { IUser } from "@bgs/types";
   import { UserGames, UserPublicInfo, UserElo } from "@/components";
   import { get } from "@/api";
   import { Row, Col, Container, Card, Loading } from "@/modules/cdk";

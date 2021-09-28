@@ -1,4 +1,4 @@
-import { GamePreferences as IGamePreferences } from "@bgs/types/gamepreferences";
+import { GamePreferences as IGamePreferences } from "@bgs/types";
 import mongoose, { Schema, Types } from "mongoose";
 
 export interface GamePreferencesDocument extends mongoose.Document<Types.ObjectId>, IGamePreferences<Types.ObjectId> {

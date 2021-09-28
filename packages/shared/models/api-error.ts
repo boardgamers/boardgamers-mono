@@ -1,4 +1,4 @@
-import { ApiError } from "@bgs/types/api-error";
+import { ApiError } from "@bgs/types";
 import { Document, Model, Schema, Types } from "mongoose";
 
 export interface ApiErrorDocument extends Document, ApiError<Types.ObjectId> {}
