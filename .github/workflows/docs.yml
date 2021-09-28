@@ -19,9 +19,7 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: '14'
-      - uses: pnpm/action-setup@v1.2.1
-        with:
-          version: 6.14.3
+      - run: npm install -g pnpm
       - run: echo "${{ secrets.GIT_PAGES_PRIVATEKEY }}" > ~/key 
       - run: chmod 600 ~/key
       - run: git config --global core.sshCommand "ssh -i ~/key -F /dev/null"

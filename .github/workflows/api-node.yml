@@ -31,9 +31,7 @@ jobs:
         with:
           mongodb-version: 4.4
 
-      - uses: pnpm/action-setup@v1.2.1
-        with:
-          version: 6.14.3
+      - run: npm install -g pnpm
       - run: pnpm install --filter {./}...
       - run: pnpm run lint-check
       - run: pnpm run tsc
