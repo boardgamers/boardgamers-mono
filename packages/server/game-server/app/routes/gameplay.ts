@@ -40,7 +40,7 @@ router.post("/:gameId/replay", isAdmin, async (ctx) => {
 
     assert(engine.replay, "The engine of this game does not support replaying");
 
-    const gameData = await engine.replay(game.data);
+    const gameData = await engine.replay(game.data, { to: ctx.request.body.to });
 
     const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 
@@ -214,6 +214,19 @@ router.get("/:gameId/log", async (ctx) => {
     end,
     data: engine.logSlice(game.data, { player: playerIndex, start, end }),
   };
+});
+
+router.get("/:gameId/length", async (ctx) => {
+  const game = await Game.findById(ctx.params.gameId);
+
+  if (!game) {
+    ctx.status = 404;
+    return;
+  }
+
+  const engine = await getEngine(game.game.name, game.game.version);
+
+  ctx.body = engine.logLength(game.data);
 });
 
 router.get("/:gameId", async (ctx) => {

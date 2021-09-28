@@ -236,12 +236,15 @@ Important messages / game events to show in the game's chat.
 ### replay
 
 ```ts
-replay (data: GameData): GameData
+replay (data: GameData, options?: { to?: number }): GameData
 ```
 
 Replays a game.
 
 It can be called after the database is manually edited, or the game engine is updated.
+
+`to` is optional and means replaying to that move, e.g. `replay(data, {to: 1})` will only redo the first move, and
+the rest of the moves will not be played.
 
 ### stats
 

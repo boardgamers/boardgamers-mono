@@ -12,7 +12,12 @@ const user = useUserStore();
 const serverInfo = ref<{ disk: { free: number; size: number }; nbUsers: number; announcement: {content: string, title: string} } | null>(null);
 const gameId = ref("");
 const gameIds = ref("");
+const to = ref(0);
 const announcement = reactive({title: "", content: ""});
+
+watch(gameId, async (gameId) => {
+  to.value = await get(`/gameplay/${gameId}/length`);
+});
 
 get("/admin/serverinfo").then(data => serverInfo.value = data, handleError);
 
@@ -20,8 +25,8 @@ function deleteGame(gameId: string) {
   deleteApi(`/game/${gameId}`).then(() => handleInfo("Game deleted!"), handleError);
 }
 
-function replayGame(gameId: string) {
-  post(`/gameplay/${gameId}/replay`, {}).then(() => handleInfo("Game replayed."), handleError);
+function replayGame(gameId: string, body: {to: number}) {
+  post(`/gameplay/${gameId}/replay`, body).then(() => handleInfo("Game replayed."), handleError);
 }
 
 function replayGames() {
@@ -73,8 +78,9 @@ watch(serverInfo, (serverInfo) => {
         Game management
       </template>
       <v-text-field v-model="gameId" label="Game ID" />
+      <v-text-field type="number" v-model.number="to" label="To (number)" />
       <template #actions>
-        <v-btn @click="replayGame(gameId)">
+        <v-btn @click="replayGame(gameId, {to})">
           Replay
         </v-btn>
         <v-btn class="bg-red-600" @click="deleteGame(gameId)">
@@ -103,7 +109,7 @@ watch(serverInfo, (serverInfo) => {
         Backups
       </template>
       <ul>
-        <v-list-item :to="`/api/admin/backup/games?token=${encodeURIComponent(user.accessTokens.all.code)}`" class="px-2" target="_blank">
+        <v-list-item :to="`/api/admin/backup/games?token=${encodeURIComponent(user.accessTokens.all?.code)}`" class="px-2" target="_blank">
           Games
         </v-list-item>
       </ul>

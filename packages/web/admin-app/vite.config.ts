@@ -134,6 +134,10 @@ export default defineConfig({
       strict: true,
     },
     proxy: {
+      "/api/gameplay": {
+        target: remote ? "https://www.boardgamers.space" : "http://localhost:50803",
+        changeOrigin: true,
+      },
       "/api": {
         target: remote ? "https://www.boardgamers.space" : "http://localhost:50801",
         changeOrigin: true,

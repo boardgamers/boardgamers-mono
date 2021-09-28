@@ -69,7 +69,7 @@ export interface Engine {
   messages(data: GameData): { messages: string[]; data: GameData };
 
   // Replays the game, after GameData was manually edited by an admin
-  replay(data: GameData): GameData;
+  replay(data: GameData, options?: { to?: number }): GameData;
 
   // Get global stats on the game
   stats(data: GameData): Record<string, Many<Record<string, string | number>>>;
