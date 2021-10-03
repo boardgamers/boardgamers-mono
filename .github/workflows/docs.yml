@@ -26,7 +26,9 @@ jobs:
       - run: pnpm install --filter {./}...
       - run: pnpm run build
       - run: git clone git@github.com:boardgamers/boardgamers.github.io pages --depth 1
+      - run: cp pages/CNAME .
       - run: rm -Rf pages/*
+      - run: mv CNAME pages
       - run: cp -R docs/.vuepress/dist/* pages
       - run: git config --global user.name github-actions
       - run: git config --global user.email bot@github.com
