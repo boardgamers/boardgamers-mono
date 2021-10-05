@@ -15,7 +15,7 @@ const props = defineProps<{name: string; lang: string}>();
 async function save() {
   try {
     await post(`/admin/page/${page.value!._id.name}/${page.value!._id.lang}`, page.value);
-    handleSuccess("Page updated");
+    handleSuccess("Page deleted");
   }
   catch (err) {
     handleError(err);
