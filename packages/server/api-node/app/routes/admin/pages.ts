@@ -26,8 +26,10 @@ router.post("/:name/:lang", async (ctx) => {
 
 router.delete("/:name/:lang", async (ctx) => {
   await Page.deleteOne({
-    name: ctx.params.name,
-    lang: ctx.params.lang,
+    _id: {
+      name: ctx.params.name,
+      lang: ctx.params.lang,
+    },
   });
   ctx.status = 200;
 });
