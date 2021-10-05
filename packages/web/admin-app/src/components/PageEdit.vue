@@ -15,15 +15,15 @@ const props = withDefaults(defineProps<{modelValue?: Page; mode?: "new" | "edit"
   mode: "edit"
 });
 
-const emit = defineEmits<{(e: "update:value", value: Page): void; (e: "save", value: Page): void}>();
+const emit = defineEmits<{(e: "update:modelValue", value: Page): void; (e: "save", value: Page): void}>();
 
-watch(() => props.modelValue, () => emit("update:value", props.modelValue), { deep: true });
+watch(() => props.modelValue, () => emit("update:modelValue", props.modelValue), { deep: true });
 
 const content = ref<typeof EditorVue | null>(null);
 
 function updatePage() {
   props.modelValue.content = content.value?.getMarkdown();
-  emit("update:value", props.modelValue);
+  emit("update:modelValue", props.modelValue);
 
   emit("save", props.modelValue);
 }

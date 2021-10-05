@@ -14,7 +14,7 @@ async function save() {
   try {
     const path = `/page/${page.value!._id.name}/${page.value!._id.lang}`;
 
-    await post(`/admin/page/$path`, page);
+    await post(`/admin${path}`, page.value);
     handleSuccess("Page created");
 
     pages.$patch({ pages: await get("/admin/page") });
