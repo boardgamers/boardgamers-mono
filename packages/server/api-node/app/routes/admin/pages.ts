@@ -24,4 +24,12 @@ router.post("/:name/:lang", async (ctx) => {
   ctx.body = page;
 });
 
+router.delete("/:name/:lang", async (ctx) => {
+  await Page.deleteOne({
+    name: ctx.params.name,
+    lang: ctx.params.lang,
+  });
+  ctx.status = 200;
+});
+
 export default router;

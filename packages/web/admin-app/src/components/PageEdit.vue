@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<{modelValue?: Page; mode?: "new" | "edit"
   mode: "edit"
 });
 
-const emit = defineEmits<{(e: "update:modelValue", value: Page): void; (e: "save", value: Page): void}>();
+const emit = defineEmits<{(e: "update:modelValue", value: Page): void; (e: "save", value: Page): void; (e: "delete"): void}>();
 
 watch(() => props.modelValue, () => emit("update:modelValue", props.modelValue), { deep: true });
 
@@ -26,6 +26,10 @@ function updatePage() {
   emit("update:modelValue", props.modelValue);
 
   emit("save", props.modelValue);
+}
+
+function deletePage() {
+  emit('delete');
 }
 
 watch(() => props.modelValue.content, () => {
@@ -47,7 +51,10 @@ watch(() => props.modelValue.content, () => {
     <h3>Content</h3>
     <editor ref="content" class="page-editor mt-2" :initial-value="modelValue.content" />
 
-    <v-btn class="mt-3 float-right" @click="updatePage"> Save </v-btn>
+    <div class="flex flex-row mt-3">
+      <v-btn class="bg-red-600" @click="deletePage" v-if="mode==='edit'"> Delete </v-btn>
+      <v-btn class="ml-auto" @click="updatePage"> Save </v-btn>
+    </div>
   </div>
 </template>
 <style lang="scss" scoped>
