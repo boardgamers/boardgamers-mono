@@ -83,7 +83,7 @@ watch(serverInfo, (serverInfo) => {
         <v-btn @click="replayGame(gameId, {to})">
           Replay
         </v-btn>
-        <v-btn class="bg-red-600" @click="deleteGame(gameId)">
+        <v-btn variant="error" @click="deleteGame(gameId)">
           Delete
         </v-btn>
       </template>

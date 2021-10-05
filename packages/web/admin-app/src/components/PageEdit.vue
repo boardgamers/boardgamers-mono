@@ -52,7 +52,7 @@ watch(() => props.modelValue.content, () => {
     <editor ref="content" class="page-editor mt-2" :initial-value="modelValue.content" />
 
     <div class="flex flex-row mt-3">
-      <v-btn class="bg-red-600" @click="deletePage" v-if="mode==='edit'"> Delete </v-btn>
+      <v-btn variant="error" @click="deletePage" v-if="mode==='edit'"> Delete </v-btn>
       <v-btn class="ml-auto" @click="updatePage"> Save </v-btn>
     </div>
   </div>

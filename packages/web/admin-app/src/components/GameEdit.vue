@@ -156,7 +156,7 @@ watch(() => props.gameInfo, (gameInfo) => {
               :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} URL`"
               class="flex-grow"
             />
-            <v-btn icon class="bg-red-600 mt-5" @click="viewer.dependencies[variable].splice(i, 1)">
+            <v-btn icon class="mt-5" variant="error" @click="viewer.dependencies[variable].splice(i, 1)">
               <mdi-delete />
             </v-btn>
           </v-row>
@@ -217,7 +217,7 @@ watch(() => props.gameInfo, (gameInfo) => {
               label="Type"
               class="flex-grow"
             ></v-select>
-            <v-btn icon class="bg-red-600 mt-5" @click="info[variable].splice(i, 1)">
+            <v-btn icon class="mt-5" variant="error" @click="info[variable].splice(i, 1)">
               <mdi-delete />
             </v-btn>
           </v-row>
@@ -232,7 +232,7 @@ watch(() => props.gameInfo, (gameInfo) => {
                 class="flex-grow"
                 :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} name`"
               />
-              <v-btn icon class="bg-red-600 mt-5" @click="info[variable][i].items.splice(j, 1)">
+              <v-btn icon class="mt-5" variant="error" @click="info[variable][i].items.splice(j, 1)">
                 <mdi-delete />
               </v-btn>
             </v-row>
