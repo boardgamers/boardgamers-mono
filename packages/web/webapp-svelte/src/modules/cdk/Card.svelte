@@ -5,8 +5,12 @@
 </script>
 
 <Card {...$$props} on:click>
-  {#if header}
-    <CardHeader>{header}</CardHeader>
+  {#if header || $$slots.header}
+    <CardHeader>
+      <slot name="header">
+        {header}
+      </slot>
+    </CardHeader>
   {/if}
   <CardBody>
     <slot />

@@ -45,7 +45,7 @@
     }
   }
 
-  $: classes = classnames(className, "border-secondary text-center");
+  $: classes = classnames(className, "border-secondary");
   $: key = boardgameKey(game._id.game, game._id.version);
 
   let customViewerUrl = $devGameSettings[boardgameKey(game._id.game, game._id.version)]?.viewerUrl;
@@ -64,7 +64,7 @@
 </script>
 
 <Card class={classes} header={title || game.label}>
-  <CardText class="text-start h-100 d-flex" style="flex-direction: column">
+  <CardText class="h-100 d-flex" style="flex-direction: column">
     <Loading loading={!prefs}>
       <div style="flex-grow: 1">
         <Checkbox checked={ownership} on:change={postOwnership}>I own this game</Checkbox>

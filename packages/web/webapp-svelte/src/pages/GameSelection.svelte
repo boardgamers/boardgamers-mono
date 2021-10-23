@@ -52,8 +52,8 @@
     <div class="row row-cols-1 row-cols-md-3 g-4 game-choice">
       {#each info as game}
         <Col>
-          <Card header={game.label} class="border-secondary text-center h-100" on:click={() => onGameClick(game)}>
-            <CardText class="text-start">
+          <Card header={game.label} class="border-secondary h-100" on:click={() => onGameClick(game)}>
+            <CardText>
               {@html marked(game.description)}
             </CardText>
             <span

@@ -4,7 +4,7 @@
   import type { GameInfo } from "@bgs/types";
   import { boardgameInfo, loadBoardgame, loadGameSettings } from "@/api";
   import { boardgames, gameSettings, user } from "@/store";
-  import { navigate, routePath } from "@/modules/router";
+  import { navigate, route, routePath } from "@/modules/router";
   import { Card, Row, Col, Loading } from "@/modules/cdk";
   import { UserGameSettings, GameList, BoardgameElo } from "@/components";
 
@@ -32,6 +32,8 @@
       navigate(`/new-game/${boardgameId}`);
     }
   }
+
+  $: rules = $route!.hash === "rules";
 </script>
 
 <svelte:head>
@@ -44,8 +46,9 @@
 
     <div class="row row-cols-1 row-cols-md-2 g-4">
       <Col>
-        <Card class="border-secondary h-100" header="Description">
-          {@html marked(boardgame.description)}
+        <Card class="border-secondary h-100" header={rules ? "Rules" : "Description"}>
+          {@html marked(rules ? boardgame.rules : boardgame.description)}
+          <a slot="footer" href={`#${rules ? "description" : "rules"}`}>{rules ? "See description" : "See rules"}</a>
         </Card>
       </Col>
       <Col>
