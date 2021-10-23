@@ -2,6 +2,7 @@
   import type { PlayerInfo } from "@bgs/types";
   import { classnames } from "@/utils";
   import { user } from "@/store";
+  import { slice } from "lodash";
 
   export let player: PlayerInfo;
   export let showVp = true;
@@ -10,17 +11,29 @@
   export { className as class };
 
   export let userId: string | undefined;
+
+  function isColor(strColor: string) {
+    var s = new Option().style;
+    s.color = strColor;
+    return s.color == strColor;
+  }
+
   $: highlightedPlayerId = userId ?? $user?._id;
+  $: justColor = player.faction && isColor(player.faction);
+  $: style = justColor
+    ? `background-color: ${player.faction}`
+    : `background-image: url('${
+        player.faction ? `/images/factions/icons/${player.faction}.svg` : `/api/user/${player._id}/avatar`
+      }')`;
 </script>
 
 <div
-  style={`background-image: url('${
-    player.faction ? `/images/factions/icons/${player.faction}.svg` : `/api/user/${player._id}/avatar`
-  }')`}
+  {style}
   title={player.name}
   class={classnames("player-avatar", className)}
   class:current={highlightedPlayerId && player._id === highlightedPlayerId}
 >
+  {justColor ? player.name.slice(0, 2) : ""}
   {#if showVp}
     <span class={`vp ${status}`}>{player.score}</span>
   {/if}
@@ -28,25 +41,28 @@
 
 <style lang="postcss">
   .player-avatar {
-    height: 2em;
-    width: 2em;
-    min-width: 2em;
-    min-height: 2em;
-    display: inline-block;
+    height: 2rem;
+    width: 2rem;
+    min-width: 2rem;
+    min-height: 2rem;
+    display: inline-flex;
     position: relative;
     border-radius: 50%;
-    vertical-align: middle;
     background-size: cover;
+    align-items: center;
+    justify-items: center;
+    font-weight: normal;
 
     .vp {
       position: absolute;
       right: -5px;
       bottom: -5px;
-      font-size: 0.7em;
+      font-size: 0.7rem;
       border-radius: 5px;
       color: white;
       background-color: #838383;
       width: 20px;
+      font-weight: normal;
       text-align: center;
 
       &.online {
