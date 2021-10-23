@@ -8,57 +8,60 @@ import VRow from "~cdk/VRow.vue";
 import VSelect from "~cdk/VSelect.vue";
 import Editor from "~/components/Editor.vue";
 
-const props = withDefaults(defineProps<{ mode: "new" | "edit"; gameInfo: GameInfo }>(), { mode: "edit" });
-
-const emit = defineEmits<{(e: "update:game", value: GameInfo): void}>();
-
-const info = ref<GameInfo>({
-  _id: {
-    game: "",
-    version: 1,
-  },
-  label: "",
-  rules: "",
-  description: "",
-  viewer: {
-    url: "//cdn.jsdelivr.net/npm/<game>@^1/dist/umd.min.js",
-    topLevelVariable: "",
-    dependencies: {
-      scripts: [],
-      stylesheets: [],
+const props = withDefaults(defineProps<{ mode: "new" | "edit"; modelValue: GameInfo }>(), {
+  mode: "edit",
+  modelValue: () => ({
+    _id: {
+      game: "",
+      version: 1,
     },
-    fullScreen: false,
-    replayable: false,
-    trusted: false,
-    alternate: {
-      url: "",
+    label: "",
+    rules: "",
+    description: "",
+    viewer: {
+      url: "//cdn.jsdelivr.net/npm/@boardgamers/<game>-viewer@^1/dist/<game>-viewer.umd.min.js",
       topLevelVariable: "",
       dependencies: {
         scripts: [],
-        stylesheets: [],
+        stylesheets: ["//cdn.jsdelivr.net/npm/@boardgamers/<game>-viewer@1.0.2/dist/<game>-viewer.css"],
       },
       fullScreen: false,
       replayable: false,
       trusted: false,
+      alternate: {
+        url: "",
+        topLevelVariable: "",
+        dependencies: {
+          scripts: [],
+          stylesheets: [],
+        },
+        fullScreen: false,
+        replayable: false,
+        trusted: false,
+      },
     },
-  },
-  engine: {
-    package: {
-      name: "",
-      version: "",
+    engine: {
+      package: {
+        name: "",
+        version: "",
+      },
+      entryPoint: "dist/wrapper.js",
     },
-    entryPoint: "dist/wrapper.js",
-  },
-  preferences: [],
-  options: [],
-  settings: [],
-  players: [2, 3, 4],
-  expansions: [],
-  meta: {
-    public: false,
-    needOwnership: true,
-  },
+    preferences: [],
+    options: [],
+    settings: [],
+    players: [2, 3, 4],
+    expansions: [],
+    meta: {
+      public: false,
+      needOwnership: true,
+    },
+  } as GameInfo)
 });
+
+const emit = defineEmits<{(e: "update:modelValue", value: GameInfo): void; (e: "save", value: GameInfo): void; (e: "delete"): void}>();
+
+const info = computed(() => props.modelValue);
 
 const rules = ref<typeof Editor>();
 const description = ref<typeof Editor>();
@@ -74,7 +77,8 @@ const updateGame = () => {
     }
   }
 
-  emit("update:game", info.value);
+  emit("update:modelValue", info.value);
+  emit("save", info.value);
 };
 
 const router = useRouter();
@@ -90,12 +94,10 @@ const duplicate = async () => {
   });
 };
 
-watch(() => props.gameInfo, (gameInfo) => {
-  if (!gameInfo) {
+watch(() => props.modelValue, (data) => {
+  if (!DataTransferItem) {
     return;
   }
-
-  const data: GameInfo = JSON.parse(JSON.stringify(gameInfo));
 
   set(data.viewer, "dependencies.scripts", data.viewer.dependencies?.scripts ?? []);
   set(data.viewer, "dependencies.stylesheets", data.viewer.dependencies?.stylesheets ?? []);
@@ -123,8 +125,6 @@ watch(() => props.gameInfo, (gameInfo) => {
 
   setTimeout(() => rules.value?.setMarkdown(data.rules));
   setTimeout(() => description.value?.setMarkdown(data.description));
-
-  info.value = data;
 }, { immediate: true });
 </script>
 

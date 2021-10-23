@@ -8,15 +8,18 @@ const props = defineProps<{ game: string; version: string }>();
 const gameInfo = ref<GameInfo|null>(null);
 const loading = ref(true);
 
-async function updateGame(info: GameInfo) {
+async function save() {
   try {
-    await post(`/admin/gameinfo/${info._id.game}/${info._id.version}`, info);
-    gameInfo.value = info;
+    await post(`/admin/gameinfo/${gameInfo.value!._id.game}/${gameInfo.value!._id.version}`, gameInfo.value!);
     handleSuccess("Game updated");
   }
   catch (err) {
     handleError(err);
   }
+}
+
+async function onDelete() {
+
 }
 
 watch(() => [props.game, props.version], async () => {
@@ -31,13 +34,14 @@ watch(() => [props.game, props.version], async () => {
     loading.value = false;
   }
 }, { immediate: true });
+
 </script>
 <template>
   <div>
     <h2 v-if="gameInfo">
       {{ gameInfo.label }} - version {{ gameInfo._id.version }}
     </h2>
-    <game-edit v-if="gameInfo" :game-info="gameInfo" mode="edit" @update:game="updateGame($event)" />
+    <game-edit v-if="gameInfo" v-model="gameInfo" mode="edit" @save="save" @delete="onDelete" />
   </div>
 </template>
 <route>

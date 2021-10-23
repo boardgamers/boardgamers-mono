@@ -7,6 +7,7 @@ import { useGameStore } from "~/store/games";
 
 const gamesStore = useGameStore();
 const router = useRouter();
+const game = ref<GameInfo | undefined>();
 
 async function updateGame(gameInfo: GameInfo) {
   try {
@@ -20,11 +21,10 @@ async function updateGame(gameInfo: GameInfo) {
     handleError(err);
   }
 }
-
 </script>
 <template>
   <div>
     <h2>New game</h2>
-    <game-edit mode="new" @game:update="updateGame($event)" />
+    <game-edit v-model="game" mode="new" @save="updateGame($event)" />
   </div>
 </template>

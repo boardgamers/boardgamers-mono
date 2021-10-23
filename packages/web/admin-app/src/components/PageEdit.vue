@@ -17,7 +17,7 @@ const props = withDefaults(defineProps<{modelValue?: Page; mode?: "new" | "edit"
 
 const emit = defineEmits<{(e: "update:modelValue", value: Page): void; (e: "save", value: Page): void; (e: "delete"): void}>();
 
-watch(() => props.modelValue, () => emit("update:modelValue", props.modelValue), { deep: true });
+watch(() => props.modelValue, () => emit("update:modelValue", props.modelValue));
 
 const content = ref<typeof EditorVue | null>(null);
 
@@ -52,8 +52,12 @@ watch(() => props.modelValue.content, () => {
     <editor ref="content" class="page-editor mt-2" :initial-value="modelValue.content" />
 
     <div class="flex flex-row mt-3">
-      <v-btn variant="error" @click="deletePage" v-if="mode==='edit'"> Delete </v-btn>
-      <v-btn class="ml-auto" @click="updatePage"> Save </v-btn>
+      <v-btn v-if="mode==='edit'" variant="error" @click="deletePage">
+        Delete
+      </v-btn>
+      <v-btn class="ml-auto" @click="updatePage">
+        Save
+      </v-btn>
     </div>
   </div>
 </template>
