@@ -2,7 +2,6 @@
   import type { PlayerInfo } from "@bgs/types";
   import { classnames } from "@/utils";
   import { user } from "@/store";
-  import { slice } from "lodash";
 
   export let player: PlayerInfo;
   export let showVp = true;
@@ -50,8 +49,8 @@
     border-radius: 50%;
     background-size: cover;
     align-items: center;
-    justify-items: center;
-    font-weight: normal;
+    justify-content: space-around;
+    font-weight: bold;
 
     .vp {
       position: absolute;
