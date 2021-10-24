@@ -2,10 +2,14 @@
   "license": "AGPL",
   "name": "@bgs/webapp",
   "scripts": {
-    "start": "vite --port 8615",
-    "build": "vite build",
-    "move-front": "[ -d dist ] && rm -Rf ../../../../www-boardgamers-backup && mkdir -p ../../../../www-boardgamers && mv ../../../../www-boardgamers ../../../../www-boardgamers-backup && mv dist ../../../../www-boardgamers",
-    "test": "web-test-runner \"src/**/*.test.ts\""
+    "dev": "svelte-kit dev",
+    "build": "svelte-kit build",
+    "preview": "svelte-kit preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-check --tsconfig ./tsconfig.json --watch",
+    "lint": "prettier --ignore-path .gitignore --check --plugin-search-dir=. . && eslint --ignore-path .gitignore .",
+    "format": "prettier --ignore-path .gitignore --write --plugin-search-dir=. .",
+    "move-front": "[ -d dist ] && rm -Rf ../../../../www-boardgamers-backup && mkdir -p ../../../../www-boardgamers && mv ../../../../www-boardgamers ../../../../www-boardgamers-backup && mv dist ../../../../www-boardgamers"
   },
   "dependencies": {
     "@bgs/types": "workspace:*",
@@ -24,21 +28,25 @@
     "type-fest": "^2.1.0"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^1.0.0-next.20",
-    "@testing-library/svelte": "^3.0.0",
-    "@types/chai": "^4.2.13",
+    "@sveltejs/kit": "next",
+    "@types/cookie": "^0.4.1",
     "@types/dompurify": "^2.2.1",
     "@types/lodash": "^4.14.168",
     "@types/marked": "^2.0.0",
-    "@types/mocha": "^8.2.0",
-    "@types/page": "^1.11.1",
-    "@web/test-runner": "^0.12.0",
-    "chai": "^4.2.0",
+    "@typescript-eslint/eslint-plugin": "^4.31.1",
+    "@typescript-eslint/parser": "^4.31.1",
     "dotenv": "^8.2.0",
+    "eslint": "^7.32.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-svelte3": "^3.2.1",
     "postcss": "^8.2.6",
     "postcss-nested": "^5.0.3",
-    "svelte-preprocess": "^4.8.0",
-    "typescript": "^4.4.2",
-    "vite": "^2.5.3"
+    "prettier": "^2.4.1",
+    "prettier-plugin-svelte": "^2.4.0",
+    "svelte": "^3.34.0",
+    "svelte-check": "^2.2.6",
+    "svelte-preprocess": "^4.9.4",
+    "tslib": "^2.3.1",
+    "typescript": "^4.4.3"
   }
 }
