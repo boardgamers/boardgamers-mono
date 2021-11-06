@@ -29,7 +29,6 @@ specifiers:
   prettier-plugin-svelte: ^2.4.0
   svelte: ^3.44.1
   svelte-check: ^2.2.6
-  svelte-portal: ^2.1.2
   svelte-preprocess: ^4.9.4
   sveltestrap: ^5.6.2
   tslib: ^2.3.1
@@ -48,7 +47,6 @@ dependencies:
   marked: 3.0.2
   page: 1.11.6
   svelte: 3.44.1
-  svelte-portal: 2.1.2
   sveltestrap: 5.6.2_svelte@3.44.1
   type-fest: 2.1.0
 
@@ -1721,10 +1719,6 @@ packages:
     dependencies:
       svelte: 3.44.1
     dev: true
-
-  /svelte-portal/2.1.2:
-    resolution: {integrity: sha512-u1ONI4ZJDNhVJPDW7tH6RH1ZIzALt6kJZbF00Hz9bgNIVRlzvzimsnwf35rGFMtPFA+FYenvsTHUR815yYNc9A==}
-    dev: false
 
   /svelte-preprocess/4.9.8_1d62c4400e98fd41abe023093c8f6704:
     resolution: {integrity: sha512-EQS/oRZzMtYdAprppZxY3HcysKh11w54MgA63ybtL+TAZ4hVqYOnhw41JVJjWN9dhPnNjjLzvbZ2tMhTsla1Og==}
