@@ -3,27 +3,28 @@ import { boardgames } from "@/store";
 import type { RemoveReadable } from "@/utils";
 import type { GameInfo } from "@bgs/types";
 import { sortBy, uniqBy } from "lodash";
+import type { ValueOf } from "type-fest";
 
 let lastLoad = 0;
 let promise: Promise<void> | undefined;
 let $boardgames: RemoveReadable<typeof boardgames>;
 boardgames.subscribe((val) => ($boardgames = val));
 
-export function boardgameKey(name: string, version: number | "latest") {
+export function boardgameKey(name: string, version: number | "latest"): string {
   return `${name}/${version}`;
 }
 
-export function boardgameInfo(name: string, version: number | "latest") {
+export function boardgameInfo(name: string, version: number | "latest"): ValueOf<typeof $boardgames> {
   return $boardgames[boardgameKey(name, version)];
 }
 
-export function latestBoardgames() {
+export function latestBoardgames(): ValueOf<typeof $boardgames>[] {
   return Object.keys($boardgames)
     .filter((key) => key.endsWith("/latest"))
     .map((key) => $boardgames[key]);
 }
 
-export async function loadBoardgames() {
+export async function loadBoardgames(): Promise<void> {
   if (promise) {
     return promise;
   }
@@ -59,8 +60,8 @@ export async function loadBoardgames() {
   ));
 }
 
-let loading = new Map<string, Promise<void>>();
-export async function loadBoardgame(game: string, version: number | "latest") {
+const loading = new Map<string, Promise<void>>();
+export async function loadBoardgame(game: string, version: number | "latest"): Promise<void> {
   const id = boardgameKey(game, version);
   if (loading.has(id)) {
     return loading.get(id);

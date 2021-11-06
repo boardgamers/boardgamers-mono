@@ -1,9 +1,13 @@
-import AWN from "awesome-notifications";
+import { browser } from "$app/env";
 import "awesome-notifications/dist/style.css";
 
-const notifier = new AWN({ icons: { enabled: false } });
+let notifier: any | undefined;
 
-export function handleError(err: Error | string | unknown) {
+if (browser) {
+  import("awesome-notifications").then((AWN) => (notifier = new AWN({ icons: { enabled: false } })));
+}
+
+export function handleError(err: Error | string | unknown): void {
   if (!err) {
     return;
   }
@@ -11,25 +15,25 @@ export function handleError(err: Error | string | unknown) {
   console.error(err);
 
   if (typeof err === "string") {
-    notifier.alert(err);
+    notifier?.alert(err);
   } else if ("message" in (err as any)) {
-    notifier.alert((err as any).message);
+    notifier?.alert((err as any).message);
   } else {
-    notifier.alert("Unknown error");
+    notifier?.alert("Unknown error");
   }
 }
 
-export function handleInfo(info: string) {
-  notifier.info(info);
+export function handleInfo(info: string): void {
+  notifier?.info(info);
 }
 
-export function handleSuccess(info: string) {
-  notifier.success(info);
+export function handleSuccess(info: string): void {
+  notifier?.success(info);
 }
 
 export function confirm(text: string): Promise<boolean> {
   return new Promise((resolve) => {
-    notifier.confirm(
+    notifier?.confirm(
       text,
       () => resolve(true),
       () => resolve(false)
@@ -45,7 +49,7 @@ export function confirm(text: string): Promise<boolean> {
  * @param callback Callback to always execute at the end
  * @returns wrapped function
  */
-export function defer(target: Function, callback?: () => unknown) {
+export function defer(target: (...args: any[]) => any, callback?: () => unknown) {
   return async (...args: any[]) => {
     try {
       return await target(...args);

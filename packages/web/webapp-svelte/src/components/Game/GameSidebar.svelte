@@ -3,14 +3,14 @@
   import { elapsedSeconds } from "@bgs/utils/time";
   import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
   import type { PlayerInfo } from "@bgs/types";
-  import Portal from "svelte-portal";
+  import Portal from "@/modules/portal";
   import { addActiveGame, playerStatus, removeActiveGame, user } from "@/store";
   import { Button, Icon, Badge } from "@/modules/cdk";
   import { post } from "@/api";
   import { getContext, onDestroy } from "svelte";
   import { GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings } from "./GameSidebar";
   import type { GameContext } from "@/pages/Game.svelte";
-  import PlayerGameAvatar from "./components/PlayerGameAvatar.svelte";
+  import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
 
   const { game, players, gameInfo }: GameContext = getContext("game");
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Card, Col, Row } from "@/modules/cdk";
-  import GameList from "../Game/components/GameList.svelte";
+  import { GameList } from "../Game";
 
   export let userId: string;
 </script>

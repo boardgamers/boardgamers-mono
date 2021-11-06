@@ -3,13 +3,13 @@ import { get as $ } from "svelte/store";
 import type { Token } from "../store";
 import { accessTokens, refreshToken } from "../store";
 
-const baseUrl = "/api";
+const baseUrl = "https://boardgamers.space/api";
 
 function transformUrl(url: string) {
   return url.startsWith("http") || url.startsWith("//") ? url : baseUrl + url;
 }
 
-export async function get<T = any>(url: string, query?: Record<string, unknown>) {
+export async function get<T = any>(url: string, query?: Record<string, unknown>): Promise<T> {
   const token = await getAccessToken(url);
   return getResponseData<T>(
     await fetch(
@@ -21,7 +21,7 @@ export async function get<T = any>(url: string, query?: Record<string, unknown>)
   );
 }
 
-export async function post<T = any>(url: string, data: Record<string, unknown> = {}) {
+export async function post<T = any>(url: string, data: Record<string, unknown> = {}): Promise<T> {
   const token = await getAccessToken(url);
 
   return getResponseData<T>(
@@ -45,7 +45,7 @@ async function getResponseData<T = any>(response: Response): Promise<T> {
   return body;
 }
 
-export function setAccessToken(token: Token | null, scopes: string[] = ["all"]) {
+export function setAccessToken(token: Token | null, scopes: string[] = ["all"]): void {
   if (token) {
     accessTokens.set({ ...$(accessTokens), [scopes.join(",")]: token });
   } else {
@@ -59,7 +59,9 @@ export function setAccessToken(token: Token | null, scopes: string[] = ["all"]) 
  * @returns Access token or null if logged out
  */
 export async function getAccessToken(url: string): Promise<Token | null> {
-  if (!$(refreshToken)) {
+  const $refreshToken = $(refreshToken);
+
+  if (!$refreshToken) {
     return null;
   }
 
@@ -80,7 +82,7 @@ export async function getAccessToken(url: string): Promise<Token | null> {
   const response = await fetch(transformUrl("/account/refresh"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code: $(refreshToken)!.code, scopes }),
+    body: JSON.stringify({ code: $refreshToken.code, scopes }),
   });
 
   if (response.status === 404) {
