@@ -5,7 +5,7 @@ import { addDays } from "date-fns";
 import createError from "http-errors";
 import { Context } from "koa";
 import Router from "koa-router";
-import { omit, shuffle } from "lodash";
+import { omit } from "lodash";
 import locks from "mongo-locks";
 import type { Types } from "mongoose";
 import {
@@ -95,8 +95,10 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
       continue;
     }
 
-    if (["join", "unlisted", "randomOrder"].includes(key)) {
+    if (["join", "unlisted"].includes(key)) {
       assert(typeof val === "boolean", "Invalid value for option: " + key);
+    } else if (key === "playerOrder") {
+      // Mongoose will throw if playerOrder is invalid
     } else {
       const item = gameInfo.options.find((opt) => opt.name === key);
       if (!item) {
@@ -407,15 +409,6 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
     });
 
     if (game.players.length === game.options.setup.nbPlayers) {
-      if (game.options.setup.playerOrder === "random") {
-        // Mongoose (5.10.0) will bug if I directly set to the shuffled value (because array item's .get are not set)
-        const shuffled = shuffle(game.players);
-        game.players = [];
-        game.players.push(...shuffled);
-      }
-    }
-
-    if (game.players.length === game.options.setup.nbPlayers) {
       if (game.options.setup.playerOrder === "host") {
         game.currentPlayers = [{ _id: game.creator, timerStart: new Date(), deadline: addDays(new Date(), 1) }];
       } else {
@@ -459,6 +452,47 @@ router.post("/:gameId/unjoin", loggedIn, async (ctx) => {
       await game.remove();
     } else {
       await game.save();
+    }
+
+    ctx.state.game = game;
+  } finally {
+    free().catch(console.error);
+  }
+  ctx.body = omit(ctx.state.game, "data");
+});
+
+router.post("/:gameId/start", loggedIn, async (ctx) => {
+  const free = await locks.lock("game", ctx.params.gameId);
+  try {
+    const game = await Game.findOne({
+      _id: ctx.params.gameId,
+      status: "open",
+      ready: false,
+      creator: ctx.state.user._id,
+    });
+
+    if (!game) {
+      ctx.status = 404;
+      return;
+    }
+
+    assert(
+      game.players.length === game.options.setup.nbPlayers,
+      "You can only start the game when all players have joined"
+    );
+
+    const { playerOrder } = ctx.request.body;
+
+    if (playerOrder) {
+      game.players = [...game.players.sort((p1, p2) => playerOrder.indexOf(p1._id) - playerOrder.indexOf(p2._id))];
+    }
+
+    game.ready = true;
+
+    await game.save();
+
+    if (!game.options.timing.scheduledStart) {
+      await notifyGameStart(game);
     }
 
     ctx.state.game = game;
