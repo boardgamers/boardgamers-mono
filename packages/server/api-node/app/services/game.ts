@@ -1,7 +1,16 @@
+import { shuffle } from "lodash";
 import locks from "mongo-locks";
 import { ChatMessage, Game, GameDocument, GameNotification } from "../models";
 
 export async function notifyGameStart(game: GameDocument) {
+  if (game.options.setup.playerOrder === "random") {
+    // Mongoose (5.10.0) will bug if I directly set to the shuffled value (because array item's .get are not set)
+    const shuffled = shuffle(game.players);
+    game.players = [];
+    game.players.push(...shuffled);
+    await game.save();
+  }
+
   await ChatMessage.create({ room: game._id, type: "system", data: { text: "Game started" } });
   await GameNotification.create({ game: game._id, kind: "gameStarted", processed: false });
 }
@@ -30,7 +39,7 @@ export async function processSchedulesGames() {
       // Do this to avoid being caught in a loop again, before game server starts the game
       g.options.timing.scheduledStart = undefined;
       await g.save();
-      await this.notifyGameStart(g);
+      await notifyGameStart(g);
     }
   } finally {
     free().catch(console.error);
