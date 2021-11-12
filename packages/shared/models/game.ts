@@ -55,8 +55,12 @@ const repr = {
   data: {},
   status: {
     type: String,
-    enum: ["open", "pending", "active", "ended"] as const,
+    enum: ["open", "active", "ended"] as const,
     default: "open",
+  },
+  ready: {
+    type: Boolean,
+    default: false,
   },
   cancelled: {
     type: Boolean,
