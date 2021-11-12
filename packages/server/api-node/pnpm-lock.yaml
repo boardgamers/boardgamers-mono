@@ -37,6 +37,7 @@ specifiers:
   check-disk-space: ^2.1.0
   cookie-parser: ^1.4.3
   cross-env: ^7.0.3
+  date-fns: ^2.25.0
   delay: ^3.1.0
   dotenv: ^5.0.1
   eslint: ^7.32.0
@@ -75,6 +76,7 @@ dependencies:
   bcryptjs: 2.4.3
   check-disk-space: 2.1.0
   cookie-parser: 1.4.5
+  date-fns: 2.25.0
   delay: 3.1.0
   dotenv: 5.0.1
   http-errors: 1.8.0
@@ -1101,6 +1103,11 @@ packages:
 
   /data-uri-to-buffer/1.2.0:
     resolution: {integrity: sha512-vKQ9DTQPN1FLYiiEEOQ6IBGFqvjCa5rSK3cWMy/Nespm5d/x3dGFT9UBZnkLxCwua/IXBi2TYnwTEpsOvhC4UQ==}
+    dev: false
+
+  /date-fns/2.25.0:
+    resolution: {integrity: sha512-ovYRFnTrbGPD4nqaEqescPEv1mNwvt+UTqI3Ay9SzNtey9NZnYu6E2qCcBBgJ6/2VF1zGGygpyTDITqpQQ5e+w==}
+    engines: {node: '>=0.11'}
     dev: false
 
   /dateformat/1.0.12:

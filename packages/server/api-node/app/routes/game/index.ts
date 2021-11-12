@@ -1,6 +1,7 @@
 import { timerDuration } from "@bgs/utils/time";
 import GameInfoService from "app/services/gameinfo";
 import assert from "assert";
+import { addDays } from "date-fns";
 import createError from "http-errors";
 import { Context } from "koa";
 import Router from "koa-router";
@@ -17,7 +18,7 @@ import {
   RoomMetaDataDocument,
   User,
 } from "../../models";
-import GameService from "../../services/game";
+import { notifyGameStart } from "../../services/game";
 import { isAdmin, isConfirmed, loggedIn, queryCount, skipCount } from "../utils";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -414,14 +415,20 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
       }
     }
 
-    game.ready = game.players.length === game.options.setup.nbPlayers && game.options.setup.playerOrder !== "host";
+    if (game.players.length === game.options.setup.nbPlayers) {
+      if (game.options.setup.playerOrder === "host") {
+        game.currentPlayers = [{ _id: game.creator, timerStart: new Date(), deadline: addDays(new Date(), 1) }];
+      } else {
+        game.ready = true;
+      }
+    }
 
     await game.save();
 
     ctx.state.game = game;
 
     if (game.ready && !game.options.timing.scheduledStart) {
-      await GameService.notifyGameStart(game);
+      await notifyGameStart(game);
     }
   } finally {
     free().catch(console.error);
@@ -444,6 +451,8 @@ router.post("/:gameId/unjoin", loggedIn, async (ctx) => {
     assert(!game.ready, "You can't unjoin a game that's ready to start");
 
     game.players = game.players.filter((pl) => !pl._id.equals(ctx.state.user._id));
+    // In case host needed to choose options after all players joined
+    game.currentPlayers = [];
 
     if (/* ctx.state.user._id.equals(game.creator) && */ game.players.length === 0) {
       // Remove game if its own creator leaves, and there's no one else
