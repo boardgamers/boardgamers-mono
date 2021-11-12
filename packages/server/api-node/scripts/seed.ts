@@ -1,7 +1,12 @@
 import mongoose, { Collection } from "mongoose";
+import { env } from "../app/config";
 import initDb from "../app/config/db";
 import * as models from "../app/models";
 import * as data from "./data";
+
+if (process.env.NODE_ENV !== "test") {
+  env.script = true;
+}
 
 /**
  *
