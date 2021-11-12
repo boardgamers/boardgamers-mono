@@ -64,9 +64,10 @@ const repr = {
   },
   options: {
     setup: {
-      randomPlayerOrder: {
-        type: Boolean,
-        default: true,
+      playerOrder: {
+        type: String,
+        default: "random",
+        enum: ["random", "join", "host"] as const,
       },
       nbPlayers: {
         type: Number,
