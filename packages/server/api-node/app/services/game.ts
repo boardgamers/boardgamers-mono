@@ -73,7 +73,7 @@ export async function processUnreadyGames() {
           await game.save();
         }
       } finally {
-        free();
+        free().catch(console.error);
       }
     } catch (err) {
       console.error(err);
