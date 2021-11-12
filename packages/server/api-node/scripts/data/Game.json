@@ -3,7 +3,7 @@
     "_id": "Costly-demand-3088",
     "options": {
       "setup": {
-        "randomPlayerOrder": true,
+        "playerOrder": "random",
         "nbPlayers": 2,
         "seed": "Costly-demand-3088"
       },

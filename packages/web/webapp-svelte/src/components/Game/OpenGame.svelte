@@ -18,6 +18,7 @@
   import { navigate, route } from "@/modules/router";
   import { getContext, onDestroy } from "svelte";
   import type { GameContext } from "@/pages/Game.svelte";
+  import { playerOrderText } from "@/data/playerOrders";
 
   const { game, players, gameInfo }: GameContext = getContext("game");
   $: timer = $game.options.timing.timer;
@@ -154,9 +155,7 @@
   <div class="mt-3">
     <h3>Setup options</h3>
 
-    {#if $game.options.setup.randomPlayerOrder}
-      <Badge color="secondary" class="me-1">Random player order</Badge>
-    {/if}
+    <Badge color="secondary" class="me-1">{playerOrderText($game.options.setup.playerOrder)}</Badge>
     {#each $gameInfo.options.filter((x) => !!($game.game.options || {})[x.name]) as pref}
       <Badge color="secondary" class="me-1">
         {#if pref.type === "checkbox"}

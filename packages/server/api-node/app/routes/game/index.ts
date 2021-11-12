@@ -125,11 +125,11 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
     version: gameInfo._id.version,
     expansions: (expansions ?? []).filter((exp: string) => gameInfo.expansions.some((exp2) => exp2.name === exp)),
 
-    options: omit(options, "join", "randomOrder", "unlisted"),
+    options: omit(options, "join", "playerOrder", "unlisted"),
   };
   game.options.setup.seed = seed;
   game.options.setup.nbPlayers = players;
-  game.options.setup.randomPlayerOrder = options.randomOrder as boolean;
+  game.options.setup.playerOrder = (options.playerOrder ?? "random") as "random" | "host" | "join";
   game.options.meta.unlisted = options.unlisted as boolean;
   game.options.timing.timePerMove = timePerMove;
   game.options.timing.timePerGame = timePerGame;
@@ -406,7 +406,7 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
     });
 
     if (game.players.length === game.options.setup.nbPlayers) {
-      if (game.options.setup.randomPlayerOrder) {
+      if (game.options.setup.playerOrder === "random") {
         // Mongoose (5.10.0) will bug if I directly set to the shuffled value (because array item's .get are not set)
         const shuffled = shuffle(game.players);
         game.players = [];
