@@ -17,21 +17,21 @@ export default class GameService {
       }).cursor()) {
         const g: GameDocument = game;
 
-        if (g.options.setup.nbPlayers > g.players.length) {
+        if (!g.ready) {
           await ChatMessage.create({
             room: game._id,
             type: "system",
-            data: { text: "Game cancelled because of lack of players" },
+            data: { text: "Game cancelled because it's not fully ready at scheduled start date" },
           });
           g.cancelled = true;
           g.status = "ended";
           await g.save();
-        } else {
-          // Do this to avoid being caught in a loop again, before game server starts the game
-          g.options.timing.scheduledStart = undefined;
-          await g.save();
-          await this.notifyGameStart(g);
+          continue;
         }
+        // Do this to avoid being caught in a loop again, before game server starts the game
+        g.options.timing.scheduledStart = undefined;
+        await g.save();
+        await this.notifyGameStart(g);
       }
     } finally {
       free().catch(console.error);

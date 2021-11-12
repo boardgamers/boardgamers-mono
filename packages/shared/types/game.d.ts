@@ -68,7 +68,8 @@ export interface IAbstractGame<T = string, Game = any, GameOptions = any> {
     options: GameOptions;
   };
 
-  status: "open" | "pending" | "active" | "ended";
+  status: "open" | "active" | "ended";
+  ready: boolean;
   cancelled: boolean;
 
   updatedAt: Date;

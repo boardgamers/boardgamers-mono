@@ -391,7 +391,7 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
       return;
     }
 
-    // Todo: checked if allowed to join such a game
+    // Todo: check if allowed to join such a game
 
     assert(!game.players.some((pl) => pl._id.equals(ctx.state.user._id)), "You already joined the game");
     assert(game.players.length < game.options.setup.nbPlayers, "Too many people have joined the game");
@@ -414,11 +414,13 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
       }
     }
 
+    game.ready = game.players.length === game.options.setup.nbPlayers && game.options.setup.playerOrder !== "host";
+
     await game.save();
 
     ctx.state.game = game;
 
-    if (game.players.length === game.options.setup.nbPlayers && !game.options.timing.scheduledStart) {
+    if (game.ready && !game.options.timing.scheduledStart) {
       await GameService.notifyGameStart(game);
     }
   } finally {
@@ -439,7 +441,7 @@ router.post("/:gameId/unjoin", loggedIn, async (ctx) => {
 
     const index = game.players.findIndex((pl) => pl._id.equals(ctx.state.user._id));
     assert(index >= 0, "You're not part of that game");
-    assert(game.players.length < game.options.setup.nbPlayers, "You can't unjoin a game that's full");
+    assert(!game.ready, "You can't unjoin a game that's ready to start");
 
     game.players = game.players.filter((pl) => !pl._id.equals(ctx.state.user._id));
 
