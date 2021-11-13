@@ -2,6 +2,7 @@ lockfileVersion: 5.3
 
 specifiers:
   '@types/chai': ^4.2.22
+  '@types/lodash': ^4.14.176
   '@types/luxon': ^2.0.4
   '@types/mocha': ^9.0.0
   chai: ^4.3.4
@@ -16,6 +17,7 @@ dependencies:
 
 devDependencies:
   '@types/chai': 4.2.22
+  '@types/lodash': 4.14.176
   '@types/luxon': 2.0.4
   '@types/mocha': 9.0.0
   chai: 4.3.4
@@ -56,6 +58,10 @@ packages:
 
   /@types/chai/4.2.22:
     resolution: {integrity: sha512-tFfcE+DSTzWAgifkjik9AySNqIyNoYwmR+uecPwwD/XRNfvOjmC/FjCxpiUGDkDVDphPfCUecSQVFw+lN3M3kQ==}
+    dev: true
+
+  /@types/lodash/4.14.176:
+    resolution: {integrity: sha512-xZmuPTa3rlZoIbtDUyJKZQimJV3bxCmzMIO2c9Pz9afyDro6kr7R79GwcB6mRhuoPmV2p1Vb66WOJH7F886WKQ==}
     dev: true
 
   /@types/luxon/2.0.4:
