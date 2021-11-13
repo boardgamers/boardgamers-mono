@@ -484,9 +484,10 @@ router.post("/:gameId/start", loggedIn, async (ctx) => {
     const { playerOrder } = ctx.request.body;
 
     if (playerOrder) {
-      game.players = [...game.players.sort((p1, p2) => playerOrder.indexOf(p1._id) - playerOrder.indexOf(p2._id))];
+      game.players = [...game.players].sort(
+        (p1, p2) => playerOrder.indexOf(p1._id.toString()) - playerOrder.indexOf(p2._id.toString())
+      );
     }
-
     game.ready = true;
 
     await game.save();
