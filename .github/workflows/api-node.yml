@@ -35,5 +35,6 @@ jobs:
       - run: pnpm install --filter {./}...
       - run: pnpm run lint-check
       - run: pnpm install --filter "@bgs/models"
+      - run: pnpm install --filter "@bgs/utils"
       - run: pnpm run tsc
       - run: pnpm run test
