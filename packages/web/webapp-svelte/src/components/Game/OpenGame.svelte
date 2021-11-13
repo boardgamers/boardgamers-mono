@@ -91,7 +91,7 @@
     }
   };
 
-  let hideLeave = false;
+  $: canStart = $game.options.setup.nbPlayers === $game.players.length && !$game.ready && $user?._id === $game.creator;
 
   const start = () => {
     startGame(gameId, { playerOrder: playerOrder.map((x) => $game.players[x]._id) }).catch(handleError);
@@ -217,7 +217,6 @@
     {#if $game.options.setup.nbPlayers > $game.players.length}
       <p>Waiting on {pluralize($game.options.setup.nbPlayers - $game.players.length, "more player")}</p>
     {:else if !$game.ready}
-      {((hideLeave = false), "")}
       {#if $user?._id === $game.creator}
         {#if $game.options.setup.playerOrder === "host"}
           <h3>Select player order</h3>
@@ -228,7 +227,6 @@
               <span on:click={() => moveDown(playerIndex)}><Icon name="arrow-down" class="icon-order-player" /></span>
             </div>
           {/each}
-          {((hideLeave = true), "")}
           <Button color="primary" on:click={start} class="mt-4">Start the game!</Button>
         {/if}
       {:else}
@@ -239,7 +237,7 @@
     {/if}
   </div>
 
-  {#if !hideLeave}
+  {#if !canStart}
     {#if $game.players.some((pl) => pl._id === $user?._id)}
       <Button color="warning" on:click={leave}>Leave</Button>
     {:else}
