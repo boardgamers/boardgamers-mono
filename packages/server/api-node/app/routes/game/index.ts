@@ -1,5 +1,4 @@
 import { timerDuration } from "@bgs/utils/time";
-import GameInfoService from "app/services/gameinfo";
 import assert from "assert";
 import { addDays } from "date-fns";
 import createError from "http-errors";
@@ -7,7 +6,6 @@ import { Context } from "koa";
 import Router from "koa-router";
 import { omit } from "lodash";
 import locks from "mongo-locks";
-import type { Types } from "mongoose";
 import {
   ChatMessage,
   Game,
@@ -19,9 +17,12 @@ import {
   User,
 } from "../../models";
 import { notifyGameStart } from "../../services/game";
-import { isAdmin, isConfirmed, loggedIn, queryCount, skipCount } from "../utils";
+import { isAdmin, isConfirmed, loggedIn } from "../utils";
+import listings from "./listings";
 
 const router = new Router<Application.DefaultState, Context>();
+
+router.use("/status", listings.routes(), listings.allowedMethods());
 
 router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
   const body = ctx.request.body;
@@ -200,119 +201,6 @@ router.param("gameId", async (gameId, ctx, next) => {
   }
 
   await next();
-});
-
-const filterAccessibleGames = async (userId: Types.ObjectId) => {
-  const games = await GameInfoService.latestAccessibleGames(userId);
-
-  if (!games.size) {
-    return {};
-  }
-
-  return {
-    $and: [
-      {
-        $or: [...games.entries()].map(([game, version]) => ({ "game.name": game, "game.version": { $lte: version } })),
-      },
-    ],
-  };
-};
-
-router.get("/active", async (ctx) => {
-  const conditions: Record<string, unknown> = { status: "active", ...(await filterAccessibleGames(ctx.state.user)) };
-  if (ctx.query.user) {
-    conditions["players._id"] = ctx.query.user;
-  }
-  ctx.body = await Game.find(conditions)
-    .sort("-lastMove")
-    .skip(skipCount(ctx))
-    .limit(queryCount(ctx))
-    .select(Game.basics());
-});
-
-router.get("/active/count", async (ctx) => {
-  const conditions: Record<string, unknown> = { status: "active", ...(await filterAccessibleGames(ctx.state.user)) };
-  if (ctx.query.user) {
-    conditions["players._id"] = ctx.query.user;
-  }
-  ctx.body = await Game.count(conditions).exec();
-});
-
-router.get("/(closed|ended)", async (ctx) => {
-  const conditions: Record<string, unknown> = { status: "ended", ...(await filterAccessibleGames(ctx.state.user)) };
-  if (ctx.query.user) {
-    conditions["players._id"] = ctx.query.user;
-  }
-  ctx.body = await Game.find(conditions)
-    .sort("-lastMove")
-    .skip(skipCount(ctx))
-    .limit(queryCount(ctx))
-    .select([...Game.basics(), "cancelled"])
-    .lean(true);
-});
-
-router.get("/(closed|ended)/count", async (ctx) => {
-  const conditions: Record<string, unknown> = { status: "ended", ...(await filterAccessibleGames(ctx.state.user)) };
-  if (ctx.query.user) {
-    conditions["players._id"] = ctx.query.user;
-  }
-  ctx.body = await Game.count(conditions).exec();
-});
-
-router.get("/open", async (ctx) => {
-  const conditions: Record<string, unknown> = {
-    status: "open",
-    "options.meta.unlisted": { $ne: true },
-    ...(await filterAccessibleGames(ctx.state.user)),
-  };
-
-  if (ctx.query.maxKarma) {
-    conditions.$or = [
-      { "options.meta.minimumKarma": { $lte: +ctx.query.maxKarma } },
-      { "options.meta.minimumKarma": { $exists: false } },
-    ];
-  }
-  if (ctx.query.user) {
-    conditions["players._id"] = ctx.query.user;
-  }
-
-  if (ctx.query.sample) {
-    ctx.body = await Game.aggregate()
-      .match(conditions)
-      .sample(queryCount(ctx) * 5)
-      .project(Object.fromEntries(Game.basics().map((x) => [x, 1])))
-      .group({ _id: "$creator", data: { $first: "$$ROOT" } })
-      .limit(queryCount(ctx))
-      .replaceRoot("$data");
-  } else {
-    ctx.body = await Game.find(conditions)
-      .sort("-createdAt")
-      .skip(skipCount(ctx))
-      .limit(queryCount(ctx))
-      .select(Game.basics())
-      .lean(true);
-  }
-});
-
-router.get("/open/count", async (ctx) => {
-  const conditions: Record<string, unknown> = {
-    status: "open",
-    "options.meta.unlisted": { $ne: true },
-    ...(await filterAccessibleGames(ctx.state.user)),
-  };
-
-  if (ctx.query.user) {
-    conditions["players._id"] = ctx.query.user;
-  }
-
-  if (ctx.query.maxKarma) {
-    conditions.$or = [
-      { "options.meta.minimumKarma": { $lte: +ctx.query.maxKarma } },
-      { "options.meta.minimumKarma": { $exists: false } },
-    ];
-  }
-
-  ctx.body = await Game.count(conditions).exec();
 });
 
 // Metadata about the game

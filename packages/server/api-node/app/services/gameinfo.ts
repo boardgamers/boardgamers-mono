@@ -1,4 +1,3 @@
-import type { Types } from "mongoose";
 import { GameInfo, GamePreferences, UserDocument } from "../models";
 
 export default class GameInfoService {
@@ -23,7 +22,7 @@ export default class GameInfoService {
     }
   }
 
-  static async latestAccessibleGames(userId?: Types.ObjectId) {
+  static async latestAccessibleGames<T>(userId?: T) {
     const ownGames = userId
       ? await GamePreferences.find({ user: userId, "access.maxVersion": { $exists: true } })
           .select("game access.maxVersion -_id")

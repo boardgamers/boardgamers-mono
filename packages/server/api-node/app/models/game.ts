@@ -8,7 +8,6 @@ export interface GameDocument extends IAbstractGame<Types.ObjectId>, mongoose.Do
 export interface GameModel extends mongoose.Model<GameDocument> {
   findWithPlayer(playerId: Types.ObjectId): mongoose.Query<GameDocument[], GameDocument>;
   findWithPlayersTurn(playerId: Types.ObjectId): mongoose.Query<GameDocument[], GameDocument>;
-  findWithBoardgame(boardgame: string): mongoose.Query<GameDocument[], GameDocument>;
 
   /** Basics projection */
   basics(): string[];
@@ -24,10 +23,6 @@ schema.static("findWithPlayer", function (this: GameModel, playerId: Types.Objec
 schema.static("findWithPlayersTurn", function (this: GameModel, playerId: Types.ObjectId) {
   const conditions = { status: { $in: ["active", "open"] as GameStatus[] }, "currentPlayers._id": playerId };
   return this.find(conditions).sort({ status: -1, lastMove: -1 });
-});
-
-schema.static("findWithBoardgame", function (this: GameModel, boardgame: string) {
-  return this.find({ "game.name": boardgame }).sort("-lastMove");
 });
 
 schema.static("basics", () => {
