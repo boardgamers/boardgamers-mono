@@ -2,7 +2,7 @@
   import { timerTime, defer, duration, niceDate } from "@/utils";
   import type { IGame } from "@bgs/types";
   import { boardgameInfo, get, loadBoardgames } from "@/api";
-  import { logoClicks } from "@/store";
+  import { logoClicks, user } from "@/store";
   import { onDestroy } from "svelte";
   import { createWatcher, skipOnce } from "@/utils/watch";
   import { Badge, Icon, Pagination, Loading, Row } from "@/modules/cdk";
@@ -21,8 +21,6 @@
   let currentPage = 0;
   let games: IGame[] = [];
 
-  const prefix = () => (boardgameId ? `/boardgame/${boardgameId}/games/${gameStatus}` : `/game/${gameStatus}`);
-
   const loadGames = defer(
     async (refresh: boolean) => {
       const queryParams = {
@@ -30,17 +28,19 @@
         skip: currentPage * perPage,
         ...(sample && { sample: true }),
         ...(userId && { user: userId }),
+        ...(boardgameId && { boardgame: boardgameId }),
+        ...(gameStatus === "open" && !!$user?._id && { maxKarma: $user!.account.karma }),
       };
 
       if (refresh) {
         loadingGames = true;
 
         if (!sample && !topRecords) {
-          count = await get<number>(`${prefix()}/count`, queryParams);
+          count = await get<number>(`/game/status/${gameStatus}/count`, queryParams);
         }
       }
 
-      games = await get(prefix(), queryParams);
+      games = await get(`/game/status/${gameStatus}`, queryParams);
 
       // TODO: only load boardgames present in games
       await loadBoardgames();

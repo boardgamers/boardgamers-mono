@@ -7,7 +7,7 @@ import { UserDocument } from "./models/user";
 declare global {
   namespace Application {
     export interface DefaultState {
-      // user?: User;
+      user?: UserDocument;
       game?: GameDocument;
       foundUser?: UserDocument;
       foundBoardgame?: GameInfoDocument;
