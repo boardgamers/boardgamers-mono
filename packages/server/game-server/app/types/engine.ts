@@ -4,7 +4,8 @@ export type GameData = any;
 type Many<T> = T | T[];
 
 export interface Engine {
-  init(players: number, expansions: string[], options: any, seed?: string): Promise<GameData>;
+  // Creator is -1 if not among the players
+  init(players: number, expansions: string[], options: any, seed: string, creator: number): Promise<GameData>;
 
   // Returns the new data to send to player
   move(data: GameData, move: any, player: number): Promise<GameData>;
