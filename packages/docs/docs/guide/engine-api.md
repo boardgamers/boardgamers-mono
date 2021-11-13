@@ -12,13 +12,15 @@ passed in the argument and return, or return a whole new object.
 ### init
 
 ```ts
-init (players: number, expansions: string[], options: any, seed: string): Promise<GameData>
+init (players: number, expansions: string[], options: any, seed: string, creator?: number): Promise<GameData>
 ```
 
 Creates the initial game data. The function can be asynchronous - if you need to make an API call to an external
 tool like a map generator, for example.
 
 After initialization, the players are 0-indexed: a 4 player games will have players `0`, `1`, `2` and `3`.
+
+`creator` is the index of the player that created the game. It can be `-1` if the creator of the game is not a player.
 
 #### players
 
