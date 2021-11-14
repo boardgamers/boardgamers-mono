@@ -14,7 +14,7 @@
   <div class="lead py-2" style="display: flex; flex-direction: column">
     {#await loadAnnouncement() then announcement}
       <p class="text-center">
-        Play <b>Gaia Project</b> and <b>Container</b> online<br />Want to set up live games? Join the
+        Play <b>Gaia Project</b>, <b>Powergrid</b> and <b>Container</b> online<br />Want to set up live games? Join the
         <a href="https://discord.gg/EgqK3rD">discord</a>!
       </p>
       <div class="mx-auto card border-info px-3 pb-3 d-block">
