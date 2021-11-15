@@ -20,7 +20,7 @@ tool like a map generator, for example.
 
 After initialization, the players are 0-indexed: a 4 player games will have players `0`, `1`, `2` and `3`.
 
-`creator` is the index of the player that created the game. It can be `-1` if the creator of the game is not a player.
+`creator` is the index of the player that created the game. It can be `undefined` if the creator of the game is not a player.
 
 #### players
 

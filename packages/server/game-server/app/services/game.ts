@@ -55,12 +55,14 @@ export async function startNextGame(): Promise<boolean> {
       seed = crypto.createHash("sha256").update(seed).update(env.seedEncryptionKey).digest().toString("base64");
     }
 
+    const creator = game.players.findIndex((pl) => pl._id.equals(game.creator));
+
     let gameData = await engine.init(
       game.options.setup.nbPlayers,
       game.game.expansions,
       game.game.options || {},
       seed,
-      game.players.findIndex((pl) => pl._id.equals(game.creator))
+      creator === -1 ? undefined : creator
     );
 
     if (engine.setPlayerMetaData) {
