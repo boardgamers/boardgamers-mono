@@ -63,10 +63,12 @@ function connect() {
 
   ws.onclose = ws.onerror = () => {
     console.log("websocket closed");
-    clearWs(ws!);
+    if (ws) {
+      clearWs();
 
-    // Automatically reconnect
-    setTimeout(() => connect(), 2000);
+      // Automatically reconnect
+      setTimeout(() => connect(), 2000);
+    }
   };
 
   ws.onopen = () => {
@@ -99,10 +101,12 @@ function connect() {
   }, 30 * 1000);
 }
 
-function clearWs(ws: WebSocket) {
-  ws.onclose = ws.onerror = ws.onmessage = ws.onopen = null;
-  ws.close();
-  clearInterval(interval);
+function clearWs() {
+  if (ws) {
+    ws.onclose = ws.onerror = ws.onmessage = ws.onopen = null;
+    ws.close();
+    clearInterval(interval);
+  }
 }
 
 connect();
