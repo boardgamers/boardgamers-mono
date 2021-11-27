@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/stores";
   import { boardgameKey, get, post } from "@/api";
   import { loadGameData } from "@/api/game";
   import type { GamePreferences } from "@bgs/types";
@@ -14,20 +15,20 @@
   let stateSent = false;
 
   const resourcesLink =
-    location.hostname === "localhost" || location.hostname.endsWith("gitpod.io")
+    $page.host.startsWith("localhost") || $page.host.endsWith("gitpod.io")
       ? `/resources`
-      : `//resources.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`;
+      : `//resources.${$page.host.slice($page.host.indexOf(".") + 1)}`;
 
-  const gameIframe = () => document.querySelector<HTMLIFrameElement>("#game-iframe");
+  let gameIframe: HTMLIFrameElement;
 
   let src = "";
   let prefs: GamePreferences;
 
   function postUser() {
-    if (gameIframe()) {
+    if (gameIframe) {
       const index = $game.players.findIndex((pl) => pl._id === $user?._id);
       const message = { type: "player", player: { index: index !== -1 ? index : undefined } };
-      gameIframe()!.contentWindow?.postMessage(message, "*");
+      gameIframe.contentWindow?.postMessage(message, "*");
     }
   }
 
@@ -65,33 +66,33 @@
   );
 
   function postGamedata() {
-    gameIframe()?.contentWindow?.postMessage({ type: "state", state: $game.data }, "*");
+    gameIframe?.contentWindow?.postMessage({ type: "state", state: $game.data }, "*");
   }
 
   function postUpdatePresent() {
-    gameIframe()?.contentWindow?.postMessage({ type: "state:updated" }, "*");
+    gameIframe?.contentWindow?.postMessage({ type: "state:updated" }, "*");
   }
 
   function postGameLog(logObject: { start: number; end?: number; data: any }) {
-    gameIframe()?.contentWindow?.postMessage({ type: "gameLog", data: logObject }, "*");
+    gameIframe?.contentWindow?.postMessage({ type: "gameLog", data: logObject }, "*");
   }
 
   function postPreferences() {
-    if (gameIframe() && prefs) {
-      gameIframe()!.contentWindow?.postMessage({ type: "preferences", preferences: prefs.preferences }, "*");
+    if (gameIframe && prefs) {
+      gameIframe.contentWindow?.postMessage({ type: "preferences", preferences: prefs.preferences }, "*");
     }
   }
 
   emitter.on("replay:start", () => {
-    gameIframe()?.contentWindow?.postMessage({ type: "replay:start" }, "*");
+    gameIframe?.contentWindow?.postMessage({ type: "replay:start" }, "*");
   });
 
   emitter.on("replay:to", (dest) => {
-    gameIframe()?.contentWindow?.postMessage({ type: "replay:to", to: dest }, "*");
+    gameIframe?.contentWindow?.postMessage({ type: "replay:to", to: dest }, "*");
   });
 
   emitter.on("replay:end", () => {
-    gameIframe()?.contentWindow?.postMessage({ type: "replay:end" }, "*");
+    gameIframe?.contentWindow?.postMessage({ type: "replay:end" }, "*");
     $replayData = null;
   });
 
@@ -110,9 +111,9 @@
         postPreferences();
         postGamedata();
       } else if (event.data.type === "gameHeight") {
-        gameIframe()!.height = String(
+        gameIframe.height = String(
           Math.max(
-            +window.getComputedStyle(gameIframe()!, null).getPropertyValue("min-height").replace(/px/, ""),
+            +window.getComputedStyle(gameIframe, null).getPropertyValue("min-height").replace(/px/, ""),
             +event.data.height
           )
         );
@@ -158,14 +159,21 @@
 
 <Loading loading={!stateSent} />
 
-<iframe id="game-iframe" title="Game UX" sandbox="allow-scripts allow-same-origin" class:d-none={!stateSent} {src} />
+<iframe
+  bind:this={gameIframe}
+  id="game-iframe"
+  title="Game UX"
+  sandbox="allow-scripts allow-same-origin"
+  class:d-none={!stateSent}
+  {src}
+/>
 
 <style>
   #game-iframe {
     border: 0;
-    width: calc(100% + 30px);
-    margin-left: -15px;
-    margin-right: -15px;
+    width: calc(100% + 24px);
+    margin-left: -12px;
+    margin-right: -12px;
     margin-top: calc(0 - var(--navbar-margin));
     margin-bottom: -6px;
     min-height: calc(100vh - var(--navbar-height));

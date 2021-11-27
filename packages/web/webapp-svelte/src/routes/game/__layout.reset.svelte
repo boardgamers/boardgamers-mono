@@ -1,9 +1,10 @@
 <script lang="ts">
+  // todo: check if imports can be all done within style.css
   import "bootstrap-icons/font/bootstrap-icons.css";
   import "bootstrap/dist/css/bootstrap.min.css";
-  import "../style.css";
+  import "../../style.css";
 
-  import { Appbar, Footer } from "@/components";
+  import { Appbar, Footer, Sidebar } from "@/components";
   import { activeGames } from "@/store";
 </script>
 
@@ -16,12 +17,17 @@
   />
 </svelte:head>
 
-<div id="app" style="flex-grow: 1; display: flex; flex-direction: column">
-  <Appbar class="mb-3" />
-  <main class="container-fluid p-relative mb-auto">
-    <slot />
-  </main>
-  <Footer />
+<div id="app">
+  <div id="app-layout">
+    <div style="flex-grow: 1; display: flex; flex-direction: column">
+      <Appbar class="mb-3" />
+      <main class="container-fluid p-relative mb-auto">
+        <slot />
+      </main>
+      <Footer />
+    </div>
+    <Sidebar />
+  </div>
 </div>
 
 <style>
@@ -40,5 +46,11 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+  }
+
+  #app-layout {
+    height: 100%;
+    display: flex;
+    flex-direction: row;
   }
 </style>

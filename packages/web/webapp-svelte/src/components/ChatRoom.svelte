@@ -1,7 +1,7 @@
 <script lang="ts">
   import { get, post } from "@/api";
 
-  import { Modal, ModalHeader, Icon, ModalBody, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
+  import { Modal, ModalHeader, Icon, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
   import type { GameContext } from "@/pages/Game.svelte";
   import { chatMessages, currentGameId, sidebarOpen, user } from "@/store";
   import { dateFromObjectId, dateTime, handleError } from "@/utils";
@@ -36,9 +36,10 @@
 
   const { game }: GameContext = getContext("game");
 
+  let messagesContainer: ModalBody;
+
   function onMessagesChanged() {
     setTimeout(() => {
-      const messagesContainer = document.querySelector(".chat-messages");
       if (messagesContainer) {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
       }
@@ -98,7 +99,7 @@
   class={"chat-modal" + ($sidebarOpen ? " sidebar-open" : "")}
 >
   <ModalHeader {toggle}><Icon name="chat" /> {$currentGameId}</ModalHeader>
-  <ModalBody class="chat-messages">
+  <div class="chat-messages modal-body" bind:this={messagesContainer}>
     {#each $chatMessages as message}
       <div class="message-container" class:sent={message.author === userId}>
         {#if message.author && message.author in players}
@@ -120,7 +121,7 @@
       </div>
     {/each}
     <span style="height: 0">&nbsp;</span>
-  </ModalBody>
+  </div>
   <ModalFooter>
     <form on:submit|preventDefault={sendMessage} style="width: 100%">
       <InputGroup>

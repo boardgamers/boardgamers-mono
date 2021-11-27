@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from "$app/env";
   import type { PlayerInfo } from "@bgs/types";
   import { classnames } from "@/utils";
   import { user } from "@/store";
@@ -12,9 +13,8 @@
   export let userId: string | undefined;
 
   function isColor(strColor: string) {
-    var s = new Option().style;
-    s.color = strColor;
-    return s.color == strColor;
+    // todo : better solution for SSR
+    return browser ? CSS.supports("color", strColor) : false;
   }
 
   $: highlightedPlayerId = userId ?? $user?._id;

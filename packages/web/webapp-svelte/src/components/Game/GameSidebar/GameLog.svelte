@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from "$app/env";
   import type { GameContext } from "@/pages/Game.svelte";
   import { oneLineMarked } from "@/utils";
   import DOMPurify from "dompurify";
@@ -6,7 +7,7 @@
 
   const { log }: GameContext = getContext("game");
 
-  let showLog = !!localStorage.getItem("show-log");
+  let showLog = browser && !!localStorage.getItem("show-log");
   let logElement: HTMLDivElement;
 
   // Scroll to top of log
@@ -35,8 +36,10 @@
     <div class="d-flex align-items-baseline">
       <h3 class="mb-0">Log</h3>
       <div class="ms-2" style="font-size: smaller">
-        (<a href="#" style="font-weight: unset !important" on:click|preventDefault={toggleShowLog}
-          >{showLog ? "hide" : "show"}</a
+        (<a
+          href={showLog ? "#hideLog" : "#showLog"}
+          style="font-weight: unset !important"
+          on:click|preventDefault={toggleShowLog}>{showLog ? "hide" : "show"}</a
         >)
       </div>
     </div>

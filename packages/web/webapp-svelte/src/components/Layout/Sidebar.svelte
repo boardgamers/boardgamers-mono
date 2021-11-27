@@ -4,20 +4,18 @@
   import { sidebarOpen } from "@/store";
 </script>
 
-{#if $route?.meta.sidebar}
-  <div class="sidebar-container" class:open={$sidebarOpen}>
-    <div class="px-3 pb-3 sidebar thin-scrollbar text-light">
-      <div id="sidebar" />
-    </div>
-    <Button
-      color="secondary"
-      on:click={() => ($sidebarOpen = !$sidebarOpen)}
-      class={"rounded-circle b-avatar sidebar-fab" + (false ? " chatOpen" : "")}
-    >
-      <Icon name="gear" />
-    </Button>
+<div class="sidebar-container" class:open={$sidebarOpen}>
+  <div class="px-3 pb-3 sidebar thin-scrollbar text-light">
+    <div id="sidebar" />
   </div>
-{/if}
+  <Button
+    color="secondary"
+    on:click={() => ($sidebarOpen = !$sidebarOpen)}
+    class={"rounded-circle b-avatar sidebar-fab" + (false ? " chatOpen" : "")}
+  >
+    <Icon name="gear" />
+  </Button>
+</div>
 
 <style lang="postcss" global>
   /* Position:sticky does not work well on safari, 04/07/2020

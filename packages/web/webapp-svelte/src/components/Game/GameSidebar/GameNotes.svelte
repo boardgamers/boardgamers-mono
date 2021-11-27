@@ -1,11 +1,10 @@
 <script lang="ts">
+  import { browser } from "$app/env";
   import { user } from "@/store";
   import { get, post } from "@/api";
   import { debounce } from "lodash";
-  import { text } from "svelte/internal";
-  import { onMount } from "svelte";
 
-  let showNotes = localStorage.getItem("show-notes") !== "false";
+  let showNotes = browser ? localStorage.getItem("show-notes") !== "false" : true;
 
   let notes = "";
   let lastReceivedNotes: string | null = null;
@@ -55,8 +54,10 @@
   <div class="d-flex align-items-baseline">
     <h3 class="mb-0">Notes</h3>
     <div class="ms-2" style="font-size: smaller">
-      (<a href="#" style="font-weight: unset !important" on:click|preventDefault={toggleNotes}
-        >{showNotes ? "hide" : "show"}</a
+      (<a
+        href={showNotes ? "#hideNotes" : "#showNotes"}
+        style="font-weight: unset !important"
+        on:click|preventDefault={toggleNotes}>{showNotes ? "hide" : "show"}</a
       >)
     </div>
   </div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from "$app/env";
   import { keyBy } from "lodash";
   import { elapsedSeconds } from "@bgs/utils/time";
   import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
@@ -17,7 +18,7 @@
   let secondsCounter = 0;
 
   const interval = setInterval(() => {
-    if (!document.hidden) {
+    if (browser && !document.hidden) {
       secondsCounter += 1;
     }
   }, 1000);
