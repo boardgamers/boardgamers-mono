@@ -1,19 +1,10 @@
-<script context="module" lang="ts">
-  import type { LoadInput } from "@sveltejs/kit";
-
-  export async function load(input: LoadInput) {
-    return { props: { page: input.page } };
-  }
-</script>
-
 <script lang="ts">
-  import type { Page } from "@sveltejs/kit";
+  import "bootstrap-icons/font/bootstrap-icons.css";
+  import "bootstrap/dist/css/bootstrap.min.css";
+  import "../style.css";
+
   import { Appbar, Footer, Sidebar } from "@/components";
-  import { activeGames, page as pageStore } from "@/store";
-
-  export let page: Page;
-
-  $: pageStore.set(page);
+  import { activeGames } from "@/store";
 </script>
 
 <svelte:head>

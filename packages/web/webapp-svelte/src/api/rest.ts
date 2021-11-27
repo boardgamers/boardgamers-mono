@@ -2,13 +2,10 @@ import { browser } from "$app/env";
 import { omit } from "lodash";
 import { get as $ } from "svelte/store";
 import type { Token } from "../store";
-import { accessTokens, page, refreshToken } from "../store";
+import { accessTokens, refreshToken } from "../store";
 
-const $page = $(page);
-
-const baseUrl = `${
-  browser || !$page ? "" : `${$page.host.startsWith("localhost") ? "http" : "https"}://${$page.host}`
-}/api`;
+// todo : do not use hardcoded values
+const baseUrl = browser ? "/api" : "http://localhost:3000/api";
 
 function transformUrl(url: string) {
   return url.startsWith("http") || url.startsWith("//") ? url : baseUrl + url;

@@ -2,7 +2,7 @@
   import type { Page } from "@sveltejs/kit";
   import { Card, Col, Row } from "@/modules/cdk";
   import { GameList } from "../Game";
-  import { page } from "@/store";
+  import { page } from "$app/stores";
 
   export let userId: string;
 

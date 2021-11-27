@@ -17,8 +17,7 @@ const config = {
   ],
 
   kit: {
-    // hydrate the <div id="svelte"> element in src/app.html
-    target: "#svelte",
+    target: "body",
     vite: {
       resolve: {
         alias: {
@@ -28,7 +27,6 @@ const config = {
         },
       },
       server: {
-        open: true,
         proxy: {
           "/ws": {
             target: remote ? "https://www.boardgamers.space" : "http://localhost:50802",
