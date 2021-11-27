@@ -1,3 +1,4 @@
+import { browser } from "$app/env";
 import { activeGames, currentGameId, lastGameUpdate, playerStatus, user } from "@/store";
 import { chatMessages, currentRoom } from "@/store/room";
 import type { IUser } from "@bgs/types";
@@ -31,29 +32,29 @@ user.subscribe((newUser) => {
 });
 
 function sendRoom() {
-  if (ws?.readyState === WebSocket.OPEN) {
+  if (browser && ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ room: $room }));
   }
 }
 
 function sendGame() {
-  if (ws?.readyState === WebSocket.OPEN) {
+  if (browser && ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ game: $gameId }));
   }
 }
 
-const protocol = window.location.protocol.includes("https") ? "wss" : "ws";
-const url = `${protocol}://${window.location.host}/ws`;
+const protocol = browser && window.location.protocol.includes("https") ? "wss" : "ws";
+const url = browser ? `${protocol}://${window.location.host}/ws` : "";
 
 async function sendUser() {
-  if (ws?.readyState === WebSocket.OPEN) {
+  if (browser && ws?.readyState === WebSocket.OPEN) {
     const token = await getAccessToken(url);
 
     ws.send(JSON.stringify({ jwt: token?.code ?? null }));
   }
 }
 
-let interval: any;
+let interval: NodeJS.Timeout;
 
 function connect() {
   clearInterval(interval);
@@ -109,4 +110,6 @@ function clearWs() {
   }
 }
 
-connect();
+if (browser) {
+  connect();
+}
