@@ -12,18 +12,16 @@
  * ```
  * const watcher = createWatcher(() => console.log("executed only on changes on a/b/c"), {immediate: false})
  *
- * $ : watcher(a, b, c)
- * // or
  * $ : watcher(), [a,b,c]
  * ```
  */
 export function createWatcher(
   callback: () => unknown,
   { immediate = false }: { immediate: boolean } = { immediate: false }
-) {
+): () => void {
   let skip = !immediate;
 
-  return (..._deps: any[]) => {
+  return () => {
     if (skip) {
       skip = false;
       return;
@@ -32,9 +30,9 @@ export function createWatcher(
   };
 }
 
-export function skipOnce(callback: (...args: any[]) => unknown) {
+export function skipOnce<T extends unknown[]>(callback: (...args: T) => unknown): () => void {
   let skipped = false;
-  return (...args: any[]) => {
+  return (...args: T) => {
     if (!skipped) {
       skipped = true;
       return;

@@ -22,7 +22,6 @@
   let password = "";
   let className = "";
   let admin: boolean;
-  let adminLink: string;
   let hasGames: boolean;
 
   export { className as class };
@@ -38,10 +37,12 @@
   };
 
   $: admin = $user?.authority === "admin";
-  $: adminLink =
-    location.hostname === "localhost"
-      ? "http://localhost:8613"
-      : `${location.protocol}//admin.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`;
+  // todo use load() function of svelte kit instead
+  // $: adminLink =
+  //   location.hostname === "localhost"
+  //     ? "http://localhost:8613"
+  //     : `${location.protocol}//admin.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`;
+  const adminLink = "https://admin.boardgamers.space";
   $: hasGames = $activeGames.length > 0;
 
   const onHasGamesChanged = () => {

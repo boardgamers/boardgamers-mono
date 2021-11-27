@@ -1,4 +1,4 @@
-<script lang="typescript">
+<script lang="ts">
   import { Appbar, Footer, Sidebar } from "@/components";
   import { activeGames } from "@/store";
 </script>

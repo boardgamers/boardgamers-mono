@@ -1,3 +1,4 @@
+import { browser } from "$app/env";
 import type { GamePreferences } from "@bgs/types";
 import { get as $, writable } from "svelte/store";
 import { user } from "./user";
@@ -19,7 +20,9 @@ export type DevGameSettings = {
 };
 
 export const devGameSettings = writable<Record<string, DevGameSettings>>(
-  JSON.parse(localStorage.getItem("devGameSettings") ?? "{}")
+  browser ? JSON.parse(localStorage.getItem("devGameSettings") ?? "{}") : {}
 );
 
-devGameSettings.subscribe((val) => localStorage.setItem("devGameSettings", JSON.stringify(val)));
+if (browser) {
+  devGameSettings.subscribe((val) => localStorage.setItem("devGameSettings", JSON.stringify(val)));
+}

@@ -3,7 +3,7 @@ lockfileVersion: 5.3
 specifiers:
   '@bgs/types': workspace:*
   '@bgs/utils': workspace:*
-  '@sveltejs/kit': next
+  '@sveltejs/kit': 1.0.0-next.201
   '@types/cookie': ^0.4.1
   '@types/dompurify': ^2.2.1
   '@types/lodash': ^4.14.168
@@ -51,7 +51,7 @@ dependencies:
   type-fest: 2.1.0
 
 devDependencies:
-  '@sveltejs/kit': 1.0.0-next.194_svelte@3.44.1
+  '@sveltejs/kit': 1.0.0-next.201_svelte@3.44.1
   '@types/cookie': 0.4.1
   '@types/dompurify': 2.2.1
   '@types/lodash': 4.14.168
@@ -157,8 +157,8 @@ packages:
       picomatch: 2.3.0
     dev: true
 
-  /@sveltejs/kit/1.0.0-next.194_svelte@3.44.1:
-    resolution: {integrity: sha512-xM6BKLZkfYUEy0JXwglhCqBF58S8K4Lt7K7TdLMirrO4gtnZlhg8yhMsG+dYM257Fq0ucS7d/72QgXJfnfURZA==}
+  /@sveltejs/kit/1.0.0-next.201_svelte@3.44.1:
+    resolution: {integrity: sha512-WcYexOEPWgDWOk0oOteTU5QwWykdIcOFJig+akeHqwE/jVtPURLZFtTNx0ymUWXN4S+dUXf60KF6HEMv74FHpA==}
     engines: {node: '>=14.13'}
     hasBin: true
     peerDependencies:

@@ -26,9 +26,9 @@
 
   loadAllGameSettings().catch(handleError);
 
-  const watcher = createWatcher(() => Promise.all([loadBoardgames(), loadAllGameSettings()]));
+  const watcher = createWatcher(() => Promise.all([loadBoardgames(), loadAllGameSettings(true)]));
 
-  $: watcher($user);
+  $: watcher(), [$user];
 
   const onGameClick = async (gameInfo: SetOptional<GameInfo, "viewer">) => {
     if (newGame) {

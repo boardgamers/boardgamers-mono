@@ -19,8 +19,8 @@ const augment = (data: GamePreferences) => {
   return data;
 };
 
-let loading = new Map<string, Promise<void>>();
-export async function loadGameSettings(game: string) {
+const loading = new Map<string, Promise<void>>();
+export async function loadGameSettings(game: string): Promise<void> {
   if (loading.has(game)) {
     return loading.get(game);
   }
@@ -55,7 +55,7 @@ export async function loadGameSettings(game: string) {
 
 let lastUpdate = 0;
 let promise: Promise<void> | undefined;
-export async function loadAllGameSettings() {
+export async function loadAllGameSettings(force = false): Promise<void> {
   if (!storeGet(user)) {
     return;
   }
@@ -63,12 +63,14 @@ export async function loadAllGameSettings() {
     return promise;
   }
 
-  if (!isEmpty(gameSettings) && Date.now() - lastUpdate < 3600 * 1000) {
+  if (!isEmpty(gameSettings) && !force && Date.now() - lastUpdate < 3600 * 1000) {
     return;
   }
 
   return (promise = get<GamePreferences[]>("/account/games/settings").then(
     (prefs) => {
+      lastUpdate = Date.now();
+
       const data: typeof $gameSettings = {};
 
       for (const pref of prefs) {
