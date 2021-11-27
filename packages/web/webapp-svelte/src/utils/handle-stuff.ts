@@ -4,7 +4,7 @@ import "awesome-notifications/dist/style.css";
 let notifier: any | undefined;
 
 if (browser) {
-  import("awesome-notifications").then((AWN) => (notifier = new AWN({ icons: { enabled: false } })));
+  import("awesome-notifications").then((AWN) => (notifier = new AWN.default({ icons: { enabled: false } })));
 }
 
 export function handleError(err: Error | string | unknown): void {
