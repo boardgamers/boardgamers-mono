@@ -40,8 +40,10 @@ export default async function initDb(url = env.database.bgs.url, runMigrations =
     console.error("db error", err);
   });
 
-  mongoose.connection.on("disconnected", () => {
-    console.log("attempt to reconnect to database");
-    setTimeout(() => connect().catch(console.error), 5000);
-  });
+  if (!env.script) {
+    mongoose.connection.on("disconnected", () => {
+      console.log("attempt to reconnect to database");
+      setTimeout(() => connect().catch(console.error), 5000);
+    });
+  }
 }

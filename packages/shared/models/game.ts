@@ -55,8 +55,12 @@ const repr = {
   data: {},
   status: {
     type: String,
-    enum: ["open", "pending", "active", "ended"] as const,
+    enum: ["open", "active", "ended"] as const,
     default: "open",
+  },
+  ready: {
+    type: Boolean,
+    default: false,
   },
   cancelled: {
     type: Boolean,
@@ -64,9 +68,10 @@ const repr = {
   },
   options: {
     setup: {
-      randomPlayerOrder: {
-        type: Boolean,
-        default: true,
+      playerOrder: {
+        type: String,
+        default: "random",
+        enum: ["random", "join", "host"] as const,
       },
       nbPlayers: {
         type: Number,

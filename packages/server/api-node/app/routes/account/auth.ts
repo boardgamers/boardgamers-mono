@@ -38,8 +38,9 @@ router.get(
     })(ctx, next);
   },
   async (ctx) => {
-    if (ctx.state.user?.createSocialAccount) {
-      const { provider, id } = ctx.state.user;
+    const feedback = ctx.state.user as any as { createSocialAccount: boolean; provider: string; id: string };
+    if (feedback.createSocialAccount) {
+      const { provider, id } = feedback;
 
       ctx.state.user = null;
 

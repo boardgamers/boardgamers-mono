@@ -13,11 +13,12 @@
   import marked from "marked";
   import { Badge, Button } from "@/modules/cdk";
   import { lastGameUpdate, user } from "@/store";
-  import { joinGame, loadGameData, loadGamePlayers, unjoinGame } from "@/api/game";
+  import { joinGame, loadGameData, loadGamePlayers, unjoinGame, startGame } from "@/api/game";
   import Icon from "sveltestrap/src/Icon.svelte";
   import { navigate, route } from "@/modules/router";
   import { getContext, onDestroy } from "svelte";
   import type { GameContext } from "@/pages/Game.svelte";
+  import { playerOrderText } from "@/data/playerOrders";
 
   const { game, players, gameInfo }: GameContext = getContext("game");
   $: timer = $game.options.timing.timer;
@@ -64,6 +65,36 @@
     }
 
     joinGame(gameId).catch(handleError);
+  };
+
+  let playerOrder: number[];
+
+  function refreshPlayerOrder() {
+    playerOrder = $game.players.map((_, i) => i);
+  }
+
+  $: refreshPlayerOrder(), [$game];
+
+  const moveUp = (playerId: number) => {
+    const index = playerOrder.indexOf(playerId);
+
+    if (index > 0) {
+      [playerOrder[index - 1], playerOrder[index]] = [playerOrder[index], playerOrder[index - 1]];
+    }
+  };
+
+  const moveDown = (playerId: number) => {
+    const index = playerOrder.indexOf(playerId);
+
+    if (index + 1 < playerOrder.length) {
+      [playerOrder[index + 1], playerOrder[index]] = [playerOrder[index], playerOrder[index + 1]];
+    }
+  };
+
+  $: canStart = $game.options.setup.nbPlayers === $game.players.length && !$game.ready && $user?._id === $game.creator;
+
+  const start = () => {
+    startGame(gameId, { playerOrder: playerOrder.map((x) => $game.players[x]._id) }).catch(handleError);
   };
 
   // Autorefresh when another player joins
@@ -154,9 +185,7 @@
   <div class="mt-3">
     <h3>Setup options</h3>
 
-    {#if $game.options.setup.randomPlayerOrder}
-      <Badge color="secondary" class="me-1">Random player order</Badge>
-    {/if}
+    <Badge color="secondary" class="me-1">{playerOrderText($game.options.setup.playerOrder)}</Badge>
     {#each $gameInfo.options.filter((x) => !!($game.game.options || {})[x.name]) as pref}
       <Badge color="secondary" class="me-1">
         {#if pref.type === "checkbox"}
@@ -185,12 +214,40 @@
         {/each}
       </div>
     {/if}
-    <p>Waiting on {pluralize($game.options.setup.nbPlayers - $game.players.length, "more player")}</p>
+    {#if $game.options.setup.nbPlayers > $game.players.length}
+      <p>Waiting on {pluralize($game.options.setup.nbPlayers - $game.players.length, "more player")}</p>
+    {:else if !$game.ready}
+      {#if $user?._id === $game.creator}
+        {#if $game.options.setup.playerOrder === "host"}
+          <h3>Select player order</h3>
+          {#each playerOrder as playerIndex}
+            <div>
+              - {$game.players[playerIndex].name}
+              <span on:click={() => moveUp(playerIndex)}><Icon name="arrow-up" class="icon-order-player" /></span>
+              <span on:click={() => moveDown(playerIndex)}><Icon name="arrow-down" class="icon-order-player" /></span>
+            </div>
+          {/each}
+          <Button color="primary" on:click={start} class="mt-4">Start the game!</Button>
+        {/if}
+      {:else}
+        <p><b>Waiting on host for final settings</b></p>
+      {/if}
+    {:else if $game.options.timing.scheduledStart}
+      <p>Waiting on scheduled start</p>
+    {/if}
   </div>
 
-  {#if $game.players.some((pl) => pl._id === $user?._id)}
-    <Button color="warning" on:click={leave}>Leave</Button>
-  {:else}
-    <Button color="secondary" on:click={join}>Join!</Button>
+  {#if !canStart}
+    {#if $game.players.some((pl) => pl._id === $user?._id)}
+      <Button color="warning" on:click={leave}>Leave</Button>
+    {:else}
+      <Button color="secondary" on:click={join}>Join!</Button>
+    {/if}
   {/if}
 </div>
+
+<style>
+  :global(.icon-order-player) {
+    cursor: pointer;
+  }
+</style>

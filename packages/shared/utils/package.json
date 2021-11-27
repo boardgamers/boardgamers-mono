@@ -3,8 +3,12 @@
   "scripts": {
     "test": "mocha -r ts-node/register *.spec.ts"
   },
+  "dependencies": {
+    "lodash": "^4.17.21"
+  },
   "devDependencies": {
     "@types/chai": "^4.2.22",
+    "@types/lodash": "^4.14.176",
     "@types/luxon": "^2.0.4",
     "@types/mocha": "^9.0.0",
     "chai": "^4.3.4",

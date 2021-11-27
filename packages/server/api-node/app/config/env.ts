@@ -12,6 +12,7 @@ if (process.env.NODE_ENV === "test") {
 }
 
 export default {
+  script: false,
   domain,
   site: process.env.site || `www.${domain}`,
   noreply: process.env.noreply || `BGS <no-reply@${domain}>`,

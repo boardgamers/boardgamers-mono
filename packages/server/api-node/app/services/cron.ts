@@ -1,13 +1,14 @@
 import env from "../config/env";
 import { GameNotification, User } from "../models";
-import GameService from "./game";
+import { processSchedulesGames, processUnreadyGames } from "./game";
 
 /* Check move deadlines every 10 seconds - only on one thread of the server */
 if (env.cron) {
   setInterval(() => GameNotification.processCurrentMove().catch(console.error), 10000);
   setInterval(() => GameNotification.processGameEnded().catch(console.error), 10000);
   setInterval(() => GameNotification.processPlayerDrop().catch(console.error), 10000);
-  setInterval(() => GameService.processSchedulesGames().catch(console.error), 1000);
+  setInterval(() => processSchedulesGames().catch(console.error), 1000);
+  setInterval(() => processUnreadyGames().catch(console.error), 10000);
 }
 
 if (env.automatedEmails) {

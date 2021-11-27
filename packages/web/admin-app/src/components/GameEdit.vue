@@ -236,7 +236,7 @@ watch(() => props.modelValue, (data) => {
                 <mdi-delete />
               </v-btn>
             </v-row>
-            <template #action>
+            <template #actions>
               <v-btn @click="info[variable][i].items = [...(info[variable][i].items || []), { name: '', label: '' }]">
                 <mdi-plus-circle-outline /> Add item
               </v-btn>

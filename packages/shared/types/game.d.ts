@@ -15,6 +15,9 @@ export interface PlayerInfo<T = string> {
   };
 }
 
+export type PlayerOrder = "random" | "host" | "join";
+export type GameStatus = "open" | "active" | "ended";
+
 export interface IAbstractGame<T = string, Game = any, GameOptions = any> {
   /** Ids of the players in the website */
   players: PlayerInfo<T>[];
@@ -37,7 +40,7 @@ export interface IAbstractGame<T = string, Game = any, GameOptions = any> {
     setup: {
       seed: string;
       nbPlayers: number;
-      randomPlayerOrder: boolean;
+      playerOrder: PlayerOrder;
     };
     timing: {
       timePerGame: number;
@@ -66,7 +69,8 @@ export interface IAbstractGame<T = string, Game = any, GameOptions = any> {
     options: GameOptions;
   };
 
-  status: "open" | "pending" | "active" | "ended";
+  status: GameStatus;
+  ready: boolean;
   cancelled: boolean;
 
   updatedAt: Date;

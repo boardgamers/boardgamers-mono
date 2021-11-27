@@ -5,7 +5,7 @@ import locks from "mongo-locks";
 import env from "../config/env";
 import ChatMessage from "../models/chatmessage";
 import Game, { GameDocument } from "../models/game";
-import GameNotification from "../models/gamenotification";
+import GameNotification, { GameNotificationDocument } from "../models/gamenotification";
 import type { Engine, GameData } from "../types/engine";
 import { getEngine } from "./engines";
 
@@ -55,7 +55,15 @@ export async function startNextGame(): Promise<boolean> {
       seed = crypto.createHash("sha256").update(seed).update(env.seedEncryptionKey).digest().toString("base64");
     }
 
-    let gameData = await engine.init(game.options.setup.nbPlayers, game.game.expansions, game.game.options || {}, seed);
+    const creator = game.players.findIndex((pl) => pl._id.equals(game.creator));
+
+    let gameData = await engine.init(
+      game.options.setup.nbPlayers,
+      game.game.expansions,
+      game.game.options || {},
+      seed,
+      creator === -1 ? undefined : creator
+    );
 
     if (engine.setPlayerMetaData) {
       for (let i = 0; i < game.options.setup.nbPlayers; i++) {
@@ -102,15 +110,9 @@ export async function startNextGame(): Promise<boolean> {
   }
 }
 
-export async function processNextQuit(kind: "playerQuit" | "dropPlayer") {
+export async function processQuit(notification: GameNotificationDocument) {
   let free = locks.noop;
   try {
-    const notification = await GameNotification.findOne({ kind, processed: false });
-
-    if (!notification) {
-      return false;
-    }
-
     free = await locks.lock("game", notification.game);
 
     const game = await Game.findById(notification.game);
@@ -136,7 +138,7 @@ export async function processNextQuit(kind: "playerQuit" | "dropPlayer") {
       gameData,
       game.players.findIndex((pl) => pl._id.equals(player._id))
     );
-    if (kind === "playerQuit") {
+    if (notification.kind === "playerQuit") {
       player.quit = true;
     } else {
       player.dropped = true;
@@ -146,7 +148,10 @@ export async function processNextQuit(kind: "playerQuit" | "dropPlayer") {
       room: game._id,
       type: "system",
       data: {
-        text: kind === "playerQuit" ? `${player.name} quit the game` : `${player.name} was dropped from the game`,
+        text:
+          notification.kind === "playerQuit"
+            ? `${player.name} quit the game`
+            : `${player.name} was dropped from the game`,
       },
     }).catch(console.error);
 
@@ -158,7 +163,7 @@ export async function processNextQuit(kind: "playerQuit" | "dropPlayer") {
       await afterMove(engine, game, gameData);
 
       // Here to only trigger if the game is saved
-      if (kind === "dropPlayer") {
+      if (notification.kind === "dropPlayer") {
         GameNotification.create({ kind: "playerDrop", game: notification.game, user: notification.user }).catch(
           console.error
         );

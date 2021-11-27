@@ -1,8 +1,9 @@
+import GameNotification from "app/models/gamenotification";
 import cluster from "cluster";
 import "../config/db";
 import env from "../config/env";
 import { delay } from "../utils/delay";
-import { processNextQuit, startNextGame } from "./game";
+import { processQuit, startNextGame } from "./game";
 import { installNewGames } from "./installer";
 
 async function installGames() {
@@ -23,7 +24,19 @@ async function startGames() {
 
 async function processQuits() {
   while (1) {
-    while (await processNextQuit("playerQuit")) {}
+    try {
+      const notifications = await GameNotification.find({ kind: "playerQuit", processed: false }).limit(1000);
+
+      for (const notification of notifications) {
+        try {
+          await processQuit(notification);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
 
     await delay(1000);
   }
@@ -31,7 +44,19 @@ async function processQuits() {
 
 async function processDrops() {
   while (1) {
-    while (await processNextQuit("dropPlayer")) {}
+    try {
+      const notifications = await GameNotification.find({ kind: "dropPlayer", processed: false }).limit(1000);
+
+      for (const notification of notifications) {
+        try {
+          await processQuit(notification);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
 
     await delay(1000);
   }

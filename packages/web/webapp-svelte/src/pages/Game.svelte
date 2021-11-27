@@ -76,7 +76,7 @@
 </svelte:head>
 
 <Loading loading={!$game || !$gameInfo}>
-  {#if $game.status === "open" || $game.status === "pending"}
+  {#if $game.status === "open"}
     <OpenGame />
   {:else}
     <StartedGame />

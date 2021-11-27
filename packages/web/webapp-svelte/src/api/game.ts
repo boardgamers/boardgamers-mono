@@ -21,3 +21,7 @@ export async function unjoinGame(gameId: string) {
 export async function joinGame(gameId: string): Promise<IGame> {
   return post(`/game/${gameId}/join`);
 }
+
+export async function startGame(gameId: string, { playerOrder }: { playerOrder: string[] }): Promise<IGame> {
+  return post(`/game/${gameId}/start`, { playerOrder });
+}

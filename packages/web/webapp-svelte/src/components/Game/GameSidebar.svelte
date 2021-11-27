@@ -216,10 +216,6 @@
     color: #25ee25;
   }
 
-  .vertical-textarea {
-    resize: vertical;
-  }
-
   #sidebar {
     .player-row.active .player-name {
       color: #25ee25 !important;

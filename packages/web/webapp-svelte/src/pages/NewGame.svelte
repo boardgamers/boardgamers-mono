@@ -7,8 +7,9 @@
   import { navigate } from "@/modules/router";
   import { user } from "@/store";
   import { adjectives, nouns } from "@/data";
-  import type { GameInfo } from "@bgs/types";
+  import type { GameInfo, PlayerOrder } from "@bgs/types";
   import type { SetOptional } from "type-fest";
+  import { playerOrders } from "@/data/playerOrders";
 
   export let boardgameId: string;
 
@@ -16,7 +17,8 @@
   let seed = "";
   let numPlayers = 2;
 
-  let options = ["join", "randomOrder"];
+  let options = ["join"];
+  let playerOrder: PlayerOrder = "random";
   let selects: Record<string, string> = {};
   let expansions: string[] = [];
 
@@ -46,7 +48,7 @@
       players: numPlayers,
       timePerMove,
       timePerGame,
-      options: { ...fromPairs(options.map((key) => [key, true])), ...selects },
+      options: { ...fromPairs(options.map((key) => [key, true])), ...selects, playerOrder },
       seed,
       expansions,
       timerStart: undefined as number | undefined,
@@ -258,15 +260,23 @@
 
       <Checkbox bind:group={options} value="unlisted">Unlisted</Checkbox>
       <Checkbox bind:group={options} value="join">Join this game</Checkbox>
-      <Checkbox bind:group={options} value="randomOrder">Random player order</Checkbox>
       {#each info.options.filter((opt) => opt.type === "checkbox") as option}
         <Checkbox bind:group={options} value={option.name}>{@html oneLineMarked(option.label)}</Checkbox>
       {/each}
 
+      <div class="form-group mt-2">
+        <label for="playerOrder">Player order</label>
+        <Input type="select" bind:value={playerOrder} id="playerOrder" required>
+          {#each playerOrders as item}
+            <option value={item.name}>{item.label}</option>
+          {/each}
+        </Input>
+      </div>
+
       {#each info.options.filter((opt) => opt.type === "select") as select}
         <div class="form-group mt-2">
           <label for={select.name}>{@html oneLineMarked(select.label)}</label>
-          <Input type="select" bind:value={selects[select.name]} required>
+          <Input type="select" bind:value={selects[select.name]} id={select.name} required>
             {#each select.items || [] as item}
               <option value={item.name}>{marked(item.label).replace(/<[^>]+>/g, "")}</option>
             {/each}

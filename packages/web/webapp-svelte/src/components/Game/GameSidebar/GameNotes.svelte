@@ -2,13 +2,15 @@
   import { user } from "@/store";
   import { get, post } from "@/api";
   import { debounce } from "lodash";
-  import { Input } from "@/modules/cdk";
+  import { text } from "svelte/internal";
+  import { onMount } from "svelte";
 
   let showNotes = localStorage.getItem("show-notes") !== "false";
 
   let notes = "";
   let lastReceivedNotes: string | null = null;
   let notesLoaded = false;
+  let textArea: HTMLTextAreaElement;
 
   let userId: string | undefined;
   export let gameId: string;
@@ -17,6 +19,8 @@
     if (userId) {
       lastReceivedNotes = notes = await get(`/game/${gameId}/notes`);
       notesLoaded = true;
+      updateTextareaSize();
+      setTimeout(updateTextareaSize);
     }
   }
 
@@ -37,6 +41,14 @@
 
   $: userId = $user?._id;
   $: loadNotes(), [userId];
+
+  function updateTextareaSize() {
+    if (!textArea) {
+      return;
+    }
+    textArea.style.height = "auto";
+    textArea.style.height = textArea.scrollHeight + (textArea.offsetHeight - textArea.clientHeight) + "px";
+  }
 </script>
 
 <div class="mt-75">
@@ -49,14 +61,18 @@
     </div>
   </div>
 
-  <Input
-    type="textarea"
-    class={"mt-2 vertical-textarea" + (!showNotes ? " d-none" : "")}
+  <textarea
+    class={"mt-2 form-control" + (!showNotes ? " d-none" : "")}
     bind:value={notes}
-    on:input={updateNotesDebounce}
+    bind:this={textArea}
+    on:input={() => {
+      updateNotesDebounce();
+      updateTextareaSize();
+    }}
     rows="3"
     max-rows="8"
     placeholder="You can make plans here..."
     disabled={!$user || !notesLoaded}
+    style="overflow: hidden; resize: none"
   />
 </div>

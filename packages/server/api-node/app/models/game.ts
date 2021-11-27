@@ -1,5 +1,5 @@
 import makeSchema from "@bgs/models/game";
-import { IAbstractGame } from "@bgs/types";
+import { GameStatus, IAbstractGame } from "@bgs/types";
 import mongoose, { Types } from "mongoose";
 
 const schema = makeSchema<GameDocument, GameModel>();
@@ -8,7 +8,6 @@ export interface GameDocument extends IAbstractGame<Types.ObjectId>, mongoose.Do
 export interface GameModel extends mongoose.Model<GameDocument> {
   findWithPlayer(playerId: Types.ObjectId): mongoose.Query<GameDocument[], GameDocument>;
   findWithPlayersTurn(playerId: Types.ObjectId): mongoose.Query<GameDocument[], GameDocument>;
-  findWithBoardgame(boardgame: string): mongoose.Query<GameDocument[], GameDocument>;
 
   /** Basics projection */
   basics(): string[];
@@ -22,13 +21,8 @@ schema.static("findWithPlayer", function (this: GameModel, playerId: Types.Objec
 });
 
 schema.static("findWithPlayersTurn", function (this: GameModel, playerId: Types.ObjectId) {
-  // The first condition is to leverage the index
-  const conditions = { status: "active", "currentPlayers._id": playerId } as const;
-  return this.find(conditions).sort("-lastMove");
-});
-
-schema.static("findWithBoardgame", function (this: GameModel, boardgame: string) {
-  return this.find({ "game.name": boardgame }).sort("-lastMove");
+  const conditions = { status: { $in: ["active", "open"] as GameStatus[] }, "currentPlayers._id": playerId };
+  return this.find(conditions).sort({ status: -1, lastMove: -1 });
 });
 
 schema.static("basics", () => {

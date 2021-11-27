@@ -1,8 +1,7 @@
-import assert from "assert";
 import createError from "http-errors";
 import { Context } from "koa";
 import Router from "koa-router";
-import { Game, GameInfo, GamePreferences } from "../../models";
+import { GameInfo, GamePreferences } from "../../models";
 import GameInfoService from "../../services/gameinfo";
 import { queryCount, skipCount } from "../utils";
 
@@ -97,55 +96,6 @@ router.get("/:boardgame/elo", async (ctx) => {
 router.get("/:boardgame/elo/count", async (ctx) => {
   const boardgameName = ctx.state.foundBoardgame._id.game;
   ctx.body = await GamePreferences.count({ game: boardgameName, "elo.value": { $gt: 0 } }).exec();
-});
-
-router.get("/:boardgame/games/:status", async (ctx) => {
-  const conditions: Record<string, unknown> = (() => {
-    switch (ctx.params.status) {
-      case "active":
-        return { status: "active" };
-      case "closed":
-      case "ended":
-        return { status: "ended" };
-      case "open":
-        return { status: "open", "options.meta.unlisted": { $ne: true } };
-      default:
-        assert(false, "Wrong status requested: " + ctx.params.ended);
-    }
-  })();
-
-  if (ctx.query.user) {
-    conditions["players._id"] = ctx.query.user;
-  }
-  ctx.body = await Game.findWithBoardgame(ctx.state.foundBoardgame._id.game)
-    // @ts-ignore
-    .where(conditions)
-    .skip(skipCount(ctx))
-    .limit(queryCount(ctx))
-    .select(Game.basics());
-});
-
-router.get("/:boardgame/games/:status/count", async (ctx) => {
-  const boardgameName = ctx.state.foundBoardgame._id.game;
-  const conditions: Record<string, unknown> = (() => {
-    switch (ctx.params.status) {
-      case "active":
-        return { "game.name": boardgameName, status: "active" };
-      case "closed":
-      case "ended":
-        return { "game.name": boardgameName, status: "ended" };
-      case "open":
-        return { "game.name": boardgameName, status: "open", "options.meta.unlisted": { $ne: true } };
-      default:
-        assert(false, "Wrong status requested: " + ctx.params.ended);
-    }
-  })();
-
-  if (ctx.query.user) {
-    conditions["players._id"] = ctx.query.user;
-  }
-
-  ctx.body = await Game.count(conditions).exec();
 });
 
 router.get("/:boardgame/info/:version", async (ctx) => {
