@@ -1,29 +1,36 @@
-<script lang="ts">
+<script lang="ts" context="module">
   import { get } from "@/api";
+
+  export async function load() {
+    return {
+      props: {
+        announcement: await get("/site/announcement"),
+      },
+    };
+  }
+</script>
+
+<script lang="ts">
   import { Col, Row } from "sveltestrap";
   import { GameList } from "@/components";
   import { user, activeGames } from "@/store";
   import marked from "marked";
 
-  async function loadAnnouncement(): Promise<{ title: string; content: string }> {
-    return get("/site/announcement");
-  }
+  export let announcement: { title: string; content: string };
 </script>
 
 <div class="container">
   <div class="lead py-2" style="display: flex; flex-direction: column">
-    {#await loadAnnouncement() then announcement}
-      <p class="text-center">
-        Play <b>Gaia Project</b> and <b>Container</b> online<br />Want to set up live games? Join the
-        <a href="https://discord.gg/EgqK3rD">discord</a>!
-      </p>
-      <div class="mx-auto card border-info px-3 pb-3 d-block">
-        <div class="text-center announcement-title py-1">{announcement?.title}</div>
-        <div class="text-start announcement-content">
-          {@html marked(announcement?.content)}
-        </div>
+    <p class="text-center">
+      Play <b>Gaia Project</b> and <b>Container</b> online<br />Want to set up live games? Join the
+      <a href="https://discord.gg/EgqK3rD">discord</a>!
+    </p>
+    <div class="mx-auto card border-info px-3 pb-3 d-block">
+      <div class="text-center announcement-title py-1">{announcement?.title}</div>
+      <div class="text-start announcement-content">
+        {@html marked(announcement?.content)}
       </div>
-    {/await}
+    </div>
   </div>
 
   <Row>
