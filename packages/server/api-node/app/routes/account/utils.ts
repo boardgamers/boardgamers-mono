@@ -12,7 +12,7 @@ export async function sendAuthInfo(ctx: Context) {
     user: ctx.state.user,
     refreshToken: {
       code: refreshToken.code,
-      expiresAt: new Date(refreshToken.createdAt.getTime() + 120 * 24 * 3600 * 1000),
+      expiresAt: refreshToken.createdAt.getTime() + 120 * 24 * 3600 * 1000,
     },
     accessToken: {
       code: await refreshToken.createAccessToken(["all"], ctx.state.user.isAdmin()),
