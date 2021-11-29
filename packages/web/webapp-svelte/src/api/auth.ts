@@ -1,5 +1,6 @@
 import { accountLoaded, refreshToken, user } from "@/store";
 import type { IUser } from "@bgs/types";
+import { get as $ } from "svelte/store";
 import { get, post, setAccessToken } from "./rest";
 
 export async function login(email: string, password: string): Promise<void> {
@@ -69,6 +70,10 @@ let promise: Promise<void> | undefined;
 export async function loadAccountIfNeeded(): Promise<void> {
   if (promise) {
     return promise;
+  }
+
+  if ($(accountLoaded)) {
+    return;
   }
 
   return (promise = loadAccount().catch((err) => {

@@ -1,10 +1,29 @@
+<script context="module" lang="ts">
+  export async function load(input: LoadInput) {
+    if (input.session.refreshToken) {
+      refreshToken.set(input.session.refreshToken);
+    }
+
+    if (!input.session) {
+      await loadAccount();
+    }
+  }
+</script>
+
 <script lang="ts">
   import "bootstrap-icons/font/bootstrap-icons.css";
   import "bootstrap/dist/css/bootstrap.min.css";
   import "../style.css";
 
   import { Appbar, Footer } from "@/components";
-  import { activeGames } from "@/store";
+  import { activeGames, refreshToken, user } from "@/store";
+  import type { LoadInput } from "@sveltejs/kit";
+  import { loadAccountIfNeeded } from "@/api";
+  import { get } from "svelte/store";
+  import { browser } from "$app/env";
+  import { session } from "$app/stores";
+
+  console.log("hydrated user", get(user));
 </script>
 
 <svelte:head>

@@ -1,5 +1,6 @@
 import { browser } from "$app/env";
 import { skipOnce } from "@/utils";
+import { extractCookie } from "@/utils/extract-cookie";
 import type { IUser } from "@bgs/types";
 import { writable } from "svelte/store";
 
@@ -8,7 +9,13 @@ export const user = writable<IUser | null>(null);
 export type Token = { code: string; expiresAt: number };
 
 export const refreshToken = writable<Token | null>(
-  browser && localStorage.getItem("refreshToken") ? JSON.parse(localStorage.getItem("refreshToken")!) : null
+  browser
+    ? extractCookie("refreshToken", document.cookie)
+      ? extractCookie("refreshToken", document.cookie)
+      : localStorage.getItem("refreshToken")
+      ? JSON.parse(localStorage.getItem("refreshToken")!)
+      : null
+    : null
 );
 
 export const developerSettings = writable<boolean>(
@@ -28,10 +35,19 @@ if (browser) {
 let $refreshToken: Token | null;
 if (browser) {
   refreshToken.subscribe((newVal) => {
+    // todo : remove when no longer relevant
+    if (newVal && typeof newVal.expiresAt === "string") {
+      refreshToken.set({ ...newVal, expiresAt: new Date(newVal.expiresAt).getTime() });
+      return;
+    }
+
     $refreshToken = newVal;
 
     if (newVal) {
-      localStorage.setItem("refreshToken", JSON.stringify(newVal));
+      localStorage.removeItem("refreshToken"); // todo : remove when no longer relevant
+      document.cookie = `refreshToken=${JSON.stringify(newVal)}; MaxAge=${
+        (newVal.expiresAt - Date.now()) / 1000
+      }; SameSite=Strict`;
 
       setTimeout(() => {
         if ($refreshToken && $refreshToken.expiresAt < Date.now()) {
@@ -39,7 +55,7 @@ if (browser) {
         }
       }, Date.now() - newVal.expiresAt + 10);
     } else {
-      localStorage.removeItem("refreshToken");
+      document.cookie = `refreshToken=null; expires=${new Date(0).toUTCString()}; SameSite=Strict`;
     }
   });
 }
