@@ -1,9 +1,11 @@
 import { gameSettings, user } from "@/store";
 import type { RemoveReadable } from "@/utils";
 import type { GamePreferences } from "@bgs/types";
-import { isEmpty } from "lodash";
-import { get as storeGet } from "svelte/store";
-import { get } from "./rest";
+import { isEmpty, set } from "lodash";
+import { get as $ } from "svelte/store";
+import type { Primitive } from "type-fest";
+import { boardgameKey } from "./gameinfo";
+import { get, post } from "./rest";
 
 let $gameSettings: RemoveReadable<typeof gameSettings>;
 gameSettings.subscribe((val) => ($gameSettings = val));
@@ -32,7 +34,7 @@ export async function loadGameSettings(game: string) {
     game,
     Promise.resolve()
       .then(async () => {
-        const data = storeGet(user)
+        const data = $(user)
           ? await get<GamePreferences>(`/account/games/${game}/settings`)
           : ({ game } as GamePreferences);
 
@@ -56,7 +58,7 @@ export async function loadGameSettings(game: string) {
 let lastUpdate = 0;
 let promise: Promise<void> | undefined;
 export async function loadAllGameSettings() {
-  if (!storeGet(user)) {
+  if (!$(user)) {
     return;
   }
   if (promise) {
@@ -83,4 +85,18 @@ export async function loadAllGameSettings() {
       return Promise.reject(err);
     }
   ));
+}
+
+export async function updatePreference(gameName: string, version: number, key: string, value: Primitive) {
+  gameSettings.update((gameSettings) => {
+    set(gameSettings, `${boardgameKey(gameName, version)}.preferences.${key}`, value);
+    return { ...gameSettings };
+  });
+
+  if ($(user)) {
+    await post(
+      `/account/games/${gameName}/preferences/${version}`,
+      $(gameSettings)[boardgameKey(gameName, version)].preferences
+    );
+  }
 }

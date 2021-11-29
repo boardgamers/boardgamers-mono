@@ -103,6 +103,9 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
         gameObj.on('addLog', data => {
           parent.postMessage({type: 'addLog', data}, '*');
         });
+        gameObj.on('update:preference', data => {
+          parent.postMessage({type: 'updatePreference', data}, '*');
+        });
         gameObj.on('replaceLog', data => {
           parent.postMessage({type: 'replaceLog', data}, '*');
         });
