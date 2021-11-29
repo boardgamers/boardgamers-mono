@@ -126,7 +126,17 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
         parent.postMessage({type: 'gameReady'}, '*');
 
         if (!${viewer.fullScreen}) {
-          setInterval(() => {if(!document.hidden) {parent.postMessage({type: 'gameHeight', height: getDocHeight()}, '*');}}, 250);
+          let lastPostedHeight = 0;
+          setInterval(() => {
+            if(!document.hidden) {
+              const newHeight = getDocHeight();
+
+              if (newHeight !== lastPostedHeight) {
+                lastPostedHeight = newHeight;
+                parent.postMessage({type: 'gameHeight', height: newHeight}, '*');
+              }
+            }
+          }, 250);
         }
       </${"script"}>
     </html>`;
