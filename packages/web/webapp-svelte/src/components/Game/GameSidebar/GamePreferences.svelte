@@ -6,7 +6,8 @@
 
   const { gameInfo } = getContext("game") as GameContext;
 
-  $: showPreferences = !!$gameInfo?.viewer?.alternate?.url || $gameInfo?.preferences?.length > 0;
+  $: showPreferences =
+    !!$gameInfo?.viewer?.alternate?.url || $gameInfo?.preferences?.some((item) => item.type !== "hidden") > 0;
 </script>
 
 {#if showPreferences}

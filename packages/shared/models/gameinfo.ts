@@ -11,7 +11,7 @@ const optionSchema = [
     },
     type: {
       type: String,
-      enum: ["checkbox", "select"],
+      enum: ["checkbox", "select", "hidden"],
       required: true,
     },
     name: {

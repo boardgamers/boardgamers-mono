@@ -213,6 +213,7 @@ watch(() => props.modelValue, (data) => {
               :items="[
                 { text: 'checkbox', value: 'checkbox' },
                 { text: 'select', value: 'select' },
+                { text: 'hidden', value: 'hidden' },
               ]"
               label="Type"
               class="flex-grow"
