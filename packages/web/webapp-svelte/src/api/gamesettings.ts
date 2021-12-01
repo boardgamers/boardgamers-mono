@@ -4,7 +4,6 @@ import type { GamePreferences } from "@bgs/types";
 import { isEmpty, set } from "lodash";
 import { get as $ } from "svelte/store";
 import type { Primitive } from "type-fest";
-import { boardgameKey } from "./gameinfo";
 import { get, post } from "./rest";
 
 let $gameSettings: RemoveReadable<typeof gameSettings>;
@@ -89,14 +88,11 @@ export async function loadAllGameSettings() {
 
 export async function updatePreference(gameName: string, version: number, key: string, value: Primitive) {
   gameSettings.update((gameSettings) => {
-    set(gameSettings, `${boardgameKey(gameName, version)}.preferences.${key}`, value);
+    set(gameSettings, `${gameName}.preferences.${key}`, value);
     return { ...gameSettings };
   });
 
   if ($(user)) {
-    await post(
-      `/account/games/${gameName}/preferences/${version}`,
-      $(gameSettings)[boardgameKey(gameName, version)].preferences
-    );
+    await post(`/account/games/${gameName}/preferences/${version}`, $(gameSettings)[gameName].preferences);
   }
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { boardgameKey, get, post } from "@/api";
+  import { boardgameKey, get, post, updatePreference } from "@/api";
   import { loadGameData } from "@/api/game";
   import type { GamePreferences } from "@bgs/types";
 
@@ -138,6 +138,8 @@
         $log = event.data.data;
       } else if (event.data.type === "replay:info") {
         $replayData = event.data.data;
+      } else if (event.data.type === "updatePreference") {
+        updatePreference($game.game.name, $game.game.version, event.data.data.name, event.data.data.value);
       }
     } catch (err) {
       handleError(err);
