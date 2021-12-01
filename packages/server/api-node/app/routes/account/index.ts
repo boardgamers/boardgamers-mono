@@ -70,6 +70,16 @@ router.get("/games/:game/settings", loggedIn, async (ctx) => {
     pref = await GamePreferences.create({ user: ctx.state.user._id, game: ctx.params.game });
   }
 
+  // Unstringify stringified preferences
+  if (pref.preferences) {
+    for (const key in pref.preferences) {
+      if (pref.preferences[key]?.stringified) {
+        pref.preferences[key] =
+          pref.preferences[key].value !== undefined ? JSON.parse(pref.preferences[key].value) : undefined;
+      }
+    }
+  }
+
   ctx.body = pref;
 });
 
@@ -105,7 +115,7 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
     return;
   }
 
-  const newPrefs: Record<string, boolean | string> = {};
+  const newPrefs: Record<string, boolean | string | { stringified: true; value: string }> = {};
 
   for (const pref of gameInfo.preferences) {
     const newVal = ctx.request.body[pref.name];
@@ -113,6 +123,11 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
       newPrefs[pref.name] = !!newVal;
     } else if (pref.type === "select") {
       newPrefs[pref.name] = pref.items.some((it) => it.name === newVal) ? newVal : pref.items[0]?.name;
+    } else if (pref.type === "hidden") {
+      newPrefs[pref.name] = {
+        value: JSON.stringify(newVal),
+        stringified: true,
+      };
     } else {
       // not handled
     }
