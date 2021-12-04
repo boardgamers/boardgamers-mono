@@ -202,6 +202,15 @@ watch(() => props.modelValue, (data) => {
               class="flex-grow"
               :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} name`"
             />
+            <template v-if="variable !== 'settings'">
+              <v-checkbox v-model="info[variable][i].default" label="Default value" v-if="info[variable][i].type === 'checkbox'"/>
+              <v-select
+                v-else-if="info[variable][i].type === 'select'"
+                v-model="info[variable][i].default"
+                label="Default value"
+                :items="(info[variable][i].items || []).map(x => ({text: x.label, value: x.name}))"
+              />
+            </template>
             <v-text-field
               v-if="variable === 'settings'"
               v-model.trim="info[variable][i].faction"

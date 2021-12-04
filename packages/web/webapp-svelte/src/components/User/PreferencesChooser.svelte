@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { post, updatePreference } from "@/api";
+  import { addDefaults, updatePreference } from "@/api";
   import { FormGroup, Input, Label } from "@/modules/cdk";
   import Checkbox from "@/modules/cdk/Checkbox.svelte";
-  import { gameSettings, user } from "@/store";
+  import { gameSettings } from "@/store";
   import { handleError, oneLineMarked } from "@/utils";
   import type { GameInfo } from "@bgs/types";
   import type { Primitive } from "type-fest";
@@ -13,7 +13,7 @@
   $: boardgameId = gameInfo._id.game;
   $: boardgameVersion = gameInfo._id.version;
 
-  $: preferences = $gameSettings[boardgameId]?.preferences || {};
+  $: preferences = addDefaults($gameSettings[boardgameId], gameInfo)?.preferences || {};
 
   const preferenceItems = gameInfo?.viewer?.alternate?.url
     ? [{ name: "alternateUI", label: "Use alternate UI", type: "checkbox", items: null }, ...gameInfo.preferences]

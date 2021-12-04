@@ -18,6 +18,7 @@ const optionSchema = [
       type: String,
       required: true,
     },
+    default: {},
     // When it's a select
     items: [
       {

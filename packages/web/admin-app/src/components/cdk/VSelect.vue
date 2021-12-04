@@ -5,7 +5,7 @@ const uid = useUid();
 const props = defineProps<{
   disabled?: boolean;
   label?: string;
-  modelValue: string;
+  modelValue?: string;
   multiple?: boolean;
   required?: boolean;
   items: Array<{text: string; value: string}>;
@@ -39,7 +39,7 @@ function getInput(elem: HTMLSelectElement) {
         v-for="item in items"
         :key="item.value"
         :value="item.value"
-        :[multiple&&`selected`]="modelValue.includes(item.value)"
+        :[multiple&&`selected`]="modelValue?.includes(item.value)"
       >
         {{ item.text }}
       </option>

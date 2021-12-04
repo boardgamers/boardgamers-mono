@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { boardgameKey, get, post, updatePreference } from "@/api";
+  import { addDefaults, boardgameKey, get, post, updatePreference } from "@/api";
   import { loadGameData } from "@/api/game";
   import type { GamePreferences } from "@bgs/types";
 
@@ -33,7 +33,7 @@
 
   $: gameName = $game?.game.name;
   $: postUser(), [$user];
-  $: prefs = $gameSettings[gameName];
+  $: prefs = addDefaults($gameSettings[gameName], $gameInfo);
   $: postPreferences(), [prefs];
   $: gameId = $game?._id;
 

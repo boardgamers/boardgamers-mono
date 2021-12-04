@@ -1,6 +1,6 @@
 import { gameSettings, user } from "@/store";
 import type { RemoveReadable } from "@/utils";
-import type { GamePreferences } from "@bgs/types";
+import type { GameInfo, GamePreferences } from "@bgs/types";
 import { isEmpty, set } from "lodash";
 import { get as $ } from "svelte/store";
 import type { Primitive } from "type-fest";
@@ -84,6 +84,22 @@ export async function loadAllGameSettings() {
       return Promise.reject(err);
     }
   ));
+}
+
+export function addDefaults(prefs: GamePreferences, gameinfo: GameInfo) {
+  if (!gameinfo?.preferences || !prefs?.preferences) {
+    return prefs;
+  }
+
+  return {
+    ...prefs,
+    preferences: {
+      ...Object.fromEntries(
+        gameinfo.preferences.filter((item) => item.default != null).map((item) => [item.name, item.default])
+      ),
+      ...prefs.preferences,
+    },
+  };
 }
 
 export async function updatePreference(gameName: string, version: number, key: string, value: Primitive) {
