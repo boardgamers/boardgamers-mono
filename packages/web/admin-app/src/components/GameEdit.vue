@@ -203,7 +203,7 @@ watch(() => props.modelValue, (data) => {
               :label="`${variable[0].toUpperCase()}${variable.slice(1, -1)} name`"
             />
             <template v-if="variable !== 'settings'">
-              <v-checkbox v-model="info[variable][i].default" label="Default value" v-if="info[variable][i].type === 'checkbox'"/>
+              <v-checkbox v-if="info[variable][i].type === 'checkbox'" v-model="info[variable][i].default" label="Default value" class="mt-5"/>
               <v-select
                 v-else-if="info[variable][i].type === 'select'"
                 v-model="info[variable][i].default"
@@ -234,6 +234,14 @@ watch(() => props.modelValue, (data) => {
               label="Type"
               class="flex-grow"
             />
+            <div class="mt-2 flex-col flex gap-1">
+              <v-btn icon v-if="i > 0" @click="info[variable].splice(i - 1, 2, info[variable][i], info[variable][i-1])">
+                <mdi-arrow-up />
+              </v-btn>
+              <v-btn icon v-if="i + 1 < info[variable].length" @click="info[variable].splice(i, 2, info[variable][i+1], info[variable][i])">
+                <mdi-arrow-down />
+              </v-btn>
+            </div>
             <v-btn icon class="mt-5" variant="error" @click="info[variable].splice(i, 1)">
               <mdi-delete />
             </v-btn>
