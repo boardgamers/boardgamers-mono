@@ -211,6 +211,12 @@ watch(() => props.modelValue, (data) => {
                 :items="(info[variable][i].items || []).map(x => ({text: x.label, value: x.name}))"
               />
             </template>
+            <v-select
+              v-if="info[variable][i].type !== 'category' && variable === 'preferences'"
+              v-model="info[variable][i].category"
+              label="Category"
+              :items="[{text: 'None', value: null}, ...(info[variable].filter(x => x.type === 'category').map(x => ({text: x.label, value: x.name})))]"
+            />
             <v-text-field
               v-if="variable === 'settings'"
               v-model.trim="info[variable][i].faction"
@@ -223,10 +229,11 @@ watch(() => props.modelValue, (data) => {
                 { text: 'checkbox', value: 'checkbox' },
                 { text: 'select', value: 'select' },
                 { text: 'hidden', value: 'hidden' },
+                { text: 'category', value: 'category' },
               ]"
               label="Type"
               class="flex-grow"
-            ></v-select>
+            />
             <v-btn icon class="mt-5" variant="error" @click="info[variable].splice(i, 1)">
               <mdi-delete />
             </v-btn>

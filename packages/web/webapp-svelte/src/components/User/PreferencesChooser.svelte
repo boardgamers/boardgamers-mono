@@ -1,9 +1,8 @@
 <script lang="ts">
   import { addDefaults, updatePreference } from "@/api";
-  import { FormGroup, Input, Label } from "@/modules/cdk";
-  import Checkbox from "@/modules/cdk/Checkbox.svelte";
   import { gameSettings } from "@/store";
-  import { handleError, oneLineMarked } from "@/utils";
+  import { handleError } from "@/utils";
+  import PreferenceInput from "./PreferenceInput.svelte";
   import type { GameInfo } from "@bgs/types";
   import type { Primitive } from "type-fest";
 
@@ -15,8 +14,13 @@
 
   $: preferences = addDefaults($gameSettings[boardgameId], gameInfo)?.preferences || {};
 
+  let shownCategories: Record<string, boolean> = {};
+
   const preferenceItems = gameInfo?.viewer?.alternate?.url
-    ? [{ name: "alternateUI", label: "Use alternate UI", type: "checkbox", items: null }, ...gameInfo.preferences]
+    ? [
+        { name: "alternateUI", label: "Use alternate UI", type: "checkbox", items: null, category: null },
+        ...gameInfo.preferences,
+      ]
     : gameInfo.preferences;
 
   const handleChange = (key: string, val: Primitive) => {
@@ -24,23 +28,27 @@
   };
 </script>
 
-{#each preferenceItems.filter((item) => item.type === "checkbox") as item}
-  <Checkbox checked={preferences[item.name]} on:change={(event) => handleChange(item.name, event.target.checked)}>
-    {item.label}
-  </Checkbox>
+{#each preferenceItems.filter((item) => item.type === "checkbox" && item.category == null) as item}
+  <PreferenceInput {item} value={preferences[item.name]} on:change={(event) => handleChange(item.name, event.detail)} />
 {/each}
-{#each preferenceItems.filter((item) => item.type === "select") as item}
-  <FormGroup class="d-flex align-items-center mt-2">
-    <Label class="nowrap me-2 mb-0">{@html oneLineMarked(item.label)}</Label>
-    <Input
-      type="select"
-      value={preferences[item.name]}
-      on:change={(event) => handleChange(item.name, event.target.value)}
-      size="sm"
-    >
-      {#each item.items as option}
-        <option value={option.name}>{option.label}</option>
+{#each preferenceItems.filter((item) => item.type === "select" && item.category == null) as item}
+  <PreferenceInput {item} value={preferences[item.name]} on:change={(event) => handleChange(item.name, event.detail)} />
+{/each}
+{#each preferenceItems.filter((item) => item.type === "category") as category}
+  <a
+    href={`#${category.name}`}
+    on:click|preventDefault={() => (shownCategories[category.name] = !shownCategories[category.name])}
+    >{category.label}</a
+  >
+  {#if shownCategories[category.name]}
+    <div class="ms-2 mt-2">
+      {#each preferenceItems.filter((item) => item.category === category.name) as item}
+        <PreferenceInput
+          {item}
+          value={preferences[item.name]}
+          on:change={(event) => handleChange(item.name, event.detail)}
+        />
       {/each}
-    </Input>
-  </FormGroup>
+    </div>
+  {/if}
 {/each}
