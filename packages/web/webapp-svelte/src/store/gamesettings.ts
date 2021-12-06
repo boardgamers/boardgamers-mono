@@ -1,7 +1,7 @@
 import { browser } from "$app/env";
 import type { GamePreferences } from "@bgs/types";
 import { get as $, writable } from "svelte/store";
-import { user } from "./user";
+import { user } from "./useUserser";
 
 export const gameSettings = writable<Record<string, GamePreferences>>({});
 

@@ -8,7 +8,7 @@ if (browser) {
 }
 
 export function handleError(err: Error | string | unknown): void {
-  if (!err) {
+  if (!err || !browser) {
     return;
   }
 

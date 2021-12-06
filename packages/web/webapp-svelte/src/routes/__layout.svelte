@@ -1,12 +1,9 @@
 <script context="module" lang="ts">
   export async function load(input: LoadInput) {
-    if (input.session.refreshToken) {
-      refreshToken.set(input.session.refreshToken);
-    }
+    useRootLayout(input.session, input.fetch);
+    const { waitForUser } = useAccount(input.session);
 
-    if (!input.session) {
-      await loadAccount();
-    }
+    await waitForUser;
   }
 </script>
 
@@ -16,14 +13,10 @@
   import "../style.css";
 
   import { Appbar, Footer } from "@/components";
-  import { activeGames, refreshToken, user } from "@/store";
+  import { activeGames } from "@/store";
   import type { LoadInput } from "@sveltejs/kit";
-  import { loadAccountIfNeeded } from "@/api";
-  import { get } from "svelte/store";
-  import { browser } from "$app/env";
-  import { session } from "$app/stores";
-
-  console.log("hydrated user", get(user));
+  import { useRootLayout } from "@/composition/useRootLayout";
+  import { useAccount } from "@/composition/useAccount";
 </script>
 
 <svelte:head>

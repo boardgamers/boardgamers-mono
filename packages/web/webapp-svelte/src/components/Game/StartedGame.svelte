@@ -3,7 +3,6 @@
   import { addDefaults, boardgameKey, get, post, updatePreference } from "@/api";
   import { loadGameData } from "@/api/game";
   import type { GamePreferences } from "@bgs/types";
-
   import { Loading } from "@/modules/cdk";
   import { navigate } from "@/modules/router";
   import type { GameContext } from "@/pages/Game.svelte";
