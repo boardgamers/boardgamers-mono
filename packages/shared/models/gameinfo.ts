@@ -11,13 +11,15 @@ const optionSchema = [
     },
     type: {
       type: String,
-      enum: ["checkbox", "select"],
+      enum: ["checkbox", "select", "hidden", "category"],
       required: true,
     },
     name: {
       type: String,
       required: true,
     },
+    default: {},
+    category: String,
     // When it's a select
     items: [
       {

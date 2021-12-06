@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from "$app/stores";
-  import { boardgameKey, get, post } from "@/api";
+  import { addDefaults, boardgameKey, get, post, updatePreference } from "@/api";
   import { loadGameData } from "@/api/game";
   import type { GamePreferences } from "@bgs/types";
 
@@ -34,7 +34,7 @@
 
   $: gameName = $game?.game.name;
   $: postUser(), [$user];
-  $: prefs = $gameSettings[gameName];
+  $: prefs = addDefaults($gameSettings[gameName], $gameInfo);
   $: postPreferences(), [prefs];
   $: gameId = $game?._id;
 
@@ -139,6 +139,8 @@
         $log = event.data.data;
       } else if (event.data.type === "replay:info") {
         $replayData = event.data.data;
+      } else if (event.data.type === "updatePreference") {
+        updatePreference($game.game.name, $game.game.version, event.data.data.name, event.data.data.value);
       }
     } catch (err) {
       handleError(err);

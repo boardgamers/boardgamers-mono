@@ -97,7 +97,16 @@
 
     for (const select of info.options.filter((option) => option.type === "select")) {
       if (select.items) {
-        newVal[select.name] = select.items[0].name;
+        newVal[select.name] =
+          select.default && select.items.some((item) => item.name === select.default)
+            ? select.default
+            : select.items[0].name;
+      }
+    }
+
+    for (const check of info.options.filter((option) => option.type === "checkbox")) {
+      if (check.default === true) {
+        options.push(check.name);
       }
     }
 

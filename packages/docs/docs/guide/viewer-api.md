@@ -209,3 +209,11 @@ emitter.emit('replay:info', data: {start: number, current: number, end: number})
 Emitted when the replay starts and everytime we move in the replay.
 
 Used for the replay controls in the sidebar.
+
+### update:preference
+
+When you want to edit preferences within the game itself and not BGS' sidebar
+
+```ts
+emitter.emit('update:preference', data: {name: string, value: string | boolean | null})
+```

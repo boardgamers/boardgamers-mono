@@ -26,7 +26,9 @@ export interface ViewerInfo {
 
 type GameInfoOption = {
   label: string;
-  type: "checkbox" | "select";
+  type: "checkbox" | "select" | "hidden" | "category";
+  default: any;
+  category?: string;
   name: string;
   items:
     | [
