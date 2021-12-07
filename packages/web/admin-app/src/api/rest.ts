@@ -48,15 +48,13 @@ export async function deleteApi<T = any>(url: string, data: any = {}) {
 }
 
 async function getResponseData<T = any>(response: Response): Promise<T> {
-  const body = response.headers.get("content-type")?.startsWith("application/json")
-    ? await response.json()
-    : await response.text();
+  const getBody = () => response.headers.get("content-type")?.startsWith("application/json") ? response.json() : response.text();
 
-  if (response.status >= 400) {
-    throw body;
+  if (!response.ok) {
+    throw await getBody().catch(err => err);
   }
 
-  return body;
+  return await getBody();
 }
 
 /**
