@@ -1,18 +1,12 @@
 import { browser } from "$app/env";
 import { extractCookie } from "@/utils/extract-cookie";
-import { get as $, writable, Writable } from "svelte/store";
-import { useCached } from "./useCached";
+import { get as $, writable } from "svelte/store";
+import { defineStore } from "./defineStore";
 import { useSession } from "./useSession";
 
 export type Token = { code: string; expiresAt: number };
 
-export function useRefreshToken(): Writable<Token | null> {
-  const { set, cached } = useCached<"refreshToken", Writable<Token | null>>("refreshToken");
-
-  if (cached) {
-    return cached;
-  }
-
+export const useRefreshToken = defineStore(() => {
   const session = useSession();
 
   const refreshToken = writable<Token | null>(
@@ -47,5 +41,5 @@ export function useRefreshToken(): Writable<Token | null> {
     });
   }
 
-  return set(refreshToken);
-}
+  return refreshToken;
+});

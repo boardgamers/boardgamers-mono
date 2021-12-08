@@ -1,19 +1,7 @@
-import { get as $, writable, Writable } from "svelte/store";
-import { useCached } from "./useCached";
+import { get as $, writable } from "svelte/store";
+import { defineStore } from "./defineStore";
 
-type UseActiveGames = {
-  activeGames: Writable<string[]>;
-  addActiveGame: (gameId: string) => void;
-  removeActiveGame: (gameId: string) => void;
-};
-
-export function useActiveGames(): UseActiveGames {
-  const { cached, set } = useCached<"activeGames", UseActiveGames>("activeGames");
-
-  if (cached) {
-    return cached;
-  }
-
+export const useActiveGames = defineStore(() => {
   const activeGames = writable<string[]>([]);
 
   function addActiveGame(gameId: string) {
@@ -28,9 +16,9 @@ export function useActiveGames(): UseActiveGames {
     }
   }
 
-  return set({
+  return {
     activeGames,
     addActiveGame,
     removeActiveGame,
-  });
-}
+  };
+});

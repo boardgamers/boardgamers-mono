@@ -1,20 +1,8 @@
 import { browser } from "$app/env";
-import { Writable, writable } from "svelte/store";
-import { useCached } from "./useCached";
+import { writable } from "svelte/store";
+import { defineStore } from "./defineStore";
 
-type UseCurrentGame = {
-  currentGameId: Writable<string | null>;
-  lastGameUpdate: Writable<Date>;
-  playerStatus: Writable<Array<{ _id: string; status: "online" | "offline" | "away" }>>;
-};
-
-export function useCurrentGame(): UseCurrentGame {
-  const { set, cached } = useCached<"currentGame", UseCurrentGame>("currentGame");
-
-  if (cached) {
-    return cached;
-  }
-
+export const useCurrentGame = defineStore(() => {
   const currentGameId = writable<string | null>(null);
   const lastGameUpdate = writable<Date>(new Date(0));
   const playerStatus = writable<Array<{ _id: string; status: "online" | "offline" | "away" }>>([]);
@@ -26,5 +14,5 @@ export function useCurrentGame(): UseCurrentGame {
     });
   }
 
-  return set({ currentGameId, lastGameUpdate, playerStatus });
-}
+  return { currentGameId, lastGameUpdate, playerStatus };
+});

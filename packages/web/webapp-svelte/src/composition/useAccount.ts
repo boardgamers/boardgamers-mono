@@ -1,21 +1,13 @@
 import { browser } from "$app/env";
 import { handleError, skipOnce } from "@/utils";
 import type { IUser } from "@bgs/types";
-import { Writable, writable } from "svelte/store";
+import { writable } from "svelte/store";
+import { defineStore } from "./defineStore";
 import { useAccessTokens } from "./useAccessTokens";
-import { useCached } from "./useCached";
 import { useRefreshToken } from "./useRefreshToken";
 import { useRest } from "./useRest";
 
-type UseAccount = { waitForAccount: Promise<void>; account: Writable<IUser | null> };
-
-export function useAccount(): UseAccount {
-  const { cached, set } = useCached<"account", UseAccount>("account");
-
-  if (cached) {
-    return cached;
-  }
-
+export const useAccount = defineStore(() => {
   const { get } = useRest();
 
   const p = get<IUser | null>("/account").then((val) => account.set(val), handleError);
@@ -36,8 +28,8 @@ export function useAccount(): UseAccount {
     );
   }
 
-  return set({
+  return {
     waitForAccount: p,
     account,
-  });
-}
+  };
+});

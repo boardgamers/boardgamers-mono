@@ -1,21 +1,10 @@
 import { browser } from "$app/env";
 import type { ChatMessage } from "@bgs/types";
-import { Writable, writable } from "svelte/store";
-import { useCached } from "./useCached";
+import { writable } from "svelte/store";
+import { defineStore } from "./defineStore";
 import { useCurrentGame } from "./useCurrentGame";
 
-type UseCurrentRoom = {
-  room: Writable<null | string>;
-  chatMessages: Writable<ChatMessage[]>;
-};
-
-export function useCurrentRoom(): UseCurrentRoom {
-  const { cached, set } = useCached<"currentRoom", UseCurrentRoom>("currentRoom");
-
-  if (cached) {
-    return cached;
-  }
-
+export const useCurrentRoom = defineStore(() => {
   const room = writable<string | null>(null);
   const chatMessages = writable<ChatMessage[]>([]);
 
@@ -26,5 +15,5 @@ export function useCurrentRoom(): UseCurrentRoom {
     room.subscribe(() => chatMessages.set([]));
   }
 
-  return set({ room, chatMessages });
-}
+  return { room, chatMessages };
+});

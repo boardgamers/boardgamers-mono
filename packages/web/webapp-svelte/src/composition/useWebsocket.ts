@@ -1,21 +1,13 @@
 import { browser } from "$app/env";
 import { get as $ } from "svelte/store";
+import { defineStore } from "./defineStore";
 import { useAccount } from "./useAccount";
 import { useActiveGames } from "./useActiveGames";
-import { useCached } from "./useCached";
 import { useCurrentGame } from "./useCurrentGame";
 import { useCurrentRoom } from "./useCurrentRoom";
 import { useRest } from "./useRest";
 
-export function useWebsocket(): void {
-  const { cached, set } = useCached<"websocket", boolean>("websocket");
-
-  if (cached || !browser) {
-    return;
-  }
-
-  set(true);
-
+export const useWebsocket = defineStore(() => {
   let ws: WebSocket | null = null;
 
   const { account } = useAccount();
@@ -117,4 +109,4 @@ export function useWebsocket(): void {
   }
 
   connect();
-}
+});

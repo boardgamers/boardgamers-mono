@@ -1,7 +1,7 @@
 import { browser } from "$app/env";
 import { get as $ } from "svelte/store";
+import { defineStore } from "./defineStore";
 import { useAccessTokens } from "./useAccessTokens";
-import { useCached } from "./useCached";
 import { Token, useRefreshToken } from "./useRefreshToken";
 import { useSession } from "./useSession";
 
@@ -24,19 +24,7 @@ function transformUrl(url: string) {
   return url.startsWith("http") || url.startsWith("//") ? url : baseUrl + url;
 }
 
-type UseRest = {
-  get<T>(url: string, query?: Record<string, unknown>): Promise<T>;
-  post<T>(url: string, data?: Record<string, unknown>): Promise<T>;
-  getAccessToken(url: string): Promise<Token | null>;
-};
-
-export function useRest(): UseRest {
-  const { cached, set } = useCached<"rest", UseRest>("rest");
-
-  if (cached) {
-    return cached;
-  }
-
+export const useRest = defineStore(() => {
   const fetch = useSession().fetch;
   const refreshToken = useRefreshToken();
   const accessTokens = useAccessTokens();
@@ -117,5 +105,5 @@ export function useRest(): UseRest {
     );
   }
 
-  return set({ get, post, getAccessToken });
-}
+  return { get, post, getAccessToken };
+});
