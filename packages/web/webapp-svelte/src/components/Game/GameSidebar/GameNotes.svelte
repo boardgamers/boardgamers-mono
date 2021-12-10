@@ -1,8 +1,11 @@
 <script lang="ts">
   import { browser } from "$app/env";
-  import { user } from "@/store";
-  import { get, post } from "@/api";
   import { debounce } from "lodash";
+  import { useRest } from "@/composition/useRest";
+  import { useAccount } from "@/composition/useAccount";
+
+  const { get, post } = useRest();
+  const { account } = useAccount();
 
   let showNotes = browser ? localStorage.getItem("show-notes") !== "false" : true;
 
@@ -30,7 +33,7 @@
 
   let updateNotesDebounce = debounce(
     async () => {
-      if ($user && notes !== lastReceivedNotes) {
+      if ($account && notes !== lastReceivedNotes) {
         await post(`/game/${gameId}/notes`, { notes });
       }
     },
@@ -38,7 +41,7 @@
     { leading: false, trailing: true }
   );
 
-  $: userId = $user?._id;
+  $: userId = $account?._id;
   $: loadNotes(), [userId];
 
   function updateTextareaSize() {
@@ -73,7 +76,7 @@
     rows="3"
     max-rows="8"
     placeholder="You can make plans here..."
-    disabled={!$user || !notesLoaded}
+    disabled={!$account || !notesLoaded}
     style="overflow: hidden; resize: none"
   />
 </div>

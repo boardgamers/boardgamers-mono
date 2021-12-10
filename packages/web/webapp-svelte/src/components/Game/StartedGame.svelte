@@ -1,14 +1,26 @@
 <script lang="ts">
   import { page } from "$app/stores";
-  import { addDefaults, boardgameKey, get, post, updatePreference } from "@/api";
-  import { loadGameData } from "@/api/game";
   import type { GamePreferences } from "@bgs/types";
   import { Loading } from "@/modules/cdk";
   import { navigate } from "@/modules/router";
   import type { GameContext } from "@/pages/Game.svelte";
-  import { developerSettings, devGameSettings, gameSettings, lastGameUpdate, user } from "@/store";
   import { handleError, skipOnce } from "@/utils";
   import { getContext, onDestroy } from "svelte";
+  import { useGame } from "@/composition/useGame";
+  import { useRest } from "@/composition/useRest";
+  import { useGamePreferences } from "@/composition/useGamePreferences";
+  import { useGameInfo } from "@/composition/useGameInfo";
+  import { useAccount } from "@/composition/useAccount";
+  import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
+  import { useCurrentGame } from "@/composition/useCurrentGame";
+
+  const { loadGame } = useGame();
+  const { account: user } = useAccount();
+  const { get, post } = useRest();
+  const { addDefaults, updatePreference, gamePreferences } = useGamePreferences();
+  const { gameInfoKey } = useGameInfo();
+  const { lastGameUpdate } = useCurrentGame();
+  const { devGameSettings, developerSettings } = useDeveloperSettings();
 
   const { game, replayData, gameInfo, emitter, log }: GameContext = getContext("game");
   let stateSent = false;
@@ -33,14 +45,14 @@
 
   $: gameName = $game?.game.name;
   $: postUser(), [$user];
-  $: prefs = addDefaults($gameSettings[gameName], $gameInfo);
+  $: prefs = addDefaults($gamePreferences[gameName], $gameInfo);
   $: postPreferences(), [prefs];
   $: gameId = $game?._id;
 
   const updateSrc = () => {
     if ($gameInfo) {
       const customUrl = $developerSettings
-        ? encodeURIComponent($devGameSettings[boardgameKey($gameInfo._id.game, $gameInfo._id.version)]?.viewerUrl ?? "")
+        ? encodeURIComponent($devGameSettings[gameInfoKey($gameInfo._id.game, $gameInfo._id.version)]?.viewerUrl ?? "")
         : "";
 
       src = `${resourcesLink}/game/${gameName}/${$gameInfo._id.version}/iframe?alternate=${
@@ -72,7 +84,9 @@
     gameIframe?.contentWindow?.postMessage({ type: "state:updated" }, "*");
   }
 
-  function postGameLog(logObject: { start: number; end?: number; data: any }) {
+  type LogObject = { start: number; end?: number; data: any };
+
+  function postGameLog(logObject: LogObject) {
     gameIframe?.contentWindow?.postMessage({ type: "gameLog", data: logObject }, "*");
   }
 
@@ -86,7 +100,7 @@
     gameIframe?.contentWindow?.postMessage({ type: "replay:start" }, "*");
   });
 
-  emitter.on("replay:to", (dest) => {
+  emitter.on("replay:to", (dest: number) => {
     gameIframe?.contentWindow?.postMessage({ type: "replay:to", to: dest }, "*");
   });
 
@@ -123,14 +137,16 @@
       } else if (event.data.type === "displayReady") {
         stateSent = true;
       } else if (event.data.type === "fetchState") {
-        await loadGameData($game._id).then((g) => {
+        await loadGame($game._id).then((g) => {
           if (g._id === $game?._id) {
             $game = g;
             postGamedata();
           }
         });
       } else if (event.data.type === "fetchLog") {
-        const logData = await get(`/gameplay/${$game._id}/log`, { params: event.data.data }).then((r) => r.data);
+        const logData = await get<LogObject>(`/gameplay/${$game._id}/log`, { params: event.data.data }).then(
+          (r) => r.data
+        );
         postGameLog(logData);
       } else if (event.data.type === "addLog") {
         $log = [...$log, ...event.data.data];

@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { get } from "@/api";
+  import { useRest } from "@/composition/useRest";
   import { Loading, Pagination } from "@/modules/cdk";
   import { routePath } from "@/modules/router";
   import { createWatcher, handleError, pluralize } from "@/utils";
+
+  const { get } = useRest();
 
   export let boardgameId: string;
   export let top = false;

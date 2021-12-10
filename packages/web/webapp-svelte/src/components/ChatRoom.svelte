@@ -1,14 +1,22 @@
 <script lang="ts">
-  import { get, post } from "@/api";
-
+  import { useAccount } from "@/composition/useAccount";
+  import { useCurrentGame } from "@/composition/useCurrentGame";
+  import { useCurrentRoom } from "@/composition/useCurrentRoom";
+  import { useRest } from "@/composition/useRest";
+  import { useSidebarOpen } from "@/composition/useSidebarOpen";
   import { Modal, ModalHeader, Icon, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
   import type { GameContext } from "@/pages/Game.svelte";
-  import { chatMessages, currentGameId, sidebarOpen, user } from "@/store";
   import { dateFromObjectId, dateTime, handleError } from "@/utils";
   import type { PlayerInfo } from "@bgs/types";
   import { getContext } from "svelte";
   import { fly } from "svelte/transition";
   import { PlayerGameAvatar } from "./Game";
+
+  const { get, post } = useRest();
+  const { account } = useAccount();
+  const { currentGameId } = useCurrentGame();
+  const sidebarOpen = useSidebarOpen();
+  const { chatMessages } = useCurrentRoom();
 
   let isOpen = false;
   let toggle = () => {
@@ -78,7 +86,7 @@
     }
   }
 
-  $: userId = $user?._id;
+  $: userId = $account?._id;
   $: players = ($game?.players ?? []).reduce(
     (obj, player) => ({ ...obj, [player._id]: player }),
     {} as Record<string, PlayerInfo>

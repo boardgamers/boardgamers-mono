@@ -1,12 +1,19 @@
 <script lang="ts">
   import { timerTime, defer, duration, niceDate } from "@/utils";
   import type { IGame } from "@bgs/types";
-  import { boardgameInfo, get, loadBoardgames } from "@/api";
-  import { logoClicks, user } from "@/store";
   import { onDestroy } from "svelte";
   import { createWatcher, skipOnce } from "@/utils/watch";
   import { Badge, Icon, Pagination, Loading, Row } from "@/modules/cdk";
   import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
+  import { useLogoClicks } from "@/composition/useLogoClicks";
+  import { useAccount } from "@/composition/useAccount";
+  import { useRest } from "@/composition/useRest";
+  import { useGameInfo } from "@/composition/useGameInfo";
+
+  const { logoClicks } = useLogoClicks();
+  const { account } = useAccount();
+  const { get } = useRest();
+  const { loadGameInfos, gameInfo } = useGameInfo();
 
   export let title = "Games";
   export let perPage = 10;
@@ -29,7 +36,7 @@
         ...(sample && { sample: true }),
         ...(userId && { user: userId }),
         ...(boardgameId && { boardgame: boardgameId }),
-        ...(gameStatus === "open" && !!$user?._id && { maxKarma: $user!.account.karma }),
+        ...(gameStatus === "open" && !!$account?._id && { maxKarma: $account!.account.karma }),
       };
 
       if (refresh) {
@@ -43,7 +50,7 @@
       games = await get(`/game/status/${gameStatus}`, queryParams);
 
       // TODO: only load boardgames present in games
-      await loadBoardgames();
+      await loadGameInfos();
     },
     () => (loadingGames = false)
   );
@@ -69,7 +76,7 @@
   }
 
   function gameIcon(name: string) {
-    const game = boardgameInfo(name, "latest");
+    const game = gameInfo(name, "latest");
 
     return game?.label.trim().slice(0, game?.label.trim().indexOf(" "));
   }
@@ -86,7 +93,7 @@
   const onCurrentPageChanged = createWatcher(() => loadGames(false));
 
   $: loadGames(true), [userId, boardgameId];
-  $: onCurrentPageChanged(currentPage);
+  $: onCurrentPageChanged(), [currentPage];
 </script>
 
 <Loading loading={loadingGames}>

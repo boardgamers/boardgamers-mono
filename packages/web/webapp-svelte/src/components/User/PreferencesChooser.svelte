@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { addDefaults, updatePreference } from "@/api";
-  import { gameSettings } from "@/store";
   import { handleError } from "@/utils";
   import PreferenceInput from "./PreferenceInput.svelte";
   import type { GameInfo } from "@bgs/types";
   import type { Primitive } from "type-fest";
+  import { useGamePreferences } from "@/composition/useGamePreferences";
+
+  const { gamePreferences, addDefaults, updatePreference } = useGamePreferences();
 
   let gameInfo: GameInfo;
   export { gameInfo as game };
@@ -12,7 +13,7 @@
   $: boardgameId = gameInfo._id.game;
   $: boardgameVersion = gameInfo._id.version;
 
-  $: preferences = addDefaults($gameSettings[boardgameId], gameInfo)?.preferences || {};
+  $: preferences = addDefaults($gamePreferences[boardgameId], gameInfo)?.preferences || {};
 
   let shownCategories: Record<string, boolean> = {};
 

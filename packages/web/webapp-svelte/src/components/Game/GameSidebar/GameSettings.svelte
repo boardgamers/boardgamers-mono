@@ -1,15 +1,18 @@
 <script lang="ts">
   import { Icon, Checkbox, Label, Input, FormGroup } from "@/modules/cdk";
   import { handleError, oneLineMarked } from "@/utils";
-  import { user } from "@/store";
-  import { post, get } from "@/api";
   import type { GameContext } from "@/pages/Game.svelte";
   import { getContext } from "svelte";
+  import { useAccount } from "@/composition/useAccount";
+  import { useRest } from "@/composition/useRest";
+
+  const { account } = useAccount();
+  const { post, get } = useRest();
 
   const { game, gameInfo }: GameContext = getContext("game");
   let settings: Record<string, unknown> | null = null;
 
-  $: userId = $user?._id;
+  $: userId = $account?._id;
   $: playerUser = $game?.players.find((pl) => pl._id === userId);
   $: gameStatus = $game?.status;
   $: gameId = $game?._id;
@@ -20,7 +23,7 @@
       return;
     }
     if ($gameInfo.settings?.length > 0) {
-      settings = await get(`/gameplay/${gameId}/settings`).catch(handleError);
+      settings = (await get<typeof settings>(`/gameplay/${gameId}/settings`).catch(handleError)) ?? null;
     } else {
       settings = null;
     }
@@ -29,7 +32,7 @@
   $: loadSettings(), [gameStatus, userId, $gameInfo];
 
   async function postSettings() {
-    if (!$user) {
+    if (!$account) {
       return;
     }
     await post(`/gameplay/${gameId}/settings`, settings as any);

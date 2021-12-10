@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { useSidebarOpen } from "@/composition/useSidebarOpen";
   import { Button, Icon } from "@/modules/cdk";
-  import { route } from "@/modules/router";
-  import { sidebarOpen } from "@/store";
+
+  const sidebarOpen = useSidebarOpen();
 </script>
 
 <div class="sidebar-container" class:open={$sidebarOpen}>

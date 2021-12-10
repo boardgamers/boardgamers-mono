@@ -14,9 +14,14 @@
     NavLink,
     Icon,
   } from "@/modules/cdk";
-  import { user, logoClicks, activeGames } from "@/store";
-  import { loadAccountIfNeeded, login, logout } from "@/api";
   import { handleError } from "@/utils";
+  import { useAccount } from "@/composition/useAccount";
+  import { useLogoClicks } from "@/composition/useLogoClicks";
+  import { useActiveGames } from "@/composition/useActiveGames";
+
+  const { account: user, login, logout } = useAccount();
+  const { logoClick } = useLogoClicks();
+  const { activeGames } = useActiveGames();
 
   let email = "";
   let password = "";
@@ -62,7 +67,7 @@
 </script>
 
 <Navbar color="primary" class={className} dark expand>
-  <a href="/" on:click={() => ($logoClicks += 1)} class="navbar-brand">BGS</a>
+  <a href="/" on:click={logoClick} class="navbar-brand">BGS</a>
 
   {#if $user}
     <a
@@ -86,64 +91,62 @@
     <source src="/audio/notification.ogg" type="audio/ogg" />
   </audio>
 
-  {#await loadAccountIfNeeded() then _}
-    <Nav class="ms-auto" navbar>
-      {#if !$user}
-        <!-- todo: hide on mobile -->
-        <span class="navbar-text">Have an account?</span>
-        <Dropdown nav inNavbar>
-          <DropdownToggle nav caret>Login</DropdownToggle>
-          <DropdownMenu right class="login-dp">
-            <div class="row">
-              <div class="col-md-12">
-                Log in with
-                <div class="social-buttons">
-                  <Button href="/api/account/auth/google" rel="external" class="google">Google</Button>
-                  <Button href="/api/account/auth/discord" rel="external" class="discord">Discord</Button>
-                  <Button href="/api/account/auth/facebook" rel="external" class="facebook">Facebook</Button>
-                </div>
-                or
-                <Form class="mt-3" on:submit={handleSubmit}>
-                  <FormGroup>
-                    <Label hidden for="email">Email</Label>
-                    <Input id="email" type="email" required bind:value={email} autofocus />
-                  </FormGroup>
-                  <FormGroup>
-                    <Label hidden for="password">Password</Label>
-                    <Input id="password" type="password" bind:value={password} required />
-                    <FormText class="mt-2 pt-2">
-                      <a href="/forgotten-password">Forgotten password ?</a>
-                    </FormText>
-                  </FormGroup>
-                  <FormGroup>
-                    <Button type="submit" color="primary" block>Log in</Button>
-                  </FormGroup>
-                </Form>
+  <Nav class="ms-auto" navbar>
+    {#if !$user}
+      <!-- todo: hide on mobile -->
+      <span class="navbar-text">Have an account?</span>
+      <Dropdown nav inNavbar>
+        <DropdownToggle nav caret>Login</DropdownToggle>
+        <DropdownMenu right class="login-dp">
+          <div class="row">
+            <div class="col-md-12">
+              Log in with
+              <div class="social-buttons">
+                <Button href="/api/account/auth/google" rel="external" class="google">Google</Button>
+                <Button href="/api/account/auth/discord" rel="external" class="discord">Discord</Button>
+                <Button href="/api/account/auth/facebook" rel="external" class="facebook">Facebook</Button>
               </div>
-              <div class="bottom text-center bg-red-300">
-                New ? <a href="/signup"><b>Join us</b></a>
-              </div>
+              or
+              <Form class="mt-3" on:submit={handleSubmit}>
+                <FormGroup>
+                  <Label hidden for="email">Email</Label>
+                  <Input id="email" type="email" required bind:value={email} autofocus />
+                </FormGroup>
+                <FormGroup>
+                  <Label hidden for="password">Password</Label>
+                  <Input id="password" type="password" bind:value={password} required />
+                  <FormText class="mt-2 pt-2">
+                    <a href="/forgotten-password">Forgotten password ?</a>
+                  </FormText>
+                </FormGroup>
+                <FormGroup>
+                  <Button type="submit" color="primary" block>Log in</Button>
+                </FormGroup>
+              </Form>
             </div>
-          </DropdownMenu>
-        </Dropdown>
-      {:else}
-        {#if admin}
-          <NavLink href={adminLink}>
-            <Icon name="gear-fill" class="me-1 big" />
-            <span class="d-none d-sm-inline">Admin</span>
-          </NavLink>
-        {/if}
-        <NavLink href={`/user/${$user.account.username}`}>
-          <Icon name="person-fill" class="me-1 big" />
-          <span class="d-none d-sm-inline">{$user.account.username}</span>
-        </NavLink>
-        <NavLink on:click={logOut}>
-          <Icon name="power" class="me-1 big" />
-          <span class="d-none d-sm-inline">Log out</span>
+            <div class="bottom text-center bg-red-300">
+              New ? <a href="/signup"><b>Join us</b></a>
+            </div>
+          </div>
+        </DropdownMenu>
+      </Dropdown>
+    {:else}
+      {#if admin}
+        <NavLink href={adminLink}>
+          <Icon name="gear-fill" class="me-1 big" />
+          <span class="d-none d-sm-inline">Admin</span>
         </NavLink>
       {/if}
-    </Nav>
-  {/await}
+      <NavLink href={`/user/${$user.account.username}`}>
+        <Icon name="person-fill" class="me-1 big" />
+        <span class="d-none d-sm-inline">{$user.account.username}</span>
+      </NavLink>
+      <NavLink on:click={logOut}>
+        <Icon name="power" class="me-1 big" />
+        <span class="d-none d-sm-inline">Log out</span>
+      </NavLink>
+    {/if}
+  </Nav>
 </Navbar>
 
 <style lang="postcss" global>

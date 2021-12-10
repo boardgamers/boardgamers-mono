@@ -1,9 +1,9 @@
 <script context="module" lang="ts">
   export async function load(input: LoadInput) {
-    useRootLayout(input.session, input.fetch);
-    const { waitForUser } = useAccount(input.session);
+    useRootLayout(input.fetch);
+    const { waitForAccount } = useAccount();
 
-    await waitForUser;
+    await waitForAccount;
   }
 </script>
 
@@ -13,10 +13,12 @@
   import "../style.css";
 
   import { Appbar, Footer } from "@/components";
-  import { activeGames } from "@/store";
   import type { LoadInput } from "@sveltejs/kit";
   import { useRootLayout } from "@/composition/useRootLayout";
   import { useAccount } from "@/composition/useAccount";
+  import { useActiveGames } from "@/composition/useActiveGames";
+
+  const { activeGames } = useActiveGames();
 </script>
 
 <svelte:head>

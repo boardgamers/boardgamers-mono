@@ -12,13 +12,21 @@
   } from "@/utils";
   import marked from "marked";
   import { Badge, Button } from "@/modules/cdk";
-  import { lastGameUpdate, user } from "@/store";
-  import { joinGame, loadGameData, loadGamePlayers, unjoinGame, startGame } from "@/api/game";
   import Icon from "sveltestrap/src/Icon.svelte";
   import { navigate, route } from "@/modules/router";
   import { getContext, onDestroy } from "svelte";
   import type { GameContext } from "@/pages/Game.svelte";
   import { playerOrderText } from "@/data/playerOrders";
+  import { useAccount } from "@/composition/useAccount";
+  import { useCurrentGame } from "@/composition/useCurrentGame";
+  import { useRest } from "@/composition/useRest";
+  import { useGame } from "@/composition/useGame";
+
+  const { post } = useRest();
+
+  const { account: user } = useAccount();
+  const { lastGameUpdate } = useCurrentGame();
+  const { loadGame, loadGamePlayers } = useGame();
 
   const { game, players, gameInfo }: GameContext = getContext("game");
   $: timer = $game.options.timing.timer;
@@ -44,7 +52,7 @@
 
   const leave = async () => {
     if (await confirm("Are you sure you want to leave this game?")) {
-      unjoinGame(gameId).then(() => navigate("/"), handleError);
+      post(`/game/${gameId}/unjoin`).then(() => navigate("/"), handleError);
     }
   };
 
@@ -64,7 +72,7 @@
       }
     }
 
-    joinGame(gameId).catch(handleError);
+    post(`/game/${gameId}/join`).catch(handleError);
   };
 
   let playerOrder: number[];
@@ -94,7 +102,7 @@
   $: canStart = $game.options.setup.nbPlayers === $game.players.length && !$game.ready && $user?._id === $game.creator;
 
   const start = () => {
-    startGame(gameId, { playerOrder: playerOrder.map((x) => $game.players[x]._id) }).catch(handleError);
+    post(`/game/${gameId}/start`, { playerOrder: playerOrder.map((x) => $game.players[x]._id) }).catch(handleError);
   };
 
   // Autorefresh when another player joins
@@ -102,7 +110,7 @@
     lastGameUpdate.subscribe(
       skipOnce(async () => {
         if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
-          const [g, p] = await Promise.all([loadGameData(gameId), loadGamePlayers(gameId)]);
+          const [g, p] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
 
           if ($game && gameId === g._id) {
             $game = g;

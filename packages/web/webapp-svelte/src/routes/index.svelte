@@ -1,7 +1,10 @@
 <script lang="ts" context="module">
-  import { get } from "@/api";
-
   export async function load() {
+    const { get } = useRest();
+    const { loadGameInfos } = useGameInfo();
+
+    await loadGameInfos();
+
     return {
       props: {
         announcement: await get("/site/announcement"),
@@ -13,8 +16,14 @@
 <script lang="ts">
   import { Col, Row } from "sveltestrap";
   import { GameList } from "@/components";
-  import { user, activeGames } from "@/store";
   import marked from "marked";
+  import { useRest } from "@/composition/useRest";
+  import { useActiveGames } from "@/composition/useActiveGames";
+  import { useAccount } from "@/composition/useAccount";
+  import { useGameInfo } from "@/composition/useGameInfo";
+
+  const { activeGames } = useActiveGames();
+  const { account } = useAccount();
 
   export let announcement: { title: string; content: string };
 </script>
@@ -22,7 +31,8 @@
 <div class="container">
   <div class="lead py-2" style="display: flex; flex-direction: column">
     <p class="text-center">
-      Play <b>Gaia Project</b> and <b>Container</b> online<br />Want to set up live games? Join the
+      Play <b>Gaia Project</b>, <b>Powergrid</b>, <b>6nimmt</b> and <b>Container</b> online<br />Want to set up live
+      games? Join the
       <a href="https://discord.gg/EgqK3rD">discord</a>!
     </p>
     <div class="mx-auto card border-info px-3 pb-3 d-block">
@@ -36,7 +46,7 @@
   <Row>
     <Col lg="6" class="mt-3">
       {#if $activeGames?.length}
-        <GameList gameStatus="active" userId={$user?._id} perPage={5} title="My games" />
+        <GameList gameStatus="active" userId={$account?._id} perPage={5} title="My games" />
       {:else}
         <GameList gameStatus="active" topRecords perPage={5} title="Featured games" />
       {/if}

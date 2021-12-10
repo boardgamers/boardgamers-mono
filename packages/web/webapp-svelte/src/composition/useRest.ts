@@ -105,5 +105,5 @@ export const useRest = defineStore(() => {
     );
   }
 
-  return { get, post, getAccessToken };
+  return { get, post, getAccessToken, setAccessToken };
 });

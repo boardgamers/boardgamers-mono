@@ -1,7 +1,7 @@
 import { get as $ } from "svelte/store";
-import { confirmAccount, get, loadAccount, loadAccountIfNeeded, setAuthTokens } from "./api";
+import { confirmAccount, get, loadAccount, setAuthTokens } from "./api";
 import type { RouteConfig } from "./modules/router";
-import { createRouter, navigate, route } from "./modules/router";
+import { route } from "./modules/router";
 import Account from "./pages/Account.svelte";
 import { ForgottenPassword, Login, ResetPassword, Signup } from "./pages/auth";
 import Boardgame from "./pages/Boardgame.svelte";
@@ -216,38 +216,3 @@ const routes: RouteConfig[] = [
     },
   },
 ];
-
-let routing = false;
-
-createRouter({
-  routes,
-  globalGuard: async (to) => {
-    routing = true;
-    await loadAccountIfNeeded().catch(handleError);
-    routing = false;
-
-    const $user = $(user);
-    if (to.meta.loggedOut && $user) {
-      console.log("trying to access " + to.path + " while logged in");
-      return to.query.redirect || "/account";
-    } else if (to.meta.loggedIn && !$user) {
-      return { name: "login", query: { redirect: to.fullPath } };
-    }
-
-    // continue to `to`
-  },
-});
-
-user.subscribe((user) => {
-  if (routing) {
-    return;
-  }
-
-  const $route = $(route);
-
-  if ($route?.meta.loggedIn && !user) {
-    navigate({ name: "login", query: { redirect: $route.path } });
-  } else if ($route?.meta.loggedOut && user && !$route.query.refreshToken) {
-    navigate($route.query.redirect || "/account");
-  }
-});

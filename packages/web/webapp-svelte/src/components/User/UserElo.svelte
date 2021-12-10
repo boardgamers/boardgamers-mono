@@ -1,11 +1,14 @@
 <script lang="ts">
-  import { boardgameInfo, get, loadBoardgame } from "@/api";
+  import { useGameInfo } from "@/composition/useGameInfo";
+  import { useRest } from "@/composition/useRest";
   import { handleError, pluralize } from "@/utils";
-
   import type { GamePreferences } from "@bgs/types";
   import { Icon } from "@cdk";
 
   export let userId: string;
+
+  const { get } = useRest();
+  const { gameInfo, loadGameInfo } = useGameInfo();
 
   let gamePreferences: GamePreferences[] = [];
 
@@ -17,12 +20,12 @@
   $: onUserIdChanged(), [userId];
 
   async function gameName(game: string): Promise<string> {
-    const info = boardgameInfo(game, "latest");
+    const info = gameInfo(game, "latest");
 
     if (!info) {
-      return loadBoardgame(game, "latest").then(
+      return loadGameInfo(game, "latest").then(
         () => gameName(game),
-        (err) => {
+        (err: Error) => {
           handleError(err);
           return "error";
         }

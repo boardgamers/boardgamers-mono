@@ -5,15 +5,22 @@
   import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
   import type { PlayerInfo } from "@bgs/types";
   import Portal from "@/modules/portal";
-  import { addActiveGame, playerStatus, removeActiveGame, user } from "@/store";
   import { Button, Icon, Badge } from "@/modules/cdk";
-  import { post } from "@/api";
   import { getContext, onDestroy } from "svelte";
   import { GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings } from "./GameSidebar";
   import type { GameContext } from "@/pages/Game.svelte";
   import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
+  import { useRest } from "@/composition/useRest";
+  import { useAccount } from "@/composition/useAccount";
+  import { useCurrentGame } from "@/composition/useCurrentGame";
+  import { useActiveGames } from "@/composition/useActiveGames";
 
   const { game, players, gameInfo }: GameContext = getContext("game");
+  const { post } = useRest();
+
+  const { account } = useAccount();
+  const { playerStatus } = useCurrentGame();
+  const { addActiveGame, removeActiveGame } = useActiveGames();
 
   let secondsCounter = 0;
 
@@ -26,7 +33,7 @@
 
   let requestedDrop: Record<string, boolean> = {};
 
-  $: userId = $user?._id;
+  $: userId = $account?._id;
   $: playerUser = $game?.players.find((pl) => pl._id === userId);
   $: gameId = $game?._id;
 
@@ -137,7 +144,7 @@
     </div>
   {/if}
   {#key $game.currentPlayers}
-    {#if $user && isCurrentPlayer($user._id)}
+    {#if $userId && isCurrentPlayer($userId)}
       <div class="mt-75">
         <b class="your-turn">Your turn!</b>
       </div>

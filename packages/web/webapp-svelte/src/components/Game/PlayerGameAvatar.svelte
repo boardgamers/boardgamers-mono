@@ -2,7 +2,9 @@
   import { browser } from "$app/env";
   import type { PlayerInfo } from "@bgs/types";
   import { classnames } from "@/utils";
-  import { user } from "@/store";
+  import { useAccount } from "@/composition/useAccount";
+
+  const { account } = useAccount();
 
   export let player: PlayerInfo;
   export let showVp = true;
@@ -17,7 +19,7 @@
     return browser ? CSS.supports("color", strColor) : false;
   }
 
-  $: highlightedPlayerId = userId ?? $user?._id;
+  $: highlightedPlayerId = userId ?? $account?._id;
   $: justColor = player.faction && isColor(player.faction);
   $: style = justColor
     ? `background-color: ${player.faction}`

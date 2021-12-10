@@ -1,15 +1,18 @@
 <script lang="ts">
-  import { latestBoardgames, loadBoardgames } from "@/api";
+  import { useGameInfo } from "@/composition/useGameInfo";
+  import { useLogoClicks } from "@/composition/useLogoClicks";
   import { ListGroup } from "@/modules/cdk";
   import { route, routePath } from "@/modules/router";
-  import { boardgames, logoClicks } from "@/store";
   import { handleError } from "@/utils";
   import type { GameInfo } from "@bgs/types";
 
-  loadBoardgames().catch(handleError);
+  const { loadGameInfos, gameInfos, latestGameInfos } = useGameInfo();
+  const { logoClick } = useLogoClicks();
+
+  loadGameInfos().catch(handleError);
 
   let games: GameInfo[];
-  $: (games = latestBoardgames() as GameInfo[]), [$boardgames];
+  $: (games = latestGameInfos() as GameInfo[]), [$gameInfos];
   $: boardgameId = $route!.params.boardgameId;
 
   function gameRoute(gameId: string) {
@@ -41,7 +44,7 @@
   function handleClick(event: MouseEvent & { currentTarget: HTMLAnchorElement }) {
     if (event.currentTarget.attributes.getNamedItem("href")!.value === "/refresh-games") {
       event.preventDefault();
-      logoClicks.update((v) => v + 1);
+      logoClick();
     }
   }
 </script>

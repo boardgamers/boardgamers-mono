@@ -7,8 +7,14 @@ import { useAccessTokens } from "./useAccessTokens";
 import { useRefreshToken } from "./useRefreshToken";
 import { useRest } from "./useRest";
 
+export type AuthData = {
+  user: IUser;
+  accessToken: { code: string; expiresAt: number };
+  refreshToken: { code: string; expiresAt: number };
+};
+
 export const useAccount = defineStore(() => {
-  const { get } = useRest();
+  const { get, setAccessToken, post } = useRest();
 
   const p = get<IUser | null>("/account").then((val) => account.set(val), handleError);
 
@@ -28,8 +34,27 @@ export const useAccount = defineStore(() => {
     );
   }
 
+  function setAuthData(data: AuthData) {
+    account.set(data.user);
+    refreshToken.set(data.refreshToken);
+    setAccessToken(data.accessToken);
+  }
+
+  function login(email: string, password: string) {
+    return post<AuthData>("/account/login", { email, password }).then(setAuthData);
+  }
+
+  async function logout() {
+    await post("/account/signout");
+
+    account.set(null);
+  }
+
   return {
     waitForAccount: p,
     account,
+    setAuthData,
+    login,
+    logout,
   };
 });
