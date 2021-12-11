@@ -151,9 +151,9 @@
 
 <style lang="postcss" global>
   .login-dp {
-    min-width: 250px;
-    padding: 14px 14px 0;
-    margin-top: 8px;
+    min-width: 250px !important;
+    padding: 14px 14px 0 !important;
+    margin-top: 8px !important;
     overflow: hidden;
     right: 0;
     background-color: rgba(255, 255, 255, 0.8);
