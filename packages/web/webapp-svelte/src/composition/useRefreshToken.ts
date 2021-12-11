@@ -7,7 +7,7 @@ import { useSession } from "./useSession";
 export type Token = { code: string; expiresAt: number };
 
 export const useRefreshToken = defineStore(() => {
-  const session = useSession();
+  const { session } = useSession();
 
   const refreshToken = writable<Token | null>(
     session.refreshToken
