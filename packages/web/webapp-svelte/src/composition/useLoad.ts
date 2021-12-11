@@ -1,5 +1,5 @@
 import type { LoadInput } from "@sveltejs/kit";
-import { loadSession, patchSession } from "./useSession";
+import { loadSession } from "./useSession";
 
 type ReturnTypes<T> = T extends [...infer U, infer A]
   ? A extends (...args: unknown[]) => unknown
@@ -14,9 +14,7 @@ export function useLoad<T1 extends (...args: unknown[]) => unknown, T2 extends (
   fn2: T2
 ): ReturnType<T1> & ReturnType<T2>;
 export function useLoad<T extends Array<(...args: unknown[]) => unknown>>(input: LoadInput, ...fns: T): ReturnTypes<T> {
-  input.session.fetch = input.fetch;
-
-  patchSession(input.session);
+  Object.defineProperty(input.session, "fetch", { enumerable: false, configurable: true, value: input.fetch });
 
   loadSession.set(input.session);
 

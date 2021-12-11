@@ -2,7 +2,8 @@ import { browser } from "$app/env";
 import { get as $ } from "svelte/store";
 import { defineStore } from "./defineStore";
 import { useAccessTokens } from "./useAccessTokens";
-import { Token, useRefreshToken } from "./useRefreshToken";
+import type { Token } from "./useRefreshToken";
+import { useRefreshToken } from "./useRefreshToken";
 import { useSession } from "./useSession";
 
 // todo : do not use hardcoded values
