@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from "vue-demi";
+import { pick } from "lodash";
 import { handleError, handleInfo } from "../utils";
 import VCard from "~cdk/VCard.vue";
 import VTextarea from "~/components/cdk/VTextarea.vue";
@@ -13,7 +14,7 @@ const serverInfo = ref<{ disk: { free: number; size: number }; nbUsers: number; 
 const gameId = ref("");
 const gameIds = ref("");
 const to = ref(0);
-const announcement = reactive({title: "", content: ""});
+const announcement = reactive({ title: "", content: "" });
 
 watch(gameId, async (gameId) => {
   to.value = await get(`/gameplay/${gameId}/length`);
@@ -47,7 +48,7 @@ function updateAnnouncement() {
 
 watch(serverInfo, (serverInfo) => {
   if (serverInfo?.announcement) {
-    Object.assign(announcement, serverInfo.announcement);
+    Object.assign(announcement, pick(serverInfo.announcement, Object.keys(announcement)));
   }
 });
 </script>

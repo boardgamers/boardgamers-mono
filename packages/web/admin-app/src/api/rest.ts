@@ -67,7 +67,7 @@ async function getResponseData<T = any>(response: Response): Promise<T> {
 export async function getAccessToken(url: string): Promise<Token | null> {
   const user = useUserStore();
 
-  if (!user.refreshToken) {
+  if (!user.refreshToken || user.refreshToken.expiresAt < Date.now()) {
     return null;
   }
 
