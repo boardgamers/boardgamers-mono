@@ -5,7 +5,7 @@
 </script>
 
 {#if loading}
-  <p class="text-center"><Spinner color="secondary" /></p>
+  <div class="text-center"><Spinner color="secondary" /></div>
 {:else}
   <slot />
 {/if}
