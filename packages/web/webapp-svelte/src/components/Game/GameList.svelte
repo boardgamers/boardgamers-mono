@@ -20,7 +20,7 @@
   export let gameStatus: IGame["status"];
   export let boardgameId: string | undefined = undefined;
   export let userId: string | undefined = undefined;
-  export let initial: LoadGamesResult | undefined = undefined;
+  export let initial: LoadGamesResult | undefined | false = undefined;
 
   let loadingGames = !initial;
   let count = initial ? initial.total : 0;

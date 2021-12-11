@@ -42,6 +42,7 @@
   import { useLoad } from "@/composition/useLoad";
   import { LoadGamesResult, useGames } from "@/composition/useGames";
   import { onMount } from "svelte";
+  import GameListSidebar from "@/components/Layout/GameListSidebar.svelte";
 
   const { activeGames } = useActiveGames();
   const { account } = useAccount();
@@ -55,47 +56,51 @@
   onMount(() => setTimeout(() => (loaded = true)));
 </script>
 
-<div class="container">
-  <div class="lead py-2" style="display: flex; flex-direction: column">
-    <p class="text-center">
-      Play <b>Gaia Project</b>, <b>Powergrid</b>, <b>6nimmt</b> and <b>Container</b> online<br />Want to set up live
-      games? Join the
-      <a href="https://discord.gg/EgqK3rD">discord</a>!
-    </p>
-    <div class="mx-auto card border-info px-3 pb-3 d-block">
-      <div class="text-center announcement-title py-1">{announcement?.title}</div>
-      <div class="text-start announcement-content">
-        {@html marked(announcement?.content)}
+<div class="d-flex">
+  <GameListSidebar />
+
+  <div class="container">
+    <div class="lead py-2" style="display: flex; flex-direction: column">
+      <p class="text-center">
+        Play <b>Gaia Project</b>, <b>Powergrid</b>, <b>6nimmt</b> and <b>Container</b> online<br />Want to set up live
+        games? Join the
+        <a href="https://discord.gg/EgqK3rD">discord</a>!
+      </p>
+      <div class="mx-auto card border-info px-3 pb-3 d-block">
+        <div class="text-center announcement-title py-1">{announcement?.title}</div>
+        <div class="text-start announcement-content">
+          {@html marked(announcement?.content)}
+        </div>
       </div>
     </div>
-  </div>
-  <Row>
-    <Col lg="6" class="mt-3">
-      {#if $activeGames?.length}
-        <GameList
-          initial={!loaded && firstGameInfo}
-          gameStatus="active"
-          userId={$account?._id}
-          perPage={5}
-          title="My games"
-        />
-      {:else}
-        <GameList
-          initial={!loaded && firstGameInfo}
-          gameStatus="active"
-          topRecords
-          perPage={5}
-          title="Featured games"
-        />
-      {/if}
-    </Col>
-    <Col lg="6" class="mt-3">
-      <GameList initial={!loaded && secondGameInfo} sample perPage={5} gameStatus="open" title="Lobby" />
-    </Col>
-  </Row>
-  <div class="text-center mt-3">
-    <a class="btn btn-secondary" href="/games" role="button">All games</a>
-    <a class="btn btn-primary ms-3" href="/new-game" role="button">New Game</a>
+    <Row>
+      <Col lg="6" class="mt-3">
+        {#if $activeGames?.length}
+          <GameList
+            initial={!loaded && firstGameInfo}
+            gameStatus="active"
+            userId={$account?._id}
+            perPage={5}
+            title="My games"
+          />
+        {:else}
+          <GameList
+            initial={!loaded && firstGameInfo}
+            gameStatus="active"
+            topRecords
+            perPage={5}
+            title="Featured games"
+          />
+        {/if}
+      </Col>
+      <Col lg="6" class="mt-3">
+        <GameList initial={!loaded && secondGameInfo} sample perPage={5} gameStatus="open" title="Lobby" />
+      </Col>
+    </Row>
+    <div class="text-center mt-3">
+      <a class="btn btn-secondary" href="/games" role="button">All games</a>
+      <a class="btn btn-primary ms-3" href="/new-game" role="button">New Game</a>
+    </div>
   </div>
 </div>
 

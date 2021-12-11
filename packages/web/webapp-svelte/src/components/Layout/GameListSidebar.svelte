@@ -1,8 +1,8 @@
 <script lang="ts">
+  import { page } from "$app/stores";
   import { useGameInfo } from "@/composition/useGameInfo";
   import { useLogoClicks } from "@/composition/useLogoClicks";
   import { ListGroup } from "@/modules/cdk";
-  import { route, routePath } from "@/modules/router";
   import { handleError } from "@/utils";
   import type { GameInfo } from "@bgs/types";
 
@@ -13,32 +13,21 @@
 
   let games: GameInfo[];
   $: (games = latestGameInfos() as GameInfo[]), [$gameInfos];
-  $: boardgameId = $route!.params.boardgameId;
+  $: boardgameId = $page!.params.boardgameId;
 
   function gameRoute(gameId: string) {
-    if (gameId === boardgameId) {
-      if ($route!.name === "boardgame") {
+    if (gameId === boardgameId || !boardgameId) {
+      if ($page!.path === "/boardgame/" + gameId) {
         return "/refresh-games";
       } else {
-        return routePath({
-          name: "boardgame",
-          params: { boardgameId: gameId },
-        });
+        return "/boardgame/" + gameId;
       }
     }
 
-    if (!boardgameId) {
-      return routePath({
-        name: "boardgame",
-        params: { boardgameId: gameId },
-      });
-    }
-
-    return routePath({
-      name: $route!.name,
-      hash: $route!.hash,
-      params: { ...$route!.params, boardgameId: gameId },
-    });
+    return (
+      $page.path.replace(`/boardgame/${boardgameId}/`, `/boardgame/${gameId}/`) +
+      ($page.query.toString() && "?" + $page.query.toString())
+    );
   }
 
   function handleClick(event: MouseEvent & { currentTarget: HTMLAnchorElement }) {
