@@ -43,7 +43,6 @@
       </div>
     </div>
   </div>
-
   <Row>
     <Col lg="6" class="mt-3">
       {#if $activeGames?.length}

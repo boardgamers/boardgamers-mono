@@ -1,4 +1,3 @@
-import { browser } from "$app/env";
 import { get as $ } from "svelte/store";
 import { defineStore } from "./defineStore";
 import { useAccessTokens } from "./useAccessTokens";
@@ -7,7 +6,9 @@ import { useRefreshToken } from "./useRefreshToken";
 import { useSession } from "./useSession";
 
 // todo : do not use hardcoded values
-const baseUrl = browser ? "/api" : "http://localhost:3000/api";
+// using an "external" url is needed to trigger externalFetch
+// & hydrating the content instead of making two requests
+const baseUrl = "http://localhost:3000/api";
 
 async function getResponseData<T>(response: Response): Promise<T> {
   const body = response.headers.get("content-type")?.startsWith("application/json")
