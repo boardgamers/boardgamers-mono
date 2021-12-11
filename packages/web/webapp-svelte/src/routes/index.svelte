@@ -1,7 +1,6 @@
 <script lang="ts" context="module">
   export async function load(input: LoadInput) {
-    const { get } = useRest();
-    const { loadGameInfos } = useGameInfo();
+    const { get, loadGameInfos } = useLoad(input, ...([useRest, useGameInfo] as const));
 
     await loadGameInfos();
 
@@ -22,6 +21,7 @@
   import { useAccount } from "@/composition/useAccount";
   import { useGameInfo } from "@/composition/useGameInfo";
   import type { LoadInput } from "@sveltejs/kit";
+  import { useLoad } from "@/composition/useLoad";
 
   const { activeGames } = useActiveGames();
   const { account } = useAccount();

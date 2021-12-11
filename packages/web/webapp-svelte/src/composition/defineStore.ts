@@ -1,4 +1,4 @@
-import { useSession } from "./useSession";
+import { patchSession, useSession } from "./useSession";
 
 export function defineStore<T>(fn: () => T): () => T {
   return () => {
@@ -6,6 +6,8 @@ export function defineStore<T>(fn: () => T): () => T {
 
     if (!session.stores) {
       session.stores = new Map();
+
+      patchSession(session);
     }
 
     if (!session.stores.has(fn)) {
