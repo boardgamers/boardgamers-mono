@@ -2,19 +2,16 @@
   import { browser } from "$app/env";
   import { timerTime, defer, duration, niceDate } from "@/utils";
   import type { IGame } from "@bgs/types";
-  import { onDestroy } from "svelte";
-  import { createWatcher, skipOnce } from "@/utils/watch";
+  import { createWatcher } from "@/utils/watch";
   import { Badge, Icon, Pagination, Loading, Row } from "@/modules/cdk";
   import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
   import { useLogoClicks } from "@/composition/useLogoClicks";
-  import { useAccount } from "@/composition/useAccount";
-  import { useRest } from "@/composition/useRest";
   import { useGameInfo } from "@/composition/useGameInfo";
+  import { LoadGamesResult, useGames } from "@/composition/useGames";
 
   const { logoClicks } = useLogoClicks();
-  const { account } = useAccount();
-  const { get } = useRest();
   const { loadGameInfos, gameInfo } = useGameInfo();
+  const { loadGames } = useGames();
 
   export let title = "Games";
   export let perPage = 10;
@@ -23,32 +20,34 @@
   export let gameStatus: IGame["status"];
   export let boardgameId: string | undefined = undefined;
   export let userId: string | undefined = undefined;
+  export let initial: LoadGamesResult | undefined = undefined;
 
-  let loadingGames = true;
-  let count = 0;
+  let loadingGames = !initial;
+  let count = initial ? initial.total : 0;
   let currentPage = 0;
-  let games: IGame[] = [];
+  let games: IGame[] = initial ? initial.games : [];
 
-  const loadGames = defer(
+  const load = defer(
     async (refresh: boolean) => {
-      const queryParams = {
+      loadingGames = true;
+
+      const fetchCount = refresh && !topRecords && !sample;
+
+      const result = await loadGames({
+        gameStatus,
+        boardgameId,
+        userId,
+        sample,
         count: perPage,
         skip: currentPage * perPage,
-        ...(sample && { sample: true }),
-        ...(userId && { user: userId }),
-        ...(boardgameId && { boardgame: boardgameId }),
-        ...(gameStatus === "open" && !!$account?._id && { maxKarma: $account!.account.karma }),
-      };
+        fetchCount,
+      });
 
-      if (refresh) {
-        loadingGames = true;
+      games = result.games;
 
-        if (!sample && !topRecords) {
-          count = await get<number>(`/game/status/${gameStatus}/count`, queryParams);
-        }
+      if (fetchCount) {
+        count = result.total;
       }
-
-      games = await get(`/game/status/${gameStatus}`, queryParams);
 
       // TODO: only load boardgames present in games
       await loadGameInfos();
@@ -82,18 +81,10 @@
     return game?.label.trim().slice(0, game?.label.trim().indexOf(" "));
   }
 
-  // Refresh game list each time logo is clicked
-  onDestroy(
-    logoClicks.subscribe(
-      skipOnce(() => {
-        loadGames(true);
-      })
-    )
-  );
+  const onCurrentPageChanged = createWatcher(() => load(false));
+  const reloadForcefully = createWatcher(() => browser && load(true), { immediate: !initial });
 
-  const onCurrentPageChanged = createWatcher(() => loadGames(false));
-
-  $: browser && loadGames(true), [userId, boardgameId];
+  $: reloadForcefully(), [userId, boardgameId, logoClicks];
   $: onCurrentPageChanged(), [currentPage];
 </script>
 

@@ -13,10 +13,10 @@
           <a href="mailto:contact@boardgamers.space" class="text-muted">Contact</a>
         </div>
         <div class="col-auto">
-          <a href="/page/source" class="text-muted">Source</a>
+          <a sveltekit:prefetch href="/page/source" class="text-muted">Source</a>
         </div>
         <div class="col-auto">
-          <a href="/page/privacy-policy" class="text-muted">Privacy policy</a>
+          <a sveltekit:prefetch href="/page/privacy-policy" class="text-muted">Privacy policy</a>
         </div>
       </div>
     </div>

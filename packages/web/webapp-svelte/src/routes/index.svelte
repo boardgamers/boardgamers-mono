@@ -1,12 +1,30 @@
 <script lang="ts" context="module">
-  export async function load(input: LoadInput) {
-    const { get, loadGameInfos } = useLoad(input, useRest, useGameInfo);
+  import { get as storeGet } from "svelte/store";
 
-    await loadGameInfos();
+  export async function load(input: LoadInput) {
+    const { get, loadGameInfos, activeGames, loadGames, account } = useLoad(
+      input,
+      useRest,
+      useGameInfo,
+      useActiveGames,
+      useGames,
+      useAccount
+    );
+
+    const firstGames = loadGames({
+      gameStatus: "active",
+      count: 5,
+      ...(storeGet(activeGames).length > 0 ? { userId: storeGet(account)?._id } : { fetchCount: false }),
+    });
+    const secondGames = loadGames({ sample: true, gameStatus: "open", count: 5 });
+
+    const [firstGameInfo, secondGameInfo] = await Promise.all([firstGames, secondGames, loadGameInfos()]);
 
     return {
       props: {
         announcement: await get("/site/announcement"),
+        firstGameInfo,
+        secondGameInfo,
       },
     };
   }
@@ -22,11 +40,19 @@
   import { useGameInfo } from "@/composition/useGameInfo";
   import type { LoadInput } from "@sveltejs/kit";
   import { useLoad } from "@/composition/useLoad";
+  import { LoadGamesResult, useGames } from "@/composition/useGames";
+  import { onMount } from "svelte";
 
   const { activeGames } = useActiveGames();
   const { account } = useAccount();
 
   export let announcement: { title: string; content: string };
+  export let firstGameInfo: LoadGamesResult;
+  export let secondGameInfo: LoadGamesResult;
+
+  let loaded = false;
+
+  onMount(() => setTimeout(() => (loaded = true)));
 </script>
 
 <div class="container">
@@ -46,13 +72,25 @@
   <Row>
     <Col lg="6" class="mt-3">
       {#if $activeGames?.length}
-        <GameList gameStatus="active" userId={$account?._id} perPage={5} title="My games" />
+        <GameList
+          initial={!loaded && firstGameInfo}
+          gameStatus="active"
+          userId={$account?._id}
+          perPage={5}
+          title="My games"
+        />
       {:else}
-        <GameList gameStatus="active" topRecords perPage={5} title="Featured games" />
+        <GameList
+          initial={!loaded && firstGameInfo}
+          gameStatus="active"
+          topRecords
+          perPage={5}
+          title="Featured games"
+        />
       {/if}
     </Col>
     <Col lg="6" class="mt-3">
-      <GameList sample perPage={5} gameStatus="open" title="Lobby" />
+      <GameList initial={!loaded && secondGameInfo} sample perPage={5} gameStatus="open" title="Lobby" />
     </Col>
   </Row>
   <div class="text-center mt-3">
