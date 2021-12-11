@@ -16,7 +16,12 @@ export type AuthData = {
 export const useAccount = defineStore(() => {
   const { get, setAccessToken, post } = useRest();
 
-  const p = get<IUser | null>("/account").then((val) => account.set(val), handleError);
+  const loadAccount = async () => {
+    return get<IUser | null>("/account").then(
+      (val) => account.set(val),
+      (err) => (err.status !== 404 ? handleError(err) : void 0)
+    );
+  };
 
   const account = writable<IUser | null>(null);
 
@@ -51,7 +56,7 @@ export const useAccount = defineStore(() => {
   }
 
   return {
-    waitForAccount: p,
+    loadAccount,
     account,
     setAuthData,
     login,

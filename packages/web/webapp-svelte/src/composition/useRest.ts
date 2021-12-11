@@ -16,7 +16,10 @@ async function getResponseData<T>(response: Response): Promise<T> {
     : await response.text();
 
   if (response.status >= 400) {
-    throw body;
+    const err = new Error(body);
+
+    (err as any).status = response.status;
+    throw err;
   }
 
   return body;

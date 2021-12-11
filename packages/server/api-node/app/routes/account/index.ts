@@ -14,7 +14,9 @@ const router = new Router<Application.DefaultState, Context>();
 router.use("/auth", auth.routes(), auth.allowedMethods());
 
 router.get("/", (ctx) => {
-  ctx.body = ctx.state.user;
+  if (ctx.state.user) {
+    ctx.body = ctx.state.user;
+  }
 });
 
 router.post("/", loggedIn, async (ctx) => {

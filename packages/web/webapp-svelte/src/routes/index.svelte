@@ -1,6 +1,6 @@
 <script lang="ts" context="module">
   export async function load(input: LoadInput) {
-    const { get, loadGameInfos } = useLoad(input, ...([useRest, useGameInfo] as const));
+    const { get, loadGameInfos } = useLoad(input, useRest, useGameInfo);
 
     await loadGameInfos();
 
