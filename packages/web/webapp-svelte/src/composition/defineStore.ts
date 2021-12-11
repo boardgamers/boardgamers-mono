@@ -1,9 +1,8 @@
-import { getStores } from "$app/stores";
-import { get as $ } from "svelte/store";
+import { useSession } from "./useSession";
 
 export function defineStore<T>(fn: () => T): () => T {
   return () => {
-    const session = $(getStores().session) as { stores: Map<unknown, unknown> };
+    const session = useSession();
 
     if (!session.stores) {
       session.stores = new Map();

@@ -4,6 +4,7 @@ export type Session = {
   ssr: boolean;
   refreshToken: string | undefined;
   fetch: typeof fetch;
+  stores?: Map<unknown, unknown>;
 };
 
 export function getSession(request: { headers: Record<string, string> }): Session {

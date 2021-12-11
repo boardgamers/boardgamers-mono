@@ -6,19 +6,25 @@
   import { CardText, FormGroup, Input } from "@/modules/cdk";
   import Checkbox from "@/modules/cdk/Checkbox.svelte";
   import Loading from "@/modules/cdk/Loading.svelte";
-  import { loadGameSettings } from "@/api/gamesettings";
-  import { developerSettings, devGameSettings, gameSettings } from "@/store";
-  import { boardgameKey, post } from "@/api";
   import PreferencesChooser from "./PreferencesChooser.svelte";
+  import { useRest } from "@/composition/useRest";
+  import { useGameInfo } from "@/composition/useGameInfo";
+  import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
+  import { useGamePreferences } from "@/composition/useGamePreferences";
+
+  const { post } = useRest();
+  const { gameInfoKey } = useGameInfo();
+  const { developerSettings, devGameSettings } = useDeveloperSettings();
+  const { gamePreferences, loadGamePreferences } = useGamePreferences();
 
   export let title = "";
   export let game: GameInfo;
   let className = "";
   export { className as class };
 
-  $: loadGameSettings(game._id.game);
+  $: loadGamePreferences(game._id.game);
 
-  $: prefs = $gameSettings[game._id.game];
+  $: prefs = $gamePreferences[game._id.game];
 
   $: ownership = prefs?.access?.ownership ?? false;
 
@@ -46,9 +52,9 @@
   }
 
   $: classes = classnames(className, "border-secondary");
-  $: key = boardgameKey(game._id.game, game._id.version);
+  $: key = gameInfoKey(game._id.game, game._id.version);
 
-  let customViewerUrl = $devGameSettings[boardgameKey(game._id.game, game._id.version)]?.viewerUrl;
+  let customViewerUrl = $devGameSettings[gameInfoKey(game._id.game, game._id.version)]?.viewerUrl;
 
   function updateDevSettings() {
     set($devGameSettings, `${key}.viewerUrl`, customViewerUrl);

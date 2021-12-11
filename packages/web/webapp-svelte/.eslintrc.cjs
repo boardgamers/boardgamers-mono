@@ -8,6 +8,9 @@ module.exports = {
   settings: {
     "svelte3/typescript": () => require("typescript"),
   },
+  rules: {
+    "@typescript-eslint/ban-types": ["off"],
+  },
   parserOptions: {
     sourceType: "module",
     ecmaVersion: 2019,
