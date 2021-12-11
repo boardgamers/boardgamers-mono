@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { browser } from "$app/env";
   import { timerTime, defer, duration, niceDate } from "@/utils";
   import type { IGame } from "@bgs/types";
   import { onDestroy } from "svelte";
@@ -92,7 +93,7 @@
 
   const onCurrentPageChanged = createWatcher(() => loadGames(false));
 
-  $: loadGames(true), [userId, boardgameId];
+  $: browser && loadGames(true), [userId, boardgameId];
   $: onCurrentPageChanged(), [currentPage];
 </script>
 

@@ -6,7 +6,7 @@ export const useGame = defineStore(() => {
   const { get } = useRest();
 
   function loadGame(gameId: string) {
-    return get<IGame>(`/gameplay/${$(gameId)}`);
+    return get<IGame>(`/gameplay/${gameId}`);
   }
 
   function loadGamePlayers(gameId: string): Promise<PlayerInfo[]> {

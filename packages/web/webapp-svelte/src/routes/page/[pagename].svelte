@@ -1,8 +1,9 @@
 <script lang="ts" context="module">
-  import { get } from "@/api";
   import type { LoadInput } from "@sveltejs/kit";
 
   export async function load(input: LoadInput) {
+    const { get } = useLoad(input, useRest);
+
     return {
       props: {
         pageContent: await get(`/page/${input.page.params.pagename}`),
@@ -14,6 +15,8 @@
 <script lang="ts">
   import type { Page as IPage } from "@bgs/types";
   import Page from "@/components/Page.svelte";
+  import { useLoad } from "@/composition/useLoad";
+  import { useRest } from "@/composition/useRest";
 
   export let pageContent: Partial<IPage>;
 </script>

@@ -1,7 +1,6 @@
 <script context="module" lang="ts">
   import type { Writable } from "svelte/store";
   import type { LoadInput } from "@sveltejs/kit";
-  import { boardgameInfo, loadBoardgame, loadGamePlayers, loadGameData } from "@/api";
 
   export type GameContext = {
     game: Writable<IGame>;
@@ -13,16 +12,18 @@
   };
 
   export async function load(input: LoadInput) {
+    const { gameInfo, loadGame, loadGamePlayers, loadGameInfo } = useLoad(input, useGameInfo, useGame);
+
     const gameId = input.page.params.gameId;
 
-    const [game, players] = await Promise.all([loadGameData(gameId), loadGamePlayers(gameId)]);
-    await loadBoardgame(game.game.name, game.game.version);
+    const [game, players] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
+    await loadGameInfo(game.game.name, game.game.version);
 
     return {
       props: {
         game,
         players,
-        gameInfo: boardgameInfo(game.game.name, game.game.version),
+        gameInfo: gameInfo(game.game.name, game.game.version),
       },
     };
   }
@@ -30,11 +31,18 @@
 
 <script lang="ts">
   import { GameSidebar, OpenGame, StartedGame, ChatRoom } from "@/components";
-  import { currentGameId, currentRoom } from "@/store";
   import type { IGame, PlayerInfo, GameInfo } from "@bgs/types";
   import { onDestroy, setContext } from "svelte";
   import { writable } from "svelte/store";
   import EventEmitter from "eventemitter3";
+  import { useLoad } from "@/composition/useLoad";
+  import { useGameInfo } from "@/composition/useGameInfo";
+  import { useGame } from "@/composition/useGame";
+  import { useCurrentGame } from "@/composition/useCurrentGame";
+  import { useCurrentRoom } from "@/composition/useCurrentRoom";
+
+  const { currentGameId } = useCurrentGame();
+  const { room: currentRoom } = useCurrentRoom();
 
   export let game: IGame;
   export let players: PlayerInfo[];

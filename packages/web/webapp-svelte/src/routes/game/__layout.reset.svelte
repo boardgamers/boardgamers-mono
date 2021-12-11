@@ -1,3 +1,13 @@
+<script context="module" lang="ts">
+  export async function load(input: LoadInput) {
+    const { waitForAccount } = useLoad(input, useAccount);
+
+    await waitForAccount;
+
+    return {};
+  }
+</script>
+
 <script lang="ts">
   // todo: check if imports can be all done within style.css
   import "bootstrap-icons/font/bootstrap-icons.css";
@@ -5,7 +15,11 @@
   import "../../style.css";
 
   import { Appbar, Footer, Sidebar } from "@/components";
-  import { activeGames } from "@/store";
+  import { useActiveGames } from "@/composition/useActiveGames";
+  import { useLoad } from "@/composition/useLoad";
+  import { useAccount } from "@/composition/useAccount";
+  import type { LoadInput } from "@sveltejs/kit";
+  const { activeGames } = useActiveGames();
 </script>
 
 <svelte:head>
