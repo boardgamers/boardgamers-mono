@@ -2,16 +2,12 @@ import { useSession } from "./useSession";
 
 export function defineStore<T>(fn: () => T): () => T {
   return () => {
-    const session = useSession();
+    const { data } = useSession();
 
-    if (!session.stores) {
-      Object.defineProperty(session, "stores", { enumerable: false, value: new Map() });
+    if (!data.stores!.has(fn)) {
+      data.stores!.set(fn, fn());
     }
 
-    if (!session.stores!.has(fn)) {
-      session.stores!.set(fn, fn());
-    }
-
-    return session.stores!.get(fn) as T;
+    return data.stores!.get(fn) as T;
   };
 }

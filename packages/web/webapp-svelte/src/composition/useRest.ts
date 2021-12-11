@@ -26,7 +26,7 @@ function transformUrl(url: string) {
 }
 
 export const useRest = defineStore(() => {
-  const fetch = useSession().fetch;
+  const fetch = useSession().data.fetch;
   const refreshToken = useRefreshToken();
   const accessTokens = useAccessTokens();
 

@@ -10,9 +10,11 @@ export const useRefreshToken = defineStore(() => {
   const session = useSession();
 
   const refreshToken = writable<Token | null>(
-    session.refreshToken ||
-      extractCookie("refreshToken", document.cookie) ||
-      JSON.parse(localStorage.getItem("refreshToken") ?? "null")
+    session.refreshToken
+      ? session.refreshToken
+      : browser
+      ? extractCookie("refreshToken", document.cookie) || JSON.parse(localStorage.getItem("refreshToken") ?? "null")
+      : null
   );
 
   if (browser) {

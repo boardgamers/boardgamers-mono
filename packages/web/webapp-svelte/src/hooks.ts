@@ -3,8 +3,6 @@ import { extractCookie } from "./utils/extract-cookie";
 export type Session = {
   ssr: boolean;
   refreshToken: string | undefined;
-  fetch: typeof fetch;
-  stores?: Map<unknown, unknown>;
 };
 
 export function getSession(request: { headers: Record<string, string> }): Session {
@@ -12,6 +10,5 @@ export function getSession(request: { headers: Record<string, string> }): Sessio
   return {
     ssr: true,
     refreshToken: refreshToken && JSON.parse(refreshToken),
-    fetch: null as unknown as typeof fetch,
   };
 }
