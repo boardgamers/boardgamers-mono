@@ -69,6 +69,17 @@ router.get("/:boardgame/elo", async (ctx) => {
       },
     },
     {
+      $sort: {
+        "elo.value": -1,
+      },
+    },
+    {
+      $skip: skipCount(ctx),
+    },
+    {
+      $limit: queryCount(ctx),
+    },
+    {
       $lookup: {
         from: "users",
         localField: "user",
@@ -77,20 +88,16 @@ router.get("/:boardgame/elo", async (ctx) => {
       },
     },
     {
-      $sort: {
-        "elo.value": -1,
-      },
+      $unwind: "$userData",
     },
     {
       $project: {
         elo: 1,
         "access.ownership": 1,
-        "userData.account.username": 1,
+        "user.name": "$userData.account.username",
       },
     },
-  ])
-    .skip(skipCount(ctx))
-    .limit(queryCount(ctx));
+  ]);
 });
 
 router.get("/:boardgame/elo/count", async (ctx) => {

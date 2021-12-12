@@ -1,3 +1,35 @@
+<script context="module" lang="ts">
+  export async function load(input: LoadInput) {
+    const boardgameId = input.page.params.boardgameId;
+    const { account, loadGames, loadEloRankings } = useLoad(input, useGames, useAccount, useEloRankings);
+
+    const featuredGames = loadGames({
+      gameStatus: "active",
+      count: 5,
+      boardgameId,
+      fetchCount: false,
+    });
+
+    const myGames = loadGames({
+      gameStatus: "active",
+      count: 5,
+      boardgameId,
+      userId: storeGet(account)?._id,
+    });
+
+    const lobbyGames = loadGames({ sample: true, gameStatus: "open", boardgameId, count: 5 });
+
+    const [featured, my, lobby, rankings] = await Promise.all([
+      featuredGames,
+      myGames,
+      lobbyGames,
+      loadEloRankings({ boardgameId, count: 7, fetchCount: false }),
+    ]);
+
+    return { props: { featured, my, lobby, rankings } };
+  }
+</script>
+
 <script lang="ts">
   import { confirm, handleError } from "@/utils";
   import marked from "marked";
@@ -9,6 +41,11 @@
   import { useGamePreferences } from "@/composition/useGamePreferences";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
+  import type { LoadInput } from "@sveltejs/kit";
+  import { useLoad } from "@/composition/useLoad";
+  import { LoadGamesResult, useGames } from "@/composition/useGames";
+  import { get as storeGet } from "svelte/store";
+  import { LoadEloRankingsResult, useEloRankings } from "@/composition/useEloRankings";
 
   const { accountId } = useAccount();
   const { gameInfos, gameInfo, loadGameInfo } = useGameInfo();
@@ -17,6 +54,12 @@
   $: boardgameId = $page.params.boardgameId;
 
   let boardgame: GameInfo;
+
+  export let my: LoadGamesResult;
+  export let featured: LoadGamesResult;
+  export let lobby: LoadGamesResult;
+  export let rankings: LoadEloRankingsResult;
+  let rules = false;
 
   const onUserChanged = () => {
     loadGameInfo(boardgameId, "latest").catch(handleError);
@@ -38,8 +81,6 @@
       goto(`/new-game/${boardgameId}`);
     }
   }
-
-  $: rules = $page.query.get("infobox") === "rules";
 </script>
 
 <svelte:head>
@@ -54,9 +95,9 @@
       <Col>
         <Card class="border-secondary h-100" header={rules ? "Rules" : "Description"}>
           {@html marked(rules ? boardgame.rules : boardgame.description)}
-          <a slot="footer" href={`?infobox=${rules ? "description" : "rules"}`}
-            >{rules ? "See description" : "See rules"}</a
-          >
+          <a slot="footer" href={rules ? "#description" : "#rules"} on:click|preventDefault={() => (rules = !rules)}>
+            {rules ? "See description" : "See rules"}
+          </a>
         </Card>
       </Col>
       <Col>
@@ -68,15 +109,16 @@
       <Col lg={6} class="mt-3">
         <GameList
           {boardgameId}
+          initial={my}
           gameStatus="active"
           userId={$accountId}
           sample
           perPage={5}
-          title={$accountId ? "My games" : "Featured games"}
+          title="My games"
         />
       </Col>
       <Col lg={6} class="mt-3">
-        <GameList sample perPage={5} {boardgameId} gameStatus="open" title="Lobby" />
+        <GameList initial={lobby} sample perPage={5} {boardgameId} gameStatus="open" title="Lobby" />
       </Col>
     </Row>
 
@@ -88,13 +130,13 @@
 
     <Row>
       <Col lg={6} class="mt-3">
-        <GameList gameStatus="active" {boardgameId} topRecords perPage={5} title="Featured games" />
+        <GameList gameStatus="active" initial={featured} {boardgameId} topRecords perPage={5} title="Featured games" />
         <!-- <h3>Tournaments</h3>
         <p> No Tournament info available </p> -->
       </Col>
       <Col lg={6} class="mt-3">
         <!-- Todo: show rank of current player if possible with mongodb in an optimized way in the list -->
-        <BoardgameElo {boardgameId} top perPage={7} />
+        <BoardgameElo initial={rankings} {boardgameId} top perPage={7} />
       </Col>
     </Row>
   </Loading>
