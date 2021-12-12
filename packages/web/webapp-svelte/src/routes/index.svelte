@@ -43,6 +43,7 @@
   import { LoadGamesResult, useGames } from "@/composition/useGames";
   import { onMount } from "svelte";
   import GameListSidebar from "@/components/Layout/GameListSidebar.svelte";
+  import { tick } from "svelte";
 
   const { activeGames } = useActiveGames();
   const { account } = useAccount();
@@ -53,7 +54,7 @@
 
   let loaded = false;
 
-  onMount(() => setTimeout(() => (loaded = true)));
+  onMount(() => tick().then(() => (loaded = true)));
 </script>
 
 <div class="d-flex">

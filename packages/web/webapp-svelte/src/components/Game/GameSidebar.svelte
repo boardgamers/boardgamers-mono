@@ -144,7 +144,7 @@
     </div>
   {/if}
   {#key $game.currentPlayers}
-    {#if $userId && isCurrentPlayer($userId)}
+    {#if userId && isCurrentPlayer(userId)}
       <div class="mt-75">
         <b class="your-turn">Your turn!</b>
       </div>
