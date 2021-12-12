@@ -1,4 +1,4 @@
-export function timerTime(value: number) {
+export function timerTime(value: number): string {
   const d = new Date();
   const date = new Date(d.setHours(0, 0, 0, 0) - d.getTimezoneOffset() * 60000 + value * 1000);
 
@@ -55,11 +55,11 @@ const timeRanges = [
   },
 ];
 
-export function pluralize(count: number, str: string, { showCount = true } = { showCount: true }) {
+export function pluralize(count: number, str: string, { showCount = true } = { showCount: true }): string {
   return showCount ? `${count} ${str}${+count >= 2 ? "s" : ""}` : `${str}${+count >= 2 ? "s" : ""}`;
 }
 
-export function duration(seconds: number) {
+export function duration(seconds: number): string {
   for (let i = 0; i < timeRanges.length; i++) {
     if (i === timeRanges.length - 1 || timeRanges[i + 1].value > seconds) {
       const n = seconds / timeRanges[i].value;
@@ -79,9 +79,11 @@ export function duration(seconds: number) {
       return pluralize(Math.floor(n), timeRanges[i].name);
     }
   }
+
+  return ">o>";
 }
 
-export function shortDuration(seconds: number) {
+export function shortDuration(seconds: number): string | undefined {
   for (let i = 0; i < timeRanges.length; i++) {
     if (i === timeRanges.length - 1 || timeRanges[i + 1].value > seconds) {
       const n = seconds / timeRanges[i].value;
@@ -103,19 +105,21 @@ export function shortDuration(seconds: number) {
       return pluralize(Math.floor(n), timeRanges[i].name);
     }
   }
+
+  return "<o<";
 }
 
-export function dateFromObjectId(objectId: string) {
+export function dateFromObjectId(objectId: string): Date {
   return new Date(parseInt(objectId.substring(0, 8), 16) * 1000);
 }
 
-export function dateTime(date: Date) {
+export function dateTime(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(
     2,
     "0"
   )} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
-export function localTimezone() {
-  return new window.Intl.DateTimeFormat().resolvedOptions().timeZone;
+export function localTimezone(): string {
+  return typeof window === "undefined" ? "Europe/Paris" : new window.Intl.DateTimeFormat().resolvedOptions().timeZone;
 }

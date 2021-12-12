@@ -2,7 +2,7 @@
   import { get as storeGet } from "svelte/store";
 
   export async function load(input: LoadInput) {
-    const { get, loadGameInfos, activeGames, loadGames, account } = useLoad(
+    const { get, loadGameInfos, activeGames, loadGames, accountId } = useLoad(
       input,
       useRest,
       useGameInfo,
@@ -14,7 +14,7 @@
     const firstGames = loadGames({
       gameStatus: "active",
       count: 5,
-      ...(storeGet(activeGames).length > 0 ? { userId: storeGet(account)?._id } : { fetchCount: false }),
+      ...(storeGet(activeGames).length > 0 ? { userId: storeGet(accountId) } : { fetchCount: false }),
     });
     const secondGames = loadGames({ sample: true, gameStatus: "open", count: 5 });
 

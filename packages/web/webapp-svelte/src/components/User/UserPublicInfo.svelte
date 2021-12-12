@@ -14,6 +14,6 @@
 
 <Card class={classes} header="About">
   ☯️ <a href="/page/karma" title="karma">{user.account.karma}</a> karma <br />
-  🎉 Joined us in {joinDate.toLocaleString("default", { month: "long" })}
+  🎉 Joined us in {joinDate.toLocaleString("en", { month: "long" })}
   {joinDate.toLocaleString("default", { year: "numeric" })}!
 </Card>
