@@ -4,8 +4,8 @@
   import { Loading } from "@/modules/cdk";
   import { navigate } from "@/modules/router";
   import type { GameContext } from "@/pages/Game.svelte";
-  import { handleError, skipOnce } from "@/utils";
-  import { getContext, onDestroy } from "svelte";
+  import { createWatcher, handleError } from "@/utils";
+  import { getContext, onDestroy, onMount } from "svelte";
   import { useGame } from "@/composition/useGame";
   import { useRest } from "@/composition/useRest";
   import { useGamePreferences } from "@/composition/useGamePreferences";
@@ -66,15 +66,13 @@
 
   $: onSrcChanged(), [src];
 
-  onDestroy(
-    lastGameUpdate.subscribe(
-      skipOnce(() => {
-        if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
-          postUpdatePresent();
-        }
-      })
-    )
-  );
+  const onGameUpdated = createWatcher(() => {
+    if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
+      postUpdatePresent();
+    }
+  });
+
+  $: onGameUpdated(), [lastGameUpdate];
 
   function postGamedata() {
     gameIframe?.contentWindow?.postMessage({ type: "state", state: $game.data }, "*");
@@ -170,6 +168,11 @@
       postGameLog(log);
     }
   }
+
+  // During SSR the iframe is ready before we are
+  onMount(() => {
+    gameIframe?.contentWindow?.postMessage({ type: "askReady" }, "*");
+  });
 </script>
 
 <svelte:window on:message={handleGameMessage} />

@@ -57,6 +57,11 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
               gameObj.emit('state', event.data.state);
               break;
             }
+            case 'askReady': {
+              console.log('parent asks if ready');
+              parent.postMessage({type: 'gameReady'}, '*');
+              break;
+            }
             case 'state:updated': {
               console.log('receiving state:updated event');
               gameObj.emit('state:updated');
