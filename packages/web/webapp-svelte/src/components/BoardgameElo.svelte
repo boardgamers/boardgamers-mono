@@ -1,7 +1,6 @@
 <script lang="ts">
   import { useRest } from "@/composition/useRest";
   import { Loading, Pagination } from "@/modules/cdk";
-  import { routePath } from "@/modules/router";
   import { createWatcher, handleError, pluralize } from "@/utils";
 
   const { get } = useRest();
@@ -41,7 +40,7 @@
 
   const onPageChange = createWatcher(() => load(false));
 
-  $: onPageChange(currentPage);
+  $: onPageChange(), [currentPage];
 </script>
 
 <div>
@@ -49,10 +48,7 @@
   <Loading {loading}>
     <ul class="list-group text-start">
       {#each boardgameElo as bgElo, pos}
-        <a
-          href={routePath({ name: "user", params: { username: bgElo.userData[0].account.username }, hash: "elo" })}
-          class="list-group-item list-group-item-action"
-        >
+        <a href={`/user/${bgElo.userData[0].account.username}#elo`} class="list-group-item list-group-item-action">
           <span>
             <b>{pos + 1 + currentPage * 10}</b> - {bgElo.userData[0].account.username} -
             <b>{bgElo.elo.value}</b> elo in {pluralize(bgElo.elo.games, "game")}

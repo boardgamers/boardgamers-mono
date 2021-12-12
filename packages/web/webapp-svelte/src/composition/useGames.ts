@@ -6,7 +6,7 @@ import { useRest } from "./useRest";
 
 type LoadGamesParams = {
   boardgameId?: string;
-  userId?: string;
+  userId?: string | null;
   sample?: boolean;
   skip?: number;
   count?: number;

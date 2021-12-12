@@ -83,6 +83,8 @@ export const useGamePreferences = defineStore(() => {
           return Promise.reject(err);
         })
     );
+
+    return loading.get(game);
   }
 
   let lastUpdate = 0;

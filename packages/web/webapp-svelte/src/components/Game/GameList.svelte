@@ -19,7 +19,7 @@
   export let sample = false;
   export let gameStatus: IGame["status"];
   export let boardgameId: string | undefined = undefined;
-  export let userId: string | undefined = undefined;
+  export let userId: string | undefined | null = undefined;
   export let initial: LoadGamesResult | undefined | false = undefined;
 
   let loadingGames = !initial;

@@ -25,7 +25,7 @@
     }
 
     return (
-      $page.path.replace(`/boardgame/${boardgameId}/`, `/boardgame/${gameId}/`) +
+      $page.path.replace(`/boardgame/${boardgameId}`, `/boardgame/${gameId}`) +
       ($page.query.toString() && "?" + $page.query.toString())
     );
   }

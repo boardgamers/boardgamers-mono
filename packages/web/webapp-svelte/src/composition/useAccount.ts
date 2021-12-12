@@ -26,23 +26,27 @@ export const useAccount = defineStore(() => {
       (val) => {
         loaded = true;
         account.set(val);
+        // Needed for SSR because in SSR accountId is not subscribed to account
+        accountId.set(val?._id ?? null);
       },
       (err) => (err.status !== 404 ? handleError(err) : void 0)
     );
   };
 
   const account = writable<IUser | null>(null);
+  const accountId = writable<string | null>(null);
 
   const refreshToken = useRefreshToken();
   const accessTokens = useAccessTokens();
 
   if (browser) {
     account.subscribe(
-      skipOnce((newVal) => {
+      skipOnce<[IUser | null]>((newVal) => {
         if (!newVal) {
           refreshToken.set(null);
           accessTokens.set({});
         }
+        accountId.set(newVal?._id ?? null);
       })
     );
   }
@@ -66,6 +70,7 @@ export const useAccount = defineStore(() => {
   return {
     loadAccount,
     account,
+    accountId,
     setAuthData,
     login,
     logout,
