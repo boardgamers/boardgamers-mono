@@ -3,13 +3,13 @@ on:
   push:
     paths:
       - ".github/workflows/docs.yml"
-      - "packages/docs/**"
+      - "apps/docs/**"
     branches:
       - master
 
 defaults:
   run:
-    working-directory: packages/docs
+    working-directory: apps/docs
 
 jobs:
   deploy:

@@ -3,17 +3,17 @@ on:
   push:
     paths:
       - ".github/workflows/utils.yml"
-      - "packages/shared/utils/**"
+      - "packages/utils/**"
     branches:
       - master
   pull_request:
     paths:
       - ".github/workflows/utils.yml"
-      - "packages/shared/utils/**"
+      - "packages/utils/**"
 
 defaults:
   run:
-    working-directory: packages/shared/utils
+    working-directory: packages/utils
 
 jobs:
   lint:

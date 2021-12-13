@@ -5,19 +5,16 @@ tasks:
   - init: |
       touch /tmp/.npm-lock
       pnpm install
-      cd packages/web/admin-app
-      yarn install
-      cd -
       rm /tmp/.npm-lock
     command: mkdir -p /workspace/data && mongod --dbpath /workspace/data
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
-    command: cd packages/server/api-node && pnpm seed && echo cron=1 > .env && pnpm dev
+    command: cd apps/api && pnpm seed && echo cron=1 > .env && pnpm dev
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
-    command: cd packages/server/game-server && echo cron=1 > .env && pnpm dev
+    command: cd apps/game-server && echo cron=1 > .env && pnpm dev
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
-    command: cd packages/web/webapp-svelte && pnpm start
+    command: cd apps/web && pnpm start
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
-    command: cd packages/web/admin-app && pnpm start
+    command: cd apps/admin && pnpm start
 
 ports:
   - port: 8615
