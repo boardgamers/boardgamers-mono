@@ -16,10 +16,10 @@ export function getSession(request: { headers: Record<string, string> }): Sessio
 
 export const externalFetch: ExternalFetch = async (request) => {
   console.log(request.url);
-  if (request.url.startsWith("http://localhost:3000/api/gameplay")) {
-    request = new Request(request.url.replace("http://localhost:3000/", "http://localhost:50803/"), request);
-  } else if (request.url.startsWith("http://localhost:3000/api/")) {
-    request = new Request(request.url.replace("http://localhost:3000/", "http://localhost:50801/"), request);
+  if (request.url.startsWith("http://localhost:8612/api/gameplay")) {
+    request = new Request(request.url.replace("http://localhost:8612/", "http://localhost:50803/"), request);
+  } else if (request.url.startsWith("http://localhost:8612/api/")) {
+    request = new Request(request.url.replace("http://localhost:8612/", "http://localhost:50801/"), request);
   }
 
   return fetch(request);

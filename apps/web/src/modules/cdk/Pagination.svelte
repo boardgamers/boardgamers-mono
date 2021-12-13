@@ -7,6 +7,7 @@
   export let count: number;
   export let perPage: number;
   export let currentPage = 0;
+  export let baseUrl: string;
   let className = "";
   export { className as class };
   let classes: string;
@@ -40,11 +41,11 @@
   }
 </script>
 
-<Pagination ariaLabel={title} class={classes}>
+<Pagination arialabel={title} class={classes}>
   <PaginationItem disabled={currentPage === 0}>
     <PaginationLink
       first
-      href="#first"
+      href={baseUrl ? `${baseUrl}/1` : "#first"}
       on:click={(e) => {
         e.preventDefault();
         currentPage = 0;
@@ -54,7 +55,7 @@
   <PaginationItem disabled={currentPage === 0}>
     <PaginationLink
       previous
-      href="#previous"
+      href={baseUrl ? `${baseUrl}/${currentPage}` : "#previous"}
       on:click={(e) => {
         e.preventDefault();
         currentPage -= 1;
@@ -65,12 +66,14 @@
     {#if !(pageFor(position) < 0)}
       <PaginationItem disabled={typeof pageFor(position) !== "number"} active={pageFor(position) === currentPage}>
         <PaginationLink
-          href="#"
-          on:click={(e) => {
-            e.preventDefault();
-            currentPage = +pageFor(position);
-          }}
-          ariaLabel={typeof pageFor(position) === "number" && `Go to page ${+pageFor(position) + 1}`}
+          href={baseUrl ? `${baseUrl}/${+pageFor(position) + 1}` : "#"}
+          on:click={!baseUrl
+            ? (e) => {
+                e.preventDefault();
+                currentPage = +pageFor(position);
+              }
+            : () => {}}
+          arialabel={typeof pageFor(position) === "number" ? `Go to page ${+pageFor(position) + 1}` : undefined}
         >
           {typeof pageFor(position) === "number" ? +pageFor(position) + 1 : pageFor(position)}
         </PaginationLink>
@@ -80,7 +83,7 @@
   <PaginationItem disabled={currentPage === totalPages - 1}>
     <PaginationLink
       next
-      href="#next"
+      href={baseUrl ? `${baseUrl}/${currentPage + 2}` : "#next"}
       on:click={(e) => {
         e.preventDefault();
         currentPage += 1;
@@ -90,7 +93,7 @@
   <PaginationItem disabled={currentPage === totalPages - 1}>
     <PaginationLink
       last
-      href="#last"
+      href={baseUrl ? `${baseUrl}/${totalPages}` : "#last"}
       on:click={(e) => {
         e.preventDefault();
         currentPage = totalPages - 1;

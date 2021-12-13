@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { browser } from "$app/env";
   import { timerTime, defer, duration, niceDate } from "@/utils";
   import type { IGame } from "@bgs/types";
   import { createWatcher } from "@/utils/watch";

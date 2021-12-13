@@ -8,7 +8,7 @@ import { useSession } from "./useSession";
 // todo : do not use hardcoded values
 // using an "external" url is needed to trigger externalFetch
 // & hydrating the content instead of making two requests
-const baseUrl = "http://localhost:3000/api";
+const baseUrl = "http://localhost:8612/api";
 
 async function getResponseData<T>(response: Response): Promise<T> {
   const body = response.headers.get("content-type")?.startsWith("application/json")

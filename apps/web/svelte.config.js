@@ -27,6 +27,7 @@ const config = {
         },
       },
       server: {
+        port: "8612",
         proxy: {
           "/ws": {
             target: remote ? "https://www.boardgamers.space" : "http://localhost:50802",
