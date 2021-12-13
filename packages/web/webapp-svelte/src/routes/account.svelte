@@ -11,7 +11,7 @@
     await loadAllGamePreferences();
 
     if (!storeGet(account)) {
-      return redirectLogin(input.page);
+      return { status: 302, redirect: redirectLoggedIn(input.page) };
     }
 
     return {};
@@ -29,11 +29,14 @@
   import { useGameInfo } from "@/composition/useGameInfo";
   import { useRest } from "@/composition/useRest";
   import { get as storeGet } from "svelte/store";
-  import { redirectLogin } from "@/utils/redirect";
+  import { redirectLoggedIn } from "@/utils/redirect";
   import type { IUser } from "@bgs/types";
   import { browser } from "$app/env";
   import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
   import { useGamePreferences } from "@/composition/useGamePreferences";
+  import { useLoggedIn } from "@/composition/useLoggedIn";
+
+  useLoggedIn();
 
   const { latestGameInfos } = useGameInfo();
   const { developerSettings } = useDeveloperSettings();

@@ -18,8 +18,8 @@ export const useAccount = defineStore(() => {
 
   let loaded = false;
 
-  const loadAccount = async () => {
-    if (loaded) {
+  const loadAccount = async (force = false) => {
+    if (loaded && !force) {
       return;
     }
     return get<IUser | null>("/account").then(
@@ -36,7 +36,7 @@ export const useAccount = defineStore(() => {
   const account = writable<IUser | null>(null);
   const accountId = writable<string | null>(null);
 
-  const refreshToken = useRefreshToken();
+  const { refreshToken } = useRefreshToken();
   const accessTokens = useAccessTokens();
 
   if (browser) {

@@ -16,7 +16,7 @@ async function getResponseData<T>(response: Response): Promise<T> {
     : await response.text();
 
   if (response.status >= 400) {
-    const err = new Error(body);
+    const err = new Error(body?.message ?? body);
 
     (err as any).status = response.status;
     throw err;
@@ -31,7 +31,7 @@ function transformUrl(url: string) {
 
 export const useRest = defineStore(() => {
   const fetch = useSession().data.fetch;
-  const refreshToken = useRefreshToken();
+  const { refreshToken } = useRefreshToken();
   const accessTokens = useAccessTokens();
 
   function setAccessToken(token: Token | null, scopes: string[] = ["all"]): void {

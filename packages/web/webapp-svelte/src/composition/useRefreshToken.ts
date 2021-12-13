@@ -43,5 +43,5 @@ export const useRefreshToken = defineStore(() => {
     });
   }
 
-  return refreshToken;
+  return { refreshToken };
 });
