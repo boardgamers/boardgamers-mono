@@ -19,6 +19,10 @@ export function createWatcher(
   callback: () => unknown,
   { immediate = false }: { immediate: boolean } = { immediate: false }
 ): () => void {
+  // Watchers are typically only useful in the browser, not in SSR
+  if (typeof window === "undefined") {
+    return () => {};
+  }
   let skip = !immediate;
 
   return () => {

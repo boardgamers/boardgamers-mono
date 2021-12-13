@@ -155,3 +155,25 @@ i.bi {
 .card-footer {
   text-align: center;
 }
+
+.game-choice .card {
+  transition: border-color;
+  transition-duration: 0.3s;
+  transition-timing-function: ease;
+}
+
+.game-choice .card:hover {
+  border-color: var(--info) !important;
+
+  cursor: pointer;
+}
+
+.game-choice .card-header {
+  transition: color;
+  transition-duration: 0.3s;
+  transition-timing-function: ease;
+}
+
+.game-choice .card:hover .card-header {
+  color: var(--info);
+}

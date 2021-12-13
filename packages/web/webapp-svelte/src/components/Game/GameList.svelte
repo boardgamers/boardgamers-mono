@@ -82,7 +82,7 @@
   }
 
   const onCurrentPageChanged = createWatcher(() => load(false));
-  const reloadForcefully = createWatcher(() => browser && load(true), { immediate: !initial });
+  const reloadForcefully = createWatcher(() => load(true), { immediate: !initial });
 
   $: reloadForcefully(), [userId, boardgameId, $logoClicks];
   $: onCurrentPageChanged(), [currentPage];

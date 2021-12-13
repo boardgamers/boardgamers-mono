@@ -1,14 +1,7 @@
 <script lang="ts">
-  import { browser } from "$app/env";
-
   import { EloRanking, useEloRankings } from "@/composition/useEloRankings";
-
-  import { useRest } from "@/composition/useRest";
   import { Loading, Pagination } from "@/modules/cdk";
   import { createWatcher, handleError, pluralize } from "@/utils";
-  import { init } from "svelte/internal";
-
-  const { get } = useRest();
 
   export let boardgameId: string;
   export let top = false;
@@ -43,7 +36,7 @@
     }
   }
 
-  const reload = createWatcher(() => browser && load(true), { immediate: !initial });
+  const reload = createWatcher(() => load(true), { immediate: !initial });
 
   $: reload(), [boardgameId];
 

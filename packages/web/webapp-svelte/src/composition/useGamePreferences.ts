@@ -129,6 +129,7 @@ export const useGamePreferences = defineStore(() => {
       }
 
       $accountId = $account?._id;
+      lastUpdate = 0;
       gamePreferences.set({});
     });
   }
