@@ -1,11 +1,5 @@
 <script context="module" lang="ts">
-  export async function load(input: LoadInput) {
-    const { loadAccount } = useLoad(input, useAccount);
-
-    await loadAccount();
-
-    return {};
-  }
+  export { load } from "../__layout.svelte";
 </script>
 
 <script lang="ts">
@@ -16,9 +10,6 @@
 
   import { Appbar, Footer, Sidebar } from "@/components";
   import { useActiveGames } from "@/composition/useActiveGames";
-  import { useLoad } from "@/composition/useLoad";
-  import { useAccount } from "@/composition/useAccount";
-  import type { LoadInput } from "@sveltejs/kit";
   const { activeGames } = useActiveGames();
 </script>
 

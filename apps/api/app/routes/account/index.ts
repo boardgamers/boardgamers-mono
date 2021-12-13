@@ -4,7 +4,7 @@ import { Context } from "koa";
 import passport from "koa-passport";
 import Router from "koa-router";
 import { merge, pick } from "lodash";
-import { GameInfo, GamePreferences, JwtRefreshToken, Log, User, UserDocument } from "../../models";
+import { Game, GameInfo, GamePreferences, JwtRefreshToken, Log, User, UserDocument } from "../../models";
 import { loggedIn, loggedOut } from "../utils";
 import auth from "./auth";
 import { sendAuthInfo } from "./utils";
@@ -16,6 +16,17 @@ router.use("/auth", auth.routes(), auth.allowedMethods());
 router.get("/", (ctx) => {
   if (ctx.state.user) {
     ctx.body = ctx.state.user;
+  }
+});
+
+router.get("/active-games", async (ctx) => {
+  if (!ctx.state.user) {
+    ctx.body = [];
+  } else {
+    ctx.body = await Game.findWithPlayersTurn(ctx.state.user._id!)
+      .select("_id")
+      .lean(true)
+      .then((games) => games.map((game) => game._id));
   }
 });
 

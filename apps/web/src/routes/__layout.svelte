@@ -1,8 +1,9 @@
 <script context="module" lang="ts">
   export async function load(input: LoadInput) {
-    const { loadAccount } = useLoad(input, useAccount);
+    const { loadAccount, loadActiveGames } = useLoad(input, useAccount, useActiveGames);
 
     await loadAccount();
+    await loadActiveGames();
 
     return {};
   }

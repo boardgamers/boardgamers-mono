@@ -1,7 +1,9 @@
 import { get as $, writable } from "svelte/store";
 import { defineStore } from "./defineStore";
+import { useRest } from "./useRest";
 
 export const useActiveGames = defineStore(() => {
+  const { get } = useRest();
   const activeGames = writable<string[]>([]);
 
   function addActiveGame(gameId: string) {
@@ -16,9 +18,14 @@ export const useActiveGames = defineStore(() => {
     }
   }
 
+  async function loadActiveGames() {
+    activeGames.set(await get("/account/active-games"));
+  }
+
   return {
     activeGames,
     addActiveGame,
     removeActiveGame,
+    loadActiveGames,
   };
 });
