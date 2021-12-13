@@ -1,6 +1,6 @@
 <script context="module" lang="ts">
   export async function load(input: LoadInput) {
-    const { loadAccount, loadActiveGames } = useLoad(input, useAccount, useActiveGames);
+    const { loadAccount, loadActiveGames } = useLoad(input, useAccount, useActiveGames, useWebsocket);
 
     await loadAccount();
     await loadActiveGames();
@@ -19,6 +19,7 @@
   import { useLoad } from "@/composition/useLoad";
   import { useAccount } from "@/composition/useAccount";
   import { useActiveGames } from "@/composition/useActiveGames";
+  import { useWebsocket } from "@/composition/useWebsocket";
 
   const { activeGames } = useActiveGames();
 </script>

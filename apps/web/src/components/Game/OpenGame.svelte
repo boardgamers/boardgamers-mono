@@ -13,7 +13,6 @@
   import marked from "marked";
   import { Badge, Button } from "@/modules/cdk";
   import Icon from "sveltestrap/src/Icon.svelte";
-  import { navigate, route } from "@/modules/router";
   import { getContext, onDestroy } from "svelte";
   import type { GameContext } from "@/pages/Game.svelte";
   import { playerOrderText } from "@/data/playerOrders";
@@ -21,6 +20,9 @@
   import { useCurrentGame } from "@/composition/useCurrentGame";
   import { useRest } from "@/composition/useRest";
   import { useGame } from "@/composition/useGame";
+  import { goto } from "$app/navigation";
+  import { redirectLoggedIn } from "@/utils/redirect";
+  import { page } from "$app/stores";
 
   const { post } = useRest();
 
@@ -52,13 +54,13 @@
 
   const leave = async () => {
     if (await confirm("Are you sure you want to leave this game?")) {
-      post(`/game/${gameId}/unjoin`).then(() => navigate("/"), handleError);
+      post(`/game/${gameId}/unjoin`).then(() => goto("/"), handleError);
     }
   };
 
   const join = async () => {
     if (!$user) {
-      navigate({ name: "login", query: { redirect: $route!.canonicalPath } });
+      goto(redirectLoggedIn($page));
       return;
     }
 

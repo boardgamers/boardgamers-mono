@@ -8,6 +8,10 @@ import { useCurrentRoom } from "./useCurrentRoom";
 import { useRest } from "./useRest";
 
 export const useWebsocket = defineStore(() => {
+  if (!browser) {
+    return;
+  }
+
   let ws: WebSocket | null = null;
 
   const { account } = useAccount();

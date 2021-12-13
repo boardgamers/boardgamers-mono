@@ -2,7 +2,7 @@
   import { useSidebarOpen } from "@/composition/useSidebarOpen";
   import { Button, Icon } from "@/modules/cdk";
 
-  const sidebarOpen = useSidebarOpen();
+  const { sidebarOpen } = useSidebarOpen();
 </script>
 
 <div class="sidebar-container" class:open={$sidebarOpen}>

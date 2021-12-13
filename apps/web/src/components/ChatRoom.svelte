@@ -15,7 +15,7 @@
   const { get, post } = useRest();
   const { account } = useAccount();
   const { currentGameId } = useCurrentGame();
-  const sidebarOpen = useSidebarOpen();
+  const { sidebarOpen } = useSidebarOpen();
   const { chatMessages } = useCurrentRoom();
 
   let isOpen = false;
