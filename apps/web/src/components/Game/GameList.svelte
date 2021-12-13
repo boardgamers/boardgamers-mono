@@ -28,8 +28,6 @@
 
   const load = defer(
     async (refresh: boolean) => {
-      loadingGames = true;
-
       const fetchCount = refresh && !topRecords && !sample;
 
       const result = await loadGames({

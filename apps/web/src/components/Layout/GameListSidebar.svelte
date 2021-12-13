@@ -16,7 +16,11 @@
   $: boardgameId = $page!.params.boardgameId;
 
   function gameRoute(gameId: string) {
-    if (gameId === boardgameId || !boardgameId) {
+    if (!boardgameId) {
+      return `/boardgame/${gameId}${$page.path}`;
+    }
+
+    if (gameId === boardgameId) {
       if ($page!.path === "/boardgame/" + gameId) {
         return "/refresh-games";
       } else {

@@ -1,5 +1,12 @@
 <script context="module" lang="ts">
-  export { load } from "../__layout.svelte";
+  export async function load(input: LoadInput) {
+    const { loadAccount, loadActiveGames } = useLoad(input, useAccount, useActiveGames, useWebsocket);
+
+    await loadAccount();
+    await loadActiveGames();
+
+    return {};
+  }
 </script>
 
 <script lang="ts">

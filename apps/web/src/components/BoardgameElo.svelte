@@ -20,7 +20,6 @@
 
   async function load(refresh: boolean) {
     try {
-      loading = true;
       const result = await loadEloRankings({
         boardgameId,
         count: perPage,
