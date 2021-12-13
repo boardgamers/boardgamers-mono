@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { browser } from "$app/env";
+
   import { EloRanking, useEloRankings } from "@/composition/useEloRankings";
 
   import { useRest } from "@/composition/useRest";
@@ -41,7 +43,7 @@
     }
   }
 
-  const reload = createWatcher(() => load(true), { immediate: !initial });
+  const reload = createWatcher(() => browser && load(true), { immediate: !initial });
 
   $: reload(), [boardgameId];
 
