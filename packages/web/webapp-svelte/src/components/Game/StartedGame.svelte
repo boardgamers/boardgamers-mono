@@ -72,7 +72,7 @@
     }
   });
 
-  $: onGameUpdated(), [lastGameUpdate];
+  $: onGameUpdated(), [$lastGameUpdate];
 
   function postGamedata() {
     gameIframe?.contentWindow?.postMessage({ type: "state", state: $game.data }, "*");

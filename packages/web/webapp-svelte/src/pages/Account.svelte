@@ -78,7 +78,7 @@
     }
   });
 
-  $: onNotificationsChanged(notifications);
+  $: onNotificationsChanged(), [notifications];
 </script>
 
 {#if $user}
