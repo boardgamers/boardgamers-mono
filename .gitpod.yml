@@ -8,13 +8,14 @@ tasks:
       rm /tmp/.npm-lock
     command: mkdir -p /workspace/data && mongod --dbpath /workspace/data
   - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
-    command: cd apps/api && pnpm seed && echo cron=1 > .env && pnpm dev
-  - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
-    command: cd apps/game-server && echo cron=1 > .env && pnpm dev
-  - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
-    command: cd apps/web && pnpm start
-  - init: sleep 1 && while [ -f /tmp/.npm-lock ]; do sleep 1; done
-    command: cd apps/admin && pnpm start
+    command: |
+      cd apps/api 
+      pnpm seed 
+      echo cron=1 > .env
+      cd ../game-server
+      echo cron=1
+      cd ../../
+      pnpm dev --filter @bgs/api --filter @bgs/game-server --filter @bgs/web --filter @bgs/admin
 
 ports:
   - port: 8615

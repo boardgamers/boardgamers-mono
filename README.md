@@ -35,21 +35,31 @@ A recent version of node, 14+ ideally, is required
 
 ### Frontend
 
-The instructions to run the [webapp](./packages/web/webapp-vue/README.md) and the [admin](./packages/web/admin-app/README.md) are available in their README.
+There is a [webapp](./apps/web/README.md) and an [admin](./apps/admin/README.md).
 
-You can directly run the frontend against the website! No need to run the backend.
+```bash
+pnpm dev --filter @bgs/web --filter @bgs/admin
+```
+
+You can directly run the frontend against the website! No need to run the backend. To do so, just create `.env` in the webapp folder with `backend=https://boardgamers.space`.
 
 ### Backend
 
-You can follow the instructions in [api-node](./packages/server/api-node/README.md) and [game-server](./packages/server/game-server/README.md), or you can just run the following command:
+You can follow the instructions in [api-node](./apps/api/README.md) and [game-server](./apps/game-server/README.md), or you can just run the following command:
 
-```
+```bash
 pnpm back
 ```
 
 This will take care of launching a mongodb instance as well.
 
 This is only for development. The mongodb database is exposed to the world!
+
+You can also launch outside of docker:
+
+```bash
+pnpm start --filter @bgs/api --filter @bgs/game-server
+```
 
 ## Contributing
 

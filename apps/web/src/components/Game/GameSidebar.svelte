@@ -1,7 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/env";
   import { keyBy } from "lodash";
-  import { elapsedSeconds } from "@bgs/utils/time";
+  import { elapsedSeconds } from "@bgs/utils";
   import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
   import type { PlayerInfo } from "@bgs/types";
   import Portal from "@/modules/portal";

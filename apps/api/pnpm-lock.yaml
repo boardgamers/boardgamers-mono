@@ -70,9 +70,9 @@ specifiers:
   ws: ^6.0.0
 
 dependencies:
-  '@bgs/models': link:../../shared/models
-  '@bgs/types': link:../../shared/types
-  '@bgs/utils': link:../../shared/utils
+  '@bgs/models': link:../../packages/models
+  '@bgs/types': link:../../packages/types
+  '@bgs/utils': link:../../packages/utils
   bcryptjs: 2.4.3
   check-disk-space: 2.1.0
   cookie-parser: 1.4.5

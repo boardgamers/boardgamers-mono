@@ -36,8 +36,8 @@ specifiers:
   typescript: ^4.4.3
 
 dependencies:
-  '@bgs/types': link:../../shared/types
-  '@bgs/utils': link:../../shared/utils
+  '@bgs/types': link:../../packages/types
+  '@bgs/utils': link:../../packages/utils
   awesome-notifications: 3.1.1
   bootstrap: 5.1.0
   bootstrap-icons: 1.5.0

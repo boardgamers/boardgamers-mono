@@ -42,9 +42,9 @@ specifiers:
   typescript: ^4.4.2
 
 dependencies:
-  '@bgs/models': link:../../shared/models
-  '@bgs/types': link:../../shared/types
-  '@bgs/utils': link:../../shared/utils
+  '@bgs/models': link:../../packages/models
+  '@bgs/types': link:../../packages/types
+  '@bgs/utils': link:../../packages/utils
   decache: 4.6.0
   dotenv: 8.2.0
   fs-extra: 9.1.0
