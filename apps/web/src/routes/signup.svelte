@@ -1,19 +1,41 @@
 <script lang="ts">
-  import { register, registerSocial } from "@/api";
+  import { page } from "$app/stores";
+  import { AuthData, useAccount } from "@/composition/useAccount";
+  import { useLoggedOut } from "@/composition/useLoggedOut";
+  import { useRest } from "@/composition/useRest";
   import Checkbox from "@/modules/cdk/Checkbox.svelte";
   import { route } from "@/modules/router";
   import { handleError } from "@/utils";
   import { upperFirst } from "lodash";
 
-  let email = $route!.query.user ?? "";
-  let isSocial = $route!.query.createSocialAccount;
-  let provider = $route!.query.provider;
+  useLoggedOut();
+
+  const { post } = useRest();
+  const { setAuthData } = useAccount();
+
+  let email = $page.query.get("user") ?? "";
+  let isSocial = $page.query.get("createSocialAccount");
+  let provider = $page.query.get("provider")!;
 
   let password = "";
   let passwordConfirm = "";
   let username = "";
   let newsletter = false;
   let tc = false;
+
+  async function register(params: {
+    email: string;
+    username: string;
+    password: string;
+    newsletter: boolean;
+    termsAndConditions: boolean;
+  }): Promise<void> {
+    return post<AuthData>("/account/signup", params).then(setAuthData);
+  }
+
+  async function registerSocial(params: { jwt: string; username: string; termsAndConditions: boolean }): Promise<void> {
+    return post<AuthData>("/account/signup/social", params).then(setAuthData);
+  }
 
   function handleSubmit() {
     if (!tc) {

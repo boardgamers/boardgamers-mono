@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-  <title>{pageContent.title} - Boardgamers 🌌</title>
+  <title>{pageContent.title}</title>
 </svelte:head>
 
 <div class="page container">

@@ -84,7 +84,7 @@
 </script>
 
 <svelte:head>
-  <title>{boardgame?.label} - Boardgamers 🌌</title>
+  <title>{boardgame?.label}</title>
 </svelte:head>
 
 <div class="home container">

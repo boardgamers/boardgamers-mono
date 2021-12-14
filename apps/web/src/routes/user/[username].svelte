@@ -29,7 +29,7 @@
 </script>
 
 <svelte:head>
-  <title>{username} - Boardgamers 🌌</title>
+  <title>{username}'s profile</title>
 </svelte:head>
 
 <Container>

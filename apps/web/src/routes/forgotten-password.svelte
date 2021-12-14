@@ -1,8 +1,13 @@
 <script lang="ts">
-  import { post } from "@/api";
+  import { useLoggedOut } from "@/composition/useLoggedOut";
+  import { useRest } from "@/composition/useRest";
   import { handleError, handleInfo } from "@/utils";
 
+  useLoggedOut();
+
   let email = "";
+
+  const { post } = useRest();
 
   function handleSubmit() {
     post("/account/forget", { email }).then(() => handleInfo("An email was sent to reset your password"), handleError);

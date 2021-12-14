@@ -1,10 +1,18 @@
 <script lang="ts">
-  import { resetPassword } from "@/api";
-  import { route } from "@/modules/router";
+  import { page } from "$app/stores";
+  import { AuthData, useAccount } from "@/composition/useAccount";
+  import { useRest } from "@/composition/useRest";
   import { handleError, handleInfo } from "@/utils";
 
-  let email = $route?.query.email ?? $route?.query.user ?? "";
-  let key = $route?.query.key ?? "";
+  const { post } = useRest();
+  const { setAuthData } = useAccount();
+
+  async function resetPassword(params: { email: string; resetKey: string; password: string }): Promise<void> {
+    return post<AuthData>("/account/reset", params).then(setAuthData);
+  }
+
+  let email = $page.query.get("email") ?? $page.query.get("user") ?? "";
+  let key = $page.query.get("key")!;
 
   let password = "";
   let passwordConfirm = "";
