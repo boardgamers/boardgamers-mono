@@ -85,7 +85,7 @@ export const useRest = defineStore(() => {
     return body;
   }
 
-  async function get<T>(url: string, query?: Record<string, unknown>): Promise<T> {
+  async function get<T>(url: string, query?: Record<string, unknown> | URLSearchParams): Promise<T> {
     const token = await getAccessToken(url);
     return getResponseData<T>(
       await fetch(
