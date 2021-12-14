@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from "$app/stores";
+  import { SEO } from "@/components";
   import { AuthData, useAccount } from "@/composition/useAccount";
   import { useRest } from "@/composition/useRest";
   import { handleError, handleInfo } from "@/utils";
@@ -26,6 +27,8 @@
     resetPassword({ email, resetKey: key, password }).then(() => handleInfo("Your password was reset"), handleError);
   }
 </script>
+
+<SEO title="Reset password" />
 
 <div class="goldfish container">
   <h1>Reset password</h1>

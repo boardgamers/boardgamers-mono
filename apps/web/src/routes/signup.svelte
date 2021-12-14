@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from "$app/stores";
+  import { SEO } from "@/components";
   import { AuthData, useAccount } from "@/composition/useAccount";
   import { useLoggedOut } from "@/composition/useLoggedOut";
   import { useRest } from "@/composition/useRest";
@@ -57,6 +58,8 @@
     }
   }
 </script>
+
+<SEO title="Create an account" />
 
 <div class="signup container">
   <h1>Create an account</h1>

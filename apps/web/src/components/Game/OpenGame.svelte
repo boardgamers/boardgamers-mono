@@ -14,7 +14,7 @@
   import { Badge, Button } from "@/modules/cdk";
   import Icon from "sveltestrap/src/Icon.svelte";
   import { getContext, onDestroy } from "svelte";
-  import type { GameContext } from "@/pages/Game.svelte";
+  import type { GameContext } from "@/routes/game/[gameId].svelte";
   import { playerOrderText } from "@/data/playerOrders";
   import { useAccount } from "@/composition/useAccount";
   import { useCurrentGame } from "@/composition/useCurrentGame";
@@ -23,6 +23,9 @@
   import { goto } from "$app/navigation";
   import { redirectLoggedIn } from "@/utils/redirect";
   import { page } from "$app/stores";
+  import SEO from "../SEO.svelte";
+  import removeMarkdown from "remove-markdown";
+  import { gameLabel } from "@/utils/game-label";
 
   const { post } = useRest();
 
@@ -124,6 +127,27 @@
   );
 </script>
 
+<SEO
+  title={`${gameId} - ${$gameInfo.label} game`}
+  description={removeMarkdown(
+    `Open ${gameLabel($gameInfo.label)} game with ${$game.players.length}/${
+      $game.options.setup.nbPlayers
+    } players. Timer of ${duration($game.options.timing.timePerGame)} per player, with an additional ${duration(
+      $game.options.timing.timePerMove
+    )} per move. Options: ${$gameInfo.options
+      .filter((x) => !!($game.game.options || {})[x.name])
+      .map((pref) =>
+        pref.type === "checkbox"
+          ? pref.label
+          : pref.type === "select" && pref.items
+          ? pref.label + ": " + pref.items.find((x) => x.name === $game.game.options[pref.name])?.label
+          : ""
+      )
+      .filter(Boolean)
+      .join(" — ")}.`
+  )}
+/>
+
 <div class="container pb-3">
   <h1 class="mb-3">{$gameInfo.label} – Open Game</h1>
 
@@ -170,7 +194,7 @@
     <div class="mb-3">
       <b>
         Game is scheduled to start on {niceDate($game.options.timing.scheduledStart)} at
-        {new Date($game.options.timing.scheduledStart).toLocaleTimeString()}
+        {new Date($game.options.timing.scheduledStart).toLocaleTimeString("en")}
       </b>
     </div>
   {/if}

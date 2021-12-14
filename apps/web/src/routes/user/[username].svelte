@@ -6,6 +6,13 @@
 
     const user = await get<IUser>(`/user/infoByName/${encodeURIComponent(input.page.params.username)}`);
 
+    if (!user) {
+      return {
+        status: 404,
+        error: new Error("User not found"),
+      };
+    }
+
     return {
       props: {
         user,
@@ -16,11 +23,12 @@
 
 <script lang="ts">
   import type { IUser } from "@bgs/types";
-  import { UserGames, UserPublicInfo, UserElo } from "@/components";
+  import { UserGames, UserPublicInfo, UserElo, SEO } from "@/components";
   import { Row, Col, Container, Card, Loading } from "@/modules/cdk";
   import { useLoad } from "@/composition/useLoad";
   import { useRest } from "@/composition/useRest";
   import { useAccount } from "@/composition/useAccount";
+  import { dateFromObjectId } from "@/utils";
 
   const { accountId } = useAccount();
 
@@ -28,9 +36,12 @@
   $: username = user.account.username;
 </script>
 
-<svelte:head>
-  <title>{username}'s profile</title>
-</svelte:head>
+<SEO
+  title={`${username}'s profile`}
+  description={`${username} joined in ${dateFromObjectId(user._id).toLocaleString("en", {
+    month: "long",
+  })} ${dateFromObjectId(user._id).toLocaleString("en", { year: "numeric" })} and has ${user.account.karma} karma.`}
+/>
 
 <Container>
   <Row>

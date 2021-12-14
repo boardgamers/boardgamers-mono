@@ -22,7 +22,7 @@
 
 <script lang="ts">
   import { fade } from "svelte/transition";
-  import { GameList } from "@/components";
+  import { GameList, SEO } from "@/components";
   import { Col, Container, Nav, NavItem, NavLink } from "@/modules/cdk";
   import { useLoad } from "@/composition/useLoad";
   import type { LoadInput } from "@sveltejs/kit";
@@ -37,8 +37,12 @@
 
   let animating = false;
 
+  let [featuredCount, lobbyCount] = [featured!.games, lobby!.total];
+
   onMount(() => (featured = lobby = undefined));
 </script>
+
+<SEO title="All games" description={`${featuredCount} ongoing games and ${lobbyCount} open games.`} />
 
 <Container>
   <Nav pills>

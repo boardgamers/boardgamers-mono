@@ -24,6 +24,7 @@
     "marked": "^3.0.2",
     "nprogress": "^0.2.0",
     "page": "^1.11.6",
+    "remove-markdown": "^0.3.0",
     "svelte": "^3.44.1",
     "sveltestrap": "^5.6.2",
     "type-fest": "^2.1.0"
@@ -35,6 +36,7 @@
     "@types/lodash": "^4.14.168",
     "@types/marked": "^2.0.0",
     "@types/nprogress": "^0.2.0",
+    "@types/remove-markdown": "^0.3.1",
     "@typescript-eslint/eslint-plugin": "^4.31.1",
     "@typescript-eslint/parser": "^4.31.1",
     "dotenv": "^8.2.0",

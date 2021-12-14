@@ -34,8 +34,8 @@
   import { confirm, handleError } from "@/utils";
   import marked from "marked";
   import type { GameInfo } from "@bgs/types";
-  import { Card, Row, Col, Loading } from "@/modules/cdk";
-  import { UserGameSettings, GameList, BoardgameElo } from "@/components";
+  import { Card, Row, Col } from "@/modules/cdk";
+  import { UserGameSettings, GameList, BoardgameElo, SEO } from "@/components";
   import { useAccount } from "@/composition/useAccount";
   import { useGameInfo } from "@/composition/useGameInfo";
   import { useGamePreferences } from "@/composition/useGamePreferences";
@@ -46,6 +46,7 @@
   import { LoadGamesResult, useGames } from "@/composition/useGames";
   import { get as storeGet } from "svelte/store";
   import { LoadEloRankingsResult, useEloRankings } from "@/composition/useEloRankings";
+  import removeMarkdown from "remove-markdown";
 
   const { accountId } = useAccount();
   const { gameInfos, gameInfo, loadGameInfo } = useGameInfo();
@@ -68,7 +69,6 @@
 
   $: onUserChanged(), [accountId, boardgameId];
   $: (boardgame = gameInfo(boardgameId, "latest") as GameInfo), [gameInfos];
-  $: loading = !boardgame;
   $: hasOwnership = $gamePreferences[boardgameId]?.access?.ownership;
   $: needOwnership = boardgame?.meta?.needOwnership;
 
@@ -83,61 +83,57 @@
   }
 </script>
 
-<svelte:head>
-  <title>{boardgame?.label}</title>
-</svelte:head>
+<SEO title={`${boardgame.label} - Boardgames`} description={removeMarkdown(boardgame.description)} />
 
 <div class="home container">
-  <Loading {loading}>
-    <h1>{boardgame.label}</h1>
+  <h1>{boardgame.label}</h1>
 
-    <div class="row row-cols-1 row-cols-md-2 g-4">
-      <Col>
-        <Card class="border-secondary h-100" header={rules ? "Rules" : "Description"}>
-          {@html marked(rules ? boardgame.rules : boardgame.description)}
-          <a slot="footer" href={rules ? "#description" : "#rules"} on:click|preventDefault={() => (rules = !rules)}>
-            {rules ? "See description" : "See rules"}
-          </a>
-        </Card>
-      </Col>
-      <Col>
-        <UserGameSettings title="Settings" game={boardgame} class="h-100" />
-      </Col>
-    </div>
+  <div class="row row-cols-1 row-cols-md-2 g-4">
+    <Col>
+      <Card class="border-secondary h-100" header={rules ? "Rules" : "Description"}>
+        {@html marked(rules ? boardgame.rules : boardgame.description)}
+        <a slot="footer" href={rules ? "#description" : "#rules"} on:click|preventDefault={() => (rules = !rules)}>
+          {rules ? "See description" : "See rules"}
+        </a>
+      </Card>
+    </Col>
+    <Col>
+      <UserGameSettings title="Settings" game={boardgame} class="h-100" />
+    </Col>
+  </div>
 
-    <Row>
-      <Col lg={6} class="mt-3">
-        <GameList
-          {boardgameId}
-          initial={my}
-          gameStatus="active"
-          userId={$accountId}
-          sample
-          perPage={5}
-          title="My games"
-        />
-      </Col>
-      <Col lg={6} class="mt-3">
-        <GameList initial={lobby} sample perPage={5} {boardgameId} gameStatus="open" title="Lobby" />
-      </Col>
-    </Row>
+  <Row>
+    <Col lg={6} class="mt-3">
+      <GameList
+        {boardgameId}
+        initial={my}
+        gameStatus="active"
+        userId={$accountId}
+        sample
+        perPage={5}
+        title="My games"
+      />
+    </Col>
+    <Col lg={6} class="mt-3">
+      <GameList initial={lobby} sample perPage={5} {boardgameId} gameStatus="open" title="Lobby" />
+    </Col>
+  </Row>
 
-    <div class="text-center mt-3">
-      <a class="btn btn-secondary" href={`/boardgame/${boardgameId}/games`} role="button">All games</a>
-      <button class="btn btn-primary mx-3" href="/new-game" on:click={newGame}>New Game</button>
-      <a class="btn btn-secondary" href={`/boardgame/${boardgameId}/rankings`} role="button">Rankings</a>
-    </div>
+  <div class="text-center mt-3">
+    <a class="btn btn-secondary" href={`/boardgame/${boardgameId}/games`} role="button">All games</a>
+    <button class="btn btn-primary mx-3" href="/new-game" on:click={newGame}>New Game</button>
+    <a class="btn btn-secondary" href={`/boardgame/${boardgameId}/rankings`} role="button">Rankings</a>
+  </div>
 
-    <Row>
-      <Col lg={6} class="mt-3">
-        <GameList gameStatus="active" initial={featured} {boardgameId} topRecords perPage={5} title="Featured games" />
-        <!-- <h3>Tournaments</h3>
-        <p> No Tournament info available </p> -->
-      </Col>
-      <Col lg={6} class="mt-3">
-        <!-- Todo: show rank of current player if possible with mongodb in an optimized way in the list -->
-        <BoardgameElo initial={rankings} {boardgameId} top perPage={7} />
-      </Col>
-    </Row>
-  </Loading>
+  <Row>
+    <Col lg={6} class="mt-3">
+      <GameList gameStatus="active" initial={featured} {boardgameId} topRecords perPage={5} title="Featured games" />
+      <!-- <h3>Tournaments</h3>
+      <p> No Tournament info available </p> -->
+    </Col>
+    <Col lg={6} class="mt-3">
+      <!-- Todo: show rank of current player if possible with mongodb in an optimized way in the list -->
+      <BoardgameElo initial={rankings} {boardgameId} top perPage={7} />
+    </Col>
+  </Row>
 </div>

@@ -10,16 +10,26 @@
 </script>
 
 <script lang="ts">
-  import { BoardgameElo } from "@/components";
+  import { BoardgameElo, SEO } from "@/components";
   import { LoadEloRankingsResult, useEloRankings } from "@/composition/useEloRankings";
+  import { useGameInfo } from "@/composition/useGameInfo";
   import { useLoad } from "@/composition/useLoad";
   import { Col, Row } from "@/modules/cdk";
+  import { gameLabel } from "@/utils/game-label";
   import type { LoadInput } from "@sveltejs/kit";
+  import removeMarkdown from "remove-markdown";
+
+  const { gameInfo } = useGameInfo();
 
   export let rankings: LoadEloRankingsResult;
   export let boardgameId: string;
   export let currentPage: number;
 </script>
+
+<SEO
+  title={`${gameLabel(gameInfo(boardgameId, "latest").label)} rankings`}
+  description={removeMarkdown(gameInfo(boardgameId, "latest").description)}
+/>
 
 <div class="container">
   <h1>Rankings</h1>

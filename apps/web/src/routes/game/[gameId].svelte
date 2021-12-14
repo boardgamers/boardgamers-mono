@@ -75,10 +75,6 @@
   });
 </script>
 
-<svelte:head>
-  <title>{gameId} - Boardgamers 🌌</title>
-</svelte:head>
-
 {#if game.status === "open"}
   <OpenGame />
 {:else}

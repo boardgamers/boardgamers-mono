@@ -23,23 +23,32 @@
 
 <script lang="ts">
   import { fade } from "svelte/transition";
-  import { GameList } from "@/components";
+  import { GameList, SEO } from "@/components";
   import { Col, Container, Nav, NavItem, NavLink } from "@/modules/cdk";
   import { useLoad } from "@/composition/useLoad";
   import type { LoadInput } from "@sveltejs/kit";
   import { LoadGamesResult, useGames } from "@/composition/useGames";
   import { onMount } from "svelte";
+  import { useGameInfo } from "@/composition/useGameInfo";
 
-  export let boardgameId: string | undefined;
+  export let boardgameId: string;
   export let featured: LoadGamesResult | undefined;
   export let lobby: LoadGamesResult | undefined;
   export let finished: LoadGamesResult | undefined;
   export let firstTab: boolean;
 
+  const { gameInfo } = useGameInfo();
+
   let animating = false;
+  let [featuredCount, lobbyCount] = [featured!.games, lobby!.total];
 
   onMount(() => (featured = lobby = undefined));
 </script>
+
+<SEO
+  title={`${gameInfo(boardgameId, "latest").label} games`}
+  description={`${featuredCount} ongoing games and ${lobbyCount} open games.`}
+/>
 
 <Container>
   <Nav pills>

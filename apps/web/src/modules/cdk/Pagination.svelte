@@ -7,7 +7,7 @@
   export let count: number;
   export let perPage: number;
   export let currentPage = 0;
-  export let baseUrl: string;
+  export let baseUrl: string | undefined = undefined;
   let className = "";
   export { className as class };
   let classes: string;

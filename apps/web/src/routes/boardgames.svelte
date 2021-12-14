@@ -31,6 +31,10 @@
   $: watcher(), [$accountId];
 </script>
 
+<svelte:head>
+  <title>Game selection</title>
+</svelte:head>
+
 <div class="container">
   <h1 class="mb-4">Game selection</h1>
   <div class="row row-cols-1 row-cols-md-3 g-4 game-choice">

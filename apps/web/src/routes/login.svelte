@@ -31,6 +31,7 @@
   import { handleError } from "@/utils";
   import { useLoggedOut } from "@/composition/useLoggedOut";
   import { redirectLoggedOut } from "@/utils/redirect";
+  import { SEO } from "@/components";
 
   useLoggedOut();
 
@@ -43,6 +44,8 @@
     login(email, password).catch(handleError);
   }
 </script>
+
+<SEO title="Login" />
 
 <form on:submit|preventDefault={handleLogin}>
   <FormGroup>

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { SEO } from "@/components";
+
   import { useLoggedOut } from "@/composition/useLoggedOut";
   import { useRest } from "@/composition/useRest";
   import { handleError, handleInfo } from "@/utils";
@@ -13,6 +15,8 @@
     post("/account/forget", { email }).then(() => handleInfo("An email was sent to reset your password"), handleError);
   }
 </script>
+
+<SEO title="Forgotten password" />
 
 <template>
   <div class="goldfish container">

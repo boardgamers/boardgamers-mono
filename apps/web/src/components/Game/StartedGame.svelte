@@ -2,7 +2,7 @@
   import type { GamePreferences } from "@bgs/types";
   import { Loading } from "@/modules/cdk";
   import { navigate } from "@/modules/router";
-  import type { GameContext } from "@/pages/Game.svelte";
+  import type { GameContext } from "@/routes/game/[gameId].svelte";
   import { createWatcher, handleError } from "@/utils";
   import { getContext, onDestroy, onMount } from "svelte";
   import { useGame } from "@/composition/useGame";
@@ -13,6 +13,8 @@
   import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
   import { useCurrentGame } from "@/composition/useCurrentGame";
   import { useSession } from "@/composition/useSession";
+  import SEO from "../SEO.svelte";
+  import { gameLabel } from "@/utils/game-label";
 
   const { session } = useSession();
   const { loadGame } = useGame();
@@ -175,6 +177,15 @@
     gameIframe?.contentWindow?.postMessage({ type: "askReady" }, "*");
   });
 </script>
+
+<SEO
+  title={`${gameId} - ${$gameInfo.label} game`}
+  description={`${$game.status === "active" ? "Ongoing" : "Finished"} ${gameLabel($gameInfo.label)} game with ${
+    $game.players.length
+  } players: ${$game.players.map((pl) => pl.name).join(",")}.${
+    $game.status === "active" && $game.data.round && ` Round ${$game.data.round}.`
+  }`}
+/>
 
 <svelte:window on:message={handleGameMessage} />
 

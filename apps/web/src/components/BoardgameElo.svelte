@@ -6,7 +6,7 @@
   export let boardgameId: string;
   export let top = false;
   export let perPage = 5;
-  export let baseUrl: string;
+  export let baseUrl: string | undefined = undefined;
   export let initial: { rankings: EloRanking[]; total: number } | void = undefined;
   export let currentPage = 0;
 
