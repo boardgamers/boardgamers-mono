@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { page } from "$app/stores";
   import type { GamePreferences } from "@bgs/types";
   import { Loading } from "@/modules/cdk";
   import { navigate } from "@/modules/router";
@@ -13,7 +12,9 @@
   import { useAccount } from "@/composition/useAccount";
   import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
   import { useCurrentGame } from "@/composition/useCurrentGame";
+  import { useSession } from "@/composition/useSession";
 
+  const { session } = useSession();
   const { loadGame } = useGame();
   const { account: user } = useAccount();
   const { get, post } = useRest();
@@ -26,9 +27,9 @@
   let stateSent = false;
 
   const resourcesLink =
-    $page.host.startsWith("localhost") || $page.host.endsWith("gitpod.io")
+    session.host.startsWith("localhost") || session.host.endsWith("gitpod.io")
       ? `/resources`
-      : `//resources.${$page.host.slice($page.host.indexOf(".") + 1)}`;
+      : `//resources.${session.host.slice(session.host.indexOf(".") + 1)}`;
 
   let gameIframe: HTMLIFrameElement;
 
