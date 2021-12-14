@@ -5,11 +5,6 @@ import type { Token } from "./useRefreshToken";
 import { useRefreshToken } from "./useRefreshToken";
 import { useSession } from "./useSession";
 
-// todo : do not use hardcoded values
-// using an "external" url is needed to trigger externalFetch
-// & hydrating the content instead of making two requests
-const baseUrl = "http://localhost:8612/api";
-
 async function getResponseData<T>(response: Response): Promise<T> {
   const body = response.headers.get("content-type")?.startsWith("application/json")
     ? await response.json()
@@ -25,14 +20,18 @@ async function getResponseData<T>(response: Response): Promise<T> {
   return body;
 }
 
-function transformUrl(url: string) {
-  return url.startsWith("http") || url.startsWith("//") ? url : baseUrl + url;
-}
-
 export const useRest = defineStore(() => {
-  const fetch = useSession().data.fetch;
+  const { session, data } = useSession();
+  const fetch = data.fetch;
   const { refreshToken } = useRefreshToken();
   const accessTokens = useAccessTokens();
+
+  // We use external fetch
+  const baseUrl = session.host.startsWith("localhost") ? `http://${session.host}/api` : `https://${session.host}/api`;
+
+  function transformUrl(url: string) {
+    return url.startsWith("http") || url.startsWith("//") ? url : baseUrl + url;
+  }
 
   function setAccessToken(token: Token | null, scopes: string[] = ["all"]): void {
     if (token) {

@@ -34,6 +34,7 @@
   }
   .sidebar,
   .sidebar-container.open {
+    min-width: var(--sidebar-width);
     width: var(--sidebar-width);
   }
 

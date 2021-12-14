@@ -5,7 +5,9 @@
     await loadAccount();
     await loadActiveGames();
 
-    return {};
+    return {
+      session: input.session,
+    };
   }
 </script>
 

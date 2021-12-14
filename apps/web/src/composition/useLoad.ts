@@ -8,6 +8,12 @@ type ReturnTypes<T> = T extends [...infer U, infer A]
   : void;
 
 export function useLoad<T extends Array<(...args: unknown[]) => unknown>>(input: LoadInput, ...fns: T): ReturnTypes<T> {
+  if (!input.session) {
+    input.session = {
+      host: window.location.host,
+      ssr: false,
+    };
+  }
   if (!sessionData.has(input.session)) {
     sessionData.set(input.session, { stores: new Map(), fetch: input.fetch });
   }
