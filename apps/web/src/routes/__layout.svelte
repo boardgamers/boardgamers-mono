@@ -20,8 +20,10 @@
   import { useAccount } from "@/composition/useAccount";
   import { useActiveGames } from "@/composition/useActiveGames";
   import { useWebsocket } from "@/composition/useWebsocket";
+  import { useNProgress } from "@/composition/useNProgress";
 
   const { activeGames } = useActiveGames();
+  useNProgress();
 </script>
 
 <svelte:head>

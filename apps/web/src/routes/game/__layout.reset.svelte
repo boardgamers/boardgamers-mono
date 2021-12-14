@@ -17,7 +17,14 @@
 
   import { Appbar, Footer, Sidebar } from "@/components";
   import { useActiveGames } from "@/composition/useActiveGames";
+  import { useNProgress } from "@/composition/useNProgress";
+  import type { LoadInput } from "@sveltejs/kit";
+  import { useLoad } from "@/composition/useLoad";
+  import { useWebsocket } from "@/composition/useWebsocket";
+  import { useAccount } from "@/composition/useAccount";
   const { activeGames } = useActiveGames();
+
+  useNProgress();
 </script>
 
 <svelte:head>
