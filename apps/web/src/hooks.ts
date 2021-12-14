@@ -21,16 +21,14 @@ export function getSession(request: { headers: Record<string, string> }): Sessio
 }
 
 export const externalFetch: ExternalFetch = async (request) => {
-  console.log(request.url);
-
   const delimiter = request.url.slice(8).indexOf("/");
 
   if (delimiter === -1) {
     return fetch(request);
   }
 
-  const host = request.url.slice(0, delimiter);
-  const path = request.url.slice(delimiter);
+  const host = request.url.slice(0, delimiter + 8);
+  const path = request.url.slice(delimiter + 8);
 
   if (path.startsWith("/api/gameplay")) {
     request = new Request(request.url.replace(host, "http://localhost:50803"), request);
