@@ -25,6 +25,7 @@ export const useRest = defineStore(() => {
   const fetch = data.fetch;
   const { refreshToken } = useRefreshToken();
   const accessTokens = useAccessTokens();
+  const ip = session.ip;
 
   // We use external fetch
   const baseUrl = session.host.startsWith("localhost") ? `http://${session.host}/api` : `https://${session.host}/api`;
@@ -70,7 +71,7 @@ export const useRest = defineStore(() => {
 
     const response = await fetch(transformUrl("/account/refresh"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Real-IP": ip },
       body: JSON.stringify({ code: $refreshToken.code, scopes }),
     });
 
@@ -91,7 +92,7 @@ export const useRest = defineStore(() => {
       await fetch(
         transformUrl(url) + (query ? "?" + new URLSearchParams(query as Record<string, string>).toString() : ""),
         {
-          headers: { ...(token && { Authorization: `Bearer ${token.code}` }) },
+          headers: { "X-Real-IP": ip, ...(token && { Authorization: `Bearer ${token.code}` }) },
         }
       )
     );
@@ -104,7 +105,11 @@ export const useRest = defineStore(() => {
       await fetch(transformUrl(url), {
         method: "POST",
         body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token.code}` }) },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Real-IP": ip,
+          ...(token && { Authorization: `Bearer ${token.code}` }),
+        },
       })
     );
   }

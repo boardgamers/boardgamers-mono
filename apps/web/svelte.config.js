@@ -1,3 +1,4 @@
+import adapter from "@sveltejs/adapter-node";
 import dotenv from "dotenv";
 import path from "path";
 import preprocess from "svelte-preprocess";
@@ -18,6 +19,7 @@ const config = {
 
   kit: {
     target: "body",
+    adapter: adapter({ out: "build" }),
     vite: {
       resolve: {
         alias: {

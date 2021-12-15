@@ -2,6 +2,7 @@ import type { ExternalFetch } from "@sveltejs/kit";
 import { extractCookie } from "./utils/extract-cookie";
 
 export type Session = {
+  ip: string;
   ssr: boolean;
   host: string;
   refreshToken: string | undefined;
@@ -13,6 +14,7 @@ export function getSession(request: { headers: Record<string, string> }): Sessio
   const sidebarOpen = extractCookie("sidebarOpen", request.headers.cookie ?? "");
 
   return {
+    ip: request.headers["X-Real-IP"],
     ssr: true, // Tell the frontend that it's not just a SPA, there was SSR involved
     host: request.headers.host,
     refreshToken: refreshToken && JSON.parse(refreshToken),

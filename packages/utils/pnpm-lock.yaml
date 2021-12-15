@@ -6,14 +6,14 @@ specifiers:
   '@types/luxon': ^2.0.4
   '@types/mocha': ^9.0.0
   chai: ^4.3.4
-  lodash: ^4.17.21
+  lodash: npm:lodash-es@^4.17.21
   luxon: ^2.0.2
   mocha: ^9.1.1
   ts-node: ^10.2.1
   typescript: ^4.4.2
 
 dependencies:
-  lodash: 4.17.21
+  lodash: /lodash-es/4.17.21
 
 devDependencies:
   '@types/chai': 4.2.22
@@ -423,8 +423,8 @@ packages:
       p-locate: 5.0.0
     dev: true
 
-  /lodash/4.17.21:
-    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
+  /lodash-es/4.17.21:
+    resolution: {integrity: sha512-mKnC+QJ9pWVzv+C4/U3rRsHapFfHvQFoFB92e52xeyGMcX6/OlIl78je1u8vePzYZSkkogMPJ2yjxxsb89cxyw==}
     dev: false
 
   /log-symbols/4.1.0:
