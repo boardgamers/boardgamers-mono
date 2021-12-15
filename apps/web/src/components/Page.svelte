@@ -9,12 +9,12 @@
   <title>{pageContent.title}</title>
 </svelte:head>
 
-<div class="page container">
+<article class="page container">
   <h1>{pageContent.title}</h1>
   <div>
     {@html marked(pageContent.content ?? "")}
   </div>
-</div>
+</article>
 
 <style global>
   .page pre {

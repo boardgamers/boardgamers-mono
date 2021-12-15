@@ -6,9 +6,9 @@
 </script>
 
 <div class="sidebar-container" class:open={$sidebarOpen}>
-  <div class="px-3 pb-3 sidebar thin-scrollbar text-light">
+  <aside class="px-3 pb-3 sidebar thin-scrollbar text-light">
     <div id="sidebar" />
-  </div>
+  </aside>
   <Button
     color="secondary"
     on:click={() => ($sidebarOpen = !$sidebarOpen)}

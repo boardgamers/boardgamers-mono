@@ -18,6 +18,7 @@
   import { useAccount } from "@/composition/useAccount";
   import { useLogoClicks } from "@/composition/useLogoClicks";
   import { useActiveGames } from "@/composition/useActiveGames";
+  import { browser } from "$app/env";
 
   const { account: user, login, logout } = useAccount();
   const { logoClick } = useLogoClicks();
@@ -63,7 +64,7 @@
     }
   };
 
-  $: onHasGamesChanged(), [hasGames];
+  $: browser && onHasGamesChanged(), [hasGames];
 </script>
 
 <Navbar color="primary" class={className} dark expand>
