@@ -24,14 +24,6 @@
 // , and .sidebar is fixed (instead of just being normal position) for content
 // Both have the same animation */
 
-  .slide-enter-active,
-  .slide-leave-active {
-    transition: all 0.3s ease;
-  }
-  .slide-enter,
-  .slide-leave-to {
-    transform: translateX(320px);
-  }
   .sidebar,
   .sidebar-container.open {
     min-width: var(--sidebar-width);
@@ -50,12 +42,14 @@
   .sidebar-container {
     transition: all 0.3s ease;
 
+    min-width: 0;
     width: 0;
   }
 
   @media screen and (max-width: 600px) {
     .sidebar-container.open {
       width: 0;
+      min-width: 0;
 
       .sidebar {
         opacity: 1;
@@ -65,17 +59,12 @@
 
     .sidebar {
       position: fixed;
-      width: 100vw;
+      width: calc(100vw - 1rem); /* no idea why the -1 rem is needed */
       top: 0;
       right: 0;
       opacity: 0;
       pointer-events: none;
       transition: all 0.3s ease;
-    }
-
-    .slide-enter,
-    .slide-leave-to {
-      transform: translateX(100vw);
     }
   }
 
