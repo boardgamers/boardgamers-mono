@@ -111,7 +111,7 @@
         userId={$accountId}
         sample
         perPage={5}
-        title="My games"
+        title={$accountId ? "My games" : "Featured games"}
       />
     </Col>
     <Col lg={6} class="mt-3">
