@@ -172,7 +172,7 @@ router.post("/signup", loggedOut, passport.authenticate("local-signup", { sessio
 
 router.post("/signup/social", loggedOut, passport.authenticate("social-signup", { session: false }), sendAuthInfo);
 
-router.post("/login", loggedOut, passport.authenticate("local-login", { session: false }), sendAuthInfo);
+router.post("/login", passport.authenticate("local-login", { session: false }), sendAuthInfo);
 
 router.post("/signout", (ctx: Context) => {
   ctx.logout();
