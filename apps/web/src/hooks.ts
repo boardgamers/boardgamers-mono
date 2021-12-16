@@ -14,7 +14,7 @@ export function getSession(request: { headers: Record<string, string> }): Sessio
   const sidebarOpen = extractCookie("sidebarOpen", request.headers.cookie ?? "");
 
   return {
-    ip: request.headers["X-Real-IP"],
+    ip: request.headers["x-real-ip"],
     ssr: true, // Tell the frontend that it's not just a SPA, there was SSR involved
     host: request.headers.host,
     refreshToken: refreshToken && JSON.parse(refreshToken),
