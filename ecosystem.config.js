@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: "web",
-      script: "./apps/web/build/index.js",
+      script: "./index.js",
       cwd: "./apps/web/build",
       env: {
         HOST: "127.0.0.1",
