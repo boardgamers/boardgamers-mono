@@ -187,7 +187,6 @@ router.post("/confirm", async (ctx: Context) => {
   }
 
   await user.confirm(ctx.request.body.key);
-  await ctx.logIn(user);
 
   await sendAuthInfo(ctx);
 });
