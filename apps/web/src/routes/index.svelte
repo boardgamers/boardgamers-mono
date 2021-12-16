@@ -32,7 +32,7 @@
 
 <script lang="ts">
   import { Col, Row } from "sveltestrap";
-  import { GameList } from "@/components";
+  import { GameList, SEO } from "@/components";
   import marked from "marked";
   import { useRest } from "@/composition/useRest";
   import { useActiveGames } from "@/composition/useActiveGames";
@@ -56,6 +56,8 @@
 
   onMount(() => tick().then(() => (loaded = true)));
 </script>
+
+<SEO />
 
 <div class="d-flex">
   <GameListSidebar />
