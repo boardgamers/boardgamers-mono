@@ -1,0 +1,21 @@
+{
+  "name": "@bgs/utils",
+  "scripts": {
+    "test": "mocha -r ts-node/register *.spec.ts"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21"
+  },
+  "main": "index.ts",
+  "devDependencies": {
+    "@types/chai": "^4.2.22",
+    "@types/lodash": "^4.14.176",
+    "@types/luxon": "^2.0.4",
+    "@types/mocha": "^9.0.0",
+    "chai": "^4.3.4",
+    "luxon": "^2.0.2",
+    "mocha": "^9.1.1",
+    "ts-node": "^10.2.1",
+    "typescript": "^4.4.2"
+  }
+}

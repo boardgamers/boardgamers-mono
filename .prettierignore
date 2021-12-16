@@ -2,3 +2,5 @@ pnpm-lock.yaml
 .github
 dist
 admin-app
+build
+.svelte-kit

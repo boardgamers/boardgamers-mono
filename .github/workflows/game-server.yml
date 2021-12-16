@@ -3,19 +3,19 @@ on:
   push:
     paths:
       - ".github/workflows/game-server.yml"
-      - "packages/server/game-server/**"
-      - "packages/shared/**"
+      - "apps/game-server/**"
+      - "packages/**"
     branches:
       - master
   pull_request:
     paths:
       - ".github/workflows/game-server.yml"
-      - "packages/server/game-server/**"
-      - "packages/shared/**"
+      - "apps/game-server/**"
+      - "packages/**"
 
 defaults:
   run:
-    working-directory: packages/server/game-server
+    working-directory: apps/game-server
 
 jobs:
   lint:
