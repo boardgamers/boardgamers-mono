@@ -33,9 +33,21 @@ export const externalFetch: ExternalFetch = async (request) => {
   const path = request.url.slice(delimiter + 8);
 
   if (path.startsWith("/api/gameplay")) {
-    request = new Request(request.url.replace(host, "http://localhost:50803"), request);
+    request = new Request(
+      request.url.replace(
+        host,
+        (import.meta.env as unknown as Record<string, string>).VITE_backend ?? "http://localhost:50803"
+      ),
+      request
+    );
   } else if (path.startsWith("/api/")) {
-    request = new Request(request.url.replace(host, "http://localhost:50801"), request);
+    request = new Request(
+      request.url.replace(
+        host,
+        (import.meta.env as unknown as Record<string, string>).VITE_backend ?? "http://localhost:50801"
+      ),
+      request
+    );
   }
 
   return fetch(request);
