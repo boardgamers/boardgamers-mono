@@ -20,6 +20,7 @@
   import marked from "marked";
   import { useGamePreferences } from "@/composition/useGamePreferences";
   import { useAccount } from "@/composition/useAccount";
+  import { SEO } from "@/components";
 
   const { latestGameInfos } = useGameInfo();
   const { gamePreferences, loadAllGamePreferences } = useGamePreferences();
@@ -31,9 +32,7 @@
   $: watcher(), [$accountId];
 </script>
 
-<svelte:head>
-  <title>Game selection</title>
-</svelte:head>
+<SEO title="Game selection" />
 
 <div class="container">
   <h1 class="mb-4">Game selection</h1>
