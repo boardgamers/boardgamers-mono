@@ -1,4 +1,4 @@
-import { IAbstractUser } from "@bgs/types";
+import type { IAbstractUser } from "@bgs/types";
 import assert from "assert";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -231,7 +231,9 @@ schema.method("confirmKey", function (this: UserDocument) {
 });
 
 schema.method("confirm", function (this: UserDocument, key: string) {
-  assert(!this.security.confirmed, "You already are confirmed");
+  if (this.security.confirmed) {
+    return;
+  }
   assert(key && this.confirmKey() === key, `Wrong confirm link.`);
   this.security.confirmed = true;
   this.security.confirmKey = null;
