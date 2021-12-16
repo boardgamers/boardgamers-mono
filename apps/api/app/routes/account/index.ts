@@ -30,17 +30,6 @@ router.get("/active-games", async (ctx) => {
   }
 });
 
-router.get("/active-games", async (ctx) => {
-  if (!ctx.state.user) {
-    ctx.body = [];
-  } else {
-    ctx.body = await Game.findWithPlayersTurn(ctx.state.user._id!)
-      .select("_id")
-      .lean(true)
-      .then((games) => games.map((game) => game._id));
-  }
-});
-
 router.post("/", loggedIn, async (ctx) => {
   merge(ctx.state.user, pick(ctx.request.body, ["settings"]));
   await ctx.state.user.save();
