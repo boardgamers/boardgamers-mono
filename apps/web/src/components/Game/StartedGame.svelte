@@ -179,7 +179,7 @@
 </script>
 
 <SEO
-  title={`${gameId} - ${$gameInfo.label} game`}
+  title={`${gameId} - ${gameLabel($gameInfo.label)} game`}
   description={`${$game.status === "active" ? "Ongoing" : "Finished"} ${gameLabel($gameInfo.label)} game with ${
     $game.players.length
   } players: ${$game.players.map((pl) => pl.name).join(",")}.${

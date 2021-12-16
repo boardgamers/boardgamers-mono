@@ -128,7 +128,7 @@
 </script>
 
 <SEO
-  title={`${gameId} - ${$gameInfo.label} game`}
+  title={`${gameId} - ${gameLabel($gameInfo.label)} game`}
   description={removeMarkdown(
     `Open ${gameLabel($gameInfo.label)} game with ${$game.players.length}/${
       $game.options.setup.nbPlayers
