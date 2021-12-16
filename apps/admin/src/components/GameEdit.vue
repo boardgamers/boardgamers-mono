@@ -60,12 +60,11 @@ const props = withDefaults(defineProps<{ mode: "new" | "edit"; modelValue: GameI
     } as GameInfo),
 });
 
-const emit =
-  defineEmits<{
-    (e: "update:modelValue", value: GameInfo): void;
-    (e: "save", value: GameInfo): void;
-    (e: "delete"): void;
-  }>();
+const emit = defineEmits<{
+  (e: "update:modelValue", value: GameInfo): void;
+  (e: "save", value: GameInfo): void;
+  (e: "delete"): void;
+}>();
 
 const info = computed(() => props.modelValue);
 

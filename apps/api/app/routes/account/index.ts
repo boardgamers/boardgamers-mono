@@ -20,10 +20,10 @@ router.get("/", (ctx) => {
 });
 
 router.get("/active-games", async (ctx) => {
-  if (!ctx.state.user) {
+  if (!ctx.state.user?._id) {
     ctx.body = [];
   } else {
-    ctx.body = await Game.findWithPlayersTurn(ctx.state.user._id!)
+    ctx.body = await Game.findWithPlayersTurn(ctx.state.user._id)
       .select("_id")
       .lean(true)
       .then((games) => games.map((game) => game._id));

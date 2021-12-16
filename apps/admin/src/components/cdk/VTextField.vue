@@ -13,12 +13,11 @@ const props = withDefaults(
   { type: "text" }
 );
 
-const emit =
-  defineEmits<{
-    (e: "update:modelValue", value: string): void;
-    (e: "focus", value: FocusEvent): void;
-    (e: "blur", value: FocusEvent): void;
-  }>();
+const emit = defineEmits<{
+  (e: "update:modelValue", value: string): void;
+  (e: "focus", value: FocusEvent): void;
+  (e: "blur", value: FocusEvent): void;
+}>();
 </script>
 
 <template>
