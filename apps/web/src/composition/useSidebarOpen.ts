@@ -19,7 +19,7 @@ export const useSidebarOpen = defineStore(() => {
       localStorage.removeItem("sidebarOpen"); // todo : remove when no longer relevant
       document.cookie = `sidebarOpen=${JSON.stringify(newVal)}; Path=/; Max-Age=${
         365 * 10 * 24 * 3_600
-      }; SameSite=Strict`;
+      }; SameSite=Strict; Secure`;
     });
   }
 
