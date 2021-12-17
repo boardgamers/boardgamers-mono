@@ -17,7 +17,9 @@ export const useSidebarOpen = defineStore(() => {
   if (browser) {
     sidebarOpen.subscribe((newVal) => {
       localStorage.removeItem("sidebarOpen"); // todo : remove when no longer relevant
-      document.cookie = `sidebarOpen=${JSON.stringify(newVal)}; MaxAge=${365 * 10 * 24 * 3_600}; SameSite=Strict`;
+      document.cookie = `sidebarOpen=${JSON.stringify(newVal)}; Path=/; Max-Age=${
+        365 * 10 * 24 * 3_600
+      }; SameSite=Strict`;
     });
   }
 

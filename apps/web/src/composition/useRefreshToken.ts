@@ -27,9 +27,9 @@ export const useRefreshToken = defineStore(() => {
 
       if (newVal) {
         localStorage.removeItem("refreshToken"); // todo : remove when no longer relevant
-        document.cookie = `refreshToken=${JSON.stringify(newVal)}; MaxAge=${
+        document.cookie = `refreshToken=${JSON.stringify(newVal)}; Max-Age=${
           (newVal.expiresAt - Date.now()) / 1000
-        }; SameSite=Strict`;
+        }; Path=/; SameSite=Strict`;
 
         setTimeout(() => {
           const $refreshToken = $(refreshToken);
@@ -38,7 +38,7 @@ export const useRefreshToken = defineStore(() => {
           }
         }, Date.now() - newVal.expiresAt + 10);
       } else {
-        document.cookie = `refreshToken=null; expires=${new Date(0).toUTCString()}; SameSite=Strict`;
+        document.cookie = `refreshToken=null; path=/; expires=${new Date(0).toUTCString()}; SameSite=Strict`;
       }
     });
   }
