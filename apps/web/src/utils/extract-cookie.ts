@@ -1,7 +1,9 @@
-export function extractCookie(name: string, cookie: string): string | undefined {
+export function extractCookie(name: string, cookie: string): any {
   const cookies = cookie.split(";").map((x) => x.trim());
 
   const extracted = cookies.find((x) => x.startsWith(`${name}=`));
 
-  return extracted?.slice(name.length + 1);
+  const val = extracted?.slice(name.length + 1);
+
+  return val && JSON.parse(val);
 }
