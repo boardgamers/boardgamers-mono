@@ -5,6 +5,8 @@
 
   import type { LoadInput } from "@sveltejs/kit";
 
+  export const ssr = false;
+
   export async function load(input: LoadInput) {
     const { get, setAuthData } = useLoad(input, useRest, useAccount);
 

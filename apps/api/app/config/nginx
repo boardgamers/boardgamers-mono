@@ -24,8 +24,8 @@ upstream gaia_front {
 }
 
 server {
-  listen 80;
-  listen [::]:80;
+  listen 80 http2;
+  listen [::]:80 http2;
 
   root /home/coyotte508/code/gaia-site/front/dist;
 
@@ -94,8 +94,8 @@ server {
 
 
 server {
-  listen 80;
-  listen [::]:80;
+  listen 80 http2;
+  listen [::]:80 http2;
 
   root /home/coyotte508/code/gaia-site/front/dist;
 
