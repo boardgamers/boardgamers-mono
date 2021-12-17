@@ -36,6 +36,6 @@
     "strict": true,
     "useDefineForClassFields": true,
     "allowSyntheticDefaultImports": true,
-    "types": ["./src/typings"]
+    "types": ["./src/typings", "jest"]
   }
 }
