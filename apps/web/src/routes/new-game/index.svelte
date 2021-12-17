@@ -21,6 +21,7 @@
   import { useGamePreferences } from "@/composition/useGamePreferences";
   import { useAccount } from "@/composition/useAccount";
   import type { IterableElement } from "type-fest";
+  import { SEO } from "@/components";
 
   const { latestGameInfos } = useGameInfo();
   const { gamePreferences, loadAllGamePreferences } = useGamePreferences();
@@ -42,6 +43,8 @@
     return;
   };
 </script>
+
+<SEO title="Choose which game to play" description="Play a boardgame of your choice online with other people!" />
 
 <div class="container">
   <h1 class="mb-4">Choose which game to play</h1>

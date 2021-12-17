@@ -47,6 +47,7 @@
   import { get as storeGet } from "svelte/store";
   import { LoadEloRankingsResult, useEloRankings } from "@/composition/useEloRankings";
   import removeMarkdown from "remove-markdown";
+  import { gameLabel } from "@/utils/game-label";
 
   const { accountId } = useAccount();
   const { gameInfos, gameInfo, loadGameInfo } = useGameInfo();
@@ -83,7 +84,10 @@
   }
 </script>
 
-<SEO title={`${boardgame.label} - Boardgames`} description={removeMarkdown(boardgame.description)} />
+<SEO
+  title={`${gameLabel(boardgame.label)} - Boardgames`}
+  description={`Play ${gameLabel(boardgame.label)} online with other people!`}
+/>
 
 <div class="home container">
   <h1>{boardgame.label}</h1>
