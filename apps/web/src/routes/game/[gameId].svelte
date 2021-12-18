@@ -12,12 +12,17 @@
   };
 
   export async function load(input: LoadInput) {
-    const { gameInfo, loadGame, loadGamePlayers, loadGameInfo } = useLoad(input, useGameInfo, useGame);
+    const { gameInfo, loadGame, loadGamePlayers, loadGameInfo, loadGamePreferences } = useLoad(
+      input,
+      useGameInfo,
+      useGame,
+      useGamePreferences
+    );
 
     const gameId = input.page.params.gameId;
 
     const [game, players] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
-    await loadGameInfo(game.game.name, game.game.version);
+    await Promise.all([loadGameInfo(game.game.name, game.game.version), loadGamePreferences(game.game.name)]);
 
     return {
       props: {
@@ -40,6 +45,7 @@
   import { useGame } from "@/composition/useGame";
   import { useCurrentGame } from "@/composition/useCurrentGame";
   import { useCurrentRoom } from "@/composition/useCurrentRoom";
+  import { useGamePreferences } from "@/composition/useGamePreferences";
 
   const { currentGameId } = useCurrentGame();
   const { room: currentRoom } = useCurrentRoom();
