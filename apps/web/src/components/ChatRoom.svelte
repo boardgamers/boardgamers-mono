@@ -218,7 +218,7 @@
   }
 
   .chat-modal {
-    position: absolute;
+    position: absolute !important;
     bottom: 50px;
 
     right: calc(var(--fab-right) + 4em);
@@ -248,7 +248,6 @@
 
   @media screen and (max-width: 600px) {
     .chat-modal {
-      position: absolute;
       bottom: 70px;
 
       right: auto;
