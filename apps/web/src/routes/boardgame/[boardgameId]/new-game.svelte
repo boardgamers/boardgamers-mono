@@ -3,7 +3,7 @@
   import marked from "marked";
   import { fromPairs, upperFirst } from "lodash";
   import { Button, Col, Input, Checkbox, Row, Container } from "@/modules/cdk";
-  import { navigate } from "@/modules/router";
+  import { goto } from "$app/navigation";
   import { adjectives, nouns } from "@/data";
   import type { PlayerOrder } from "@bgs/types";
   import { playerOrders } from "@/data/playerOrders";
@@ -93,7 +93,7 @@
     }
 
     post("/game/new-game", dataObj)
-      .then(() => navigate("/game/" + gameId), handleError)
+      .then(() => goto("/game/" + gameId), handleError)
       .finally(() => (submitting = false));
   }
 
