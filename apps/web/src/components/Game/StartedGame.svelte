@@ -67,7 +67,7 @@
 
   const onSrcChanged = () => (stateSent = false);
 
-  $: onSrcChanged(), [src];
+  $: onSrcChanged(), [src, gameId];
 
   const onGameUpdated = createWatcher(() => {
     if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
@@ -191,14 +191,16 @@
 
 <Loading loading={!stateSent} />
 
-<iframe
-  bind:this={gameIframe}
-  id="game-iframe"
-  title="Game UX"
-  sandbox="allow-scripts allow-same-origin"
-  class:d-none={!stateSent}
-  {src}
-/>
+{#key gameId}
+  <iframe
+    bind:this={gameIframe}
+    id="game-iframe"
+    title="Game UX"
+    sandbox="allow-scripts allow-same-origin"
+    class:d-none={!stateSent}
+    {src}
+  />
+{/key}
 
 <style>
   #game-iframe {
