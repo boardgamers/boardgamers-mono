@@ -26,9 +26,10 @@
   export let currentPage: number;
 </script>
 
+<!-- Replacing all \n by spaces is only because svelte doesn't allow true multiline attributes -->
 <SEO
   title={`${gameLabel(gameInfo(boardgameId, "latest").label)} rankings`}
-  description={removeMarkdown(gameInfo(boardgameId, "latest").description)}
+  description={removeMarkdown(gameInfo(boardgameId, "latest").description).replaceAll("\n", " ")}
 />
 
 <div class="container">

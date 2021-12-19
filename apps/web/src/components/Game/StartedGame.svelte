@@ -182,7 +182,7 @@
   title={`${gameId} - ${gameLabel($gameInfo.label)} game`}
   description={`${$game.status === "active" ? "Ongoing" : "Finished"} ${gameLabel($gameInfo.label)} game with ${
     $game.players.length
-  } players: ${$game.players.map((pl) => pl.name).join(",")}.${
+  } players: ${$game.players.map((pl) => pl.name).join(", ")}.${
     $game.status === "active" && $game.data.round && ` Round ${$game.data.round}.`
   }`}
 />
