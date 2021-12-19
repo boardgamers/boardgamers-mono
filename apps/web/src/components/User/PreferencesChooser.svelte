@@ -1,11 +1,13 @@
 <script lang="ts">
-  import { handleError } from "@/utils";
+  import { createWatcher, handleError } from "@/utils";
   import PreferenceInput from "./PreferenceInput.svelte";
   import type { GameInfo } from "@bgs/types";
   import type { Primitive } from "type-fest";
   import { useGamePreferences } from "@/composition/useGamePreferences";
+  import { useAccount } from "@/composition/useAccount";
 
-  const { gamePreferences, addDefaults, updatePreference } = useGamePreferences();
+  const { gamePreferences, addDefaults, updatePreference, loadGamePreferences } = useGamePreferences();
+  const { accountId } = useAccount();
 
   let gameInfo: GameInfo;
   export { gameInfo as game };
@@ -27,6 +29,10 @@
   const handleChange = (key: string, val: Primitive) => {
     updatePreference(boardgameId, boardgameVersion, key, val).catch(handleError);
   };
+
+  const loadPrefs = createWatcher(() => loadGamePreferences(boardgameId));
+
+  $: loadPrefs(), [$accountId];
 </script>
 
 {#each preferenceItems.filter((item) => item.type === "checkbox" && item.category == null) as item}
