@@ -42,7 +42,7 @@
   );
 
   $: userId = $account?._id;
-  $: loadNotes(), [userId];
+  $: loadNotes(), [userId, gameId];
 
   function updateTextareaSize() {
     if (!textArea) {
