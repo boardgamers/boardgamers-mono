@@ -225,6 +225,10 @@ function makeSocialStrategy<T extends Strategy>(provider: string, SocialStrategy
           const existingUser = await User.findOne({ [`account.social.${provider}`]: profile.id });
 
           if (currentUser) {
+            if (existingUser && existingUser._id === currentUser._id) {
+              done(null, existingUser);
+              return;
+            }
             assert(!currentUser.account.social[provider], `You already have a ${provider} account connected`);
             assert(!existingUser, `Another user is already connected to that ${provider} account`);
 
