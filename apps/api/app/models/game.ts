@@ -38,6 +38,7 @@ schema.static("basics", () => {
     "creator",
     "data.round",
     "lastMove",
+    "createdAt",
   ];
 });
 
