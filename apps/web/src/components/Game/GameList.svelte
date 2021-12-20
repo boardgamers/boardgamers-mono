@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { timerTime, defer, duration, niceDate } from "@/utils";
+  import { timerTime, defer, duration, niceDate, shortDuration } from "@/utils";
   import type { IGame } from "@bgs/types";
   import { createWatcher } from "@/utils/watch";
   import { Badge, Icon, Pagination, Loading, Row } from "@/modules/cdk";
@@ -147,7 +147,12 @@
                 {/each}
               </Row>
             {:else}
-              <span class="me-3"> {game.players.length} / {game.options.setup.nbPlayers} </span>
+              <div class="me-3" style="line-height: 1.1;">
+                <div class="text-end">{game.players.length} / {game.options.setup.nbPlayers}</div>
+                <small>
+                  {shortDuration(Math.floor((Date.now() - new Date(game.createdAt).getTime()) / 1000))} ago</small
+                >
+              </div>
             {/if}
           </a>
         {/each}
