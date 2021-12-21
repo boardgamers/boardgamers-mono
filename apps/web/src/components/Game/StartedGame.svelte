@@ -15,6 +15,7 @@
   import { useSession } from "@/composition/useSession";
   import SEO from "../SEO.svelte";
   import { gameLabel } from "@/utils/game-label";
+  import { minBy, sortBy } from "lodash";
 
   const { session } = useSession();
   const { loadGame } = useGame();
@@ -176,16 +177,27 @@
   onMount(() => {
     gameIframe?.contentWindow?.postMessage({ type: "askReady" }, "*");
   });
+
+  let description: string;
+  let title: string;
+
+  $: {
+    if ($game.status === "active") {
+      title = `${gameId} - ${gameLabel($gameInfo.label)} game`;
+      description = `Ongoing game with ${$game.players.length} players: ${$game.players
+        .map((pl) => pl.name)
+        .join(", ")}.${$game.status === "active" && $game.data.round && ` Round ${$game.data.round}.`}`;
+    } else {
+      const victor = minBy($game.players, "ranking")!;
+      title = `${victor.name}'s victory! - ${gameLabel($gameInfo.label)} game`;
+      description = sortBy($game.players, "ranking")
+        .map((player) => `${player.ranking}° ${player.name} (${player.score}pts)`)
+        .join("\n");
+    }
+  }
 </script>
 
-<SEO
-  title={`${gameId} - ${gameLabel($gameInfo.label)} game`}
-  description={`${$game.status === "active" ? "Ongoing" : "Finished"} ${gameLabel($gameInfo.label)} game with ${
-    $game.players.length
-  } players: ${$game.players.map((pl) => pl.name).join(", ")}.${
-    $game.status === "active" && $game.data.round && ` Round ${$game.data.round}.`
-  }`}
-/>
+<SEO {title} {description} />
 
 <svelte:window on:message={handleGameMessage} />
 

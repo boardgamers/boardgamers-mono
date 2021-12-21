@@ -29,7 +29,7 @@
 <!-- Replacing all \n by spaces is only because svelte doesn't allow true multiline attributes -->
 <SEO
   title={`${gameLabel(gameInfo(boardgameId, "latest").label)} rankings`}
-  description={removeMarkdown(gameInfo(boardgameId, "latest").description).replaceAll("\n", " ")}
+  description={removeMarkdown(gameInfo(boardgameId, "latest").description)}
 />
 
 <div class="container">

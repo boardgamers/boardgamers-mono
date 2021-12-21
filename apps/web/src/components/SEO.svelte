@@ -4,8 +4,7 @@
     "Play Gaia Project, 6nimmt, Powergrid and Container online. All games and the platform are open source!";
 </script>
 
-<!-- Only show the most recent -->
 <svelte:head>
   <title>{title}</title>
-  <meta name="description" content={description} />
+  <meta name="description" content={description.replaceAll("\n", " ")} />
 </svelte:head>
