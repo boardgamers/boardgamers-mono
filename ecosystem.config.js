@@ -8,6 +8,7 @@ module.exports = {
         HOST: "127.0.0.1",
         PORT: 8612,
       },
+      exec_mode: "cluster",
     },
     {
       name: "game-server",
