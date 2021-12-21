@@ -1,4 +1,5 @@
-import type { ExternalFetch } from "@sveltejs/kit";
+import type { ExternalFetch, Handle } from "@sveltejs/kit";
+import type { ServerResponse } from "@sveltejs/kit/types/hooks";
 import { extractCookie } from "./utils/extract-cookie";
 
 export type Session = {
@@ -19,6 +20,27 @@ export function getSession(request: { headers: Record<string, string> }): Sessio
     host: request.headers.host,
     refreshToken,
     sidebarOpen,
+  };
+}
+
+/**
+ * Horrible hack to fix SvelteKit's lack of handling of multiline attributes.
+ */
+export async function handle({ request, resolve }: Parameters<Handle>[0]): Promise<ServerResponse> {
+  const response = await resolve(request);
+
+  let body = response.body;
+  if (typeof body === "string") {
+    const start = body.indexOf('<meta name="description"');
+    const end = body.indexOf(">", start);
+    if (start !== -1 && end !== -1 && body.indexOf("\\n", start) < end) {
+      body = body.slice(0, start) + body.slice(start, end).replaceAll("\\n", "\n") + body.slice(end);
+    }
+  }
+
+  return {
+    ...response,
+    body,
   };
 }
 

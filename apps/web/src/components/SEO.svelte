@@ -6,5 +6,5 @@
 
 <svelte:head>
   <title>{title}</title>
-  <meta name="description" content={description.replaceAll("\n", " ")} />
+  <meta name="description" content={description} />
 </svelte:head>
