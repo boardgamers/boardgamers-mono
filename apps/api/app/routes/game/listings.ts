@@ -67,7 +67,12 @@ async function gameConditions<T>(
 }
 
 router.get("/:status/count", async (ctx) => {
-  const conditions: Record<string, unknown> = { status: "active", ...(await filterAccessibleGames(ctx.state.user)) };
+  const conditions: Record<string, unknown> = await gameConditions(ctx.params.status, {
+    user: ctx.query.user,
+    requester: ctx.state.user?._id,
+    boardgame: ctx.query.boardgame,
+    maxKarma: ctx.query.maxKarma,
+  });
   if (ctx.query.user) {
     conditions["players._id"] = ctx.query.user;
   }
