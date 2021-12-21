@@ -3,9 +3,10 @@
     const boardgameId = input.page.params.boardgameId;
     const currentPage = +input.page.params.page || 1;
     const { loadEloRankings } = useLoad(input, useEloRankings);
-    const rankings = await loadEloRankings({ boardgameId, count: 15, skip: (currentPage - 1) * 15 });
+    let skip = (currentPage - 1) * 15;
+    const rankings = await loadEloRankings({ boardgameId, count: 15, skip });
 
-    return { props: { rankings, boardgameId, currentPage } };
+    return { props: { rankings, boardgameId, currentPage, skip } };
   }
 </script>
 
@@ -17,19 +18,18 @@
   import { Col, Row } from "@/modules/cdk";
   import { gameLabel } from "@/utils/game-label";
   import type { LoadInput } from "@sveltejs/kit";
-  import removeMarkdown from "remove-markdown";
 
   const { gameInfo } = useGameInfo();
 
   export let rankings: LoadEloRankingsResult;
   export let boardgameId: string;
   export let currentPage: number;
+  export let skip: number;
 </script>
 
-<!-- Replacing all \n by spaces is only because svelte doesn't allow true multiline attributes -->
 <SEO
-  title={`${gameLabel(gameInfo(boardgameId, "latest").label)} rankings`}
-  description={removeMarkdown(gameInfo(boardgameId, "latest").description)}
+  title={`Page ${currentPage} - ${gameLabel(gameInfo(boardgameId, "latest").label)} rankings`}
+  description={rankings.rankings.map((x, i) => `${skip + i + 1}° ${x.user.name} (${x.elo.value} elo)`).join("\n")}
 />
 
 <div class="container">
