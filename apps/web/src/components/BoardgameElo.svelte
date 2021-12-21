@@ -42,6 +42,12 @@
 
   const onPageChange = createWatcher(() => !baseUrl && load(false));
 
+  $: {
+    if (baseUrl && initial) {
+      boardgameElo = initial.rankings;
+    }
+  }
+
   $: onPageChange(), [currentPage];
 </script>
 
