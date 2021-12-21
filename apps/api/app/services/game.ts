@@ -1,3 +1,4 @@
+import { subHours, subWeeks } from "date-fns";
 import { shuffle } from "lodash";
 import locks from "mongo-locks";
 import { ChatMessage, Game, GameDocument, GameNotification } from "../models";
@@ -13,6 +14,31 @@ export async function notifyGameStart(game: GameDocument) {
 
   await ChatMessage.create({ room: game._id, type: "system", data: { text: "Game started" } });
   await GameNotification.create({ game: game._id, kind: "gameStarted", processed: false });
+}
+
+export async function cancelOldOpenGames() {
+  // Remove live games an hour old
+  await Game.remove({
+    status: "open",
+    "options.timing.scheduledStart": { $exists: false },
+    "options.timing.timePerGame": { $lte: 600 },
+    createdAt: { $lt: subHours(Date.now(), 1) },
+  });
+
+  // Remove fast games three hours old
+  await Game.remove({
+    status: "open",
+    "options.timing.scheduledStart": { $exists: false },
+    "options.timing.timePerGame": { $lte: 3600 },
+    createdAt: { $lt: subHours(Date.now(), 3) },
+  });
+
+  // Remove games a week old
+  await Game.remove({
+    status: "open",
+    "options.timing.scheduledStart": { $exists: false },
+    createdAt: { $lt: subWeeks(Date.now(), 1) },
+  });
 }
 
 export async function processSchedulesGames() {

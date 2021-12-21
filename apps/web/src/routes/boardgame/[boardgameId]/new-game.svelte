@@ -5,6 +5,7 @@
   import { Button, Col, Input, Checkbox, Row, Container } from "@/modules/cdk";
   import { goto } from "$app/navigation";
   import { adjectives, nouns } from "@/data";
+  import { fade } from "svelte/transition";
   import type { PlayerOrder } from "@bgs/types";
   import { playerOrders } from "@/data/playerOrders";
   import { useAccount } from "@/composition/useAccount";
@@ -273,6 +274,16 @@
         <small class="form-text text-muted">Timer will pause at this time of the day.</small>
       </div>
     </Row>
+
+    {#if !scheduledDay || !scheduledTime}
+      <p class="mt-2" transition:fade>
+        The game will automatically be cancelled if not started after {timePerGame <= 600
+          ? "an hour"
+          : timePerGame <= 3600
+          ? "three hours"
+          : "a week"}.
+      </p>
+    {/if}
 
     <h3>Other options</h3>
 
