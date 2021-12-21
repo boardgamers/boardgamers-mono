@@ -184,9 +184,9 @@
   $: {
     if ($game.status === "active") {
       title = `${gameId} - ${gameLabel($gameInfo.label)} game`;
-      description = `Ongoing game with ${$game.players.length} players: ${$game.players
-        .map((pl) => pl.name)
-        .join(", ")}.${$game.status === "active" && $game.data.round && ` Round ${$game.data.round}.`}`;
+      description = `Round ${$game.data.round}
+      
+${$game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
     } else {
       const victor = minBy($game.players, "ranking")!;
       title = `${victor.name}'s victory! - ${gameLabel($gameInfo.label)} game`;
