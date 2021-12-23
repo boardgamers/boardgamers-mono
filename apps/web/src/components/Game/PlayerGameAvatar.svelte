@@ -26,7 +26,7 @@
   $: (style = `background-image: url('${
     player.faction && gameInfo(game)?.factions?.avatars
       ? `/images/factions/icons/${player.faction}.svg`
-      : `/api/user/${player._id}/avatar`
+      : `/api/user/${player._id}/avatar?d=${Date.now()}`
   }')`),
     [$gameInfos];
 </script>

@@ -1,14 +1,6 @@
 <script lang="ts" context="module">
   export async function load(input: LoadInput) {
-    const { loadGameInfos, account, loadAllGamePreferences } = useLoad(
-      input,
-      useAccount,
-      useGameInfo,
-      useGamePreferences
-    );
-
-    await loadGameInfos();
-    await loadAllGamePreferences();
+    const { account } = useLoad(input, useAccount);
 
     if (!storeGet(account)) {
       return { status: 302, redirect: redirectLoggedIn(input.page) };
@@ -20,30 +12,27 @@
 
 <script lang="ts">
   import { handleError, confirm, niceDate, duration, createWatcher } from "@/utils";
-  import { UserGameSettings } from "@/components";
   import { Card, Button, Col, Container, FormGroup, Input, InputGroup, Row, Checkbox } from "@/modules/cdk";
   import { upperFirst, debounce } from "lodash";
   import type { LoadInput } from "@sveltejs/kit";
   import { useLoad } from "@/composition/useLoad";
   import { useAccount } from "@/composition/useAccount";
-  import { useGameInfo } from "@/composition/useGameInfo";
   import { useRest } from "@/composition/useRest";
   import { get as storeGet } from "svelte/store";
   import { redirectLoggedIn } from "@/utils/redirect";
   import type { IUser } from "@bgs/types";
   import { browser } from "$app/env";
   import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
-  import { useGamePreferences } from "@/composition/useGamePreferences";
   import { useLoggedIn } from "@/composition/useLoggedIn";
+  import UserAvatar from "@/components/User/UserAvatar.svelte";
+  import { useLogoClicks } from "@/composition/useLogoClicks";
 
   useLoggedIn();
 
-  const { latestGameInfos } = useGameInfo();
+  const { logoClick } = useLogoClicks();
   const { developerSettings } = useDeveloperSettings();
   const { account } = useAccount();
   const { post } = useRest();
-
-  let games = latestGameInfos();
 
   let email = $account!.account.email;
   let editingEmail = false;
@@ -53,6 +42,31 @@
   let gameNotification = $account!.settings?.mailing?.game?.activated;
   let gameNotificationDelay = $account!.settings?.mailing?.game?.delay ?? 30 * 60;
   let tc = false;
+  let editingAvatar = false;
+
+  $: bio = $account?.account.bio ?? "";
+
+  const avatarStyles = [
+    "adventurer",
+    "adventurer-neutral",
+    "avataaars",
+    "big-ears",
+    "big-ears-neutral",
+    "big-smile",
+    "bottts",
+    "croodles",
+    "croodles-neutral",
+    "gridy",
+    "identicon",
+    "initials",
+    "jdenticon",
+    "micah",
+    "miniavs",
+    "open-peeps",
+    "personas",
+    "pixel-art",
+    "pixel-art-neutral",
+  ];
 
   async function acceptTC() {
     const accepted = await confirm("The terms and conditions will be marked as accepted at today's date.");
@@ -69,6 +83,15 @@
     }
   }
 
+  const selectArt = (art: string) =>
+    post<IUser>("/account", {
+      account: {
+        avatar: art,
+      },
+    })
+      .then((r) => account.set(r), handleError)
+      .finally(() => ((editingAvatar = false), logoClick()));
+
   const updateAccount = debounce(
     () => {
       post<IUser>("/account", {
@@ -83,6 +106,18 @@
           game: {
             soundNotification,
           },
+        },
+      }).then((r) => account.set(r), handleError);
+    },
+    800,
+    { leading: false }
+  );
+
+  const updateBio = debounce(
+    (bio: string) => {
+      post<IUser>("/account", {
+        account: {
+          bio,
         },
       }).then((r) => account.set(r), handleError);
     },
@@ -127,23 +162,34 @@
     </Col>
   </Row>
 
-  <div class="row row-cols-1 row-cols-md-3 g-4 mt-4 game-choice">
-    {#each games as game}
-      <Col>
-        <UserGameSettings {game} class="h-100" />
-      </Col>
-    {/each}
-  </div>
-
   <Card class="mt-4 border-info" header="User Settings">
-    <p>
-      Username: <strong>{$account.account.username}</strong>
-    </p>
-    <FormGroup>
+    {#if !editingAvatar}
+      <div style="cursor: pointer; display: contents;" on:click={() => (editingAvatar = true)}>
+        <UserAvatar --avatar-border="1px solid gray" userId={$account._id} username={$account.account.username} />
+      </div>
+    {:else}
+      {#each avatarStyles as art}
+        <div style="cursor: pointer; display: contents;" on:click={() => selectArt(art)}>
+          <UserAvatar {art} username={$account.account.username} />
+        </div>
+      {/each}
+    {/if}
+    <FormGroup class="mt-2">
+      <label for="bio">Bio</label>
+      <Input
+        type="textarea"
+        id="bio"
+        placeholder="Something about yourself..."
+        value={bio}
+        on:change={(event) => updateBio(event.target.value)}
+      />
+    </FormGroup>
+    <FormGroup class="mt-2">
       <label for="email">Email</label>
       <InputGroup>
         <Input
           type="email"
+          id="email"
           placeholder="Email address"
           bind:value={email}
           on:keyup={(e) => {

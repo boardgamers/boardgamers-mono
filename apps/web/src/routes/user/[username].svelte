@@ -29,6 +29,7 @@
   import { useRest } from "@/composition/useRest";
   import { useAccount } from "@/composition/useAccount";
   import { dateFromObjectId } from "@/utils";
+  import Account from "../account.svelte";
 
   const { accountId } = useAccount();
 
@@ -47,15 +48,21 @@
 <Container>
   <div class="user-layout">
     <div class="user-info" style="width: 256px; min-width: 256px">
-      <UserAvatar username={user.account.username} userId={user._id} --avatar-size="8rem" />
+      <UserAvatar
+        username={user.account.username}
+        --avatar-border="1px solid gray"
+        userId={user._id}
+        --avatar-size="8rem"
+      />
       <h1>{username}</h1>
       <div>
         ☯️ <a href="/page/karma" title="karma">{user.account.karma}</a> karma <br />
         🎉 Joined us in {joinDate.toLocaleString("en", { month: "long" })}
         {joinDate.toLocaleString("default", { year: "numeric" })}!
       </div>
+      {#if user.account.bio}<p class="mt-2" title={`${user.account.username}'s bio`}>📝 {user.account.bio}</p>{/if}
       {#if user && $accountId === user._id}
-        <a class="btn btn-primary mt-2" href="/account" role="button">Settings</a>
+        <a class="btn btn-primary" href="/account" role="button">Settings</a>
       {/if}
     </div>
     <div style="flex-grow: 3">

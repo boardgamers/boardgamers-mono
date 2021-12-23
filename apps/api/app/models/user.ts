@@ -75,6 +75,17 @@ const schema = new Schema<UserDocument, UserModel>(
         max: maxKarma,
       },
       termsAndConditions: Date,
+      avatar: {
+        type: String,
+        trim: true,
+        default: "pixel-art",
+        maxlength: 20,
+      },
+      bio: {
+        type: String,
+        trim: true,
+        maxlength: 500,
+      },
       social: {
         google: {
           type: String,
@@ -193,7 +204,7 @@ schema.method("changeEmail", async function (this: UserDocument, email: string) 
 });
 
 schema.method("publicInfo", function (this: UserDocument) {
-  return pick(this, ["_id", "account.username", "account.karma", "createdAt"]);
+  return pick(this, ["_id", "account.username", "account.bio", "account.karma", "createdAt"]);
 });
 
 schema.method("generateResetLink", async function (this: UserDocument) {

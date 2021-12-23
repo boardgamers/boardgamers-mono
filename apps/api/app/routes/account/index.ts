@@ -31,7 +31,7 @@ router.get("/active-games", async (ctx) => {
 });
 
 router.post("/", loggedIn, async (ctx) => {
-  merge(ctx.state.user, pick(ctx.request.body, ["settings"]));
+  merge(ctx.state.user, pick(ctx.request.body, ["settings", "account.avatar", "account.bio"]));
   await ctx.state.user.save();
   ctx.body = ctx.state.user;
 });

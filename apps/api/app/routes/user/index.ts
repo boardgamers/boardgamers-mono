@@ -33,9 +33,9 @@ router.get("/infoByName/:userName", (ctx) => {
 });
 
 router.get("/:userId/avatar", (ctx) => {
-  const name = ctx.state.foundUser.account.username;
+  const account = ctx.state.foundUser.account;
 
-  ctx.redirect(`https://avatars.dicebear.com/api/pixel-art/${name}.svg`);
+  ctx.redirect(`https://avatars.dicebear.com/api/${account.avatar}/${account.username}.svg`);
 });
 
 router.get("/:userId/games/open", async (ctx) => {

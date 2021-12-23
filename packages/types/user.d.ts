@@ -10,6 +10,8 @@ export interface IAbstractUser {
       facebook: string;
       discord: string;
     };
+    avatar: string;
+    bio: string;
   };
   settings: {
     mailing: {
