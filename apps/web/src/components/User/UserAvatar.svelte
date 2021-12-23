@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { useLogoClicks } from "@/composition/useLogoClicks";
+  import { useAccount } from "@/composition/useAccount";
 
-  // Cache bust
-  const { logoClicks } = useLogoClicks();
+  const { account } = useAccount();
 
   export let userId: string | null = null;
   export let username: string;
@@ -10,10 +9,9 @@
 
   let src: string;
 
-  $: $logoClicks,
-    (src = userId
-      ? `/api/user/${userId}/avatar?d=${Date.now()}`
-      : `https://avatars.dicebear.com/api/${art}/${username}.svg`);
+  $: src = userId
+    ? `/api/user/${userId}/avatar?d=${$account?.account.avatar}`
+    : `https://avatars.dicebear.com/api/${art}/${username}.svg`;
 </script>
 
 <img {src} alt={`${username}'s avatar`} class="user-avatar" />
