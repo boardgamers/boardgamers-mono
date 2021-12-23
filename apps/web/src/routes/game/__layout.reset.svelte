@@ -17,7 +17,7 @@
   import "bootstrap/dist/css/bootstrap.min.css";
   import "../../style.css";
 
-  import { Appbar, Footer, Sidebar } from "@/components";
+  import { Appbar, Sidebar } from "@/components";
   import { useActiveGames } from "@/composition/useActiveGames";
   import { useNProgress } from "@/composition/useNProgress";
   import type { LoadInput } from "@sveltejs/kit";
@@ -45,7 +45,6 @@
       <main class="container-fluid p-relative mb-auto">
         <slot />
       </main>
-      <Footer />
     </div>
     <Sidebar />
   </div>
