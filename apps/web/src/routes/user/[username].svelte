@@ -29,7 +29,7 @@
   import { useRest } from "@/composition/useRest";
   import { useAccount } from "@/composition/useAccount";
   import { dateFromObjectId } from "@/utils";
-  import Account from "../account.svelte";
+  import { page } from "$app/stores";
 
   const { accountId } = useAccount();
 
@@ -43,6 +43,7 @@
   description={`${username} joined in ${dateFromObjectId(user._id).toLocaleString("en", {
     month: "long",
   })} ${dateFromObjectId(user._id).toLocaleString("en", { year: "numeric" })} and has ${user.account.karma} karma.`}
+  image={`https://${$page.host}/api/user/${user._id}/avatar`}
 />
 
 <Container>
