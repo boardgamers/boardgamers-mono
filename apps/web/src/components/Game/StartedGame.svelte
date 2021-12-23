@@ -40,11 +40,17 @@
   let prefs: GamePreferences;
 
   function postUser() {
-    if (gameIframe) {
-      const index = $game.players.findIndex((pl) => pl._id === $user?._id);
-      const message = { type: "player", player: { index: index !== -1 ? index : undefined } };
-      gameIframe.contentWindow?.postMessage(message, "*");
-    }
+    const index = $game.players.findIndex((pl) => pl._id === $user?._id);
+    const message = { type: "player", player: { index: index !== -1 ? index : undefined } };
+    gameIframe?.contentWindow?.postMessage(message, "*");
+  }
+
+  function postAvatars() {
+    const message = {
+      type: "avatars",
+      avatars: $game.players.map((pl) => `${window.location.origin}/api/user/${pl._id}/avatar`),
+    };
+    gameIframe?.contentWindow?.postMessage(message, "*");
   }
 
   $: gameName = $game?.game.name;
@@ -124,6 +130,7 @@
         console.log("game ready, posting user & pref");
         postUser();
         postPreferences();
+        postAvatars();
         postGamedata();
       } else if (event.data.type === "gameHeight") {
         gameIframe.height = String(

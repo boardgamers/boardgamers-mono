@@ -67,17 +67,13 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
               gameObj.emit('state:updated');
               break;
             }
-            case 'reload': {
-              consolg.log('reloading game');
-              window.location.reload();
-              break;
-            }
             case 'gameLog': {
               console.log('receiving log', event.data.data);
               gameObj.emit('gamelog', event.data.data);
               break;
             }
             case 'player':
+            case 'avatars':
             case 'preferences': {
               gameObj.emit(event.data.type, event.data[event.data.type]);
               break;

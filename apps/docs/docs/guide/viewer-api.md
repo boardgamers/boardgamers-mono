@@ -94,6 +94,16 @@ Receive the player id of the currently connected player.
 
 This event is not triggered when the user is just a spectator.
 
+### avatars
+
+```ts
+emitter.on("avatars", (avatars: string[]) => {
+  // ...
+});
+```
+
+Receive the avatars of each player, in order.
+
 ### replay:start
 
 ```ts
