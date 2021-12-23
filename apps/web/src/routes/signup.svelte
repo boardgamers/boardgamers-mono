@@ -5,7 +5,6 @@
   import { useLoggedOut } from "@/composition/useLoggedOut";
   import { useRest } from "@/composition/useRest";
   import Checkbox from "@/modules/cdk/Checkbox.svelte";
-  import { route } from "@/modules/router";
   import { handleError } from "@/utils";
   import { upperFirst } from "lodash";
 
@@ -45,7 +44,7 @@
     }
 
     if (isSocial) {
-      const { jwt } = $route!.query;
+      const jwt = $page!.query.get("jwt")!;
 
       registerSocial({ username, termsAndConditions: tc, jwt }).catch(handleError);
     } else {

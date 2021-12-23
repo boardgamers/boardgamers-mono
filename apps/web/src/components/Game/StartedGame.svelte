@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { GamePreferences } from "@bgs/types";
   import { Loading } from "@/modules/cdk";
-  import { navigate } from "@/modules/router";
   import type { GameContext } from "@/routes/game/[gameId].svelte";
   import { createWatcher, handleError } from "@/utils";
   import { getContext, onDestroy, onMount } from "svelte";
@@ -16,6 +15,7 @@
   import SEO from "../SEO.svelte";
   import { gameLabel } from "@/utils/game-label";
   import { minBy, sortBy } from "lodash";
+  import { goto } from "$app/navigation";
 
   const { session } = useSession();
   const { loadGame } = useGame();
@@ -133,7 +133,7 @@
           )
         );
       } else if (event.data.type === "playerClick") {
-        navigate("/user/" + encodeURIComponent(event.data.player.name));
+        goto("/user/" + encodeURIComponent(event.data.player.name));
       } else if (event.data.type === "gameMove") {
         await addMove(event.data.move);
       } else if (event.data.type === "displayReady") {
