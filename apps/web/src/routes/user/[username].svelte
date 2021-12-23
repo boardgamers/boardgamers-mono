@@ -40,9 +40,10 @@
 
 <SEO
   title={`${username}'s profile`}
-  description={`${username} joined in ${dateFromObjectId(user._id).toLocaleString("en", {
-    month: "long",
-  })} ${dateFromObjectId(user._id).toLocaleString("en", { year: "numeric" })} and has ${user.account.karma} karma.`}
+  description={user.account.bio ||
+    `${username} joined in ${dateFromObjectId(user._id).toLocaleString("en", {
+      month: "long",
+    })} ${dateFromObjectId(user._id).toLocaleString("en", { year: "numeric" })} and has ${user.account.karma} karma.`}
   image={`https://${$page.host}/api/user/${user._id}/avatar`}
 />
 

@@ -3,6 +3,7 @@ import createError from "http-errors";
 import { Context } from "koa";
 import Router from "koa-router";
 import { Types } from "mongoose";
+import fetch from "node-fetch";
 import { Game, GamePreferences, User } from "../../models";
 import { queryCount, skipCount } from "../utils";
 
@@ -32,10 +33,15 @@ router.get("/infoByName/:userName", (ctx) => {
   ctx.body = ctx.state.foundUser.publicInfo();
 });
 
-router.get("/:userId/avatar", (ctx) => {
+router.get("/:userId/avatar", async (ctx) => {
   const account = ctx.state.foundUser.account;
 
-  ctx.redirect(`https://avatars.dicebear.com/api/${account.avatar}/${account.username}.svg`);
+  const response = await fetch(`https://avatars.dicebear.com/api/${account.avatar}/${account.username}.svg`);
+
+  assert(response.ok, "Error when loading image");
+
+  ctx.set("Content-Type", "image/svg+xml");
+  ctx.body = response.body;
 });
 
 router.get("/:userId/games/open", async (ctx) => {
