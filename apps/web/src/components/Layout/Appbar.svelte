@@ -19,6 +19,7 @@
   import { useLogoClicks } from "@/composition/useLogoClicks";
   import { useActiveGames } from "@/composition/useActiveGames";
   import { browser } from "$app/env";
+  import UserAvatar from "../User/UserAvatar.svelte";
 
   const { account: user, login, logout } = useAccount();
   const { logoClick } = useLogoClicks();
@@ -138,8 +139,8 @@
           <span class="d-none d-sm-inline">Admin</span>
         </NavLink>
       {/if}
-      <NavLink href={`/user/${$user.account.username}`}>
-        <Icon name="person-fill" class="me-1 big" />
+      <NavLink href={`/user/${$user.account.username}`} class="appbar-user-link">
+        <UserAvatar username={$user.account.username} --avatar-size="2rem" />
         <span class="d-none d-sm-inline">{$user.account.username}</span>
       </NavLink>
       <NavLink on:click={logOut}>
@@ -151,6 +152,13 @@
 </Navbar>
 
 <style lang="postcss" global>
+  .appbar-user-link {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    display: flex !important;
+    gap: 0.5rem;
+    align-items: center;
+  }
   .login-dp {
     min-width: 250px !important;
     padding: 14px 14px 0 !important;
