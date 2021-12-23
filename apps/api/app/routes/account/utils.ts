@@ -13,13 +13,17 @@ export async function sendAuthInfo(ctx: Context) {
     expiresAt: refreshToken.createdAt.getTime() + 120 * 24 * 3600 * 1000,
   };
 
-  // Should not be needed as already done in the front-end code, but sveltekit has weird issues
-  ctx.cookies.set("refreshToken", JSON.stringify(json), {
-    httpOnly: false,
-    expires: refreshToken.expiresAt,
-    secure: true,
-    sameSite: true,
-  });
+  try {
+    // Should not be needed as already done in the front-end code, but sveltekit has weird issues
+    ctx.cookies.set("refreshToken", JSON.stringify(json), {
+      httpOnly: false,
+      expires: refreshToken.expiresAt,
+      secure: true,
+      sameSite: true,
+    });
+  } catch {
+    // Happens on localhost, because of secure flag
+  }
 
   ctx.body = {
     user: ctx.state.user,

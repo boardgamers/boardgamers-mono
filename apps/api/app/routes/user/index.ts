@@ -35,14 +35,7 @@ router.get("/infoByName/:userName", (ctx) => {
 router.get("/:userId/avatar", (ctx) => {
   const name = ctx.state.foundUser.account.username;
 
-  ctx.type = "image/svg+xml";
-  ctx.body = `<?xml version="1.0" encoding="utf-8"?>
-  <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="-20 -20 40 40" width="40" height="40">
-    <rect x="-20" y="-20" width="40" height="40" style="fill: #ccc" />
-    <text style="text-anchor: middle; dominant-baseline: central; font-size: 20px; font-weight: bold; font-family: arial" x="0" y="0">
-      ${name.slice(0, 2)}
-    </text>
-  </svg>`;
+  ctx.redirect(`https://avatars.dicebear.com/api/pixel-art/${name}.svg`);
 });
 
 router.get("/:userId/games/open", async (ctx) => {

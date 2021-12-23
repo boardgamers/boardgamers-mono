@@ -48,6 +48,9 @@ const props = withDefaults(defineProps<{ mode: "new" | "edit"; modelValue: GameI
         },
         entryPoint: "dist/wrapper.js",
       },
+      factions: {
+        avatars: false,
+      },
       preferences: [],
       options: [],
       settings: [],
@@ -124,6 +127,7 @@ watch(
         trusted: false,
       }
     );
+    set(data, "factions.avatars", data.factions?.avatars ?? false);
     set(data, "settings", data.settings ?? []);
 
     for (const item of [...data.options, ...data.preferences]) {
@@ -151,6 +155,8 @@ watch(
         multiple
         :items="[2, 3, 4, 5, 6, 7, 8, 9, 10].map((x) => ({ text: x + ' players', value: x }))"
       />
+
+      <v-checkbox v-model="info.factions.avatars" label="Faction avatars" />
 
       <div v-for="(viewer, i) in [info.viewer, info.viewer.alternate]" :key="i">
         <h3>

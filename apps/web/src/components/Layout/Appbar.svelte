@@ -140,7 +140,7 @@
         </NavLink>
       {/if}
       <NavLink href={`/user/${$user.account.username}`} class="appbar-user-link">
-        <UserAvatar username={$user.account.username} --avatar-size="2rem" />
+        <UserAvatar username={$user.account.username} userId={$user._id} --avatar-size="2rem" />
         <span class="d-none d-sm-inline">{$user.account.username}</span>
       </NavLink>
       <NavLink on:click={logOut}>

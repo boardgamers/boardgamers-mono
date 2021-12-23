@@ -112,7 +112,7 @@
   <h3 class="mt-75">Players</h3>
   {#each $game.players as player}
     <div class={"mb-1 d-flex align-items-center player-row"} class:active={isCurrentPlayer(player._id)}>
-      <PlayerGameAvatar {userId} {player} status={status(player._id)} class="me-2" />
+      <PlayerGameAvatar game={$game.game.name} {userId} {player} status={status(player._id)} class="me-2" />
 
       <div>
         <a href={`/user/${player.name}`} class="player-name" class:dropped={player.dropped}>

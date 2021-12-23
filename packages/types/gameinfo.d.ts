@@ -77,6 +77,10 @@ export interface GameInfo {
     name: string;
   }>;
 
+  factions: {
+    avatars: boolean;
+  };
+
   meta: {
     public: boolean;
     needOwnership: boolean;

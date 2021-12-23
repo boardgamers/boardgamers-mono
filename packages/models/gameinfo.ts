@@ -93,6 +93,12 @@ const repr = {
     },
     entryPoint: String,
   },
+  factions: {
+    avatars: {
+      type: Boolean,
+      default: false,
+    },
+  },
   preferences: optionSchema,
   settings: [{ ...optionSchema[0], faction: String }],
   options: optionSchema,

@@ -1,31 +1,34 @@
 <script lang="ts">
-  import { browser } from "$app/env";
   import type { PlayerInfo } from "@bgs/types";
-  import { classnames } from "@/utils";
+  import { classnames, handleError } from "@/utils";
   import { useAccount } from "@/composition/useAccount";
+  import { useGameInfo } from "@/composition/useGameInfo";
+  import { browser } from "$app/env";
 
   const { account } = useAccount();
+  const { loadGameInfo, gameInfo, gameInfos } = useGameInfo();
 
   export let player: PlayerInfo;
   export let showVp = true;
+  export let game: string;
+
   export let status = "";
   let className = "";
   export { className as class };
 
   export let userId: string | undefined;
 
-  function isColor(strColor: string) {
-    // todo : better solution for SSR
-    return browser ? CSS.supports("color", strColor) : false;
-  }
+  $: browser && game && loadGameInfo(game).catch(handleError);
+
+  let style: string;
 
   $: highlightedPlayerId = userId ?? $account?._id;
-  $: justColor = player.faction && isColor(player.faction);
-  $: style = justColor
-    ? `background-color: ${player.faction}`
-    : `background-image: url('${
-        player.faction ? `/images/factions/icons/${player.faction}.svg` : `/api/user/${player._id}/avatar`
-      }')`;
+  $: (style = `background-image: url('${
+    player.faction && gameInfo(game)?.factions?.avatars
+      ? `/images/factions/icons/${player.faction}.svg`
+      : `/api/user/${player._id}/avatar`
+  }')`),
+    [$gameInfos];
 </script>
 
 <div
@@ -34,7 +37,6 @@
   class={classnames("player-avatar", className)}
   class:current={highlightedPlayerId && player._id === highlightedPlayerId}
 >
-  {justColor ? player.name.slice(0, 2) : ""}
   {#if showVp}
     <span class={`vp ${status}`}>{player.score}</span>
   {/if}

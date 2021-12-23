@@ -47,7 +47,7 @@
 <Container>
   <div class="user-layout">
     <div class="user-info" style="width: 256px; min-width: 256px">
-      <UserAvatar username={user.account.username} --avatar-size="8rem" />
+      <UserAvatar username={user.account.username} userId={user._id} --avatar-size="8rem" />
       <h1>{username}</h1>
       <div>
         ☯️ <a href="/page/karma" title="karma">{user.account.karma}</a> karma <br />

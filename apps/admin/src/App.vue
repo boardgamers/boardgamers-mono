@@ -15,7 +15,7 @@ const router = useRouter();
 const route = useRoute();
 const user = useUserStore();
 
-const isLoggedIn = computed(() => !!user.refreshToken);
+const isLoggedIn = computed(() => !!user.user);
 const requiresAuth = computed(() => route.meta.requiresAuth !== false);
 
 function checkRoute() {
@@ -33,7 +33,7 @@ get("/account")
   })
   .finally(() => (loaded.value = true));
 
-watch([requiresAuth, isLoggedIn], checkRoute);
+watch([requiresAuth, isLoggedIn], checkRoute, { immediate: true });
 </script>
 
 <template>

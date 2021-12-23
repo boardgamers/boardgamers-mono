@@ -17,7 +17,7 @@ export const useGameInfo = defineStore(() => {
     return `${name}/${version}`;
   }
 
-  function gameInfo(name: string, version: number | "latest") {
+  function gameInfo(name: string, version: number | "latest" = "latest") {
     return $(gameInfos)[gameInfoKey(name, version)];
   }
 
@@ -64,7 +64,7 @@ export const useGameInfo = defineStore(() => {
   }
 
   const loading = new Map<string, Promise<void>>();
-  async function loadGameInfo(game: string, version: number | "latest"): Promise<void> {
+  async function loadGameInfo(game: string, version: number | "latest" = "latest"): Promise<void> {
     const id = gameInfoKey(game, version);
     if (loading.has(id)) {
       return loading.get(id);
