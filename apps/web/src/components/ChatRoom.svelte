@@ -10,7 +10,7 @@
   import type { PlayerInfo } from "@bgs/types";
   import { getContext } from "svelte";
   import { fly } from "svelte/transition";
-  import { PlayerGameAvatar } from "./Game";
+  import UserAvatar from "./User/UserAvatar.svelte";
 
   const { get, post } = useRest();
   const { account } = useAccount();
@@ -109,9 +109,9 @@
   <ModalHeader {toggle}><Icon name="chat" /> {$currentGameId}</ModalHeader>
   <div class="chat-messages modal-body" bind:this={messagesContainer}>
     {#each $chatMessages as message}
-      <div class="message-container" class:sent={message.author === userId}>
-        {#if message.author && message.author in players}
-          <PlayerGameAvatar {userId} player={players[message.author]} showVp={false} />
+      <div class="message-container" class:sent={message.author?._id === userId}>
+        {#if message.author}
+          <UserAvatar userId={message.author._id} username={message.author.name} --avatar-size="3rem" />
         {/if}
         <div
           class="message"

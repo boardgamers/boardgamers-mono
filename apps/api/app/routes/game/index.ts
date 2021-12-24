@@ -238,7 +238,10 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
 
   const doc = new ChatMessage({
     room: ctx.state.game._id,
-    author: ctx.state.user._id,
+    author: {
+      _id: ctx.state.user._id,
+      name: ctx.state.user.account.username,
+    },
     data: {
       text: ctx.request.body.data.text,
     },

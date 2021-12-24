@@ -7,8 +7,11 @@ const repr = {
     required: true,
   },
   author: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
+    _id: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    name: String,
   },
   data: {
     text: {
