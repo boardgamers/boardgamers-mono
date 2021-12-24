@@ -4,7 +4,6 @@ import { Model, Schema, Types } from "mongoose";
 const repr = {
   room: {
     type: String,
-    index: true,
     required: true,
   },
   author: {
@@ -27,8 +26,12 @@ const repr = {
 };
 
 export default function makeSchema<T extends ChatMessage<Types.ObjectId>, U extends Model<T> = Model<T>>() {
-  return new Schema<T, U>(repr as any, {
+  const schema = new Schema<T, U>(repr as any, {
     // We only keep 100MB of chat logs
     capped: 100 * 1024 * 1024,
   });
+
+  schema.index({ room: 1, _id: -1 });
+
+  return schema;
 }

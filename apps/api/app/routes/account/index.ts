@@ -31,7 +31,13 @@ router.get("/active-games", async (ctx) => {
 });
 
 router.post("/", loggedIn, async (ctx) => {
-  merge(ctx.state.user, pick(ctx.request.body, ["settings", "account.avatar", "account.bio"]));
+  const body = ctx.request.body;
+
+  // We only allow setting URLs through social media
+  const avatar: string = body.account?.avatar;
+  assert(!avatar?.includes("/") && !avatar?.includes("."), "Invalid avatar");
+
+  merge(ctx.state.user, pick(body, ["settings", "account.avatar", "account.bio"]));
   await ctx.state.user.save();
   ctx.body = ctx.state.user;
 });

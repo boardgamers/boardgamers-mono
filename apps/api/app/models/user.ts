@@ -84,7 +84,7 @@ const schema = new Schema<UserDocument, UserModel>(
       bio: {
         type: String,
         trim: true,
-        maxlength: 500,
+        maxlength: [500, "Too long bio"],
       },
       social: {
         google: {
