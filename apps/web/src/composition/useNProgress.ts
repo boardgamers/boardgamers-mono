@@ -1,15 +1,16 @@
 import { browser } from "$app/env";
 import { getStores } from "$app/stores";
-import NProgress from "nprogress";
-import "nprogress/nprogress.css";
 import { defineStore } from "./defineStore";
 
-export const useNProgress = defineStore(() => {
+export const useNProgress = defineStore(async () => {
   if (!browser) {
     return;
   }
 
   const { navigating } = getStores();
+
+  import("nprogress/nprogress.css");
+  const NProgress = await import("nprogress");
 
   NProgress.configure({
     // Full list: https://github.com/rstacruz/nprogress#configuration
