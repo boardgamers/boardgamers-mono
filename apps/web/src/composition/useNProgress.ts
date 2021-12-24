@@ -9,7 +9,6 @@ export const useNProgress = defineStore(async () => {
 
   const { navigating } = getStores();
 
-  import("nprogress/nprogress.css");
   const NProgress = await import("nprogress");
 
   NProgress.configure({
