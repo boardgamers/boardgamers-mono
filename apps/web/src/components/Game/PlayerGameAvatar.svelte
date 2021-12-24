@@ -18,7 +18,7 @@
 
   export let userId: string | undefined;
 
-  $: browser && game && loadGameInfo(game).catch(handleError);
+  $: browser && game && !gameInfo(game) && loadGameInfo(game).catch(handleError);
 
   let style: string;
 
