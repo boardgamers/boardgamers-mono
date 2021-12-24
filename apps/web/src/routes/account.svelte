@@ -113,17 +113,12 @@
     { leading: false }
   );
 
-  const updateBio = debounce(
-    (bio: string) => {
-      post<IUser>("/account", {
-        account: {
-          bio,
-        },
-      }).then((r) => account.set(r), handleError);
-    },
-    800,
-    { leading: false }
-  );
+  const updateBio = (bio: string) =>
+    post<IUser>("/account", {
+      account: {
+        bio,
+      },
+    }).then((r) => account.set(r), handleError);
 
   async function saveEmail() {
     try {
@@ -164,12 +159,12 @@
 
   <Card class="mt-4 border-info" header="User Settings">
     {#if !editingAvatar}
-      <div style="cursor: pointer; display: contents;" on:click={() => (editingAvatar = true)}>
+      <div style="display: contents;" role="button" on:click={() => (editingAvatar = true)}>
         <UserAvatar --avatar-border="1px solid gray" userId={$account._id} username={$account.account.username} />
       </div>
     {:else}
       {#each avatarStyles as art}
-        <div style="cursor: pointer; display: contents;" on:click={() => selectArt(art)}>
+        <div style="display: contents;" role="button" on:click={() => selectArt(art)}>
           <UserAvatar {art} username={$account.account.username} />
         </div>
       {/each}

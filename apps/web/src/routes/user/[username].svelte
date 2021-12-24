@@ -49,7 +49,7 @@
 
 <Container>
   <div class="user-layout">
-    <div class="user-info" style="width: 256px; min-width: 256px">
+    <div class="user-info">
       <UserAvatar
         username={user.account.username}
         --avatar-border="1px solid gray"
@@ -86,6 +86,13 @@
 </Container>
 
 <style lang="postcss">
+  @media (min-width: 768px) {
+    .user-info {
+      width: 256px;
+      min-width: 256px;
+      margin-right: 0.5rem;
+    }
+  }
   .user-layout {
     display: flex;
 

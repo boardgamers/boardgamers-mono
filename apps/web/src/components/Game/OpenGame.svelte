@@ -256,8 +256,8 @@ ${$gameInfo.options
           {#each playerOrder as playerIndex}
             <div>
               - {$game.players[playerIndex].name}
-              <span on:click={() => moveUp(playerIndex)}><Icon name="arrow-up" class="icon-order-player" /></span>
-              <span on:click={() => moveDown(playerIndex)}><Icon name="arrow-down" class="icon-order-player" /></span>
+              <span on:click={() => moveUp(playerIndex)} role="button"><Icon name="arrow-up" /></span>
+              <span on:click={() => moveDown(playerIndex)} role="button"><Icon name="arrow-down" /></span>
             </div>
           {/each}
           <Button color="primary" on:click={start} class="mt-4">Start the game!</Button>
@@ -278,9 +278,3 @@ ${$gameInfo.options
     {/if}
   {/if}
 </div>
-
-<style>
-  :global(.icon-order-player) {
-    cursor: pointer;
-  }
-</style>

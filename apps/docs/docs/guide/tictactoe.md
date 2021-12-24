@@ -407,8 +407,10 @@ We need to add the `player` info, as well as transmit moves.
     <div class="row" v-for="i in 3" :key=i>
       <!-- columns -->
       <div
-        :class="['cell', {clickable: clickable(i-1, j-1), player1: player(i-1, j-1) === 0, player2: player(i-1, j-1) === 1}]"
         v-for="j in 3"
+        class="cell"
+        :class="{player1: player(i-1, j-1) === 0, player2: player(i-1, j-1) === 1}"
+        :role="clickable(i-1, j-1) ? 'button' : undefined"
         :key=j
         @click="move(i-1, j-1)">
       </div>
