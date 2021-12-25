@@ -159,14 +159,16 @@
 
   <Card class="mt-4 border-accent" header="User Settings">
     {#if !editingAvatar}
-      <div style="display: contents;" role="button" on:click={() => (editingAvatar = true)}>
-        <UserAvatar --avatar-border="1px solid gray" userId={$account._id} username={$account.account.username} />
-      </div>
+      <UserAvatar
+        --avatar-border="1px solid gray"
+        role="button"
+        on:click={() => (editingAvatar = true)}
+        userId={$account._id}
+        username={$account.account.username}
+      />
     {:else}
       {#each avatarStyles as art}
-        <div style="display: contents;" role="button" on:click={() => selectArt(art)}>
-          <UserAvatar {art} username={$account.account.username} />
-        </div>
+        <UserAvatar {art} username={$account.account.username} role="button" on:click={() => selectArt(art)} />
       {/each}
     {/if}
     <FormGroup class="mt-2">

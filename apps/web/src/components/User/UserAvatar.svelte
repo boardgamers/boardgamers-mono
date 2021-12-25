@@ -14,7 +14,7 @@
     : `https://avatars.dicebear.com/api/${art}/${username}.svg`;
 </script>
 
-<img {src} alt={`${username}'s avatar`} title={username} class="user-avatar" />
+<img {src} alt={`${username}'s avatar`} title={username} class="user-avatar" {...$$restProps} on:click />
 
 <style>
   .user-avatar {
