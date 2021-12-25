@@ -85,7 +85,7 @@
   {/if}
 
   <a href="/boardgames" title="Boardgames list">
-    <img src="/images/icons/dice.svg" height="28" alt="boardgames list" />
+    <img src="/images/icons/dice.svg" height="28" width="28" alt="Boardgames list" />
   </a>
 
   <audio preload="none" id="sound-notification">

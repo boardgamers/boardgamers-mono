@@ -70,7 +70,7 @@
     <div style="flex-grow: 3">
       <UserGames userId={user._id} />
 
-      <Card class="border-info mt-4" header="Statistics">
+      <Card class="border-accent mt-4" header="Statistics">
         <Row>
           <Col lg={6} class="mb-3">
             <UserElo userId={user._id} />

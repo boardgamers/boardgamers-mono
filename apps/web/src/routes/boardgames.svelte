@@ -39,13 +39,18 @@
   <div class="row row-cols-1 row-cols-md-3 g-4 game-choice">
     {#each info as game}
       <Col>
-        <Card header={game.label} class="border-secondary h-100" on:click={() => goto(`/boardgame/${game._id.game}`)}>
+        <Card
+          header={game.label}
+          class="border-secondary h-100"
+          on:click={() => goto(`/boardgame/${game._id.game}`)}
+          role="button"
+        >
           <CardText>
             {@html marked(game.description)}
           </CardText>
           <span
             slot="footer"
-            class:text-info={$gamePreferences[game._id.game]?.access?.ownership}
+            class:text-accent={$gamePreferences[game._id.game]?.access?.ownership}
             class:text-secondary={!$gamePreferences[game._id.game]?.access?.ownership}
           >
             {#if $gamePreferences[game._id.game]?.access?.ownership}

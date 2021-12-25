@@ -7,6 +7,12 @@
   background-color: var(--primary);
 }
 
+.no-link,
+.no-link:hover {
+  text-decoration: none !important;
+  color: inherit !important;
+}
+
 .bg-primary {
   background-color: var(--primary) !important;
 }
@@ -60,7 +66,9 @@ body {
   --primary-rgb: 22, 80, 143;
   --primary: rgb(var(--primary-rgb));
 
-  --info: #17a2b8;
+  --accent-rgb: 80, 143, 22;
+  --accent: rgb(var(--accent-rgb));
+  --alert: #8f1650;
 
   --footer-margin: 30px;
   --footer-height: 60px;
@@ -76,6 +84,10 @@ body {
   --fab-bottom: 15px;
   --fab-right: 25px;
   --sidebar-width: 320px;
+}
+
+.list-group-item {
+  border-color: rgba(var(--accent-rgb), 0.8);
 }
 
 i.bi {
@@ -162,10 +174,9 @@ i.bi {
   transition-timing-function: ease;
 }
 
-.game-choice .card:hover {
-  border-color: var(--info) !important;
-
-  cursor: pointer;
+.game-choice .card:hover,
+.border-accent {
+  border-color: var(--accent) !important;
 }
 
 .game-choice .card-header {
@@ -174,6 +185,7 @@ i.bi {
   transition-timing-function: ease;
 }
 
-.game-choice .card:hover .card-header {
-  color: var(--info);
+.game-choice .card:hover .card-header,
+.text-accent {
+  color: var(--accent);
 }

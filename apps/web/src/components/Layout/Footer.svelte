@@ -13,6 +13,9 @@
       <div class="col-auto">
         <a sveltekit:prefetch href="/page/privacy-policy" class="text-muted">Privacy policy</a>
       </div>
+      <div class="col-auto">
+        <a sveltekit:prefetch href="/page/credits" class="text-muted">Credits</a>
+      </div>
     </div>
   </div>
 </footer>

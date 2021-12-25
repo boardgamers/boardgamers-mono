@@ -157,7 +157,7 @@
     </Col>
   </Row>
 
-  <Card class="mt-4 border-info" header="User Settings">
+  <Card class="mt-4 border-accent" header="User Settings">
     {#if !editingAvatar}
       <div style="display: contents;" role="button" on:click={() => (editingAvatar = true)}>
         <UserAvatar --avatar-border="1px solid gray" userId={$account._id} username={$account.account.username} />
@@ -259,7 +259,7 @@
     <hr />
     <Checkbox bind:checked={$developerSettings}>🔧 Enable developper settings on this device</Checkbox>
   </Card>
-  <Card class="mt-4 border-info" header="Game Settings">
+  <Card class="mt-4 border-accent" header="Game Settings">
     <Checkbox bind:checked={soundNotification} on:change={updateAccount}>
       Play a sound when it's your turn in one of your games
     </Checkbox>

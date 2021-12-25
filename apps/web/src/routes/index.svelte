@@ -65,11 +65,14 @@
   <div class="container">
     <div class="lead py-2" style="display: flex; flex-direction: column">
       <p class="text-center">
-        Play <b>Gaia Project</b>, <b>Powergrid</b>, <b>6nimmt</b> and <b>Container</b> online<br />Want to set up live
-        games? Join the
+        Play <b><a class="no-link" href="/boardgame/gaia-project">Gaia Project</a></b>,
+        <b><a class="no-link" href="/boardgame/powergrid">Powergrid</a></b>,
+        <b><a class="no-link" href="/boardgame/6nimmt">6nimmt</a></b>
+        and <b><a class="no-link" href="/boardgame/container">Container</a></b> online<br />Want to set up live games?
+        Join the
         <a href="https://discord.gg/EgqK3rD">discord</a>!
       </p>
-      <div class="mx-auto card border-info px-3 pb-3 d-block">
+      <div class="mx-auto card border-accent px-3 pb-3 d-block">
         <div class="text-center announcement-title py-1">{announcement?.title}</div>
         <div class="text-start announcement-content">
           {@html marked(announcement?.content)}
@@ -111,6 +114,10 @@
   .lead {
     font-size: 1.25rem;
     font-weight: 300;
+  }
+
+  :global(.lead b) {
+    color: var(--accent);
   }
 
   .announcement-title {
