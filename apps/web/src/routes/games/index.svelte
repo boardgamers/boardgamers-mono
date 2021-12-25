@@ -3,20 +3,16 @@
     const boardgameId = input.page.params.boardgameId;
     const { loadGames } = useLoad(input, useGames);
 
-    const firstTab = input.page.params.status !== "ended";
-
-    const [featured, lobby, finished] = await Promise.all([
-      firstTab
-        ? loadGames({
-            gameStatus: "active",
-            boardgameId,
-          })
-        : undefined,
-      firstTab ? loadGames({ gameStatus: "open", boardgameId }) : undefined,
-      firstTab ? undefined : loadGames({ gameStatus: "ended", boardgameId }),
+    const [featured, lobby] = await Promise.all([
+      loadGames({
+        gameStatus: "active",
+        boardgameId,
+        store: true,
+      }),
+      loadGames({ gameStatus: "open", boardgameId, store: true }),
     ]);
 
-    return { props: { featured, lobby, boardgameId, firstTab, finished } };
+    return { props: { featured, lobby, boardgameId } };
   }
 </script>
 
@@ -27,19 +23,15 @@
   import { useLoad } from "@/composition/useLoad";
   import type { LoadInput } from "@sveltejs/kit";
   import { LoadGamesResult, useGames } from "@/composition/useGames";
-  import { onMount } from "svelte";
 
   export let boardgameId: string | undefined;
-  export let featured: LoadGamesResult | undefined;
-  export let lobby: LoadGamesResult | undefined;
-  export let finished: LoadGamesResult | undefined;
-  export let firstTab: boolean;
+  export let featured: LoadGamesResult;
+  export let lobby: LoadGamesResult;
 
+  let firstTab = true;
   let animating = false;
 
-  let [featuredCount, lobbyCount] = [featured!.games, lobby!.total];
-
-  onMount(() => (featured = lobby = undefined));
+  let [featuredCount, lobbyCount] = [featured, lobby];
 </script>
 
 <SEO title="All games" description={`${featuredCount} ongoing games and ${lobbyCount} open games.`} />
@@ -60,10 +52,10 @@
       class:d-none={animating}
     >
       <Col md="6" class="mb-2">
-        <GameList gameStatus="open" title="Lobby" {boardgameId} initial={lobby} />
+        <GameList gameStatus="open" title="Lobby" {boardgameId} />
       </Col>
       <Col md="6" class="mb-2">
-        <GameList gameStatus="active" title="Ongoing" {boardgameId} initial={featured} />
+        <GameList gameStatus="active" title="Ongoing" {boardgameId} />
       </Col>
     </div>
   {:else}
@@ -75,7 +67,7 @@
       class:d-none={animating}
     >
       <Col md="6" class="mb-2">
-        <GameList gameStatus="ended" title="Finished" {boardgameId} initial={finished} />
+        <GameList gameStatus="ended" title="Finished" {boardgameId} />
       </Col>
     </div>
   {/if}

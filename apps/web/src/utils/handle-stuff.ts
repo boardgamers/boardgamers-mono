@@ -1,4 +1,5 @@
 import { browser } from "$app/env";
+import { isPromise } from "@bgs/utils";
 import "awesome-notifications/dist/style.css";
 
 let notifier: any | undefined;
@@ -50,9 +51,13 @@ export function confirm(text: string): Promise<boolean> {
  * @returns wrapped function
  */
 export function defer(target: (...args: any[]) => any, callback?: () => unknown) {
-  return async (...args: any[]) => {
+  return (...args: any[]) => {
     try {
-      return await target(...args);
+      const res = target(...args);
+
+      if (isPromise(res)) {
+        return res.catch(handleError).finally(() => callback?.());
+      }
     } catch (err) {
       handleError(err as Error);
     } finally {

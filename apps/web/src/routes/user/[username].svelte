@@ -2,7 +2,7 @@
   import type { LoadInput } from "@sveltejs/kit";
 
   export async function load(input: LoadInput) {
-    const { get } = useLoad(input, useRest);
+    const { get, loadGames } = useLoad(input, useRest, useGames);
 
     const user = await get<IUser>(`/user/infoByName/${encodeURIComponent(input.page.params.username)}`);
 
@@ -12,6 +12,12 @@
         error: new Error("User not found"),
       };
     }
+
+    await Promise.all([
+      loadGames({ userId: user._id, gameStatus: "active", count: 5, store: true }),
+      loadGames({ userId: user._id, gameStatus: "open", count: 5, store: true }),
+      loadGames({ userId: user._id, gameStatus: "ended", count: 5, store: true }),
+    ]);
 
     return {
       props: {
@@ -30,6 +36,7 @@
   import { useAccount } from "@/composition/useAccount";
   import { dateFromObjectId } from "@/utils";
   import { page } from "$app/stores";
+  import { useGames } from "@/composition/useGames";
 
   const { accountId } = useAccount();
 

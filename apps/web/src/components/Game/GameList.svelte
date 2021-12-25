@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { timerTime, defer, duration, niceDate, shortDuration } from "@/utils";
+  import { timerTime, defer, duration, niceDate, shortDuration, handleError } from "@/utils";
   import type { IGame } from "@bgs/types";
   import { createWatcher } from "@/utils/watch";
   import { Badge, Icon, Pagination, Loading, Row } from "@/modules/cdk";
@@ -7,9 +7,10 @@
   import { useLogoClicks } from "@/composition/useLogoClicks";
   import { useGameInfo } from "@/composition/useGameInfo";
   import { LoadGamesResult, useGames } from "@/composition/useGames";
+  import { isPromise } from "@bgs/utils";
 
   const { logoClicks } = useLogoClicks();
-  const { loadGameInfos, gameInfo } = useGameInfo();
+  const { gameInfo } = useGameInfo();
   const { loadGames } = useGames();
 
   export let title = "Games";
@@ -19,18 +20,17 @@
   export let gameStatus: IGame["status"];
   export let boardgameId: string | undefined = undefined;
   export let userId: string | undefined | null = undefined;
-  export let initial: LoadGamesResult | undefined | false = undefined;
 
-  let loadingGames = !initial;
-  let count = initial ? initial.total : 0;
+  let loadingGames = true;
+  let count = 0;
   let currentPage = 0;
-  let games: IGame[] = initial ? initial.games : [];
+  let games: IGame[] = [];
 
   const load = defer(
-    async (refresh: boolean) => {
+    (refresh: boolean) => {
       const fetchCount = refresh && !topRecords && !sample;
 
-      const result = await loadGames({
+      const result = loadGames({
         gameStatus,
         boardgameId,
         userId,
@@ -40,14 +40,20 @@
         fetchCount,
       });
 
-      games = result.games;
+      const handleResult = (result: LoadGamesResult) => {
+        games = result.games;
 
-      if (fetchCount) {
-        count = result.total;
+        if (fetchCount) {
+          count = result.total;
+        }
+      };
+
+      // We don't want to be a promise if not needed, for SSR
+      if (!isPromise(result)) {
+        return handleResult(result);
+      } else {
+        return result.then(handleResult);
       }
-
-      // TODO: only load boardgames present in games
-      await loadGameInfos();
     },
     () => (loadingGames = false)
   );
@@ -79,9 +85,8 @@
   }
 
   const onCurrentPageChanged = createWatcher(() => load(false));
-  const reloadForcefully = createWatcher(() => load(true), { immediate: !initial });
 
-  $: reloadForcefully(), [userId, boardgameId, $logoClicks];
+  $: load(true), [userId, boardgameId, $logoClicks];
   $: onCurrentPageChanged(), [currentPage];
 </script>
 

@@ -8,6 +8,7 @@
       count: 5,
       boardgameId,
       fetchCount: false,
+      store: true,
     });
 
     const myGames = loadGames({
@@ -15,18 +16,19 @@
       count: 5,
       boardgameId,
       userId: storeGet(account)?._id,
+      store: true,
     });
 
-    const lobbyGames = loadGames({ sample: true, gameStatus: "open", boardgameId, count: 5 });
+    const lobbyGames = loadGames({ sample: true, gameStatus: "open", boardgameId, count: 5, store: true });
 
-    const [featured, my, lobby, rankings] = await Promise.all([
+    const [_1, _2, _3, rankings] = await Promise.all([
       featuredGames,
       myGames,
       lobbyGames,
       loadEloRankings({ boardgameId, count: 7, fetchCount: false }),
     ]);
 
-    return { props: { featured, my, lobby, rankings } };
+    return { props: { rankings } };
   }
 </script>
 
@@ -43,10 +45,9 @@
   import { goto } from "$app/navigation";
   import type { LoadInput } from "@sveltejs/kit";
   import { useLoad } from "@/composition/useLoad";
-  import { LoadGamesResult, useGames } from "@/composition/useGames";
+  import { useGames } from "@/composition/useGames";
   import { get as storeGet } from "svelte/store";
   import { LoadEloRankingsResult, useEloRankings } from "@/composition/useEloRankings";
-  import removeMarkdown from "remove-markdown";
   import { gameLabel } from "@/utils/game-label";
 
   const { accountId } = useAccount();
@@ -57,9 +58,6 @@
 
   let boardgame: GameInfo;
 
-  export let my: LoadGamesResult;
-  export let featured: LoadGamesResult;
-  export let lobby: LoadGamesResult;
   export let rankings: LoadEloRankingsResult;
   let rules = false;
 
@@ -110,7 +108,6 @@
     <Col lg={6} class="mt-3">
       <GameList
         {boardgameId}
-        initial={my}
         gameStatus="active"
         userId={$accountId}
         sample
@@ -119,7 +116,7 @@
       />
     </Col>
     <Col lg={6} class="mt-3">
-      <GameList initial={lobby} sample perPage={5} {boardgameId} gameStatus="open" title="Lobby" />
+      <GameList sample perPage={5} {boardgameId} gameStatus="open" title="Lobby" />
     </Col>
   </Row>
 
@@ -131,7 +128,7 @@
 
   <Row>
     <Col lg={6} class="mt-3">
-      <GameList gameStatus="active" initial={featured} {boardgameId} topRecords perPage={5} title="Featured games" />
+      <GameList gameStatus="active" {boardgameId} topRecords perPage={5} title="Featured games" />
       <!-- <h3>Tournaments</h3>
       <p> No Tournament info available </p> -->
     </Col>

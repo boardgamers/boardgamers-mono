@@ -2,6 +2,7 @@ import type { GameStatus, IGame } from "@bgs/types";
 import { get as $ } from "svelte/store";
 import { defineStore } from "./defineStore";
 import { useAccount } from "./useAccount";
+import { useGameInfo } from "./useGameInfo";
 import { useRest } from "./useRest";
 
 type LoadGamesParams = {
@@ -12,6 +13,7 @@ type LoadGamesParams = {
   count?: number;
   gameStatus: GameStatus;
   fetchCount?: boolean;
+  store?: boolean; // To store the result in cache, next time function is called with same params it will return the cached value
 };
 
 export type LoadGamesResult = {
@@ -22,8 +24,11 @@ export type LoadGamesResult = {
 export const useGames = defineStore(() => {
   const { get } = useRest();
   const { account } = useAccount();
+  const { loadGameInfo, gameInfo } = useGameInfo();
 
-  const loadGames = async ({
+  const gamesCache = new Map<string, LoadGamesResult>();
+
+  const loadGames = ({
     count = 10,
     skip = 0,
     sample,
@@ -31,6 +36,7 @@ export const useGames = defineStore(() => {
     boardgameId,
     gameStatus,
     fetchCount = !sample,
+    store = false,
   }: LoadGamesParams) => {
     const queryParams = {
       count,
@@ -41,15 +47,33 @@ export const useGames = defineStore(() => {
       ...(gameStatus === "open" && !!$(account)?._id && { maxKarma: $(account)!.account.karma }),
     };
 
-    const [games, total] = await Promise.all([
-      get<IGame[]>(`/game/status/${gameStatus}`, queryParams),
-      fetchCount ? await get<number>(`/game/status/${gameStatus}/count`, queryParams) : 0,
-    ]);
+    const key = JSON.stringify({ ...queryParams, gameStatus, fetchCount });
 
-    return {
-      games,
-      total,
-    };
+    if (!store && gamesCache.has(key)) {
+      // console.log("got ", key);
+      try {
+        return gamesCache.get(key)!;
+      } finally {
+        gamesCache.delete(key);
+      }
+    }
+
+    return Promise.all([
+      get<IGame[]>(`/game/status/${gameStatus}`, queryParams),
+      fetchCount ? get<number>(`/game/status/${gameStatus}/count`, queryParams) : 0,
+    ]).then(async ([games, total]) => {
+      const missingGameInfos = games.map((game) => game.game.name).filter((boardgameId) => !gameInfo(boardgameId));
+      if (missingGameInfos.length > 0) {
+        await Promise.all(missingGameInfos.map((boardgameId) => loadGameInfo(boardgameId)));
+      }
+
+      if (store) {
+        // console.log("storing", key);
+        gamesCache.set(key, { games, total });
+      }
+
+      return { games, total };
+    });
   };
 
   return {

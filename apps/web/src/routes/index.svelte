@@ -14,17 +14,17 @@
     const firstGames = loadGames({
       gameStatus: "active",
       count: 5,
+      store: true,
       ...(storeGet(activeGames).length > 0 ? { userId: storeGet(accountId) } : { fetchCount: false }),
     });
-    const secondGames = loadGames({ sample: true, gameStatus: "open", count: 5 });
+    const secondGames = loadGames({ sample: true, gameStatus: "open", count: 5, store: true });
 
-    const [firstGameInfo, secondGameInfo] = await Promise.all([firstGames, secondGames, loadGameInfos()]);
+    await loadGameInfos();
+    await Promise.all([firstGames, secondGames]);
 
     return {
       props: {
         announcement: await get("/site/announcement"),
-        firstGameInfo,
-        secondGameInfo,
       },
     };
   }
@@ -40,21 +40,13 @@
   import { useGameInfo } from "@/composition/useGameInfo";
   import type { LoadInput } from "@sveltejs/kit";
   import { useLoad } from "@/composition/useLoad";
-  import { LoadGamesResult, useGames } from "@/composition/useGames";
-  import { onMount } from "svelte";
+  import { useGames } from "@/composition/useGames";
   import GameListSidebar from "@/components/Layout/GameListSidebar.svelte";
-  import { tick } from "svelte";
 
   const { activeGames } = useActiveGames();
   const { account } = useAccount();
 
   export let announcement: { title: string; content: string };
-  export let firstGameInfo: LoadGamesResult;
-  export let secondGameInfo: LoadGamesResult;
-
-  let loaded = false;
-
-  onMount(() => tick().then(() => (loaded = true)));
 </script>
 
 <SEO />
@@ -82,25 +74,13 @@
     <Row>
       <Col lg="6" class="mt-3">
         {#if $activeGames?.length}
-          <GameList
-            initial={!loaded && firstGameInfo}
-            gameStatus="active"
-            userId={$account?._id}
-            perPage={5}
-            title="My games"
-          />
+          <GameList gameStatus="active" userId={$account?._id} perPage={5} title="My games" />
         {:else}
-          <GameList
-            initial={!loaded && firstGameInfo}
-            gameStatus="active"
-            topRecords
-            perPage={5}
-            title="Featured games"
-          />
+          <GameList gameStatus="active" topRecords perPage={5} title="Featured games" />
         {/if}
       </Col>
       <Col lg="6" class="mt-3">
-        <GameList initial={!loaded && secondGameInfo} sample perPage={5} gameStatus="open" title="Lobby" />
+        <GameList sample perPage={5} gameStatus="open" title="Lobby" />
       </Col>
     </Row>
     <div class="text-center mt-3">
