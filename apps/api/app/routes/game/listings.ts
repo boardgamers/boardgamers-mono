@@ -101,10 +101,11 @@ router.get("/:status", async (ctx) => {
       .match(conditions)
       .sample(queryCount(ctx) * 5)
       .project(Object.fromEntries(projection.map((x) => [x, 1])))
+      .sort(sortOrder)
       .group({ _id: "$creator", data: { $first: "$$ROOT" } })
-      .limit(queryCount(ctx))
       .replaceRoot("$data")
-      .sort(sortOrder);
+      .sort(sortOrder)
+      .limit(queryCount(ctx));
   } else {
     ctx.body = await Game.find()
       .where(conditions)
