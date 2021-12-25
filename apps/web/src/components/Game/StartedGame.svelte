@@ -217,6 +217,7 @@ ${$game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
     title="Game UX"
     sandbox="allow-scripts allow-same-origin"
     class:d-none={!stateSent}
+    class:fullScreen={$gameInfo.viewer?.fullScreen}
     {src}
   />
 {/key}
@@ -227,8 +228,13 @@ ${$game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
     width: calc(100% + 24px);
     margin-left: -12px;
     margin-right: -12px;
-    margin-top: calc(0 - var(--navbar-margin));
+    margin-top: -16px; /* calc(0 - var(--navbar-margin)) but doesn't seem to work */
     margin-bottom: -6px;
     min-height: calc(100vh - var(--navbar-height));
+  }
+
+  #game-iframe.fullScreen {
+    max-height: calc(100vh - var(--navbar-height));
+    height: calc(100vh - var(--navbar-height));
   }
 </style>
