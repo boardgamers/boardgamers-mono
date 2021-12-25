@@ -194,6 +194,8 @@
       description = `Round ${$game.data.round}
       
 ${$game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
+    } else if ($game.cancelled) {
+      title = `Cancelled - ${gameLabel($gameInfo.label)} game`;
     } else {
       const victor = minBy($game.players, "ranking")!;
       title = `${victor.name}'s victory! - ${gameLabel($gameInfo.label)} game`;
