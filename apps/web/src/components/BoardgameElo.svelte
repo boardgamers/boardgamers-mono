@@ -2,6 +2,7 @@
   import { EloRanking, useEloRankings } from "@/composition/useEloRankings";
   import { Loading, Pagination } from "@/modules/cdk";
   import { createWatcher, handleError, pluralize } from "@/utils";
+  import UserAvatar from "./User/UserAvatar.svelte";
 
   export let boardgameId: string;
   export let top = false;
@@ -57,7 +58,8 @@
     <ul class="list-group text-start">
       {#each boardgameElo as bgElo, pos}
         <a href={`/user/${bgElo.user.name}#elo`} class="list-group-item list-group-item-action">
-          <span>
+          <UserAvatar username={bgElo.user.name} userId={bgElo.user._id} --avatar-size="2rem" />
+          <span class="ms-2">
             <b>{pos + 1 + currentPage * perPage}</b> - {bgElo.user.name} -
             <b>{bgElo.elo.value}</b> elo in {pluralize(bgElo.elo.games, "game")}
           </span>

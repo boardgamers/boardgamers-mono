@@ -25,7 +25,7 @@
       featuredGames,
       myGames,
       lobbyGames,
-      loadEloRankings({ boardgameId, count: 7, fetchCount: false }),
+      loadEloRankings({ boardgameId, count: 6, fetchCount: false }),
     ]);
 
     return { props: { rankings } };
@@ -134,7 +134,7 @@
     </Col>
     <Col lg={6} class="mt-3">
       <!-- Todo: show rank of current player if possible with mongodb in an optimized way in the list -->
-      <BoardgameElo initial={rankings} {boardgameId} top perPage={7} />
+      <BoardgameElo initial={rankings} {boardgameId} top perPage={6} />
     </Col>
   </Row>
 </div>

@@ -4,6 +4,7 @@ import { useRest } from "./useRest";
 export type EloRanking = {
   user: {
     name: string;
+    _id: string;
   };
   elo: {
     value: number;

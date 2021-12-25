@@ -95,6 +95,7 @@ router.get("/:boardgame/elo", async (ctx) => {
         elo: 1,
         "access.ownership": 1,
         "user.name": "$userData.account.username",
+        "user._id": "$userData._id",
       },
     },
   ]);
