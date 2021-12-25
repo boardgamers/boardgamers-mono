@@ -19,7 +19,7 @@
   $: alternativeRoute = "?" + generateAlternative($page);
 </script>
 
-<Card class="mt-4 border-accent" header="Games">
+<Card class="mt-4 border-secondary" header="Games">
   <Row>
     {#if filter === "started"}
       <Col lg={6}>

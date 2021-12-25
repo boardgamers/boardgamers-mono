@@ -59,7 +59,7 @@
       <p class="text-center">
         Play <b><a class="no-link" href="/boardgame/gaia-project">Gaia Project</a></b>,
         <b><a class="no-link" href="/boardgame/powergrid">Powergrid</a></b>,
-        <b><a class="no-link" href="/boardgame/6nimmt">6nimmt</a></b>
+        <b><a class="no-link" href="/boardgame/take6">6nimmt</a></b>
         and <b><a class="no-link" href="/boardgame/container">Container</a></b> online<br />Want to set up live games?
         Join the
         <a href="https://discord.gg/EgqK3rD">discord</a>!
