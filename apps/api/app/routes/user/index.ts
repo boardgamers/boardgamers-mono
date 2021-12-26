@@ -29,6 +29,21 @@ router.param("userName", async (userName, ctx, next) => {
   await next();
 });
 
+router.get("/search", async (ctx) => {
+  const name: string = ctx.query.name || "";
+
+  if (!name) {
+    ctx.body = [];
+  }
+
+  assert(["name"].includes(ctx.query.mode));
+
+  const conditions = { "security.slug": new RegExp("^" + name.toLocaleLowerCase()) };
+
+  const users = await User.find(conditions, "account").select(User.publicInfo()).lean(true).limit(queryCount(ctx));
+  ctx.body = users;
+});
+
 router.get("/infoByName/:userName", (ctx) => {
   ctx.body = ctx.state.foundUser.publicInfo();
 });

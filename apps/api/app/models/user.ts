@@ -15,6 +15,8 @@ export const maxKarma = 100;
 
 const secureId = () => crypto.randomBytes(12).toString("base64").replace(/\+/g, "_").replace(/\//g, "-");
 
+const publicInfo = Object.freeze(["_id", "account.username", "account.bio", "account.karma", "createdAt"] as const);
+
 export interface UserDocument extends IAbstractUser, mongoose.Document {
   isAdmin(): boolean;
 
@@ -46,6 +48,7 @@ interface UserModel extends mongoose.Model<UserDocument> {
   findByEmail(email: string): Promise<UserDocument>;
   findByUsername(name: string): Promise<UserDocument>;
   findByUrl(urlComponent: string): Promise<UserDocument>;
+  publicInfo(): typeof publicInfo;
 }
 
 // define the schema for our user model
@@ -204,8 +207,10 @@ schema.method("changeEmail", async function (this: UserDocument, email: string) 
 });
 
 schema.method("publicInfo", function (this: UserDocument) {
-  return pick(this, ["_id", "account.username", "account.bio", "account.karma", "createdAt"]);
+  return pick(this, publicInfo);
 });
+
+schema.static("publicInfo", () => publicInfo);
 
 schema.method("generateResetLink", async function (this: UserDocument) {
   this.security.reset = {
