@@ -148,7 +148,13 @@
             {#if game.status !== "open"}
               <Row class="factions g-0">
                 {#each game.players as player}
-                  <PlayerGameAvatar game={game.game.name} {userId} {player} class="me-1" />
+                  <PlayerGameAvatar
+                    game={game.game.name}
+                    isCurrent={game.currentPlayers?.some((pl) => pl._id === player._id)}
+                    {userId}
+                    {player}
+                    class="me-1"
+                  />
                 {/each}
               </Row>
             {:else}

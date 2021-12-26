@@ -17,6 +17,7 @@
   export { className as class };
 
   export let userId: string | undefined;
+  export let isCurrent: boolean | undefined;
 
   $: browser && game && !gameInfo(game) && loadGameInfo(game).catch(handleError);
 
@@ -36,6 +37,7 @@
   title={player.name}
   class={classnames("player-avatar", className)}
   class:current={highlightedPlayerId && player._id === highlightedPlayerId}
+  class:currentTurn={isCurrent}
 >
   {#if showVp}
     <span class={`vp ${status}`}>{player.score}</span>
@@ -55,6 +57,12 @@
     align-items: center;
     justify-content: space-around;
     font-weight: bold;
+
+    &.currentTurn {
+      .vp {
+        background-color: var(--accent);
+      }
+    }
 
     .vp {
       position: absolute;
