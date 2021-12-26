@@ -15,6 +15,7 @@ const playerInfoSchema = new Schema<PlayerInfo<Types.ObjectId>>({
   quit: Boolean,
   faction: String,
   voteCancel: Boolean,
+  pending: Boolean,
   ranking: Number,
   elo: {
     initial: Number,

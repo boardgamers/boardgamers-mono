@@ -9,6 +9,7 @@ export interface PlayerInfo<T = string> {
   faction?: string;
   voteCancel?: boolean;
   ranking?: number;
+  pending?: boolean;
   elo?: {
     initial?: number;
     delta?: number;

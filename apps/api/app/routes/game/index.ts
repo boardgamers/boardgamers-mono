@@ -251,18 +251,64 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
   ctx.status = 200;
 });
 
+router.post("/:gameId/invite", loggedIn, async (ctx) => {
+  assert(
+    ctx.state.user._id.equals(ctx.state.game.creator),
+    "You must be the creator of the game to invite other players"
+  );
+  assert(ctx.state.game.options.timing.scheduledStart, "The game must have a scheduled start");
+
+  const { userId } = ctx.request.body;
+
+  const free = await locks.lock("game", ctx.params.gameId);
+  try {
+    const game = await Game.findOne({
+      _id: ctx.params.gameId,
+      status: "open",
+    });
+
+    assert(game.players.length < game.options.setup.nbPlayers, "Too many people have joined the game");
+    assert(!game.players.some((pl) => pl._id.equals(userId)), "That user is already in the player list");
+
+    const userName = (await User.findById(userId).select("account.username")).account.username;
+
+    game.players.push({
+      _id: userId,
+      remainingTime: game.options.timing.timePerGame,
+      quit: false,
+      dropped: false,
+      score: 0,
+      name: userName,
+      pending: true,
+    });
+
+    game.currentPlayers.push({ _id: userId, timerStart: new Date(), deadline: game.options.timing.scheduledStart });
+
+    await game.save();
+  } finally {
+    free().catch(console.error);
+  }
+
+  ctx.body = omit(ctx.state.game, "data");
+});
+
 router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
   // Do basic checks before creating the lock
   assert(ctx.state.game.status === "open");
   const karma = ctx.state.user.account.karma;
-  assert(
-    ctx.state.game.options.meta.minimumKarma === undefined || karma >= ctx.state.game.options.meta.minimumKarma,
-    "You do not have enough karma to join this game"
-  );
 
-  if (karma < 50) {
-    const games = await Game.findWithPlayer(ctx.state.user._id).where("status").ne("ended").limit(2).count();
-    assert(games < 2, "You can't join more than two games at the same time when your karma is less than 50");
+  if (ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id) && pl.pending)) {
+    // The player is pending, so was invited by the host, he can bypass restrictions
+  } else {
+    assert(
+      ctx.state.game.options.meta.minimumKarma === undefined || karma >= ctx.state.game.options.meta.minimumKarma,
+      "You do not have enough karma to join this game"
+    );
+
+    if (karma < 50) {
+      const games = await Game.findWithPlayer(ctx.state.user._id).where("status").ne("ended").limit(2).count();
+      assert(games < 2, "You can't join more than two games at the same time when your karma is less than 50");
+    }
   }
 
   const free = await locks.lock("game", ctx.params.gameId);
@@ -270,14 +316,6 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
     const game = await Game.findOne({
       _id: ctx.params.gameId,
       status: "open",
-      $or: [
-        {
-          "options.meta.minimumKarma": { $exists: false },
-        },
-        {
-          "options.meta.minimumKarma": { $lte: ctx.state.user.account.karma },
-        },
-      ],
     });
 
     if (!game) {
@@ -285,21 +323,25 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
       return;
     }
 
-    // Todo: check if allowed to join such a game
+    const existingPlayer = game.players.find((pl) => pl._id.equals(ctx.state.user._id));
+    if (existingPlayer?.pending) {
+      existingPlayer.pending = false;
+      game.currentPlayers = game.currentPlayers.filter((pl) => !pl._id.equals(existingPlayer._id));
+    } else {
+      assert(!existingPlayer, "You already joined the game");
+      assert(game.players.length < game.options.setup.nbPlayers, "Too many people have joined the game");
 
-    assert(!game.players.some((pl) => pl._id.equals(ctx.state.user._id)), "You already joined the game");
-    assert(game.players.length < game.options.setup.nbPlayers, "Too many people have joined the game");
+      game.players.push({
+        _id: ctx.state.user._id,
+        remainingTime: game.options.timing.timePerGame,
+        quit: false,
+        dropped: false,
+        score: 0,
+        name: ctx.state.user.account.username,
+      });
+    }
 
-    game.players.push({
-      _id: ctx.state.user._id,
-      remainingTime: game.options.timing.timePerGame,
-      quit: false,
-      dropped: false,
-      score: 0,
-      name: ctx.state.user.account.username,
-    });
-
-    if (game.players.length === game.options.setup.nbPlayers) {
+    if (game.players.length === game.options.setup.nbPlayers && !game.players.some((pl) => pl.pending)) {
       if (game.options.setup.playerOrder === "host") {
         game.currentPlayers = [{ _id: game.creator, timerStart: new Date(), deadline: addDays(new Date(), 1) }];
       } else {
@@ -335,8 +377,11 @@ router.post("/:gameId/unjoin", loggedIn, async (ctx) => {
     assert(!game.ready, "You can't unjoin a game that's ready to start");
 
     game.players = game.players.filter((pl) => !pl._id.equals(ctx.state.user._id));
-    // In case host needed to choose options after all players joined
-    game.currentPlayers = [];
+    // In case host needed to choose options after all players joined, and player unjoined before
+    // he could chose the options, he now has to wait again
+    game.currentPlayers = game.currentPlayers.filter(
+      (pl) => !pl._id.equals(ctx.state.user._id) && !pl._id.equals(game.creator)
+    );
 
     if (/* ctx.state.user._id.equals(game.creator) && */ game.players.length === 0) {
       // Remove game if its own creator leaves, and there's no one else
