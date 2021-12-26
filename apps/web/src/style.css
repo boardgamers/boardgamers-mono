@@ -2,9 +2,17 @@
   margin-left: -1rem;
 }
 
-.btn-primary {
+.btn-primary,
+.btn-primary:hover {
   border-color: var(--primary);
   background-color: var(--primary);
+}
+
+.btn-accent,
+.btn-accent:hover {
+  color: white;
+  border-color: var(--accent);
+  background-color: var(--accent);
 }
 
 .no-link,
@@ -15,6 +23,14 @@
 
 .bg-primary {
   background-color: var(--primary) !important;
+}
+
+.bg-accent {
+  background-color: var(--accent) !important;
+}
+
+.bg-contrast {
+  background-color: var(--contrast) !important;
 }
 
 .page-link {
@@ -68,7 +84,7 @@ body {
 
   --accent-rgb: 80, 143, 22;
   --accent: rgb(var(--accent-rgb));
-  --alert: #8f1650;
+  --contrast: #8f1650;
 
   --footer-margin: 30px;
   --footer-height: 60px;

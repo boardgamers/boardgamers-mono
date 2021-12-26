@@ -121,9 +121,9 @@
   </Row>
 
   <div class="text-center mt-3">
-    <a class="btn btn-secondary" href={`/boardgame/${boardgameId}/games`} role="button">All games</a>
+    <a class="btn btn-accent" href={`/boardgame/${boardgameId}/games`} role="button">All games</a>
     <button class="btn btn-primary mx-3" href="/new-game" on:click={newGame}>New Game</button>
-    <a class="btn btn-secondary" href={`/boardgame/${boardgameId}/rankings`} role="button">Rankings</a>
+    <a class="btn btn-accent" href={`/boardgame/${boardgameId}/rankings`} role="button">Rankings</a>
   </div>
 
   <Row>

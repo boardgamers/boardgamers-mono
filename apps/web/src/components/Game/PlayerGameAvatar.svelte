@@ -78,7 +78,7 @@
     }
 
     &.current {
-      border: 3px solid #333;
+      border: 2px solid #333;
 
       .vp {
         background-color: #6673bc;
