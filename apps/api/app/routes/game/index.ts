@@ -197,7 +197,7 @@ router.param("gameId", async (gameId, ctx, next) => {
   ctx.state.game = await Game.findById(gameId);
 
   if (!ctx.state.game) {
-    throw createError(404, "Game not found");
+    throw createError(404, "Game not found: " + gameId);
   }
 
   await next();
@@ -256,7 +256,7 @@ router.post("/:gameId/invite", loggedIn, async (ctx) => {
     ctx.state.user._id.equals(ctx.state.game.creator),
     "You must be the creator of the game to invite other players"
   );
-  assert(ctx.state.game.options.timing.scheduledStart, "The game must have a scheduled start");
+  // assert(ctx.state.game.options.timing.scheduledStart, "The game must have a scheduled start");
 
   const { userId } = ctx.request.body;
 

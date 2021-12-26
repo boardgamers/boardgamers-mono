@@ -36,11 +36,9 @@ router.get("/search", async (ctx) => {
     ctx.body = [];
   }
 
-  assert(["name"].includes(ctx.query.mode));
-
   const conditions = { "security.slug": new RegExp("^" + name.toLocaleLowerCase()) };
 
-  const users = await User.find(conditions, "account").select(User.publicInfo()).lean(true).limit(queryCount(ctx));
+  const users = await User.find(conditions).select(User.publicInfo()).lean(true).limit(queryCount(ctx));
   ctx.body = users;
 });
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { timerTime, defer, duration, niceDate, shortDuration, handleError } from "@/utils";
+  import { timerTime, defer, duration, niceDate, shortDuration } from "@/utils";
   import type { IGame } from "@bgs/types";
   import { createWatcher } from "@/utils/watch";
   import { Badge, Icon, Pagination, Loading, Row } from "@/modules/cdk";

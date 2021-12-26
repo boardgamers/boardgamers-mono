@@ -36,7 +36,9 @@ async function gameConditions<T>(
   const baseConditions = (() => {
     switch (status) {
       case "active":
-        return { status: "active" };
+        return params.user
+          ? { $or: [{ status: "active" }, { "currentPlayers._id": params.user }] }
+          : { status: "active" };
       case "ended":
         return { status: "ended" };
       case "open":

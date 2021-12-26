@@ -8,12 +8,12 @@
     timerTime,
     confirm,
     localTimezone,
-    skipOnce,
+    createWatcher,
   } from "@/utils";
   import marked from "marked";
-  import { Badge, Button } from "@/modules/cdk";
+  import { Badge, Button, Dropdown, DropdownItem, DropdownMenu, DropdownToggle, FormGroup, Input } from "@/modules/cdk";
   import Icon from "sveltestrap/src/Icon.svelte";
-  import { getContext, onDestroy } from "svelte";
+  import { getContext } from "svelte";
   import type { GameContext } from "@/routes/game/[gameId].svelte";
   import { playerOrderText } from "@/data/playerOrders";
   import { useAccount } from "@/composition/useAccount";
@@ -26,8 +26,10 @@
   import SEO from "../SEO.svelte";
   import removeMarkdown from "remove-markdown";
   import { gameLabel } from "@/utils/game-label";
+  import type { IUser } from "@bgs/types";
+  import { debounce } from "lodash";
 
-  const { post } = useRest();
+  const { post, get } = useRest();
 
   const { account: user } = useAccount();
   const { lastGameUpdate } = useCurrentGame();
@@ -110,21 +112,40 @@
     post(`/game/${gameId}/start`, { playerOrder: playerOrder.map((x) => $game.players[x]._id) }).catch(handleError);
   };
 
-  // Autorefresh when another player joins
-  onDestroy(
-    lastGameUpdate.subscribe(
-      skipOnce(async () => {
-        if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
-          const [g, p] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
+  let isOpen = false;
 
-          if ($game && gameId === g._id) {
-            $game = g;
-            $players = p;
-          }
-        }
-      })
-    )
+  let foundUsers: IUser[] = [];
+  let query = "";
+
+  const invite = (userId: string) => post(`/game/${gameId}/invite`, { userId }).catch(handleError);
+
+  const watcher = debounce(
+    async () => {
+      if (query) {
+        foundUsers = (await get<IUser[]>("/user/search", { name: query.trim() }).catch(handleError)) || [];
+      } else {
+        foundUsers = [];
+      }
+    },
+    800,
+    { leading: false }
   );
+
+  $: watcher(), query;
+
+  const updateGameWatcher = createWatcher(async () => {
+    if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
+      const [g, p] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
+
+      if ($game && gameId === g._id) {
+        $game = g;
+        $players = p;
+      }
+    }
+  });
+
+  // Autorefresh when another player joins
+  $: updateGameWatcher(), $lastGameUpdate;
 </script>
 
 <SEO
@@ -242,13 +263,30 @@ ${$gameInfo.options
             <a href={`/user/${$players.find((pl) => pl._id === player._id)?.name}`}>
               {$players.find((pl) => pl._id === player._id)?.name}
             </a>
-            - {$players.find((pl) => pl._id === player._id)?.elo} elo
+            - {$players.find((pl) => pl._id === player._id)?.elo} elo {#if player.pending}<span class="text-muted">
+                (invited)
+              </span>{/if}
           </div>
         {/each}
       </div>
     {/if}
     {#if $game.options.setup.nbPlayers > $game.players.length}
       <p>Waiting on {pluralize($game.options.setup.nbPlayers - $game.players.length, "more player")}</p>
+      {#if $user?._id === $game.creator && (1 || $game.options.timing.scheduledStart)}
+        <FormGroup>
+          <label for="invite">Invite player</label>
+          <Dropdown isOpen={Boolean(isOpen && foundUsers.length)} toggle={() => (isOpen = !isOpen)}>
+            <DropdownToggle tag="div" class="d-inline-block">
+              <Input id="invite" bind:value={query} />
+            </DropdownToggle>
+            <DropdownMenu>
+              {#each foundUsers as result}
+                <DropdownItem on:click={() => invite(result._id)}>{result.account.username}</DropdownItem>
+              {/each}
+            </DropdownMenu>
+          </Dropdown>
+        </FormGroup>
+      {/if}
     {:else if !$game.ready}
       {#if $user?._id === $game.creator}
         {#if $game.options.setup.playerOrder === "host"}
@@ -262,6 +300,8 @@ ${$gameInfo.options
           {/each}
           <Button color="primary" on:click={start} class="mt-4">Start the game!</Button>
         {/if}
+      {:else if $game.players.some((p) => p.pending)}
+        <p>Waiting on some players to accept the invitation.</p>
       {:else}
         <p><b>Waiting on host for final settings</b></p>
       {/if}
@@ -272,9 +312,14 @@ ${$gameInfo.options
 
   {#if !canStart}
     {#if $game.players.some((pl) => pl._id === $user?._id)}
-      <Button color="warning" on:click={leave}>Leave</Button>
+      {#if $game.players.find((pl) => pl._id === $user._id).pending}
+        <Button color="accent" on:click={join}>Accept invitation</Button>
+        <Button color="secondary" on:click={leave}>Refuse invitation</Button>
+      {:else}
+        <Button color="warning" on:click={leave}>Leave</Button>
+      {/if}
     {:else}
-      <Button color="secondary" on:click={join}>Join!</Button>
+      <Button color="accent" on:click={join}>Join!</Button>
     {/if}
   {/if}
 </div>

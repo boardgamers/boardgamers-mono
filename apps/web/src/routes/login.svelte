@@ -6,6 +6,8 @@
 
   import type { LoadInput } from "@sveltejs/kit";
 
+  export const ssr = false; // for refresh token query param
+
   export async function load(input: LoadInput) {
     const { account, refreshToken, loadAccount } = useLoad(input, useAccount, useRefreshToken);
 
