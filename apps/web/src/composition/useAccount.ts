@@ -1,7 +1,7 @@
 import { browser } from "$app/env";
 import { handleError, skipOnce } from "@/utils";
 import type { IUser } from "@bgs/types";
-import { writable } from "svelte/store";
+import { derived, writable } from "svelte/store";
 import { defineStore } from "./defineStore";
 import { useAccessTokens } from "./useAccessTokens";
 import { useRefreshToken } from "./useRefreshToken";
@@ -26,15 +26,13 @@ export const useAccount = defineStore(() => {
       (val) => {
         loaded = true;
         account.set(val);
-        // Needed for SSR because in SSR accountId is not subscribed to account
-        accountId.set(val?._id ?? null);
       },
       (err) => (err.status !== 404 ? handleError(err) : void 0)
     );
   };
 
   const account = writable<IUser | null>(null);
-  const accountId = writable<string | null>(null);
+  const accountId = derived(account, ($account) => $account?._id || null);
 
   const { refreshToken } = useRefreshToken();
   const accessTokens = useAccessTokens();
@@ -46,7 +44,6 @@ export const useAccount = defineStore(() => {
           refreshToken.set(null);
           accessTokens.set({});
         }
-        accountId.set(newVal?._id ?? null);
       })
     );
   }
