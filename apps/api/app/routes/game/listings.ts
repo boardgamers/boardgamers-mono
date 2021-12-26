@@ -31,7 +31,14 @@ const filterAccessibleGames = async <T>(userId: T) => {
  */
 async function gameConditions<T>(
   status: GameStatus,
-  params: { user?: string; requester?: T; boardgame?: string; maxKarma?: number }
+  params: {
+    user?: string;
+    requester?: T;
+    boardgame?: string;
+    maxKarma?: number;
+    maxDuration?: number;
+    minDuration?: number;
+  }
 ) {
   const baseConditions = (() => {
     switch (status) {
@@ -61,6 +68,8 @@ async function gameConditions<T>(
           { "options.meta.minimumKarma": { $exists: false } },
         ],
       },
+      params.minDuration && { "options.timing.timePerGame": { $gte: params.minDuration } },
+      params.maxDuration && { "options.timing.timePerGame": { $lte: params.maxDuration } },
       params.boardgame && { "game.name": params.boardgame },
       params.user && { "players._id": params.user },
       await filterAccessibleGames(params.requester),
@@ -73,18 +82,11 @@ router.get("/:status/count", async (ctx) => {
     user: ctx.query.user,
     requester: ctx.state.user?._id,
     boardgame: ctx.query.boardgame,
-    maxKarma: ctx.query.maxKarma,
+    maxKarma: ctx.query.maxKarma && +ctx.query.maxKarma,
+    maxDuration: ctx.query.maxDuration && +ctx.query.maxDuration,
+    minDuration: ctx.query.minDuration && +ctx.query.minDuration,
   });
-  if (ctx.query.user) {
-    conditions["players._id"] = ctx.query.user;
-  }
-  ctx.body = await Game.count().where(
-    await gameConditions(ctx.params.status, {
-      user: ctx.query.user,
-      requester: ctx.state.user?._id,
-      boardgame: ctx.query.boardgame,
-    })
-  );
+  ctx.body = await Game.count().where(conditions);
 });
 
 router.get("/:status", async (ctx) => {
@@ -95,7 +97,9 @@ router.get("/:status", async (ctx) => {
     user: ctx.query.user,
     requester: ctx.state.user?._id,
     boardgame: ctx.query.boardgame,
-    maxKarma: ctx.query.maxKarma,
+    maxKarma: ctx.query.maxKarma && +ctx.query.maxKarma,
+    maxDuration: ctx.query.maxDuration && +ctx.query.maxDuration,
+    minDuration: ctx.query.minDuration && +ctx.query.minDuration,
   });
 
   if (ctx.query.sample) {

@@ -11,6 +11,8 @@ type LoadGamesParams = {
   sample?: boolean;
   skip?: number;
   count?: number;
+  minDuration?: number;
+  maxDuration?: number;
   gameStatus: GameStatus;
   fetchCount?: boolean;
   store?: boolean; // To store the result in cache, next time function is called with same params it will return the cached value
@@ -31,6 +33,8 @@ export const useGames = defineStore(() => {
   const loadGames = ({
     count = 10,
     skip = 0,
+    minDuration,
+    maxDuration,
     sample,
     userId,
     boardgameId,
@@ -45,6 +49,8 @@ export const useGames = defineStore(() => {
       ...(userId && { user: userId }),
       ...(boardgameId && { boardgame: boardgameId }),
       ...(gameStatus === "open" && !!$(account)?._id && { maxKarma: $(account)!.account.karma }),
+      ...(minDuration && { minDuration }),
+      ...(maxDuration && { maxDuration }),
     };
 
     const key = JSON.stringify({ ...queryParams, gameStatus, fetchCount });

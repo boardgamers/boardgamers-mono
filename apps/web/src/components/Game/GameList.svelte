@@ -20,6 +20,8 @@
   export let gameStatus: IGame["status"];
   export let boardgameId: string | undefined = undefined;
   export let userId: string | undefined | null = undefined;
+  export let minDuration: number | undefined = undefined;
+  export let maxDuration: number | undefined = undefined;
 
   let loadingGames = true;
   let count = 0;
@@ -35,6 +37,8 @@
         boardgameId,
         userId,
         sample,
+        minDuration,
+        maxDuration,
         count: perPage,
         skip: currentPage * perPage,
         fetchCount,
