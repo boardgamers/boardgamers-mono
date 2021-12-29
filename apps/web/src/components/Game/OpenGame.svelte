@@ -9,6 +9,7 @@
     confirm,
     localTimezone,
     createWatcher,
+    defer,
   } from "@/utils";
   import marked from "marked";
   import { Badge, Button, Dropdown, DropdownItem, DropdownMenu, DropdownToggle, FormGroup, Input } from "@/modules/cdk";
@@ -117,7 +118,13 @@
   let foundUsers: IUser[] = [];
   let query = "";
 
-  const invite = (userId: string) => post(`/game/${gameId}/invite`, { userId }).catch(handleError);
+  const invite = defer(async (userId: string, isName = false) => {
+    if (isName) {
+      const user = await get<IUser>(`/user/infoByName/${encodeURIComponent(userId)}`);
+      userId = user._id;
+    }
+    post(`/game/${gameId}/invite`, { userId });
+  });
 
   const watcher = debounce(
     async () => {
@@ -127,7 +134,7 @@
         foundUsers = [];
       }
     },
-    800,
+    400,
     { leading: false }
   );
 
@@ -277,7 +284,11 @@ ${$gameInfo.options
           <label for="invite">Invite player</label>
           <Dropdown isOpen={Boolean(isOpen && foundUsers.length)} toggle={() => (isOpen = !isOpen)}>
             <DropdownToggle tag="div" class="d-inline-block">
-              <Input id="invite" bind:value={query} />
+              <Input
+                id="invite"
+                bind:value={query}
+                on:keydown={(e) => e.key === "Enter" && invite(e.target.value, true)}
+              />
             </DropdownToggle>
             <DropdownMenu>
               {#each foundUsers as result}

@@ -150,7 +150,7 @@
             </div>
 
             {#if game.status !== "open"}
-              <Row class="factions g-0">
+              <div class="factions g-0 row">
                 {#each game.players as player}
                   <PlayerGameAvatar
                     game={game.game.name}
@@ -160,7 +160,7 @@
                     class="me-1"
                   />
                 {/each}
-              </Row>
+              </div>
             {:else}
               <div class="me-3" style="line-height: 1.1;">
                 <div class="text-end">{game.players.length} / {game.options.setup.nbPlayers}</div>
