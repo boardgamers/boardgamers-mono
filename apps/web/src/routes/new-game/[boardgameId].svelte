@@ -3,7 +3,7 @@
 
   export function load(input: LoadInput) {
     return {
-      redirect: `/boardgame/${input.page.params.boardgameId}/new-game`,
+      redirect: `/boardgame/${input.params.boardgameId}/new-game`,
       status: 301,
     };
   }

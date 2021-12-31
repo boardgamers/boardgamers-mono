@@ -4,7 +4,7 @@
   export async function load(input: LoadInput) {
     const { get } = useLoad(input, useRest);
 
-    const parts = [input.page.params.part1, input.page.params.part2].filter(Boolean);
+    const parts = [input.params.part1, input.params.part2].filter(Boolean);
 
     return {
       props: {

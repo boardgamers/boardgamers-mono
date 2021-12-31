@@ -11,8 +11,8 @@
     const { get, setAuthData } = useLoad(input, useRest, useAccount);
 
     const response = await get<{ createSocialAccount: boolean } & AuthData>(
-      `/account/auth/${input.page.params.provider}/callback`,
-      input.page.query
+      `/account/auth/${input.params.provider}/callback`,
+      input.url.searchParams
     );
 
     if (response.createSocialAccount) {

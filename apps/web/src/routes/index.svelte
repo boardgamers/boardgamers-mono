@@ -85,7 +85,7 @@
     </Row>
     <div class="text-center mt-3">
       <a class="btn btn-accent" href="/games" role="button">All games</a>
-      <a class="btn btn-primary ms-3" href="/new-game" role="button">New Game</a>
+      <a class="btn btn-primary ms-3" href="/new-game" role="button" sveltekit:prefetch>New Game</a>
     </div>
   </div>
 </div>

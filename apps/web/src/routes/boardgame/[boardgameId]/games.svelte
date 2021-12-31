@@ -1,10 +1,10 @@
 <!-- This file is copied from ../../games/index.svelte-->
 <script context="module" lang="ts">
   export async function load(input: LoadInput) {
-    const boardgameId = input.page.params.boardgameId;
+    const boardgameId = input.params.boardgameId;
     const { loadGames } = useLoad(input, useGames);
 
-    const firstTab = input.page.params.status !== "ended";
+    const firstTab = input.params.status !== "ended";
 
     const [featured, lobby] = await Promise.all([
       loadGames({

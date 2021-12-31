@@ -3,7 +3,7 @@
     const { loadGameInfos, loadGamePreferences } = useLoad(input, useGameInfo, useGamePreferences);
 
     await loadGameInfos();
-    await loadGamePreferences(input.page.params.boardgameId);
+    await loadGamePreferences(input.params.boardgameId);
 
     return {};
   }

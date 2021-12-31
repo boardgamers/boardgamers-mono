@@ -1,9 +1,7 @@
-import type { Page } from "@sveltejs/kit";
-
-export function redirectLoggedIn(page: Page): string {
-  return "/login?redirect=" + page.path + (page.query.toString() === "" ? "" : "?" + page.query.toString());
+export function redirectLoggedIn(url: URL): string {
+  return "/login?redirect=" + url.href;
 }
 
-export function redirectLoggedOut(page: Page): string {
-  return page.query.get("redirect") ?? "/";
+export function redirectLoggedOut(url: URL): string {
+  return url.searchParams.get("redirect") ?? "/";
 }

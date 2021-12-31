@@ -8,8 +8,8 @@
   export async function load(input: LoadInput) {
     const { post, setAuthData } = useLoad(input, useAccount, useRest);
     await post<AuthData>("/account/confirm", {
-      key: input.page.query.get("key"),
-      email: input.page.query.get("email"),
+      key: input.url.searchParams.get("key"),
+      email: input.url.searchParams.get("email"),
     }).then(setAuthData);
 
     return {

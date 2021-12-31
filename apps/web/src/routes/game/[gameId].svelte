@@ -19,7 +19,7 @@
       useGamePreferences
     );
 
-    const gameId = input.page.params.gameId;
+    const gameId = input.params.gameId;
 
     const [game, players] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
     await Promise.all([loadGameInfo(game.game.name, game.game.version), loadGamePreferences(game.game.name)]);

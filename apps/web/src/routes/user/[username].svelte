@@ -4,7 +4,7 @@
   export async function load(input: LoadInput) {
     const { get, loadGames } = useLoad(input, useRest, useGames);
 
-    const user = await get<IUser>(`/user/infoByName/${encodeURIComponent(input.page.params.username)}`);
+    const user = await get<IUser>(`/user/infoByName/${encodeURIComponent(input.params.username)}`);
 
     if (!user) {
       return {
@@ -51,7 +51,7 @@
     `${username} joined in ${dateFromObjectId(user._id).toLocaleString("en", {
       month: "long",
     })} ${dateFromObjectId(user._id).toLocaleString("en", { year: "numeric" })} and has ${user.account.karma} karma.`}
-  image={`https://${$page.host}/api/user/${user._id}/avatar`}
+  image={`${$page.url.origin}/api/user/${user._id}/avatar`}
 />
 
 <Container>

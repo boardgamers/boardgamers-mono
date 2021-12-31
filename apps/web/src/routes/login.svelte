@@ -11,15 +11,15 @@
   export async function load(input: LoadInput) {
     const { account, refreshToken, loadAccount } = useLoad(input, useAccount, useRefreshToken);
 
-    if (input.page.query.get("refreshToken")) {
-      refreshToken.set(JSON.parse(input.page.query.get("refreshToken")!));
+    if (input.url.searchParams.get("refreshToken")) {
+      refreshToken.set(JSON.parse(input.url.searchParams.get("refreshToken")!));
 
       await loadAccount(true);
     }
 
     if (storeGet(account)) {
       return {
-        redirect: redirectLoggedOut(input.page),
+        redirect: redirectLoggedOut(input.url),
         status: 302,
       };
     }

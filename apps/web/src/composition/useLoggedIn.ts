@@ -10,5 +10,5 @@ export function useLoggedIn(): void {
   const { page } = getStores();
   const { account } = useAccount();
 
-  onMount(() => account.subscribe(skipOnce((val) => !val && goto(redirectLoggedIn($(page))))));
+  onMount(() => account.subscribe(skipOnce((val) => !val && goto(redirectLoggedIn($(page).url)))));
 }

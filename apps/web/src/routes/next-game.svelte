@@ -12,7 +12,7 @@
 
     if (!storeGet(account)) {
       return {
-        redirect: redirectLoggedIn(input.page),
+        redirect: redirectLoggedIn(input.url),
         status: 302,
       };
     }
@@ -25,7 +25,7 @@
     }
 
     const games = storeGet(activeGames);
-    const currentIdx = games.indexOf(input.page.params.gameId);
+    const currentIdx = games.indexOf(input.params.gameId);
     const gameId = games[(currentIdx + 1) % games.length];
 
     return {

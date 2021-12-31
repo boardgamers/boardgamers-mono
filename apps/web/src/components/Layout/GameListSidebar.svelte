@@ -17,21 +17,18 @@
 
   function gameRoute(gameId: string) {
     if (!boardgameId) {
-      return `/boardgame/${gameId}${$page.path}`;
+      return `/boardgame/${gameId}${$page.url.pathname}`;
     }
 
     if (gameId === boardgameId) {
-      if ($page!.path === "/boardgame/" + gameId) {
+      if ($page.url.pathname === "/boardgame/" + gameId) {
         return "/refresh-games";
       } else {
         return "/boardgame/" + gameId;
       }
     }
 
-    return (
-      $page.path.replace(`/boardgame/${boardgameId}`, `/boardgame/${gameId}`) +
-      ($page.query.toString() && "?" + $page.query.toString())
-    );
+    return $page.url.pathname.replace(`/boardgame/${boardgameId}`, `/boardgame/${gameId}`) + $page.url.search;
   }
 
   function handleClick(event: MouseEvent & { currentTarget: HTMLAnchorElement }) {
@@ -49,6 +46,7 @@
         class="list-group-item-action list-group-item"
         href={gameRoute(game._id.game)}
         class:active={boardgameId === game._id.game}
+        sveltekit:prefetch
         on:click={handleClick}
         style="font-weight: 600"
       >

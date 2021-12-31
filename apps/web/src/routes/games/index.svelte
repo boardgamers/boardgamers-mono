@@ -1,6 +1,6 @@
 <script context="module" lang="ts">
   export async function load(input: LoadInput) {
-    const boardgameId = input.page.params.boardgameId;
+    const boardgameId = input.params.boardgameId;
     const { loadGames } = useLoad(input, useGames);
 
     const [featured, lobby] = await Promise.all([

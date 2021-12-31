@@ -6,10 +6,10 @@
 
   export let userId: string;
 
-  $: filter = $page?.query.get("games") ?? "started";
+  $: filter = $page.url.searchParams.get("games") ?? "started";
 
-  const generateAlternative = (page: Page | null) => {
-    const query = new URLSearchParams(page?.query.toString() ?? "");
+  const generateAlternative = (page: Page) => {
+    const query = new URLSearchParams(page.url.searchParams);
 
     query.set("games", filter === "open" ? "started" : "open");
 

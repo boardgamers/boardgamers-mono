@@ -69,7 +69,7 @@
 </script>
 
 <Navbar color="primary" class={className} dark expand>
-  <a href="/" on:click={logoClick} class="navbar-brand">BGS</a>
+  <a href="/" on:click={logoClick} sveltekit:prefetch class="navbar-brand">BGS</a>
 
   {#if $user}
     <a
@@ -84,7 +84,7 @@
     </a>
   {/if}
 
-  <a href="/boardgames" title="Boardgames list">
+  <a href="/boardgames" title="Boardgames list" sveltekit:prefetch>
     <img src="/images/icons/dice.svg" height="28" width="28" alt="Boardgames list" />
   </a>
 
@@ -139,7 +139,7 @@
           <span class="d-none d-sm-inline">Admin</span>
         </NavLink>
       {/if}
-      <NavLink href={`/user/${$user.account.username}`} class="appbar-user-link">
+      <NavLink href={`/user/${$user.account.username}`} sveltekit:prefetch class="appbar-user-link">
         <UserAvatar username={$user.account.username} userId={$user._id} --avatar-size="2rem" />
         <span class="d-none d-sm-inline">{$user.account.username}</span>
       </NavLink>

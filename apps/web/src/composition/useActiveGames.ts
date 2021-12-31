@@ -5,6 +5,7 @@ import { useRest } from "./useRest";
 export const useActiveGames = defineStore(() => {
   const { get } = useRest();
   const activeGames = writable<string[]>([]);
+  let loaded = false;
 
   function addActiveGame(gameId: string) {
     if (!$(activeGames).includes(gameId)) {
@@ -19,6 +20,11 @@ export const useActiveGames = defineStore(() => {
   }
 
   async function loadActiveGames() {
+    // We only want to load during the initial load, afterwards we have a websocket maintaining the state
+    if (loaded) {
+      return;
+    }
+    loaded = true;
     activeGames.set(await get("/account/active-games"));
   }
 

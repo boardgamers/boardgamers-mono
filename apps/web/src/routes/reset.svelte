@@ -12,8 +12,8 @@
     return post<AuthData>("/account/reset", params).then(setAuthData);
   }
 
-  let email = $page.query.get("email") ?? $page.query.get("user") ?? "";
-  let key = $page.query.get("key")!;
+  let email = $page.url.searchParams.get("email") ?? $page.url.searchParams.get("user") ?? "";
+  let key = $page.url.searchParams.get("key")!;
 
   let password = "";
   let passwordConfirm = "";

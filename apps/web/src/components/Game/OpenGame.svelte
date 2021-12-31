@@ -66,7 +66,7 @@
 
   const join = async () => {
     if (!$user) {
-      goto(redirectLoggedIn($page));
+      goto(redirectLoggedIn($page.url));
       return;
     }
 

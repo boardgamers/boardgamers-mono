@@ -10,5 +10,5 @@ export function useLoggedOut(): void {
   const { page } = getStores();
   const { account } = useAccount();
 
-  onMount(() => account.subscribe(skipOnce((val) => val && goto(redirectLoggedOut($(page))))));
+  onMount(() => account.subscribe(skipOnce((val) => val && goto(redirectLoggedOut($(page).url)))));
 }

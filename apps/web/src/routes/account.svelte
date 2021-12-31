@@ -3,7 +3,7 @@
     const { account } = useLoad(input, useAccount);
 
     if (!storeGet(account)) {
-      return { status: 302, redirect: redirectLoggedIn(input.page) };
+      return { status: 302, redirect: redirectLoggedIn(input.url) };
     }
 
     return {};

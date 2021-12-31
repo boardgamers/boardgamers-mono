@@ -1,6 +1,6 @@
 <script context="module" lang="ts">
   export async function load(input: LoadInput) {
-    const boardgameId = input.page.params.boardgameId;
+    const boardgameId = input.params.boardgameId;
     const { account, loadGames, loadEloRankings } = useLoad(input, useGames, useAccount, useEloRankings);
 
     const featuredGames = loadGames({

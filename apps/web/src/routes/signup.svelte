@@ -13,9 +13,9 @@
   const { post } = useRest();
   const { setAuthData } = useAccount();
 
-  let email = $page.query.get("user") ?? "";
-  let isSocial = $page.query.get("createSocialAccount");
-  let provider = $page.query.get("provider")!;
+  let email = $page.url.searchParams.get("user") ?? "";
+  let isSocial = $page.url.searchParams.get("createSocialAccount");
+  let provider = $page.url.searchParams.get("provider")!;
 
   let password = "";
   let passwordConfirm = "";
@@ -44,7 +44,7 @@
     }
 
     if (isSocial) {
-      const jwt = $page!.query.get("jwt")!;
+      const jwt = $page.url.searchParams.get("jwt")!;
 
       registerSocial({ username, termsAndConditions: tc, jwt }).catch(handleError);
     } else {

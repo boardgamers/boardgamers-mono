@@ -1,7 +1,7 @@
 <script context="module" lang="ts">
   export async function load(input: LoadInput) {
-    const boardgameId = input.page.params.boardgameId;
-    const currentPage = +input.page.params.page || 1;
+    const boardgameId = input.params.boardgameId;
+    const currentPage = +input.params.page || 1;
     const { loadEloRankings } = useLoad(input, useEloRankings);
     let skip = (currentPage - 1) * 15;
     const rankings = await loadEloRankings({ boardgameId, count: 15, skip });
