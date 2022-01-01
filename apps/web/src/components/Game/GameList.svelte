@@ -2,7 +2,8 @@
   import { timerTime, defer, duration, niceDate, shortDuration } from "@/utils";
   import type { IGame } from "@bgs/types";
   import { createWatcher } from "@/utils/watch";
-  import { Badge, Icon, Pagination, Loading, Row } from "@/modules/cdk";
+  import clockHistory from "@iconify/icons-bi/clock-history";
+  import { Badge, Icon, Pagination, Loading } from "@/modules/cdk";
   import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
   import { useLogoClicks } from "@/composition/useLogoClicks";
   import { useGameInfo } from "@/composition/useGameInfo";
@@ -131,7 +132,7 @@
               </div>
               <small>
                 {#if game.status !== "ended"}
-                  <Icon name="clock-history" />
+                  <Icon icon={clockHistory} inline={true} />
                   {playTime(game)}
                   {duration(game.options.timing.timePerGame)} + {duration(game.options.timing.timePerMove)}
                   {#if game.options.timing.scheduledStart}

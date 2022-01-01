@@ -14,6 +14,8 @@
     NavLink,
     Icon,
   } from "@/modules/cdk";
+  import gearFill from "@iconify/icons-bi/gear-fill";
+  import power from "@iconify/icons-bi/power";
   import { handleError } from "@/utils";
   import { useAccount } from "@/composition/useAccount";
   import { useLogoClicks } from "@/composition/useLogoClicks";
@@ -134,8 +136,8 @@
       </Dropdown>
     {:else}
       {#if admin}
-        <NavLink href={adminLink}>
-          <Icon name="gear-fill" class="me-1 big" />
+        <NavLink href={adminLink} class="d-flex" style="align-items: center; gap: 0.5em">
+          <Icon icon={gearFill} inline={true} class="big" />
           <span class="d-none d-sm-inline">Admin</span>
         </NavLink>
       {/if}
@@ -143,8 +145,8 @@
         <UserAvatar username={$user.account.username} userId={$user._id} --avatar-size="2rem" />
         <span class="d-none d-sm-inline">{$user.account.username}</span>
       </NavLink>
-      <NavLink on:click={logOut}>
-        <Icon name="power" class="me-1 big" />
+      <NavLink on:click={logOut} class="d-flex" style="align-items: center; gap: 0.5em">
+        <Icon icon={power} inline={true} class="big" />
         <span class="d-none d-sm-inline">Log out</span>
       </NavLink>
     {/if}

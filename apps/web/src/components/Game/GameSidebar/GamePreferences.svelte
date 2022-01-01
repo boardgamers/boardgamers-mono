@@ -3,6 +3,7 @@
   import { Icon } from "@/modules/cdk";
   import type { GameContext } from "@/pages/Game.svelte";
   import { getContext } from "svelte";
+  import infoCircleFill from "@iconify/icons-bi/info-circle-fill";
 
   const { gameInfo } = getContext("game") as GameContext;
 
@@ -15,7 +16,7 @@
     <h3>
       Preferences
       <a href={`/page/${$gameInfo._id.game}/preferences`}>
-        <Icon name="info-circle-fill" class="small" />
+        <Icon icon={infoCircleFill} class="small" />
       </a>
     </h3>
     <PreferencesChooser game={$gameInfo} />

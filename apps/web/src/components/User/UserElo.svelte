@@ -3,6 +3,7 @@
   import { useRest } from "@/composition/useRest";
   import { handleError, pluralize } from "@/utils";
   import type { GamePreferences } from "@bgs/types";
+  import infoCircleFill from "@iconify/icons-bi/info-circle-fill";
   import { Icon } from "@cdk";
 
   export let userId: string;
@@ -39,7 +40,7 @@
 {#if gamePreferences.some((pref) => pref.elo)}
   <div>
     <h3 class="card-title">
-      Elo <a href="/page/elo"><Icon name="info-circle-fill" class="text-secondary small" /></a>
+      Elo <a href="/page/elo"><Icon icon={infoCircleFill} class="text-secondary small" inline={true} /></a>
     </h3>
     <ul class="list-group text-start">
       {#each gamePreferences.filter((pref) => !!pref.elo) as gamePref}

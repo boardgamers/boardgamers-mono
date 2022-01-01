@@ -1,14 +1,12 @@
 <script lang="ts">
+  import chat from "@iconify/icons-bi/chat";
   import { useAccount } from "@/composition/useAccount";
   import { useCurrentGame } from "@/composition/useCurrentGame";
   import { useCurrentRoom } from "@/composition/useCurrentRoom";
   import { useRest } from "@/composition/useRest";
   import { useSidebarOpen } from "@/composition/useSidebarOpen";
   import { Modal, ModalHeader, Icon, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
-  import type { GameContext } from "@/pages/Game.svelte";
   import { dateFromObjectId, dateTime, handleError } from "@/utils";
-  import type { PlayerInfo } from "@bgs/types";
-  import { getContext } from "svelte";
   import { fly } from "svelte/transition";
   import UserAvatar from "./User/UserAvatar.svelte";
 
@@ -41,8 +39,6 @@
       type: "text",
     }).catch(handleError);
   };
-
-  const { game }: GameContext = getContext("game");
 
   let messagesContainer: ModalBody;
 
@@ -87,10 +83,6 @@
   }
 
   $: userId = $account?._id;
-  $: players = ($game?.players ?? []).reduce(
-    (obj, player) => ({ ...obj, [player._id]: player }),
-    {} as Record<string, PlayerInfo>
-  );
   $: onMessagesChanged(), [$chatMessages, isOpen];
   $: loadLastRead(), [userId, room];
   $: unreadMessages = $chatMessages.filter(
@@ -106,7 +98,9 @@
   transitionOptions={{ y: -300 }}
   class={"chat-modal" + ($sidebarOpen ? " sidebar-open" : "")}
 >
-  <ModalHeader {toggle}><Icon name="chat" /> {$currentGameId}</ModalHeader>
+  <ModalHeader {toggle}
+    ><Icon icon={chat} height="1.5rem" style="vertical-align: -0.25rem" /> {$currentGameId}</ModalHeader
+  >
   <div class="chat-messages modal-body" bind:this={messagesContainer}>
     {#each $chatMessages as message}
       <div class="message-container" class:sent={message.author?._id === userId}>
@@ -145,7 +139,7 @@
   on:click={toggle}
   class={"rounded-circle b-avatar sidebar-fab chat-button" + ($sidebarOpen ? " sidebar-open" : "")}
 >
-  <Icon name="chat" />
+  <Icon icon={chat} style="height: 1.5rem; width: 1.5rem;" class="absolute-center" />
   {#if unreadMessages}
     <Badge pill color="danger">{unreadMessages}</Badge>
   {/if}

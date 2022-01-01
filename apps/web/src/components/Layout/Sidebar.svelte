@@ -1,6 +1,7 @@
 <script lang="ts">
   import { useSidebarOpen } from "@/composition/useSidebarOpen";
   import { Button, Icon } from "@/modules/cdk";
+  import gear from "@iconify/icons-bi/gear";
 
   const { sidebarOpen } = useSidebarOpen();
 </script>
@@ -14,7 +15,7 @@
     on:click={() => ($sidebarOpen = !$sidebarOpen)}
     class={"rounded-circle b-avatar sidebar-fab" + (false ? " chatOpen" : "")}
   >
-    <Icon name="gear" />
+    <Icon icon={gear} class="absolute-center" style="width: 1.5rem; height: 1.5rem" />
   </Button>
 </div>
 

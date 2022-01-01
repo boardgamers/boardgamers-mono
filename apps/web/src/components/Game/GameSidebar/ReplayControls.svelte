@@ -1,6 +1,11 @@
 <script lang="ts">
   import { Button, Icon } from "@/modules/cdk";
   import type { GameContext } from "@/pages/Game.svelte";
+  import skipBackwardFill from "@iconify/icons-bi/skip-backward-fill";
+  import skipForwardFill from "@iconify/icons-bi/skip-forward-fill";
+  import skipStartFill from "@iconify/icons-bi/skip-start-fill";
+  import skipEndFill from "@iconify/icons-bi/skip-end-fill";
+  import stopFill from "@iconify/icons-bi/stop-fill";
 
   import { getContext } from "svelte";
 
@@ -26,10 +31,10 @@
     {:else}
       <div class="d-flex align-items-center">
         <Button size="sm" class="me-1" on:click={() => replayTo($replayData.start)}>
-          <Icon name="skip-backward-fill" />
+          <Icon icon={skipBackwardFill} style="margin-bottom: 0.25em" />
         </Button>
         <Button size="sm" class="mx-1" on:click={() => replayTo(Math.max($replayData.start, $replayData.current - 1))}>
-          <Icon name="skip-start-fill" />
+          <Icon icon={skipStartFill} style="margin-bottom: 0.25em" />
         </Button>
         <span
           class="mx-1 text-center"
@@ -38,12 +43,14 @@
           {$replayData.current} / {$replayData.end}
         </span>
         <Button size="sm" class="mx-1" on:click={() => replayTo(Math.min($replayData.end, $replayData.current + 1))}>
-          <Icon name="skip-end-fill" />
+          <Icon icon={skipEndFill} style="margin-bottom: 0.25em" />
         </Button>
         <Button size="sm" class="mx-1" on:click={() => replayTo($replayData.end)}
-          ><Icon name="skip-forward-fill" /></Button
+          ><Icon icon={skipForwardFill} style="margin-bottom: 0.25em" /></Button
         >
-        <Button size="sm" class="ms-1" on:click={endReplay}><Icon name="stop-fill" color="danger" /></Button>
+        <Button size="sm" class="ms-1" on:click={endReplay}
+          ><Icon icon={stopFill} style="margin-bottom: 0.25em; color: orange" /></Button
+        >
       </div>
     {/if}
   </div>

@@ -2,6 +2,7 @@
   import { Icon, Checkbox, Label, Input, FormGroup } from "@/modules/cdk";
   import { handleError, oneLineMarked } from "@/utils";
   import type { GameContext } from "@/pages/Game.svelte";
+  import infoCircleFill from "@iconify/icons-bi/info-circle-fill";
   import { getContext } from "svelte";
   import { useAccount } from "@/composition/useAccount";
   import { useRest } from "@/composition/useRest";
@@ -44,7 +45,7 @@
     <h3>
       Settings
       <a href={`/page/${$game.game.name}/settings`}>
-        <Icon name="info-circle-fill" class="small" />
+        <Icon icon={infoCircleFill} class="small" />
       </a>
     </h3>
     <!-- Code very similar to PreferencesChooser -->

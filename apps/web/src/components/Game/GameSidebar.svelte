@@ -5,6 +5,7 @@
   import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
   import type { PlayerInfo } from "@bgs/types";
   import Portal from "@/modules/portal";
+  import clockHistory from "@iconify/icons-bi/clock-history";
   import { Button, Icon, Badge } from "@/modules/cdk";
   import { getContext, onDestroy } from "svelte";
   import { GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings } from "./GameSidebar";
@@ -132,7 +133,7 @@
     </div>
   {/each}
   <div class="mt-75">
-    <Icon name="clock-history" class="me-1" />
+    <Icon icon={clockHistory} inline={true} class="me-1" />
     {alwaysActive
       ? "24h"
       : `${timerTime($game.options.timing.timer.start)}-${timerTime($game.options.timing.timer.end)}`}

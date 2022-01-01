@@ -3,6 +3,8 @@ lockfileVersion: 5.3
 specifiers:
   '@bgs/types': workspace:*
   '@bgs/utils': workspace:*
+  '@iconify/icons-bi': ^1.1.12
+  '@iconify/svelte': ^2.1.0
   '@sveltejs/adapter-node': ^1.0.0-next.58
   '@sveltejs/kit': 1.0.0-next.211
   '@testing-library/jest-dom': ^5.16.1
@@ -18,7 +20,6 @@ specifiers:
   '@typescript-eslint/parser': ^4.31.1
   awesome-notifications: ^3.1.1
   bootstrap: ^5.1.0
-  bootstrap-icons: ^1.5.0
   cross-env: ^7.0.3
   dompurify: ^2.3.1
   dotenv: ^8.2.0
@@ -49,9 +50,10 @@ specifiers:
 dependencies:
   '@bgs/types': link:../../packages/types
   '@bgs/utils': link:../../packages/utils
+  '@iconify/icons-bi': 1.1.12
+  '@iconify/svelte': 2.1.0
   awesome-notifications: 3.1.1
   bootstrap: 5.1.0
-  bootstrap-icons: 1.5.0
   dompurify: 2.3.1
   eventemitter3: 4.0.7
   lodash: /lodash-es/4.17.21
@@ -483,6 +485,16 @@ packages:
   /@humanwhocodes/object-schema/1.2.0:
     resolution: {integrity: sha512-wdppn25U8z/2yiaT6YGquE6X8sSv7hNMWSXYSSU1jGv/yd6XqjXgTDJ8KP4NgjTXfJ3GbRjeeb8RTV7a/VpM+w==}
     dev: true
+
+  /@iconify/icons-bi/1.1.12:
+    resolution: {integrity: sha512-qypVj7usLPsxU1oXaxjDbXC5T6Vxsruv6deKQTSDMyCb7bu9e5gYMbavspLvPqQmMfAb9lqc/C0iYSDrszM8qQ==}
+    dev: false
+
+  /@iconify/svelte/2.1.0:
+    resolution: {integrity: sha512-p2e42XCAGohnRRhnB/GouMXJtnlUQlbaqC3FEg7+aDOhqA0zGvNJzbvIW1TQJZpW5Leij5UcGP5ImQ5SZ8vJmQ==}
+    dependencies:
+      cross-fetch: 3.1.4
+    dev: false
 
   /@istanbuljs/load-nyc-config/1.1.0:
     resolution: {integrity: sha512-VjeHSlIzpv/NyD3N0YuHfXOPDIixcA1q2ZV98wsMqcYlPmv2n3Yb2lYP9XMElnaFVXg5A7YLTeLu6V84uQDjmQ==}
@@ -1322,11 +1334,6 @@ packages:
     engines: {node: '>=8'}
     dev: true
 
-  /bootstrap-icons/1.5.0:
-    resolution: {integrity: sha512-44feMc7DE1Ccpsas/1wioN8ewFJNquvi5FewA06wLnqct7CwMdGDVy41ieHaacogzDqLfG8nADIvMNp9e4bfbA==}
-    engines: {node: '>=10'}
-    dev: false
-
   /bootstrap/5.1.0:
     resolution: {integrity: sha512-bs74WNI9BgBo3cEovmdMHikSKoXnDgA6VQjJ7TyTotU6L7d41ZyCEEelPwkYEzsG/Zjv3ie9IE3EMAje0W9Xew==}
     peerDependencies:
@@ -1527,6 +1534,12 @@ packages:
     dependencies:
       cross-spawn: 7.0.3
     dev: true
+
+  /cross-fetch/3.1.4:
+    resolution: {integrity: sha512-1eAtFWdIubi6T4XPy6ei9iUFoKpUkIF971QLN8lIvvvwueI65+Nw5haMNKUwfJxabqlIIDODJKGrQ66gxC0PbQ==}
+    dependencies:
+      node-fetch: 2.6.1
+    dev: false
 
   /cross-spawn/7.0.3:
     resolution: {integrity: sha512-iRDPJKUPVEND7dHPO8rkbOnPpyDygcDFtWjpeWNCgy8WP2rXcxXL8TskReQl6OrB2G7+UJrags1q15Fudc7G6w==}
@@ -3245,6 +3258,11 @@ packages:
   /natural-compare/1.4.0:
     resolution: {integrity: sha1-Sr6/7tdUHywnrPspvbvRXI1bpPc=}
     dev: true
+
+  /node-fetch/2.6.1:
+    resolution: {integrity: sha512-V4aYg89jEoVRxRb2fJdAg8FHvI7cEyYdVAh94HH0UIK8oJxUfkjlDQN9RbMx+bEjP7+ggMiFRprSti032Oipxw==}
+    engines: {node: 4.x || >=6.0.0}
+    dev: false
 
   /node-int64/0.4.0:
     resolution: {integrity: sha1-h6kGXNs1XTGC2PlM4RGIuCXGijs=}

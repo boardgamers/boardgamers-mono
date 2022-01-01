@@ -13,7 +13,6 @@
 
 <script lang="ts">
   // todo: check if imports can be all done within style.css
-  import "bootstrap-icons/font/bootstrap-icons.css";
   import "bootstrap/dist/css/bootstrap.min.css";
   import "../../style.css";
 

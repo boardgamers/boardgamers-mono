@@ -184,6 +184,13 @@ i.bi {
   text-align: center;
 }
 
+.absolute-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
 .game-choice .card {
   transition: border-color;
   transition-duration: 0.3s;

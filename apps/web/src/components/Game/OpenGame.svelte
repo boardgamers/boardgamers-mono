@@ -11,9 +11,21 @@
     createWatcher,
     defer,
   } from "@/utils";
+  import clockHistory from "@iconify/icons-bi/clock-history";
+  import arrowDown from "@iconify/icons-bi/arrow-down";
+  import arrowUp from "@iconify/icons-bi/arrow-up";
   import marked from "marked";
-  import { Badge, Button, Dropdown, DropdownItem, DropdownMenu, DropdownToggle, FormGroup, Input } from "@/modules/cdk";
-  import Icon from "sveltestrap/src/Icon.svelte";
+  import {
+    Badge,
+    Button,
+    Dropdown,
+    DropdownItem,
+    DropdownMenu,
+    DropdownToggle,
+    FormGroup,
+    Input,
+    Icon,
+  } from "@/modules/cdk";
   import { getContext } from "svelte";
   import type { GameContext } from "@/routes/game/[gameId].svelte";
   import { playerOrderText } from "@/data/playerOrders";
@@ -213,7 +225,7 @@ ${$gameInfo.options
       {#if $game.options.setup.seed}
         <span title="Game seed"> 🌱 {$game.options.setup.seed}</span>
       {/if}
-      <span class="ps-1" title="Timezone"> <Icon name="clock-history" /> {shortPlayTime()}</span>
+      <span class="ps-1" title="Timezone"> <Icon icon={clockHistory} inline={true} /> {shortPlayTime()}</span>
     </small>
   </p>
 
@@ -305,8 +317,8 @@ ${$gameInfo.options
           {#each playerOrder as playerIndex}
             <div>
               - {$game.players[playerIndex].name}
-              <span on:click={() => moveUp(playerIndex)} role="button"><Icon name="arrow-up" /></span>
-              <span on:click={() => moveDown(playerIndex)} role="button"><Icon name="arrow-down" /></span>
+              <span on:click={() => moveUp(playerIndex)} role="button"><Icon icon={arrowUp} inline={true} /></span>
+              <span on:click={() => moveDown(playerIndex)} role="button"><Icon icon={arrowDown} inline={true} /></span>
             </div>
           {/each}
           <Button color="primary" on:click={start} class="mt-4">Start the game!</Button>

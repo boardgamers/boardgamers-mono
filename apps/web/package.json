@@ -16,9 +16,10 @@
   "dependencies": {
     "@bgs/types": "workspace:*",
     "@bgs/utils": "workspace:*",
+    "@iconify/icons-bi": "^1.1.12",
+    "@iconify/svelte": "^2.1.0",
     "awesome-notifications": "^3.1.1",
     "bootstrap": "^5.1.0",
-    "bootstrap-icons": "^1.5.0",
     "dompurify": "^2.3.1",
     "eventemitter3": "^4.0.7",
     "lodash": "npm:lodash-es@^4.17.21",
