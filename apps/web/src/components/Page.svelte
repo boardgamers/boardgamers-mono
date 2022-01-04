@@ -29,14 +29,17 @@
     margin-bottom: 0.5rem;
   }
 
-  .page table,
   .page th,
   .page td {
-    border: 1px solid #333;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 5px 14px 5px 12px;
+    height: 32px;
   }
 
-  .page td,
   .page th {
-    padding: 0.25rem;
+    background-color: #555;
+    font-weight: 300;
+    color: #fff;
+    padding-top: 6px;
   }
 </style>
