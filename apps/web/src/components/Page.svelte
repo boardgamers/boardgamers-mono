@@ -22,4 +22,21 @@
     padding: 10px;
     border-radius: 4px;
   }
+
+  .page table {
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .page table,
+  .page th,
+  .page td {
+    border: 1px solid #333;
+  }
+
+  .page td,
+  .page th {
+    padding: 0.25rem;
+  }
 </style>
