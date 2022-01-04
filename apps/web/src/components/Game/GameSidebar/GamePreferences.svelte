@@ -3,7 +3,7 @@
   import { Icon } from "@/modules/cdk";
   import type { GameContext } from "@/pages/Game.svelte";
   import { getContext } from "svelte";
-  import infoCircleFill from "@iconify/icons-bi/info-circle-fill";
+  import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
 
   const { gameInfo } = getContext("game") as GameContext;
 

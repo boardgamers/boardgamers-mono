@@ -3,7 +3,7 @@
   import { useRest } from "@/composition/useRest";
   import { handleError, pluralize } from "@/utils";
   import type { GamePreferences } from "@bgs/types";
-  import infoCircleFill from "@iconify/icons-bi/info-circle-fill";
+  import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
   import { Icon } from "@cdk";
 
   export let userId: string;

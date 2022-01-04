@@ -11,9 +11,9 @@
     createWatcher,
     defer,
   } from "@/utils";
-  import clockHistory from "@iconify/icons-bi/clock-history";
-  import arrowDown from "@iconify/icons-bi/arrow-down";
-  import arrowUp from "@iconify/icons-bi/arrow-up";
+  import clockHistory from "@iconify/icons-bi/clock-history.js";
+  import arrowDown from "@iconify/icons-bi/arrow-down.js";
+  import arrowUp from "@iconify/icons-bi/arrow-up.js";
   import marked from "marked";
   import {
     Badge,

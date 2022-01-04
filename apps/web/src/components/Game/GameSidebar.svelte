@@ -5,7 +5,7 @@
   import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
   import type { PlayerInfo } from "@bgs/types";
   import Portal from "@/modules/portal";
-  import clockHistory from "@iconify/icons-bi/clock-history";
+  import clockHistory from "@iconify/icons-bi/clock-history.js";
   import { Button, Icon, Badge } from "@/modules/cdk";
   import { getContext, onDestroy } from "svelte";
   import { GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings } from "./GameSidebar";

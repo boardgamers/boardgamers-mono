@@ -1,11 +1,11 @@
 <script lang="ts">
   import { Button, Icon } from "@/modules/cdk";
   import type { GameContext } from "@/pages/Game.svelte";
-  import skipBackwardFill from "@iconify/icons-bi/skip-backward-fill";
-  import skipForwardFill from "@iconify/icons-bi/skip-forward-fill";
-  import skipStartFill from "@iconify/icons-bi/skip-start-fill";
-  import skipEndFill from "@iconify/icons-bi/skip-end-fill";
-  import stopFill from "@iconify/icons-bi/stop-fill";
+  import skipBackwardFill from "@iconify/icons-bi/skip-backward-fill.js";
+  import skipForwardFill from "@iconify/icons-bi/skip-forward-fill.js";
+  import skipStartFill from "@iconify/icons-bi/skip-start-fill.js";
+  import skipEndFill from "@iconify/icons-bi/skip-end-fill.js";
+  import stopFill from "@iconify/icons-bi/stop-fill.js";
 
   import { getContext } from "svelte";
 

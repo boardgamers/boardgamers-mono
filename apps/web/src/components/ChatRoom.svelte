@@ -1,5 +1,5 @@
 <script lang="ts">
-  import chat from "@iconify/icons-bi/chat";
+  import chat from "@iconify/icons-bi/chat.js";
   import { useAccount } from "@/composition/useAccount";
   import { useCurrentGame } from "@/composition/useCurrentGame";
   import { useCurrentRoom } from "@/composition/useCurrentRoom";

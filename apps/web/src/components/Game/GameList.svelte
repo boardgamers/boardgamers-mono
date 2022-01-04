@@ -2,7 +2,7 @@
   import { timerTime, defer, duration, niceDate, shortDuration } from "@/utils";
   import type { IGame } from "@bgs/types";
   import { createWatcher } from "@/utils/watch";
-  import clockHistory from "@iconify/icons-bi/clock-history";
+  import clockHistory from "@iconify/icons-bi/clock-history.js";
   import { Badge, Icon, Pagination, Loading } from "@/modules/cdk";
   import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
   import { useLogoClicks } from "@/composition/useLogoClicks";

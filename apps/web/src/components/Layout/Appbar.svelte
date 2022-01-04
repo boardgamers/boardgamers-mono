@@ -14,8 +14,8 @@
     NavLink,
     Icon,
   } from "@/modules/cdk";
-  import gearFill from "@iconify/icons-bi/gear-fill";
-  import power from "@iconify/icons-bi/power";
+  import gearFill from "@iconify/icons-bi/gear-fill.js";
+  import power from "@iconify/icons-bi/power.js";
   import { handleError } from "@/utils";
   import { useAccount } from "@/composition/useAccount";
   import { useLogoClicks } from "@/composition/useLogoClicks";

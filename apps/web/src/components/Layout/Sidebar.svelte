@@ -1,7 +1,7 @@
 <script lang="ts">
   import { useSidebarOpen } from "@/composition/useSidebarOpen";
   import { Button, Icon } from "@/modules/cdk";
-  import gear from "@iconify/icons-bi/gear";
+  import gear from "@iconify/icons-bi/gear.js";
 
   const { sidebarOpen } = useSidebarOpen();
 </script>

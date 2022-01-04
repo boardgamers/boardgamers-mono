@@ -2,7 +2,7 @@
   import { Icon, Checkbox, Label, Input, FormGroup } from "@/modules/cdk";
   import { handleError, oneLineMarked } from "@/utils";
   import type { GameContext } from "@/pages/Game.svelte";
-  import infoCircleFill from "@iconify/icons-bi/info-circle-fill";
+  import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
   import { getContext } from "svelte";
   import { useAccount } from "@/composition/useAccount";
   import { useRest } from "@/composition/useRest";
