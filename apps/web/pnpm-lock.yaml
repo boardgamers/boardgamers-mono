@@ -6,7 +6,7 @@ specifiers:
   '@iconify/icons-bi': ^1.1.12
   '@iconify/svelte': ^2.1.0
   '@sveltejs/adapter-node': ^1.0.0-next.58
-  '@sveltejs/kit': 1.0.0-next.211
+  '@sveltejs/kit': 1.0.0-next.216
   '@testing-library/jest-dom': ^5.16.1
   '@testing-library/svelte': ^3.0.3
   '@types/cookie': ^0.4.1
@@ -66,7 +66,7 @@ dependencies:
 
 devDependencies:
   '@sveltejs/adapter-node': 1.0.0-next.58
-  '@sveltejs/kit': 1.0.0-next.211_svelte@3.44.1
+  '@sveltejs/kit': 1.0.0-next.216_svelte@3.44.1
   '@testing-library/jest-dom': 5.16.1
   '@testing-library/svelte': 3.0.3_svelte@3.44.1
   '@types/cookie': 0.4.1
@@ -765,8 +765,8 @@ packages:
       tiny-glob: 0.2.9
     dev: true
 
-  /@sveltejs/kit/1.0.0-next.211_svelte@3.44.1:
-    resolution: {integrity: sha512-jS28R40H6BypK5rSVUzNmQW3NaBTFijj4fJPEtx8YeSLuzqm7ZGl3wwqF+FRxisP6oyz2GkYSARRxzemDOfn9A==}
+  /@sveltejs/kit/1.0.0-next.216_svelte@3.44.1:
+    resolution: {integrity: sha512-FKg7PPlymsZ2aU8DteY1BH217M2dIAgfWzm8OVqazQn2uLbw25WbVqSJ5KdgW83mLYoxSWUNPrJX3TJNEG6jVg==}
     engines: {node: '>=14.13'}
     hasBin: true
     peerDependencies:
@@ -1137,7 +1137,7 @@ packages:
     resolution: {integrity: sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ==}
     engines: {node: '>= 6.0.0'}
     dependencies:
-      debug: 4.3.2
+      debug: 4.3.3
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -2310,7 +2310,7 @@ packages:
     dependencies:
       '@tootallnate/once': 1.1.2
       agent-base: 6.0.2
-      debug: 4.3.2
+      debug: 4.3.3
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -2320,7 +2320,7 @@ packages:
     engines: {node: '>= 6'}
     dependencies:
       agent-base: 6.0.2
-      debug: 4.3.2
+      debug: 4.3.3
     transitivePeerDependencies:
       - supports-color
     dev: true

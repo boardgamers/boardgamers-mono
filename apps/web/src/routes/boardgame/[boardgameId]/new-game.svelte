@@ -23,7 +23,7 @@
   const { post } = useRest();
   const { gameInfo } = useGameInfo();
 
-  $: boardgameId = $page.params.boardgameId;
+  $: boardgameId = $page.params.boardgameId; // Can be undefined during page navigation out
   $: info = gameInfo(boardgameId, "latest");
 
   let gameId = randomId();
@@ -126,7 +126,7 @@
     selects = newVal;
   };
 
-  $: updateSelects(), [boardgameId];
+  $: info && updateSelects();
 
   function randomId() {
     return (
@@ -139,180 +139,182 @@
   }
 </script>
 
-<SEO title={`Create a ${gameLabel(info.label)} game`} description={removeMarkdown(info.description)} />
+{#if info}
+  <SEO title={`Create a ${gameLabel(info.label)} game`} description={removeMarkdown(info.description)} />
 
-<Container>
-  <h1 class="mb-4">{info.label}</h1>
-  <form on:submit|preventDefault={createGame}>
-    <div class="row">
-      <div class="col-md-6">
-        <h2>Description</h2>
-        {@html marked(info.description)}
+  <Container>
+    <h1 class="mb-4">{info.label}</h1>
+    <form on:submit|preventDefault={createGame}>
+      <div class="row">
+        <div class="col-md-6">
+          <h2>Description</h2>
+          {@html marked(info.description)}
+        </div>
+
+        <div class="col-md-6">
+          <h2>Rules</h2>
+          {@html marked(info.rules)}
+        </div>
       </div>
 
-      <div class="col-md-6">
-        <h2>Rules</h2>
-        {@html marked(info.rules)}
-      </div>
-    </div>
+      <h2>Settings</h2>
+      <div class="row">
+        <div class="form-group col-md-4">
+          <label for="players">Number of players</label>
+          <Input type="select" bind:value={numPlayers}>
+            {#each info.players as option}
+              <option value={option}>{option} players</option>
+            {/each}
+          </Input>
+        </div>
 
-    <h2>Settings</h2>
-    <div class="row">
-      <div class="form-group col-md-4">
-        <label for="players">Number of players</label>
-        <Input type="select" bind:value={numPlayers}>
-          {#each info.players as option}
-            <option value={option}>{option} players</option>
+        <div class="form-group col-md-4">
+          <label for="gameId">Game Id</label>
+          <input
+            class="form-control"
+            id="gameId"
+            type="text"
+            maxlength="25"
+            name="gameId"
+            bind:value={gameId}
+            placeholder="Game ID"
+            aria-label="Game ID"
+            required
+          />
+          <small class="form-text text-muted">Use only alphanumeric characters and hyphens.</small>
+        </div>
+
+        <div class="form-group col-md-4">
+          <label for="seed">Custom Seed</label>
+          <input
+            class="form-control"
+            id="seed"
+            type="text"
+            maxlength="25"
+            name="gameId"
+            bind:value={seed}
+            placeholder="Random seed"
+            aria-label="Random seed"
+          />
+          <small class="form-text text-muted">Games sharing the same seed will have configuration.</small>
+        </div>
+      </div>
+
+      <Row class="mb-3">
+        <Col sm="3" class="d-flex align-items-center">
+          <Checkbox bind:checked={enableKarma}>Karma restriction</Checkbox>
+        </Col>
+        <Col sm="9">
+          <Input
+            type="number"
+            disabled={!enableKarma}
+            placeholder="Minimum karma to join the game"
+            bind:value={minimumKarma}
+            max={$account.account.karma - 5}
+          />
+        </Col>
+      </Row>
+
+      {#if info.expansions.length > 0}
+        <div class="mb-3">
+          <h3>Expansions</h3>
+          {#each info.expansions as expansion}
+            <Checkbox bind:group={expansions} value={expansion.name}>
+              {expansion.label}
+            </Checkbox>
           {/each}
-        </Input>
-      </div>
+        </div>
+      {/if}
 
-      <div class="form-group col-md-4">
-        <label for="gameId">Game Id</label>
-        <input
-          class="form-control"
-          id="gameId"
-          type="text"
-          maxlength="25"
-          name="gameId"
-          bind:value={gameId}
-          placeholder="Game ID"
-          aria-label="Game ID"
-          required
-        />
-        <small class="form-text text-muted">Use only alphanumeric characters and hyphens.</small>
-      </div>
+      <h3>Timing</h3>
 
-      <div class="form-group col-md-4">
-        <label for="seed">Custom Seed</label>
-        <input
-          class="form-control"
-          id="seed"
-          type="text"
-          maxlength="25"
-          name="gameId"
-          bind:value={seed}
-          placeholder="Random seed"
-          aria-label="Random seed"
-        />
-        <small class="form-text text-muted">Games sharing the same seed will have configuration.</small>
-      </div>
-    </div>
+      <Row>
+        <div class="form-group col-md-6">
+          <label for="timePerGame">Time per player per game</label>
+          <select bind:value={timePerGame} id="timePerGame" class="form-control">
+            {#each [300, 600, 1800, 3600, 6 * 3600, 24 * 3600, 3 * 24 * 3600, 10 * 24 * 3600] as x}
+              <option value={x}>
+                {duration(x)}
+              </option>
+            {/each}
+          </select>
+        </div>
 
-    <Row class="mb-3">
-      <Col sm="3" class="d-flex align-items-center">
-        <Checkbox bind:checked={enableKarma}>Karma restriction</Checkbox>
-      </Col>
-      <Col sm="9">
-        <Input
-          type="number"
-          disabled={!enableKarma}
-          placeholder="Minimum karma to join the game"
-          bind:value={minimumKarma}
-          max={$account.account.karma - 5}
-        />
-      </Col>
-    </Row>
+        <div class="form-group col-md-6">
+          <label for="timePerMove">Additional time per move</label>
+          <select bind:value={timePerMove} id="timePerMove" class="form-control">
+            {#each [30, 60, 5 * 60, 15 * 60, 3600, 2 * 3600, 6 * 3600, 24 * 3600] as x}
+              <option value={x}>
+                {duration(x)}
+              </option>
+            {/each}
+          </select>
+        </div>
 
-    {#if info.expansions.length > 0}
-      <div class="mb-3">
-        <h3>Expansions</h3>
-        {#each info.expansions as expansion}
-          <Checkbox bind:group={expansions} value={expansion.name}>
-            {expansion.label}
-          </Checkbox>
-        {/each}
-      </div>
-    {/if}
+        <div class="form-group col-md-6">
+          <label for="scheduledDate">Scheduled start (day)</label>
+          <input type="date" class="form-control" bind:value={scheduledDay} placeholder="Scheduled day" />
+          <small class="form-text text-muted">Game will start that day or be cancelled.</small>
+        </div>
 
-    <h3>Timing</h3>
+        <div class="form-group col-md-6">
+          <label for="scheduledTime">Scheduled start (time)</label>
+          <input type="time" class="form-control" bind:value={scheduledTime} placeholder="Scheduled time" />
+          <small class="form-text text-muted">Game will start at that time or be cancelled.</small>
+        </div>
 
-    <Row>
-      <div class="form-group col-md-6">
-        <label for="timePerGame">Time per player per game</label>
-        <select bind:value={timePerGame} id="timePerGame" class="form-control">
-          {#each [300, 600, 1800, 3600, 6 * 3600, 24 * 3600, 3 * 24 * 3600, 10 * 24 * 3600] as x}
-            <option value={x}>
-              {duration(x)}
-            </option>
-          {/each}
-        </select>
-      </div>
+        <div class="form-group col-md-6">
+          <label for="timerStart">Timer begins at</label>
+          <input type="time" class="form-control" bind:value={timerStart} placeholder="Timer start" />
+          <small class="form-text text-muted">Timer will start / resume at this time of the day.</small>
+        </div>
 
-      <div class="form-group col-md-6">
-        <label for="timePerMove">Additional time per move</label>
-        <select bind:value={timePerMove} id="timePerMove" class="form-control">
-          {#each [30, 60, 5 * 60, 15 * 60, 3600, 2 * 3600, 6 * 3600, 24 * 3600] as x}
-            <option value={x}>
-              {duration(x)}
-            </option>
-          {/each}
-        </select>
-      </div>
+        <div class="form-group col-md-6">
+          <label for="timerEnd">Timer stops at</label>
+          <input type="time" class="form-control" bind:value={timerEnd} placeholder="Timer pause" />
+          <small class="form-text text-muted">Timer will pause at this time of the day.</small>
+        </div>
+      </Row>
 
-      <div class="form-group col-md-6">
-        <label for="scheduledDate">Scheduled start (day)</label>
-        <input type="date" class="form-control" bind:value={scheduledDay} placeholder="Scheduled day" />
-        <small class="form-text text-muted">Game will start that day or be cancelled.</small>
-      </div>
+      {#if !scheduledDay || !scheduledTime}
+        <p class="mt-2" transition:fade>
+          The game will automatically be cancelled if not started after {timePerGame <= 600
+            ? "an hour"
+            : timePerGame <= 3600
+            ? "three hours"
+            : "a week"}.
+        </p>
+      {/if}
 
-      <div class="form-group col-md-6">
-        <label for="scheduledTime">Scheduled start (time)</label>
-        <input type="time" class="form-control" bind:value={scheduledTime} placeholder="Scheduled time" />
-        <small class="form-text text-muted">Game will start at that time or be cancelled.</small>
-      </div>
+      <h3>Other options</h3>
 
-      <div class="form-group col-md-6">
-        <label for="timerStart">Timer begins at</label>
-        <input type="time" class="form-control" bind:value={timerStart} placeholder="Timer start" />
-        <small class="form-text text-muted">Timer will start / resume at this time of the day.</small>
-      </div>
+      <Checkbox bind:group={options} value="unlisted">Unlisted</Checkbox>
+      <Checkbox bind:group={options} value="join">Join this game</Checkbox>
+      {#each info.options.filter((opt) => opt.type === "checkbox") as option}
+        <Checkbox bind:group={options} value={option.name}>{@html oneLineMarked(option.label)}</Checkbox>
+      {/each}
 
-      <div class="form-group col-md-6">
-        <label for="timerEnd">Timer stops at</label>
-        <input type="time" class="form-control" bind:value={timerEnd} placeholder="Timer pause" />
-        <small class="form-text text-muted">Timer will pause at this time of the day.</small>
-      </div>
-    </Row>
-
-    {#if !scheduledDay || !scheduledTime}
-      <p class="mt-2" transition:fade>
-        The game will automatically be cancelled if not started after {timePerGame <= 600
-          ? "an hour"
-          : timePerGame <= 3600
-          ? "three hours"
-          : "a week"}.
-      </p>
-    {/if}
-
-    <h3>Other options</h3>
-
-    <Checkbox bind:group={options} value="unlisted">Unlisted</Checkbox>
-    <Checkbox bind:group={options} value="join">Join this game</Checkbox>
-    {#each info.options.filter((opt) => opt.type === "checkbox") as option}
-      <Checkbox bind:group={options} value={option.name}>{@html oneLineMarked(option.label)}</Checkbox>
-    {/each}
-
-    <div class="form-group mt-2">
-      <label for="playerOrder">Player order</label>
-      <Input type="select" bind:value={playerOrder} id="playerOrder" required>
-        {#each playerOrders as item}
-          <option value={item.name}>{item.label}</option>
-        {/each}
-      </Input>
-    </div>
-
-    {#each info.options.filter((opt) => opt.type === "select") as select}
       <div class="form-group mt-2">
-        <label for={select.name}>{@html oneLineMarked(select.label)}</label>
-        <Input type="select" bind:value={selects[select.name]} id={select.name} required>
-          {#each select.items || [] as item}
-            <option value={item.name}>{marked(item.label).replace(/<[^>]+>/g, "")}</option>
+        <label for="playerOrder">Player order</label>
+        <Input type="select" bind:value={playerOrder} id="playerOrder" required>
+          {#each playerOrders as item}
+            <option value={item.name}>{item.label}</option>
           {/each}
         </Input>
       </div>
-    {/each}
 
-    <Button class="mt-3 float-right" type="submit" color="primary" disabled={submitting}>New game</Button>
-  </form>
-</Container>
+      {#each info.options.filter((opt) => opt.type === "select") as select}
+        <div class="form-group mt-2">
+          <label for={select.name}>{@html oneLineMarked(select.label)}</label>
+          <Input type="select" bind:value={selects[select.name]} id={select.name} required>
+            {#each select.items || [] as item}
+              <option value={item.name}>{marked(item.label).replace(/<[^>]+>/g, "")}</option>
+            {/each}
+          </Input>
+        </div>
+      {/each}
+
+      <Button class="mt-3 float-right" type="submit" color="primary" disabled={submitting}>New game</Button>
+    </form>
+  </Container>
+{/if}
