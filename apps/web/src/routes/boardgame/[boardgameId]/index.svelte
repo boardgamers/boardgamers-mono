@@ -16,6 +16,7 @@
       count: 5,
       boardgameId,
       userId: storeGet(account)?._id,
+      fetchCount: false,
       store: true,
     });
 
@@ -110,8 +111,8 @@
         {boardgameId}
         gameStatus="active"
         userId={$accountId}
-        sample
         perPage={5}
+        topRecords
         title={$accountId ? "My games" : "Featured games"}
       />
     </Col>
