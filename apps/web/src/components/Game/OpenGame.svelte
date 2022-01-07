@@ -253,7 +253,9 @@
     <div class="mt-3">
       <h3>Expansions</h3>
       {#each $game.game.expansions as expansion}
-        <Badge color="info">{$gameInfo.expansions?.find((xp) => xp.name === expansion)?.label}</Badge>
+        <Badge color="info"
+          >{@html oneLineMarked($gameInfo.expansions.find((xp) => xp.name === expansion)?.label ?? "")}</Badge
+        >
       {/each}
     </div>
   {/if}
