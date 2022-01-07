@@ -15,7 +15,7 @@ const props = defineProps<{ name: string; lang: string }>();
 async function save() {
   try {
     await post(`/admin/page/${page.value!._id.name}/${page.value!._id.lang}`, page.value);
-    handleSuccess("Page deleted");
+    handleSuccess("Page updated");
   } catch (err) {
     handleError(err);
   }
@@ -24,7 +24,7 @@ async function save() {
 async function onDelete() {
   try {
     await deleteApi(`/admin/page/${page.value!._id.name}/${page.value!._id.lang}`);
-    handleSuccess("Page updated");
+    handleSuccess("Page deleted");
 
     pages.$patch({ pages: await get("/admin/page") });
     router.push("/");
