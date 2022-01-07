@@ -40,7 +40,7 @@
   import removeMarkdown from "remove-markdown";
   import { gameLabel } from "@/utils/game-label";
   import type { IUser } from "@bgs/types";
-  import { debounce } from "lodash";
+  import { debounce, map } from "lodash";
 
   const { post, get } = useRest();
 
@@ -168,23 +168,26 @@
 </script>
 
 <SEO
-  title={`${gameId} - ${gameLabel($gameInfo.label)} game`}
-  description={`${$game.players.length} / ${$game.options.setup.nbPlayers} players. Timer of ${duration(
+  title="{gameId} - {gameLabel($gameInfo.label)} game"
+  description="{$game.players.length} / {$game.options.setup.nbPlayers} players. Timer of {duration(
     $game.options.timing.timePerGame
-  )} per player, with an additional ${duration($game.options.timing.timePerMove)} per move. 
-    
-${$gameInfo.options
-  .filter((x) => !!($game.game.options || {})[x.name])
-  .map((pref) =>
-    pref.type === "checkbox"
-      ? pref.label
-      : pref.type === "select" && pref.items
-      ? pref.label + ": " + pref.items.find((x) => x.name === $game.game.options[pref.name])?.label
-      : ""
-  )
-  .filter(Boolean)
-  .map((str) => `- ${removeMarkdown(str)}`)
-  .join("\n")}`}
+  )} per player, with an additional {duration($game.options.timing.timePerMove)} per move. 
+{$game.game.expansions?.length > 0 &&
+    `
+      Expansions: ${$game.game.expansions.join(',')}
+`}
+{$gameInfo.options
+    .filter((x) => !!($game.game.options || {})[x.name])
+    .map((pref) =>
+      pref.type === 'checkbox'
+        ? pref.label
+        : pref.type === 'select' && pref.items
+        ? pref.label + ': ' + pref.items.find((x) => x.name === $game.game.options[pref.name])?.label
+        : ''
+    )
+    .filter(Boolean)
+    .map((str) => `- ${removeMarkdown(str)}`)
+    .join('\n')}"
 />
 
 <div class="container pb-3">

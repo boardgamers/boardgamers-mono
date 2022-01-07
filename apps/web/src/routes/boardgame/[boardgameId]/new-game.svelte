@@ -220,7 +220,7 @@
           <h3>Expansions</h3>
           {#each info.expansions as expansion}
             <Checkbox bind:group={expansions} value={expansion.name}>
-              {expansion.label}
+              {@html oneLineMarked(expansion.label)}
             </Checkbox>
           {/each}
         </div>
