@@ -15,6 +15,7 @@
   import { useAccount } from "@/composition/useAccount";
   import { useCurrentGame } from "@/composition/useCurrentGame";
   import { useActiveGames } from "@/composition/useActiveGames";
+  import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
 
   const { game, players, gameInfo }: GameContext = getContext("game");
   const { post } = useRest();
@@ -22,6 +23,7 @@
   const { account } = useAccount();
   const { playerStatus } = useCurrentGame();
   const { addActiveGame, removeActiveGame } = useActiveGames();
+  const { devGameSettings } = useDeveloperSettings();
 
   let secondsCounter = 0;
 
@@ -186,11 +188,11 @@
 
   <GameNotes {gameId} />
 
-  {#if $gameInfo.expansions?.length > 0}
+  {#if $game.game.expansions?.length > 0}
     <div class="mt-75">
       <h3>Expansions</h3>
       {#each $game.game.expansions as expansion}
-        <Badge color="info" class="me-1">
+        <Badge color="accent" class="me-1">
           {@html oneLineMarked($gameInfo.expansions.find((xp) => xp.name === expansion)?.label ?? "")}
         </Badge>
       {/each}
@@ -218,6 +220,9 @@
     </div>
   {/if}
   <div class="my-3" />
+  {#if $devGameSettings}
+    <a target="_blank" rel="external" href="/api/game/{$game._id}">Download JSON</a>
+  {/if}
 </Portal>
 
 <style lang="postcss" global>

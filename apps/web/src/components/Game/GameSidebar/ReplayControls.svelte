@@ -27,7 +27,7 @@
 {#if $gameInfo?.viewer?.replayable}
   <div class="mt-75">
     {#if !$replayData}
-      <Button color="info" size="sm" on:click={startReplay}>Replay</Button>
+      <Button color="accent" size="sm" on:click={startReplay}>Replay</Button>
     {:else}
       <div class="d-flex align-items-center">
         <Button size="sm" class="me-1" on:click={() => replayTo($replayData.start)}>
