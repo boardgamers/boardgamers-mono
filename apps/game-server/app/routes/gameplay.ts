@@ -25,6 +25,26 @@ router.post("/batch/replay", isAdmin, async (ctx) => {
   }
 });
 
+router.post("/:gameId/edit-data", isAdmin, async (ctx) => {
+  const free = await locks.lock("game", ctx.params.gameId);
+
+  try {
+    const game = await Game.findById(ctx.params.gameId);
+
+    if (!game) {
+      ctx.status = 404;
+      return;
+    }
+
+    game.data = ctx.request.body.json;
+    await game.save();
+
+    ctx.status = 200;
+  } finally {
+    free().catch(console.error);
+  }
+});
+
 router.post("/:gameId/replay", isAdmin, async (ctx) => {
   const free = await locks.lock("game", ctx.params.gameId);
 

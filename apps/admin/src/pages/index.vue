@@ -17,11 +17,13 @@ const serverInfo = ref<{
 } | null>(null);
 const gameId = ref("");
 const gameIds = ref("");
+const json = ref("");
 const to = ref(0);
 const announcement = reactive({ title: "", content: "" });
 
 watch(gameId, async (gameId) => {
   to.value = await get(`/gameplay/${gameId}/length`);
+  json.value = JSON.stringify((await get(`/gameplay/${gameId}`)).data, null, 2);
 });
 
 get("/admin/serverinfo").then((data) => (serverInfo.value = data), handleError);
@@ -32,6 +34,18 @@ function deleteGame(gameId: string) {
 
 function replayGame(gameId: string, body: { to: number }) {
   post(`/gameplay/${gameId}/replay`, body).then(() => handleInfo("Game replayed."), handleError);
+}
+
+function saveJson(gameId: string, body: { json: string }) {
+  if (!body.json.trim().length) {
+    handleError(new Error("Body is empty"));
+    return;
+  }
+
+  post(`/gameplay/${gameId}/edit-data`, { json: JSON.parse(body.json) }).then(
+    () => handleInfo("Game saved. If the current player changed, don't forget to replay it."),
+    handleError
+  );
 }
 
 function replayGames() {
@@ -79,9 +93,11 @@ watch(serverInfo, (serverInfo) => {
       <template #title> Game management </template>
       <v-text-field v-model="gameId" label="Game ID" />
       <v-text-field type="number" v-model.number="to" label="To (number)" />
+      <v-textarea label="JSON" v-model.trim="json" />
       <template #actions>
         <v-btn @click="replayGame(gameId, { to })"> Replay </v-btn>
-        <v-btn variant="error" @click="deleteGame(gameId)"> Delete </v-btn>
+        <v-btn @click="saveJson(gameId, { json })"> Save JSON </v-btn>
+        <v-btn variant="error" @click="deleteGame(gameId)" class="ml-auto"> Delete </v-btn>
       </template>
     </v-card>
 
