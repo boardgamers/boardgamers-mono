@@ -73,8 +73,8 @@
     position: fixed !important;
     bottom: var(--fab-bottom);
     right: var(--fab-right);
-    width: 45px;
-    height: 45px;
+    width: var(--fab-width);
+    height: var(--fab-width);
 
     .bi {
       font-size: 24px;

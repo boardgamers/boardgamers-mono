@@ -111,6 +111,7 @@
   }
 </script>
 
+<div id="floating-controls"></div>
 <Portal target="#sidebar">
   <h3 class="mt-75">Players</h3>
   {#each $game.players as player}

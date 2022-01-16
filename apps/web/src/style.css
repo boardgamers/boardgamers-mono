@@ -99,6 +99,7 @@ body {
   --top-height: var(--navbar-height) + var(--navbar-margin);
   --fab-bottom: 15px;
   --fab-right: 25px;
+  --fab-width: 45px;
   --sidebar-width: 320px;
 }
 
