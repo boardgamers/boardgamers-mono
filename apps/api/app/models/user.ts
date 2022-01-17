@@ -278,7 +278,7 @@ schema.method("sendConfirmationEmail", function (this: UserDocument) {
 
 schema.method("sendMailChangeEmail", function (this: UserDocument, newEmail: string) {
   if (!this.email()) {
-    return;
+    return Promise.resolve();
   }
 
   return sendmail({
