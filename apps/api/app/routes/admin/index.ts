@@ -22,7 +22,7 @@ router.use("/users", users.routes(), users.allowedMethods());
 
 router.get("/backup/games", async (ctx) => {
   ctx.set({ "Content-Type": "application/gzip", "Content-Disposition": 'attachment; filename="games.bson.gz"' });
-  ctx.body = fs.createReadStream(`../../../../dump/${env.database.bgs.name}/games.bson.gz`);
+  ctx.body = fs.createReadStream(`../../../dump/${env.database.bgs.name}/games.bson.gz`);
 });
 
 router.get("/serverinfo", async (ctx) => {
