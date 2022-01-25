@@ -4,6 +4,7 @@ export * from "./game";
 export * from "./gameinfo";
 export * from "./gamenotification";
 export * from "./gamepreferences";
+export * from "./images";
 export * from "./jwtrefreshtokens";
 export * from "./log";
 export * from "./migrations";

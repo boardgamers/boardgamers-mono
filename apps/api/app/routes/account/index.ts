@@ -1,10 +1,20 @@
 import assert from "assert";
 import createError from "http-errors";
+import Jimp from "jimp";
 import { Context } from "koa";
 import passport from "koa-passport";
 import Router from "koa-router";
 import { merge, pick } from "lodash";
-import { Game, GameInfo, GamePreferences, JwtRefreshToken, Log, User, UserDocument } from "../../models";
+import {
+  Game,
+  GameInfo,
+  GamePreferences,
+  ImageCollection,
+  JwtRefreshToken,
+  Log,
+  User,
+  UserDocument,
+} from "../../models";
 import { loggedIn, loggedOut } from "../utils";
 import auth from "./auth";
 import { sendAuthInfo } from "./utils";
@@ -40,6 +50,45 @@ router.post("/", loggedIn, async (ctx) => {
   merge(ctx.state.user, pick(body, ["settings", "account.avatar", "account.bio"]));
   await ctx.state.user.save();
   ctx.body = ctx.state.user;
+});
+
+router.post("/avatar", loggedIn, async (ctx) => {
+  let parts = [];
+  for await (const chunk of ctx.req) {
+    parts.push(chunk);
+  }
+
+  const image = new Jimp(Buffer.concat(parts)).cover(256, 256);
+
+  let converted = await image.getBufferAsync("image/png");
+  let mime = "image/png";
+
+  if (converted.length > 50_000) {
+    const jpeg = await image.getBufferAsync("image/jpeg");
+    if (jpeg.length < converted.length) {
+      mime = "image/jpeg";
+      converted = jpeg;
+    }
+  }
+
+  await ImageCollection.replaceOne(
+    { ref: ctx.state.user._id, key: "avatar", refType: "User" },
+    {
+      $set: {
+        mime,
+        width: image.getWidth(),
+        height: image.getHeight(),
+        size: converted.length,
+        data: converted,
+      },
+    },
+    { upsert: true }
+  );
+  ctx.state.user.account.avatar = "upload";
+  await ctx.state.user.save();
+
+  ctx.set("Content-Type", mime);
+  ctx.body = converted;
 });
 
 router.post("/email", loggedIn, async (ctx) => {

@@ -4,7 +4,7 @@ import { Context } from "koa";
 import Router from "koa-router";
 import { Types } from "mongoose";
 import fetch from "node-fetch";
-import { Game, GamePreferences, User } from "../../models";
+import { Game, GamePreferences, ImageCollection, User } from "../../models";
 import { queryCount, skipCount } from "../utils";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -48,6 +48,17 @@ router.get("/infoByName/:userName", (ctx) => {
 
 router.get("/:userId/avatar", async (ctx) => {
   const account = ctx.state.foundUser.account;
+
+  if (account.avatar === "upload") {
+    const item = await ImageCollection.findOne({ ref: ctx.state.foundUser._id, refType: "User", key: "avatar" }).lean();
+    if (!item) {
+      return;
+    }
+
+    ctx.set("Content-Type", item.mime);
+    ctx.body = item.data;
+    return;
+  }
 
   const response = await fetch(`https://avatars.dicebear.com/api/${account.avatar}/${account.username}.svg`);
 
