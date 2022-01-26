@@ -29,6 +29,17 @@ router.get("/", (ctx) => {
   }
 });
 
+router.get("/avatar", loggedIn, async (ctx) => {
+  const item = await ImageCollection.findOne({ ref: ctx.state.user._id, refType: "User", key: "avatar" });
+  if (!item) {
+    return;
+  }
+
+  ctx.set("Content-Type", item.mime);
+  ctx.set("Cache-Control", "no-cache");
+  ctx.body = item.data;
+});
+
 router.get("/active-games", async (ctx) => {
   if (!ctx.state.user?._id) {
     ctx.body = [];
@@ -58,20 +69,27 @@ router.post("/avatar", loggedIn, async (ctx) => {
     parts.push(chunk);
   }
 
-  const image = new Jimp(Buffer.concat(parts)).cover(256, 256);
+  const input = Buffer.concat(parts);
+  const image = await Jimp.read(input);
 
-  let converted = await image.getBufferAsync("image/png");
-  let mime = "image/png";
+  if (image.getWidth() > 256 || image.getHeight() > 256) {
+    image.cover(256, 256);
+  } else if (image.getWidth() !== image.getHeight()) {
+    image.cover(Math.max(image.getWidth(), image.getHeight()), Math.max(image.getWidth(), image.getHeight()));
+  }
 
-  if (converted.length > 50_000) {
-    const jpeg = await image.getBufferAsync("image/jpeg");
+  let converted = await image.getBufferAsync(Jimp.MIME_PNG);
+  let mime: string = Jimp.MIME_PNG;
+
+  if (converted.length > 40_000) {
+    const jpeg = await image.quality(85).getBufferAsync(Jimp.MIME_JPEG);
     if (jpeg.length < converted.length) {
-      mime = "image/jpeg";
+      mime = Jimp.MIME_JPEG;
       converted = jpeg;
     }
   }
 
-  await ImageCollection.replaceOne(
+  await ImageCollection.updateOne(
     { ref: ctx.state.user._id, key: "avatar", refType: "User" },
     {
       $set: {

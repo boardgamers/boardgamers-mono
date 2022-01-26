@@ -60,7 +60,7 @@ async function listen(port = env.listen.port.api) {
       await next();
     } catch (err) {
       if (!env.silent) {
-        console.error(err);
+        console.error("Caught err", err);
       }
       if (err instanceof createError.HttpError) {
         ctx.status = err.statusCode;
@@ -154,12 +154,12 @@ async function listen(port = env.listen.port.api) {
   app.use(router.allowedMethods());
 
   let server: Server;
-  const promise = new Promise<void>((resolve, reject) => {
-    server = app.listen(port, env.listen.host, () => resolve());
+
+  await new Promise<void>((resolve, reject) => {
+    console.log("listening...");
+    server = app.listen(port, env.listen.host, resolve);
     app.once("error", (err) => reject(err));
   });
-
-  await promise;
 
   console.log("app started on port", port, "and host", env.listen.host);
 

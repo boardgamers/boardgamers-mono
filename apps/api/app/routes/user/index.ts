@@ -50,7 +50,7 @@ router.get("/:userId/avatar", async (ctx) => {
   const account = ctx.state.foundUser.account;
 
   if (account.avatar === "upload") {
-    const item = await ImageCollection.findOne({ ref: ctx.state.foundUser._id, refType: "User", key: "avatar" }).lean();
+    const item = await ImageCollection.findOne({ ref: ctx.state.foundUser._id, refType: "User", key: "avatar" });
     if (!item) {
       return;
     }

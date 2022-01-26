@@ -26,13 +26,14 @@
   import { useLoggedIn } from "@/composition/useLoggedIn";
   import UserAvatar from "@/components/User/UserAvatar.svelte";
   import { useLogoClicks } from "@/composition/useLogoClicks";
+import { respond } from "@sveltejs/kit/ssr";
 
   useLoggedIn();
 
   const { logoClick } = useLogoClicks();
   const { developerSettings } = useDeveloperSettings();
   const { account } = useAccount();
-  const { post } = useRest();
+  const { post, fetch } = useRest();
 
   let email = $account!.account.email;
   let editingEmail = false;
@@ -43,6 +44,7 @@
   let gameNotificationDelay = $account!.settings?.mailing?.game?.delay ?? 30 * 60;
   let tc = false;
   let editingAvatar = false;
+  let fileUpload: HTMLInputElement;
 
   $: bio = $account?.account.bio ?? "";
 
@@ -140,6 +142,23 @@
     }
   });
 
+  let customAvatarError = false;
+
+  async function uploadAvatar(event: InputEvent) {
+    const file = (event.target as HTMLInputElement).files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const resp = await fetch("/account/avatar", {method: "POST", body: file});
+    if (!resp.ok) {
+      handleError("Error during upload (" + resp.status + ")");
+      return;
+    } 
+    customAvatarError = false;
+  }
+
   $: onNotificationsChanged(), [notifications];
 </script>
 
@@ -153,7 +172,7 @@
       <h1>{$account.account.username}</h1>
     </Col>
     <Col class="text-end">
-      <a class="btn btn-primary" href={`/user/${$account.account.username}`} role="button">Profile</a>
+      <a class="btn btn-primary" href="/user/{$account.account.username}" role="button">Profile</a>
     </Col>
   </Row>
 
@@ -167,6 +186,11 @@
         username={$account.account.username}
       />
     {:else}
+      <input type="file" bind:this={fileUpload} on:change={uploadAvatar} accept="image/*" class="d-none">
+      <a href="#upload" style="width: 100%" role="button" on:click|preventDefault={() => fileUpload.click()}>Upload</a>
+      <div style="display: contents" class:d-none={customAvatarError}> 
+        <UserAvatar userId="me" username="Custom avatar" role="button" on:error={() => customAvatarError = true} on:load={() => customAvatarError = false} on:click={() => selectArt("upload")} />
+      </div>
       {#each avatarStyles as art}
         <UserAvatar {art} username={$account.account.username} role="button" on:click={() => selectArt(art)} />
       {/each}

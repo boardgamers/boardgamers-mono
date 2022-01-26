@@ -114,5 +114,18 @@ export const useRest = defineStore(() => {
     );
   }
 
-  return { get, post, getAccessToken, setAccessToken };
+  async function apiFetch(url: string, options: RequestInit) {
+    const token = await getAccessToken(url);
+
+    return await fetch(transformUrl(url), {
+      ...options,
+      headers: {
+        ...options.headers,
+        "X-Real-IP": ip,
+        ...(token && { Authorization: `Bearer ${token.code}` }),
+      },
+    });
+  }
+
+  return { get, post, fetch: apiFetch, getAccessToken, setAccessToken };
 });
