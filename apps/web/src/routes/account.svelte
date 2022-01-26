@@ -26,13 +26,14 @@
   import { useLoggedIn } from "@/composition/useLoggedIn";
   import UserAvatar from "@/components/User/UserAvatar.svelte";
   import { useLogoClicks } from "@/composition/useLogoClicks";
-import { respond } from "@sveltejs/kit/ssr";
+import { useImageCache } from "@/composition/useImageCache";
 
   useLoggedIn();
 
   const { logoClick } = useLogoClicks();
   const { developerSettings } = useDeveloperSettings();
   const { account } = useAccount();
+  const { imageCache } = useImageCache();
   const { post, fetch } = useRest();
 
   let email = $account!.account.email;
@@ -92,7 +93,7 @@ import { respond } from "@sveltejs/kit/ssr";
       },
     })
       .then((r) => account.set(r), handleError)
-      .finally(() => ((editingAvatar = false), logoClick()));
+      .finally(() => ((editingAvatar = false, imageCache.set(Date.now())), logoClick()));
 
   const updateAccount = debounce(
     () => {
@@ -156,6 +157,8 @@ import { respond } from "@sveltejs/kit/ssr";
       handleError("Error during upload (" + resp.status + ")");
       return;
     } 
+    imageCache.set(Date.now());
+    editingAvatar = false;
     customAvatarError = false;
   }
 

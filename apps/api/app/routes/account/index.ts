@@ -9,6 +9,7 @@ import {
   Game,
   GameInfo,
   GamePreferences,
+  Image,
   ImageCollection,
   JwtRefreshToken,
   Log,
@@ -30,14 +31,17 @@ router.get("/", (ctx) => {
 });
 
 router.get("/avatar", loggedIn, async (ctx) => {
-  const item = await ImageCollection.findOne({ ref: ctx.state.user._id, refType: "User", key: "avatar" });
+  const item = await ImageCollection.findOne(
+    { ref: ctx.state.user._id, refType: "User", key: "avatar" },
+    { "images.256x256": 1, mime: 1 }
+  );
   if (!item) {
     return;
   }
 
-  ctx.set("Content-Type", item.mime);
+  ctx.set("Content-Type", item.images.get("256x256").mime);
   ctx.set("Cache-Control", "no-cache");
-  ctx.body = item.data;
+  ctx.body = item.images.get("256x256").raw;
 });
 
 router.get("/active-games", async (ctx) => {
@@ -72,32 +76,29 @@ router.post("/avatar", loggedIn, async (ctx) => {
   const input = Buffer.concat(parts);
   const image = await Jimp.read(input);
 
-  if (image.getWidth() > 256 || image.getHeight() > 256) {
-    image.cover(256, 256);
-  } else if (image.getWidth() !== image.getHeight()) {
-    image.cover(Math.max(image.getWidth(), image.getHeight()), Math.max(image.getWidth(), image.getHeight()));
-  }
+  const mime = [Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(image.getMIME() as any)
+    ? image.getMIME()
+    : image.hasAlpha
+    ? Jimp.MIME_PNG
+    : Jimp.MIME_JPEG;
 
-  let converted = await image.getBufferAsync(Jimp.MIME_PNG);
-  let mime: string = Jimp.MIME_PNG;
-
-  if (converted.length > 40_000) {
-    const jpeg = await image.quality(85).getBufferAsync(Jimp.MIME_JPEG);
-    if (jpeg.length < converted.length) {
-      mime = Jimp.MIME_JPEG;
-      converted = jpeg;
+  const images: Image["images"] = new Map();
+  for (const size of [256, 128, 64]) {
+    if (image.getWidth() > size || image.getHeight() > size) {
+      image.cover(size, size);
+    } else if (image.getWidth() !== image.getHeight()) {
+      image.cover(Math.max(image.getWidth(), image.getHeight()), Math.max(image.getWidth(), image.getHeight()));
     }
+    const converted = await image.quality(85).getBufferAsync(mime);
+    images.set(`${size}x${size}`, { mime, raw: converted, size: converted.length });
   }
 
   await ImageCollection.updateOne(
     { ref: ctx.state.user._id, key: "avatar", refType: "User" },
     {
       $set: {
-        mime,
-        width: image.getWidth(),
-        height: image.getHeight(),
-        size: converted.length,
-        data: converted,
+        images,
+        formats: [...images.keys()],
       },
     },
     { upsert: true }
@@ -105,8 +106,7 @@ router.post("/avatar", loggedIn, async (ctx) => {
   ctx.state.user.account.avatar = "upload";
   await ctx.state.user.save();
 
-  ctx.set("Content-Type", mime);
-  ctx.body = converted;
+  ctx.status = 200;
 });
 
 router.post("/email", loggedIn, async (ctx) => {

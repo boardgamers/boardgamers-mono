@@ -1,11 +1,8 @@
-import { Model, model, ObjectId, Schema } from "mongoose";
+import { Document, Model, model, ObjectId, Schema } from "mongoose";
 
 export interface Image {
-  mime: string;
-  height: number;
-  width: number;
-  size: number;
-  data: Buffer;
+  formats: string[];
+  images: Map<string, { mime: string; raw: Buffer; size: number }>;
   key: string;
   ref: ObjectId;
   refType: string;
@@ -16,11 +13,15 @@ interface ImageModel extends Model<ImageDocument> {}
 
 const schema = new Schema<ImageDocument, ImageModel>(
   {
-    mime: String,
-    height: Number,
-    width: Number,
-    size: Number,
-    data: Buffer,
+    formats: [String],
+    images: {
+      type: Schema.Types.Map,
+      of: {
+        mime: String,
+        raw: Buffer,
+        size: Number,
+      },
+    },
     key: String,
     ref: {
       type: Schema.Types.ObjectId,

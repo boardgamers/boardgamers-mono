@@ -105,7 +105,7 @@
     {#each $chatMessages as message}
       <div class="message-container" class:sent={message.author?._id === userId}>
         {#if message.author}
-          <UserAvatar userId={message.author._id} username={message.author.name} --avatar-size="3rem" />
+          <UserAvatar userId={message.author._id} username={message.author.name} size="3rem" />
         {/if}
         <div
           class="message"

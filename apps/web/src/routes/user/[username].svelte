@@ -61,7 +61,7 @@
         username={user.account.username}
         --avatar-border="1px solid gray"
         userId={user._id}
-        --avatar-size="8rem"
+        size="8rem"
       />
       <h1>{username}</h1>
       <div>

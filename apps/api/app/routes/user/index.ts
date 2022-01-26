@@ -50,13 +50,18 @@ router.get("/:userId/avatar", async (ctx) => {
   const account = ctx.state.foundUser.account;
 
   if (account.avatar === "upload") {
-    const item = await ImageCollection.findOne({ ref: ctx.state.foundUser._id, refType: "User", key: "avatar" });
+    const size = Number(ctx.query.size);
+    let format = isNaN(size) || !size || size > 128 ? "256x256" : size > 64 ? "128x128" : "64x64";
+    const item = await ImageCollection.findOne(
+      { ref: ctx.state.foundUser._id, refType: "User", key: "avatar", [`images.${format}`]: { $exists: true } },
+      { [`images.${format}`]: 1 }
+    );
     if (!item) {
       return;
     }
 
-    ctx.set("Content-Type", item.mime);
-    ctx.body = item.data;
+    ctx.set("Content-Type", item.images.get(format).mime);
+    ctx.body = item.images.get(format).raw;
     return;
   }
 
