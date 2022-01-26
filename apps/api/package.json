@@ -72,10 +72,10 @@
     "koa-cookie": "^1.0.0",
     "luxon": "^1.23.0",
     "mocha": "^7.1.1",
-    "ts-node": "^9.1.1",
-    "ts-node-dev": "^1.1.6",
-    "tsconfig-paths": "^3.9.0",
-    "typescript": "^4.4.2"
+    "ts-node": "^10.4.0",
+    "ts-node-dev": "^1.1.8",
+    "tsconfig-paths": "^3.12.0",
+    "typescript": "^4.5.5"
   },
   "scripts": {
     "start": "ts-node -T -r tsconfig-paths/register server.ts || npm start",
