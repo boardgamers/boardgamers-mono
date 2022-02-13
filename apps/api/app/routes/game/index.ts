@@ -228,7 +228,8 @@ router.get("/:gameId/players", async (ctx) => {
 
 router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
   assert(
-    ctx.state.user && ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id)),
+    ctx.state.user?.authority === "admin" ||
+      (ctx.state.user && ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id))),
     "You must be a player of the game to chat!"
   );
   assert(ctx.request.body.type === "text" || ctx.request.body.type === "emoji");
