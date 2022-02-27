@@ -31,21 +31,10 @@
 </script>
 
 <script lang="ts">
-  import { Col, Row } from "sveltestrap";
-  import { GameList, SEO } from "@/components";
-  import marked from "marked";
-  import { useRest } from "@/composition/useRest";
-  import { useActiveGames } from "@/composition/useActiveGames";
   import { useAccount } from "@/composition/useAccount";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import type { LoadInput } from "@sveltejs/kit";
-  import { useLoad } from "@/composition/useLoad";
-  import { useGames } from "@/composition/useGames";
-  import GameListSidebar from "@/components/Layout/GameListSidebar.svelte";
-
+  import { useActiveGames } from "@/composition/useActiveGames";
   const { activeGames } = useActiveGames();
   const { account } = useAccount();
-
   export let announcement: { title: string; content: string };
 </script>
 
@@ -67,7 +56,7 @@
       <div class="mx-auto card border-accent px-3 pb-3 d-block">
         <div class="text-center announcement-title py-1">{announcement?.title}</div>
         <div class="text-start announcement-content">
-          {@html marked(announcement?.content)}
+          {@html marked(announcement?.content || "")}
         </div>
       </div>
     </div>
