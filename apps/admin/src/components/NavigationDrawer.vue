@@ -6,12 +6,20 @@ import VListItem from "~cdk/VListItem.vue";
 import VListItemIcon from "~cdk/VListItemIcon.vue";
 import VList from "~cdk/VList.vue";
 import VListGroup from "~cdk/VListGroup.vue";
+import { useUserStore } from "~/store/user";
 
 const games = useGameStore();
 const pages = usePageStore();
+const user = useUserStore();
 
-get("/admin/gameinfo").then((data) => games.$patch({ games: data }));
-get("/admin/page").then((data) => pages.$patch({ pages: data }));
+watch(
+  user.user,
+  () => {
+    get("/admin/gameinfo").then((data) => games.$patch({ games: data }));
+    get("/admin/page").then((data) => pages.$patch({ pages: data }));
+  },
+  { immediate: true }
+);
 </script>
 <template>
   <v-list>
