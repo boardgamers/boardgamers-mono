@@ -23,7 +23,7 @@ const announcement = reactive({ title: "", content: "" });
 
 watch(gameId, async (gameId) => {
   to.value = await get(`/gameplay/${gameId}/length`);
-  json.value = JSON.stringify((await get(`/gameplay/${gameId}`)).data, null, 2);
+  json.value = JSON.stringify((await get(`/gameplay/${gameId}?admin=true`)).data, null, 2);
 });
 
 get("/admin/serverinfo").then((data) => (serverInfo.value = data), handleError);

@@ -252,6 +252,11 @@ router.get("/:gameId/length", async (ctx) => {
 router.get("/:gameId", async (ctx) => {
   const game = await Game.findById(ctx.params.gameId);
 
+  if (!ctx.state.user.isAdmin && ctx.query.admin === "true") {
+    ctx.status = 403;
+    return;
+  }
+
   if (!game) {
     ctx.status = 404;
     return;
@@ -263,7 +268,10 @@ router.get("/:gameId", async (ctx) => {
 
     ctx.body = {
       ...game.toJSON(),
-      data: engine.stripSecret ? engine.stripSecret(game.data, index === -1 ? undefined : index) : game.data,
+      data:
+        engine.stripSecret && ctx.query.admin !== "true"
+          ? engine.stripSecret(game.data, index === -1 ? undefined : index)
+          : game.data,
     };
   } else {
     // Separate data from game, because mongoose removes empty objects
