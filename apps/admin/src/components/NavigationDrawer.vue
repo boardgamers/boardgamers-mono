@@ -13,7 +13,7 @@ const pages = usePageStore();
 const user = useUserStore();
 
 watch(
-  user.user,
+  () => user.user,
   () => {
     get("/admin/gameinfo").then((data) => games.$patch({ games: data }));
     get("/admin/page").then((data) => pages.$patch({ pages: data }));
@@ -86,5 +86,12 @@ watch(
         {{ page._id.name }}
       </v-list-item>
     </v-list-group>
+
+    <v-list-item @click="() => user.logOut()">
+      <v-list-item-icon>
+        <carbon-logout />
+      </v-list-item-icon>
+      Log out
+    </v-list-item>
   </v-list>
 </template>
