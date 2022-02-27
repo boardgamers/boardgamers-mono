@@ -220,5 +220,140 @@
     "rules": "",
     "settings": [],
     "__v": 0
+  },
+  {
+    "_id": {
+      "game": "powergrid",
+      "version": 1
+    },
+    "__v": 0,
+    "description": "The objective of Power Grid is to supply the most cities with power when someone's network gains a predetermined size. Players mark pre-existing routes between cities for connection, and then bid against each other to purchase the power plants that they use to power their cities.",
+    "engine": {
+      "package": {
+        "name": "@boardgamers/powergrid-engine",
+        "version": "1.2.3"
+      },
+      "entryPoint": "dist/wrapper.js"
+    },
+    "expansions": [],
+    "factions": {
+      "avatars": false
+    },
+    "label": "⚡️ Powergrid",
+    "meta": {
+      "public": true,
+      "needOwnership": true
+    },
+    "options": [
+      {
+        "label": "Map",
+        "type": "select",
+        "name": "map",
+        "items": [
+          {
+            "name": "Germany",
+            "label": "Germany"
+          },
+          {
+            "name": "USA",
+            "label": "USA"
+          },
+          {
+            "name": "Brazil",
+            "label": "Brazil"
+          },
+          {
+            "name": "Spain & Portugal",
+            "label": "Spain and Portugal"
+          },
+          {
+            "name": "France",
+            "label": "France"
+          },
+          {
+            "name": "Italy",
+            "label": "Italy"
+          }
+        ]
+      },
+      {
+        "label": "Variant",
+        "type": "select",
+        "name": "variant",
+        "items": [
+          {
+            "name": "original",
+            "label": "Original"
+          },
+          {
+            "name": "recharged",
+            "label": "Recharged"
+          }
+        ]
+      },
+      {
+        "label": "Players can see each other's money",
+        "type": "checkbox",
+        "name": "showMoney",
+        "items": null
+      }
+    ],
+    "players": [2, 3, 4, 5, 6],
+    "preferences": [
+      {
+        "label": "Enable sound when players move",
+        "type": "checkbox",
+        "name": "sound",
+        "items": null
+      },
+      {
+        "label": "Disable drag/drop indicators",
+        "type": "checkbox",
+        "name": "disableHelp",
+        "items": null
+      },
+      {
+        "label": "Adjust player order",
+        "type": "checkbox",
+        "name": "adjustPlayerOrder",
+        "items": null
+      },
+      {
+        "label": "Undo whole turn",
+        "type": "checkbox",
+        "name": "undoWholeTurn",
+        "items": null
+      },
+      {
+        "label": "Shrink or expand game to fit to screen",
+        "type": "checkbox",
+        "name": "fitToScreen",
+        "items": null
+      }
+    ],
+    "rules": "- [Rules](https://www.ultraboardgames.com/power-grid/game-rules.php)\n- [How to teach](https://boardgamegeek.com/wiki/page/How_To_Teach:_Power_Grid)\n- [FAQ](https://boardgamegeek.com/wiki/page/Power_Grid_FAQ)",
+    "settings": [],
+    "viewer": {
+      "url": "//cdn.jsdelivr.net/npm/@boardgamers/powergrid-viewer@1.1.4/dist/powergrid-viewer.umd.min.js",
+      "topLevelVariable": "powergrid",
+      "dependencies": {
+        "scripts": ["//cdn.jsdelivr.net/npm/vue@^2/dist/vue.min.js"],
+        "stylesheets": ["//cdn.jsdelivr.net/npm/@boardgamers/powergrid-viewer@1.1.4/dist/powergrid-viewer.css"]
+      },
+      "fullScreen": true,
+      "replayable": true,
+      "trusted": false,
+      "alternate": {
+        "url": "",
+        "topLevelVariable": "",
+        "dependencies": {
+          "scripts": [],
+          "stylesheets": []
+        },
+        "fullScreen": true,
+        "replayable": false,
+        "trusted": false
+      }
+    }
   }
 ]
