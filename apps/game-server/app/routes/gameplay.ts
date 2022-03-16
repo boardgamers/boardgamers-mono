@@ -252,7 +252,7 @@ router.get("/:gameId/length", async (ctx) => {
 router.get("/:gameId", async (ctx) => {
   const game = await Game.findById(ctx.params.gameId);
 
-  if (!ctx.state.user.isAdmin && ctx.query.admin === "true") {
+  if (!ctx.state.user?.isAdmin && ctx.query.admin === "true") {
     ctx.status = 403;
     return;
   }
