@@ -18,7 +18,7 @@ export default async function initDb(url = env.database.bgs.url, runMigrations =
 
   const connect = () =>
     mongoose
-      .connect(url, { dbName: env.database.bgs.name })
+      .connect(url, { dbName: env.database.bgs.name, directConnection: true })
       .then(() => console.log("successfully connected to database"));
   await connect();
 
