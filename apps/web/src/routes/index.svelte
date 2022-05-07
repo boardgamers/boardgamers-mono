@@ -33,6 +33,15 @@
 <script lang="ts">
   import { useAccount } from "@/composition/useAccount";
   import { useActiveGames } from "@/composition/useActiveGames";
+  import { SEO, GameListSidebar } from "@/components";
+  import { useRest } from "@/composition/useRest";
+  import { useGameInfo } from "@/composition/useGameInfo";
+  import { useGames } from "@/composition/useGames";
+  import { useLoad } from "@/composition/useLoad";
+  import type { LoadInput } from "@sveltejs/kit";
+import marked from "marked";
+import { Col, Row } from "sveltestrap";
+import GameList from "@/components/Game/GameList.svelte";
   const { activeGames } = useActiveGames();
   const { account } = useAccount();
   export let announcement: { title: string; content: string };
