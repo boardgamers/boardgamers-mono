@@ -1,61 +1,44 @@
 <script lang="ts">
   import { browser } from "$app/env";
-  import { keyBy } from "lodash";
-  import { elapsedSeconds } from "@bgs/utils";
-  import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
-  import type { PlayerInfo } from "@bgs/types";
-  import Portal from "@/modules/portal";
-  import clockHistory from "@iconify/icons-bi/clock-history.js";
-  import { Button, Icon, Badge } from "@/modules/cdk";
-  import { getContext, onDestroy } from "svelte";
-  import { GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings } from "./GameSidebar";
-  import type { GameContext } from "@/pages/Game.svelte";
-  import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
-  import { useRest } from "@/composition/useRest";
   import { useAccount } from "@/composition/useAccount";
-  import { useCurrentGame } from "@/composition/useCurrentGame";
   import { useActiveGames } from "@/composition/useActiveGames";
+  import { useCurrentGame } from "@/composition/useCurrentGame";
   import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
-
+  import { useRest } from "@/composition/useRest";
+  import type { GameContext } from "@/pages/Game.svelte";
+  import { confirm, handleError } from "@/utils";
+  import type { PlayerInfo } from "@bgs/types";
+  import { elapsedSeconds } from "@bgs/utils";
+  import { keyBy } from "lodash";
+  import { getContext, onDestroy } from "svelte";
   const { game, players, gameInfo }: GameContext = getContext("game");
   const { post } = useRest();
-
   const { account } = useAccount();
   const { playerStatus } = useCurrentGame();
   const { addActiveGame, removeActiveGame } = useActiveGames();
   const { devGameSettings } = useDeveloperSettings();
-
   let secondsCounter = 0;
-
   const interval = setInterval(() => {
     if (browser && !document.hidden) {
       secondsCounter += 1;
     }
   }, 1000);
   onDestroy(() => clearInterval(interval));
-
   let requestedDrop: Record<string, boolean> = {};
-
   $: userId = $account?._id;
   $: playerUser = $game?.players.find((pl) => pl._id === userId);
   $: gameId = $game?._id;
-
   function status(playerId: string) {
     return $playerStatus?.find((pl) => pl._id === playerId)?.status ?? "offline";
   }
-
   function playerElo(playerId: string) {
     return $players.find((pl) => pl._id === playerId)?.elo ?? 0;
   }
-
   $: alwaysActive = $game?.options.timing.timer?.start === $game?.options.timing.timer?.end;
-
   $: currentPlayersById = keyBy($game?.currentPlayers ?? [], "_id");
-
   function isCurrentPlayer(id: string) {
     return $game?.status !== "ended" && !!currentPlayersById[id];
   }
-
   const onGameChanged = () => {
     if (userId) {
       if (isCurrentPlayer(userId)) {
@@ -65,32 +48,26 @@
       }
     }
   };
-
   $: onGameChanged(), [userId, $game];
-
   let remainingTimes: Record<string, number> = {};
-
   function updateRemainingTimes() {
     const ret: Record<string, number> = {};
     for (const player of $game.players) {
       ret[player._id] = remainingTime(player);
     }
-
     remainingTimes = ret;
   }
-
   $: updateRemainingTimes(), [secondsCounter];
-
   function remainingTime(player: PlayerInfo) {
     const currentPlayer = currentPlayersById[player._id];
     if (currentPlayer) {
       const spent = elapsedSeconds(new Date(currentPlayer.timerStart as any), $game.options.timing.timer);
-      // Trick to update every second
+       of $game.players) {
+      ret[
       return Math.max(player.remainingTime - spent, 0) + (secondsCounter % 1);
     }
     return Math.max(player.remainingTime, 0);
   }
-
   async function voteCancel() {
     if (
       await confirm("This vote cannot be taken back. If all active players vote to cancel, the game will be cancelled.")
@@ -98,11 +75,9 @@
       await post(`/game/${gameId}/cancel`).catch(handleError);
     }
   }
-
   async function quit() {
     await post(`/game/${gameId}/quit`).catch(handleError);
   }
-
   async function requestDrop(playerId: string) {
     await post(`/game/${gameId}/drop/${playerId}`).then(
       () => (requestedDrop = { ...requestedDrop, [playerId]: true }),
@@ -111,7 +86,7 @@
   }
 </script>
 
-<div id="floating-controls"></div>
+<div id="floating-controls" />
 <Portal target="#sidebar">
   <h3 class="mt-75">Players</h3>
   {#each $game.players as player}
@@ -222,7 +197,7 @@
   {/if}
   <div class="my-3" />
   {#if $devGameSettings}
-    <a target="_blank" rel="external" href="/api/game/{$game._id}">Download JSON</a>
+    <a target="_blank" rel="external" href="/api/gameplay/{$game._id}">Download JSON</a>
   {/if}
 </Portal>
 
