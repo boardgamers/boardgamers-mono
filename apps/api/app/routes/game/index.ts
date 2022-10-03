@@ -205,7 +205,7 @@ router.param("gameId", async (gameId, ctx, next) => {
 
 // Metadata about the game
 router.get("/:gameId", (ctx) => {
-  ctx.body = omit(ctx.state.game, "data");
+  ctx.body = omit(ctx.state.game.toJSON(), "data");
 });
 
 router.get("/:gameId/players", async (ctx) => {
