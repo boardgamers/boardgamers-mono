@@ -232,7 +232,7 @@
         <div class="form-group col-md-6">
           <label for="timePerGame">Time per player per game</label>
           <select bind:value={timePerGame} id="timePerGame" class="form-control">
-            {#each [300, 600, 1800, 3600, 6 * 3600, 24 * 3600, 3 * 24 * 3600, 10 * 24 * 3600] as x}
+            {#each [60, 180, 300, 600, 1800, 3600, 6 * 3600, 24 * 3600, 3 * 24 * 3600, 10 * 24 * 3600] as x}
               <option value={x}>
                 {duration(x)}
               </option>
@@ -243,7 +243,7 @@
         <div class="form-group col-md-6">
           <label for="timePerMove">Additional time per move</label>
           <select bind:value={timePerMove} id="timePerMove" class="form-control">
-            {#each [30, 60, 5 * 60, 15 * 60, 3600, 2 * 3600, 6 * 3600, 24 * 3600] as x}
+            {#each [5, 10, 30, 60, 5 * 60, 15 * 60, 3600, 2 * 3600, 6 * 3600, 24 * 3600] as x}
               <option value={x}>
                 {duration(x)}
               </option>
