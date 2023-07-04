@@ -51,7 +51,7 @@ router.get("/:userId/avatar", async (ctx) => {
 
   if (account.avatar === "upload") {
     const size = Number(ctx.query.size);
-    let format = isNaN(size) || !size || size > 128 ? "256x256" : size > 64 ? "128x128" : "64x64";
+    const format = isNaN(size) || !size || size > 128 ? "256x256" : size > 64 ? "128x128" : "64x64";
     const item = await ImageCollection.findOne(
       { ref: ctx.state.foundUser._id, refType: "User", key: "avatar", [`images.${format}`]: { $exists: true } },
       { [`images.${format}`]: 1 }

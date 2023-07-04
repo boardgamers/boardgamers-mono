@@ -39,9 +39,9 @@
   import { useGames } from "@/composition/useGames";
   import { useLoad } from "@/composition/useLoad";
   import type { LoadInput } from "@sveltejs/kit";
-import marked from "marked";
-import { Col, Row } from "sveltestrap";
-import GameList from "@/components/Game/GameList.svelte";
+  import marked from "marked";
+  import { Col, Row } from "sveltestrap";
+  import GameList from "@/components/Game/GameList.svelte";
   const { activeGames } = useActiveGames();
   const { account } = useAccount();
   export let announcement: { title: string; content: string };

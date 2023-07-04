@@ -14,18 +14,33 @@
   export let size = "4rem";
 
   let src: string;
-  let token: string; 
-  
-  if (browser) {
-    getAccessToken("/api/account/avatar").then((res) => token = res?.code!)
-  };
+  let token: string;
 
-  $: src = userId === "me" ? `/api/account/avatar?d=${$imageCache}&token=${encodeURIComponent(token)}` : userId
-    ? `/api/user/${userId}/avatar?d=${$imageCache}`
-    : `https://avatars.dicebear.com/api/${art}/${username}.svg?r=0`;
+  if (browser) {
+    getAccessToken("/api/account/avatar").then((res) => (token = res?.code!));
+  }
+
+  $: src =
+    userId === "me"
+      ? `/api/account/avatar?d=${$imageCache}&token=${encodeURIComponent(token)}`
+      : userId
+      ? `/api/user/${userId}/avatar?d=${$imageCache}`
+      : `https://avatars.dicebear.com/api/${art}/${username}.svg?r=0`;
 </script>
 
-<img {src} srcset="{src}&size=256 256w, {src}&size=128 128w, {src}&size=64 64w" sizes="{size}" style="height: {size}; width: ${size}" alt={`${username}'s avatar`} title={username} class="user-avatar" {...$$restProps} on:click on:error on:load />
+<img
+  {src}
+  srcset="{src}&size=256 256w, {src}&size=128 128w, {src}&size=64 64w"
+  sizes={size}
+  style="height: {size}; width: ${size}"
+  alt={`${username}'s avatar`}
+  title={username}
+  class="user-avatar"
+  {...$$restProps}
+  on:click
+  on:error
+  on:load
+/>
 
 <style>
   .user-avatar {

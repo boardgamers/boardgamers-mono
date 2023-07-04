@@ -9,11 +9,10 @@
 
   import { getContext } from "svelte";
   import { useSidebarOpen } from "@/composition/useSidebarOpen";
-import Portal from "@/modules/portal/Portal.svelte";
+  import Portal from "@/modules/portal/Portal.svelte";
 
   const { sidebarOpen } = useSidebarOpen();
   const { gameInfo, replayData, emitter } = getContext("game") as GameContext;
-
 
   function startReplay() {
     emitter.emit("replay:start");
@@ -49,10 +48,10 @@ import Portal from "@/modules/portal/Portal.svelte";
         <Button size="sm" class="mx-1" on:click={() => replayTo(Math.min($replayData.end, $replayData.current + 1))}>
           <Icon icon={skipEndFill} style="margin-bottom: 0.25em" />
         </Button>
-        <Button size="sm" class="mx-1" on:click={() => replayTo($replayData.end)}> 
+        <Button size="sm" class="mx-1" on:click={() => replayTo($replayData.end)}>
           <Icon icon={skipForwardFill} style="margin-bottom: 0.25em" />
         </Button>
-        <Button size="sm" class="ms-1" on:click={endReplay}> 
+        <Button size="sm" class="ms-1" on:click={endReplay}>
           <Icon icon={stopFill} style="margin-bottom: 0.25em; color: orange" />
         </Button>
       </div>
@@ -60,17 +59,25 @@ import Portal from "@/modules/portal/Portal.svelte";
   </div>
 {/if}
 {#if $replayData && !$sidebarOpen}
-<Portal target="#floating-controls">
-  <div style="position: fixed; bottom: 0; left: 0; right: calc(var(--fab-right) + 8em); pointer-events: none" class="d-flex pb-3 text-light">
-    <Button size="sm" class="me-1 ms-auto" on:click={() => replayTo($replayData.start)} style="pointer-events: all">
-      <Icon icon={skipBackwardFill} style="margin-bottom: 0.25em" />
-    </Button>
-    <Button size="sm" class="mx-1" on:click={() => replayTo(Math.max($replayData.start, $replayData.current - 1))} style="pointer-events: all">
-      <Icon icon={skipStartFill} style="margin-bottom: 0.25em" />
-    </Button>
-    <span
-      class="mx-1 px-1 text-center"
-      style="
+  <Portal target="#floating-controls">
+    <div
+      style="position: fixed; bottom: 0; left: 0; right: calc(var(--fab-right) + 8em); pointer-events: none"
+      class="d-flex pb-3 text-light"
+    >
+      <Button size="sm" class="me-1 ms-auto" on:click={() => replayTo($replayData.start)} style="pointer-events: all">
+        <Icon icon={skipBackwardFill} style="margin-bottom: 0.25em" />
+      </Button>
+      <Button
+        size="sm"
+        class="mx-1"
+        on:click={() => replayTo(Math.max($replayData.start, $replayData.current - 1))}
+        style="pointer-events: all"
+      >
+        <Icon icon={skipStartFill} style="margin-bottom: 0.25em" />
+      </Button>
+      <span
+        class="mx-1 px-1 text-center"
+        style="
         text-overflow: ellipsis; 
         display: inline-flex; 
         align-items: center; 
@@ -80,18 +87,23 @@ import Portal from "@/modules/portal/Portal.svelte";
         border-radius: 0.2em;
         pointer-events: all
       "
-    >
-      {$replayData.current} / {$replayData.end}
-    </span>
-    <Button size="sm" class="mx-1" on:click={() => replayTo(Math.min($replayData.end, $replayData.current + 1))} style="pointer-events: all">
-      <Icon icon={skipEndFill} style="margin-bottom: 0.25em" />
-    </Button>
-    <Button size="sm" class="mx-1" on:click={() => replayTo($replayData.end)} style="pointer-events: all"> 
-      <Icon icon={skipForwardFill} style="margin-bottom: 0.25em" />
-    </Button>
-    <Button size="sm" class="ms-1 me-auto" on:click={endReplay} style="pointer-events: all"> 
-      <Icon icon={stopFill} style="margin-bottom: 0.25em; color: orange" />
-    </Button>
-  </div>
-</Portal>
+      >
+        {$replayData.current} / {$replayData.end}
+      </span>
+      <Button
+        size="sm"
+        class="mx-1"
+        on:click={() => replayTo(Math.min($replayData.end, $replayData.current + 1))}
+        style="pointer-events: all"
+      >
+        <Icon icon={skipEndFill} style="margin-bottom: 0.25em" />
+      </Button>
+      <Button size="sm" class="mx-1" on:click={() => replayTo($replayData.end)} style="pointer-events: all">
+        <Icon icon={skipForwardFill} style="margin-bottom: 0.25em" />
+      </Button>
+      <Button size="sm" class="ms-1 me-auto" on:click={endReplay} style="pointer-events: all">
+        <Icon icon={stopFill} style="margin-bottom: 0.25em; color: orange" />
+      </Button>
+    </div>
+  </Portal>
 {/if}

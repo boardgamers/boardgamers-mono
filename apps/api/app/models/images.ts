@@ -41,5 +41,3 @@ schema.index({
 });
 
 export const ImageCollection = model("Image", schema);
-
-ImageCollection.createIndexes();

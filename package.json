@@ -1,23 +1,17 @@
 {
   "license": "AGPL-3.0",
+  "packageManager": "pnpm@6.14.1",
   "scripts": {
     "back": "docker-compose -f \"docker-compose.yml\" up -d --build",
-    "lint-staged": "lint-staged",
-    "prepare": "husky install",
     "prettier": "prettier --plugin-search-dir=. --write .",
     "prettier-check": "prettier --plugin-search-dir=. --check ."
   },
   "devDependencies": {
-    "husky": "^7.0.2",
-    "lint-staged": "^11.1.2",
     "prettier": "^2.4.1",
     "prettier-plugin-organize-imports": "^2.3.3",
     "prettier-plugin-sort-json": "^0.0.2",
     "prettier-plugin-svelte": "^2.4.0",
     "svelte": "^3.42.6",
     "typescript": "^4.4.3"
-  },
-  "lint-staged": {
-    "*.{css,scss,graphql,html,json,js,jsx,md,mdx,svelte,ts,tsx,vue,yaml,yml}": "prettier --plugin-search-dir=. --write"
   }
 }

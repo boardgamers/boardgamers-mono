@@ -68,7 +68,7 @@ router.post("/", loggedIn, async (ctx) => {
 });
 
 router.post("/avatar", loggedIn, async (ctx) => {
-  let parts = [];
+  const parts = [];
   for await (const chunk of ctx.req) {
     parts.push(chunk);
   }
