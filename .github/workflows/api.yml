@@ -32,9 +32,8 @@ jobs:
           mongodb-version: 4.4
 
       - run: corepack enable
-      - run: pnpm install --filter {./}... --filter ../..
+      - run: pnpm --filter root install 
+      - run: pnpm --filter api... install
       - run: pnpm run lint-check
-      - run: pnpm install --filter "@bgs/models"
-      - run: pnpm install --filter "@bgs/utils"
       - run: pnpm run type-check
       - run: pnpm run test

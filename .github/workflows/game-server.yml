@@ -26,8 +26,7 @@ jobs:
         with:
           node-version: '20'
       - run: corepack enable
-      - run: pnpm config set store-dir ~/pnpm
-      - run: pnpm --filter {./}... --filter ../.. install
+      - run: pnpm --filter root install
+      - run: pnpm --filter game-server... install
       - run: pnpm run lint-check
-      - run: pnpm install --filter "@bgs/models"
       - run: pnpm run type-check

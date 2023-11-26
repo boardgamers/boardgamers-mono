@@ -14,5 +14,5 @@ jobs:
         with:
           node-version: '20'
       - run: corepack enable
-      - run: pnpm --filter . install 
+      - run: pnpm --filter root install 
       - run: pnpm run format:check
