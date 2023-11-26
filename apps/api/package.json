@@ -86,6 +86,6 @@
     "test-only": "cross-env NODE_ENV=test mocha -r ts-node/register -r tsconfig-paths/register --delay **/init.spec.ts",
     "lint": "eslint server.ts app/**/*.{js,ts,tsx} --fix",
     "lint-check": "eslint server.ts app/**/*.{js,ts,tsx} --max-warnings 0",
-    "tsc": "tsc --noEmit"
+    "type-check": "tsc --noEmit"
   }
 }

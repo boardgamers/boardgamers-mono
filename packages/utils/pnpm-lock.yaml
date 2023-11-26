@@ -34,9 +34,6 @@ devDependencies:
   ts-node:
     specifier: ^10.2.1
     version: 10.2.1(@types/node@20.10.0)(typescript@4.4.3)
-  typescript:
-    specifier: ^4.4.2
-    version: 4.4.3
 
 packages:
 
