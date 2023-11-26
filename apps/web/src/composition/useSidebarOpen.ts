@@ -10,8 +10,8 @@ export const useSidebarOpen = defineStore(() => {
     session.sidebarOpen != null
       ? session.sidebarOpen
       : browser
-        ? extractCookie("sidebarOpen", document.cookie) || JSON.parse(localStorage.getItem("sidebarOpen") ?? "false")
-        : false
+      ? extractCookie("sidebarOpen", document.cookie) || JSON.parse(localStorage.getItem("sidebarOpen") ?? "false")
+      : false
   );
 
   if (browser) {
