@@ -1,5 +1,6 @@
 {
   "name": "@bgs/docs",
+  "packageManager": "pnpm@8.10.5",
   "version": "0.0.1",
   "description": "Docs for the boardgamers ecosystem",
   "main": "index.js",

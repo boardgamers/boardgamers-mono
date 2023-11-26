@@ -1,6 +1,7 @@
 {
   "name": "@bgs/admin",
   "version": "0.1.0",
+  "packageManager": "pnpm@8.10.5",
   "private": true,
   "license": "AGPL-3.0",
   "scripts": {

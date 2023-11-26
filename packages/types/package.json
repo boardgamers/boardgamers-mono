@@ -1,4 +1,5 @@
 {
   "name": "@bgs/types",
-  "main": "index.ts"
+  "main": "index.ts",
+  "packageManager": "pnpm@8.10.5"
 }

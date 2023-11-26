@@ -1,4 +1,5 @@
 {
+  "packageManager": "pnpm@8.10.5",
   "name": "@bgs/utils",
   "scripts": {
     "test": "mocha -r ts-node/register *.spec.ts"

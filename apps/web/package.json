@@ -2,6 +2,7 @@
   "license": "AGPL",
   "name": "@bgs/web",
   "type": "module",
+  "packageManager": "pnpm@8.10.5",
   "scripts": {
     "start": "node build/index.js",
     "dev": "svelte-kit dev",
