@@ -1,4 +1,3 @@
-import { expect } from "chai";
 import mongoose, { Types } from "mongoose";
 import env from "../../config/env";
 import { Game, GameInfo, GamePreferences, JwtRefreshToken, User } from "../../models";

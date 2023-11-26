@@ -1,4 +1,3 @@
-import { expect } from "chai";
 import mongoose, { Types } from "mongoose";
 import { defaultKarma, Game, GameNotification, GamePreferences, maxKarma, User } from "./index";
 

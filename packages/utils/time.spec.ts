@@ -1,4 +1,3 @@
-import { expect } from "chai";
 import { DateTime } from "luxon";
 import { deadline, elapsedSeconds, isPaused } from "./time";
 

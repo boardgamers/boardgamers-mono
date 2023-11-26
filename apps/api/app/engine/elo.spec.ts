@@ -1,4 +1,3 @@
-import { expect } from "chai";
 import { eloDiff } from "./elo";
 
 describe("eloDiff", () => {
