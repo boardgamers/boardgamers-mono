@@ -1,28 +1,36 @@
-lockfileVersion: 5.3
+lockfileVersion: '6.0'
 
-specifiers:
-  prettier: ^2.4.1
-  prettier-plugin-organize-imports: ^2.3.3
-  prettier-plugin-sort-json: ^0.0.2
-  prettier-plugin-svelte: ^2.4.0
-  svelte: ^3.42.6
-  typescript: ^4.4.3
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
 
 devDependencies:
-  prettier: 2.4.1
-  prettier-plugin-organize-imports: 2.3.3_prettier@2.4.1+typescript@4.4.3
-  prettier-plugin-sort-json: 0.0.2_prettier@2.4.1
-  prettier-plugin-svelte: 2.4.0_prettier@2.4.1+svelte@3.42.6
-  svelte: 3.42.6
-  typescript: 4.4.3
+  prettier:
+    specifier: ^2.4.1
+    version: 2.4.1
+  prettier-plugin-organize-imports:
+    specifier: ^2.3.3
+    version: 2.3.3(prettier@2.4.1)(typescript@4.4.3)
+  prettier-plugin-sort-json:
+    specifier: ^0.0.2
+    version: 0.0.2(prettier@2.4.1)
+  prettier-plugin-svelte:
+    specifier: ^2.4.0
+    version: 2.4.0(prettier@2.4.1)(svelte@3.42.6)
+  svelte:
+    specifier: ^3.42.6
+    version: 3.42.6
+  typescript:
+    specifier: ^4.4.3
+    version: 4.4.3
 
 packages:
 
-  /@types/prettier/2.3.0:
+  /@types/prettier@2.3.0:
     resolution: {integrity: sha512-hkc1DATxFLQo4VxPDpMH1gCkPpBbpOoJ/4nhuXw4n63/0R6bCpQECj4+K226UJ4JO/eJQz+1mC2I7JsWanAdQw==}
     dev: true
 
-  /prettier-plugin-organize-imports/2.3.3_prettier@2.4.1+typescript@4.4.3:
+  /prettier-plugin-organize-imports@2.3.3(prettier@2.4.1)(typescript@4.4.3):
     resolution: {integrity: sha512-PBOwQ8vEIB2b7B3gCuBG7D+dqsr1fsTR4TSAjNacRVdHJrD0yzgz9grOLPSyfwJm+NUTZLyWeHoZ+1mHaUrk+g==}
     peerDependencies:
       prettier: '>=2.0'
@@ -32,7 +40,7 @@ packages:
       typescript: 4.4.3
     dev: true
 
-  /prettier-plugin-sort-json/0.0.2_prettier@2.4.1:
+  /prettier-plugin-sort-json@0.0.2(prettier@2.4.1):
     resolution: {integrity: sha512-St9zu6Alb+cA+FmnIFmjFOrTmBFWohYPReVjcMAI2y9mE0YJcW+RIchjLuOeXkLdh+eQlQtXy+3/6W6ZgyllQw==}
     peerDependencies:
       prettier: ^2.1.0
@@ -41,7 +49,7 @@ packages:
       prettier: 2.4.1
     dev: true
 
-  /prettier-plugin-svelte/2.4.0_prettier@2.4.1+svelte@3.42.6:
+  /prettier-plugin-svelte@2.4.0(prettier@2.4.1)(svelte@3.42.6):
     resolution: {integrity: sha512-JwJ9bOz4XHLQtiLnX4mTSSDUdhu12WH8sTwy/XTDCSyPlah6IcV7NWeYBZscPEcceu2YnW8Y9sJCP40Z2UH9GA==}
     peerDependencies:
       prettier: ^1.16.4 || ^2.0.0
@@ -51,18 +59,18 @@ packages:
       svelte: 3.42.6
     dev: true
 
-  /prettier/2.4.1:
+  /prettier@2.4.1:
     resolution: {integrity: sha512-9fbDAXSBcc6Bs1mZrDYb3XKzDLm4EXXL9sC1LqKP5rZkT6KRr/rf9amVUcODVXgguK/isJz0d0hP72WeaKWsvA==}
     engines: {node: '>=10.13.0'}
     hasBin: true
     dev: true
 
-  /svelte/3.42.6:
+  /svelte@3.42.6:
     resolution: {integrity: sha512-lAcryr9Do2PeGtbodspX5I4kWj4yWYAa2WGpDCwzNkP3y8WZTxigMd4/TMO1rBZEOkMYGn4ZXrbAlSEGhK6q3w==}
     engines: {node: '>= 8'}
     dev: true
 
-  /typescript/4.4.3:
+  /typescript@4.4.3:
     resolution: {integrity: sha512-4xfscpisVgqqDfPaJo5vkd+Qd/ItkoagnHpufr+i2QCHBsNYp+G7UAoyFl8aPtx879u38wPV65rZ8qbGZijalA==}
     engines: {node: '>=4.2.0'}
     hasBin: true

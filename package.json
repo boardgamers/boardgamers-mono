@@ -1,6 +1,6 @@
 {
   "license": "AGPL-3.0",
-  "packageManager": "pnpm@6.14.1",
+  "packageManager": "pnpm@8.10.5",
   "scripts": {
     "back": "docker-compose -f \"docker-compose.yml\" up -d --build",
     "prettier": "prettier --plugin-search-dir=. --write .",
