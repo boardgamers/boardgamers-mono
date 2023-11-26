@@ -10,5 +10,5 @@ jobs:
         with:
           node-version: '20'
       - run: corepack enable
-      - run: pnpm install
-      - run: pnpm run prettier-check
+      - run: pnpm --filter . install 
+      - run: pnpm run format:check
