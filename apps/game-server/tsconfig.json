@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "target": "ES2019",
-    "module": "CommonJS",
-    "moduleResolution": "Node",
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "sourceMap": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
@@ -12,7 +12,9 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "types": ["node", "mocha", "chai"],
-    "baseUrl": "."
+    "baseUrl": ".",
+    "skipLibCheck": true
   },
-  "include": ["app/**/*.ts", "server.ts", "scripts/**/*.ts"]
+  "include": ["app/**/*.ts", "server.ts", "scripts/**/*.ts"],
+  "exclude": ["node_modules"]
 }
