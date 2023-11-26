@@ -27,7 +27,7 @@ jobs:
           node-version: '20'
       - run: corepack enable
       - run: pnpm config set store-dir ~/pnpm
-      - run: pnpm install --filter {./}... --filter ../..
+      - run: pnpm --filter {./}... --filter ../.. install
       - run: pnpm run lint-check
       - run: pnpm install --filter "@bgs/models"
       - run: pnpm run type-check

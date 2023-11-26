@@ -33,7 +33,6 @@
     "mongoose": "^6.0.3"
   },
   "devDependencies": {
-    "@types/chai": "^4.2.11",
     "@types/fs-extra": "^8.1.0",
     "@types/http-errors": "^1.6.3",
     "@types/jsonwebtoken": "^8.3.9",
@@ -44,13 +43,8 @@
     "@types/koa-router": "^7.4.0",
     "@types/lodash": "^4.14.150",
     "@types/luxon": "^1.25.1",
-    "@types/mocha": "^7.0.2",
     "@types/node": "^13.13.4",
-    "chai": "^4.2.0",
     "luxon": "^1.25.0",
-    "mocha": "^7.1.2",
-    "ts-node": "^10.4.0",
-    "ts-node-dev": "^1.1.8",
     "tsconfig-paths": "^3.12.0"
   }
 }
