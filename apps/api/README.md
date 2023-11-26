@@ -40,11 +40,5 @@ dbUrl=<custom mongodb url>
 To run all tests
 
 ```
-npm run test
-```
-
-To run specific tests
-
-```
-npm run test-only **/gameinfo.spec.ts
+pnpm run test
 ```

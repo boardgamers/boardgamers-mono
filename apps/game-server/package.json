@@ -6,12 +6,12 @@
   "license": "AGPL-3.0",
   "private": true,
   "scripts": {
-    "batch-replay": "ts-node -T -r tsconfig-paths/register scripts/batch-replay.ts",
-    "dev": "ts-node-dev -T -r tsconfig-paths/register server.ts",
+    "batch-replay": "ts-node -T scripts/batch-replay.ts",
+    "dev": "ts-node-dev -T  server.ts",
     "lint": "eslint server.ts app/**/*.{js,ts,tsx} --fix",
     "lint-check": "eslint server.ts app/**/*.{js,ts,tsx} --max-warnings 0",
-    "start": "ts-node -T -r tsconfig-paths/register server.ts || npm start",
-    "test": "mocha -r ts-node/register app/**/*.spec.ts app/*.spec.ts",
+    "start": "ts-node -T server.ts || npm start",
+    "test": "vitest run",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -44,7 +44,6 @@
     "@types/lodash": "^4.14.150",
     "@types/luxon": "^1.25.1",
     "@types/node": "^13.13.4",
-    "luxon": "^1.25.0",
-    "tsconfig-paths": "^3.12.0"
+    "luxon": "^1.25.0"
   }
 }

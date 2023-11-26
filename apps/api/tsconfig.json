@@ -13,8 +13,7 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "types": ["node", "mocha", "chai", "./app/types"],
-    "baseUrl": "."
+    "types": ["node", "./app/types"]
   },
   "include": ["app/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts", "server.ts"],
   "exclude": ["node_modules"]

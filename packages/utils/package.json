@@ -2,7 +2,7 @@
   "packageManager": "pnpm@8.10.5",
   "name": "@bgs/utils",
   "scripts": {
-    "test": "mocha -r ts-node/register *.spec.ts"
+    "test": "vitest run"
   },
   "dependencies": {
     "lodash": "^4.17.21"

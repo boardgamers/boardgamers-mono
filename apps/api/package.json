@@ -62,15 +62,13 @@
     "cross-env": "^7.0.3",
     "koa-cookie": "^1.0.0",
     "luxon": "^1.23.0",
-    "passport": "^0.6.0",
-    "tsconfig-paths": "^3.12.0"
+    "passport": "^0.6.0"
   },
   "scripts": {
-    "start": "ts-node -T -r tsconfig-paths/register server.ts || npm start",
-    "dev": "ts-node-dev -T -r tsconfig-paths/register server.ts",
-    "seed": "ts-node -T -r tsconfig-paths/register scripts/seed.ts",
-    "test": "cross-env NODE_ENV=test mocha -r ts-node/register -r tsconfig-paths/register --delay **/*.spec.ts",
-    "test-only": "cross-env NODE_ENV=test mocha -r ts-node/register -r tsconfig-paths/register --delay **/init.spec.ts",
+    "start": "ts-node -T server.ts || npm start",
+    "dev": "ts-node-dev -T server.ts",
+    "seed": "ts-node -T scripts/seed.ts",
+    "test": "vitest run",
     "lint": "eslint server.ts app/**/*.{js,ts,tsx} --fix",
     "lint-check": "eslint server.ts app/**/*.{js,ts,tsx} --max-warnings 0",
     "type-check": "tsc --noEmit"
