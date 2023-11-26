@@ -5,6 +5,6 @@
     "@bgs/types": "workspace:*"
   },
   "peerDependencies": {
-    "mongoose": "^6.0.2"
+    "mongoose": "6.0.3"
   }
 }

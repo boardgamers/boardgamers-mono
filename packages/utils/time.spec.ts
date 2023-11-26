@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import { deadline, elapsedSeconds, isPaused } from "./time";
+import { describe, it, expect } from "vitest";
 
 const oneMinute = 60;
 const oneHour = 3600;

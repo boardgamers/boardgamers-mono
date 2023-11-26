@@ -1,12 +1,14 @@
 import mongoose, { Types } from "mongoose";
 import env from "../../config/env";
 import { Game, GameInfo, GamePreferences, JwtRefreshToken, User } from "../../models";
+import { afterAll, beforeAll, describe, it } from "vitest";
+import { expect } from "chai";
 
 describe("Game API", () => {
   const userId = new Types.ObjectId();
   let headers: Record<string, string>;
 
-  before(async () => {
+  beforeAll(async () => {
     await User.create({
       _id: userId,
       account: { username: "test", email: "test@test.com" },
@@ -126,5 +128,7 @@ describe("Game API", () => {
     expect(await Game.countDocuments({ _id: "test" })).to.equal(0, "Game should be deleted after creator unjoins");
   });
 
-  after(() => mongoose.connection.db.dropDatabase());
+  afterAll(async () => {
+    await mongoose.connection.db.dropDatabase();
+  });
 });

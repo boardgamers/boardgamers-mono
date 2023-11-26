@@ -1,5 +1,6 @@
 import mongoose, { Types } from "mongoose";
 import { defaultKarma, Game, GameNotification, GamePreferences, maxKarma, User } from "./index";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 const { ObjectId } = Types;
 
@@ -11,7 +12,7 @@ describe("GameNotification", () => {
 
   describe("processGameEnded", () => {
     describe("karma", () => {
-      before(async () => {
+      beforeAll(async () => {
         await mongoose.connection.db.dropDatabase();
 
         await User.create({ _id: userId, account: { username: "test", email: "test@test.com" } });
@@ -28,7 +29,9 @@ describe("GameNotification", () => {
           ],
         });
       });
-      after(() => mongoose.connection.db.dropDatabase());
+      afterAll(async () => {
+        await mongoose.connection.db.dropDatabase();
+      });
 
       it("should add karma to the active player and no karma to the dropped player", async () => {
         await GameNotification.create({ kind: "gameEnded", game: "test" });
@@ -74,7 +77,9 @@ describe("GameNotification", () => {
         await GamePreferences.create({ game: "gaia-project", user: userId2, elo: { value: 110, games: 110 } });
         await GamePreferences.create({ game: "gaia-project", user: userId3, elo: { value: 105, games: 5 } });
       });
-      afterEach(() => mongoose.connection.db.dropDatabase());
+      afterEach(async () => {
+        await mongoose.connection.db.dropDatabase();
+      });
 
       it("should add elo to player and player2, and min elo 100 to player3, set elo 1 to beginner player4 ", async () => {
         await GameNotification.create({ kind: "gameEnded", game: "test" });
@@ -161,12 +166,14 @@ describe("GameNotification", () => {
   });
 
   describe("processPlayerDrop", () => {
-    before(async () => {
+    beforeAll(async () => {
       await User.create({ _id: userId, account: { username: "test", email: "test@test.com" } });
       await User.create({ _id: userId2, account: { username: "test2", email: "test2@test.com" } });
     });
 
-    after(() => mongoose.connection.db.dropDatabase());
+    afterAll(async () => {
+      await mongoose.connection.db.dropDatabase();
+    });
 
     it("should drop 10 karma after dropping out", async () => {
       await GameNotification.create({

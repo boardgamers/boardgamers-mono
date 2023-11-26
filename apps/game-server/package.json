@@ -11,7 +11,6 @@
     "lint": "eslint server.ts app/**/*.{js,ts,tsx} --fix",
     "lint-check": "eslint server.ts app/**/*.{js,ts,tsx} --max-warnings 0",
     "start": "ts-node -T server.ts || npm start",
-    "test": "vitest run",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -30,7 +29,7 @@
     "koa-router": "^8.0.8",
     "lodash": "^4.17.15",
     "mongo-locks": "^2.0.0",
-    "mongoose": "^6.0.3"
+    "mongoose": "6.0.3"
   },
   "devDependencies": {
     "@types/fs-extra": "^8.1.0",

@@ -1,4 +1,5 @@
 import { eloDiff } from "./elo";
+import { describe, it, expect } from "vitest";
 
 describe("eloDiff", () => {
   it("should let player win if the opponent dropped", () => {
