@@ -181,21 +181,12 @@ devDependencies:
   '@typescript-eslint/parser':
     specifier: ^4.29.3
     version: 4.29.3(eslint@7.32.0)(typescript@4.5.5)
-  axios:
-    specifier: ^0.21.1
-    version: 0.21.1
   chai:
     specifier: ^4.2.0
     version: 4.2.0
-  chai-as-promised:
-    specifier: ^7.1.1
-    version: 7.1.1(chai@4.2.0)
   cross-env:
     specifier: ^7.0.3
     version: 7.0.3
-  eslint:
-    specifier: ^7.32.0
-    version: 7.32.0
   koa-cookie:
     specifier: ^1.0.0
     version: 1.0.0
@@ -214,9 +205,6 @@ devDependencies:
   tsconfig-paths:
     specifier: ^3.12.0
     version: 3.12.0
-  typescript:
-    specifier: ^4.5.5
-    version: 4.5.5
 
 packages:
 
@@ -1269,14 +1257,6 @@ packages:
   /asynckit@0.4.0:
     resolution: {integrity: sha1-x57Zf380y48robyXkLzDZkdLS3k=}
 
-  /axios@0.21.1:
-    resolution: {integrity: sha512-dKQiRHxGD9PPRIUNIWvZhPTPpl1rf/OxTYKsqKUDjBwYylTvV7SjSHJb9ratfyzM6wCdLCOYLzs73qpg5c4iGA==}
-    dependencies:
-      follow-redirects: 1.13.1
-    transitivePeerDependencies:
-      - debug
-    dev: true
-
   /balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
     dev: true
@@ -1383,15 +1363,6 @@ packages:
   /camelcase@5.3.1:
     resolution: {integrity: sha512-L28STB170nwWS63UjtlEOE3dldQApaJXZkOI1uMFfzf3rRuPegHaHesyee+YxQ+W6SvRDQV6UrdOdRiR153wJg==}
     engines: {node: '>=6'}
-    dev: true
-
-  /chai-as-promised@7.1.1(chai@4.2.0):
-    resolution: {integrity: sha512-azL6xMoi+uxu6z4rhWQ1jbdUhOMhis2PvscD/xjLqNMkv3BPPp2JyyuTHOrf9BOosGpNQ11v6BKv/g57RXbiaA==}
-    peerDependencies:
-      chai: '>= 2.1.2 < 5'
-    dependencies:
-      chai: 4.2.0
-      check-error: 1.0.2
     dev: true
 
   /chai@4.2.0:
@@ -2064,16 +2035,6 @@ packages:
 
   /flatted@3.1.1:
     resolution: {integrity: sha512-zAoAQiudy+r5SvnSw3KJy5os/oRJYHzrzja/tBDqrZtNhUw8bt6y8OBzMWcjWr+8liV8Eb6yOhw8WZ7VFZ5ZzA==}
-    dev: true
-
-  /follow-redirects@1.13.1:
-    resolution: {integrity: sha512-SSG5xmZh1mkPGyKzjZP8zLjltIfpW32Y5QpdNJyjcfGxK3qo3NDDkZOZSFiGn1A6SclQxY9GzEwAHQ3dmYRWpg==}
-    engines: {node: '>=4.0'}
-    peerDependencies:
-      debug: '*'
-    peerDependenciesMeta:
-      debug:
-        optional: true
     dev: true
 
   /form-data@2.5.1:

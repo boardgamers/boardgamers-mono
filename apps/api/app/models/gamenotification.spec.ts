@@ -1,11 +1,8 @@
-import chai, { expect } from "chai";
-import chaiAsPromised from "chai-as-promised";
+import { expect } from "chai";
 import mongoose, { Types } from "mongoose";
 import { defaultKarma, Game, GameNotification, GamePreferences, maxKarma, User } from "./index";
 
 const { ObjectId } = Types;
-
-chai.use(chaiAsPromised);
 
 describe("GameNotification", () => {
   const userId = new ObjectId();
@@ -159,7 +156,7 @@ describe("GameNotification", () => {
 
         await GameNotification.create({ kind: "gameEnded", game: "testCancelled" });
 
-        await expect(GameNotification.processGameEnded()).to.eventually.be.fulfilled;
+        await GameNotification.processGameEnded();
       });
     });
   });
