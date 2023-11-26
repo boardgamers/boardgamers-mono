@@ -24,7 +24,8 @@ export async function setupForTest() {
 }
 
 export async function teardownForTest() {
-  server.close();
+  server?.close();
+  server = undefined;
   await mongoose.connection.db.dropDatabase();
   await mongoose.connection.close();
 }

@@ -1,10 +1,17 @@
 import mongoose, { Types } from "mongoose";
 import { defaultKarma, Game, GameNotification, GamePreferences, maxKarma, User } from "./index";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { setupForTest, teardownForTest } from "../config/test-utils";
 
 const { ObjectId } = Types;
 
 describe("GameNotification", () => {
+  beforeAll(async () => {
+    await setupForTest();
+  });
+  afterAll(async () => {
+    await teardownForTest();
+  });
   const userId = new ObjectId();
   const userId2 = new ObjectId();
   const userId3 = new ObjectId();
@@ -13,8 +20,6 @@ describe("GameNotification", () => {
   describe("processGameEnded", () => {
     describe("karma", () => {
       beforeAll(async () => {
-        await mongoose.connection.db.dropDatabase();
-
         await User.create({ _id: userId, account: { username: "test", email: "test@test.com" } });
         await User.create({ _id: userId2, account: { username: "test2", email: "test2@test.com" } });
         await Game.create({

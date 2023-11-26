@@ -26,7 +26,6 @@
     "lodash": "^4.17.13",
     "mailgun-js": "^0.20.0",
     "mongo-locks": "^2.0.0",
-    "mongoose": "6.0.3",
     "node-cache": "^5.1.0",
     "passport-discord": "^0.1.4",
     "passport-facebook": "^3.0.0",
