@@ -238,7 +238,7 @@ async function run() {
         const playerIds = (
           await Game.aggregate()
             .match({ _id: { $in: games.map((game) => game._id) } })
-            .project({"players._id": 1})
+            .project({ "players._id": 1 })
             .unwind("players")
             .group({ _id: "$players._id" })
         ).map((x) => x._id);

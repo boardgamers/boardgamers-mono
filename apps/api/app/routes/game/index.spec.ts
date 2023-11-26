@@ -33,29 +33,24 @@ describe("Game API", () => {
     const token = await refresh.createAccessToken(["all"], false);
     headers = {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    }
+      "Content-Type": "application/json",
+    };
   });
 
   it("should not be able to create a game without ownership", async () => {
-    const resp = await fetch(
-      `http://localhost:${env.listen.port.api}/api/game/new-game`,
-      {
-        body: 
-          JSON.stringify({
-            gameId: "test",
-            game: { game: "test", version: 1 },
-            timePerMove: 5000,
-            timePerGame: 5000,
-            players: 2,
-            options: { join: true }
-          })
-        
-        ,
-        headers,
-        method: "POST",
-    }    
-    );
+    const resp = await fetch(`http://localhost:${env.listen.port.api}/api/game/new-game`, {
+      body: JSON.stringify({
+        gameId: "test",
+        game: { game: "test", version: 1 },
+        timePerMove: 5000,
+        timePerGame: 5000,
+        players: 2,
+        options: { join: true },
+      }),
+
+      headers,
+      method: "POST",
+    });
 
     expect(resp.ok).to.be.false;
     expect((await resp.json()).message.includes("own the game")).to.be.true;
@@ -70,40 +65,35 @@ describe("Game API", () => {
       },
     });
 
-    const resp = await fetch(
-      `http://localhost:${env.listen.port.api}/api/game/new-game`,
-      {
-        body: JSON.stringify({
-          gameId: "test",
+    const resp = await fetch(`http://localhost:${env.listen.port.api}/api/game/new-game`, {
+      body: JSON.stringify({
+        gameId: "test",
         game: { game: "test", version: 1 },
         timePerMove: 5000,
         timePerGame: 5000,
         players: 2,
-        options: { join: true }
-        }),
-        method: "POST",
-        headers
-      }
-    );
+        options: { join: true },
+      }),
+      method: "POST",
+      headers,
+    });
 
     expect(resp.ok).to.be.true;
   });
 
   it("should not be able to create a game with the wrong number of players", async () => {
-    const resp =await fetch(
-      `http://localhost:${env.listen.port.api}/api/game/new-game`,
-      {
-        body: JSON.stringify({
-          gameId: "test-fail",
-          game: { game: "test", version: 1 },
-          timePerMove: 5000,
-          timePerGame: 5000,
-          players: 3,
-          options: { join: true },
-        }),
-        method: "POST",
-        headers
-      });
+    const resp = await fetch(`http://localhost:${env.listen.port.api}/api/game/new-game`, {
+      body: JSON.stringify({
+        gameId: "test-fail",
+        game: { game: "test", version: 1 },
+        timePerMove: 5000,
+        timePerGame: 5000,
+        players: 3,
+        options: { join: true },
+      }),
+      method: "POST",
+      headers,
+    });
 
     expect(resp.ok).to.be.false;
 
@@ -127,7 +117,10 @@ describe("Game API", () => {
   // });
 
   it("should be able to leave the game", async () => {
-    const resp = await fetch(`http://localhost:${env.listen.port.api}/api/game/test/unjoin`, {headers, method: "POST"});
+    const resp = await fetch(`http://localhost:${env.listen.port.api}/api/game/test/unjoin`, {
+      headers,
+      method: "POST",
+    });
 
     expect(resp.ok).to.be.true;
 
