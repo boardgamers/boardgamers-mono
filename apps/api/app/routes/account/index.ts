@@ -79,8 +79,8 @@ router.post("/avatar", loggedIn, async (ctx) => {
   const mime = [Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(image.getMIME() as any)
     ? image.getMIME()
     : image.hasAlpha
-    ? Jimp.MIME_PNG
-    : Jimp.MIME_JPEG;
+      ? Jimp.MIME_PNG
+      : Jimp.MIME_JPEG;
 
   const images: Image["images"] = new Map();
   for (const size of [256, 128, 64]) {

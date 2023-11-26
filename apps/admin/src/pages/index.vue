@@ -44,7 +44,7 @@ function saveJson(gameId: string, body: { json: string }) {
 
   post(`/gameplay/${gameId}/edit-data`, { json: JSON.parse(body.json) }).then(
     () => handleInfo("Game saved. If the current player changed, don't forget to replay it."),
-    handleError
+    handleError,
   );
 }
 
@@ -52,7 +52,7 @@ function replayGames() {
   handleInfo("Batch replay started");
   post(`/gameplay/batch/replay`, { gameIds: gameIds.value.split("\n").map((x) => x.trim()) }).then(
     (info) => handleInfo(`Games replayed: ${info.success}`),
-    handleError
+    handleError,
   );
 }
 

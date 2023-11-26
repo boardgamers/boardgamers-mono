@@ -59,7 +59,7 @@ async function login() {
       location.href = `http://localhost:8615/login?refreshToken=${encodeURIComponent(JSON.stringify(refreshToken))}`;
     } else {
       location.href = `//${location.hostname.slice("admin.".length)}/login?refreshToken=${encodeURIComponent(
-        JSON.stringify(refreshToken)
+        JSON.stringify(refreshToken),
       )}`;
     }
   }, handleError);
@@ -81,7 +81,7 @@ watch(
       loading.value = false;
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 async function updateKarma(value: number) {
