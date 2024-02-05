@@ -60,9 +60,9 @@ We don't have to check that it's the current player - it's already done by the g
 The function could be as simple as this:
 
 ```ts
-export function move(state: GameState, move: Coord, player: Player) {
+export function move(state: GameState, coord: Coord, player: Player) {
   state.board[coord.x][coord.y] = player;
-  state.moves.push({ player, coord: move });
+  state.moves.push({ player, coord });
 
   return state;
 }
