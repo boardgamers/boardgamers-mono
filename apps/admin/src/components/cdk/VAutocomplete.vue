@@ -5,10 +5,12 @@ const props = withDefaults(
   defineProps<{ label: string; modelValue: any; searchInput: string; items: Array<{ value: any; text: string }> }>(),
   {
     items: () => [],
-  }
+  },
 );
-const emit =
-  defineEmits<{ (e: "update:searchInput", value: string): void; (e: "update:modelValue", value: any): void }>();
+const emit = defineEmits<{
+  (e: "update:searchInput", value: string): void;
+  (e: "update:modelValue", value: any): void;
+}>();
 </script>
 <template>
   <div>
@@ -22,16 +24,7 @@ const emit =
     />
     <div v-if="items.length > 0 && (hasFocus || clicking)" class="relative">
       <div
-        class="
-          absolute
-          top-0
-          right-0
-          left-0
-          bg-white
-          border border-indigo-600
-          rounded
-          dark:border-gray-500 dark:bg-black
-        "
+        class="absolute top-0 right-0 left-0 bg-white border border-indigo-600 rounded dark:border-gray-500 dark:bg-black"
       >
         <v-list-item
           v-for="item in items"

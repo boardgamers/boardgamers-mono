@@ -269,8 +269,8 @@ schema.method("sendConfirmationEmail", function (this: UserDocument) {
     <p>Hello, we're delighted to have a new Gaia Project player among us!</p>
     <p>To finish your registration and confirm your account with us at ${env.site},
      click <a href='http://${env.site}/confirm?key=${encodeURIComponent(this.confirmKey())}&email=${encodeURIComponent(
-      this.email()
-    )}'>here</a>.</p>
+       this.email()
+     )}'>here</a>.</p>
 
     <p>If you didn't create an account with us, ignore this email.</p>`,
   });

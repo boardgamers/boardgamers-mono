@@ -1,13 +1,17 @@
-import chai, { expect } from "chai";
-import chaiAsPromised from "chai-as-promised";
 import mongoose, { Types } from "mongoose";
 import { defaultKarma, Game, GameNotification, GamePreferences, maxKarma, User } from "./index";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { setupForTest, teardownForTest } from "../config/test-utils";
 
 const { ObjectId } = Types;
 
-chai.use(chaiAsPromised);
-
 describe("GameNotification", () => {
+  beforeAll(async () => {
+    await setupForTest();
+  });
+  afterAll(async () => {
+    await teardownForTest();
+  });
   const userId = new ObjectId();
   const userId2 = new ObjectId();
   const userId3 = new ObjectId();
@@ -15,9 +19,7 @@ describe("GameNotification", () => {
 
   describe("processGameEnded", () => {
     describe("karma", () => {
-      before(async () => {
-        await mongoose.connection.db.dropDatabase();
-
+      beforeAll(async () => {
         await User.create({ _id: userId, account: { username: "test", email: "test@test.com" } });
         await User.create({ _id: userId2, account: { username: "test2", email: "test2@test.com" } });
         await Game.create({
@@ -32,7 +34,9 @@ describe("GameNotification", () => {
           ],
         });
       });
-      after(() => mongoose.connection.db.dropDatabase());
+      afterAll(async () => {
+        await mongoose.connection.db.dropDatabase();
+      });
 
       it("should add karma to the active player and no karma to the dropped player", async () => {
         await GameNotification.create({ kind: "gameEnded", game: "test" });
@@ -78,7 +82,9 @@ describe("GameNotification", () => {
         await GamePreferences.create({ game: "gaia-project", user: userId2, elo: { value: 110, games: 110 } });
         await GamePreferences.create({ game: "gaia-project", user: userId3, elo: { value: 105, games: 5 } });
       });
-      afterEach(() => mongoose.connection.db.dropDatabase());
+      afterEach(async () => {
+        await mongoose.connection.db.dropDatabase();
+      });
 
       it("should add elo to player and player2, and min elo 100 to player3, set elo 1 to beginner player4 ", async () => {
         await GameNotification.create({ kind: "gameEnded", game: "test" });
@@ -159,18 +165,20 @@ describe("GameNotification", () => {
 
         await GameNotification.create({ kind: "gameEnded", game: "testCancelled" });
 
-        await expect(GameNotification.processGameEnded()).to.eventually.be.fulfilled;
+        await GameNotification.processGameEnded();
       });
     });
   });
 
   describe("processPlayerDrop", () => {
-    before(async () => {
+    beforeAll(async () => {
       await User.create({ _id: userId, account: { username: "test", email: "test@test.com" } });
       await User.create({ _id: userId2, account: { username: "test2", email: "test2@test.com" } });
     });
 
-    after(() => mongoose.connection.db.dropDatabase());
+    afterAll(async () => {
+      await mongoose.connection.db.dropDatabase();
+    });
 
     it("should drop 10 karma after dropping out", async () => {
       await GameNotification.create({

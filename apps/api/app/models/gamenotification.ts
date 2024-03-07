@@ -89,7 +89,7 @@ schema.static("processPlayerDrop", async function (this: GameNotificationModel) 
       Log.insertMany(
         notifications.map(
           (notification) =>
-            ({ kind: "processPlayerDrop", data: { game: notification.game, player: notification.user } } as LogItem)
+            ({ kind: "processPlayerDrop", data: { game: notification.game, player: notification.user } }) as LogItem
         )
       ),
       this.updateMany({ _id: { $in: notifications.map((x) => x._id) } }, { $set: { processed: true } }),

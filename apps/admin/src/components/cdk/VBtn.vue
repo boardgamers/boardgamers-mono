@@ -7,18 +7,7 @@ const props = withDefaults(defineProps<{ type: "button" | "submit"; variant: "pr
 
 <template>
   <button
-    class="
-      px-4
-      py-1
-      flex
-      gap-2
-      items-center
-      rounded
-      inline-block
-      text-white
-      cursor-pointer
-      disabled:cursor-default disabled:bg-gray-600 disabled:opacity-50
-    "
+    class="px-4 py-1 flex gap-2 items-center rounded inline-block text-white cursor-pointer disabled:cursor-default disabled:bg-gray-600 disabled:opacity-50"
     :class="[{ 'px-1': props.icon }, variant]"
     :type="props.type"
   >

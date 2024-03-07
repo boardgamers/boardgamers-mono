@@ -35,7 +35,7 @@ type GameInfoOption = {
         {
           name: string;
           label: string;
-        }
+        },
       ]
     | null;
 };

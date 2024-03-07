@@ -21,12 +21,12 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '16'
+          node-version: '20'
       - run: corepack enable
-      - run: pnpm install --filter {./}...
+      - run: pnpm --filter root install
+      - run: pnpm --filter game-server... install
       - run: pnpm run lint-check
-      - run: pnpm install --filter "@bgs/models"
-      - run: pnpm run tsc
+      - run: pnpm run type-check

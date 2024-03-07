@@ -3,7 +3,6 @@ import createError from "http-errors";
 import { Context } from "koa";
 import Router from "koa-router";
 import { Types } from "mongoose";
-import fetch from "node-fetch";
 import { Game, GamePreferences, ImageCollection, User } from "../../models";
 import { queryCount, skipCount } from "../utils";
 

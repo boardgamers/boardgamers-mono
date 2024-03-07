@@ -3,8 +3,3 @@ lockfileVersion: '6.0'
 settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
-
-dependencies:
-  '@bgs/types':
-    specifier: workspace:*
-    version: link:../types

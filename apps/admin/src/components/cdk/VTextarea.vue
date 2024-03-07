@@ -15,21 +15,7 @@ const props = defineProps<{
     :id="uid"
     :required="props.required"
     :placeholder="props.label"
-    class="
-      shadow
-      appearance-none
-      border
-      rounded
-      w-full
-      py-2
-      px-3
-      text-gray-700
-      dark:bg-gray-700 dark:text-gray-300
-      leading-tight
-      focus:outline-none focus:shadow-outline
-      min-h-32
-      flex-1
-    "
+    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:bg-gray-700 dark:text-gray-300 leading-tight focus:outline-none focus:shadow-outline min-h-32 flex-1"
     :value="props.modelValue"
     @input="$emit('update:modelValue', $event.target.value)"
   />

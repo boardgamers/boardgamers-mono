@@ -18,8 +18,8 @@ export async function get<T = any>(url: string, query?: JsonObject) {
       transformUrl(url) + (query ? `?${new URLSearchParams(query as Record<string, string>).toString()}` : ""),
       {
         headers: { ...(token && { Authorization: `Bearer ${token.code}` }) },
-      }
-    )
+      },
+    ),
   );
 }
 
@@ -31,7 +31,7 @@ export async function post<T = any>(url: string, data: any = {}) {
       method: "POST",
       body: JSON.stringify(data),
       headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token.code}` }) },
-    })
+    }),
   );
 }
 
@@ -43,7 +43,7 @@ export async function deleteApi<T = any>(url: string, data: any = {}) {
       method: "DELETE",
       body: JSON.stringify(data),
       headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token.code}` }) },
-    })
+    }),
   );
 }
 

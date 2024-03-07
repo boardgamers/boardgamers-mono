@@ -18,7 +18,7 @@ watch(
     get("/admin/gameinfo").then((data) => games.$patch({ games: data }));
     get("/admin/page").then((data) => pages.$patch({ pages: data }));
   },
-  { immediate: true }
+  { immediate: true },
 );
 </script>
 <template>

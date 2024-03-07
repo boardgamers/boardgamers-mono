@@ -18,7 +18,7 @@ type Coord = {
 type Board = [
   [Player | null, Player | null, Player | null],
   [Player | null, Player | null, Player | null],
-  [Player | null, Player | null, Player | null]
+  [Player | null, Player | null, Player | null],
 ];
 
 type GameState = {

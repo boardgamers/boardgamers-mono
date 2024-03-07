@@ -125,8 +125,8 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
                 Date.now() - (user.security.lastOnline ?? new Date(0)).getTime() < 60 * 1000
                   ? "online"
                   : Date.now() - (user.security.lastActive ?? new Date(0)).getTime() < 60 * 1000
-                  ? "away"
-                  : "offline",
+                    ? "away"
+                    : "offline",
             })),
           })
         );
@@ -238,14 +238,14 @@ async function run() {
         const playerIds = (
           await Game.aggregate()
             .match({ _id: { $in: games.map((game) => game._id) } })
-            .project("players._id")
+            .project({ "players._id": 1 })
             .unwind("players")
             .group({ _id: "$players._id" })
         ).map((x) => x._id);
         const users = await User.find({ _id: { $in: playerIds } }, "security.lastActive security.lastOnline", {
           lean: true,
         });
-        const usersById = keyBy<typeof users[0]>(users, (user) => user._id.toString());
+        const usersById = keyBy<(typeof users)[0]>(users, (user) => user._id.toString());
 
         for (const ws of clients()) {
           if (ws.readyState !== WebSocket.OPEN) {
@@ -271,8 +271,8 @@ async function run() {
                         Date.now() - (user.security.lastOnline ?? new Date(0)).getTime() < 60 * 1000
                           ? "online"
                           : Date.now() - (user.security.lastActive ?? new Date(0)).getTime() < 60 * 1000
-                          ? "away"
-                          : "offline",
+                            ? "away"
+                            : "offline",
                     })),
                 })
               );

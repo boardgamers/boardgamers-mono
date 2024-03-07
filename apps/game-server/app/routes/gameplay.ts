@@ -85,10 +85,7 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
       return;
     }
 
-    assert(
-      game.currentPlayers?.some((pl) => pl._id.equals(ctx.state.user.id)),
-      "It's not your turn to play."
-    );
+    assert(game.currentPlayers?.some((pl) => pl._id.equals(ctx.state.user.id)), "It's not your turn to play.");
 
     const engine = await getEngine(game.game.name, game.game.version);
 

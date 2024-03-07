@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es2020",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "sourceMap": true,
     "outDir": "./dist",
     "experimentalDecorators": true,
@@ -11,9 +11,10 @@
     "strict": false,
     "strictNullChecks": false,
     "resolveJsonModule": true,
+    "skipLibCheck": true,
     "esModuleInterop": true,
-    "types": ["node", "mocha", "chai", "./app/types"],
-    "baseUrl": "."
+    "types": ["node", "./app/types"]
   },
-  "include": ["app/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts", "server.ts"]
+  "include": ["app/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts", "server.ts"],
+  "exclude": ["node_modules"]
 }

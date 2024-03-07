@@ -1,12 +1,12 @@
-import { GameInfo, GamePreferences, User } from "app/models";
-import { expect } from "chai";
+import { GameInfo, GamePreferences, User } from "../models";
 import { sortBy } from "lodash";
-import { seed } from "scripts/seed";
+import { seed } from "../../scripts/seed";
 import GameInfoService from "./gameinfo";
+import { describe, beforeAll, it, expect } from "vitest";
 
 describe("GameInfoService", () => {
   describe("latestAccessibleGames", () => {
-    before(async () => {
+    beforeAll(async () => {
       await seed(["GameInfo", "User", "GamePreferences"], true);
     });
 

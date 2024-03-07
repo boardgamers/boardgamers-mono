@@ -19,7 +19,7 @@ export default {
   contact: process.env.contact || `contact@${domain}`,
   title: process.env.title || "BGS",
   inviteOnly: process.env.inviteOnly || false,
-  minPasswordLength: process.env.minPasswordLength || 6,
+  minPasswordLength: isNaN(parseInt(process.env.minPasswordLength)) ? 6 : parseInt(process.env.minPasswordLength),
   sessionSecret: process.env.sessionSecret || "Quel est donc le secret mystère du succès de Gaia Project?!",
   jwt: {
     keys: {
@@ -50,7 +50,7 @@ export default {
     nodebb: "mongodb://nodebb:NodeBBPassword@localhost:27017/nodebb",
   },
   isProduction: process.env.NODE_ENV === "production",
-  threads: process.env.threads || os.cpus().length,
+  threads: isNaN(parseInt(process.env.threads)) ? os.cpus().length : parseInt(process.env.threads),
   /** Is the computer able to send emails? If not, let the main server send the emails */
   automatedEmails: process.env.automatedEmails || false,
   cron: process.env.chron || process.env.cron || false,
