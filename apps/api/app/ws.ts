@@ -1,19 +1,19 @@
 import delay from "delay";
 import jwt from "jsonwebtoken";
 import { groupBy, keyBy, sortBy, uniq, uniqBy } from "lodash";
-import { Types } from "mongoose";
 import cache from "node-cache";
 import WebSocket, { Server } from "ws";
 import "./config/db";
 import env from "./config/env";
 import { ChatMessage, Game, GameDocument, User } from "./models";
+import { ObjectId } from "mongodb";
 
 const wss = new Server({ port: env.listen.port.ws, host: env.listen.host });
 
 type AugmentedWebSocket = WebSocket & {
   game?: string;
   room?: string;
-  user?: Types.ObjectId;
+  user?: ObjectId;
   gameUpdate?: Date;
   isAlive?: boolean;
 };

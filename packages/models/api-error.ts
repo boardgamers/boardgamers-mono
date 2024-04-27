@@ -1,33 +1,14 @@
-import { ApiError } from "@bgs/types";
-import { Document, Model, Schema, Types } from "mongoose";
+import type { ApiError } from "@bgs/types";
+import type { Db, ObjectId, Collection } from "mongodb";
 
-export interface ApiErrorDocument extends Document, ApiError<Types.ObjectId> {}
-
-const repr = {
-  error: {
-    name: String,
-    message: String,
-    stack: [String],
-  },
-  user: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
-  },
-  request: {
-    url: String,
-    method: String,
-    body: String,
-  },
-  meta: {},
-};
-
-export default function makeSchema<U extends Model<ApiErrorDocument> = Model<ApiErrorDocument>>() {
-  const schema = new Schema<ApiErrorDocument, U>(repr, {
-    timestamps: true,
-    capped: { size: 10 * 1024 * 1024, max: 10 * 1000 },
+export async function createApiErrorCollection(db: Db): Promise<Collection<ApiError<ObjectId>>> {
+  const collection = await db.createCollection<ApiError<ObjectId>>("apierrors", {
+    capped: true,
+    size: 10 * 1024 * 1024,
+    max: 10 * 1000,
   });
 
-  schema.index({ user: 1, createdAt: -1 });
+  collection.createIndex({ user: 1, createdAt: -1 });
 
-  return schema;
+  return collection;
 }

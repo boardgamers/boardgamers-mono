@@ -5,6 +5,7 @@
   "main": "server.ts",
   "license": "AGPL-3.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "batch-replay": "ts-node -T scripts/batch-replay.ts",
     "dev": "ts-node-dev -T  server.ts",
@@ -15,8 +16,8 @@
   },
   "dependencies": {
     "@bgs/models": "workspace:*",
-    "@bgs/utils": "workspace:*",
     "@bgs/types": "workspace:*",
+    "@bgs/utils": "workspace:*",
     "decache": "^4.6.0",
     "dotenv": "^8.2.0",
     "fs-extra": "^9.0.0",
@@ -28,8 +29,8 @@
     "koa-morgan": "^1.0.1",
     "koa-router": "^8.0.8",
     "lodash": "^4.17.15",
-    "mongo-locks": "^2.0.0",
-    "mongoose": "6.0.3"
+    "mongo-locks": "^3.0.1",
+    "mongodb": "^6.5.0"
   },
   "devDependencies": {
     "@types/fs-extra": "^8.1.0",

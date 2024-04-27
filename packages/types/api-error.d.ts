@@ -1,4 +1,6 @@
 export interface ApiError<T = string> {
+  _id: T;
+
   error: {
     name: string;
     message: string;
@@ -12,7 +14,9 @@ export interface ApiError<T = string> {
      */
     body: string;
   };
-  meta: any;
+  meta: unknown;
   user: T;
+
+  createdAt: Date;
   updatedAt: Date;
 }

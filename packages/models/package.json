@@ -3,5 +3,9 @@
   "name": "@bgs/models",
   "dependencies": {
     "@bgs/types": "workspace:*"
-  }
+  },
+  "devDependencies": {
+    "mongodb": "^6.5.0"
+  },
+  "main": "index.ts"
 }
