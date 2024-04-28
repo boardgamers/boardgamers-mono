@@ -1,6 +1,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
+import dotenv from "dotenv";
 
 const domain = process.env.domain || "boardgamers.space";
 let dbName = process.env.dbName ?? "bgs";
@@ -11,9 +12,24 @@ if (process.env.NODE_ENV === "test") {
   dbName += "-dev";
 }
 
+const environment = process.env.NODE_ENV || "development";
+
+const parsedEnv = dotenv.config().parsed ?? {};
+// Load non-sensitive default values for environment
+const parsedDefaults = dotenv.config({ path: `.env.${environment}.example` }).parsed || {};
+
+// Replace empty strings from the loaded envs by undefined
+// An empty string in .env can still prevent the default value from being loaded
+for (const key of [...Object.keys(parsedEnv), ...Object.keys(parsedDefaults)]) {
+  if (process.env[key] === "") {
+    delete process.env[key];
+  }
+}
+
 export default {
   script: false,
   domain,
+  isTest: process.env.NODE_ENV === "test",
   site: process.env.site || `www.${domain}`,
   noreply: process.env.noreply || `BGS <no-reply@${domain}>`,
   contact: process.env.contact || `contact@${domain}`,
@@ -79,5 +95,5 @@ export default {
       secret: process.env.googleSecret || "google-oauth-secret",
     },
   },
-  silent: false,
+  silent: process.env.silent === "true",
 };

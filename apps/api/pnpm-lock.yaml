@@ -30,8 +30,8 @@ dependencies:
     specifier: ^3.1.0
     version: 3.1.0
   dotenv:
-    specifier: ^5.0.1
-    version: 5.0.1
+    specifier: ^16.4.5
+    version: 16.4.5
   http-errors:
     specifier: ^1.6.3
     version: 1.8.0
@@ -1120,9 +1120,9 @@ packages:
     resolution: {integrity: sha512-6QvTW9mrGeIegrFXdtQi9pk7O/nSK6lSdXW2eqUspN5LWD7UTji2Fqw5V2YLjBpHEoU9Xl/eUWNpDeZvoyOv2w==}
     dev: false
 
-  /dotenv@5.0.1:
-    resolution: {integrity: sha512-4As8uPrjfwb7VXC+WnLCbXK7y+Ueb2B3zgNCePYfhxS1PYeaO1YTeplffTEcbfLhvFNGLAz90VvJs9yomG7bow==}
-    engines: {node: '>=4.6.0'}
+  /dotenv@16.4.5:
+    resolution: {integrity: sha512-ZmdL2rui+eB2YwhsWzjInR8LldtZHGDoQ1ugH85ppHKwpUHL7j7rN0Ti9NCnGiQbhaZ11FpR+7ao1dNsmduNUg==}
+    engines: {node: '>=12'}
     dev: false
 
   /ecdsa-sig-formatter@1.0.11:

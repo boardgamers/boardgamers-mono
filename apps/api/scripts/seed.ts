@@ -1,6 +1,4 @@
-import mongoose, { Collection } from "mongoose";
 import { env } from "../app/config";
-import initDb from "../app/config/db";
 import * as models from "../app/models";
 import * as data from "./data";
 

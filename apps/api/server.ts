@@ -1,7 +1,5 @@
 import cluster from "cluster";
-import "dotenv/config";
 import { listen } from "./app/app";
-import initDb from "./app/config/db";
 import env from "./app/config/env";
 import { listen as listenResources } from "./app/resources";
 
@@ -9,8 +7,6 @@ const handleError = (err: Error) => {
   console.error(err);
   process.exit(1);
 };
-
-initDb().catch(handleError);
 
 // In production, run a process for each CPU
 if (cluster.isMaster && env.isProduction && env.threads > 1) {
@@ -20,7 +16,6 @@ if (cluster.isMaster && env.isProduction && env.threads > 1) {
 } else {
   listen().catch(handleError);
   listenResources().catch(handleError);
-  // tslint:disable-next-line no-var-requires
   require("./app/ws");
 }
 

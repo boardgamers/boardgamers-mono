@@ -1,49 +1,28 @@
 import cluster from "cluster";
-import locks from "mongo-locks";
-import mongoose from "mongoose";
+import { LockManager } from "mongo-locks";
 import { migrate } from "../models/migrations";
 import env from "./env";
+import { MongoClient } from "mongodb";
 
-mongoose.Promise = global.Promise; // native promises
+const client = new MongoClient(env.database.bgs.url, { directConnection: true, ignoreUndefined: true });
 
-let dbInit = false;
+const db = client.db(env.database.bgs.name);
 
-export default async function initDb(url = env.database.bgs.url, runMigrations = true) {
-  if (dbInit) {
-    console.log("DB already initialized");
-    return;
-  }
+const locks = new LockManager(db.collection("mongo-locks"));
 
-  dbInit = true;
-
-  const connect = () =>
-    mongoose
-      .connect(url, { dbName: env.database.bgs.name, directConnection: true })
-      .then(() => console.log("successfully connected to database"));
-  await connect();
-
-  locks.init(mongoose.connection);
-
-  if (cluster.isMaster && runMigrations) {
-    let free = () => {};
-    try {
-      free = await locks.lock("migration");
-      await migrate();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      free();
-    }
-  }
-
-  mongoose.connection.on("error", (err) => {
-    console.error("db error", err);
+await db
+  .listCollections()
+  .toArray()
+  .then(() => {
+    console.log("Connected to database");
   });
 
-  if (!env.script) {
-    mongoose.connection.on("disconnected", () => {
-      console.log("attempt to reconnect to database");
-      setTimeout(() => connect().catch(console.error), 5000);
-    });
+export const collections = {};
+
+if (!env.isTest && cluster.isMaster) {
+  await using lock = await locks.lock("db");
+
+  if (lock) {
+    await migrate();
   }
 }
