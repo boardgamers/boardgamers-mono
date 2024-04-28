@@ -1,20 +1,27 @@
 import { deadline, elapsedSeconds } from "@bgs/utils/time";
 import assert from "assert";
 import crypto from "crypto";
-import locks from "mongo-locks";
 import env from "../config/env";
-import ChatMessage from "../models/chatmessage";
-import Game, { GameDocument } from "../models/game";
-import GameNotification, { GameNotificationDocument } from "../models/gamenotification";
+import type { GameDocument } from "../models/game";
+import Game from "../models/game";
+import type { GameNotificationDocument } from "../models/gamenotification";
+import GameNotification from "../models/gamenotification";
 import type { Engine, GameData } from "../types/engine";
 import { getEngine } from "./engines";
+import { collections, locks } from "app/config/db";
+import { ObjectId } from "mongodb";
 
 export async function handleMessages(engine: Engine, gameId: string, gameData: GameData): Promise<GameData> {
   if (engine.messages) {
     const ret = engine.messages(gameData);
 
     for (const message of ret.messages) {
-      await ChatMessage.create({ room: gameId, type: "system", data: { text: message } });
+      await collections.chatMessages.insertOne({
+        _id: new ObjectId(),
+        room: gameId,
+        type: "system",
+        data: { text: message },
+      });
     }
 
     return ret.data;
@@ -23,12 +30,16 @@ export async function handleMessages(engine: Engine, gameId: string, gameData: G
   return gameData;
 }
 
-export async function addMessage(gameId: string, message: string) {
-  await ChatMessage.create({ room: gameId, type: "system", data: { text: message } });
+export async function addMessage(gameId: string, message: string): Promise<void> {
+  await collections.chatMessages.insertOne({
+    _id: new ObjectId(),
+    room: gameId,
+    type: "system",
+    data: { text: message },
+  });
 }
 
 export async function startNextGame(): Promise<boolean> {
-  let free = locks.noop;
   try {
     const notification = await GameNotification.findOne({ kind: "gameStarted", processed: false });
 
@@ -36,7 +47,11 @@ export async function startNextGame(): Promise<boolean> {
       return false;
     }
 
-    free = await locks.lock("game", notification.game);
+    await using lock = await locks.lock(["game", notification.game]);
+
+    if (!lock) {
+      return false;
+    }
 
     const game = await Game.findById(notification.game);
 
@@ -105,46 +120,48 @@ export async function startNextGame(): Promise<boolean> {
   } catch (err) {
     console.error(err);
     return false;
-  } finally {
-    free().catch(console.error);
   }
 }
 
-export async function processQuit(notification: GameNotificationDocument) {
-  let free = locks.noop;
-  try {
-    free = await locks.lock("game", notification.game);
+export async function processQuit(notification: GameNotificationDocument): Promise<boolean> {
+  await using lock = await locks.lock(["game", notification.game]);
 
-    const game = await Game.findById(notification.game);
+  if (!lock) {
+    return false;
+  }
 
-    if (!game || game.status !== "active") {
-      // Something happened, not ready to start
-      await notification.update({ processed: true });
-      return true;
-    }
+  const game = await Game.findById(notification.game);
 
-    const player = game.players.find((pl) => pl._id.equals(notification.user));
+  if (!game || game.status !== "active") {
+    // Something happened, not ready to start
+    await notification.update({ processed: true });
+    return true;
+  }
 
-    if (!player || player.dropped || player.quit) {
-      await notification.update({ processed: true });
-      return true;
-    }
+  const player = game.players.find((pl) => pl._id.equals(notification.user));
 
-    const engine = await getEngine(game.game.name, game.game.version);
+  if (!player || player.dropped || player.quit) {
+    await notification.update({ processed: true });
+    return true;
+  }
 
-    let gameData = game.data;
+  const engine = await getEngine(game.game.name, game.game.version);
 
-    gameData = await engine.dropPlayer(
-      gameData,
-      game.players.findIndex((pl) => pl._id.equals(player._id))
-    );
-    if (notification.kind === "playerQuit") {
-      player.quit = true;
-    } else {
-      player.dropped = true;
-    }
+  let gameData = game.data;
 
-    ChatMessage.create({
+  gameData = await engine.dropPlayer(
+    gameData,
+    game.players.findIndex((pl) => pl._id.equals(player._id))
+  );
+  if (notification.kind === "playerQuit") {
+    player.quit = true;
+  } else {
+    player.dropped = true;
+  }
+
+  collections.chatMessages
+    .insertOne({
+      _id: new ObjectId(),
       room: game._id,
       type: "system",
       data: {
@@ -153,31 +170,26 @@ export async function processQuit(notification: GameNotificationDocument) {
             ? `${player.name} quit the game`
             : `${player.name} was dropped from the game`,
       },
-    }).catch(console.error);
+    })
+    .catch(console.error);
 
-    if (engine.toSave) {
-      gameData = engine.toSave(gameData);
-    }
-
-    if (gameData) {
-      await afterMove(engine, game, gameData);
-
-      // Here to only trigger if the game is saved
-      if (notification.kind === "dropPlayer") {
-        GameNotification.create({ kind: "playerDrop", game: notification.game, user: notification.user }).catch(
-          console.error
-        );
-      }
-    }
-    await notification.update({ processed: true });
-
-    return true;
-  } catch (err) {
-    console.error(err);
-    return false;
-  } finally {
-    free().catch(console.error);
+  if (engine.toSave) {
+    gameData = engine.toSave(gameData);
   }
+
+  if (gameData) {
+    await afterMove(engine, game, gameData);
+
+    // Here to only trigger if the game is saved
+    if (notification.kind === "dropPlayer") {
+      GameNotification.create({ kind: "playerDrop", game: notification.game, user: notification.user }).catch(
+        console.error
+      );
+    }
+  }
+  await notification.update({ processed: true });
+
+  return true;
 }
 
 export async function afterMove(engine: Engine, game: GameDocument, gameData: GameData, alreadyEnded = false) {

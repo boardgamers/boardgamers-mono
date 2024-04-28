@@ -2,23 +2,17 @@ import { timerDuration } from "@bgs/utils/time";
 import assert from "assert";
 import { addDays } from "date-fns";
 import createError from "http-errors";
-import { Context } from "koa";
+import type { Context } from "koa";
 import Router from "koa-router";
 import { omit } from "lodash";
-import locks from "mongo-locks";
-import {
-  ChatMessage,
-  Game,
-  GameInfo,
-  GameNotification,
-  GamePreferences,
-  RoomMetaData,
-  RoomMetaDataDocument,
-  User,
-} from "../../models";
+import type { RoomMetaDataDocument } from "../../models";
+import { Game, GameInfo, GameNotification, GamePreferences, RoomMetaData, User } from "../../models";
 import { notifyGameStart } from "../../services/game";
 import { isAdmin, isConfirmed, loggedIn } from "../utils";
 import listings from "./listings";
+import { ObjectId } from "mongodb";
+import { z } from "zod";
+import { collections, locks } from "../../config/db";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -232,23 +226,29 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
       (ctx.state.user && ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id))),
     "You must be a player of the game to chat!"
   );
-  assert(ctx.request.body.type === "text" || ctx.request.body.type === "emoji");
 
-  const text = ctx.request.body?.data?.text?.trim();
-  assert(text, "Empty chat message");
+  const parsed = z
+    .object({
+      type: z.enum(["text", "emoji"]),
+      data: z.object({
+        text: z.string().min(1).max(300).trim(),
+      }),
+    })
+    .parse(ctx.request.body);
 
-  const doc = new ChatMessage({
+  await collections.chatMessages.insertOne({
+    _id: new ObjectId(),
     room: ctx.state.game._id,
     author: {
       _id: ctx.state.user._id,
       name: ctx.state.user.account.username,
     },
     data: {
-      text: ctx.request.body.data.text,
+      text: parsed.data.text,
     },
-    type: ctx.request.body.type,
+    type: parsed.type,
   });
-  await doc.save();
+
   ctx.status = 200;
 });
 
@@ -446,40 +446,47 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
     "You must be a player of the game to vote!"
   );
 
-  const free = await locks.lock("game-cancel", ctx.params.gameId);
+  await using lock = await locks.lock(["game-cancel", ctx.params.gameId]);
 
-  try {
-    const game = await Game.findOne({ _id: ctx.params.gameId });
+  if (!lock) {
+    throw createError(409, "The game is already being cancelled");
+  }
 
-    assert(game, createError(404));
-    assert(game.status === "active", "The game is not ongoing");
+  const game = await Game.findOne({ _id: ctx.params.gameId });
 
-    const player = game.players.find((pl) => pl._id.equals(ctx.state.user._id));
+  assert(game, createError(404));
+  assert(game.status === "active", "The game is not ongoing");
 
-    assert(!player.voteCancel, "You already voted to cancel the game");
+  const player = game.players.find((pl) => pl._id.equals(ctx.state.user._id));
 
-    player.voteCancel = true;
-    await ChatMessage.create({
+  assert(!player.voteCancel, "You already voted to cancel the game");
+
+  player.voteCancel = true;
+
+  await collections.chatMessages.insertOne({
+    _id: new ObjectId(),
+    room: game._id,
+    type: "system",
+    data: { text: `${ctx.state.user.account.username} voted to cancel this game` },
+  });
+
+  if (game.players.every((pl) => pl.voteCancel || pl.dropped)) {
+    await collections.chatMessages.insertOne({
+      _id: new ObjectId(),
       room: game._id,
       type: "system",
-      data: { text: `${player.name} voted to cancel this game` },
+      data: { text: `Game cancelled` },
     });
+    game.status = "ended";
+    game.cancelled = true;
+    game.currentPlayers = null;
+  }
 
-    if (game.players.every((pl) => pl.voteCancel || pl.dropped)) {
-      await ChatMessage.create({ room: game._id, type: "system", data: { text: `Game cancelled` } });
-      game.status = "ended";
-      game.cancelled = true;
-      game.currentPlayers = null;
-    }
+  await game.save();
 
-    await game.save();
-
-    if (game.status === "ended") {
-      // Possible concurrency issue if game is cancelled at the exact same time as being finished
-      await GameNotification.create({ kind: "gameEnded", game: game._id });
-    }
-  } finally {
-    free().catch(console.error);
+  if (game.status === "ended") {
+    // Possible concurrency issue if game is cancelled at the exact same time as being finished
+    await GameNotification.create({ kind: "gameEnded", game: game._id });
   }
 
   ctx.status = 200;
@@ -491,21 +498,21 @@ router.post("/:gameId/quit", loggedIn, async (ctx) => {
     "You must be a player of the game to quit!"
   );
 
-  const free = await locks.lock("game-cancel", ctx.params.gameId);
+  await using lock = await locks.lock(["game-cancel", ctx.params.gameId]);
 
-  try {
-    const game = await Game.findOne({ _id: ctx.params.gameId }).select("players status").lean(true);
-
-    assert(game.status === "active", "The game is not ongoing");
-
-    const player = game.players.find((pl) => pl._id.equals(ctx.state.user._id));
-
-    assert(!player.quit && !player.dropped, "You already quit the game");
-
-    await GameNotification.create({ kind: "playerQuit", user: ctx.state.user._id, game: game._id });
-  } finally {
-    free().catch(console.error);
+  if (!lock) {
+    throw createError(409, "The game is already being cancelled");
   }
+
+  const game = await Game.findOne({ _id: ctx.params.gameId }).select("players status").lean(true);
+
+  assert(game.status === "active", "The game is not ongoing");
+
+  const player = game.players.find((pl) => pl._id.equals(ctx.state.user._id));
+
+  assert(!player.quit && !player.dropped, "You already quit the game");
+
+  await GameNotification.create({ kind: "playerQuit", user: ctx.state.user._id, game: game._id });
 
   ctx.status = 200;
 });

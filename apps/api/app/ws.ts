@@ -1,12 +1,14 @@
 import delay from "delay";
 import jwt from "jsonwebtoken";
-import { groupBy, keyBy, sortBy, uniq, uniqBy } from "lodash";
+import { groupBy, keyBy, sortBy, uniqBy } from "lodash";
 import cache from "node-cache";
 import WebSocket, { Server } from "ws";
 import "./config/db";
 import env from "./config/env";
-import { ChatMessage, Game, GameDocument, User } from "./models";
-import { ObjectId } from "mongodb";
+import type { GameDocument } from "./models";
+import { Game, User } from "./models";
+import type { ObjectId } from "mongodb";
+import { collections } from "./config/db";
 
 const wss = new Server({ port: env.listen.port.ws, host: env.listen.host });
 
@@ -55,37 +57,11 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
         ws.room = data.room;
 
         // Show only last 100 messages
-        const roomMessages = await ChatMessage.find({ room: data.room })
-          .lean(true)
-          // Migrate old schema where user contained the author id
-          // todo: Remove once all the old chat messages expire
-          .select({
-            author: { $cond: [{ $eq: [{ $type: "$author" }, "objectId"] }, { _id: "$author", name: "-" }, "$author"] },
-            _id: 1,
-            data: 1,
-            type: 1,
-          })
-          .sort("-_id")
-          .limit(100);
-
-        // todo: Remove once all the old chat messages expire
-        const userIds = uniq(
-          roomMessages.filter((msg) => msg.author?.name === "-").map((msg) => msg.author._id.toString())
-        );
-        if (userIds.length > 0) {
-          const userNames = Object.fromEntries(
-            (
-              await User.find({ _id: { $in: userIds } })
-                .select("account.username")
-                .lean(true)
-            ).map((user) => [user._id.toString(), user.account.username])
-          );
-          for (const message of roomMessages) {
-            if (message.author?.name === "-") {
-              message.author.name = userNames[message.author._id.toString()] || "-";
-            }
-          }
-        }
+        const roomMessages = await collections.chatMessages
+          .find({ room: data.room })
+          .sort({ _id: -1 })
+          .limit(100)
+          .toArray();
 
         if (ws.readyState !== ws.OPEN) {
           return;
@@ -197,9 +173,7 @@ const gameCache = new cache({ stdTTL: 24 * 3600 });
 async function run() {
   while (1) {
     // Find new messages
-    const messages = await ChatMessage.find()
-      .where({ _id: { $gt: lastChecked } })
-      .lean();
+    const messages = await collections.chatMessages.find({ _id: { $gt: lastChecked } }).toArray();
     const messagesPerRooms = groupBy(messages, (msg) => msg.room.toString());
 
     for (const msg of messages) {
@@ -291,7 +265,7 @@ run().catch((err: Error) => {
   process.exit(1);
 });
 
-async function updateActivity(user: Types.ObjectId, online: boolean) {
+async function updateActivity(user: ObjectId, online: boolean) {
   try {
     if (online) {
       await User.updateOne(

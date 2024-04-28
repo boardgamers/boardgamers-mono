@@ -8,7 +8,7 @@ export async function createApiErrorCollection(db: Db): Promise<Collection<ApiEr
     max: 10 * 1000,
   });
 
-  collection.createIndex({ user: 1, createdAt: -1 });
+  await collection.createIndex({ user: 1, createdAt: -1 });
 
   return collection;
 }
