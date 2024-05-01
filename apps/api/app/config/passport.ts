@@ -12,6 +12,7 @@ import type { UserDocument } from "../models";
 import { DEFAULT_KARMA, MAX_EMAIL_LENGTH, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH, UserUtils } from "../models";
 import env from "./env";
 import { z } from "zod";
+import type { SocialProvider } from "@bgs/types";
 import { User } from "@bgs/types";
 import { ObjectId } from "mongodb";
 
@@ -244,7 +245,10 @@ passport.use(
   )
 );
 
-function makeSocialStrategy<T extends Strategy>(provider: string, SocialStrategy: new (...args: unknown[]) => T) {
+function makeSocialStrategy<T extends Strategy>(
+  provider: SocialProvider,
+  SocialStrategy: new (...args: unknown[]) => T
+) {
   passport.use(
     provider,
     new SocialStrategy(

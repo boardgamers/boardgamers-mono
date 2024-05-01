@@ -21,6 +21,7 @@ export const AVATAR_STYLES = Object.freeze([
   "upload",
 ]);
 export type AvatarStyle = (typeof AVATAR_STYLES)[number];
+export type SocialProvider = "google" | "facebook" | "discord";
 
 export interface User<T = string> {
   _id: T;
@@ -31,11 +32,7 @@ export interface User<T = string> {
     password: string;
     karma: number;
     termsAndConditions: Date;
-    social: {
-      google?: string;
-      facebook?: string;
-      discord?: string;
-    };
+    social: Partial<Record<SocialProvider, string>>;
     avatar: AvatarStyle;
     bio: string;
   };
