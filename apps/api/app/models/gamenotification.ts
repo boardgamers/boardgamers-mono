@@ -3,7 +3,7 @@ import EloService from "../services/elo";
 import type { LogItem } from "./log";
 import { Log } from "./log";
 import type { ObjectId } from "mongodb";
-import { maxKarma, User } from "./user";
+import { MAX_KARMA, User } from "./user";
 import { collections, locks } from "../config/db";
 import type { PickDeep } from "type-fest";
 
@@ -63,7 +63,7 @@ export namespace GameNotificationUtils {
           {
             $set: {
               "account.karma": {
-                $min: [{ $add: ["$account.karma", 1] }, maxKarma],
+                $min: [{ $add: ["$account.karma", 1] }, MAX_KARMA],
               },
             },
           },
@@ -99,7 +99,7 @@ export namespace GameNotificationUtils {
       })
       .toArray();
 
-    let userIds = notifications.map((not) => not.user);
+    let userIds = notifications.map((not) => not.user).filter((x) => x !== undefined);
 
     // The loop is in case a player drops one or more players at a time
     do {

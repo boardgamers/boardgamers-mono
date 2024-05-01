@@ -1,4 +1,4 @@
-import { defaultKarma, GameNotification, GamePreferences, maxKarma, User } from "./index";
+import { DEFAULT_KARMA, GameNotification, GamePreferences, MAX_KARMA, User } from "./index";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TestUtils } from "../services/testutils";
 import { ObjectId } from "mongodb";
@@ -28,18 +28,18 @@ describe("GameNotification", () => {
 
         const user = await User.findById(userId);
         const user2 = await User.findById(userId2);
-        expect(user.account.karma).to.equal(defaultKarma + 1);
-        expect(user2.account.karma).to.equal(defaultKarma);
+        expect(user.account.karma).to.equal(DEFAULT_KARMA + 1);
+        expect(user2.account.karma).to.equal(DEFAULT_KARMA);
       });
 
       it("should not go above 100", async () => {
         await GameNotification.create({ kind: "gameEnded", game: "test" });
 
-        await User.updateOne({ _id: userId }, { $set: { "account.karma": maxKarma } });
+        await User.updateOne({ _id: userId }, { $set: { "account.karma": MAX_KARMA } });
         await GameNotification.processGameEnded();
 
         const user = await User.findById(userId);
-        expect(user.account.karma).to.equal(maxKarma);
+        expect(user.account.karma).to.equal(MAX_KARMA);
       });
     });
 
@@ -164,7 +164,7 @@ describe("GameNotification", () => {
 
       const user = await User.findById(userId);
 
-      expect(user.account.karma).to.equal(defaultKarma - 10);
+      expect(user.account.karma).to.equal(DEFAULT_KARMA - 10);
       expect(await GameNotification.countDocuments({ processed: false })).to.equal(
         0,
         "Game notifications should be cleaned up"
@@ -184,7 +184,7 @@ describe("GameNotification", () => {
 
       const user = await User.findById(userId);
 
-      expect(user.account.karma).to.equal(defaultKarma - 10 - 30);
+      expect(user.account.karma).to.equal(DEFAULT_KARMA - 10 - 30);
     });
 
     it("should handle multiple player drops simulatenously", async () => {
@@ -207,8 +207,8 @@ describe("GameNotification", () => {
       const user = await User.findById(userId);
       const user2 = await User.findById(userId2);
 
-      expect(user.account.karma).to.equal(defaultKarma - 10 - 30 - 30);
-      expect(user2.account.karma).to.equal(defaultKarma - 10);
+      expect(user.account.karma).to.equal(DEFAULT_KARMA - 10 - 30 - 30);
+      expect(user2.account.karma).to.equal(DEFAULT_KARMA - 10);
     });
   });
 });

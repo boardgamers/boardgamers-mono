@@ -1,31 +1,95 @@
-import type { IAbstractUser } from "@bgs/types";
+import type { User } from "@bgs/types";
 import assert from "assert";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import type { Db, Collection } from "mongodb";
+import { ObjectId } from "mongodb";
 import { isEmpty, pick } from "lodash";
-import locks from "mongo-locks";
-import mongoose, { Types } from "mongoose";
 import { env, sendmail } from "../config";
-import { Game } from "./game";
+import type { PickDeep } from "type-fest";
+import { collections } from "../config/db";
 
-const Schema = mongoose.Schema;
-
-export const defaultKarma = 75;
-export const maxKarma = 100;
+export const DEFAULT_KARMA = 75;
+export const MAX_KARMA = 100;
+export const MIN_USERNAME_LENGTH = 2;
+export const MAX_USERNAME_LENGTH = 20;
+export const MAX_BIO_LENGTH = 500;
+export const MAX_EMAIL_LENGTH = 50;
 
 const secureId = () => crypto.randomBytes(12).toString("base64").replace(/\+/g, "_").replace(/\//g, "-");
 
-const publicInfo = Object.freeze(["_id", "account.username", "account.bio", "account.karma", "createdAt"] as const);
+export namespace UserUtils {
+  export function isAdmin(authority: User["authority"]): authority is "admin" {
+    return authority === "admin";
+  }
+  export function generateHash(password: string): Promise<string> {
+    return bcrypt.hash(password, 8);
+  }
+  export function generateConfirmKey(): string {
+    return secureId();
+  }
 
-export interface UserDocument extends IAbstractUser, mongoose.Document {
-  isAdmin(): boolean;
+  export function validPassword(password: string, hash: string): Promise<boolean> {
+    return bcrypt.compare(password, hash);
+  }
 
-  generateHash(password: string): Promise<string>;
-  validPassword(password: string): Promise<boolean>;
-  resetPassword(password: string): Promise<void>;
-  email(): string;
-  // Filtered user for public consumption
-  publicInfo(): UserDocument;
+  export async function resetPassword(_id: User<ObjectId>["_id"], password: string): Promise<void> {
+    const hash = await generateHash(password);
+    await collections.users.updateOne(
+      { _id },
+      { $set: { "account.password": hash, updatedAt: new Date() }, $unset: { "security.reset": "" } }
+    );
+  }
+
+  export const publicFields = Object.freeze([
+    "_id",
+    "account.username",
+    "account.bio",
+    "account.karma",
+    "createdAt",
+  ] as const);
+
+  export const publicProjection = Object.fromEntries(publicFields.map((field) => [field, 1]));
+
+  export type PublicUser = PickDeep<User, (typeof publicFields)[number]>;
+
+  export function publicInfo(user: User): PublicUser {
+    return pick(user, publicFields) as PublicUser;
+  }
+
+  export function generateSlug(username: string): string {
+    return username.toLowerCase().replace(/\s+/, "-");
+  }
+
+  export async function findByUsername(username: string): Promise<User<ObjectId> | null> {
+    return collections.users.findOne({ "security.slug": generateSlug(username) });
+  }
+
+  export async function findByEmail(email: string): Promise<User<ObjectId> | null> {
+    return collections.users.findOne({ "account.email": email.toLowerCase().trim() });
+  }
+
+  export async function findByUrl(urlComponent: string): Promise<User<ObjectId> | null> {
+    return collections.users.findOne({ _id: new ObjectId(urlComponent) });
+  }
+}
+
+export async function createUserCollection(db: Db): Promise<Collection<User<ObjectId>>> {
+  const collection = db.collection<User<ObjectId>>("users");
+
+  await collection.createIndex({ "account.username": 1 }, { unique: true });
+  await collection.createIndex({ "security.slug": 1 }, { unique: true });
+  await collection.createIndex({ "security.lastIp": 1 });
+  await collection.createIndex({ "account.email": 1 }, { unique: true, sparse: true });
+
+  await collection.createIndex({ "social.facebook": 1 }, { unique: true, sparse: true });
+  await collection.createIndex({ "social.google": 1 }, { unique: true, sparse: true });
+  await collection.createIndex({ "social.discord": 1 }, { unique: true, sparse: true });
+
+  return collection;
+}
+
+export interface UserDocument extends User, mongoose.Document {
   changeEmail(email: string): Promise<void>;
   generateResetLink(): Promise<void>;
   resetKey(): string;
@@ -39,160 +103,13 @@ export interface UserDocument extends IAbstractUser, mongoose.Document {
   sendMailChangeEmail(newEmail: string): Promise<void>;
   sendGameNotificationEmail(): Promise<void>;
   updateGameNotification(): Promise<void>;
-  isSocialAccount(): boolean;
   notifyLogin(ip: string): Promise<void>;
   notifyLastIp(ip: string): Promise<void>;
 }
 
-interface UserModel extends mongoose.Model<UserDocument> {
-  findByEmail(email: string): Promise<UserDocument>;
-  findByUsername(name: string): Promise<UserDocument>;
-  findByUrl(urlComponent: string): Promise<UserDocument>;
-  publicInfo(): typeof publicInfo;
-}
-
-// define the schema for our user model
-const schema = new Schema<UserDocument, UserModel>(
-  {
-    account: {
-      username: {
-        type: String,
-        maxlength: [20, "Pick a shorter username"],
-        minlength: [2, "Pick a longer username"],
-        trim: true,
-        unique: true,
-        sparse: true,
-      },
-      email: {
-        type: String,
-        unique: true,
-        maxlength: [50, "Too long email"],
-        trim: true,
-        lowercase: true,
-        sparse: true,
-      },
-      password: String,
-      karma: {
-        type: Number,
-        default: defaultKarma,
-        max: maxKarma,
-      },
-      termsAndConditions: Date,
-      avatar: {
-        type: String,
-        trim: true,
-        default: "pixel-art",
-        maxlength: 20,
-      },
-      bio: {
-        type: String,
-        trim: true,
-        maxlength: [500, "Too long bio"],
-      },
-      social: {
-        google: {
-          type: String,
-          sparse: true,
-          unique: true,
-        },
-        facebook: {
-          type: String,
-          sparse: true,
-          unique: true,
-        },
-        discord: {
-          type: String,
-          sparse: true,
-          unique: true,
-        },
-      },
-    },
-    settings: {
-      mailing: {
-        newsletter: Boolean,
-        game: {
-          delay: Number,
-          activated: Boolean,
-        },
-      },
-      game: {
-        soundNotification: Boolean,
-      },
-      home: {
-        showMyGames: {
-          type: Boolean,
-          default: true,
-        },
-      },
-    },
-    security: {
-      lastIp: { type: String, index: true },
-      lastActive: Date,
-      lastOnline: Date,
-      lastLogin: {
-        ip: String,
-        date: Date,
-      },
-      confirmed: Boolean,
-      confirmKey: String,
-      reset: {
-        key: String,
-        issued: Date,
-      },
-      slug: {
-        type: String,
-        sparse: true,
-        unique: true,
-        trim: true,
-        lowercase: true,
-      },
-    },
-    meta: {
-      nextGameNotification: Date,
-      lastGameNotification: Date,
-    },
-    authority: String,
-  },
-  {
-    toJSON: {
-      transform: (doc, ret) => {
-        delete ret.account.password;
-        delete ret.security.confirmKey;
-        delete (ret.security.reset || {}).key;
-        return ret;
-      },
-    },
-    timestamps: true,
-  }
-);
-
-// methods ======================
-// generating a hash
-schema.method("generateHash", function (this: UserDocument, password: string) {
-  return bcrypt.hash(password, 8);
-});
-
 // checking if password is valid
-schema.method("validPassword", function (this: UserDocument, password: string) {
-  return bcrypt.compare(password, this.account.password);
-});
-
-schema.method("resetPassword", function (this: UserDocument, password: string) {
-  return this.generateHash(password).then((hash: string) => {
-    return this.update({
-      "account.password": hash,
-      "security.reset": null,
-    });
-  });
-});
-
-schema.method("email", function (this: UserDocument) {
-  return this.account.email;
-});
 
 schema.method("changeEmail", async function (this: UserDocument, email: string) {
-  assert(!this.isSocialAccount(), "You can't change the email of a social account.");
-
   assert(!(await User.findByEmail(email)), "User with this email already exists.");
 
   this.account.email = email;
@@ -205,12 +122,6 @@ schema.method("changeEmail", async function (this: UserDocument, email: string) 
     "security.confirmKey": this.security.confirmKey,
   });
 });
-
-schema.method("publicInfo", function (this: UserDocument) {
-  return pick(this, publicInfo);
-});
-
-schema.static("publicInfo", () => publicInfo);
 
 schema.method("generateResetLink", async function (this: UserDocument) {
   this.security.reset = {
@@ -407,10 +318,6 @@ schema.method("updateGameNotification", async function (this: UserDocument) {
   }
 });
 
-schema.method("isSocialAccount", function (this: UserDocument) {
-  return false;
-});
-
 schema.method("notifyLogin", function (this: UserDocument, ip: string) {
   return this.update({
     "security.lastLogin.date": Date.now(),
@@ -434,16 +341,8 @@ schema.method("notifyLastIp", async function (this: UserDocument, ip: string) {
   }
 });
 
-schema.method("isAdmin", function (this: UserDocument) {
-  return this.authority === "admin";
-});
-
 schema.static("findByUrl", function (this: UserModel, urlComponent: string) {
   return this.findById(new Types.ObjectId(urlComponent));
-});
-
-schema.static("findByUsername", function (this: UserModel, username: string) {
-  return this.findOne({ "security.slug": username.toLowerCase().replace(/\s+/, "-") });
 });
 
 schema.static("findByEmail", function (this: UserModel, email: string) {
@@ -455,24 +354,15 @@ schema.method("recalculateKarma", async function (this: UserDocument, since = ne
     lean: true,
   }).sort("lastMove");
 
-  let karma = defaultKarma;
+  let karma = DEFAULT_KARMA;
 
   for (const game of games) {
     if (game.players.find((player) => player._id.equals(this._id)).dropped) {
       karma -= 10;
     } else if (!game.cancelled && game.status === "ended") {
-      karma = Math.min(karma + 1, maxKarma);
+      karma = Math.min(karma + 1, MAX_KARMA);
     }
   }
 
   this.account.karma = karma;
 });
-
-schema.pre("save", function (this: UserDocument) {
-  if (!this.security.slug && this.account.username) {
-    this.security.slug = this.account.username.toLowerCase().trim().replace(/\s+/g, "-");
-  }
-});
-
-const User = mongoose.model("User", schema);
-export { User };

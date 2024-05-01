@@ -1,24 +1,19 @@
 import assert from "assert";
 import createError from "http-errors";
 import Jimp from "jimp";
-import { Context } from "koa";
+import type { Context } from "koa";
 import passport from "koa-passport";
 import Router from "koa-router";
-import { merge, pick } from "lodash";
-import {
-  Game,
-  GameInfo,
-  GamePreferences,
-  Image,
-  ImageCollection,
-  JwtRefreshToken,
-  Log,
-  User,
-  UserDocument,
-} from "../../models";
+import { merge } from "lodash";
+import type { Image } from "../../models";
+import { GamePreferences, ImageCollection, JwtRefreshToken, Log, MAX_BIO_LENGTH } from "../../models";
 import { loggedIn, loggedOut } from "../utils";
 import auth from "./auth";
 import { sendAuthInfo } from "./utils";
+import { z } from "zod";
+import { AVATAR_STYLES } from "@bgs/types";
+import { collections } from "../../config/db";
+import { typedInclude } from "@bgs/utils";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -57,13 +52,52 @@ router.get("/active-games", async (ctx) => {
 
 router.post("/", loggedIn, async (ctx) => {
   const body = ctx.request.body;
+  const user = ctx.state.user!;
 
-  // We only allow setting URLs through social media
-  const avatar: string = body.account?.avatar;
-  assert(!avatar?.includes("/") && !avatar?.includes("."), "Invalid avatar");
+  const parsed = z
+    .object({
+      account: z
+        .object({
+          avatar: z.enum([AVATAR_STYLES[0], ...AVATAR_STYLES.slice(1)]).optional(),
+          bio: z.string().trim().max(MAX_BIO_LENGTH).optional(),
+        })
+        .optional(),
+      settings: z.object({
+        mailing: z
+          .object({
+            newsletter: z.boolean().optional(),
+            game: z.object({
+              /** Delay before sending a mail notification, in seconds */
+              delay: z.number().int().min(0).optional(),
+              /** Are email notifications enabled? */
+              activated: z.boolean().optional(),
+            }),
+          })
+          .optional(),
+        game: z.object({
+          soundNotification: z.boolean().optional(),
+        }),
+        home: z.object({
+          /** Show my games instead of featured games */
+          showMyGames: z.boolean().optional(),
+        }),
+      }),
+    })
+    .parse(body);
 
-  merge(ctx.state.user, pick(body, ["settings", "account.avatar", "account.bio"]));
-  await ctx.state.user.save();
+  merge(user, parsed);
+
+  await collections.users.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        "account.bio": user.account.bio,
+        "account.avatar": user.account.avatar,
+        settings: user.settings,
+        updatedAt: new Date(),
+      },
+    }
+  );
   ctx.body = ctx.state.user;
 });
 
@@ -76,9 +110,9 @@ router.post("/avatar", loggedIn, async (ctx) => {
   const input = Buffer.concat(parts);
   const image = await Jimp.read(input);
 
-  const mime = [Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(image.getMIME() as any)
+  const mime = typedInclude([Jimp.MIME_JPEG, Jimp.MIME_PNG], image.getMIME())
     ? image.getMIME()
-    : image.hasAlpha
+    : image.hasAlpha()
       ? Jimp.MIME_PNG
       : Jimp.MIME_JPEG;
 
@@ -94,7 +128,7 @@ router.post("/avatar", loggedIn, async (ctx) => {
   }
 
   await ImageCollection.updateOne(
-    { ref: ctx.state.user._id, key: "avatar", refType: "User" },
+    { ref: ctx.state.user!._id, key: "avatar", refType: "User" },
     {
       $set: {
         images,
@@ -103,15 +137,25 @@ router.post("/avatar", loggedIn, async (ctx) => {
     },
     { upsert: true }
   );
-  ctx.state.user.account.avatar = "upload";
-  await ctx.state.user.save();
+
+  await collections.users.updateOne(
+    {
+      _id: ctx.state.user!._id,
+    },
+    {
+      $set: {
+        "account.avatar": "upload",
+        updatedAt: new Date(),
+      },
+    }
+  );
 
   ctx.status = 200;
 });
 
 router.post("/email", loggedIn, async (ctx) => {
   const { email } = ctx.request.body;
-  const user: UserDocument = ctx.state.user;
+  const user = ctx.state.user!;
 
   const foundUser = await User.findByEmail(email);
 

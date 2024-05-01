@@ -24,10 +24,10 @@ export interface ViewerInfo {
   replayable: boolean;
 }
 
-type GameInfoOption = {
+interface GameInfoOption {
   label: string;
   type: "checkbox" | "select" | "hidden" | "category";
-  default: any;
+  default: unknown;
   category?: string;
   name: string;
   items:
@@ -38,7 +38,7 @@ type GameInfoOption = {
         },
       ]
     | null;
-};
+}
 export interface GameInfo {
   _id: {
     game: string;
@@ -85,4 +85,7 @@ export interface GameInfo {
     public: boolean;
     needOwnership: boolean;
   };
+
+  createdAt: Date;
+  updatedAt: Date;
 }

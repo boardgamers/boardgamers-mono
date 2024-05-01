@@ -7,8 +7,10 @@ import {
   createApiErrorCollection,
   createChatMessageCollection,
   createGameCollection,
+  createGameInfoCollection,
   createGameNotificationCollection,
 } from "@bgs/models";
+import { createUserCollection } from "../models";
 
 const client = new MongoClient(env.database.bgs.url, { directConnection: true, ignoreUndefined: true });
 
@@ -28,6 +30,8 @@ export const collections = {
   chatMessages: await createChatMessageCollection(db),
   games: await createGameCollection(db),
   gameNotifications: await createGameNotificationCollection(db),
+  gameInfos: await createGameInfoCollection(db),
+  users: await createUserCollection(db),
 };
 
 if (!env.isTest && cluster.isMaster) {

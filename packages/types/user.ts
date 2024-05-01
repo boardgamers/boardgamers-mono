@@ -1,16 +1,42 @@
-export interface IAbstractUser {
+export const AVATAR_STYLES = Object.freeze([
+  "adventurer",
+  "adventurer-neutral",
+  "avataaars",
+  "big-ears",
+  "big-ears-neutral",
+  "big-smile",
+  "bottts",
+  "croodles",
+  "croodles-neutral",
+  "gridy",
+  "identicon",
+  "initials",
+  "jdenticon",
+  "micah",
+  "miniavs",
+  "open-peeps",
+  "personas",
+  "pixel-art",
+  "pixel-art-neutral",
+  "upload",
+]);
+export type AvatarStyle = (typeof AVATAR_STYLES)[number];
+
+export interface User<T = string> {
+  _id: T;
+
   account: {
     username: string;
-    email: string;
+    email?: string;
     password: string;
     karma: number;
     termsAndConditions: Date;
     social: {
-      google: string;
-      facebook: string;
-      discord: string;
+      google?: string;
+      facebook?: string;
+      discord?: string;
     };
-    avatar: string;
+    avatar: AvatarStyle;
     bio: string;
   };
   settings: {
@@ -43,8 +69,8 @@ export interface IAbstractUser {
     // Last actively online (tab active)
     lastOnline: Date;
     confirmed: boolean;
-    confirmKey: string;
-    reset: {
+    confirmKey?: string;
+    reset?: {
       key: string;
       issued: Date;
     };
@@ -52,12 +78,11 @@ export interface IAbstractUser {
     slug: string;
   };
   meta: {
-    nextGameNotification: Date;
-    lastGameNotification: Date;
+    nextGameNotification?: Date;
+    lastGameNotification?: Date;
   };
-  authority: string;
-}
+  authority?: "admin";
 
-export interface IUser extends IAbstractUser {
-  _id: string;
+  createdAt: Date;
+  updatedAt: Date;
 }

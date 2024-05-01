@@ -1,18 +1,15 @@
 /* eslint-disable */
 
 import type { ObjectId } from "mongodb";
-import type { Game } from "@bgs/types";
-import type { GameDocument } from "./models/game";
-import type { GameInfoDocument } from "./models/gameinfo";
-import type { UserDocument } from "./models/user";
+import type { Game, User, GameInfo } from "@bgs/types";
 
 declare global {
   namespace Application {
     export interface DefaultState {
-      user?: UserDocument;
+      user?: User<ObjectId> | null;
       game?: Game<OjbectId> | null;
-      foundUser?: UserDocument;
-      foundBoardgame?: GameInfoDocument;
+      foundUser?: User<ObjectId> | null;
+      foundBoardgame?: GameInfo | null;
       ip: string;
     }
   }

@@ -8,8 +8,12 @@ import { Strategy as FacebookStrategy } from "passport-facebook";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as LocalStrategy } from "passport-local";
 import validator from "validator";
-import { User, UserDocument } from "../models";
+import type { UserDocument } from "../models";
+import { DEFAULT_KARMA, MAX_EMAIL_LENGTH, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH, UserUtils } from "../models";
 import env from "./env";
+import { z } from "zod";
+import { User } from "@bgs/types";
+import { ObjectId } from "mongodb";
 
 // =========================================================================
 // LOCAL SIGNUP ============================================================
@@ -43,38 +47,70 @@ passport.use(
         }
 
         // check to see if there's already a user with that email
-        if (await User.findByEmail(email)) {
+        if (await UserUtils.findByEmail(email)) {
           throw createError(409, "Email is already taken");
         }
 
-        const { username } = req.body;
+        const { username } = z
+          .object({
+            username: z.string().min(MIN_USERNAME_LENGTH).max(MAX_USERNAME_LENGTH).trim(),
+          })
+          .parse(req.body);
 
-        if (!username) {
-          throw createError(422, "Specify a username");
-        }
-
-        if (await User.findByUsername(username)) {
+        if (await UserUtils.findByUsername(username)) {
           throw createError(422, `Username ${username} is taken`);
         }
 
+        email = z.string().email().toLowerCase().trim().max(MAX_EMAIL_LENGTH).parse(email);
+
         // if there is no user with that email
         // create the user
-        const newUser = new User();
+        const newUser: User<ObjectId> = {
+          _id: new ObjectId(),
+          account: {
+            email,
+            username,
+            termsAndConditions: new Date(),
+            password: await UserUtils.generateHash(password),
+            avatar: "pixel-art",
+            karma: DEFAULT_KARMA,
+            bio: "",
+            social: {},
+          },
+          security: {
+            slug: UserUtils.generateSlug(username),
+            confirmed: false,
+            confirmKey: UserUtils.generateConfirmKey(),
+            lastActive: new Date(),
+            lastOnline: new Date(),
+            lastLogin: {
+              date: new Date(),
+              ip: req.ip,
+            },
+            lastIp: req.ip,
+          },
+          settings: {
+            mailing: {
+              newsletter: req.body.newsletter === true || req.body.newsletter === "true",
+              game: {
+                delay: 0,
+                activated: false,
+              },
+            },
+            game: {
+              soundNotification: false,
+            },
+            home: {
+              showMyGames: true,
+            },
+          },
+          meta: {},
 
-        // set the user's local credentials
-        newUser.account.email = email;
-        newUser.account.username = username;
-        newUser.account.termsAndConditions = new Date();
-        newUser.account.password = await newUser.generateHash(password);
-        newUser.settings.mailing.newsletter = req.body.newsletter === true || req.body.newsletter === "true";
-        newUser.generateConfirmKey();
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
 
-        // save the user
-        await newUser.save();
-
-        if (!newUser.security.confirmed) {
-          await newUser.sendConfirmationEmail();
-        }
+        await newUser.sendConfirmationEmail();
 
         return done(null, newUser);
       } catch (err) {
@@ -93,7 +129,7 @@ passport.use(
       passwordField: "username",
       passReqToCallback: true, // allows us to pass back the entire request to the callback
     },
-    async (req, username, password, done) => {
+    async (req, username, _password, done) => {
       try {
         const { jwt: token } = req.body;
 
@@ -101,9 +137,7 @@ passport.use(
           throw createError(422, "You need to read and agree to the terms and conditions");
         }
 
-        if (!username) {
-          throw createError(422, "Specify a username");
-        }
+        username = z.string().min(MIN_USERNAME_LENGTH).max(MAX_USERNAME_LENGTH).trim().parse(username);
 
         if (await User.findByUsername(username)) {
           throw createError(422, `Username ${username} is taken`);
@@ -122,6 +156,7 @@ passport.use(
         const newUser = new User();
 
         newUser.account.username = username;
+        newUser.security.slug = UserUtils.generateSlug(username);
         newUser.account.social[decoded.provider] = decoded.id;
         newUser.account.termsAndConditions = new Date();
         newUser.security.confirmed = true;
