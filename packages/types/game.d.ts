@@ -19,7 +19,9 @@ export interface PlayerInfo<T = string> {
 export type PlayerOrder = "random" | "host" | "join";
 export type GameStatus = "open" | "active" | "ended";
 
-export interface IAbstractGame<T = string, Game = any, GameOptions = any> {
+export interface Game<T = string, Game = unknown, GameOptions = unknown> {
+  _id: string;
+
   /** Ids of the players in the website */
   players: PlayerInfo<T>[];
   creator: T;
@@ -47,18 +49,18 @@ export interface IAbstractGame<T = string, Game = any, GameOptions = any> {
       timePerGame: number;
       timePerMove: number;
       /* UTC-based time of play, by default all day, during which the timer is active, in seconds */
-      timer: {
+      timer?: {
         // eg 3600 = start at 1 am
         start: number;
         // eg 3600*23 = end at 11 pm
         end: number;
       };
       // The game will be cancelled if the game isn't full at this time
-      scheduledStart: Date;
+      scheduledStart?: Date;
     };
     meta: {
       unlisted: boolean;
-      minimumKarma: number;
+      minimumKarma?: number;
     };
   };
 
@@ -76,9 +78,9 @@ export interface IAbstractGame<T = string, Game = any, GameOptions = any> {
 
   updatedAt: Date;
   createdAt: Date;
-  lastMove: Date;
+  lastMove?: Date;
 }
 
-export interface IGame extends IAbstractGame {
+export interface IGame extends Game {
   _id: string;
 }

@@ -6,7 +6,7 @@ import type { Context } from "koa";
 import Router from "koa-router";
 import { omit } from "lodash";
 import type { RoomMetaDataDocument } from "../../models";
-import { Game, GameInfo, GameNotification, GamePreferences, RoomMetaData, User } from "../../models";
+import { GameInfo, GameNotification, GamePreferences, RoomMetaData, User } from "../../models";
 import { notifyGameStart } from "../../services/game";
 import { isAdmin, isConfirmed, loggedIn } from "../utils";
 import listings from "./listings";
@@ -20,6 +20,7 @@ router.use("/status", listings.routes(), listings.allowedMethods());
 
 router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
   const body = ctx.request.body;
+  const user = ctx.state.user;
   const {
     game: gameInfoId,
     gameId,
@@ -31,7 +32,71 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
     timerEnd,
     minimumKarma,
     scheduledStart,
-  } = body;
+    seed,
+    join,
+    unlisted,
+    playerOrder,
+  } = z
+    .object({
+      game: z.object({
+        game: z
+          .string()
+          .regex(/^[A-z0-9-]+$/)
+          .min(1)
+          .max(25),
+        version: z.number().int().min(0),
+      }),
+      gameId: z
+        .string()
+        .regex(/^[A-z0-9-]+$/)
+        .min(1)
+        .max(25),
+      seed: z
+        .string()
+        .regex(/^[A-z0-9-]+$/)
+        .min(1)
+        .max(25)
+        .optional(),
+      players: z.number().int().min(1),
+      expansions: z.array(z.string()).optional(),
+      timePerGame: z
+        .number()
+        .int()
+        .min(60)
+        .max(15 * 24 * 3600)
+        .default(15 * 24 * 3600),
+      timePerMove: z
+        .number()
+        .int()
+        .min(0)
+        .max(24 * 3600)
+        .default(15 * 60),
+      timerStart: z
+        .number()
+        .int()
+        .min(0)
+        .max(24 * 3600 - 1)
+        .optional(),
+      timerEnd: z
+        .number()
+        .int()
+        .min(0)
+        .max(24 * 3600 - 1)
+        .optional(),
+      minimumKarma: z
+        .number()
+        .int()
+        .min(0)
+        .max(Math.max(user.karma - 5, 0))
+        .optional(),
+      scheduledStart: z.date({ coerce: true }).min(new Date()).max(addDays(new Date(), 10)).optional(),
+      // Todo: add default values: join: true, unlisted: false, playerOrder: "random"
+      join: z.boolean(),
+      unlisted: z.boolean(),
+      playerOrder: z.enum(["random", "host", "join"]),
+    })
+    .parse(body);
+
   const options: Record<string, string | boolean> = {};
 
   const gameInfo = await GameInfo.findOne({ _id: gameInfoId });
@@ -45,7 +110,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
     !gameInfo.meta.public &&
     !(await GamePreferences.findOne({
       game: gameInfoId.game,
-      user: ctx.state.user.id,
+      user: user._id,
       "access.maxVersion": { $gte: gameInfoId.version },
     }))
   ) {
@@ -55,22 +120,9 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 
   if (gameInfo.meta.needOwnership) {
     assert(
-      await GamePreferences.findOne({ game: gameInfoId.game, user: ctx.state.user.id, "access.ownership": true }),
+      await GamePreferences.findOne({ game: gameInfoId.game, user: user._id, "access.ownership": true }),
       "You need to own the game in order to host a new game. Check your account settings."
     );
-  }
-
-  const seed = body.seed || gameId;
-
-  assert(timePerMove && !isNaN(timePerMove), "Wrong amount of time per move");
-  assert(timePerGame && !isNaN(timePerGame), "Wrong amount of time per game");
-
-  if (!/^[A-z0-9-]+$/.test(gameId)) {
-    throw createError(400, "Wrong format for game id");
-  }
-
-  if (!/^[A-z0-9-]+$/.test(seed)) {
-    throw createError(400, "Wrong format for game seed");
   }
 
   if (!gameInfo.players.includes(players)) {
@@ -90,105 +142,90 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
       continue;
     }
 
-    if (["join", "unlisted"].includes(key)) {
-      assert(typeof val === "boolean", "Invalid value for option: " + key);
-    } else if (key === "playerOrder") {
-      // Mongoose will throw if playerOrder is invalid
-    } else {
-      const item = gameInfo.options.find((opt) => opt.name === key);
-      if (!item) {
-        continue;
-      }
+    const item = gameInfo.options.find((opt) => opt.name === key);
+    if (!item) {
+      continue;
+    }
 
-      if (item.type === "checkbox") {
-        assert(typeof val === "boolean", "Invalid value for option: " + key);
-      } else if (item.type === "select") {
-        assert(
-          typeof val === "string" && item.items?.some((it) => it.name === val),
-          "Invalid value for option: " + key
-        );
-      } else {
-        continue;
-      }
+    if (item.type === "checkbox") {
+      assert(typeof val === "boolean", "Invalid value for option: " + key);
+    } else if (item.type === "select") {
+      assert(typeof val === "string" && item.items?.some((it) => it.name === val), "Invalid value for option: " + key);
+    } else {
+      continue;
     }
 
     options[key] = val;
   }
 
-  const game = new Game();
-
-  game.creator = ctx.state.user._id;
-  game.game = {
-    name: gameInfo._id.game,
-    version: gameInfo._id.version,
-    expansions: (expansions ?? []).filter((exp: string) => gameInfo.expansions.some((exp2) => exp2.name === exp)),
-
-    options: omit(options, "join", "playerOrder", "unlisted"),
-  };
-  game.options.setup.seed = seed;
-  game.options.setup.nbPlayers = players;
-  game.options.setup.playerOrder = (options.playerOrder ?? "random") as "random" | "host" | "join";
-  game.options.meta.unlisted = options.unlisted as boolean;
-  game.options.timing.timePerMove = timePerMove;
-  game.options.timing.timePerGame = timePerGame;
-
-  if (scheduledStart) {
-    assert(scheduledStart > Date.now(), "The scheduled start must not be in the past");
-    assert(
-      scheduledStart < Date.now() + 10 * 24 * 3600 * 1000,
-      "The scheduled start must not be more than 10 days in the future"
-    );
-
-    game.options.timing.scheduledStart = new Date(scheduledStart);
-  }
-
-  if (minimumKarma !== undefined && minimumKarma !== null) {
-    assert(+minimumKarma === minimumKarma && Math.floor(minimumKarma) === minimumKarma && minimumKarma >= 0);
-    assert(
-      minimumKarma + 5 <= ctx.state.user.account.karma,
-      "You can't create a game with that high of a karma restriction"
-    );
-    game.options.meta.minimumKarma = minimumKarma;
-  }
-
-  if (
-    timerStart !== timerEnd &&
-    typeof timerStart === "number" &&
-    typeof timerEnd === "number" &&
-    !isNaN(timerStart) &&
-    !isNaN(timerEnd)
-  ) {
+  if (timerStart !== timerEnd && typeof timerStart === "number" && typeof timerEnd === "number") {
     assert(
       timerDuration({ start: timerStart, end: timerEnd }) >= 3 * 3600,
       "You need at least have a 3 hour window of play time"
     );
-
-    game.options.timing.timer.start = timerStart;
-    game.options.timing.timer.end = timerEnd;
   }
 
-  game._id = gameId;
-
-  if (options.join) {
-    game.players.push({
-      _id: ctx.state.user._id,
-      remainingTime: game.options.timing.timePerGame,
-      dropped: false,
-      score: 0,
-      name: ctx.state.user.account.username,
-      quit: false,
-    });
-  } else {
-    // assert(false, "You need special authorization to create games without joining them!");
-  }
-
-  await game.save();
+  await collections.games.insertOne({
+    _id: gameId,
+    creator: user._id,
+    game: {
+      name: gameInfo._id.game,
+      version: gameInfo._id.version,
+      expansions: (expansions ?? []).filter((exp: string) => gameInfo.expansions.some((exp2) => exp2.name === exp)),
+      options,
+    },
+    options: {
+      setup: {
+        seed: seed ?? gameId,
+        nbPlayers: players,
+        playerOrder,
+      },
+      timing: {
+        timePerGame,
+        timePerMove,
+        timer:
+          timerStart !== undefined && timerEnd !== undefined
+            ? {
+                start: timerStart,
+                end: timerEnd,
+              }
+            : undefined,
+        scheduledStart,
+      },
+      meta: {
+        unlisted,
+        minimumKarma,
+      },
+    },
+    players: join
+      ? [
+          {
+            _id: user._id,
+            remainingTime: timePerGame,
+            dropped: false,
+            score: 0,
+            quit: false,
+            name: user.account.username,
+          },
+        ]
+      : [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    status: "open",
+    data: {},
+    cancelled: false,
+    ready: false,
+    currentPlayers: [],
+    context: {
+      round: 0,
+    },
+  });
 
   ctx.status = 200;
 });
 
 router.param("gameId", async (gameId, ctx, next) => {
-  ctx.state.game = await Game.findById(gameId);
+  ctx.state.game = await collections.games.findOne({ _id: gameId });
 
   if (!ctx.state.game) {
     throw createError(404, "Game not found: " + gameId);
@@ -199,7 +236,7 @@ router.param("gameId", async (gameId, ctx, next) => {
 
 // Metadata about the game
 router.get("/:gameId", (ctx) => {
-  ctx.body = omit(ctx.state.game.toJSON(), "data");
+  ctx.body = omit(ctx.state.game, "data");
 });
 
 router.get("/:gameId/players", async (ctx) => {

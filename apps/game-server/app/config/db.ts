@@ -1,7 +1,7 @@
 import { LockManager } from "mongo-locks";
 import env from "./env";
 import { MongoClient } from "mongodb";
-import { createApiErrorCollection, createChatMessageCollection } from "@bgs/models";
+import { createApiErrorCollection, createChatMessageCollection, createGameCollection } from "@bgs/models";
 
 const client = new MongoClient(env.database.bgs.url, { directConnection: true, ignoreUndefined: true });
 
@@ -15,6 +15,7 @@ const db = client.db(env.database.bgs.name);
 export const collections = {
   apiErrors: await createApiErrorCollection(db),
   chatMessages: await createChatMessageCollection(db),
+  games: await createGameCollection(db),
 };
 
 export const locks = new LockManager(db.collection("mongo-locks"));

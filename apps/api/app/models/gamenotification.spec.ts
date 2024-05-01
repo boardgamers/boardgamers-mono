@@ -1,16 +1,13 @@
-import mongoose, { Types } from "mongoose";
-import { defaultKarma, Game, GameNotification, GamePreferences, maxKarma, User } from "./index";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { setupForTest, teardownForTest } from "../config/test-utils";
-
-const { ObjectId } = Types;
+import { defaultKarma, GameNotification, GamePreferences, maxKarma, User } from "./index";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { TestUtils } from "../services/testutils";
+import { ObjectId } from "mongodb";
+import { collections } from "../config/db";
+import assert from "assert";
 
 describe("GameNotification", () => {
-  beforeAll(async () => {
-    await setupForTest();
-  });
-  afterAll(async () => {
-    await teardownForTest();
+  afterEach(async () => {
+    await TestUtils.deleteDocuments();
   });
   const userId = new ObjectId();
   const userId2 = new ObjectId();
@@ -19,23 +16,10 @@ describe("GameNotification", () => {
 
   describe("processGameEnded", () => {
     describe("karma", () => {
-      beforeAll(async () => {
+      beforeEach(async () => {
         await User.create({ _id: userId, account: { username: "test", email: "test@test.com" } });
         await User.create({ _id: userId2, account: { username: "test2", email: "test2@test.com" } });
-        await Game.create({
-          _id: "test",
-          game: {
-            name: "gaia-project",
-            version: 0,
-          },
-          players: [
-            { _id: userId, dropped: false },
-            { _id: userId2, dropped: true },
-          ],
-        });
-      });
-      afterAll(async () => {
-        await mongoose.connection.db.dropDatabase();
+        await TestUtils.createGame("test", [userId, userId2]);
       });
 
       it("should add karma to the active player and no karma to the dropped player", async () => {
@@ -65,25 +49,15 @@ describe("GameNotification", () => {
         await User.create({ _id: userId2, account: { username: "test2", email: "test2@test.com" } });
         await User.create({ _id: userId3, account: { username: "test3", email: "test3@test.com" } });
         await User.create({ _id: userId4, account: { username: "test4", email: "test4@test.com" } });
-        await Game.create({
-          _id: "test",
-          game: {
-            name: "gaia-project",
-            version: 0,
-          },
-          players: [
-            { _id: userId, score: 40, dropped: false },
-            { _id: userId2, score: 30, dropped: false },
-            { _id: userId3, score: 20, dropped: false },
-            { _id: userId4, score: 25, dropped: false },
-          ],
-        });
+        const game = await TestUtils.createGame("test", [userId, userId2, userId3, userId4]);
+        game.players[0].score = 40;
+        game.players[1].score = 30;
+        game.players[2].score = 20;
+        game.players[3].score = 25;
+        await collections.games.updateOne({ _id: "test" }, { $set: { players: game.players } });
         await GamePreferences.create({ game: "gaia-project", user: userId, elo: { value: 120, games: 120 } });
         await GamePreferences.create({ game: "gaia-project", user: userId2, elo: { value: 110, games: 110 } });
         await GamePreferences.create({ game: "gaia-project", user: userId3, elo: { value: 105, games: 5 } });
-      });
-      afterEach(async () => {
-        await mongoose.connection.db.dropDatabase();
       });
 
       it("should add elo to player and player2, and min elo 100 to player3, set elo 1 to beginner player4 ", async () => {
@@ -100,17 +74,18 @@ describe("GameNotification", () => {
         expect(userPref3.elo.value).to.equal(100);
         expect(userPref4.elo.value).to.equal(1);
         expect(userPref4.elo.games).to.equal(1);
-        const game = await Game.findOne({ _id: "test" });
-        expect(game.players[0].elo.initial).to.equal(120);
-        expect(game.players[0].elo.delta).to.equal(16);
-        expect(game.players[2].elo.initial).to.equal(105);
-        expect(game.players[2].elo.delta).to.equal(-58);
-        expect(game.players[3].elo.initial).to.equal(0);
-        expect(game.players[3].elo.delta).to.equal(-1);
+        const game = await collections.games.findOne({ _id: "test" });
+        assert(game, "Game should exist");
+        expect(game.players[0].elo?.initial).to.equal(120);
+        expect(game.players[0].elo?.delta).to.equal(16);
+        expect(game.players[2].elo?.initial).to.equal(105);
+        expect(game.players[2].elo?.delta).to.equal(-58);
+        expect(game.players[3].elo?.initial).to.equal(0);
+        expect(game.players[3].elo?.delta).to.equal(-1);
       });
 
       it("should work when ranking is set", async () => {
-        await Game.updateOne(
+        await collections.games.updateOne(
           { _id: "test" },
           {
             $set: {
@@ -139,29 +114,32 @@ describe("GameNotification", () => {
         expect(userPref3.elo.value).to.equal(100);
         expect(userPref4.elo.value).to.equal(1);
         expect(userPref4.elo.games).to.equal(1);
-        const game = await Game.findOne({ _id: "test" });
-        expect(game.players[0].elo.initial).to.equal(120);
-        expect(game.players[0].elo.delta).to.equal(16);
-        expect(game.players[2].elo.initial).to.equal(105);
-        expect(game.players[2].elo.delta).to.equal(-58);
-        expect(game.players[3].elo.initial).to.equal(0);
-        expect(game.players[3].elo.delta).to.equal(-1);
+        const game = await collections.games.findOne({ _id: "test" });
+        assert(game, "Game should exist");
+        expect(game.players[0].elo?.initial).to.equal(120);
+        expect(game.players[0].elo?.delta).to.equal(16);
+        expect(game.players[2].elo?.initial).to.equal(105);
+        expect(game.players[2].elo?.delta).to.equal(-58);
+        expect(game.players[3].elo?.initial).to.equal(0);
+        expect(game.players[3].elo?.delta).to.equal(-1);
       });
 
       it("should not cause errors when dealing with a cancelled game", async () => {
-        await Game.create({
-          _id: "testCancelled",
-          game: {
-            name: "gaia-project",
-            version: 0,
-          },
-          players: [
-            { _id: userId, score: 40, dropped: false },
-            { _id: userId2, score: 30, dropped: true },
-            { _id: userId3, score: 20, dropped: false },
-            { _id: userId4, score: 25, dropped: false },
-          ],
-        });
+        const game = await TestUtils.createGame("testCancelled", [userId, userId2, userId3, userId4]);
+        game.players[0].score = 40;
+        game.players[1].score = 30;
+        game.players[2].score = 20;
+        game.players[3].score = 25;
+        game.players[1].dropped = true;
+
+        await collections.games.updateOne(
+          { _id: "testCancelled" },
+          {
+            $set: {
+              players: game.players,
+            },
+          }
+        );
 
         await GameNotification.create({ kind: "gameEnded", game: "testCancelled" });
 
@@ -171,13 +149,9 @@ describe("GameNotification", () => {
   });
 
   describe("processPlayerDrop", () => {
-    beforeAll(async () => {
+    beforeEach(async () => {
       await User.create({ _id: userId, account: { username: "test", email: "test@test.com" } });
       await User.create({ _id: userId2, account: { username: "test2", email: "test2@test.com" } });
-    });
-
-    afterAll(async () => {
-      await mongoose.connection.db.dropDatabase();
     });
 
     it("should drop 10 karma after dropping out", async () => {

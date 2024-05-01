@@ -1,17 +1,14 @@
 import { subHours, subWeeks } from "date-fns";
 import { shuffle } from "lodash";
-import type { GameDocument } from "../models";
-import { Game, GameNotification } from "../models";
+import { GameNotification } from "../models";
 import { collections, locks } from "../config/db";
 import { ObjectId } from "mongodb";
+import type { Game } from "@bgs/types";
 
-export async function notifyGameStart(game: GameDocument): Promise<void> {
+export async function notifyGameStart(game: Pick<Game<ObjectId>, "_id" | "options" | "players">): Promise<void> {
   if (game.options.setup.playerOrder === "random") {
-    // Mongoose (5.10.0) will bug if I directly set to the shuffled value (because array item's .get are not set)
-    const shuffled = shuffle(game.players);
-    game.players = [];
-    game.players.push(...shuffled);
-    await game.save();
+    game.players = shuffle(game.players);
+    await collections.games.updateOne({ _id: game._id }, { $set: { players: game.players, updatedAt: new Date() } });
   }
 
   await collections.chatMessages.insertOne({
@@ -24,9 +21,9 @@ export async function notifyGameStart(game: GameDocument): Promise<void> {
   await GameNotification.create({ game: game._id, kind: "gameStarted", processed: false });
 }
 
-export async function cancelOldOpenGames() {
+export async function cancelOldOpenGames(): Promise<void> {
   // Remove live games an hour old
-  await Game.remove({
+  await collections.games.deleteMany({
     status: "open",
     "options.timing.scheduledStart": { $exists: false },
     "options.timing.timePerGame": { $lte: 600 },
@@ -34,7 +31,7 @@ export async function cancelOldOpenGames() {
   });
 
   // Remove fast games three hours old
-  await Game.remove({
+  await collections.games.deleteMany({
     status: "open",
     "options.timing.scheduledStart": { $exists: false },
     "options.timing.timePerGame": { $lte: 3600 },
@@ -42,7 +39,7 @@ export async function cancelOldOpenGames() {
   });
 
   // Remove games a week old
-  await Game.remove({
+  await collections.games.deleteMany({
     status: "open",
     "options.timing.scheduledStart": { $exists: false },
     createdAt: { $lt: subWeeks(Date.now(), 1) },
@@ -56,40 +53,47 @@ export async function processSchedulesGames(): Promise<void> {
     return;
   }
 
-  for await (const game of Game.find({
-    status: "open",
-    "options.timing.scheduledStart": { $lt: new Date() },
-  }).cursor()) {
-    const g: GameDocument = game;
-
-    if (!g.ready) {
+  for await (const game of collections.games
+    .find({
+      status: "open",
+      "options.timing.scheduledStart": { $lt: new Date() },
+    })
+    .project<Pick<Game<ObjectId>, "ready" | "_id" | "options" | "players">>({ ready: 1 })) {
+    if (!game.ready) {
       await collections.chatMessages.insertOne({
         _id: new ObjectId(),
-        room: g._id,
+        room: game._id,
         type: "system",
         data: { text: "Game cancelled because host didn't set the final options in time" },
       });
-      g.cancelled = true;
-      g.status = "ended";
-      await g.save();
+      await collections.games.updateOne(
+        { _id: game._id },
+        { $set: { cancelled: true, status: "ended", updatedAt: new Date() } }
+      );
       continue;
     }
-    // Do this to avoid being caught in a loop again, before game server starts the game
-    g.options.timing.scheduledStart = undefined;
-    await g.save();
-    await notifyGameStart(g);
+    await collections.games.updateOne(
+      { _id: game._id },
+      {
+        // Do this to avoid being caught in a loop again, before game server starts the game
+        $unset: { "options.timing.scheduledStart": "" },
+      }
+    );
+    await notifyGameStart(game);
   }
 }
 
 export async function processUnreadyGames(): Promise<void> {
-  const games = await Game.find(
-    {
+  const games = await collections.games
+    .find({
       ready: false,
       status: "open",
       "currentPlayers.0.deadline": { $lt: Date.now() },
-    },
-    { _id: 1 }
-  ).lean(true);
+    })
+    .project<Pick<Game<ObjectId>, "_id">>({
+      _id: 1,
+    })
+    .toArray();
 
   for (const toFetch of games) {
     try {
@@ -99,7 +103,14 @@ export async function processUnreadyGames(): Promise<void> {
         continue;
       }
 
-      const game = await Game.findById(toFetch._id, { status: 1 });
+      const game = await collections.games.findOne<Pick<Game<ObjectId>, "status" | "_id">>(
+        { _id: toFetch._id },
+        { projection: { status: 1, _id: 1 } }
+      );
+
+      if (!game) {
+        continue;
+      }
 
       if (game.status === "open") {
         await collections.chatMessages.insertOne({
@@ -108,9 +119,10 @@ export async function processUnreadyGames(): Promise<void> {
           type: "system",
           data: { text: "Game cancelled because host didn't set the final options in time" },
         });
-        game.cancelled = true;
-        game.status = "ended";
-        await game.save();
+        await collections.games.updateOne(
+          { _id: game._id },
+          { $set: { cancelled: true, status: "ended", updatedAt: new Date() } }
+        );
       }
     } catch (err) {
       console.error(err);
