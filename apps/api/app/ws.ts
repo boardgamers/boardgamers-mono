@@ -5,10 +5,10 @@ import cache from "node-cache";
 import WebSocket, { Server } from "ws";
 import "./config/db";
 import env from "./config/env";
-import type { GameDocument } from "./models";
-import { Game, User } from "./models";
-import type { ObjectId } from "mongodb";
+import { GameUtils, User } from "./models";
+import { ObjectId } from "mongodb";
 import { collections } from "./config/db";
+import type { Game } from "@bgs/types";
 
 const wss = new Server({ port: env.listen.port.ws, host: env.listen.host });
 
@@ -24,8 +24,8 @@ function clients(): AugmentedWebSocket[] {
   return [...wss.clients].filter((ws) => ws.readyState === WebSocket.OPEN);
 }
 
-function catchError(target: (...args: any[]) => any, callback?: () => unknown) {
-  return async (...args: any[]) => {
+function catchError(target: (...args: unknown[]) => unknown, callback?: () => unknown) {
+  return async (...args: unknown[]) => {
     try {
       return await target(...args);
     } catch (err) {
@@ -79,33 +79,35 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
         ws.game = data.game;
         ws.gameUpdate = null;
       }
-      if ("fetchPlayerStatus" in data && ws.game && gameCache.get(ws.game)) {
-        const game = gameCache.get<GameDocument>(ws.game);
-        const users = await User.find(
-          { _id: { $in: game.players.map((x) => x._id) } },
-          "security.lastActive security.lastOnline",
-          { lean: true }
-        );
+      if ("fetchPlayerStatus" in data && ws.game) {
+        const game = gameCache.get<Game<ObjectId>>(ws.game);
+        if (game) {
+          const users = await User.find(
+            { _id: { $in: game.players.map((x) => x._id) } },
+            "security.lastActive security.lastOnline",
+            { lean: true }
+          );
 
-        if (ws.readyState !== ws.OPEN) {
-          return;
+          if (ws.readyState !== ws.OPEN) {
+            return;
+          }
+
+          // Send [{_id: player1, status: "online"}, {_id: player2, status: "offline"}, {_id: player3, status: "away"}]
+          ws.send(
+            JSON.stringify({
+              command: "game:playerStatus",
+              players: users.map((user) => ({
+                _id: user._id,
+                status:
+                  Date.now() - (user.security.lastOnline ?? new Date(0)).getTime() < 60 * 1000
+                    ? "online"
+                    : Date.now() - (user.security.lastActive ?? new Date(0)).getTime() < 60 * 1000
+                      ? "away"
+                      : "offline",
+              })),
+            })
+          );
         }
-
-        // Send [{_id: player1, status: "online"}, {_id: player2, status: "offline"}, {_id: player3, status: "away"}]
-        ws.send(
-          JSON.stringify({
-            command: "game:playerStatus",
-            players: users.map((user) => ({
-              _id: user._id,
-              status:
-                Date.now() - (user.security.lastOnline ?? new Date(0)).getTime() < 60 * 1000
-                  ? "online"
-                  : Date.now() - (user.security.lastActive ?? new Date(0)).getTime() < 60 * 1000
-                    ? "away"
-                    : "offline",
-            })),
-          })
-        );
       }
       if ("jwt" in data) {
         try {
@@ -153,9 +155,9 @@ setInterval(function ping() {
 
 function sendActiveGames(ws: AugmentedWebSocket) {
   if (ws.user) {
-    Game.findWithPlayersTurn(ws.user)
-      .select("_id")
-      .lean(true)
+    GameUtils.findWithPlayersTurn(ws.user)
+      .project<Pick<Game<ObjectId>, "_id">>({ _id: 1 })
+      .toArray()
       .then((games) => {
         ws.send(JSON.stringify({ command: "games:currentTurn", games: games.map((game) => game._id) }));
       })
@@ -163,7 +165,7 @@ function sendActiveGames(ws: AugmentedWebSocket) {
   }
 }
 
-let lastChecked = Types.ObjectId.createFromTime(Math.floor(Date.now() / 1000));
+let lastChecked = ObjectId.createFromTime(Math.floor(Date.now() / 1000));
 
 const gameCache = new cache({ stdTTL: 24 * 3600 });
 
@@ -202,19 +204,27 @@ async function run() {
     }));
 
     if (gameConditions.length > 0) {
-      const games = await Game.find({ $or: gameConditions }, "updatedAt players._id", { lean: true });
+      const games = await collections.games
+        .find({ $or: gameConditions })
+        .project<Pick<Game<ObjectId>, "updatedAt" | "_id"> & { players: Pick<Game<ObjectId>["players"][0], "_id">[] }>({
+          updatedAt: 1,
+          "players._id": 1,
+        })
+        .toArray();
 
       for (const game of games) {
         gameCache.set(game._id, game);
       }
 
       if (games.length > 0) {
-        const playerIds = (
-          await Game.aggregate()
+        const playerIds: Game<ObjectId>["_id"][] = (
+          await collections.games
+            .aggregate()
             .match({ _id: { $in: games.map((game) => game._id) } })
             .project({ "players._id": 1 })
             .unwind("players")
             .group({ _id: "$players._id" })
+            .toArray()
         ).map((x) => x._id);
         const users = await User.find({ _id: { $in: playerIds } }, "security.lastActive security.lastOnline", {
           lean: true,
@@ -227,8 +237,8 @@ async function run() {
           }
 
           if (ws.game) {
-            const game = gameCache.get<GameDocument>(ws.game);
-            const localUpdate: Date = game?.updatedAt;
+            const game = gameCache.get<Game<ObjectId>>(ws.game);
+            const localUpdate = game?.updatedAt;
             if (localUpdate && (!ws.gameUpdate || ws.gameUpdate < localUpdate)) {
               ws.gameUpdate = localUpdate;
 

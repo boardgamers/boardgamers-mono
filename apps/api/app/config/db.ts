@@ -3,7 +3,12 @@ import { LockManager } from "mongo-locks";
 import { migrate } from "../models/migrations";
 import env from "./env";
 import { MongoClient } from "mongodb";
-import { createApiErrorCollection, createChatMessageCollection, createGameCollection } from "@bgs/models";
+import {
+  createApiErrorCollection,
+  createChatMessageCollection,
+  createGameCollection,
+  createGameNotificationCollection,
+} from "@bgs/models";
 
 const client = new MongoClient(env.database.bgs.url, { directConnection: true, ignoreUndefined: true });
 
@@ -22,6 +27,7 @@ export const collections = {
   apiErrors: await createApiErrorCollection(db),
   chatMessages: await createChatMessageCollection(db),
   games: await createGameCollection(db),
+  gameNotifications: await createGameNotificationCollection(db),
 };
 
 if (!env.isTest && cluster.isMaster) {

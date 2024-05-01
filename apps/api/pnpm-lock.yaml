@@ -178,6 +178,9 @@ devDependencies:
   passport:
     specifier: ^0.6.0
     version: 0.6.0
+  type-fest:
+    specifier: ^4.18.1
+    version: 4.18.1
 
 packages:
 
@@ -2182,6 +2185,11 @@ packages:
     dependencies:
       prelude-ls: 1.1.2
     dev: false
+
+  /type-fest@4.18.1:
+    resolution: {integrity: sha512-qXhgeNsX15bM63h5aapNFcQid9jRF/l3ojDoDFmekDQEUufZ9U4ErVt6SjDxnHp48Ltrw616R8yNc3giJ3KvVQ==}
+    engines: {node: '>=16'}
+    dev: true
 
   /type-is@1.6.18:
     resolution: {integrity: sha512-TkRKr9sUTxEH8MdfuCSP7VizJyzRNMjj2J2do2Jr3Kym598JVdEksuzPQCnlFPW4ky9Q+iA+ma9BGm06XQBy8g==}

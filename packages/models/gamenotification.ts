@@ -1,35 +1,12 @@
-import { GameNotification } from "@bgs/types";
-import { Document, Model, Schema, Types } from "mongoose";
+import type { GameNotification } from "@bgs/types";
+import type { Collection, Db, ObjectId } from "mongodb";
 
-const repr = {
-  user: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
-  },
-  game: {
-    type: String,
-    ref: "Game",
-  },
-  kind: {
-    type: String,
-    enum: ["currentMove", "gameEnded", "gameStarted", "playerDrop", "playerQuit", "dropPlayer"] as const,
-    index: true,
-  },
-  processed: {
-    type: Boolean,
-    default: false,
-  },
-  meta: {},
-};
+export async function createGameNotificationCollection(db: Db): Promise<Collection<GameNotification<ObjectId>>> {
+  const collection = db.collection<GameNotification<ObjectId>>("gamenotifications");
 
-export default function makeSchema<
-  T extends Document & GameNotification<Types.ObjectId>,
-  U extends Model<T> = Model<T>,
->() {
-  const schema = new Schema<T, U>(repr as any, { timestamps: true });
+  await collection.createIndex({ processed: 1, kind: 1 });
+  await collection.createIndex({ kind: 1 });
+  await collection.createIndex({ updatedAt: 1 }, { expireAfterSeconds: 3600 * 24 * 30 });
 
-  schema.index({ processed: 1, kind: 1 });
-  schema.index({ updatedAt: 1 }, { expireAfterSeconds: 3600 * 24 * 30 });
-
-  return schema;
+  return collection;
 }

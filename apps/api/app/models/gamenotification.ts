@@ -1,44 +1,59 @@
-import makeSchema from "@bgs/models/gamenotification";
-import { GameNotification } from "@bgs/types";
-import locks from "mongo-locks";
-import mongoose, { Types } from "mongoose";
+import type { Game, GameNotification } from "@bgs/types";
 import EloService from "../services/elo";
-import { Game } from "./game";
-import { Log, LogItem } from "./log";
+import type { LogItem } from "./log";
+import { Log } from "./log";
+import type { ObjectId } from "mongodb";
 import { maxKarma, User } from "./user";
+import { collections, locks } from "../config/db";
+import type { PickDeep } from "type-fest";
 
-const schema = makeSchema<GameNotificationDocument, GameNotificationModel>();
-interface GameNotificationDocument extends mongoose.Document, GameNotification<Types.ObjectId> {}
+export namespace GameNotificationUtils {
+  export async function processCurrentMove(): Promise<void> {
+    const notifications = await collections.gameNotifications
+      .find({ kind: "currentMove", processed: false })
+      .project<Pick<GameNotification<ObjectId>, "user" | "_id">>({
+        user: 1,
+        _id: 1,
+      })
+      .toArray();
 
-interface GameNotificationModel extends mongoose.Model<GameNotificationDocument> {
-  processCurrentMove(): Promise<void>;
-  processGameEnded(): Promise<void>;
-  processPlayerDrop(): Promise<void>;
-}
+    const users = await User.find({ _id: { $in: notifications.map((notification) => notification.user) } });
 
-schema.static("processCurrentMove", async function (this: GameNotificationModel) {
-  const notifications = await this.find({ kind: "currentMove", processed: false }, null, { lean: true });
+    for (const user of users) {
+      await user.updateGameNotification();
+    }
 
-  const users = await User.find({ _id: { $in: notifications.map((notification) => notification.user) } });
-
-  for (const user of users) {
-    await user.updateGameNotification();
+    await collections.gameNotifications.updateMany(
+      { _id: { $in: notifications.map((x) => x._id) } },
+      { $set: { processed: true } }
+    );
   }
 
-  await this.updateMany({ _id: { $in: notifications.map((x) => x._id) } }, { $set: { processed: true } });
-});
+  export async function processGameEnded(): Promise<void> {
+    await using lock = await locks.lock(["game-notification", "gameEnded"]);
 
-schema.static("processGameEnded", async function (this: GameNotificationModel) {
-  const free = await locks.lock("game-notification", "gameEnded");
+    if (!lock) {
+      return;
+    }
 
-  try {
-    const notifications = await this.find({ kind: "gameEnded", processed: false }, null, { lean: true });
+    const notifications = await collections.gameNotifications
+      .find({ kind: "gameEnded", processed: false })
+      .project<Pick<GameNotification<ObjectId>, "game" | "_id">>({
+        game: 1,
+        _id: 1,
+      })
+      .toArray();
 
     for (const notification of notifications) {
-      const game = await Game.findOne({ _id: notification.game }, "players game.name cancelled", { lean: true });
+      const game = await collections.games.findOne<
+        PickDeep<Game<ObjectId>, "players" | "game.name" | "cancelled" | "_id">
+      >({ _id: notification.game }, { projection: { players: 1, "game.name": 1, cancelled: 1 } });
 
       if (!game) {
-        await this.updateOne({ _id: notification._id }, { $set: { processed: true } });
+        await collections.gameNotifications.updateOne(
+          { _id: notification._id },
+          { $set: { processed: true, updatedAt: new Date() } }
+        );
         continue;
       }
 
@@ -59,20 +74,30 @@ schema.static("processGameEnded", async function (this: GameNotificationModel) {
       await EloService.processGame(game);
 
       await Promise.all([
-        this.updateOne({ _id: notification._id }, { $set: { processed: true } }),
-        await Log.create({ kind: "processGameEnded", data: { game: notification.game } }),
+        collections.gameNotifications.updateOne(
+          { _id: notification._id },
+          { $set: { processed: true, updatedAt: new Date() } }
+        ),
+        Log.create({ kind: "processGameEnded", data: { game: notification.game } }),
       ]);
     }
-  } finally {
-    free().catch(console.error);
   }
-});
 
-schema.static("processPlayerDrop", async function (this: GameNotificationModel) {
-  const free = await locks.lock("game-notification", "playerDrop");
+  export async function processPlayerDrop(): Promise<void> {
+    await using lock = await locks.lock(["game-notification", "playerDrop"]);
 
-  try {
-    const notifications = await this.find({ kind: "playerDrop", processed: false }, null, { lean: true });
+    if (!lock) {
+      return;
+    }
+
+    const notifications = await collections.gameNotifications
+      .find({ kind: "playerDrop", processed: false })
+      .project<Pick<GameNotification<ObjectId>, "user" | "_id" | "game">>({
+        user: 1,
+        _id: 1,
+        game: 1,
+      })
+      .toArray();
 
     let userIds = notifications.map((not) => not.user);
 
@@ -92,13 +117,10 @@ schema.static("processPlayerDrop", async function (this: GameNotificationModel) 
             ({ kind: "processPlayerDrop", data: { game: notification.game, player: notification.user } }) as LogItem
         )
       ),
-      this.updateMany({ _id: { $in: notifications.map((x) => x._id) } }, { $set: { processed: true } }),
+      collections.gameNotifications.updateMany(
+        { _id: { $in: notifications.map((x) => x._id) } },
+        { $set: { processed: true, updatedAt: new Date() } }
+      ),
     ]);
-  } finally {
-    free().catch(console.error);
   }
-});
-
-const GameNotification = mongoose.model("GameNotification", schema);
-
-export { GameNotification };
+}
