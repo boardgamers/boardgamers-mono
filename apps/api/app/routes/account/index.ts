@@ -5,15 +5,27 @@ import type { Context } from "koa";
 import passport from "koa-passport";
 import Router from "koa-router";
 import { merge } from "lodash";
+import { ObjectId } from "mongodb";
 import type { Image } from "../../models";
-import { GamePreferences, ImageCollection, JwtRefreshToken, Log, MAX_BIO_LENGTH } from "../../models";
+import {
+  GamePreferences,
+  GameUtils,
+  ImageCollection,
+  JwtRefreshToken,
+  Log,
+  MAX_BIO_LENGTH,
+  UserUtils,
+} from "../../models";
 import { loggedIn, loggedOut } from "../utils";
 import auth from "./auth";
 import { sendAuthInfo } from "./utils";
 import { z } from "zod";
+import type { Game, User } from "@bgs/types";
 import { AVATAR_STYLES } from "@bgs/types";
 import { collections } from "../../config/db";
 import { typedInclude } from "@bgs/utils";
+import { env, sendmail } from "../../config";
+import { differenceInMinutes } from "date-fns";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -27,7 +39,7 @@ router.get("/", (ctx) => {
 
 router.get("/avatar", loggedIn, async (ctx) => {
   const item = await ImageCollection.findOne(
-    { ref: ctx.state.user._id, refType: "User", key: "avatar" },
+    { ref: ctx.state.user!._id, refType: "User", key: "avatar" },
     { "images.256x256": 1, mime: 1 }
   );
   if (!item) {
@@ -43,10 +55,10 @@ router.get("/active-games", async (ctx) => {
   if (!ctx.state.user?._id) {
     ctx.body = [];
   } else {
-    ctx.body = await Game.findWithPlayersTurn(ctx.state.user._id)
-      .select("_id")
-      .lean(true)
-      .then((games) => games.map((game) => game._id));
+    ctx.body = await GameUtils.findWithPlayersTurn(ctx.state.user._id)
+      .project<Pick<Game<ObjectId>, "_id">>({ _id: 1 })
+      .map((game) => game._id)
+      .toArray();
   }
 });
 
@@ -157,7 +169,7 @@ router.post("/email", loggedIn, async (ctx) => {
   const { email } = ctx.request.body;
   const user = ctx.state.user!;
 
-  const foundUser = await User.findByEmail(email);
+  const foundUser = await UserUtils.findByEmail(email);
 
   if (foundUser) {
     if (foundUser._id.equals(user._id)) {
@@ -297,7 +309,7 @@ router.post("/signout", (ctx: Context) => {
 });
 
 router.post("/confirm", async (ctx: Context) => {
-  const user = await User.findByEmail(ctx.request.body.email);
+  const user = await UserUtils.findByEmail(ctx.request.body.email);
 
   if (!user) {
     throw createError(404, "Can't find user: " + ctx.request.body.email);
@@ -317,10 +329,17 @@ router.post("/refresh", async (ctx: Context) => {
     throw createError(404, "Can't find refresh token: " + code);
   }
 
-  const user = await User.findById(rt.user);
+  const user = await collections.users.findOne<Pick<User<ObjectId>, "authority">>(
+    { _id: new ObjectId(rt.user) },
+    { projection: { authority: 1 } }
+  );
+
+  if (!user) {
+    throw createError(404, "Can't find user: " + rt.user);
+  }
 
   ctx.body = {
-    code: await rt.createAccessToken(scopes, user.isAdmin()),
+    code: await rt.createAccessToken(scopes, UserUtils.isAdmin(user.authority)),
     expiresAt: Date.now() + JwtRefreshToken.accessTokenDuration(),
   };
 });
@@ -329,14 +348,45 @@ router.post("/reset", loggedOut, passport.authenticate("local-reset", { session:
 
 router.post("/forget", loggedOut, async (ctx: Context) => {
   const { email } = ctx.request.body;
-  const user = await User.findByEmail(email);
+  const user = await UserUtils.findByEmail(email);
 
   if (!user) {
-    throw createError(404, "Utilisateur introuvable: " + email);
+    throw createError(404, "User not found: " + email);
   }
 
-  await user.generateResetLink();
-  await user.sendResetEmail();
+  if (user.security.reset && differenceInMinutes(new Date(), user.security.reset.issued) < 15) {
+    throw createError(400, "You can only request a password reset every 5 minutes");
+  }
+
+  user.security.reset = {
+    key: UserUtils.generateConfirmKey(),
+    issued: new Date(),
+  };
+
+  await collections.users.updateOne(
+    {
+      _id: user._id,
+    },
+    {
+      $set: {
+        "security.reset": user.security.reset,
+        updatedAt: new Date(),
+      },
+    }
+  );
+
+  await sendmail({
+    from: env.noreply,
+    to: email,
+    subject: "Forgotten password",
+    html: `
+    <p>A password reset was asked for your account,
+    click <a href='http://${env.site}/reset?key=${encodeURIComponent(
+      user.security.reset.key
+    )}&email=${encodeURIComponent(email)}'>here</a> to reset your password.</p>
+
+    <p>If this didn't come from you, ignore this email.</p>`,
+  });
   ctx.status = 200;
 });
 

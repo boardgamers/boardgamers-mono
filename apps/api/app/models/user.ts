@@ -89,9 +89,7 @@ export async function createUserCollection(db: Db): Promise<Collection<User<Obje
   return collection;
 }
 
-export interface UserDocument extends User, mongoose.Document {
-  changeEmail(email: string): Promise<void>;
-  generateResetLink(): Promise<void>;
+export interface UserDocument extends User<ObjectId> {
   resetKey(): string;
   validateResetKey(key: string): void;
   generateConfirmKey(): void;
@@ -99,42 +97,12 @@ export interface UserDocument extends User, mongoose.Document {
   confirm(key: string): Promise<void>;
   recalculateKarma(since?: Date): Promise<void>;
   sendConfirmationEmail(): Promise<void>;
-  sendResetEmail(): Promise<void>;
   sendMailChangeEmail(newEmail: string): Promise<void>;
   sendGameNotificationEmail(): Promise<void>;
   updateGameNotification(): Promise<void>;
   notifyLogin(ip: string): Promise<void>;
   notifyLastIp(ip: string): Promise<void>;
 }
-
-// checking if password is valid
-
-schema.method("changeEmail", async function (this: UserDocument, email: string) {
-  assert(!(await User.findByEmail(email)), "User with this email already exists.");
-
-  this.account.email = email;
-  this.security.confirmed = false;
-  this.generateConfirmKey();
-
-  await this.update({
-    "account.email": email,
-    "security.confirmed": false,
-    "security.confirmKey": this.security.confirmKey,
-  });
-});
-
-schema.method("generateResetLink", async function (this: UserDocument) {
-  this.security.reset = {
-    key: secureId(),
-    issued: new Date(),
-  };
-
-  await this.update({ "security.reset": this.security.reset });
-});
-
-schema.method("resetKey", function (this: UserDocument) {
-  return this.security.reset.key;
-});
 
 schema.method("validateResetKey", function (this: UserDocument, key: string) {
   if (!this.security.reset || !this.security.reset.key) {
@@ -147,14 +115,6 @@ schema.method("validateResetKey", function (this: UserDocument, key: string) {
   if (Date.now() - resetIssued.getTime() > 24 * 3600 * 1000) {
     throw new Error("The reset link has expired.");
   }
-});
-
-schema.method("generateConfirmKey", function (this: UserDocument) {
-  this.security.confirmKey = secureId();
-});
-
-schema.method("confirmKey", function (this: UserDocument) {
-  return this.security.confirmKey;
 });
 
 schema.method("confirm", function (this: UserDocument, key: string) {
@@ -200,21 +160,6 @@ schema.method("sendMailChangeEmail", function (this: UserDocument, newEmail: str
     <p>Hello ${this.account.username},</p>
     <p>We're here to send you confirmation of your email change to ${escape(newEmail)}!</p>
     <p>If you didn't change your email, please contact us ASAP at ${env.contact}.</p>`,
-  });
-});
-
-schema.method("sendResetEmail", function (this: UserDocument) {
-  return sendmail({
-    from: env.noreply,
-    to: this.email(),
-    subject: "Forgotten password",
-    html: `
-    <p>A password reset was asked for your account,
-    click <a href='http://${env.site}/reset?key=${encodeURIComponent(this.resetKey())}&email=${encodeURIComponent(
-      this.email()
-    )}'>here</a> to reset your password.</p>
-
-    <p>If this didn't come from you, ignore this email.</p>`,
   });
 });
 
@@ -339,14 +284,6 @@ schema.method("notifyLastIp", async function (this: UserDocument, ip: string) {
   if (!isEmpty(update)) {
     await this.update(update);
   }
-});
-
-schema.static("findByUrl", function (this: UserModel, urlComponent: string) {
-  return this.findById(new Types.ObjectId(urlComponent));
-});
-
-schema.static("findByEmail", function (this: UserModel, email: string) {
-  return this.findOne({ "account.email": email.toLowerCase().trim() });
 });
 
 schema.method("recalculateKarma", async function (this: UserDocument, since = new Date(0)) {
