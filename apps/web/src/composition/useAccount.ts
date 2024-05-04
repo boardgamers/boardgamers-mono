@@ -1,17 +1,17 @@
 import { browser } from "$app/env";
 import { handleError, skipOnce } from "@/utils";
-import type { IUser } from "@bgs/types";
+import type { User } from "@bgs/types";
 import { derived, writable } from "svelte/store";
 import { defineStore } from "./defineStore";
 import { useAccessTokens } from "./useAccessTokens";
 import { useRefreshToken } from "./useRefreshToken";
 import { useRest } from "./useRest";
 
-export type AuthData = {
-  user: IUser;
+export interface AuthData {
+  user: User;
   accessToken: { code: string; expiresAt: number };
   refreshToken: { code: string; expiresAt: number };
-};
+}
 
 export const useAccount = defineStore(() => {
   const { get, setAccessToken, post } = useRest();
@@ -22,7 +22,7 @@ export const useAccount = defineStore(() => {
     if (loaded && !force) {
       return;
     }
-    return get<IUser | null>("/account").then(
+    return get<User | null>("/account").then(
       (val) => {
         loaded = true;
         account.set(val);
@@ -31,7 +31,7 @@ export const useAccount = defineStore(() => {
     );
   };
 
-  const account = writable<IUser | null>(null);
+  const account = writable<User | null>(null);
   const accountId = derived(account, ($account) => $account?._id || null);
 
   const { refreshToken } = useRefreshToken();
@@ -39,7 +39,7 @@ export const useAccount = defineStore(() => {
 
   if (browser) {
     account.subscribe(
-      skipOnce<[IUser | null]>((newVal) => {
+      skipOnce<[User | null]>((newVal) => {
         if (!newVal) {
           refreshToken.set(null);
           accessTokens.set({});
@@ -54,8 +54,9 @@ export const useAccount = defineStore(() => {
     setAccessToken(data.accessToken);
   }
 
-  function login(email: string, password: string) {
-    return post<AuthData>("/account/login", { email, password }).then(setAuthData);
+  async function login(email: string, password: string) {
+    const data = await post<AuthData>("/account/login", { email, password });
+    return setAuthData(data);
   }
 
   async function logout() {

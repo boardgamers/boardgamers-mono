@@ -1,7 +1,7 @@
-import { Context } from "koa";
-import { JwtRefreshToken } from "../../models";
+import type { Context } from "koa";
+import { JwtRefreshToken, UserUtils } from "../../models";
 
-export async function sendAuthInfo(ctx: Context) {
+export async function sendAuthInfo(ctx: Context): Promise<void> {
   const refreshToken = new JwtRefreshToken({
     user: ctx.state.user._id,
   });
@@ -26,7 +26,7 @@ export async function sendAuthInfo(ctx: Context) {
   }
 
   ctx.body = {
-    user: ctx.state.user,
+    user: UserUtils.sanitize(ctx.state.user),
     refreshToken: json,
     accessToken: {
       code: await refreshToken.createAccessToken(["all"], ctx.state.user.isAdmin()),

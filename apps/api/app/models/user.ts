@@ -6,7 +6,7 @@ import type { Db, Collection } from "mongodb";
 import { ObjectId } from "mongodb";
 import { isEmpty, pick } from "lodash";
 import { env, sendmail } from "../config";
-import type { PickDeep } from "type-fest";
+import type { JsonObject, PickDeep } from "type-fest";
 import { collections } from "../config/db";
 
 export const DEFAULT_KARMA = 75;
@@ -72,6 +72,37 @@ export namespace UserUtils {
   export async function findByUrl(urlComponent: string): Promise<User<ObjectId> | null> {
     return collections.users.findOne({ _id: new ObjectId(urlComponent) });
   }
+
+  export function sanitize(user: User<ObjectId>): JsonObject {
+    const json = JSON.parse(JSON.stringify(user));
+    delete json.account.password;
+    delete json.security.confirmKey;
+    if (json.reset) {
+      delete json.reset.key;
+    }
+
+    return json;
+  }
+
+  export async function sendConfirmationEmail(user: User<ObjectId>): Promise<void> {
+    if (user.account.email && !user.security.confirmed && user.security.confirmKey) {
+      await sendmail({
+        from: env.noreply,
+        to: user.account.email,
+        subject: "Confirm your account",
+        html: `
+        <p>Hello, we're delighted to have a new Gaia Project player among us!</p>
+        <p>To finish your registration and confirm your account with us at ${env.site},
+         click <a href='https://${env.site}/confirm?key=${encodeURIComponent(
+           user.security.confirmKey
+         )}&email=${encodeURIComponent(user.account.email)}'>here</a>.</p>
+  
+        <p>If you didn't create an account with us, ignore this email.</p>`,
+      });
+    } else {
+      throw new Error("User is already confirmed.");
+    }
+  }
 }
 
 export async function createUserCollection(db: Db): Promise<Collection<User<ObjectId>>> {
@@ -91,61 +122,14 @@ export async function createUserCollection(db: Db): Promise<Collection<User<Obje
 
 export interface UserDocument extends User<ObjectId> {
   resetKey(): string;
-  validateResetKey(key: string): void;
   generateConfirmKey(): void;
-  confirmKey(): string;
   confirm(key: string): Promise<void>;
   recalculateKarma(since?: Date): Promise<void>;
   sendConfirmationEmail(): Promise<void>;
   sendMailChangeEmail(newEmail: string): Promise<void>;
   sendGameNotificationEmail(): Promise<void>;
   updateGameNotification(): Promise<void>;
-  notifyLogin(ip: string): Promise<void>;
-  notifyLastIp(ip: string): Promise<void>;
 }
-
-schema.method("validateResetKey", function (this: UserDocument, key: string) {
-  if (!this.security.reset || !this.security.reset.key) {
-    throw new Error("This user didn't ask for a password reset.");
-  }
-  if (this.security.reset.key !== key) {
-    throw new Error("The reset password link is wrong.");
-  }
-  const resetIssued = new Date(this.security.reset.issued);
-  if (Date.now() - resetIssued.getTime() > 24 * 3600 * 1000) {
-    throw new Error("The reset link has expired.");
-  }
-});
-
-schema.method("confirm", function (this: UserDocument, key: string) {
-  if (this.security.confirmed) {
-    return;
-  }
-  assert(key && this.confirmKey() === key, `Wrong confirm link.`);
-  this.security.confirmed = true;
-  this.security.confirmKey = null;
-
-  return this.update({
-    "security.confirmed": true,
-    "security.confirmKey": null,
-  }).exec();
-});
-
-schema.method("sendConfirmationEmail", function (this: UserDocument) {
-  return sendmail({
-    from: env.noreply,
-    to: this.email(),
-    subject: "Confirm your account",
-    html: `
-    <p>Hello, we're delighted to have a new Gaia Project player among us!</p>
-    <p>To finish your registration and confirm your account with us at ${env.site},
-     click <a href='http://${env.site}/confirm?key=${encodeURIComponent(this.confirmKey())}&email=${encodeURIComponent(
-       this.email()
-     )}'>here</a>.</p>
-
-    <p>If you didn't create an account with us, ignore this email.</p>`,
-  });
-});
 
 schema.method("sendMailChangeEmail", function (this: UserDocument, newEmail: string) {
   if (!this.email()) {
@@ -231,7 +215,7 @@ schema.method("sendGameNotificationEmail", async function (this: UserDocument) {
         <p>Hello ${this.account.username}</p>
 
         <p>It's your turn on ${gameString},
-        click <a href='http://${env.site}/user/${encodeURIComponent(
+        click <a href='https://${env.site}/user/${encodeURIComponent(
           this.account.username
         )}'>here</a> to see your active games.</p>
 
@@ -260,29 +244,6 @@ schema.method("updateGameNotification", async function (this: UserDocument) {
   if (!this.meta.nextGameNotification || this.meta.nextGameNotification > date) {
     this.meta.nextGameNotification = date;
     await this.save();
-  }
-});
-
-schema.method("notifyLogin", function (this: UserDocument, ip: string) {
-  return this.update({
-    "security.lastLogin.date": Date.now(),
-    "security.lastLogin.ip": ip,
-    "security.lastIp": ip,
-  });
-});
-
-schema.method("notifyLastIp", async function (this: UserDocument, ip: string) {
-  const update: { "security.lastIp"?: string; "security.lastActive"?: Date } = {};
-  if (this.security.lastIp !== ip) {
-    this.security.lastIp = ip;
-    update["security.lastIp"] = ip;
-  }
-  if (!this.security.lastActive || Date.now() - this.security.lastActive.getTime() > 60 * 1000) {
-    this.security.lastActive = new Date();
-    update["security.lastActive"] = new Date();
-  }
-  if (!isEmpty(update)) {
-    await this.update(update);
   }
 });
 

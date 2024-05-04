@@ -33,7 +33,7 @@ router.use("/auth", auth.routes(), auth.allowedMethods());
 
 router.get("/", (ctx) => {
   if (ctx.state.user) {
-    ctx.body = ctx.state.user;
+    ctx.body = UserUtils.sanitize(ctx.state.user);
   }
 });
 
@@ -99,7 +99,7 @@ router.post("/", loggedIn, async (ctx) => {
 
   merge(user, parsed);
 
-  await collections.users.updateOne(
+  const updatedUser = await collections.users.findOneAndUpdate(
     { _id: user._id },
     {
       $set: {
@@ -108,9 +108,17 @@ router.post("/", loggedIn, async (ctx) => {
         settings: user.settings,
         updatedAt: new Date(),
       },
+    },
+    {
+      returnDocument: "after",
     }
   );
-  ctx.body = ctx.state.user;
+
+  if (!updatedUser) {
+    throw createError(404, "User not found");
+  }
+
+  ctx.body = UserUtils.sanitize(updatedUser);
 });
 
 router.post("/avatar", loggedIn, async (ctx) => {
@@ -173,7 +181,7 @@ router.post("/email", loggedIn, async (ctx) => {
 
   if (foundUser) {
     if (foundUser._id.equals(user._id)) {
-      ctx.body = user;
+      ctx.body = UserUtils.sanitize(user);
       return;
     }
 
@@ -191,14 +199,32 @@ router.post("/email", loggedIn, async (ctx) => {
 
   await user.sendConfirmationEmail();
 
-  ctx.body = user;
+  ctx.body = UserUtils.sanitize(user);
 });
 
 router.post("/terms-and-conditions", loggedIn, async (ctx) => {
-  assert(!ctx.state.user.account.termsAndConditions, "You already accepted the Terms and Conditions");
-  ctx.state.user.account.termsAndConditions = new Date();
-  await ctx.state.user.save();
-  ctx.body = ctx.state.user;
+  assert(!ctx.state.user!.account.termsAndConditions, "You already accepted the Terms and Conditions");
+
+  const updatedUser = await collections.users.findOneAndUpdate(
+    {
+      _id: ctx.state.user!._id,
+    },
+    {
+      $set: {
+        "account.termsAndConditions": new Date(),
+        updatedAt: new Date(),
+      },
+    },
+    {
+      returnDocument: "after",
+    }
+  );
+
+  if (!updatedUser) {
+    throw createError(404, "User not found");
+  }
+
+  ctx.body = UserUtils.sanitize(updatedUser);
 });
 
 router.get("/games/settings", loggedIn, async (ctx) => {
@@ -315,8 +341,35 @@ router.post("/confirm", async (ctx: Context) => {
     throw createError(404, "Can't find user: " + ctx.request.body.email);
   }
 
-  await user.confirm(ctx.request.body.key);
+  const passedKey = z.object({ key: z.string() }).parse(ctx.request.body).key;
 
+  if (user.security.confirmed) {
+    throw createError(400, "User already confirmed.");
+  }
+
+  assert(passedKey === user.security.confirmKey, `Wrong confirm link.`);
+
+  const updatedUser = await collections.users.findOneAndUpdate(
+    {
+      _id: user._id,
+    },
+    {
+      $set: {
+        "security.confirmed": true,
+        "security.confirmKey": null,
+        updatedAt: new Date(),
+      },
+    },
+    {
+      returnDocument: "after",
+    }
+  );
+
+  if (!updatedUser) {
+    throw createError(404, "User not found");
+  }
+
+  ctx.state.user = updatedUser;
   await sendAuthInfo(ctx);
 });
 

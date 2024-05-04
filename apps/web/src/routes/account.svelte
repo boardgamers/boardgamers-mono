@@ -124,8 +124,8 @@
 
   let customAvatarError = false;
 
-  async function uploadAvatar(event: InputEvent) {
-    const file = (event.target as HTMLInputElement).files?.[0];
+  async function uploadAvatar(target: HTMLInputElement) {
+    const file = target.files?.[0];
 
     if (!file) {
       return;
@@ -168,7 +168,13 @@
         username={$account.account.username}
       />
     {:else}
-      <input type="file" bind:this={fileUpload} on:change={uploadAvatar} accept="image/*" class="d-none" />
+      <input
+        type="file"
+        bind:this={fileUpload}
+        on:change={(ev) => uploadAvatar(ev.currentTarget)}
+        accept="image/*"
+        class="d-none"
+      />
       <a href="#upload" style="width: 100%" role="button" on:click|preventDefault={() => fileUpload.click()}>Upload</a>
       <div style="display: contents" class:d-none={customAvatarError}>
         <UserAvatar

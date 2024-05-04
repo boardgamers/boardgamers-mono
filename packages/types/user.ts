@@ -29,7 +29,7 @@ export interface User<T = string> {
   account: {
     username: string;
     email?: string;
-    password: string;
+    password?: string;
     karma: number;
     termsAndConditions: Date;
     social: Partial<Record<SocialProvider, string>>;

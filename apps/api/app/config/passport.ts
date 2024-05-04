@@ -2,19 +2,22 @@ import assert from "assert";
 import createError from "http-errors";
 import jwt from "jsonwebtoken";
 import passport from "koa-passport";
-import type { Strategy } from "passport";
+import type { Profile, Strategy } from "passport";
 import { Strategy as DiscordStrategy } from "passport-discord";
+import type { StrategyOptionWithRequest } from "passport-facebook";
 import { Strategy as FacebookStrategy } from "passport-facebook";
+import type { VerifyCallback } from "passport-google-oauth20";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as LocalStrategy } from "passport-local";
 import validator from "validator";
-import type { UserDocument } from "../models";
 import { DEFAULT_KARMA, MAX_EMAIL_LENGTH, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH, UserUtils } from "../models";
 import env from "./env";
 import { z } from "zod";
 import type { SocialProvider } from "@bgs/types";
-import { User } from "@bgs/types";
+import type { User } from "@bgs/types";
 import { ObjectId } from "mongodb";
+import { differenceInHours } from "date-fns";
+import { collections } from "./db";
 
 // =========================================================================
 // LOCAL SIGNUP ============================================================
@@ -111,7 +114,9 @@ passport.use(
           updatedAt: new Date(),
         };
 
-        await newUser.sendConfirmationEmail();
+        await collections.users.insertOne(newUser);
+
+        await UserUtils.sendConfirmationEmail(newUser);
 
         return done(null, newUser);
       } catch (err) {
@@ -140,7 +145,7 @@ passport.use(
 
         username = z.string().min(MIN_USERNAME_LENGTH).max(MAX_USERNAME_LENGTH).trim().parse(username);
 
-        if (await User.findByUsername(username)) {
+        if (await UserUtils.findByUsername(username)) {
           throw createError(422, `Username ${username} is taken`);
         }
 
@@ -154,16 +159,51 @@ passport.use(
         assert(["google", "facebook", "discord"].includes(decoded.provider), "Uknown social provider");
 
         // create the user
-        const newUser = new User();
+        const newUser: User<ObjectId> = {
+          _id: new ObjectId(),
+          account: {
+            username,
+            termsAndConditions: new Date(),
+            avatar: "pixel-art",
+            karma: DEFAULT_KARMA,
+            bio: "",
+            social: {
+              [decoded.provider]: decoded.id,
+            },
+          },
+          security: {
+            slug: UserUtils.generateSlug(username),
+            confirmed: true,
+            lastActive: new Date(),
+            lastOnline: new Date(),
+            lastLogin: {
+              date: new Date(),
+              ip: req.ip,
+            },
+            lastIp: req.ip,
+          },
+          settings: {
+            mailing: {
+              newsletter: req.body.newsletter === true || req.body.newsletter === "true",
+              game: {
+                delay: 0,
+                activated: false,
+              },
+            },
+            game: {
+              soundNotification: false,
+            },
+            home: {
+              showMyGames: true,
+            },
+          },
+          meta: {},
 
-        newUser.account.username = username;
-        newUser.security.slug = UserUtils.generateSlug(username);
-        newUser.account.social[decoded.provider] = decoded.id;
-        newUser.account.termsAndConditions = new Date();
-        newUser.security.confirmed = true;
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
 
-        // save the user
-        await newUser.save();
+        await collections.users.insertOne(newUser);
 
         return done(null, newUser);
       } catch (err) {
@@ -191,17 +231,28 @@ passport.use(
           throw createError(422, "Password too short");
         }
 
-        const user = await User.findByEmail(email);
+        const user = await UserUtils.findByEmail(email);
 
         // check to see if theres already a user with that email
         if (!user) {
           throw createError(404, "No user with this email");
         }
 
-        user.validateResetKey(req.body.resetKey);
+        const passedKey = z.object({ resetKey: z.string() }).parse(req.body).resetKey;
+
+        if (!user.security.reset?.key) {
+          throw new Error("This user didn't ask for a password reset.");
+        }
+        if (user.security.reset.key !== passedKey) {
+          throw new Error("The reset password link is wrong.");
+        }
+        const resetIssued = new Date(user.security.reset.issued);
+        if (differenceInHours(new Date(), resetIssued) > 24) {
+          throw new Error("The reset link has expired.");
+        }
 
         // set the user's local credentials
-        await user.resetPassword(password);
+        await UserUtils.resetPassword(user._id, password);
 
         return done(null, user);
       } catch (err) {
@@ -227,14 +278,18 @@ passport.use(
     },
     async (email, password, done) => {
       try {
-        const user = await User.findByEmail(email);
+        const user = await UserUtils.findByEmail(email);
         // if no user is found, return the message
         if (!user) {
           throw createError(404, `${email} isn't registered`);
         }
 
+        if (!user.account.password) {
+          throw createError(401, "You need to login with your social account or reset your password");
+        }
+
         // if the user is found but the password is wrong
-        if (!(await user.validPassword(password))) {
+        if (!(await UserUtils.validPassword(password, user.account.password))) {
           throw createError(401, "Oops! Wrong password");
         }
         done(null, user);
@@ -247,7 +302,16 @@ passport.use(
 
 function makeSocialStrategy<T extends Strategy>(
   provider: SocialProvider,
-  SocialStrategy: new (...args: unknown[]) => T
+  SocialStrategy: new (
+    arg1: StrategyOptionWithRequest,
+    arg2: (
+      req: Express.Request,
+      accessToken: string,
+      refreshToken: string,
+      profile: Profile,
+      done: VerifyCallback
+    ) => void
+  ) => T
 ) {
   passport.use(
     provider,
@@ -258,39 +322,43 @@ function makeSocialStrategy<T extends Strategy>(
         passReqToCallback: true,
         callbackURL: `https://${env.site}/auth/${provider}/callback`,
       },
-      async function (req, token, tokenSecret, profile, done) {
+      async function (req, _token, _tokenSecret, profile, done) {
         try {
-          const currentUser: UserDocument = req.user;
-          const existingUser = await User.findOne({ [`account.social.${provider}`]: profile.id });
+          const currentUser = req.user as User<ObjectId> | undefined;
+          const existingUser = await collections.users.findOne({ [`account.social.${provider}`]: profile.id });
 
           if (currentUser) {
-            if (existingUser && existingUser._id === currentUser._id) {
-              done(null, existingUser);
+            if (existingUser && existingUser._id.equals(currentUser._id)) {
+              done(undefined, existingUser);
               return;
             }
             assert(!currentUser.account.social[provider], `You already have a ${provider} account connected`);
             assert(!existingUser, `Another user is already connected to that ${provider} account`);
 
             currentUser.account.social[provider] = profile.id;
+            await collections.users.updateOne(
+              { _id: currentUser._id },
+              { $set: { [`account.social.${provider}`]: profile.id }, updatedAt: new Date() }
+            );
 
-            await currentUser.save();
-            done(null, currentUser);
+            done(undefined, currentUser);
           } else {
             if (existingUser) {
-              done(null, existingUser);
+              done(undefined, existingUser);
             } else {
               // Create a new account
-              done(null, { createSocialAccount: true, provider, id: profile.id });
+              done(undefined, { createSocialAccount: true, provider, id: profile.id });
             }
           }
         } catch (err) {
-          done(err);
+          done(err as Error);
         }
       }
     )
   );
 }
 
+// @ts-expect-error can't fix them all
 makeSocialStrategy("discord", DiscordStrategy);
 makeSocialStrategy("google", GoogleStrategy);
 makeSocialStrategy("facebook", FacebookStrategy);

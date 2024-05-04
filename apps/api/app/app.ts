@@ -2,6 +2,7 @@ import { AssertionError } from "assert";
 import type { Server } from "http";
 import createError from "http-errors";
 import jwt from "jsonwebtoken";
+import { ObjectId } from "mongodb";
 /* Koa stuff */
 import Koa from "koa";
 import bodyParser from "koa-bodyparser";
@@ -12,12 +13,15 @@ import passport from "koa-passport";
 import env from "./config/env";
 /* Configure passport */
 import "./config/passport";
-import { ApiError, User, UserDocument } from "./models";
+import { ApiError } from "./models";
 /* Local stuff */
 import router from "./routes";
+import { collections } from "./config/db";
+import { differenceInMinutes } from "date-fns";
+import type { User } from "@bgs/types";
 
-async function listen(port = env.listen.port.api) {
-  const app = new Koa<Koa.DefaultState & { user: UserDocument }>();
+async function listen(port = env.listen.port.api): Promise<Server> {
+  const app = new Koa<Koa.DefaultState & { user?: User<ObjectId> | null }>();
 
   /* Configuration */
   app.keys = [env.sessionSecret];
@@ -40,7 +44,7 @@ async function listen(port = env.listen.port.api) {
       const decoded = jwt.verify(token, env.jwt.keys.public) as { userId: string; scopes: string[] };
 
       if (decoded && decoded.scopes.includes("all")) {
-        ctx.state.user = await User.findById(decoded.userId);
+        ctx.state.user = await collections.users.findOne({ _id: new ObjectId(decoded.userId) });
       }
     };
 
@@ -62,6 +66,7 @@ async function listen(port = env.listen.port.api) {
       if (!env.silent) {
         console.error("Caught err", err);
       }
+      // todo: handle zod errors
       if (err instanceof createError.HttpError) {
         ctx.status = err.statusCode;
         ctx.body = { message: err.message };
@@ -117,9 +122,33 @@ async function listen(port = env.listen.port.api) {
 
     if (user) {
       if (!oldUser) {
-        await user.notifyLogin(ctx.ip);
+        await collections.users.updateOne(
+          {
+            _id: user._id,
+          },
+          {
+            $set: {
+              "security.lastLogin.date": Date.now(),
+              "security.lastLogin.ip": ctx.ip,
+              "security.lastIp": ctx.ip,
+            },
+          }
+        );
       } else {
-        await user.notifyLastIp(ctx.ip);
+        if (user.security.lastIp !== ctx.ip || differenceInMinutes(Date.now(), user.security.lastActive) > 1) {
+          await collections.users.updateOne(
+            {
+              _id: user._id,
+            },
+            {
+              $set: {
+                "security.lastActive": new Date(),
+                "security.lastIp": ctx.ip,
+                updatedAt: new Date(),
+              },
+            }
+          );
+        }
       }
     }
   });
@@ -128,7 +157,7 @@ async function listen(port = env.listen.port.api) {
     await next();
 
     if (ctx.state.user) {
-      const user: UserDocument = ctx.state.user;
+      const user = ctx.state.user;
 
       // Token for forum SSO
       ctx.cookies.set(
@@ -163,7 +192,7 @@ async function listen(port = env.listen.port.api) {
 
   console.log("app started on port", port, "and host", env.listen.host);
 
-  return server;
+  return server!;
 }
 
 export { listen };

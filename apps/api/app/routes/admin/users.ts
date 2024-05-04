@@ -1,8 +1,10 @@
 import assert from "assert";
-import { Context } from "koa";
+import type { Context } from "koa";
 import Router from "koa-router";
-import { ApiError, GameInfo, GamePreferences, User } from "../../models";
+import { ApiError, GameInfoUtils, GamePreferences, UserUtils } from "../../models";
 import { queryCount } from "../utils";
+import { collections } from "../../config/db";
+import { omit } from "lodash";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -18,12 +20,12 @@ router.get("/search", async (ctx) => {
       ? { "account.email": new RegExp("^" + query.toLowerCase()) }
       : { "security.slug": new RegExp("^" + query.toLowerCase()) };
 
-  const users = await User.find(conditions, "account").lean(true).limit(queryCount(ctx));
-  ctx.body = users;
+  const users = await collections.users.find(conditions).project({ account: 1 }).limit(queryCount(ctx)).toArray();
+  ctx.body = users.map((user) => omit(user, "account.password"));
 });
 
 router.post("/:userId", async (ctx) => {
-  await User.updateOne(
+  await collections.users.updateOne(
     { _id: ctx.params.userId },
     {
       $set: { "account.karma": ctx.request.body.account.karma },
@@ -46,7 +48,7 @@ router.post("/:userId/access/grant", async (ctx) => {
 
   assert(type === "game", "Wrong kind of access");
 
-  const gameInfo = await GameInfo.findWithVersion(ctx.request.body.game, ctx.request.body.version).lean(true);
+  const gameInfo = await GameInfoUtils.findWithVersion(ctx.request.body.game, ctx.request.body.version);
 
   if (!gameInfo) {
     ctx.status = 404;
@@ -58,7 +60,7 @@ router.post("/:userId/access/grant", async (ctx) => {
     return;
   }
 
-  if (!(await User.count({ _id: ctx.params.userId }))) {
+  if (!(await collections.users.countDocuments({ _id: ctx.params.userId }, { limit: 1 }))) {
     ctx.status = 404;
     return;
   }
@@ -72,11 +74,11 @@ router.post("/:userId/access/grant", async (ctx) => {
 });
 
 router.post("/:userId/confirm", async (ctx) => {
-  if (!(await User.count({ _id: ctx.params.userId }))) {
+  if (!(await collections.users.countDocuments({ _id: ctx.params.userId }, { limit: 1 }))) {
     return;
   }
 
-  await User.updateOne(
+  await collections.users.updateOne(
     { _id: ctx.params.userId },
     { $set: { "security.confirmed": true, "security.confirmKey": null } }
   );
@@ -84,7 +86,7 @@ router.post("/:userId/confirm", async (ctx) => {
 });
 
 router.get("/:userId/api-errors", async (ctx) => {
-  if (!(await User.count({ _id: ctx.params.userId }))) {
+  if (!(await collections.users.countDocuments({ _id: ctx.params.userId }, { limit: 1 }))) {
     return;
   }
 
@@ -92,14 +94,14 @@ router.get("/:userId/api-errors", async (ctx) => {
 });
 
 router.get("/infoByName/:username", async (ctx) => {
-  const user = await User.findByUsername(ctx.params.username);
+  const user = await UserUtils.findByUsername(ctx.params.username);
 
   if (!user) {
     ctx.status = 404;
     return;
   }
 
-  ctx.body = user;
+  ctx.body = UserUtils.sanitize(user);
 });
 
 export default router;
