@@ -13,7 +13,14 @@
   "dependencies": {
     "lodash": "^4.17.21"
   },
-  "main": "index.ts",
+  "main": "dist/index.js",
+  "types": "src/index.ts",
+  "files": [
+    "src",
+    "dist",
+    "tsconfig.json"
+  ],
+  "type": "module",
   "devDependencies": {
     "@types/lodash": "^4.14.176",
     "@types/luxon": "^2.0.4",

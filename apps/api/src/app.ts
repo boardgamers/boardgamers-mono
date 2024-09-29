@@ -75,7 +75,7 @@ async function listen(port = env.listen.port.api): Promise<Server> {
       } else if (err instanceof ZodError) {
         const formattedError = err.format();
 
-        const message = Object.entries(flatten(formattedError, { safe: true }) as Record<string, string[]>)
+        const message = Object.entries(flatten(formattedError) as Record<string, string[]>)
           .filter(
             (entry: [string, unknown]): entry is [string, string[]] =>
               !!(entry[0].endsWith("._errors") && Array.isArray(entry[1]) && entry[1].length)
