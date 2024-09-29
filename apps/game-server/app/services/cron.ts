@@ -16,7 +16,9 @@ async function installGames() {
 
 async function startGames() {
   while (1) {
-    while (await startNextGame()) {}
+    while (await startNextGame()) {
+      //
+    }
 
     await delay(1000);
   }

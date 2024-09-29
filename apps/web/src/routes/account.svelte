@@ -13,14 +13,15 @@
 <script lang="ts">
   import { handleError, confirm, niceDate, duration, createWatcher } from "@/utils";
   import { Card, Button, Col, Container, FormGroup, Input, InputGroup, Row, Checkbox } from "@/modules/cdk";
-  import { upperFirst, debounce } from "lodash";
+  import { upperFirst, debounce, filter } from "lodash";
   import type { LoadInput } from "@sveltejs/kit";
   import { useLoad } from "@/composition/useLoad";
   import { useAccount } from "@/composition/useAccount";
   import { useRest } from "@/composition/useRest";
   import { get as storeGet } from "svelte/store";
   import { redirectLoggedIn } from "@/utils/redirect";
-  import type { IUser } from "@bgs/types";
+  import type { User } from "@bgs/types";
+  import { AVATAR_STYLES } from "@bgs/types";
   import { browser } from "$app/env";
   import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
   import { useLoggedIn } from "@/composition/useLoggedIn";
@@ -49,28 +50,6 @@
 
   $: bio = $account?.account.bio ?? "";
 
-  const avatarStyles = [
-    "adventurer",
-    "adventurer-neutral",
-    "avataaars",
-    "big-ears",
-    "big-ears-neutral",
-    "big-smile",
-    "bottts",
-    "croodles",
-    "croodles-neutral",
-    "gridy",
-    "identicon",
-    "initials",
-    "jdenticon",
-    "micah",
-    "miniavs",
-    "open-peeps",
-    "personas",
-    "pixel-art",
-    "pixel-art-neutral",
-  ];
-
   async function acceptTC() {
     const accepted = await confirm("The terms and conditions will be marked as accepted at today's date.");
 
@@ -87,7 +66,7 @@
   }
 
   const selectArt = (art: string) =>
-    post<IUser>("/account", {
+    post<User>("/account", {
       account: {
         avatar: art,
       },
@@ -97,7 +76,7 @@
 
   const updateAccount = debounce(
     () => {
-      post<IUser>("/account", {
+      post<User>("/account", {
         settings: {
           mailing: {
             newsletter,
@@ -117,7 +96,7 @@
   );
 
   const updateBio = (bio: string) =>
-    post<IUser>("/account", {
+    post<User>("/account", {
       account: {
         bio,
       },
@@ -145,8 +124,8 @@
 
   let customAvatarError = false;
 
-  async function uploadAvatar(event: InputEvent) {
-    const file = (event.target as HTMLInputElement).files?.[0];
+  async function uploadAvatar(target: HTMLInputElement) {
+    const file = target.files?.[0];
 
     if (!file) {
       return;
@@ -189,7 +168,13 @@
         username={$account.account.username}
       />
     {:else}
-      <input type="file" bind:this={fileUpload} on:change={uploadAvatar} accept="image/*" class="d-none" />
+      <input
+        type="file"
+        bind:this={fileUpload}
+        on:change={(ev) => uploadAvatar(ev.currentTarget)}
+        accept="image/*"
+        class="d-none"
+      />
       <a href="#upload" style="width: 100%" role="button" on:click|preventDefault={() => fileUpload.click()}>Upload</a>
       <div style="display: contents" class:d-none={customAvatarError}>
         <UserAvatar
@@ -201,7 +186,7 @@
           on:click={() => selectArt("upload")}
         />
       </div>
-      {#each avatarStyles as art}
+      {#each AVATAR_STYLES.filter((style) => style !== "upload") as art}
         <UserAvatar {art} username={$account.account.username} role="button" on:click={() => selectArt(art)} />
       {/each}
     {/if}

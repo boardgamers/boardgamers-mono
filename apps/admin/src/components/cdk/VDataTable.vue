@@ -5,7 +5,7 @@ const selected = ref<any>();
 
 withDefaults(
   defineProps<{ headers: Array<{ text: string; value: any }>; items: Array<Record<string, any>>; itemKey?: string }>(),
-  { itemKey: "value" }
+  { itemKey: "value" },
 );
 </script>
 <template>

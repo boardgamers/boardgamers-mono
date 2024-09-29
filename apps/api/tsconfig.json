@@ -1,19 +1,13 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "target": "es2020",
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "sourceMap": true,
     "outDir": "./dist",
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "allowJs": true,
-    "strict": false,
-    "strictNullChecks": false,
-    "resolveJsonModule": true,
-    "esModuleInterop": true,
-    "types": ["node", "mocha", "chai", "./app/types"],
-    "baseUrl": "."
+    "rootDir": "./src"
   },
-  "include": ["app/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts", "server.ts"]
+  "include": ["src"],
+  "references": [
+    { "path": "../../packages/utils" },
+    { "path": "../../packages/models" },
+    { "path": "../../packages/types" }
+  ]
 }

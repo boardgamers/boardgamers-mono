@@ -12,16 +12,19 @@ const props = withDefaults(defineProps<{ modelValue?: Page; mode?: "new" | "edit
       },
       title: "",
       content: "",
-    } as Page),
+    }) as Page,
   mode: "edit",
 });
 
-const emit =
-  defineEmits<{ (e: "update:modelValue", value: Page): void; (e: "save", value: Page): void; (e: "delete"): void }>();
+const emit = defineEmits<{
+  (e: "update:modelValue", value: Page): void;
+  (e: "save", value: Page): void;
+  (e: "delete"): void;
+}>();
 
 watch(
   () => props.modelValue,
-  () => emit("update:modelValue", props.modelValue)
+  () => emit("update:modelValue", props.modelValue),
 );
 
 const content = ref<typeof EditorVue | null>(null);
@@ -43,7 +46,7 @@ watch(
     if (props.modelValue.content) {
       content.value?.setMarkdown(props.modelValue.content);
     }
-  }
+  },
 );
 </script>
 <template>

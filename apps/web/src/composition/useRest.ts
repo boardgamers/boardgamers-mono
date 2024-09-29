@@ -13,7 +13,7 @@ async function getResponseData<T>(response: Response): Promise<T> {
   if (response.status >= 400) {
     const err = new Error(body?.message ?? body);
 
-    (err as any).status = response.status;
+    Object.assign(err, { status: response.status });
     throw err;
   }
 

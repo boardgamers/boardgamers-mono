@@ -31,7 +31,7 @@ watch(
       loading.value = false;
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 </script>
 <template>

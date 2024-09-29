@@ -1,23 +1,21 @@
-import locks from "mongo-locks";
-import mongoose from "mongoose";
+import { LockManager } from "mongo-locks";
 import env from "./env";
+import { MongoClient } from "mongodb";
+import { createApiErrorCollection, createChatMessageCollection, createGameCollection } from "@bgs/models";
 
-const connect = () =>
-  mongoose
-    .connect(env.database.bgs.url, { dbName: env.database.bgs.name, directConnection: true })
-    .then(() => console.log("successfully connected to database"));
+const client = new MongoClient(env.database.bgs.url, { directConnection: true, ignoreUndefined: true });
 
-connect().catch((err) => {
-  console.error(err);
+await client.connect().catch((err) => {
+  console.error("Failed to connect to database", err);
+  process.exit(1);
 });
 
-mongoose.connection.on("error", (err) => {
-  console.error(err);
-});
+const db = client.db(env.database.bgs.name);
 
-mongoose.connection.on("disconnected", () => {
-  console.log("attempt to reconnect to database");
-  setTimeout(() => connect().catch(console.error), 5000);
-});
+export const collections = {
+  apiErrors: await createApiErrorCollection(db),
+  chatMessages: await createChatMessageCollection(db),
+  games: await createGameCollection(db),
+};
 
-locks.init(mongoose.connection);
+export const locks = new LockManager(db.collection("mongo-locks"));

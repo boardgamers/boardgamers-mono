@@ -10,7 +10,7 @@ const props = withDefaults(
     type: "text" | "email" | "password" | "number";
     required?: boolean;
   }>(),
-  { type: "text" }
+  { type: "text" },
 );
 
 const emit = defineEmits<{
@@ -29,20 +29,7 @@ const emit = defineEmits<{
       :required="props.required"
       :placeholder="props.label"
       :disabled="disabled"
-      class="
-        shadow
-        appearance-none
-        border
-        rounded
-        w-full
-        py-2
-        px-3
-        text-gray-700
-        dark:bg-gray-700 dark:text-gray-300
-        leading-tight
-        focus:outline-none focus:shadow-outline
-        disabled:opacity-80 disabled:cursor-not-allowed disabled:select-none
-      "
+      class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:bg-gray-700 dark:text-gray-300 leading-tight focus:outline-none focus:shadow-outline disabled:opacity-80 disabled:cursor-not-allowed disabled:select-none"
       :value="props.modelValue"
       @input="emit('update:modelValue', $event.target.value)"
       @focus="emit('focus', $event)"

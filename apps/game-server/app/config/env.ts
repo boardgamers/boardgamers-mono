@@ -33,7 +33,7 @@ export default {
     },
   },
   isProduction: process.env.NODE_ENV === "production",
-  threads: process.env.threads || os.cpus().length,
+  threads: isNaN(parseInt(process.env.threads)) ? os.cpus().length : parseInt(process.env.threads),
   seedEncryptionKey: process.env.seedEncryptionKey || "hashing key for seed",
   cron: process.env.cron || process.env.chron || false,
 };
