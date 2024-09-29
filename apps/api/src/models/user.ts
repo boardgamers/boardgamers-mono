@@ -1,5 +1,4 @@
-import type { User } from "@bgs/types";
-import assert from "assert";
+import type { Game, User } from "@bgs/types";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import type { Db, Collection } from "mongodb";
@@ -7,7 +6,9 @@ import { ObjectId } from "mongodb";
 import { isEmpty, pick } from "lodash";
 import { env, sendmail } from "../config";
 import type { JsonObject, PickDeep } from "type-fest";
-import { collections } from "../config/db";
+import { collections, db, locks } from "../config/db";
+import { htmlEscape } from "@bgs/utils";
+import { GameUtils } from "./game";
 
 export const DEFAULT_KARMA = 75;
 export const MAX_KARMA = 100;
@@ -103,6 +104,151 @@ export namespace UserUtils {
       throw new Error("User is already confirmed.");
     }
   }
+
+  export async function sendMailChangeEmail(user: User<ObjectId>, newEmail: string): Promise<void> {
+    if (!user.account.email) {
+      return;
+    }
+
+    await sendmail({
+      from: env.noreply,
+      to: user.account.email,
+      subject: "Mail change",
+      html: `
+      <p>Hello ${user.account.username},</p>
+      <p>We're here to send you confirmation of your email change to ${htmlEscape(newEmail)}!</p>
+      <p>If you didn't change your email, please contact us ASAP at ${env.contact}.`,
+    });
+  }
+
+  export async function sendGameNotificationEmail(_user: User<ObjectId>): Promise<void> {
+    await using lock = await locks.lock(["game-notification", _user._id]);
+
+    // Inside the lock, reload the user
+    const user = await collections.users.findOne({ _id: _user._id });
+
+    if (!user) {
+      return;
+    }
+
+    if (!user.settings.mailing.game.activated) {
+      await collections.users.updateOne({ _id: user._id }, { $set: { "meta.nextGameNotification": undefined } });
+      return;
+    }
+
+    if (!user.meta.nextGameNotification) {
+      return;
+    }
+
+    if (user.meta.nextGameNotification > new Date()) {
+      return;
+    }
+
+    /* check if timer already started was present at the time of the last notification for at least one game*/
+    const count = await collections.games.countDocuments(
+      {
+        currentPlayers: { $elemMatch: { _id: user._id, timerStart: { $lt: user.meta.lastGameNotification } } },
+        status: "active",
+      },
+      { limit: 1 }
+    );
+
+    if (count > 0) {
+      return;
+    }
+
+    const activeGames = await GameUtils.findWithPlayersTurn(user._id)
+      .project<PickDeep<Game<ObjectId>, "_id" | "currentPlayers">>({ _id: 1, currentPlayers: 1 })
+      .toArray();
+
+    if (activeGames.length === 0) {
+      await collections.users.updateOne({ _id: user._id }, { $set: { "meta.nextGameNotification": null } });
+      return;
+    }
+
+    /* Check the oldest game where it's your turn */
+    let lastMove: Date = new Date();
+    for (const game of activeGames) {
+      const timerStart = game.currentPlayers?.find((pl) => pl._id.equals(user._id))?.timerStart;
+      if (timerStart && timerStart < lastMove) {
+        lastMove = timerStart;
+      }
+    }
+
+    /* Test if we're sending the notification too early */
+    const notificationDate = new Date(lastMove.getTime() + (user.settings.mailing.game.delay || 30 * 60) * 1000);
+
+    if (notificationDate > new Date()) {
+      await collections.users.updateOne(
+        {
+          _id: user._id,
+        },
+        {
+          $set: { "meta.nextGameNotification": notificationDate },
+        }
+      );
+      return;
+    }
+
+    const gameString = activeGames.length > 1 ? `${activeGames.length} games` : "one game";
+
+    // Send email
+    if (user.account.email && user.security.confirmed) {
+      sendmail({
+        from: env.noreply,
+        to: user.account.email,
+        subject: `Your turn`,
+        html: `
+        <p>Hello ${user.account.username}</p>
+
+        <p>It's your turn on ${gameString},
+        click <a href='https://${env.site}/user/${encodeURIComponent(
+          user.account.username
+        )}'>here</a> to see your active games.</p>
+
+        <p>You can also change your email settings and unsubscribe <a href='http://${
+          env.site
+        }/account'>here</a> with a simple click.</p>`,
+      }).catch(console.error);
+    }
+
+    user.meta.nextGameNotification = undefined;
+    user.meta.lastGameNotification = new Date(Date.now());
+
+    await collections.users.updateOne(
+      { _id: user._id },
+      { $set: { "meta.lastGameNotification": user.meta.lastGameNotification, "meta.nextGameNotification": null } }
+    );
+  }
+
+  export async function updateGameNotification(user: User<ObjectId>): Promise<void> {
+    if (!user.settings.mailing.game.activated) {
+      return;
+    }
+    const date = new Date(Date.now() + (user.settings.mailing.game.delay || 30 * 60) * 1000);
+    if (!user.meta.nextGameNotification || user.meta.nextGameNotification > date) {
+      user.meta.nextGameNotification = date;
+      await collections.users.updateOne({ _id: user._id }, { $set: { "meta.nextGameNotification": date } });
+    }
+  }
+
+  export async function recalculateKarma(user: User<ObjectId>, since = new Date(0)): Promise<void> {
+    const games = await collections.games
+      .find({ "players._id": user._id, lastMove: { $gte: since } }, { projection: { status: 1, cancelled: 1 } })
+      .toArray();
+
+    let karma = DEFAULT_KARMA;
+
+    for (const game of games) {
+      if (game.players.find((player) => player._id.equals(user._id))?.dropped) {
+        karma -= 10;
+      } else if (!game.cancelled && game.status === "ended") {
+        karma = Math.min(karma + 1, MAX_KARMA);
+      }
+    }
+
+    await collections.users.updateOne({ _id: user._id }, { $set: { "account.karma": karma } });
+  }
 }
 
 export async function createUserCollection(db: Db): Promise<Collection<User<ObjectId>>> {
@@ -119,148 +265,3 @@ export async function createUserCollection(db: Db): Promise<Collection<User<Obje
 
   return collection;
 }
-
-export interface UserDocument extends User<ObjectId> {
-  resetKey(): string;
-  generateConfirmKey(): void;
-  confirm(key: string): Promise<void>;
-  recalculateKarma(since?: Date): Promise<void>;
-  sendConfirmationEmail(): Promise<void>;
-  sendMailChangeEmail(newEmail: string): Promise<void>;
-  sendGameNotificationEmail(): Promise<void>;
-  updateGameNotification(): Promise<void>;
-}
-
-schema.method("sendMailChangeEmail", function (this: UserDocument, newEmail: string) {
-  if (!this.email()) {
-    return Promise.resolve();
-  }
-
-  return sendmail({
-    from: env.noreply,
-    to: this.email(),
-    subject: "Mail change",
-    html: `
-    <p>Hello ${this.account.username},</p>
-    <p>We're here to send you confirmation of your email change to ${escape(newEmail)}!</p>
-    <p>If you didn't change your email, please contact us ASAP at ${env.contact}.</p>`,
-  });
-});
-
-schema.method("sendGameNotificationEmail", async function (this: UserDocument) {
-  const free = await locks.lock("game-notification", this.id);
-  try {
-    // Inside the lock, reload the user
-    const user = await User.findById(this.id);
-
-    if (!user.settings.mailing.game.activated) {
-      user.meta.nextGameNotification = undefined;
-      await user.save();
-      return;
-    }
-
-    if (!user.meta.nextGameNotification) {
-      return;
-    }
-
-    if (user.meta.nextGameNotification > new Date()) {
-      return;
-    }
-
-    /* check if timer already started was present at the time of the last notification for at least one game*/
-    const count = await Game.count({
-      currentPlayers: { $elemMatch: { _id: user._id, timerStart: { $lt: user.meta.lastGameNotification } } },
-      status: "active",
-    }).limit(1);
-
-    if (count > 0) {
-      return;
-    }
-
-    const activeGames = await Game.findWithPlayersTurn(user.id).select("-data").lean(true);
-
-    if (activeGames.length === 0) {
-      user.meta.nextGameNotification = undefined;
-      await user.save();
-      return;
-    }
-
-    /* Check the oldest game where it's your turn */
-    let lastMove: Date = new Date();
-    for (const game of activeGames) {
-      const timerStart = game.currentPlayers.find((pl) => pl._id.equals(this.id))?.timerStart;
-      if (timerStart && timerStart < lastMove) {
-        lastMove = timerStart;
-      }
-    }
-
-    /* Test if we're sending the notification too early */
-    const notificationDate = new Date(lastMove.getTime() + (user.settings.mailing.game.delay || 30 * 60) * 1000);
-
-    if (notificationDate > new Date()) {
-      user.meta.nextGameNotification = notificationDate;
-      await user.save();
-      return;
-    }
-
-    const gameString = activeGames.length > 1 ? `${activeGames.length} games` : "one game";
-
-    // Send email
-    if (this.email() && this.security.confirmed) {
-      sendmail({
-        from: env.noreply,
-        to: this.email(),
-        subject: `Your turn`,
-        html: `
-        <p>Hello ${this.account.username}</p>
-
-        <p>It's your turn on ${gameString},
-        click <a href='https://${env.site}/user/${encodeURIComponent(
-          this.account.username
-        )}'>here</a> to see your active games.</p>
-
-        <p>You can also change your email settings and unsubscribe <a href='http://${
-          env.site
-        }/account'>here</a> with a simple click.</p>`,
-      }).catch(console.error);
-    }
-
-    user.meta.nextGameNotification = undefined;
-    user.meta.lastGameNotification = new Date(Date.now());
-
-    await user.save();
-  } catch (err) {
-    console.error(err);
-  } finally {
-    free().catch(console.error);
-  }
-});
-
-schema.method("updateGameNotification", async function (this: UserDocument) {
-  if (!this.settings.mailing.game.activated) {
-    return;
-  }
-  const date = new Date(Date.now() + (this.settings.mailing.game.delay || 30 * 60) * 1000);
-  if (!this.meta.nextGameNotification || this.meta.nextGameNotification > date) {
-    this.meta.nextGameNotification = date;
-    await this.save();
-  }
-});
-
-schema.method("recalculateKarma", async function (this: UserDocument, since = new Date(0)) {
-  const games = await Game.find({ "players._id": this._id, lastMove: { $gte: since } }, "status cancelled players", {
-    lean: true,
-  }).sort("lastMove");
-
-  let karma = DEFAULT_KARMA;
-
-  for (const game of games) {
-    if (game.players.find((player) => player._id.equals(this._id)).dropped) {
-      karma -= 10;
-    } else if (!game.cancelled && game.status === "ended") {
-      karma = Math.min(karma + 1, MAX_KARMA);
-    }
-  }
-
-  this.account.karma = karma;
-});

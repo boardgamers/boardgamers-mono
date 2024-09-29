@@ -10,7 +10,7 @@ import {
   createGameInfoCollection,
   createGameNotificationCollection,
 } from "@bgs/models";
-import { createUserCollection } from "../models";
+import { createUserCollection } from "../models/user";
 
 const client = new MongoClient(env.database.bgs.url, { directConnection: true, ignoreUndefined: true });
 
@@ -34,7 +34,7 @@ export const collections = {
   users: await createUserCollection(db),
 };
 
-if (!env.isTest && cluster.isMaster) {
+if (!env.isTest && cluster.isPrimary) {
   await using lock = await locks.lock("db");
 
   if (lock) {

@@ -75,8 +75,8 @@ export interface User<T = string> {
     slug: string;
   };
   meta: {
-    nextGameNotification?: Date;
-    lastGameNotification?: Date;
+    nextGameNotification?: Date | null;
+    lastGameNotification?: Date | null;
   };
   authority?: "admin";
 

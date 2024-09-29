@@ -4,3 +4,4 @@ export * from "./flatten";
 export * from "./is-object";
 export * from "./typed-include";
 export * from "./is-promise";
+export * from "./html-escape";

@@ -1,5 +1,5 @@
-import { env } from "../app/config";
-import * as models from "../app/models";
+import { env } from "../config";
+import * as models from "../models";
 import * as data from "./data";
 
 if (process.env.NODE_ENV !== "test") {
