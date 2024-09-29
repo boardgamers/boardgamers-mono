@@ -1,10 +1,10 @@
 import type { GameStatus } from "@bgs/types";
-import { joinAnd } from "@bgs/utils/join-and";
+import { joinAnd } from "@bgs/utils/src/join-and";
 import { removeFalsy } from "@bgs/utils/remove-falsy";
 import { Game } from "../../models";
 import GameInfoService from "../../services/gameinfo";
 import assert from "assert";
-import { Context } from "koa";
+import type { Context } from "koa";
 import Router from "koa-router";
 import { queryCount, skipCount } from "../utils";
 

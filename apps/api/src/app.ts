@@ -1,4 +1,6 @@
 import { AssertionError } from "assert";
+import { ZodError } from "zod";
+import { flatten } from "@bgs/utils";
 import type { Server } from "http";
 import createError from "http-errors";
 import jwt from "jsonwebtoken";
@@ -70,16 +72,25 @@ async function listen(port = env.listen.port.api): Promise<Server> {
       if (err instanceof createError.HttpError) {
         ctx.status = err.statusCode;
         ctx.body = { message: err.message };
-      } else if (err.name === "ValidationError") {
-        const keys = Object.keys(err.errors);
+      } else if (err instanceof ZodError) {
+        const formattedError = err.format();
+
+        const message = Object.entries(flatten(formattedError, { safe: true }) as Record<string, string[]>)
+          .filter(
+            (entry: [string, unknown]): entry is [string, string[]] =>
+              !!(entry[0].endsWith("._errors") && Array.isArray(entry[1]) && entry[1].length)
+          )
+          .map(([key, val]) => `${key.slice(0, -"._errors".length)}: ${val[0]}`)
+          .join(", ");
+
         ctx.status = 422;
-        ctx.body = { message: err.errors[keys[0]].message };
+        ctx.body = { message };
       } else if (err instanceof AssertionError) {
         ctx.status = 422;
         ctx.body = { message: err.message };
       } else {
         ctx.status = 500;
-        ctx.body = { message: "Internal error: " + err.message, stack: err.stack };
+        ctx.body = { message: "Internal error: " + (err as Error).message, stack: (err as Error).stack };
       }
 
       try {
@@ -93,9 +104,9 @@ async function listen(port = env.listen.port.api): Promise<Server> {
             body: JSON.stringify(ctx.request.body),
           },
           error: {
-            name: err.name,
-            stack: err.stack,
-            message: err.message,
+            name: (err as Error).name,
+            stack: (err as Error).stack,
+            message: (err as Error).message,
           },
           user: ctx.state.user?._id,
           meta: {

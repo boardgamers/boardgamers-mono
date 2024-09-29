@@ -1,20 +1,13 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "node",
-    "sourceMap": true,
     "outDir": "./dist",
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "allowJs": true,
-    "strict": true,
-    "strictNullChecks": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "types": ["node", "./app/types"]
+    "rootDir": "./src"
   },
-  "include": ["app/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts", "server.ts"],
-  "exclude": ["node_modules"]
+  "include": ["src"],
+  "references": [
+    { "path": "../../packages/utils" },
+    { "path": "../../packages/models" },
+    { "path": "../../packages/types" }
+  ]
 }

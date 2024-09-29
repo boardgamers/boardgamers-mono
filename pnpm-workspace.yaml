@@ -1,5 +1,5 @@
 packages:
-  - "apps/docs"
+  #  - "apps/docs"
   - "apps/api"
   - "apps/admin"
   - "apps/web"

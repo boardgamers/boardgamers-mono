@@ -7,5 +7,20 @@
   "devDependencies": {
     "mongodb": "^6.5.0"
   },
-  "main": "index.ts"
+  "main": "dist/index.js",
+  "types": "src/index.ts",
+  "files": [
+    "src",
+    "dist",
+    "tsconfig.json"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "lint": "eslint --quiet --fix ./src",
+    "lint:check": "eslint ./src",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  }
 }

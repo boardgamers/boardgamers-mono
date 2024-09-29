@@ -10,7 +10,7 @@ const oneDay = 24 * 3600 * 1000;
  * @param activeTimer Time range when time is counted every day
  * @param now End date
  */
-export function elapsedSeconds(since: Date, activeTimer?: { start: number; end: number }, now = Date.now()) {
+export function elapsedSeconds(since: Date, activeTimer?: { start: number; end: number }, now = Date.now()): number {
   if (!activeTimer || activeTimer.start === undefined || activeTimer.end === undefined) {
     return Math.floor((now - since.getTime()) / 1000);
   }
@@ -47,7 +47,11 @@ export function elapsedSeconds(since: Date, activeTimer?: { start: number; end: 
  * @param activeTimer Time range when time is counted every day
  * @Param since The start after which only remainingSeconds remain. Defaults to now.
  */
-export function deadline(remainingSeconds: number, activeTimer?: { start: number; end: number }, since = new Date()) {
+export function deadline(
+  remainingSeconds: number,
+  activeTimer?: { start: number; end: number },
+  since = new Date()
+): Date {
   if (!activeTimer || activeTimer.start === undefined || activeTimer.end === undefined) {
     return new Date(since.getTime() + remainingSeconds * 1000);
   }
@@ -71,9 +75,11 @@ export function deadline(remainingSeconds: number, activeTimer?: { start: number
 
     date = progressToUTCSeconds(endDate, activeTimer.start);
   }
+
+  throw new Error("Unreachable code");
 }
 
-export function isPaused(date: Date, timerSeconds: { start: number; end: number }) {
+export function isPaused(date: Date, timerSeconds: { start: number; end: number }): boolean {
   const seconds = UTCsecondsSinceMidnight(date);
 
   if (timerSeconds.start < timerSeconds.end) {
@@ -85,7 +91,7 @@ export function isPaused(date: Date, timerSeconds: { start: number; end: number 
   }
 }
 
-export function timerDuration(timerSeconds: { start: number; end: number }) {
+export function timerDuration(timerSeconds: { start: number; end: number }): number {
   if (timerSeconds.start < timerSeconds.end) {
     return timerSeconds.end - timerSeconds.start;
   } else {

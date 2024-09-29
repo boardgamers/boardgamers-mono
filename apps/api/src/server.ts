@@ -1,7 +1,7 @@
 import cluster from "cluster";
-import { listen } from "./app/app";
-import env from "./app/config/env";
-import { listen as listenResources } from "./app/resources";
+import { listen } from "./app";
+import env from "./config/env";
+import { listen as listenResources } from "./resources";
 
 const handleError = (err: Error) => {
   console.error(err);

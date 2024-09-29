@@ -2,6 +2,12 @@
   "packageManager": "pnpm@8.10.5",
   "name": "@bgs/utils",
   "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "lint": "eslint --quiet --fix src",
+    "lint:check": "eslint src",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest run"
   },
   "dependencies": {
@@ -11,6 +17,7 @@
   "devDependencies": {
     "@types/lodash": "^4.14.176",
     "@types/luxon": "^2.0.4",
-    "luxon": "^2.0.2"
+    "luxon": "^2.0.2",
+    "type-fest": "^4.26.1"
   }
 }

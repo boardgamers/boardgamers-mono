@@ -1,5 +1,5 @@
-export { ApiError } from "./api-error";
-export { ChatMessage } from "./chatmessage";
+export type { ApiError } from "./api-error";
+export type { ChatMessage } from "./chatmessage";
 export * from "./game";
 export * from "./gameinfo";
 export * from "./gamenotification";
