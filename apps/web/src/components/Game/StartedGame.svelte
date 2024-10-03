@@ -215,6 +215,8 @@ ${$game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
 {#key gameId}
   <iframe
     bind:this={gameIframe}
+    allow="cross-origin-isolated"
+    credentialless
     id="game-iframe"
     title="Game UX"
     sandbox="allow-scripts allow-same-origin"
