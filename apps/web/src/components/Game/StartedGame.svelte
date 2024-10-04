@@ -30,7 +30,7 @@
   let stateSent = false;
 
   const resourcesLink =
-    session.host.startsWith("localhost") || session.host.endsWith("gitpod.io")
+    session.host.startsWith("localhost") || session.host.endsWith("gitpod.io") || session.host === "boardgamers.space"
       ? `/resources`
       : `//resources.${session.host.slice(session.host.indexOf(".") + 1)}`;
 
@@ -192,7 +192,7 @@
     if ($game.status === "active") {
       title = `${gameId} - ${gameLabel($gameInfo.label)} game`;
       description = `Round ${$game.data.round}
-      
+
 ${$game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
     } else if ($game.cancelled) {
       title = `Cancelled - ${gameLabel($gameInfo.label)} game`;
