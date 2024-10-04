@@ -30,7 +30,9 @@
   let stateSent = false;
 
   const resourcesLink =
-    session.host.startsWith("localhost") || session.host.endsWith("gitpod.io") || session.host === "boardgamers.space"
+    session.host.startsWith("localhost") ||
+    session.host.endsWith("gitpod.io") ||
+    session.host.endsWith("boardgamers.space")
       ? `/resources`
       : `//resources.${session.host.slice(session.host.indexOf(".") + 1)}`;
 
