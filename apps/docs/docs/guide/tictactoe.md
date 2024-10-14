@@ -60,9 +60,9 @@ We don't have to check that it's the current player - it's already done by the g
 The function could be as simple as this:
 
 ```ts
-export function move(state: GameState, move: Coord, player: Player) {
+export function move(state: GameState, coord: Coord, player: Player) {
   state.board[coord.x][coord.y] = player;
-  state.moves.push({ player, coord: move });
+  state.moves.push({ player, coord });
 
   return state;
 }
@@ -100,9 +100,9 @@ function winner(board: Board): Player | undefined {
 Then we add that info in the `move` function:
 
 ```ts
-export function move(state: GameState, move: Coord, player: Player) {
+export function move(state: GameState, coord: Coord, player: Player) {
   state.board[coord.x][coord.y] = player;
-  state.moves.push({ player, coord: move });
+  state.moves.push({ player, coord });
   // Either it stays undefined or is set to the winner
   state.winner = winner(state.board);
 
@@ -165,7 +165,7 @@ export function currentPlayer(state: GameState): Player {
     return 0;
   }
 
-  return opponent(state.moves[state.moves.length - 1]);
+  return opponent(state.moves[state.moves.length - 1].player);
 }
 ```
 
@@ -185,7 +185,7 @@ As such the log length is the number of moves + 1 if there is no winner, and the
 
 ```ts
 export function logLength(state: GameState): number {
-  return 1 + moves.length + (state.winner !== undefined ? 1 : 0);
+  return 1 + state.moves.length + (state.winner !== undefined ? 1 : 0);
 }
 ```
 

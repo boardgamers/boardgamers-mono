@@ -33,20 +33,35 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
     gameInfo?.viewer?.alternate?.url && ctx.query.alternate === "1" ? gameInfo?.viewer.alternate : gameInfo.viewer;
   const viewerUrl = ctx.query.customViewerUrl || viewer.url;
 
-  ctx.body = `
-    <html>
-      <head>
-        <meta charset="UTF-8">
-        ${viewer.dependencies.scripts.map((dep) => `<${"script"} src='${dep}'></${"script"}>`).join("\n")}
-        <${"script"} src='${viewerUrl}' type='text/javascript'> </${"script"}>
-        ${viewer.dependencies.stylesheets
-          .map((dep) => `<link type='text/css' rel='stylesheet' href='${dep}'></link>`)
-          .join("\n")}
+  const stylesheets = viewer.dependencies.stylesheets
+    .map((dep) => `<link type='text/css' rel='stylesheet' href='${dep}'></link>`)
+    .join("\n");
+  const scripts = viewer.dependencies.scripts.map((dep) => `<${"script"} src='${dep}'></${"script"}>`).join("\n");
+  const viewerScript = `<${"script"} src='${viewerUrl}' type='text/javascript'></${"script"}>`;
+
+  const template = viewer.topLevelVariable === "clash" ? `
+    <head>
+      <meta charset="UTF-8">
+      ${stylesheets}
       </head>
-      <body>
-        <div id='app'>
-        </div>
-      </body>
+    <body>
+      <canvas id='glcanvas' style="margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; position: absolute; z-index: 0;"></canvas>
+      ${scripts}
+      ${viewerScript}
+    </body>` : `
+    <head>
+      <meta charset="UTF-8">
+      ${scripts}
+      ${viewerScript}
+      ${stylesheets}
+    </head>
+    <body>
+      <div id='app'>
+      </div>
+    </body>`;
+
+  ctx.body = `
+      ${template}
       <${"script"} type='text/javascript'>
         const gameObj = window.${viewer.topLevelVariable}.launch('#app');
         window.addEventListener('message', event => {
