@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "start": "node build/index.js",
-    "dev": "svelte-kit dev",
-    "build": "svelte-kit build",
-    "preview": "svelte-kit preview",
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-check --tsconfig ./tsconfig.json --watch",
     "lint": "prettier --ignore-path .gitignore --check --plugin-search-dir=. . && eslint --ignore-path .gitignore .",
@@ -26,13 +26,14 @@
     "marked": "^3.0.2",
     "nprogress": "^0.2.0",
     "remove-markdown": "^0.3.0",
-    "svelte": "^3.44.1",
+    "svelte": "^5.0.5",
     "sveltestrap": "^5.6.2",
     "type-fest": "^2.1.0"
   },
   "devDependencies": {
-    "@sveltejs/adapter-node": "^1.0.0-next.58",
-    "@sveltejs/kit": "1.0.0-next.216",
+    "@sveltejs/adapter-node": "^5.2.8",
+    "@sveltejs/kit": "2.7.2",
+    "@sveltejs/vite-plugin-svelte": "^4.0.0",
     "@testing-library/jest-dom": "^5.16.1",
     "@testing-library/svelte": "^3.0.3",
     "@types/cookie": "^0.4.1",
@@ -61,6 +62,8 @@
     "svelte-preprocess": "^4.9.4",
     "ts-jest": "^27.1.2",
     "tslib": "^2.3.1",
-    "typescript": "^4.4.3"
+    "typescript": "^4.4.3",
+    "vite": "^4.3.1",
+    "vitest": "^2.1.3"
   }
 }

@@ -1,5 +1,4 @@
 import type { ExternalFetch, Handle } from "@sveltejs/kit";
-import type { ServerResponse } from "@sveltejs/kit/types/hooks";
 import { extractCookie } from "./utils/extract-cookie";
 
 export type Session = {
@@ -26,7 +25,7 @@ export function getSession(request: { headers: Record<string, string> }): Sessio
 /**
  * Horrible hack to fix SvelteKit's lack of handling of multiline attributes.
  */
-export async function handle({ request, resolve }: Parameters<Handle>[0]): Promise<ServerResponse> {
+export const handle: Handle = async ({ request, resolve }) => {
   const response = await resolve(request);
 
   let body = response.body;
@@ -42,7 +41,7 @@ export async function handle({ request, resolve }: Parameters<Handle>[0]): Promi
     ...response,
     body,
   };
-}
+};
 
 export const externalFetch: ExternalFetch = async (request) => {
   const delimiter = request.url.slice(8).indexOf("/");
