@@ -247,9 +247,6 @@ schema.method("confirmKey", function (this: UserDocument) {
 });
 
 schema.method("confirm", function (this: UserDocument, key: string) {
-  if (this.security.confirmed) {
-    return;
-  }
   assert(key && this.confirmKey() === key, `Wrong confirm link.`);
   this.security.confirmed = true;
   this.security.confirmKey = null;

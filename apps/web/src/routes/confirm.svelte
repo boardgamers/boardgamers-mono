@@ -6,6 +6,13 @@
   import type { LoadInput } from "@sveltejs/kit";
 
   export async function load(input: LoadInput) {
+    if (typeof window === "undefined") {
+      // Bug in node 20+, handle client-side
+      return {
+        status: 200,
+        body: {},
+      };
+    }
     const { post, setAuthData } = useLoad(input, useAccount, useRest);
     await post<AuthData>("/account/confirm", {
       key: input.url.searchParams.get("key"),

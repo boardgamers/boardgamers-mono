@@ -259,7 +259,14 @@ router.post("/confirm", async (ctx: Context) => {
     throw createError(404, "Can't find user: " + ctx.request.body.email);
   }
 
+  if (user.security.confirmed) {
+    ctx.redirect("/login");
+    return;
+  }
+
   await user.confirm(ctx.request.body.key);
+
+  ctx.state.user = user;
 
   await sendAuthInfo(ctx);
 });
