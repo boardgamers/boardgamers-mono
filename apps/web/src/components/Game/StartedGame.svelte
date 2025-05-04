@@ -193,7 +193,7 @@
   $: {
     if ($game.status === "active") {
       title = `${gameId} - ${gameLabel($gameInfo.label)} game`;
-      description = `Round ${$game.data.round}
+      description = `Round ${$game.context.round}
 
 ${$game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
     } else if ($game.cancelled) {
