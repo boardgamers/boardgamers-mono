@@ -119,7 +119,7 @@
             <div class="me-auto" style="line-height: 1.1">
               <div>
                 {#if game.status === "active"}
-                  <Badge color="contrast" class="small text-light">R{game.context.round}</Badge>
+                  <Badge color="contrast" class="small text-light">R{game.context?.round ?? 0}</Badge>
                 {/if}
                 <span class="game-name">
                   {game._id}
