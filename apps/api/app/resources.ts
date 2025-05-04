@@ -39,7 +39,9 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
   const scripts = viewer.dependencies.scripts.map((dep) => `<${"script"} src='${dep}'></${"script"}>`).join("\n");
   const viewerScript = `<${"script"} src='${viewerUrl}' type='text/javascript'></${"script"}>`;
 
-  const template = viewer.topLevelVariable === "clash" ? `
+  const template =
+    viewer.topLevelVariable === "clash"
+      ? `
     <head>
       <meta charset="UTF-8">
       ${stylesheets}
@@ -48,7 +50,8 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
       <canvas id='glcanvas' style="margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; position: absolute; z-index: 0;"></canvas>
       ${scripts}
       ${viewerScript}
-    </body>` : `
+    </body>`
+      : `
     <head>
       <meta charset="UTF-8">
       ${scripts}
