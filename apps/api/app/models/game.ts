@@ -37,6 +37,7 @@ schema.static("basics", () => {
     "status",
     "creator",
     "data.round",
+    "context.round",
     "lastMove",
     "createdAt",
   ];
