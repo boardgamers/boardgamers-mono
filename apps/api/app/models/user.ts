@@ -440,7 +440,7 @@ schema.static("findByUrl", function (this: UserModel, urlComponent: string) {
 });
 
 schema.static("findByUsername", function (this: UserModel, username: string) {
-  return this.findOne({ "security.slug": username.toLowerCase().replace(/\s+/, "-") });
+  return this.findOne({ "security.slug": username.toLowerCase().replace(/\s+/g, "-") });
 });
 
 schema.static("findByEmail", function (this: UserModel, email: string) {
