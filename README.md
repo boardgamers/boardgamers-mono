@@ -52,7 +52,7 @@ You can follow the instructions in [api-node](./apps/api/README.md) and [game-se
 docker compose up -d
 
 
-pnpm dev --filter @bgs/api 
+pnpm dev --filter @bgs/api
 # launch in another terminal
 pnpm dev --filter @bgs/game-server
 ```
