@@ -1,14 +1,5 @@
 # Boardgamers
 
-<p align="center">
-	<a href="https://gitmoji.dev">
-		<img src="https://img.shields.io/badge/gitmoji-%20😜%20😍-FFDD67.svg?style=flat-square"
-			 alt="Gitmoji">
-	</a>
-</p>
-
-[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/boardgamers/boardgamers-mono)
-
 Mono-repo for the whole architecture of boardgamers.space.
 
 <!-- With `pijul` as the versioning system, you can clone / update only select folders. This is perfect
