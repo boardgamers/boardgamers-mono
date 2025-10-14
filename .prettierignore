@@ -5,3 +5,4 @@ admin-app
 build
 .svelte-kit
 auto-imports.d.ts
+.pnpm-store
