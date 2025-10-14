@@ -48,17 +48,13 @@ You can directly run the frontend against the website! No need to run the backen
 You can follow the instructions in [api-node](./apps/api/README.md) and [game-server](./apps/game-server/README.md), or you can just run the following command:
 
 ```bash
-pnpm back
-```
+# start mongodb backend
+docker compose up -d
 
-This will take care of launching a mongodb instance as well.
 
-This is only for development. The mongodb database is exposed to the world!
-
-You can also launch outside of docker:
-
-```bash
-pnpm start --filter @bgs/api --filter @bgs/game-server
+pnpm dev --filter @bgs/api 
+# launch in another terminal
+pnpm dev --filter @bgs/game-server
 ```
 
 ## Contributing
