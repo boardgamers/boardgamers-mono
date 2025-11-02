@@ -3,7 +3,7 @@
   "name": "@bgs/web",
   "type": "module",
   "scripts": {
-    "dev": "vite dev --port 3101",
+    "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
     "start": "node build",
@@ -43,7 +43,7 @@
     "@types/marked": "^2.0.0",
     "@types/nprogress": "^0.2.0",
     "@types/remove-markdown": "^0.3.1",
-    "dotenv": "^8.2.0",
+    "dotenv": "^17.2.3",
     "eslint": "^9.36.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-svelte": "^3.12.4",
