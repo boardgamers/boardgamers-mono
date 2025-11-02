@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Icon, Checkbox, Label, Input, FormGroup } from "@/modules/cdk";
+  import { Icon, Checkbox, Label, Input, FormGroup } from "$cdk";
   import { handleError, oneLineMarked } from "@/utils";
   import type { GameContext } from "@/pages/Game.svelte";
   import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";

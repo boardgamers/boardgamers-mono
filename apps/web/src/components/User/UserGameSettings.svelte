@@ -2,10 +2,10 @@
   import { set } from "lodash";
   import type { GameInfo } from "@bgs/types";
   import { handleError, confirm, classnames } from "@/utils";
-  import Card from "@/modules/cdk/Card.svelte";
-  import { CardText, FormGroup, Input } from "@/modules/cdk";
-  import Checkbox from "@/modules/cdk/Checkbox.svelte";
-  import Loading from "@/modules/cdk/Loading.svelte";
+  import Card from "$cdk/Card.svelte";
+  import { CardText, FormGroup, Input } from "$cdk";
+  import Checkbox from "$cdk/Checkbox.svelte";
+  import Loading from "$cdk/Loading.svelte";
   import PreferencesChooser from "./PreferencesChooser.svelte";
   import { useRest } from "@/composition/useRest";
   import { useGameInfo } from "@/composition/useGameInfo";

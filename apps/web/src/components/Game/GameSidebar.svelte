@@ -4,9 +4,8 @@
   import { elapsedSeconds } from "@bgs/utils";
   import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
   import type { PlayerInfo } from "@bgs/types";
-  import Portal from "@/modules/portal";
   import clockHistory from "@iconify/icons-bi/clock-history.js";
-  import { Button, Icon, Badge } from "@/modules/cdk";
+  import { Button, Icon, Badge } from "$cdk";
   import { getContext, onDestroy } from "svelte";
   import { GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings } from "./GameSidebar";
   import type { GameContext } from "@/routes/game/[gameId].svelte";
@@ -16,6 +15,7 @@
   import { useCurrentGame } from "@/composition/useCurrentGame";
   import { useActiveGames } from "@/composition/useActiveGames";
   import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
+  import { createPortal, portal } from "$lib/actions/portal";
 
   const { game, players, gameInfo }: GameContext = getContext("game");
   const { post } = useRest();
@@ -111,8 +111,8 @@
   }
 </script>
 
-<div id="floating-controls" />
-<Portal target="#sidebar">
+<div use:createPortal={"floating-controls"}></div>
+<div use:portal={"sidebar"}>
   <h3 class="mt-75">Players</h3>
   {#each $game.players as player}
     <div class={"mb-1 d-flex align-items-center player-row"} class:active={isCurrentPlayer(player._id)}>
@@ -224,9 +224,9 @@
   {#if $devGameSettings}
     <a target="_blank" rel="external" href="/api/gameplay/{$game._id}">Download JSON</a>
   {/if}
-</Portal>
+  </div>
 
-<style lang="postcss" global>
+<style lang="postcss">
   .your-turn {
     color: #25ee25;
   }

@@ -32,7 +32,8 @@
     "lodash": "npm:lodash-es@^4.17.21",
     "marked": "^3.0.2",
     "nprogress": "^0.2.0",
-    "remove-markdown": "^0.3.0"
+    "remove-markdown": "^0.3.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "^5.3.3",

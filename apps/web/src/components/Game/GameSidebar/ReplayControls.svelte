@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Icon } from "@/modules/cdk";
+  import { Button, Icon } from "$cdk";
   import type { GameContext } from "@/pages/Game.svelte";
   import skipBackwardFill from "@iconify/icons-bi/skip-backward-fill.js";
   import skipForwardFill from "@iconify/icons-bi/skip-forward-fill.js";
@@ -59,7 +59,7 @@
   </div>
 {/if}
 {#if $replayData && !$sidebarOpen}
-  <Portal target="#floating-controls">
+  <div use:portal={"floating-controls"}>
     <div
       style="position: fixed; bottom: 0; left: 0; right: calc(var(--fab-right) + 8em); pointer-events: none"
       class="d-flex pb-3 text-light"
@@ -105,5 +105,5 @@
         <Icon icon={stopFill} style="margin-bottom: 0.25em; color: orange" />
       </Button>
     </div>
-  </Portal>
+  </div>
 {/if}

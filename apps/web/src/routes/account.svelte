@@ -12,7 +12,7 @@
 
 <script lang="ts">
   import { handleError, confirm, niceDate, duration, createWatcher } from "@/utils";
-  import { Card, Button, Col, Container, FormGroup, Input, InputGroup, Row, Checkbox } from "@/modules/cdk";
+  import { Card, Button, Col, Container, FormGroup, Input, InputGroup, Row, Checkbox } from "$cdk";
   import { upperFirst, debounce } from "lodash";
   import type { LoadInput } from "@sveltejs/kit";
   import { useLoad } from "@/composition/useLoad";

@@ -32,7 +32,7 @@ There is a [webapp](./apps/web/README.md) and an [admin](./apps/admin/README.md)
 pnpm --filter @bgs/web --filter @bgs/admin dev
 ```
 
-You can directly run the frontend against the website! No need to run the backend. To do so, just create `.env` in the apps/web folder with `VITE_backend=https://www.boardgamers.space`.
+You can directly run the frontend against the website! No need to run the backend. To do so, just create `.env.local` in the apps/web folder with `PUBLIC_SERVER=https://www.boardgamers.space`.
 
 ### Backend
 

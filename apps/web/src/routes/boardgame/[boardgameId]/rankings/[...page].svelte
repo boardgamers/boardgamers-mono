@@ -15,7 +15,7 @@
   import { LoadEloRankingsResult, useEloRankings } from "@/composition/useEloRankings";
   import { useGameInfo } from "@/composition/useGameInfo";
   import { useLoad } from "@/composition/useLoad";
-  import { Col, Row } from "@/modules/cdk";
+  import { Col, Row } from "$cdk";
   import { gameLabel } from "@/utils/game-label";
   import type { LoadInput } from "@sveltejs/kit";
 

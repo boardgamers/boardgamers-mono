@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import { FormGroup, Input, Label } from "@/modules/cdk";
-  import Checkbox from "@/modules/cdk/Checkbox.svelte";
+  import { FormGroup, Input, Label } from "$cdk";
+  import Checkbox from "$cdk/Checkbox.svelte";
   import type { GameInfoOption } from "@bgs/types";
   import { oneLineMarked } from "@/utils";
 

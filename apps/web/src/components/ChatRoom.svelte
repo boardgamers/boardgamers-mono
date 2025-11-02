@@ -5,7 +5,7 @@
   import { useCurrentRoom } from "@/composition/useCurrentRoom";
   import { useRest } from "@/composition/useRest";
   import { useSidebarOpen } from "@/composition/useSidebarOpen";
-  import { Modal, ModalHeader, Icon, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
+  import { Modal, ModalHeader, Icon, ModalFooter, Input, InputGroup, Button, Badge } from "$cdk";
   import { dateFromObjectId, dateTime, handleError } from "@/utils";
   import { fly } from "svelte/transition";
   import UserAvatar from "./User/UserAvatar.svelte";

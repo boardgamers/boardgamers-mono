@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { createPortal } from "$lib/actions/portal";
   import { useSidebarOpen } from "@/composition/useSidebarOpen";
-  import { Button, Icon } from "@/modules/cdk";
+  import { Button, Icon } from "$cdk";
   import gear from "@iconify/icons-bi/gear.js";
 
   const { sidebarOpen } = useSidebarOpen();
@@ -8,7 +9,7 @@
 
 <div class="sidebar-container" class:open={$sidebarOpen}>
   <aside class="px-3 pb-3 sidebar thin-scrollbar text-light">
-    <div id="sidebar" />
+    <div use:createPortal={"sidebar"}></div>
   </aside>
   <Button
     color="secondary"

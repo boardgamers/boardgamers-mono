@@ -2,7 +2,7 @@
   import { page } from "$app/stores";
   import { useGameInfo } from "@/composition/useGameInfo";
   import { useLogoClicks } from "@/composition/useLogoClicks";
-  import { ListGroup } from "@/modules/cdk";
+  import { ListGroup } from "$cdk";
   import { handleError } from "@/utils";
   import type { GameInfo } from "@bgs/types";
 

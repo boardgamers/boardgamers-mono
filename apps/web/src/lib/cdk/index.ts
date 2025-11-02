@@ -1,6 +1,6 @@
 import Icon from "@iconify/svelte";
 
-export * from "sveltestrap";
+export * from "@sveltestrap/sveltestrap";
 export { default as Card } from "./Card.svelte";
 export { default as CardText } from "./CardText.svelte";
 export { default as Checkbox } from "./Checkbox.svelte";

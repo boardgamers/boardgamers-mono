@@ -13,7 +13,7 @@
     FormText,
     NavLink,
     Icon,
-  } from "@/modules/cdk";
+  } from "$cdk";
   import gearFill from "@iconify/icons-bi/gear-fill.js";
   import power from "@iconify/icons-bi/power.js";
   import { handleError } from "@/utils";

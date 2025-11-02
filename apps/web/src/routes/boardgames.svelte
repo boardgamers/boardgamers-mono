@@ -14,7 +14,7 @@
 </script>
 
 <script lang="ts">
-  import { Card, CardText, Col } from "@/modules/cdk";
+  import { Card, CardText, Col } from "$cdk";
   import { goto } from "$app/navigation";
   import { createWatcher } from "@/utils";
   import marked from "marked";

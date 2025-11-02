@@ -37,7 +37,7 @@
   import { confirm, handleError } from "@/utils";
   import marked from "marked";
   import type { GameInfo } from "@bgs/types";
-  import { Card, Row, Col } from "@/modules/cdk";
+  import { Card, Row, Col } from "$cdk";
   import { UserGameSettings, GameList, BoardgameElo, SEO } from "@/components";
   import { useAccount } from "@/composition/useAccount";
   import { useGameInfo } from "@/composition/useGameInfo";

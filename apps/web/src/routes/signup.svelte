@@ -4,7 +4,7 @@
   import { AuthData, useAccount } from "@/composition/useAccount";
   import { useLoggedOut } from "@/composition/useLoggedOut";
   import { useRest } from "@/composition/useRest";
-  import Checkbox from "@/modules/cdk/Checkbox.svelte";
+  import Checkbox from "$cdk/Checkbox.svelte";
   import { handleError } from "@/utils";
   import { upperFirst } from "lodash";
 

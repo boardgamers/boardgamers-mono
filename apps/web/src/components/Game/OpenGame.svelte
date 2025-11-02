@@ -25,7 +25,7 @@
     FormGroup,
     Input,
     Icon,
-  } from "@/modules/cdk";
+  } from "$cdk";
   import { getContext } from "svelte";
   import type { GameContext } from "@/routes/game/[gameId].svelte";
   import { playerOrderText } from "@/data/playerOrders";

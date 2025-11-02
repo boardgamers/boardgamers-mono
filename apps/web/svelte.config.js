@@ -17,7 +17,7 @@ const config = {
       remoteFunctions: true,
     },
     alias: {
-      $cdk: "src/components/cdk",
+      $cdk: "src/lib/cdk",
     },
   },
 

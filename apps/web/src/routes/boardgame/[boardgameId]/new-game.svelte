@@ -2,7 +2,7 @@
   import { handleError, oneLineMarked, duration } from "@/utils";
   import marked from "marked";
   import { fromPairs, upperFirst } from "lodash";
-  import { Button, Col, Input, Checkbox, Row, Container } from "@/modules/cdk";
+  import { Button, Col, Input, Checkbox, Row, Container } from "$cdk";
   import { goto } from "$app/navigation";
   import { adjectives, nouns } from "@/data";
   import { fade } from "svelte/transition";

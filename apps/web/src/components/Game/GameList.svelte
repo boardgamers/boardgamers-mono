@@ -3,7 +3,7 @@
   import type { IGame } from "@bgs/types";
   import { createWatcher } from "@/utils/watch";
   import clockHistory from "@iconify/icons-bi/clock-history.js";
-  import { Badge, Icon, Pagination, Loading } from "@/modules/cdk";
+  import { Badge, Icon, Pagination, Loading } from "$cdk";
   import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
   import { useLogoClicks } from "@/composition/useLogoClicks";
   import { useGameInfo } from "@/composition/useGameInfo";

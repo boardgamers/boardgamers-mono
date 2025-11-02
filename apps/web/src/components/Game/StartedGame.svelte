@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { GamePreferences } from "@bgs/types";
-  import { Loading } from "@/modules/cdk";
+  import { Loading } from "$cdk";
   import type { GameContext } from "@/routes/game/[gameId].svelte";
   import { createWatcher, handleError } from "@/utils";
   import { getContext, onDestroy, onMount } from "svelte";

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Page } from "@sveltejs/kit";
-  import { Card, Col, Row } from "@/modules/cdk";
+  import { Card, Col, Row } from "$cdk";
   import { GameList } from "../Game";
   import { page } from "$app/stores";
 

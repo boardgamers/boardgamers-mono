@@ -29,7 +29,7 @@
 </script>
 
 <script lang="ts">
-  import { Button, FormGroup, Label } from "@/modules/cdk";
+  import { Button, FormGroup, Label } from "$cdk";
   import { handleError } from "@/utils";
   import { useLoggedOut } from "@/composition/useLoggedOut";
   import { redirectLoggedOut } from "@/utils/redirect";

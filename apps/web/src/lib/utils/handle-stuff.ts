@@ -1,4 +1,4 @@
-import { browser } from "$app/env";
+import { browser } from "$app/environment";
 import { isPromise } from "@bgs/utils";
 import "awesome-notifications/dist/style.css";
 

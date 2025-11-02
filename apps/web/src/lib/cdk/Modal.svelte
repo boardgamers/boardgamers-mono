@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { classnames, browserEvent } from "@/utils";
-  import { onDestroy, onMount, afterUpdate } from "svelte";
+  import { classnames } from "$lib/utils/classname";
+  import { onDestroy, onMount } from "svelte";
   import { fade as fadeTransition } from "svelte/transition";
+  import { iso } from "zod";
 
   function noop() {}
 
@@ -13,11 +14,11 @@
   export let backdropDuration = 0;
   export let scrollable = false;
   export let size = "";
-  export let toggle: () => void;
+  export let toggle: (event?: KeyboardEvent | MouseEvent) => void;
   export let labelledBy = "";
   export let backdrop = true;
-  export let onEnter = undefined;
-  export let onExit = undefined;
+  export let onEnter: () => void = noop;
+  export let onExit: () => void = noop;
   export let onOpened = noop;
   export let onClosed = noop;
   export let wrapClassName = "";
@@ -33,12 +34,12 @@
 
   let hasOpened = false;
   let _isMounted = false;
-  let _triggeringElement;
+  let _triggeringElement: Element | null = null;
   let _lastIsOpen = isOpen;
   let _lastHasOpened = hasOpened;
-  let _dialog;
-  let _mouseDownElement;
-  let _removeEscListener;
+  let _dialog: HTMLElement | null = null;
+  let _mouseDownElement: HTMLElement | null = null;
+  let _removeEscListener: () => void = noop;
 
   onMount(() => {
     if (isOpen) {
@@ -66,7 +67,7 @@
     }
   });
 
-  afterUpdate(() => {
+  $effect(() => {
     if (isOpen && !_lastIsOpen) {
       init();
       hasOpened = true;
@@ -81,7 +82,7 @@
   });
 
   function setFocus() {
-    if (_dialog && _dialog.parentNode && typeof _dialog.parentNode.focus === "function") {
+    if (_dialog && _dialog.parentNode && "focus" in _dialog.parentNode && typeof _dialog.parentNode.focus === "function") {
       _dialog.parentNode.focus();
     }
   }
@@ -98,7 +99,7 @@
 
   function manageFocusAfterClose() {
     if (_triggeringElement) {
-      if (typeof _triggeringElement.focus === "function" && returnFocusAfterClose) {
+      if ("focus" in _triggeringElement && typeof _triggeringElement.focus === "function" && returnFocusAfterClose) {
         _triggeringElement.focus();
       }
 
@@ -129,13 +130,13 @@
   }
 
   function onModalOpened() {
-    _removeEscListener = browserEvent(document, "keydown", (event) => {
-      if (event.key && event.key === "Escape") {
-        toggle(event);
-      }
-    });
-
     onOpened();
+  }
+
+  function handleKeyDown(event: KeyboardEvent) {
+    if (isOpen && event.key && event.key === "Escape") {
+      toggle(event);
+    }
   }
 
   function onModalClosed() {
@@ -168,16 +169,18 @@
   });
 </script>
 
+<svelte:window on:keydown={handleKeyDown} />
+
 {#if _isMounted}
   <div {...$$restProps} class={wrapClassName} tabindex="-1" style="position: relative; z-index: {zIndex}">
     {#if isOpen}
       <div
         transition:transitionType={transitionOptions}
-        ariaLabelledby={labelledBy}
+        aria-labelledby={labelledBy}
         class={classnames("modal", "show", modalClassName)}
         role="dialog"
         style="display: block;"
-        on:introend={onModalOpened}
+        on:introend={onOpened}
         on:outroend={onModalClosed}
         on:click={handleBackdropClick}
         on:mousedown={handleBackdropMouseDown}

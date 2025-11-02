@@ -22,7 +22,7 @@
 <script lang="ts">
   import { fade } from "svelte/transition";
   import { GameList, SEO } from "@/components";
-  import { Col, Container, Nav, NavItem, NavLink } from "@/modules/cdk";
+  import { Col, Container, Nav, NavItem, NavLink } from "$cdk";
   import { useLoad } from "@/composition/useLoad";
   import type { LoadInput } from "@sveltejs/kit";
   import { LoadGamesResult, useGames } from "@/composition/useGames";
