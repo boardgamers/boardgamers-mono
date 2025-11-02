@@ -29,7 +29,7 @@ A recent version of node, 14+ ideally, is required
 There is a [webapp](./apps/web/README.md) and an [admin](./apps/admin/README.md).
 
 ```bash
-pnpm dev --filter @bgs/web --filter @bgs/admin
+pnpm --filter @bgs/web --filter @bgs/admin dev
 ```
 
 You can directly run the frontend against the website! No need to run the backend. To do so, just create `.env` in the apps/web folder with `VITE_backend=https://www.boardgamers.space`.

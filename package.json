@@ -1,6 +1,7 @@
 {
   "license": "AGPL-3.0",
-  "packageManager": "pnpm@6.14.1",
+  "packageManager": "pnpm@10.15.1",
+  "name": "@bgs/root",
   "scripts": {
     "prettier": "prettier --plugin-search-dir=. --write .",
     "prettier-check": "prettier --plugin-search-dir=. --check ."
