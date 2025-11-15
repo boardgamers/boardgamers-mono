@@ -1,8 +1,8 @@
 <script lang="ts">
   import { SEO } from "@/components";
 
-  import { useLoggedOut } from "@/composition/useLoggedOut";
-  import { useRest } from "@/composition/useRest";
+  import { useLoggedOut } from "$lib/composition/useLoggedOut";
+  import { useRest } from "$lib/composition/useRest";
   import { handleError, handleInfo } from "@/utils";
 
   useLoggedOut();
@@ -22,7 +22,7 @@
   <div class="goldfish container">
     <h1>Forgotten password</h1>
 
-    <form method="post" accept-charset="UTF-8" role="form" on:submit|preventDefault={handleSubmit}>
+    <form method="post" accept-charset="UTF-8" role="form" onsubmit|preventDefault={handleSubmit}>
       <div class="form-group">
         <label for="email">Email</label>
         <input type="email" class="form-control" id="email" placeholder="Email address" bind:value={email} required />

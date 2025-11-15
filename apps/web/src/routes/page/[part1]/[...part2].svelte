@@ -15,11 +15,11 @@
 </script>
 
 <script lang="ts">
-  import type { Page as IPage } from "@bgs/types";
-  import Page from "@/components/Page.svelte";
-  import { useLoad } from "@/composition/useLoad";
-  import { useRest } from "@/composition/useRest";
+  import Page from "$lib/components/Page.svelte";
+  import { useLoad } from "$lib/composition/useLoad";
+  import { useRest } from "$lib/composition/useRest";
   import { SEO } from "@/components";
+  import type { Page as IPage } from "@bgs/types";
   import removeMarkdown from "remove-markdown";
 
   export let pageContent: Partial<IPage>;

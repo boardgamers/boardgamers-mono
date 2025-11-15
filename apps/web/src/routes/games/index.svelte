@@ -17,12 +17,12 @@
 </script>
 
 <script lang="ts">
-  import { fade } from "svelte/transition";
-  import { GameList, SEO } from "@/components";
   import { Col, Container, Nav, NavItem, NavLink } from "$cdk";
-  import { useLoad } from "@/composition/useLoad";
+  import { LoadGamesResult, useGames } from "$lib/composition/useGames";
+  import { useLoad } from "$lib/composition/useLoad";
+  import { GameList, SEO } from "@/components";
   import type { LoadInput } from "@sveltejs/kit";
-  import { LoadGamesResult, useGames } from "@/composition/useGames";
+  import { fade } from "svelte/transition";
 
   export let boardgameId: string | undefined;
   export let featured: LoadGamesResult;
@@ -39,16 +39,16 @@
 <Container>
   <Nav pills>
     <h1 class="me-3">Games</h1>
-    <NavItem><NavLink href="#" on:click={() => (firstTab = true)} active={firstTab}>Active</NavLink></NavItem>
-    <NavItem><NavLink href="#" on:click={() => (firstTab = false)} active={!firstTab}>Finished</NavLink></NavItem>
+    <NavItem><NavLink href="#" onclick={() => (firstTab = true)} active={firstTab}>Active</NavLink></NavItem>
+    <NavItem><NavLink href="#" onclick={() => (firstTab = false)} active={!firstTab}>Finished</NavLink></NavItem>
   </Nav>
 
   {#if firstTab}
     <div
       class="mt-2 row"
       transition:fade
-      on:outroend={() => (animating = false)}
-      on:outrostart={() => (animating = true)}
+      onoutroend={() => (animating = false)}
+      onoutrostart={() => (animating = true)}
       class:d-none={animating}
     >
       <Col md="6" class="mb-2">
@@ -62,8 +62,8 @@
     <div
       class="mt-2 row"
       transition:fade
-      on:outroend={() => (animating = false)}
-      on:outrostart={() => (animating = true)}
+      onoutroend={() => (animating = false)}
+      onoutrostart={() => (animating = true)}
       class:d-none={animating}
     >
       <Col md="6" class="mb-2">

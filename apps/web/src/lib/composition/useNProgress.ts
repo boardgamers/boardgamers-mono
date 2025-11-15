@@ -1,4 +1,4 @@
-import { browser } from "$app/env";
+import { browser } from "$app/environment";
 import { getStores } from "$app/stores";
 import { defineStore } from "./defineStore";
 

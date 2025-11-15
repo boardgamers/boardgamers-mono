@@ -1,20 +1,22 @@
 <script lang="ts">
-  import {
-    duration,
-    handleError,
-    niceDate,
-    oneLineMarked,
-    pluralize,
-    timerTime,
-    confirm,
-    localTimezone,
-    createWatcher,
-    defer,
-  } from "@/utils";
-  import clockHistory from "@iconify/icons-bi/clock-history.js";
-  import arrowDown from "@iconify/icons-bi/arrow-down.js";
-  import arrowUp from "@iconify/icons-bi/arrow-up.js";
-  import marked from "marked";
+  import { goto } from "$app/navigation";
+  import { page } from "$app/stores";
+  import { useAccount } from "$lib/composition/useAccount";
+  import { useCurrentGame } from "$lib/composition/useCurrentGame";
+  import { useGame } from "$lib/composition/useGame";
+  import { useRest } from "$lib/composition/useRest";
+  import { playerOrderText } from "$lib/data/playerOrders";
+  import type { GameContext } from "$lib/types/GameContext";
+  import { gameLabel } from "$lib/utils/game-label";
+  import { confirm, defer, handleError } from "$lib/utils/handle-stuff";
+  import { oneLineMarked } from "$lib/utils/markdown";
+  import { redirectLoggedIn } from "$lib/utils/redirect";
+  import { duration, localTimezone, niceDate, pluralize, timerTime } from "$lib/utils/time";
+  import { createWatcher } from "$lib/utils/watch";
+  import type { IUser } from "@bgs/types";
+  import IconArrowDown from "@iconify-svelte/bi/arrow-down";
+  import IconArrowUp from "@iconify-svelte/bi/arrow-up";
+  import IconClockHistory from "@iconify-svelte/bi/clock-history";
   import {
     Badge,
     Button,
@@ -24,23 +26,12 @@
     DropdownToggle,
     FormGroup,
     Input,
-    Icon,
-  } from "$cdk";
-  import { getContext } from "svelte";
-  import type { GameContext } from "@/routes/game/[gameId].svelte";
-  import { playerOrderText } from "@/data/playerOrders";
-  import { useAccount } from "@/composition/useAccount";
-  import { useCurrentGame } from "@/composition/useCurrentGame";
-  import { useRest } from "@/composition/useRest";
-  import { useGame } from "@/composition/useGame";
-  import { goto } from "$app/navigation";
-  import { redirectLoggedIn } from "@/utils/redirect";
-  import { page } from "$app/stores";
-  import SEO from "../SEO.svelte";
+  } from "@sveltestrap/sveltestrap";
+  import { debounce } from "lodash";
+  import marked from "marked";
   import removeMarkdown from "remove-markdown";
-  import { gameLabel } from "@/utils/game-label";
-  import type { IUser } from "@bgs/types";
-  import { debounce, map } from "lodash";
+  import { getContext } from "svelte";
+  import SEO from "../SEO.svelte";
 
   const { post, get } = useRest();
 
@@ -101,7 +92,7 @@
     playerOrder = $game.players.map((_, i) => i);
   }
 
-  $: refreshPlayerOrder(), [$game];
+  $: (refreshPlayerOrder(), [$game]);
 
   const moveUp = (playerId: number) => {
     const index = playerOrder.indexOf(playerId);
@@ -150,7 +141,7 @@
     { leading: false }
   );
 
-  $: watcher(), query;
+  $: (watcher(), query);
 
   const updateGameWatcher = createWatcher(async () => {
     if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
@@ -164,7 +155,7 @@
   });
 
   // Autorefresh when another player joins
-  $: updateGameWatcher(), $lastGameUpdate;
+  $: (updateGameWatcher(), $lastGameUpdate);
 </script>
 
 <SEO
@@ -182,8 +173,8 @@
       pref.type === 'checkbox'
         ? pref.label
         : pref.type === 'select' && pref.items
-        ? pref.label + ': ' + pref.items.find((x) => x.name === $game.game.options[pref.name])?.label
-        : ''
+          ? pref.label + ': ' + pref.items.find((x) => x.name === $game.game.options[pref.name])?.label
+          : ''
     )
     .filter(Boolean)
     .map((str) => `- ${removeMarkdown(str)}`)
@@ -228,7 +219,7 @@
       {#if $game.options.setup.seed}
         <span title="Game seed"> 🌱 {$game.options.setup.seed}</span>
       {/if}
-      <span class="ps-1" title="Timezone"> <Icon icon={clockHistory} inline={true} /> {shortPlayTime()}</span>
+      <span class="ps-1" title="Timezone"> <IconClockHistory /> {shortPlayTime()}</span>
     </small>
   </p>
 
@@ -304,12 +295,12 @@
               <Input
                 id="invite"
                 bind:value={query}
-                on:keydown={(e) => e.key === "Enter" && invite(e.target.value, true)}
+                onkeydown={(e) => e.key === "Enter" && invite(e.target.value, true)}
               />
             </DropdownToggle>
             <DropdownMenu>
               {#each foundUsers as result}
-                <DropdownItem on:click={() => invite(result._id)}>{result.account.username}</DropdownItem>
+                <DropdownItem onclick={() => invite(result._id)}>{result.account.username}</DropdownItem>
               {/each}
             </DropdownMenu>
           </Dropdown>
@@ -322,11 +313,11 @@
           {#each playerOrder as playerIndex}
             <div>
               - {$game.players[playerIndex].name}
-              <span on:click={() => moveUp(playerIndex)} role="button"><Icon icon={arrowUp} inline={true} /></span>
-              <span on:click={() => moveDown(playerIndex)} role="button"><Icon icon={arrowDown} inline={true} /></span>
+              <button onclick={() => moveUp(playerIndex)} type="button"><IconArrowUp /></button>
+              <button onclick={() => moveDown(playerIndex)} type="button"><IconArrowDown /></button>
             </div>
           {/each}
-          <Button color="primary" on:click={start} class="mt-4">Start the game!</Button>
+          <Button color="primary" onclick={start} class="mt-4">Start the game!</Button>
         {/if}
       {:else if $game.players.some((p) => p.pending)}
         <p>Waiting on some players to accept the invitation.</p>
@@ -341,13 +332,13 @@
   {#if !canStart}
     {#if $game.players.some((pl) => pl._id === $user?._id)}
       {#if $game.players.find((pl) => pl._id === $user._id).pending}
-        <Button color="accent" on:click={join}>Accept invitation</Button>
-        <Button color="secondary" on:click={leave}>Refuse invitation</Button>
+        <Button color="accent" onclick={join}>Accept invitation</Button>
+        <Button color="secondary" onclick={leave}>Refuse invitation</Button>
       {:else}
-        <Button color="warning" on:click={leave}>Leave</Button>
+        <Button color="warning" onclick={leave}>Leave</Button>
       {/if}
     {:else}
-      <Button color="accent" on:click={join}>Join!</Button>
+      <Button color="accent" onclick={join}>Join!</Button>
     {/if}
   {/if}
 </div>

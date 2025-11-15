@@ -1,8 +1,8 @@
 <script lang="ts" context="module">
-  import { AuthData, useAccount } from "@/composition/useAccount";
-  import { useLoad } from "@/composition/useLoad";
+  import { AuthData, useAccount } from "$lib/composition/useAccount";
+  import { useLoad } from "$lib/composition/useLoad";
 
-  import { useRest } from "@/composition/useRest";
+  import { useRest } from "$lib/composition/useRest";
   import type { LoadInput } from "@sveltejs/kit";
 
   export async function load(input: LoadInput) {

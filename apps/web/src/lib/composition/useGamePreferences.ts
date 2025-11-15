@@ -1,4 +1,4 @@
-import { browser } from "$app/env";
+import { browser } from "$app/environment";
 import type { RemoveReadable } from "@/utils";
 import type { GameInfo, GamePreferences } from "@bgs/types";
 import { isEmpty, set } from "lodash";

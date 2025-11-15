@@ -1,10 +1,10 @@
 <script lang="ts">
   import { page } from "$app/stores";
-  import { SEO } from "@/components";
-  import { AuthData, useAccount } from "@/composition/useAccount";
-  import { useLoggedOut } from "@/composition/useLoggedOut";
-  import { useRest } from "@/composition/useRest";
   import Checkbox from "$cdk/Checkbox.svelte";
+  import { AuthData, useAccount } from "$lib/composition/useAccount";
+  import { useLoggedOut } from "$lib/composition/useLoggedOut";
+  import { useRest } from "$lib/composition/useRest";
+  import { SEO } from "@/components";
   import { handleError } from "@/utils";
   import { upperFirst } from "lodash";
 
@@ -62,7 +62,7 @@
 
 <div class="signup container">
   <h1>Create an account</h1>
-  <form method="post" on:submit|preventDefault={handleSubmit}>
+  <form method="post" onsubmit|preventDefault={handleSubmit}>
     <div class="form-group">
       <label for="signup-username">Username</label>
       <input

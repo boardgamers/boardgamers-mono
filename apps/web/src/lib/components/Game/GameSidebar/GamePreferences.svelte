@@ -1,9 +1,8 @@
 <script lang="ts">
-  import PreferencesChooser from "@/components/User/PreferencesChooser.svelte";
-  import { Icon } from "$cdk";
-  import type { GameContext } from "@/pages/Game.svelte";
+  import PreferencesChooser from "$lib/components/User/PreferencesChooser.svelte";
+  import type { GameContext } from "$lib/types/GameContext";
+  import IconInfoCircleFill from "@iconify-svelte/bi/info-circle-fill";
   import { getContext } from "svelte";
-  import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
 
   const { gameInfo } = getContext("game") as GameContext;
 
@@ -16,7 +15,7 @@
     <h3>
       Preferences
       <a href={`/page/${$gameInfo._id.game}/preferences`}>
-        <Icon icon={infoCircleFill} class="small" />
+        <IconInfoCircleFill class="small" />
       </a>
     </h3>
     <PreferencesChooser game={$gameInfo} />

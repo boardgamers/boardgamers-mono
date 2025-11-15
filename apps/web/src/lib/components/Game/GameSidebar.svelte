@@ -1,21 +1,25 @@
 <script lang="ts">
-  import { browser } from "$app/env";
-  import { keyBy } from "lodash";
-  import { elapsedSeconds } from "@bgs/utils";
-  import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
-  import type { PlayerInfo } from "@bgs/types";
-  import clockHistory from "@iconify/icons-bi/clock-history.js";
-  import { Button, Icon, Badge } from "$cdk";
-  import { getContext, onDestroy } from "svelte";
-  import { GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings } from "./GameSidebar";
-  import type { GameContext } from "@/routes/game/[gameId].svelte";
-  import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
-  import { useRest } from "@/composition/useRest";
-  import { useAccount } from "@/composition/useAccount";
-  import { useCurrentGame } from "@/composition/useCurrentGame";
-  import { useActiveGames } from "@/composition/useActiveGames";
-  import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
+  import { browser } from "$app/environment";
   import { createPortal, portal } from "$lib/actions/portal";
+  import { useAccount } from "$lib/composition/useAccount";
+  import { useActiveGames } from "$lib/composition/useActiveGames";
+  import { useCurrentGame } from "$lib/composition/useCurrentGame";
+  import { useDeveloperSettings } from "$lib/composition/useDeveloperSettings";
+  import { useRest } from "$lib/composition/useRest";
+  import type { GameContext } from "$lib/types/GameContext";
+  import { confirm, handleError } from "$lib/utils/handle-stuff";
+  import { oneLineMarked } from "$lib/utils/markdown";
+  import { duration, shortDuration, timerTime } from "$lib/utils/time";
+  import type { PlayerInfo } from "@bgs/types";
+  import { elapsedSeconds } from "@bgs/utils";
+  import { Badge, Button } from "@sveltestrap/sveltestrap";
+  import { getContext, onDestroy } from "svelte";
+  import GameLog from "./GameSidebar/GameLog.svelte";
+  import GameNotes from "./GameSidebar/GameNotes.svelte";
+  import GamePreferences from "./GameSidebar/GamePreferences.svelte";
+  import GameSettings from "./GameSidebar/GameSettings.svelte";
+  import ReplayControls from "./GameSidebar/ReplayControls.svelte";
+  import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
 
   const { game, players, gameInfo }: GameContext = getContext("game");
   const { post } = useRest();
@@ -50,7 +54,7 @@
 
   $: alwaysActive = $game?.options.timing.timer?.start === $game?.options.timing.timer?.end;
 
-  $: currentPlayersById = keyBy($game?.currentPlayers ?? [], "_id");
+  $: currentPlayersById = Object.fromEntries(($game?.currentPlayers ?? []).map((p) => [p._id, p]));
 
   function isCurrentPlayer(id: string) {
     return $game?.status !== "ended" && !!currentPlayersById[id];
@@ -66,7 +70,7 @@
     }
   };
 
-  $: onGameChanged(), [userId, $game];
+  $: (onGameChanged(), [userId, $game]);
 
   let remainingTimes: Record<string, number> = {};
 
@@ -79,7 +83,7 @@
     remainingTimes = ret;
   }
 
-  $: updateRemainingTimes(), [secondsCounter];
+  $: (updateRemainingTimes(), [secondsCounter]);
 
   function remainingTime(player: PlayerInfo) {
     const currentPlayer = currentPlayersById[player._id];
@@ -136,7 +140,7 @@
     </div>
   {/each}
   <div class="mt-75">
-    <Icon icon={clockHistory} inline={true} class="me-1" />
+    <IconClockHistory inline={true} class="me-1" />
     {alwaysActive
       ? "24h"
       : `${timerTime($game.options.timing.timer.start)}-${timerTime($game.options.timing.timer.end)}`}
@@ -160,12 +164,12 @@
         color="warning"
         size="sm"
         disabled={playerUser.dropped || playerUser.voteCancel || playerUser.quit}
-        on:click={voteCancel}
+        onclick={voteCancel}
       >
         Vote to cancel
       </Button>
       {#if $game.players.some((pl) => !!pl.dropped)}
-        <Button size="sm" class="ms-2" disabled={playerUser.dropped || playerUser.quit} on:click={quit}>Quit</Button>
+        <Button size="sm" class="ms-2" disabled={playerUser.dropped || playerUser.quit} onclick={quit}>Quit</Button>
       {/if}
       {#each $game.players as player}
         {#if remainingTime(player) <= 0 && isCurrentPlayer(player._id) && !player.dropped && !player.quit}
@@ -174,7 +178,7 @@
             class="ms-2"
             color="danger"
             disabled={requestedDrop[player._id]}
-            on:click={() => requestDrop(player._id)}
+            onclick={() => requestDrop(player._id)}
           >
             Drop {player.name}
           </Button>
@@ -224,7 +228,7 @@
   {#if $devGameSettings}
     <a target="_blank" rel="external" href="/api/gameplay/{$game._id}">Download JSON</a>
   {/if}
-  </div>
+</div>
 
 <style lang="postcss">
   .your-turn {

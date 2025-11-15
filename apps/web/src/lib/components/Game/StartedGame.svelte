@@ -1,21 +1,21 @@
 <script lang="ts">
-  import type { GamePreferences } from "@bgs/types";
+  import { goto } from "$app/navigation";
   import { Loading } from "$cdk";
+  import { useAccount } from "$lib/composition/useAccount";
+  import { useCurrentGame } from "$lib/composition/useCurrentGame";
+  import { useDeveloperSettings } from "$lib/composition/useDeveloperSettings";
+  import { useGame } from "$lib/composition/useGame";
+  import { useGameInfo } from "$lib/composition/useGameInfo";
+  import { useGamePreferences } from "$lib/composition/useGamePreferences";
+  import { useRest } from "$lib/composition/useRest";
+  import { useSession } from "$lib/composition/useSession";
   import type { GameContext } from "@/routes/game/[gameId].svelte";
   import { createWatcher, handleError } from "@/utils";
-  import { getContext, onDestroy, onMount } from "svelte";
-  import { useGame } from "@/composition/useGame";
-  import { useRest } from "@/composition/useRest";
-  import { useGamePreferences } from "@/composition/useGamePreferences";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useAccount } from "@/composition/useAccount";
-  import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
-  import { useCurrentGame } from "@/composition/useCurrentGame";
-  import { useSession } from "@/composition/useSession";
-  import SEO from "../SEO.svelte";
   import { gameLabel } from "@/utils/game-label";
+  import type { GamePreferences } from "@bgs/types";
   import { minBy, sortBy } from "lodash";
-  import { goto } from "$app/navigation";
+  import { getContext, onDestroy, onMount } from "svelte";
+  import SEO from "../SEO.svelte";
 
   const { session } = useSession();
   const { loadGame } = useGame();
@@ -56,9 +56,9 @@
   }
 
   $: gameName = $game?.game.name;
-  $: postUser(), [$user];
+  $: (postUser(), [$user]);
   $: prefs = addDefaults($gamePreferences[gameName], $gameInfo);
-  $: postPreferences(), [prefs];
+  $: (postPreferences(), [prefs]);
   $: gameId = $game?._id;
 
   const updateSrc = () => {
@@ -72,11 +72,11 @@
       }&customViewerUrl=${customUrl}`;
     }
   };
-  $: updateSrc(), [$gameInfo, prefs];
+  $: (updateSrc(), [$gameInfo, prefs]);
 
   const onSrcChanged = () => (stateSent = false);
 
-  $: onSrcChanged(), [src, gameId];
+  $: (onSrcChanged(), [src, gameId]);
 
   const onGameUpdated = createWatcher(() => {
     if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
@@ -84,7 +84,7 @@
     }
   });
 
-  $: onGameUpdated(), [$lastGameUpdate];
+  $: (onGameUpdated(), [$lastGameUpdate]);
 
   function postGamedata() {
     gameIframe?.contentWindow?.postMessage({ type: "state", state: $game.data }, "*");
@@ -210,7 +210,7 @@ ${$game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
 
 <SEO {title} {description} />
 
-<svelte:window on:message={handleGameMessage} />
+<svelte:window onmessage={handleGameMessage} />
 
 <Loading loading={!stateSent} />
 

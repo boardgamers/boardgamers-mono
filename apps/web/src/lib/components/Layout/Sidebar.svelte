@@ -1,8 +1,8 @@
 <script lang="ts">
   import { createPortal } from "$lib/actions/portal";
-  import { useSidebarOpen } from "@/composition/useSidebarOpen";
-  import { Button, Icon } from "$cdk";
-  import gear from "@iconify/icons-bi/gear.js";
+  import { useSidebarOpen } from "$lib/composition/useSidebarOpen";
+  import IconGear from "@iconify-svelte/bi/gear";
+  import { Button } from "@sveltestrap/sveltestrap";
 
   const { sidebarOpen } = useSidebarOpen();
 </script>
@@ -13,10 +13,10 @@
   </aside>
   <Button
     color="secondary"
-    on:click={() => ($sidebarOpen = !$sidebarOpen)}
+    onclick={() => ($sidebarOpen = !$sidebarOpen)}
     class={"rounded-circle b-avatar sidebar-fab" + (false ? " chatOpen" : "")}
   >
-    <Icon icon={gear} class="absolute-center" style="width: 1.5rem; height: 1.5rem" />
+    <IconGear class="absolute-center" style="width: 1.5rem; height: 1.5rem" />
   </Button>
 </div>
 

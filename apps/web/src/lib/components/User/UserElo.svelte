@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useRest } from "@/composition/useRest";
-  import { handleError, pluralize } from "@/utils";
+  import { useGameInfo } from "$lib/composition/useGameInfo";
+  import { useRest } from "$lib/composition/useRest";
+  import { handleError } from "$lib/utils/handle-stuff";
+  import { pluralize } from "$lib/utils/time";
   import type { GamePreferences } from "@bgs/types";
-  import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
-  import { Icon } from "@cdk";
+  import IconInfoCircleFill from "@iconify-svelte/bi/info-circle-fill";
 
   export let userId: string;
 
@@ -18,7 +18,7 @@
       .then((prefs) => (gamePreferences = prefs))
       .catch(handleError);
 
-  $: onUserIdChanged(), [userId];
+  $: (onUserIdChanged(), [userId]);
 
   async function gameName(game: string): Promise<string> {
     const info = gameInfo(game, "latest");
@@ -40,7 +40,7 @@
 {#if gamePreferences.some((pref) => pref.elo)}
   <div>
     <h3 class="card-title">
-      Elo <a href="/page/elo"><Icon icon={infoCircleFill} class="text-secondary small" inline={true} /></a>
+      Elo <a href="/page/elo"><IconInfoCircleFill class="text-secondary small" /></a>
     </h3>
     <ul class="list-group text-start">
       {#each gamePreferences.filter((pref) => !!pref.elo) as gamePref}

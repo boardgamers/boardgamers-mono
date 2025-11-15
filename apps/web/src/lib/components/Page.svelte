@@ -16,27 +16,27 @@
   </div>
 </article>
 
-<style global>
-  .page pre {
+<style lang="postcss">
+  :global(.page pre) {
     background: #eee;
     padding: 10px;
     border-radius: 4px;
   }
 
-  .page table {
+  :global(.page table) {
     border-collapse: collapse;
     margin-top: 0.5rem;
     margin-bottom: 0.5rem;
   }
 
-  .page th,
-  .page td {
+  :global(.page th),
+  :global(.page td) {
     border: 1px solid rgba(0, 0, 0, 0.1);
     padding: 5px 14px 5px 12px;
     height: 32px;
   }
 
-  .page th {
+  :global(.page th) {
     background-color: #555;
     font-weight: 300;
     color: #fff;

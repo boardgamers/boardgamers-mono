@@ -66,7 +66,7 @@
     }
   });
 
-  $effect(() => {
+  $: {
     if (isOpen && !_lastIsOpen) {
       init();
       hasOpened = true;
@@ -78,7 +78,7 @@
 
     _lastIsOpen = isOpen;
     _lastHasOpened = hasOpened;
-  });
+  }
 
   function setFocus() {
     if (
@@ -119,7 +119,7 @@
     manageFocusAfterClose();
   }
 
-  function handleBackdropClick(e) {
+  function handleBackdropClick(e: MouseEvent) {
     if (e.target === _mouseDownElement) {
       e.stopPropagation();
       if (!isOpen || !backdrop) {
@@ -160,7 +160,7 @@
     _isMounted = false;
   }
 
-  function handleBackdropMouseDown(e) {
+  function handleBackdropMouseDown(e: MouseEvent) {
     _mouseDownElement = e.target;
   }
 
@@ -173,7 +173,7 @@
   });
 </script>
 
-<svelte:window on:keydown={handleKeyDown} />
+<svelte:window onkeydown={handleKeyDown} />
 
 {#if _isMounted}
   <div class={wrapClassName} tabindex="-1" style="position: relative; z-index: {zIndex}">

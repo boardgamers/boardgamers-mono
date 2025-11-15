@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { browser } from "$app/env";
-  import type { GameContext } from "@/pages/Game.svelte";
-  import { oneLineMarked } from "@/utils";
+  import { browser } from "$app/environment";
+  import type { GameContext } from "$lib/types/GameContext";
+  import { oneLineMarked } from "$lib/utils/markdown";
   import DOMPurify from "dompurify";
   import { getContext } from "svelte";
 
@@ -19,7 +19,7 @@
     });
   }
 
-  $: onLogChanged(), [$log, showLog];
+  $: (onLogChanged(), [$log, showLog]);
 
   function toggleShowLog() {
     showLog = !showLog;
@@ -39,7 +39,7 @@
         (<a
           href={showLog ? "#hideLog" : "#showLog"}
           style="font-weight: unset !important"
-          on:click|preventDefault={toggleShowLog}>{showLog ? "hide" : "show"}</a
+          onclick|preventDefault={toggleShowLog}>{showLog ? "hide" : "show"}</a
         >)
       </div>
     </div>

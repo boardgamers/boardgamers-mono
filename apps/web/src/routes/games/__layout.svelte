@@ -9,10 +9,10 @@
 </script>
 
 <script lang="ts">
+  import GameListSidebar from "$lib/components/Layout/GameListSidebar.svelte";
+  import { useGameInfo } from "$lib/composition/useGameInfo";
+  import { useLoad } from "$lib/composition/useLoad";
   import type { LoadInput } from "@sveltejs/kit";
-  import { useLoad } from "@/composition/useLoad";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import GameListSidebar from "@/components/Layout/GameListSidebar.svelte";
 </script>
 
 <div class="d-flex">

@@ -1,10 +1,10 @@
 <script context="module" lang="ts">
-  import { useActiveGames } from "@/composition/useActiveGames";
-  import { useLoad } from "@/composition/useLoad";
+  import { useActiveGames } from "$lib/composition/useActiveGames";
+  import { useLoad } from "$lib/composition/useLoad";
   import { get as storeGet } from "svelte/store";
 
   import type { LoadInput } from "@sveltejs/kit";
-  import { useAccount } from "@/composition/useAccount";
+  import { useAccount } from "$lib/composition/useAccount";
   import { redirectLoggedIn } from "@/utils/redirect";
 
   export async function load(input: LoadInput) {

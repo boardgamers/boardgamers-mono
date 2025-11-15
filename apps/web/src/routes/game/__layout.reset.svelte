@@ -17,12 +17,12 @@
   import "../../style.css";
 
   import { Appbar, Sidebar } from "@/components";
-  import { useActiveGames } from "@/composition/useActiveGames";
-  import { useNProgress } from "@/composition/useNProgress";
+  import { useActiveGames } from "$lib/composition/useActiveGames";
+  import { useNProgress } from "$lib/composition/useNProgress";
   import type { LoadInput } from "@sveltejs/kit";
-  import { useLoad } from "@/composition/useLoad";
-  import { useWebsocket } from "@/composition/useWebsocket";
-  import { useAccount } from "@/composition/useAccount";
+  import { useLoad } from "$lib/composition/useLoad";
+  import { useWebsocket } from "$lib/composition/useWebsocket";
+  import { useAccount } from "$lib/composition/useAccount";
   const { activeGames } = useActiveGames();
 
   useNProgress();

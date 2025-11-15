@@ -1,21 +1,21 @@
 <script lang="ts">
-  import { handleError, oneLineMarked, duration } from "@/utils";
-  import marked from "marked";
-  import { fromPairs, upperFirst } from "lodash";
-  import { Button, Col, Input, Checkbox, Row, Container } from "$cdk";
   import { goto } from "$app/navigation";
-  import { adjectives, nouns } from "@/data";
-  import { fade } from "svelte/transition";
-  import type { PlayerOrder } from "@bgs/types";
-  import { playerOrders } from "@/data/playerOrders";
-  import { useAccount } from "@/composition/useAccount";
-  import { useLoggedIn } from "@/composition/useLoggedIn";
-  import { useRest } from "@/composition/useRest";
-  import { useGameInfo } from "@/composition/useGameInfo";
   import { page } from "$app/stores";
+  import { Button, Checkbox, Col, Container, Input, Row } from "$cdk";
+  import { useAccount } from "$lib/composition/useAccount";
+  import { useGameInfo } from "$lib/composition/useGameInfo";
+  import { useLoggedIn } from "$lib/composition/useLoggedIn";
+  import { useRest } from "$lib/composition/useRest";
   import { SEO } from "@/components";
-  import removeMarkdown from "remove-markdown";
+  import { adjectives, nouns } from "@/data";
+  import { playerOrders } from "@/data/playerOrders";
+  import { duration, handleError, oneLineMarked } from "@/utils";
   import { gameLabel } from "@/utils/game-label";
+  import type { PlayerOrder } from "@bgs/types";
+  import { fromPairs, upperFirst } from "lodash";
+  import marked from "marked";
+  import removeMarkdown from "remove-markdown";
+  import { fade } from "svelte/transition";
 
   useLoggedIn();
 
@@ -144,7 +144,7 @@
 
   <Container>
     <h1 class="mb-4">{info.label}</h1>
-    <form on:submit|preventDefault={createGame}>
+    <form onsubmit|preventDefault={createGame}>
       <div class="row">
         <div class="col-md-6">
           <h2>Description</h2>
@@ -281,8 +281,8 @@
           The game will automatically be cancelled if not started after {timePerGame <= 600
             ? "an hour"
             : timePerGame <= 3600
-            ? "three hours"
-            : "a week"}.
+              ? "three hours"
+              : "a week"}.
         </p>
       {/if}
 

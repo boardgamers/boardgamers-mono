@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { EloRanking, useEloRankings } from "@/composition/useEloRankings";
+  import { EloRanking, useEloRankings } from "$lib/composition/useEloRankings";
   import { Loading, Pagination } from "$cdk";
   import { createWatcher, handleError, pluralize } from "@/utils";
   import UserAvatar from "./User/UserAvatar.svelte";
@@ -39,7 +39,7 @@
 
   const reload = createWatcher(() => load(true), { immediate: !initial });
 
-  $: reload(), [boardgameId];
+  $: (reload(), [boardgameId]);
 
   const onPageChange = createWatcher(() => !baseUrl && load(false));
 
@@ -49,7 +49,7 @@
     }
   }
 
-  $: onPageChange(), [currentPage];
+  $: (onPageChange(), [currentPage]);
 </script>
 
 <div>

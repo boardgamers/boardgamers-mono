@@ -11,22 +11,22 @@
 </script>
 
 <script lang="ts">
-  import { handleError, confirm, niceDate, duration, createWatcher } from "@/utils";
-  import { Card, Button, Col, Container, FormGroup, Input, InputGroup, Row, Checkbox } from "$cdk";
-  import { upperFirst, debounce } from "lodash";
-  import type { LoadInput } from "@sveltejs/kit";
-  import { useLoad } from "@/composition/useLoad";
-  import { useAccount } from "@/composition/useAccount";
-  import { useRest } from "@/composition/useRest";
-  import { get as storeGet } from "svelte/store";
+  import { browser } from "$app/environment";
+  import { Button, Card, Checkbox, Col, Container, FormGroup, Input, InputGroup, Row } from "$cdk";
+  import UserAvatar from "$lib/components/User/UserAvatar.svelte";
+  import { useAccount } from "$lib/composition/useAccount";
+  import { useDeveloperSettings } from "$lib/composition/useDeveloperSettings";
+  import { useImageCache } from "$lib/composition/useImageCache";
+  import { useLoad } from "$lib/composition/useLoad";
+  import { useLoggedIn } from "$lib/composition/useLoggedIn";
+  import { useLogoClicks } from "$lib/composition/useLogoClicks";
+  import { useRest } from "$lib/composition/useRest";
+  import { confirm, createWatcher, duration, handleError, niceDate } from "@/utils";
   import { redirectLoggedIn } from "@/utils/redirect";
   import type { IUser } from "@bgs/types";
-  import { browser } from "$app/env";
-  import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
-  import { useLoggedIn } from "@/composition/useLoggedIn";
-  import UserAvatar from "@/components/User/UserAvatar.svelte";
-  import { useLogoClicks } from "@/composition/useLogoClicks";
-  import { useImageCache } from "@/composition/useImageCache";
+  import type { LoadInput } from "@sveltejs/kit";
+  import { debounce, upperFirst } from "lodash";
+  import { get as storeGet } from "svelte/store";
 
   useLoggedIn();
 
@@ -162,7 +162,7 @@
     customAvatarError = false;
   }
 
-  $: onNotificationsChanged(), [notifications];
+  $: (onNotificationsChanged(), [notifications]);
 </script>
 
 <svelte:head>
@@ -184,25 +184,25 @@
       <UserAvatar
         --avatar-border="1px solid gray"
         role="button"
-        on:click={() => (editingAvatar = true)}
+        onclick={() => (editingAvatar = true)}
         userId={$account._id}
         username={$account.account.username}
       />
     {:else}
-      <input type="file" bind:this={fileUpload} on:change={uploadAvatar} accept="image/*" class="d-none" />
-      <a href="#upload" style="width: 100%" role="button" on:click|preventDefault={() => fileUpload.click()}>Upload</a>
+      <input type="file" bind:this={fileUpload} onchange={uploadAvatar} accept="image/*" class="d-none" />
+      <a href="#upload" style="width: 100%" role="button" onclick|preventDefault={() => fileUpload.click()}>Upload</a>
       <div style="display: contents" class:d-none={customAvatarError}>
         <UserAvatar
           userId="me"
           username="Custom avatar"
           role="button"
-          on:error={() => (customAvatarError = true)}
-          on:load={() => (customAvatarError = false)}
-          on:click={() => selectArt("upload")}
+          onerror={() => (customAvatarError = true)}
+          onload={() => (customAvatarError = false)}
+          onclick={() => selectArt("upload")}
         />
       </div>
       {#each avatarStyles as art}
-        <UserAvatar {art} username={$account.account.username} role="button" on:click={() => selectArt(art)} />
+        <UserAvatar {art} username={$account.account.username} role="button" onclick={() => selectArt(art)} />
       {/each}
     {/if}
     <FormGroup class="mt-2">
@@ -212,7 +212,7 @@
         id="bio"
         placeholder="Something about yourself..."
         value={bio}
-        on:change={(event) => updateBio(event.target.value)}
+        onchange={(event) => updateBio(event.target.value)}
       />
     </FormGroup>
     <FormGroup class="mt-2">
@@ -223,7 +223,7 @@
           id="email"
           placeholder="Email address"
           bind:value={email}
-          on:keyup={(e) => {
+          onkeyup={(e) => {
             if (e.code === "Enter") {
               e.preventDefault();
               e.stopPropagation();
@@ -234,9 +234,9 @@
         />
 
         {#if !editingEmail}
-          <Button outline color="secondary" on:click={() => (editingEmail = true)}>Edit</Button>
+          <Button outline color="secondary" onclick={() => (editingEmail = true)}>Edit</Button>
         {:else}
-          <Button outline color="success" on:click={saveEmail}>Save</Button>
+          <Button outline color="success" onclick={saveEmail}>Save</Button>
         {/if}
       </InputGroup>
       <small>{$account.security.confirmed ? "Your email is confirmed." : "Your email is not confirmed."}</small>
@@ -258,7 +258,7 @@
       {/each}
     </p>
     {#if !$account.account.termsAndConditions}
-      <Checkbox bind:checked={tc} on:change={acceptTC} class="mb-3">
+      <Checkbox bind:checked={tc} onchange={acceptTC} class="mb-3">
         I agree to the <a href="/page/terms-and-conditions">Terms and Conditions</a> 📝
       </Checkbox>
     {:else}
@@ -268,10 +268,10 @@
       </p>
     {/if}
     <hr />
-    <Checkbox bind:checked={newsletter} on:change={updateAccount}>Get newsletter, up to six emails per year.</Checkbox>
+    <Checkbox bind:checked={newsletter} onchange={updateAccount}>Get newsletter, up to six emails per year.</Checkbox>
     <div class="form-row align-items-center">
       <div class="col-auto">
-        <Checkbox bind:checked={gameNotification} on:change={updateAccount}>
+        <Checkbox bind:checked={gameNotification} onchange={updateAccount}>
           Receive an email when it's your turn after a delay of
         </Checkbox>
       </div>
@@ -279,7 +279,7 @@
         <select
           class="form-control form-control-sm"
           bind:value={gameNotificationDelay}
-          on:blur={() => {
+          onblur={() => {
             gameNotification = true;
             updateAccount();
           }}
@@ -296,7 +296,7 @@
     <Checkbox bind:checked={$developerSettings}>🔧 Enable developper settings on this device</Checkbox>
   </Card>
   <Card class="mt-4 border-accent" header="Game Settings">
-    <Checkbox bind:checked={soundNotification} on:change={updateAccount}>
+    <Checkbox bind:checked={soundNotification} onchange={updateAccount}>
       Play a sound when it's your turn in one of your games
     </Checkbox>
     <Checkbox bind:checked={notifications}>Notification on this device when it's your turn</Checkbox>

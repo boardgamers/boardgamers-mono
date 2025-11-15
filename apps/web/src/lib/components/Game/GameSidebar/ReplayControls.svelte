@@ -1,15 +1,14 @@
 <script lang="ts">
-  import { Button, Icon } from "$cdk";
-  import type { GameContext } from "@/pages/Game.svelte";
-  import skipBackwardFill from "@iconify/icons-bi/skip-backward-fill.js";
-  import skipForwardFill from "@iconify/icons-bi/skip-forward-fill.js";
-  import skipStartFill from "@iconify/icons-bi/skip-start-fill.js";
-  import skipEndFill from "@iconify/icons-bi/skip-end-fill.js";
-  import stopFill from "@iconify/icons-bi/stop-fill.js";
+  import type { GameContext } from "$lib/types/GameContext";
+  import IconSkipBackwardFill from "@iconify-svelte/bi/skip-backward-fill";
+  import IconSkipEndFill from "@iconify-svelte/bi/skip-end-fill";
+  import IconSkipForwardFill from "@iconify-svelte/bi/skip-forward-fill";
+  import IconSkipStartFill from "@iconify-svelte/bi/skip-start-fill";
+  import IconStopFill from "@iconify-svelte/bi/stop-fill";
+  import { Button } from "@sveltestrap/sveltestrap";
 
+  import { useSidebarOpen } from "$lib/composition/useSidebarOpen";
   import { getContext } from "svelte";
-  import { useSidebarOpen } from "@/composition/useSidebarOpen";
-  import Portal from "@/modules/portal/Portal.svelte";
 
   const { sidebarOpen } = useSidebarOpen();
   const { gameInfo, replayData, emitter } = getContext("game") as GameContext;
@@ -30,14 +29,14 @@
 {#if $gameInfo?.viewer?.replayable}
   <div class="mt-75">
     {#if !$replayData}
-      <Button color="accent" size="sm" on:click={startReplay}>Replay</Button>
+      <Button color="accent" size="sm" onclick={startReplay}>Replay</Button>
     {:else}
       <div class="d-flex align-items-center">
-        <Button size="sm" class="me-1" on:click={() => replayTo($replayData.start)}>
-          <Icon icon={skipBackwardFill} style="margin-bottom: 0.25em" />
+        <Button size="sm" class="me-1" onclick={() => replayTo($replayData.start)}>
+          <IconSkipBackwardFill style="margin-bottom: 0.25em" />
         </Button>
-        <Button size="sm" class="mx-1" on:click={() => replayTo(Math.max($replayData.start, $replayData.current - 1))}>
-          <Icon icon={skipStartFill} style="margin-bottom: 0.25em" />
+        <Button size="sm" class="mx-1" onclick={() => replayTo(Math.max($replayData.start, $replayData.current - 1))}>
+          <IconSkipStartFill style="margin-bottom: 0.25em" />
         </Button>
         <span
           class="mx-1 text-center"
@@ -45,14 +44,14 @@
         >
           {$replayData.current} / {$replayData.end}
         </span>
-        <Button size="sm" class="mx-1" on:click={() => replayTo(Math.min($replayData.end, $replayData.current + 1))}>
-          <Icon icon={skipEndFill} style="margin-bottom: 0.25em" />
+        <Button size="sm" class="mx-1" onclick={() => replayTo(Math.min($replayData.end, $replayData.current + 1))}>
+          <IconSkipEndFill style="margin-bottom: 0.25em" />
         </Button>
-        <Button size="sm" class="mx-1" on:click={() => replayTo($replayData.end)}>
-          <Icon icon={skipForwardFill} style="margin-bottom: 0.25em" />
+        <Button size="sm" class="mx-1" onclick={() => replayTo($replayData.end)}>
+          <IconSkipForwardFill style="margin-bottom: 0.25em" />
         </Button>
-        <Button size="sm" class="ms-1" on:click={endReplay}>
-          <Icon icon={stopFill} style="margin-bottom: 0.25em; color: orange" />
+        <Button size="sm" class="ms-1" onclick={endReplay}>
+          <IconStopFill style="margin-bottom: 0.25em; color: orange" />
         </Button>
       </div>
     {/if}
@@ -64,16 +63,16 @@
       style="position: fixed; bottom: 0; left: 0; right: calc(var(--fab-right) + 8em); pointer-events: none"
       class="d-flex pb-3 text-light"
     >
-      <Button size="sm" class="me-1 ms-auto" on:click={() => replayTo($replayData.start)} style="pointer-events: all">
-        <Icon icon={skipBackwardFill} style="margin-bottom: 0.25em" />
+      <Button size="sm" class="me-1 ms-auto" onclick={() => replayTo($replayData.start)} style="pointer-events: all">
+        <IconSkipBackwardFill style="margin-bottom: 0.25em" />
       </Button>
       <Button
         size="sm"
         class="mx-1"
-        on:click={() => replayTo(Math.max($replayData.start, $replayData.current - 1))}
+        onclick={() => replayTo(Math.max($replayData.start, $replayData.current - 1))}
         style="pointer-events: all"
       >
-        <Icon icon={skipStartFill} style="margin-bottom: 0.25em" />
+        <IconSkipStartFill style="margin-bottom: 0.25em" />
       </Button>
       <span
         class="mx-1 px-1 text-center"
@@ -93,16 +92,16 @@
       <Button
         size="sm"
         class="mx-1"
-        on:click={() => replayTo(Math.min($replayData.end, $replayData.current + 1))}
+        onclick={() => replayTo(Math.min($replayData.end, $replayData.current + 1))}
         style="pointer-events: all"
       >
-        <Icon icon={skipEndFill} style="margin-bottom: 0.25em" />
+        <IconSkipEndFill style="margin-bottom: 0.25em" />
       </Button>
-      <Button size="sm" class="mx-1" on:click={() => replayTo($replayData.end)} style="pointer-events: all">
-        <Icon icon={skipForwardFill} style="margin-bottom: 0.25em" />
+      <Button size="sm" class="mx-1" onclick={() => replayTo($replayData.end)} style="pointer-events: all">
+        <IconSkipForwardFill style="margin-bottom: 0.25em" />
       </Button>
-      <Button size="sm" class="ms-1 me-auto" on:click={endReplay} style="pointer-events: all">
-        <Icon icon={stopFill} style="margin-bottom: 0.25em; color: orange" />
+      <Button size="sm" class="ms-1 me-auto" onclick={endReplay} style="pointer-events: all">
+        <IconStopFill style="margin-bottom: 0.25em; color: orange" />
       </Button>
     </div>
   </div>

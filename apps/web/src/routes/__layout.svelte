@@ -17,11 +17,11 @@
 
   import { Appbar, Footer } from "@/components";
   import type { LoadInput } from "@sveltejs/kit";
-  import { useLoad } from "@/composition/useLoad";
-  import { useAccount } from "@/composition/useAccount";
-  import { useActiveGames } from "@/composition/useActiveGames";
-  import { useWebsocket } from "@/composition/useWebsocket";
-  import { useNProgress } from "@/composition/useNProgress";
+  import { useLoad } from "$lib/composition/useLoad";
+  import { useAccount } from "$lib/composition/useAccount";
+  import { useActiveGames } from "$lib/composition/useActiveGames";
+  import { useWebsocket } from "$lib/composition/useWebsocket";
+  import { useNProgress } from "$lib/composition/useNProgress";
 
   const { activeGames } = useActiveGames();
   useNProgress();

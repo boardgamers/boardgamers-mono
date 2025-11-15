@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { classnames } from "@/utils";
+  import { classnames } from "$lib/utils/classname";
   import { Pagination, PaginationItem, PaginationLink } from "@sveltestrap/sveltestrap";
 
   export let align: "right" | "left" | "center" | undefined = undefined;
@@ -46,7 +46,7 @@
     <PaginationLink
       first
       href={baseUrl ? `${baseUrl}/1` : "#first"}
-      on:click={(e) => {
+      onclick={(e) => {
         e.preventDefault();
         currentPage = 0;
       }}
@@ -56,7 +56,7 @@
     <PaginationLink
       previous
       href={baseUrl ? `${baseUrl}/${currentPage}` : "#previous"}
-      on:click={(e) => {
+      onclick={(e) => {
         e.preventDefault();
         currentPage -= 1;
       }}
@@ -67,7 +67,7 @@
       <PaginationItem disabled={typeof pageFor(position) !== "number"} active={pageFor(position) === currentPage}>
         <PaginationLink
           href={baseUrl ? `${baseUrl}/${+pageFor(position) + 1}` : "#"}
-          on:click={!baseUrl
+          onclick={!baseUrl
             ? (e) => {
                 e.preventDefault();
                 currentPage = +pageFor(position);
@@ -84,7 +84,7 @@
     <PaginationLink
       next
       href={baseUrl ? `${baseUrl}/${currentPage + 2}` : "#next"}
-      on:click={(e) => {
+      onclick={(e) => {
         e.preventDefault();
         currentPage += 1;
       }}
@@ -94,7 +94,7 @@
     <PaginationLink
       last
       href={baseUrl ? `${baseUrl}/${totalPages}` : "#last"}
-      on:click={(e) => {
+      onclick={(e) => {
         e.preventDefault();
         currentPage = totalPages - 1;
       }}

@@ -1,26 +1,25 @@
 <script lang="ts">
+  import { browser } from "$app/environment";
+  import { useAccount } from "$lib/composition/useAccount";
+  import { useActiveGames } from "$lib/composition/useActiveGames";
+  import { useLogoClicks } from "$lib/composition/useLogoClicks";
+  import { handleError } from "$lib/utils/handle-stuff";
+  import IconGearFill from "@iconify-svelte/bi/gear-fill";
+  import IconPower from "@iconify-svelte/bi/power";
   import {
-    Navbar,
-    Nav,
-    Dropdown,
-    DropdownToggle,
-    DropdownMenu,
     Button,
-    Input,
+    Dropdown,
+    DropdownMenu,
+    DropdownToggle,
     Form,
     FormGroup,
-    Label,
     FormText,
+    Input,
+    Label,
+    Nav,
+    Navbar,
     NavLink,
-    Icon,
-  } from "$cdk";
-  import gearFill from "@iconify/icons-bi/gear-fill.js";
-  import power from "@iconify/icons-bi/power.js";
-  import { handleError } from "@/utils";
-  import { useAccount } from "@/composition/useAccount";
-  import { useLogoClicks } from "@/composition/useLogoClicks";
-  import { useActiveGames } from "@/composition/useActiveGames";
-  import { browser } from "$app/env";
+  } from "@sveltestrap/sveltestrap";
   import UserAvatar from "../User/UserAvatar.svelte";
 
   const { account: user, login, logout } = useAccount();
@@ -67,11 +66,11 @@
     }
   };
 
-  $: browser && onHasGamesChanged(), [hasGames];
+  $: (browser && onHasGamesChanged(), [hasGames]);
 </script>
 
 <Navbar color="primary" class={className} dark expand>
-  <a href="/" on:click={logoClick} sveltekit:prefetch class="navbar-brand">BGS</a>
+  <a href="/" onclick={logoClick} sveltekit:prefetch class="navbar-brand">BGS</a>
 
   {#if $user}
     <a
@@ -111,7 +110,7 @@
                 <Button href="/api/account/auth/facebook" rel="external" class="facebook">Facebook</Button>
               </div>
               or
-              <Form class="mt-3" on:submit={handleSubmit}>
+              <Form class="mt-3" onsubmit={handleSubmit}>
                 <FormGroup>
                   <Label hidden for="email">Email</Label>
                   <Input id="email" type="email" required bind:value={email} autofocus />
@@ -137,7 +136,7 @@
     {:else}
       {#if admin}
         <NavLink href={adminLink} class="d-flex" style="align-items: center; gap: 0.5em">
-          <Icon icon={gearFill} inline={true} class="big" />
+          <IconGearFill class="big" />
           <span class="d-none d-sm-inline">Admin</span>
         </NavLink>
       {/if}
@@ -145,8 +144,8 @@
         <UserAvatar username={$user.account.username} userId={$user._id} size="2rem" />
         <span class="d-none d-sm-inline">{$user.account.username}</span>
       </NavLink>
-      <NavLink on:click={logOut} class="d-flex" style="align-items: center; gap: 0.5em">
-        <Icon icon={power} inline={true} class="big" />
+      <NavLink onclick={logOut} class="d-flex" style="align-items: center; gap: 0.5em">
+        <IconPower class="big" />
         <span class="d-none d-sm-inline">Log out</span>
       </NavLink>
     {/if}

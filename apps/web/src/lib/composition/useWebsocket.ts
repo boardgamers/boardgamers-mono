@@ -1,4 +1,4 @@
-import { browser } from "$app/env";
+import { browser } from "$app/environment";
 import { get as $ } from "svelte/store";
 import { defineStore } from "./defineStore";
 import { useAccount } from "./useAccount";

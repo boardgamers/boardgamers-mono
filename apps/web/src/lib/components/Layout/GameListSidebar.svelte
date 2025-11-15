@@ -1,8 +1,8 @@
 <script lang="ts">
   import { page } from "$app/stores";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useLogoClicks } from "@/composition/useLogoClicks";
   import { ListGroup } from "$cdk";
+  import { useGameInfo } from "$lib/composition/useGameInfo";
+  import { useLogoClicks } from "$lib/composition/useLogoClicks";
   import { handleError } from "@/utils";
   import type { GameInfo } from "@bgs/types";
 
@@ -12,7 +12,7 @@
   loadGameInfos().catch(handleError);
 
   let games: GameInfo[];
-  $: (games = latestGameInfos() as GameInfo[]), [$gameInfos];
+  $: ((games = latestGameInfos() as GameInfo[]), [$gameInfos]);
   $: boardgameId = $page!.params.boardgameId;
 
   function gameRoute(gameId: string) {
@@ -47,7 +47,7 @@
         href={gameRoute(game._id.game)}
         class:active={boardgameId === game._id.game}
         sveltekit:prefetch
-        on:click={handleClick}
+        onclick={handleClick}
         style="font-weight: 600"
       >
         {game.label}

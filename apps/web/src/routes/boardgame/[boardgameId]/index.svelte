@@ -34,22 +34,22 @@
 </script>
 
 <script lang="ts">
-  import { confirm, handleError } from "@/utils";
-  import marked from "marked";
-  import type { GameInfo } from "@bgs/types";
-  import { Card, Row, Col } from "$cdk";
-  import { UserGameSettings, GameList, BoardgameElo, SEO } from "@/components";
-  import { useAccount } from "@/composition/useAccount";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useGamePreferences } from "@/composition/useGamePreferences";
-  import { page } from "$app/stores";
   import { goto } from "$app/navigation";
-  import type { LoadInput } from "@sveltejs/kit";
-  import { useLoad } from "@/composition/useLoad";
-  import { useGames } from "@/composition/useGames";
-  import { get as storeGet } from "svelte/store";
-  import { LoadEloRankingsResult, useEloRankings } from "@/composition/useEloRankings";
+  import { page } from "$app/stores";
+  import { Card, Col, Row } from "$cdk";
+  import { useAccount } from "$lib/composition/useAccount";
+  import { LoadEloRankingsResult, useEloRankings } from "$lib/composition/useEloRankings";
+  import { useGameInfo } from "$lib/composition/useGameInfo";
+  import { useGamePreferences } from "$lib/composition/useGamePreferences";
+  import { useGames } from "$lib/composition/useGames";
+  import { useLoad } from "$lib/composition/useLoad";
+  import { BoardgameElo, GameList, SEO, UserGameSettings } from "@/components";
+  import { confirm, handleError } from "@/utils";
   import { gameLabel } from "@/utils/game-label";
+  import type { GameInfo } from "@bgs/types";
+  import type { LoadInput } from "@sveltejs/kit";
+  import marked from "marked";
+  import { get as storeGet } from "svelte/store";
 
   const { accountId } = useAccount();
   const { gameInfos, gameInfo, loadGameInfo } = useGameInfo();
@@ -67,8 +67,8 @@
     loadGamePreferences(boardgameId).catch(handleError);
   };
 
-  $: onUserChanged(), [accountId, boardgameId];
-  $: (boardgame = gameInfo(boardgameId, "latest") as GameInfo), [gameInfos];
+  $: (onUserChanged(), [accountId, boardgameId]);
+  $: ((boardgame = gameInfo(boardgameId, "latest") as GameInfo), [gameInfos]);
   $: hasOwnership = $gamePreferences[boardgameId]?.access?.ownership;
   $: needOwnership = boardgame?.meta?.needOwnership;
 
@@ -95,7 +95,7 @@
     <Col>
       <Card class="border-secondary h-100" header={rules ? "Rules" : "Description"}>
         {@html marked(rules ? boardgame.rules : boardgame.description)}
-        <a slot="footer" href={rules ? "#description" : "#rules"} on:click|preventDefault={() => (rules = !rules)}>
+        <a slot="footer" href={rules ? "#description" : "#rules"} onclick|preventDefault={() => (rules = !rules)}>
           {rules ? "See description" : "See rules"}
         </a>
       </Card>
@@ -123,7 +123,7 @@
 
   <div class="text-center mt-3">
     <a class="btn btn-accent" href={`/boardgame/${boardgameId}/games`} role="button">All games</a>
-    <button class="btn btn-primary mx-3" href="/new-game" on:click={newGame}>New Game</button>
+    <button class="btn btn-primary mx-3" href="/new-game" onclick={newGame}>New Game</button>
     <a class="btn btn-accent" href={`/boardgame/${boardgameId}/rankings`} role="button">Rankings</a>
   </div>
 

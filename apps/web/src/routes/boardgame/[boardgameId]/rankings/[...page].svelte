@@ -12,9 +12,9 @@
 
 <script lang="ts">
   import { BoardgameElo, SEO } from "@/components";
-  import { LoadEloRankingsResult, useEloRankings } from "@/composition/useEloRankings";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useLoad } from "@/composition/useLoad";
+  import { LoadEloRankingsResult, useEloRankings } from "$lib/composition/useEloRankings";
+  import { useGameInfo } from "$lib/composition/useGameInfo";
+  import { useLoad } from "$lib/composition/useLoad";
   import { Col, Row } from "$cdk";
   import { gameLabel } from "@/utils/game-label";
   import type { LoadInput } from "@sveltejs/kit";

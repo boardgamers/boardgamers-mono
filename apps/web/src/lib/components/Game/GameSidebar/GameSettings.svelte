@@ -1,11 +1,13 @@
 <script lang="ts">
-  import { Icon, Checkbox, Label, Input, FormGroup } from "$cdk";
-  import { handleError, oneLineMarked } from "@/utils";
-  import type { GameContext } from "@/pages/Game.svelte";
-  import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
+  import Checkbox from "$lib/cdk/Checkbox.svelte";
+  import { useAccount } from "$lib/composition/useAccount";
+  import { useRest } from "$lib/composition/useRest";
+  import type { GameContext } from "$lib/types/GameContext";
+  import { handleError } from "$lib/utils/handle-stuff";
+  import { oneLineMarked } from "$lib/utils/markdown";
+  import IconInfoCircleFill from "@iconify-svelte/bi/info-circle-fill";
+  import { FormGroup, Input, Label } from "@sveltestrap/sveltestrap";
   import { getContext } from "svelte";
-  import { useAccount } from "@/composition/useAccount";
-  import { useRest } from "@/composition/useRest";
 
   const { account } = useAccount();
   const { post, get } = useRest();
@@ -30,7 +32,7 @@
     }
   }
 
-  $: loadSettings(), [gameStatus, userId, $gameInfo];
+  $: (loadSettings(), [gameStatus, userId, $gameInfo]);
 
   async function postSettings() {
     if (!$account) {
@@ -45,20 +47,20 @@
     <h3>
       Settings
       <a href={`/page/${$game.game.name}/settings`}>
-        <Icon icon={infoCircleFill} class="small" />
+        <IconInfoCircleFill class="small" />
       </a>
     </h3>
     <!-- Code very similar to PreferencesChooser -->
     {#each $gameInfo.settings as setting}
       {#if !setting.faction || setting.faction === playerUser.faction}
         {#if setting.type === "checkbox"}
-          <Checkbox bind:checked={settings[setting.name]} on:change={postSettings}>
+          <Checkbox bind:checked={settings[setting.name]} onchange={postSettings}>
             {setting.label}
           </Checkbox>
         {:else if setting.type === "select"}
           <FormGroup class="d-flex align-items-center mt-2">
             <Label class="nowrap me-2 mb-0">{@html oneLineMarked(setting.label)}</Label>
-            <Input type="select" bind:value={settings[setting.name]} on:change={postSettings} bsSize="sm">
+            <Input type="select" bind:value={settings[setting.name]} onchange={postSettings} bsSize="sm">
               {#each setting.items as item}
                 <option value={item.name}>{item.label}</option>
               {/each}

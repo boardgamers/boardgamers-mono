@@ -31,17 +31,17 @@
 </script>
 
 <script lang="ts">
-  import { useAccount } from "@/composition/useAccount";
-  import { useActiveGames } from "@/composition/useActiveGames";
-  import { SEO, GameListSidebar } from "@/components";
-  import { useRest } from "@/composition/useRest";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useGames } from "@/composition/useGames";
-  import { useLoad } from "@/composition/useLoad";
+  import GameList from "$lib/components/Game/GameList.svelte";
+  import { useAccount } from "$lib/composition/useAccount";
+  import { useActiveGames } from "$lib/composition/useActiveGames";
+  import { useGameInfo } from "$lib/composition/useGameInfo";
+  import { useGames } from "$lib/composition/useGames";
+  import { useLoad } from "$lib/composition/useLoad";
+  import { useRest } from "$lib/composition/useRest";
+  import { GameListSidebar, SEO } from "@/components";
   import type { LoadInput } from "@sveltejs/kit";
-  import marked from "marked";
   import { Col, Row } from "@sveltestrap/sveltestrap";
-  import GameList from "@/components/Game/GameList.svelte";
+  import marked from "marked";
   const { activeGames } = useActiveGames();
   const { account } = useAccount();
   export let announcement: { title: string; content: string };

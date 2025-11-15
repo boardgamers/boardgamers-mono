@@ -1,4 +1,4 @@
-import { browser } from "$app/env";
+import { browser } from "$app/environment";
 import { extractCookie } from "@/utils/extract-cookie";
 import { writable } from "svelte/store";
 import { defineStore } from "./defineStore";
@@ -10,8 +10,8 @@ export const useSidebarOpen = defineStore(() => {
     session.sidebarOpen != null
       ? session.sidebarOpen
       : browser
-      ? extractCookie("sidebarOpen", document.cookie) || JSON.parse(localStorage.getItem("sidebarOpen") ?? "false")
-      : false
+        ? extractCookie("sidebarOpen", document.cookie) || JSON.parse(localStorage.getItem("sidebarOpen") ?? "false")
+        : false
   );
 
   if (browser) {

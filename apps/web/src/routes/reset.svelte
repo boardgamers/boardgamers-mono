@@ -1,8 +1,8 @@
 <script lang="ts">
   import { page } from "$app/stores";
+  import { AuthData, useAccount } from "$lib/composition/useAccount";
+  import { useRest } from "$lib/composition/useRest";
   import { SEO } from "@/components";
-  import { AuthData, useAccount } from "@/composition/useAccount";
-  import { useRest } from "@/composition/useRest";
   import { handleError, handleInfo } from "@/utils";
 
   const { post } = useRest();
@@ -33,7 +33,7 @@
 <div class="goldfish container">
   <h1>Reset password</h1>
 
-  <form method="post" accept-charset="UTF-8" role="form" class="clearfix" on:submit|preventDefault={handleSubmit}>
+  <form method="post" accept-charset="UTF-8" role="form" class="clearfix" onsubmit|preventDefault={handleSubmit}>
     <div class="form-group">
       <label for="email">Email</label>
       <input

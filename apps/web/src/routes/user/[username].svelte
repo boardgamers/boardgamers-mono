@@ -31,12 +31,12 @@
   import type { IUser } from "@bgs/types";
   import { UserGames, UserElo, SEO, UserAvatar } from "@/components";
   import { Row, Col, Container, Card } from "$cdk";
-  import { useLoad } from "@/composition/useLoad";
-  import { useRest } from "@/composition/useRest";
-  import { useAccount } from "@/composition/useAccount";
+  import { useLoad } from "$lib/composition/useLoad";
+  import { useRest } from "$lib/composition/useRest";
+  import { useAccount } from "$lib/composition/useAccount";
   import { dateFromObjectId } from "@/utils";
   import { page } from "$app/stores";
-  import { useGames } from "@/composition/useGames";
+  import { useGames } from "$lib/composition/useGames";
 
   const { accountId } = useAccount();
 

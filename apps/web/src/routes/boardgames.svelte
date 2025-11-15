@@ -1,7 +1,7 @@
 <script context="module" lang="ts">
-  import { useGameInfo } from "@/composition/useGameInfo";
+  import { useGameInfo } from "$lib/composition/useGameInfo";
 
-  import { useLoad } from "@/composition/useLoad";
+  import { useLoad } from "$lib/composition/useLoad";
   import type { LoadInput } from "@sveltejs/kit";
 
   export async function load(input: LoadInput) {
@@ -14,13 +14,13 @@
 </script>
 
 <script lang="ts">
-  import { Card, CardText, Col } from "$cdk";
   import { goto } from "$app/navigation";
+  import { Card, CardText, Col } from "$cdk";
+  import { useAccount } from "$lib/composition/useAccount";
+  import { useGamePreferences } from "$lib/composition/useGamePreferences";
+  import { SEO } from "@/components";
   import { createWatcher } from "@/utils";
   import marked from "marked";
-  import { useGamePreferences } from "@/composition/useGamePreferences";
-  import { useAccount } from "@/composition/useAccount";
-  import { SEO } from "@/components";
 
   const { latestGameInfos } = useGameInfo();
   const { gamePreferences, loadAllGamePreferences } = useGamePreferences();
@@ -29,7 +29,7 @@
   let info = latestGameInfos();
 
   const watcher = createWatcher(loadAllGamePreferences);
-  $: watcher(), [$accountId];
+  $: (watcher(), [$accountId]);
 </script>
 
 <SEO title="Game selection" />
@@ -42,7 +42,7 @@
         <Card
           header={game.label}
           class="border-secondary h-100"
-          on:click={() => goto(`/boardgame/${game._id.game}`)}
+          onclick={() => goto(`/boardgame/${game._id.game}`)}
           role="button"
         >
           <CardText>

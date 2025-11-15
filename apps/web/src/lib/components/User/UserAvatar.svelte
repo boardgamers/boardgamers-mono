@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { browser } from "$app/env";
+  import { browser } from "$app/environment";
 
-  import { useImageCache } from "@/composition/useImageCache";
-  import { useRest } from "@/composition/useRest";
+  import { useImageCache } from "$lib/composition/useImageCache";
+  import { useRest } from "$lib/composition/useRest";
 
   const { getAccessToken } = useRest();
   const { imageCache } = useImageCache();
@@ -24,8 +24,8 @@
     userId === "me"
       ? `/api/account/avatar?d=${$imageCache}&token=${encodeURIComponent(token)}`
       : userId
-      ? `/api/user/${userId}/avatar?d=${$imageCache}`
-      : `https://avatars.dicebear.com/api/${art}/${username}.svg?r=0`;
+        ? `/api/user/${userId}/avatar?d=${$imageCache}`
+        : `https://avatars.dicebear.com/api/${art}/${username}.svg?r=0`;
 </script>
 
 <img
@@ -37,9 +37,9 @@
   title={username}
   class="user-avatar"
   {...$$restProps}
-  on:click
-  on:error
-  on:load
+  onclick
+  onerror
+  onload
 />
 
 <style>

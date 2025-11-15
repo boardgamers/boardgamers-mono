@@ -1,7 +1,7 @@
 <script context="module" lang="ts">
-  import { useGameInfo } from "@/composition/useGameInfo";
+  import { useGameInfo } from "$lib/composition/useGameInfo";
 
-  import { useLoad } from "@/composition/useLoad";
+  import { useLoad } from "$lib/composition/useLoad";
   import type { LoadInput } from "@sveltejs/kit";
 
   export async function load(input: LoadInput) {
@@ -14,14 +14,14 @@
 </script>
 
 <script lang="ts">
+  import { goto } from "$app/navigation";
   import { Card, CardText, Col } from "$cdk";
+  import { useAccount } from "$lib/composition/useAccount";
+  import { useGamePreferences } from "$lib/composition/useGamePreferences";
+  import { SEO } from "@/components";
   import { confirm, createWatcher } from "@/utils";
   import marked from "marked";
-  import { goto } from "$app/navigation";
-  import { useGamePreferences } from "@/composition/useGamePreferences";
-  import { useAccount } from "@/composition/useAccount";
   import type { IterableElement } from "type-fest";
-  import { SEO } from "@/components";
 
   const { latestGameInfos } = useGameInfo();
   const { gamePreferences, loadAllGamePreferences } = useGamePreferences();
@@ -30,7 +30,7 @@
   let info = latestGameInfos();
 
   const watcher = createWatcher(loadAllGamePreferences);
-  $: watcher(), [$accountId];
+  $: (watcher(), [$accountId]);
 
   const onClick = async (gameInfo: IterableElement<typeof info>) => {
     if (gameInfo.meta.needOwnership && !$gamePreferences[gameInfo._id.game]?.access?.ownership) {
@@ -51,7 +51,7 @@
   <div class="row row-cols-1 row-cols-md-3 g-4 game-choice">
     {#each info as game}
       <Col role="button">
-        <Card header={game.label} class="border-secondary h-100" on:click={() => onClick(game)}>
+        <Card header={game.label} class="border-secondary h-100" onclick={() => onClick(game)}>
           <CardText>
             {@html marked(game.description)}
           </CardText>

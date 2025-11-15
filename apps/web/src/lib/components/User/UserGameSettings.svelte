@@ -1,16 +1,16 @@
 <script lang="ts">
-  import { set } from "lodash";
-  import type { GameInfo } from "@bgs/types";
-  import { handleError, confirm, classnames } from "@/utils";
-  import Card from "$cdk/Card.svelte";
   import { CardText, FormGroup, Input } from "$cdk";
+  import Card from "$cdk/Card.svelte";
   import Checkbox from "$cdk/Checkbox.svelte";
   import Loading from "$cdk/Loading.svelte";
+  import { useDeveloperSettings } from "$lib/composition/useDeveloperSettings";
+  import { useGameInfo } from "$lib/composition/useGameInfo";
+  import { useGamePreferences } from "$lib/composition/useGamePreferences";
+  import { useRest } from "$lib/composition/useRest";
+  import { classnames, confirm, handleError } from "@/utils";
+  import type { GameInfo } from "@bgs/types";
+  import { set } from "lodash";
   import PreferencesChooser from "./PreferencesChooser.svelte";
-  import { useRest } from "@/composition/useRest";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
-  import { useGamePreferences } from "@/composition/useGamePreferences";
 
   const { post } = useRest();
   const { gameInfoKey } = useGameInfo();
@@ -65,15 +65,15 @@
     $devGameSettings[key]?.viewerUrl;
   }
 
-  $: updateDevSettings(), [customViewerUrl];
-  $: updateViewerUrl(), [key];
+  $: (updateDevSettings(), [customViewerUrl]);
+  $: (updateViewerUrl(), [key]);
 </script>
 
 <Card class={classes} header={title || game.label}>
   <CardText class="h-100 d-flex" style="flex-direction: column">
     <Loading loading={!prefs}>
       <div style="flex-grow: 1">
-        <Checkbox checked={ownership} on:change={postOwnership}>I own this game</Checkbox>
+        <Checkbox checked={ownership} onchange={postOwnership}>I own this game</Checkbox>
         {#if game.preferences?.length > 0}
           <hr />
           <PreferencesChooser {game} />

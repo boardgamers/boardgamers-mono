@@ -1,4 +1,4 @@
-import { browser } from "$app/env";
+import { browser } from "$app/environment";
 import { onDestroy } from "svelte";
 import type { Readable } from "svelte/store";
 import { get as $, writable } from "svelte/store";

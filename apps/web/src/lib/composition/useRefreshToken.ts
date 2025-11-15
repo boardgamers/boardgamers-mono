@@ -1,4 +1,4 @@
-import { browser } from "$app/env";
+import { browser } from "$app/environment";
 import { extractCookie } from "@/utils/extract-cookie";
 import { get as $, writable } from "svelte/store";
 import { defineStore } from "./defineStore";
@@ -13,8 +13,8 @@ export const useRefreshToken = defineStore(() => {
     session.refreshToken
       ? session.refreshToken
       : browser
-      ? extractCookie("refreshToken", document.cookie) || JSON.parse(localStorage.getItem("refreshToken") ?? "null")
-      : null
+        ? extractCookie("refreshToken", document.cookie) || JSON.parse(localStorage.getItem("refreshToken") ?? "null")
+        : null
   );
 
   if (browser) {
@@ -37,12 +37,15 @@ export const useRefreshToken = defineStore(() => {
           (newVal.expiresAt - Date.now()) / 1000
         )}; Path=/; SameSite=Lax; Secure`;
 
-        setTimeout(() => {
-          const $refreshToken = $(refreshToken);
-          if ($refreshToken && $refreshToken.expiresAt < Date.now()) {
-            refreshToken.set(null);
-          }
-        }, Date.now() - newVal.expiresAt + 10);
+        setTimeout(
+          () => {
+            const $refreshToken = $(refreshToken);
+            if ($refreshToken && $refreshToken.expiresAt < Date.now()) {
+              refreshToken.set(null);
+            }
+          },
+          Date.now() - newVal.expiresAt + 10
+        );
       } else {
         console.log(
           "setting cookie",

@@ -1,14 +1,17 @@
 <script lang="ts">
-  import { timerTime, defer, duration, niceDate, shortDuration } from "@/utils";
+  import Loading from "$cdk/Loading.svelte";
+  import Pagination from "$cdk/Pagination.svelte";
+  import { useGameInfo } from "$lib/composition/useGameInfo";
+  import { LoadGamesResult, useGames } from "$lib/composition/useGames";
+  import { useLogoClicks } from "$lib/composition/useLogoClicks";
+  import { defer } from "$lib/utils/handle-stuff";
+  import { duration, niceDate, shortDuration, timerTime } from "$lib/utils/time";
+  import { createWatcher } from "$lib/utils/watch";
   import type { IGame } from "@bgs/types";
-  import { createWatcher } from "@/utils/watch";
-  import clockHistory from "@iconify/icons-bi/clock-history.js";
-  import { Badge, Icon, Pagination, Loading } from "$cdk";
-  import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
-  import { useLogoClicks } from "@/composition/useLogoClicks";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { LoadGamesResult, useGames } from "@/composition/useGames";
   import { isPromise } from "@bgs/utils";
+  import IconClockHistory from "@iconify-svelte/bi/clock-history";
+  import { Badge } from "@sveltestrap/sveltestrap";
+  import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
 
   const { logoClicks } = useLogoClicks();
   const { gameInfo } = useGameInfo();
@@ -91,8 +94,8 @@
 
   const onCurrentPageChanged = createWatcher(() => load(false));
 
-  $: load(true), [userId, boardgameId, $logoClicks];
-  $: onCurrentPageChanged(), [currentPage];
+  $: (load(true), [userId, boardgameId, $logoClicks]);
+  $: (onCurrentPageChanged(), [currentPage]);
 </script>
 
 <Loading loading={loadingGames}>
@@ -132,7 +135,7 @@
               </div>
               <small>
                 {#if game.status !== "ended"}
-                  <Icon icon={clockHistory} inline={true} />
+                  <IconClockHistory />
                   {playTime(game)}
                   {duration(game.options.timing.timePerGame)} + {duration(game.options.timing.timePerMove)}
                   {#if game.options.timing.scheduledStart}

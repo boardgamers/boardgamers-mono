@@ -1,7 +1,7 @@
 <script context="module" lang="ts">
-  import { AuthData, useAccount } from "@/composition/useAccount";
-  import { useLoad } from "@/composition/useLoad";
-  import { useRest } from "@/composition/useRest";
+  import { AuthData, useAccount } from "$lib/composition/useAccount";
+  import { useLoad } from "$lib/composition/useLoad";
+  import { useRest } from "$lib/composition/useRest";
 
   import type { LoadInput } from "@sveltejs/kit";
 

@@ -1,7 +1,7 @@
 <script context="module" lang="ts">
-  import { useAccount } from "@/composition/useAccount";
-  import { useLoad } from "@/composition/useLoad";
-  import { useRefreshToken } from "@/composition/useRefreshToken";
+  import { useAccount } from "$lib/composition/useAccount";
+  import { useLoad } from "$lib/composition/useLoad";
+  import { useRefreshToken } from "$lib/composition/useRefreshToken";
   import { get as storeGet } from "svelte/store";
 
   import type { LoadInput } from "@sveltejs/kit";
@@ -30,10 +30,10 @@
 
 <script lang="ts">
   import { Button, FormGroup, Label } from "$cdk";
-  import { handleError } from "@/utils";
-  import { useLoggedOut } from "@/composition/useLoggedOut";
-  import { redirectLoggedOut } from "@/utils/redirect";
+  import { useLoggedOut } from "$lib/composition/useLoggedOut";
   import { SEO } from "@/components";
+  import { handleError } from "@/utils";
+  import { redirectLoggedOut } from "@/utils/redirect";
 
   useLoggedOut();
 
@@ -49,7 +49,7 @@
 
 <SEO title="Login" />
 
-<form on:submit|preventDefault={handleLogin}>
+<form onsubmit|preventDefault={handleLogin}>
   <FormGroup>
     <Label for="email">Email</Label>
     <input

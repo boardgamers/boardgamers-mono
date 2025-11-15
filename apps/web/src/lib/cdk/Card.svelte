@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { Card, CardHeader, CardBody, CardFooter } from "sveltestrap/sveltestrap";
+  import { Card, CardBody, CardFooter, CardHeader } from "@sveltestrap/sveltestrap";
 
   export let header = "";
 </script>
 
-<Card {...$$props} on:click>
+<Card {...$$props} onclick>
   {#if header || $$slots.header}
     <CardHeader>
       <slot name="header">

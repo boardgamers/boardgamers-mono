@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { browser } from "$app/env";
+  import { browser } from "$app/environment";
+  import { useAccount } from "$lib/composition/useAccount";
+  import { useRest } from "$lib/composition/useRest";
   import { debounce } from "lodash";
-  import { useRest } from "@/composition/useRest";
-  import { useAccount } from "@/composition/useAccount";
 
   const { get, post } = useRest();
   const { account } = useAccount();
@@ -42,7 +42,7 @@
   );
 
   $: userId = $account?._id;
-  $: loadNotes(), [userId, gameId];
+  $: (loadNotes(), [userId, gameId]);
 
   function updateTextareaSize() {
     if (!textArea) {
@@ -60,7 +60,7 @@
       (<a
         href={showNotes ? "#hideNotes" : "#showNotes"}
         style="font-weight: unset !important"
-        on:click|preventDefault={toggleNotes}>{showNotes ? "hide" : "show"}</a
+        onclick|preventDefault={toggleNotes}>{showNotes ? "hide" : "show"}</a
       >)
     </div>
   </div>
@@ -69,14 +69,13 @@
     class={"mt-2 form-control" + (!showNotes ? " d-none" : "")}
     bind:value={notes}
     bind:this={textArea}
-    on:input={() => {
+    oninput={() => {
       updateNotesDebounce();
       updateTextareaSize();
     }}
     rows="3"
-    max-rows="8"
     placeholder="You can make plans here..."
     disabled={!$account || !notesLoaded}
     style="overflow: hidden; resize: none"
-  />
+  ></textarea>
 </div>

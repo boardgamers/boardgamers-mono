@@ -1,16 +1,4 @@
 <script context="module" lang="ts">
-  import type { Writable } from "svelte/store";
-  import type { LoadInput } from "@sveltejs/kit";
-
-  export type GameContext = {
-    game: Writable<IGame>;
-    players: Writable<PlayerInfo[]>;
-    gameInfo: Writable<GameInfo>;
-    replayData: Writable<{ start: number; end: number; current: number } | null>;
-    emitter: EventEmitter;
-    log: Writable<string[]>;
-  };
-
   export async function load(input: LoadInput) {
     const { gameInfo, loadGame, loadGamePlayers, loadGameInfo, loadGamePreferences } = useLoad(
       input,
@@ -40,12 +28,12 @@
   import { onDestroy, setContext } from "svelte";
   import { writable } from "svelte/store";
   import EventEmitter from "eventemitter3";
-  import { useLoad } from "@/composition/useLoad";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useGame } from "@/composition/useGame";
-  import { useCurrentGame } from "@/composition/useCurrentGame";
-  import { useCurrentRoom } from "@/composition/useCurrentRoom";
-  import { useGamePreferences } from "@/composition/useGamePreferences";
+  import { useLoad } from "$lib/composition/useLoad";
+  import { useGameInfo } from "$lib/composition/useGameInfo";
+  import { useGame } from "$lib/composition/useGame";
+  import { useCurrentGame } from "$lib/composition/useCurrentGame";
+  import { useCurrentRoom } from "$lib/composition/useCurrentRoom";
+  import { useGamePreferences } from "$lib/composition/useGamePreferences";
 
   const { currentGameId } = useCurrentGame();
   const { room: currentRoom } = useCurrentRoom();

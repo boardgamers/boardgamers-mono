@@ -1,11 +1,12 @@
-import { browser } from "$app/env";
-import { handleError, skipOnce } from "@/utils";
+import { browser } from "$app/environment";
+import { handleError } from "$lib/utils/handle-stuff";
 import type { IUser } from "@bgs/types";
 import { derived, writable } from "svelte/store";
 import { defineStore } from "./defineStore";
 import { useAccessTokens } from "./useAccessTokens";
 import { useRefreshToken } from "./useRefreshToken";
 import { useRest } from "./useRest";
+import { skipOnce } from "$lib/utils/watch";
 
 export type AuthData = {
   user: IUser;

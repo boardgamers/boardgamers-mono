@@ -1,12 +1,14 @@
 <script lang="ts">
-  import chat from "@iconify/icons-bi/chat.js";
-  import { useAccount } from "@/composition/useAccount";
-  import { useCurrentGame } from "@/composition/useCurrentGame";
-  import { useCurrentRoom } from "@/composition/useCurrentRoom";
-  import { useRest } from "@/composition/useRest";
-  import { useSidebarOpen } from "@/composition/useSidebarOpen";
-  import { Modal, ModalHeader, Icon, ModalFooter, Input, InputGroup, Button, Badge } from "$cdk";
-  import { dateFromObjectId, dateTime, handleError } from "@/utils";
+  import Modal from "$cdk/Modal.svelte";
+  import { useAccount } from "$lib/composition/useAccount";
+  import { useCurrentGame } from "$lib/composition/useCurrentGame";
+  import { useCurrentRoom } from "$lib/composition/useCurrentRoom";
+  import { useRest } from "$lib/composition/useRest";
+  import { useSidebarOpen } from "$lib/composition/useSidebarOpen";
+  import { handleError } from "$lib/utils/handle-stuff";
+  import { dateFromObjectId, dateTime } from "$lib/utils/time";
+  import IconChat from "@iconify-svelte/bi/chat";
+  import { Badge, Button, Input, InputGroup, ModalBody, ModalFooter, ModalHeader } from "@sveltestrap/sveltestrap";
   import { fly } from "svelte/transition";
   import UserAvatar from "./User/UserAvatar.svelte";
 
@@ -25,7 +27,8 @@
 
   let currentMessage = "";
 
-  const sendMessage = async () => {
+  const sendMessage = async (event: Event) => {
+    event.preventDefault();
     console.log("send message");
     const msg = currentMessage;
     currentMessage = "";
@@ -83,8 +86,8 @@
   }
 
   $: userId = $account?._id;
-  $: onMessagesChanged(), [$chatMessages, isOpen];
-  $: loadLastRead(), [userId, room];
+  $: (onMessagesChanged(), [$chatMessages, isOpen]);
+  $: (loadLastRead(), [userId, room]);
   $: unreadMessages = $chatMessages.filter(
     (msg) => msg.type !== "system" && dateFromObjectId(msg._id).getTime() > lastRead
   ).length;
@@ -98,9 +101,7 @@
   transitionOptions={{ y: -300 }}
   class={"chat-modal" + ($sidebarOpen ? " sidebar-open" : "")}
 >
-  <ModalHeader {toggle}
-    ><Icon icon={chat} height="1.5rem" style="vertical-align: -0.25rem" /> {$currentGameId}</ModalHeader
-  >
+  <ModalHeader {toggle}><IconChat height="1.5rem" style="vertical-align: -0.25rem" /> {$currentGameId}</ModalHeader>
   <div class="chat-messages modal-body" bind:this={messagesContainer}>
     {#each $chatMessages as message}
       <div class="message-container" class:sent={message.author?._id === userId}>
@@ -119,13 +120,13 @@
             </p>
           {/if}
         </div>
-        <span class="mx-4" />
+        <span class="mx-4"></span>
       </div>
     {/each}
     <span style="height: 0">&nbsp;</span>
   </div>
   <ModalFooter>
-    <form on:submit|preventDefault={sendMessage} style="width: 100%">
+    <form onsubmit={sendMessage} style="width: 100%">
       <InputGroup>
         <Input type="text" bind:value={currentMessage} />
         <Button type="submit" color="secondary" outline>Send</Button>
@@ -136,10 +137,10 @@
 
 <Button
   color="primary"
-  on:click={toggle}
+  onclick={toggle}
   class={"rounded-circle b-avatar sidebar-fab chat-button" + ($sidebarOpen ? " sidebar-open" : "")}
 >
-  <Icon icon={chat} style="height: 1.5rem; width: 1.5rem;" class="absolute-center" />
+  <IconChat style="height: 1.5rem; width: 1.5rem;" class="absolute-center" />
   {#if unreadMessages}
     <Badge pill color="danger">{unreadMessages}</Badge>
   {/if}
@@ -153,7 +154,11 @@
   .chat-messages {
     display: flex;
     flex-direction: column;
-    font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+    font-family:
+      Helvetica Neue,
+      Helvetica,
+      Arial,
+      sans-serif;
     max-height: calc(100vh - 300px);
     overflow-y: auto;
 
