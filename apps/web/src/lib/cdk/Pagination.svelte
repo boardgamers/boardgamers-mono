@@ -1,6 +1,6 @@
 <script lang="ts">
   import { classnames } from "@/utils";
-  import { Pagination, PaginationItem, PaginationLink } from "sveltestrap";
+  import { Pagination, PaginationItem, PaginationLink } from "@sveltestrap/sveltestrap";
 
   export let align: "right" | "left" | "center" | undefined = undefined;
   export let title = "Pagination";

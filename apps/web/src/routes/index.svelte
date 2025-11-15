@@ -40,7 +40,7 @@
   import { useLoad } from "@/composition/useLoad";
   import type { LoadInput } from "@sveltejs/kit";
   import marked from "marked";
-  import { Col, Row } from "sveltestrap";
+  import { Col, Row } from "@sveltestrap/sveltestrap";
   import GameList from "@/components/Game/GameList.svelte";
   const { activeGames } = useActiveGames();
   const { account } = useAccount();
