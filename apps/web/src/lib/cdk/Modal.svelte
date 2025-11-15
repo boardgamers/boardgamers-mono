@@ -2,7 +2,6 @@
   import { classnames } from "$lib/utils/classname";
   import { onDestroy, onMount } from "svelte";
   import { fade as fadeTransition } from "svelte/transition";
-  import { iso } from "zod";
 
   function noop() {}
 
@@ -82,7 +81,12 @@
   });
 
   function setFocus() {
-    if (_dialog && _dialog.parentNode && "focus" in _dialog.parentNode && typeof _dialog.parentNode.focus === "function") {
+    if (
+      _dialog &&
+      _dialog.parentNode &&
+      "focus" in _dialog.parentNode &&
+      typeof _dialog.parentNode.focus === "function"
+    ) {
       _dialog.parentNode.focus();
     }
   }
@@ -172,7 +176,7 @@
 <svelte:window on:keydown={handleKeyDown} />
 
 {#if _isMounted}
-  <div {...$$restProps} class={wrapClassName} tabindex="-1" style="position: relative; z-index: {zIndex}">
+  <div class={wrapClassName} tabindex="-1" style="position: relative; z-index: {zIndex}">
     {#if isOpen}
       <div
         transition:transitionType={transitionOptions}
@@ -180,10 +184,10 @@
         class={classnames("modal", "show", modalClassName)}
         role="dialog"
         style="display: block;"
-        on:introend={onOpened}
-        on:outroend={onModalClosed}
-        on:click={handleBackdropClick}
-        on:mousedown={handleBackdropMouseDown}
+        onintroend={onOpened}
+        onoutroend={onModalClosed}
+        onclick={handleBackdropClick}
+        onmousedown={handleBackdropMouseDown}
       >
         <div class={classes} role="document" bind:this={_dialog}>
           <div class={classnames("modal-content", contentClassName)}>
@@ -194,7 +198,7 @@
       </div>
       {#if backdrop}
         <div
-          transition:fadeTransition={{ duration: fade && backdropDuration }}
+          transition:fadeTransition={{ duration: fade ? backdropDuration : undefined }}
           class={classnames("modal-backdrop", "show", backdropClassName)}
         />
       {/if}

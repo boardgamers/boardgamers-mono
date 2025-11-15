@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, CardHeader, CardBody, CardFooter } from "@sveltestrap/sveltestrap";
+  import { Card, CardHeader, CardBody, CardFooter } from "sveltestrap/sveltestrap";
 
   export let header = "";
 </script>
