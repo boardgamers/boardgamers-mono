@@ -15,11 +15,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/utils
       '@iconify/icons-bi':
-        specifier: ^1.1.12
+        specifier: ^1.2.19
         version: 1.2.19
       '@iconify/svelte':
-        specifier: ^2.1.0
-        version: 2.2.1
+        specifier: ^5.1.0
+        version: 5.1.0(svelte@5.43.2)
       '@sveltestrap/sveltestrap':
         specifier: ^7.1.0
         version: 7.1.0(svelte@5.43.2)
@@ -330,8 +330,10 @@ packages:
   '@iconify/icons-bi@1.2.19':
     resolution: {integrity: sha512-P3enKEBR83a4fcK6vOsSueYpldYS3OdtSSto58bYU0sWThlxl+YXcmXY6Pu0ORKuMHK/hQagpwXPb+hT4vaO2g==}
 
-  '@iconify/svelte@2.2.1':
-    resolution: {integrity: sha512-eWZq8CRrr3WfnKAj8SWknfE3S/d+j/AzEcypeJaHurS1s4zTdFnkjATcFa8lerGtcX0PAtXiVL94tbIEd69N+w==}
+  '@iconify/svelte@5.1.0':
+    resolution: {integrity: sha512-I14nSqo0pNXO5OKsT61ZO3XIPF4yRHA2ErgPsaZ1sPJdKXn80o7o8jOe1xpWphbb9FihdX6by9zlKKBss61mFw==}
+    peerDependencies:
+      svelte: '>4.0.0'
 
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
@@ -1995,7 +1997,10 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
-  '@iconify/svelte@2.2.1': {}
+  '@iconify/svelte@5.1.0(svelte@5.43.2)':
+    dependencies:
+      '@iconify/types': 2.0.0
+      svelte: 5.43.2
 
   '@iconify/types@2.0.0': {}
 

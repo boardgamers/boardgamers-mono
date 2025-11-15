@@ -22,8 +22,8 @@
   "dependencies": {
     "@bgs/types": "workspace:*",
     "@bgs/utils": "workspace:*",
-    "@iconify/icons-bi": "^1.1.12",
-    "@iconify/svelte": "^2.1.0",
+    "@iconify/icons-bi": "^1.2.19",
+    "@iconify/svelte": "^5.1.0",
     "@sveltestrap/sveltestrap": "^7.1.0",
     "awesome-notifications": "^3.1.1",
     "bootstrap": "^5.1.0",
