@@ -37,7 +37,12 @@ export default class GameInfoService {
       .aggregate<{
         _id: string;
         version: number;
-      }>([{ $match: { "meta.public": true } }, { $sort: { "_id.game": 1, "_id.version": -1 } }, { $project: { _id: 1 } }, { $group: { _id: "$_id.game", version: { $first: "$_id.version" } } }])
+      }>([
+        { $match: { "meta.public": true } },
+        { $sort: { "_id.game": 1, "_id.version": -1 } },
+        { $project: { _id: 1 } },
+        { $group: { _id: "$_id.game", version: { $first: "$_id.version" } } },
+      ])
       .toArray();
 
     const map = new Map<string, number>();

@@ -17,8 +17,14 @@ describe("GameNotification", () => {
       before(async () => {
         await db().dropDatabase();
 
-        await colls.users.insertOne({ _id: userId, account: { username: "test", email: "test@test.com", karma: defaultKarma } } as any);
-        await colls.users.insertOne({ _id: userId2, account: { username: "test2", email: "test2@test.com", karma: defaultKarma } } as any);
+        await colls.users.insertOne({
+          _id: userId,
+          account: { username: "test", email: "test@test.com", karma: defaultKarma },
+        } as any);
+        await colls.users.insertOne({
+          _id: userId2,
+          account: { username: "test2", email: "test2@test.com", karma: defaultKarma },
+        } as any);
         await colls.games.insertOne({
           _id: "test",
           game: { name: "gaia-project", version: 0 },
@@ -52,10 +58,22 @@ describe("GameNotification", () => {
 
     describe("elo", () => {
       beforeEach(async () => {
-        await colls.users.insertOne({ _id: userId, account: { username: "test", email: "test@test.com", karma: defaultKarma } } as any);
-        await colls.users.insertOne({ _id: userId2, account: { username: "test2", email: "test2@test.com", karma: defaultKarma } } as any);
-        await colls.users.insertOne({ _id: userId3, account: { username: "test3", email: "test3@test.com", karma: defaultKarma } } as any);
-        await colls.users.insertOne({ _id: userId4, account: { username: "test4", email: "test4@test.com", karma: defaultKarma } } as any);
+        await colls.users.insertOne({
+          _id: userId,
+          account: { username: "test", email: "test@test.com", karma: defaultKarma },
+        } as any);
+        await colls.users.insertOne({
+          _id: userId2,
+          account: { username: "test2", email: "test2@test.com", karma: defaultKarma },
+        } as any);
+        await colls.users.insertOne({
+          _id: userId3,
+          account: { username: "test3", email: "test3@test.com", karma: defaultKarma },
+        } as any);
+        await colls.users.insertOne({
+          _id: userId4,
+          account: { username: "test4", email: "test4@test.com", karma: defaultKarma },
+        } as any);
         await colls.games.insertOne({
           _id: "test",
           game: { name: "gaia-project", version: 0 },
@@ -166,8 +184,14 @@ describe("GameNotification", () => {
 
   describe("processPlayerDrop", () => {
     before(async () => {
-      await colls.users.insertOne({ _id: userId, account: { username: "test", email: "test@test.com", karma: defaultKarma } } as any);
-      await colls.users.insertOne({ _id: userId2, account: { username: "test2", email: "test2@test.com", karma: defaultKarma } } as any);
+      await colls.users.insertOne({
+        _id: userId,
+        account: { username: "test", email: "test@test.com", karma: defaultKarma },
+      } as any);
+      await colls.users.insertOne({
+        _id: userId2,
+        account: { username: "test2", email: "test2@test.com", karma: defaultKarma },
+      } as any);
     });
 
     after(() => db().dropDatabase());

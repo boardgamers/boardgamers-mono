@@ -63,7 +63,7 @@ export async function processPlayerDrop() {
   const col = colls.gameNotifications;
   const notifications = await col.find({ kind: "playerDrop", processed: false }).toArray();
 
-  const dropCounts = new Map<string, { id: typeof notifications[0]["user"], count: number }>();
+  const dropCounts = new Map<string, { id: (typeof notifications)[0]["user"]; count: number }>();
   for (const n of notifications) {
     const key = n.user!.toString();
     const entry = dropCounts.get(key);
