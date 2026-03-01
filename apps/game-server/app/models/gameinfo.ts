@@ -1,7 +1,7 @@
 import makeSchema from "@bgs/models/gameinfo";
-import { GameInfo } from "@bgs/types";
+import type { GameInfo as IGameInfo } from "@bgs/types";
 import mongoose from "mongoose";
 
-const GameInfo = mongoose.model<GameInfo>("GameInfo", makeSchema());
+const GameInfo = mongoose.model<IGameInfo>("GameInfo", makeSchema());
 
 export default GameInfo;

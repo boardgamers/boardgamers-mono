@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { eloDiff } from "./elo";
+import { eloDiff } from "./elo.ts";
 
 describe("eloDiff", () => {
   it("should let player win if the opponent dropped", () => {

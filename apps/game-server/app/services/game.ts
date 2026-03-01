@@ -1,13 +1,15 @@
 import { deadline, elapsedSeconds } from "@bgs/utils/time";
 import assert from "assert";
 import crypto from "crypto";
-import locks from "mongo-locks";
-import env from "../config/env";
-import ChatMessage from "../models/chatmessage";
-import Game, { GameDocument } from "../models/game";
-import GameNotification, { GameNotificationDocument } from "../models/gamenotification";
-import type { Engine, GameData } from "../types/engine";
-import { getEngine } from "./engines";
+import locks from "../config/locks.ts";
+import env from "../config/env.ts";
+import ChatMessage from "../models/chatmessage.ts";
+import type { GameDocument } from "../models/game.ts";
+import Game from "../models/game.ts";
+import type { GameNotificationDocument } from "../models/gamenotification.ts";
+import GameNotification from "../models/gamenotification.ts";
+import type { Engine, GameData } from "../types/engine.ts";
+import { getEngine } from "./engines.ts";
 
 export async function handleMessages(engine: Engine, gameId: string, gameData: GameData): Promise<GameData> {
   if (engine.messages) {

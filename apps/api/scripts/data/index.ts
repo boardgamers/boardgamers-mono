@@ -1,4 +1,5 @@
-export { default as Game } from "./Game.json";
-export { default as GameInfo } from "./GameInfo.json";
-export { default as GamePreferences } from "./GamePreferences.json";
-export { default as User } from "./User.json";
+import Game from "./Game.json" with { type: "json" };
+import GameInfo from "./GameInfo.json" with { type: "json" };
+import GamePreferences from "./GamePreferences.json" with { type: "json" };
+import User from "./User.json" with { type: "json" };
+export { Game, GameInfo, GamePreferences, User };

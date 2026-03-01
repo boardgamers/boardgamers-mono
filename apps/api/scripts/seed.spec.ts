@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { seed } from "./seed";
+import { seed } from "./seed.ts";
 
 describe("Seed", () => {
   before(() => mongoose.connection.db.dropDatabase());

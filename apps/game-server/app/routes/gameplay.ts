@@ -1,26 +1,25 @@
 import assert from "assert";
 import Router from "koa-router";
-import { keyBy, omit, pick } from "lodash";
-import locks from "mongo-locks";
-import Game from "../models/game";
-import GameInfo from "../models/gameinfo";
-import { batchReplay } from "../services/batch";
-import { getEngine } from "../services/engines";
-import { afterMove } from "../services/game";
-import { isAdmin, loggedIn } from "./utils";
+import lodash from "lodash";
+const { keyBy, omit, pick } = lodash;
+import locks from "../config/locks.ts";
+import Game from "../models/game.ts";
+import GameInfo from "../models/gameinfo.ts";
+import { batchReplay } from "../services/batch.ts";
+import { getEngine } from "../services/engines.ts";
+import { afterMove } from "../services/game.ts";
+import { isAdmin, loggedIn } from "./utils.ts";
 
 const router = new Router();
 
 router.post("/batch/replay", isAdmin, async (ctx) => {
   const free = await locks.lock("batch-replay");
-  const interval = setInterval(() => locks.refresh("batch-replay"));
 
   try {
-    const gameIds: string[] = ctx.request.body.gameIds;
+    const gameIds: string[] = (ctx.request.body as any).gameIds;
 
     ctx.body = await batchReplay({ _id: { $in: gameIds } });
   } finally {
-    clearInterval(interval);
     free().catch(console.error);
   }
 });
@@ -36,7 +35,7 @@ router.post("/:gameId/edit-data", isAdmin, async (ctx) => {
       return;
     }
 
-    game.data = ctx.request.body.json;
+    game.data = (ctx.request.body as any).json;
     await game.save();
 
     ctx.status = 200;
@@ -60,7 +59,7 @@ router.post("/:gameId/replay", isAdmin, async (ctx) => {
 
     assert(engine.replay, "The engine of this game does not support replaying");
 
-    const gameData = await engine.replay(game.data, { to: ctx.request.body.to });
+    const gameData = await engine.replay(game.data, { to: (ctx.request.body as any).to });
 
     const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 
@@ -99,7 +98,7 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 
     const initialLogIndex = engine.logLength(gameData);
 
-    gameData = await engine.move(gameData, ctx.request.body.move, playerIndex);
+    gameData = await engine.move(gameData, (ctx.request.body as any).move, playerIndex);
 
     const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 

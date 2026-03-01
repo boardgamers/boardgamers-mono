@@ -2,14 +2,16 @@ import assert from "assert";
 import createError from "http-errors";
 import jwt from "jsonwebtoken";
 import passport from "koa-passport";
+// @ts-ignore - passport types
 import type { Strategy } from "passport";
 import { Strategy as DiscordStrategy } from "passport-discord";
 import { Strategy as FacebookStrategy } from "passport-facebook";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as LocalStrategy } from "passport-local";
 import validator from "validator";
-import { User, UserDocument } from "../models";
-import env from "./env";
+import { User } from "../models/index.ts";
+import type { UserDocument } from "../models/user.ts";
+import env from "./env.ts";
 
 // =========================================================================
 // LOCAL SIGNUP ============================================================
@@ -34,7 +36,7 @@ passport.use(
           throw createError(422, "Wrong email format");
         }
 
-        if (password.length < env.minPasswordLength) {
+        if (password.length < Number(env.minPasswordLength)) {
           throw createError(422, "Password is too short");
         }
 
@@ -43,7 +45,7 @@ passport.use(
         }
 
         // check to see if there's already a user with that email
-        if (await User.findByEmail(email)) {
+        if (await (User as any).findByEmail(email)) {
           throw createError(409, "Email is already taken");
         }
 
@@ -53,7 +55,7 @@ passport.use(
           throw createError(422, "Specify a username");
         }
 
-        if (await User.findByUsername(username)) {
+        if (await (User as any).findByUsername(username)) {
           throw createError(422, `Username ${username} is taken`);
         }
 
@@ -105,7 +107,7 @@ passport.use(
           throw createError(422, "Specify a username");
         }
 
-        if (await User.findByUsername(username)) {
+        if (await (User as any).findByUsername(username)) {
           throw createError(422, `Username ${username} is taken`);
         }
 
@@ -151,11 +153,11 @@ passport.use(
         // find a user whose email is the same as the forms email
         // we are checking to see if the user trying to login already exists
 
-        if (password.length < env.minPasswordLength) {
+        if (password.length < Number(env.minPasswordLength)) {
           throw createError(422, "Password too short");
         }
 
-        const user = await User.findByEmail(email);
+        const user = await (User as any).findByEmail(email);
 
         // check to see if theres already a user with that email
         if (!user) {
@@ -191,7 +193,7 @@ passport.use(
     },
     async (email, password, done) => {
       try {
-        const user = await User.findByEmail(email);
+        const user = await (User as any).findByEmail(email);
         // if no user is found, return the message
         if (!user) {
           throw createError(404, `${email} isn't registered`);

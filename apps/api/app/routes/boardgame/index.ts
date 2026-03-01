@@ -1,9 +1,9 @@
 import createError from "http-errors";
-import { Context } from "koa";
+import type { Context } from "koa";
 import Router from "koa-router";
-import { GameInfo, GamePreferences } from "../../models";
-import GameInfoService from "../../services/gameinfo";
-import { queryCount, skipCount } from "../utils";
+import { GameInfo, GamePreferences } from "../../models/index.ts";
+import GameInfoService from "../../services/gameinfo.ts";
+import { queryCount, skipCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 

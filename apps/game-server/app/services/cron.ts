@@ -1,10 +1,10 @@
-import GameNotification from "app/models/gamenotification";
+import GameNotification from "../models/gamenotification.ts";
 import cluster from "cluster";
 import "../config/db";
-import env from "../config/env";
-import { delay } from "../utils/delay";
-import { processQuit, startNextGame } from "./game";
-import { installNewGames } from "./installer";
+import env from "../config/env.ts";
+import { delay } from "../utils/delay.ts";
+import { processQuit, startNextGame } from "./game.ts";
+import { installNewGames } from "./installer.ts";
 
 async function installGames() {
   while (1) {

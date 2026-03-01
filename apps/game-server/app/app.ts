@@ -6,12 +6,12 @@ import Koa from "koa";
 import bodyParser from "koa-bodyparser";
 import compression from "koa-compress";
 import morgan from "koa-morgan";
-import "./config/db";
+import "./config/db.ts";
 /* Configure passport */
-import env from "./config/env";
-import ApiError from "./models/apierror";
+import env from "./config/env.ts";
+import ApiError from "./models/apierror.ts";
 /* Local stuff */
-import router from "./routes";
+import router from "./routes/index.ts";
 
 const app = new Koa<Koa.DefaultState & { user: { id: string; isAdmin: boolean } }>();
 

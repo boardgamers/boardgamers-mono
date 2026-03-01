@@ -1,8 +1,8 @@
 import assert from "assert";
 import cluster from "cluster";
 import decache from "decache";
-import GameInfo from "../models/gameinfo";
-import { Engine } from "../types/engine";
+import GameInfo from "../models/gameinfo.ts";
+import type { Engine } from "../types/engine.ts";
 
 const engines = {};
 
@@ -17,6 +17,7 @@ export async function getEngine(name: string, version: number): Promise<Engine> 
 
   if (!engines[key]) {
     const path = await requirePath(name, version);
+    // @ts-ignore decache types don't match ESM default import
     decache(path);
     engines[key] = await import(path);
   }
@@ -40,7 +41,7 @@ export function refreshEngine(name: string, version: number) {
 }
 
 if (cluster.isWorker) {
-  process.on("message", (msg) => {
+  process.on("message", (msg: any) => {
     console.log("received message from master", msg);
     if (msg.type === "refreshEngine") {
       refreshEngine(msg.name, msg.version);

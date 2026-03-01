@@ -1,11 +1,10 @@
 import assert from "assert";
 import createError from "http-errors";
-import { Context } from "koa";
+import type { Context } from "koa";
 import Router from "koa-router";
 import { Types } from "mongoose";
-import fetch from "node-fetch";
-import { Game, GamePreferences, ImageCollection, User } from "../../models";
-import { queryCount, skipCount } from "../utils";
+import { Game, GamePreferences, ImageCollection, User } from "../../models/index.ts";
+import { queryCount, skipCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -20,7 +19,7 @@ router.param("userId", async (userId, ctx, next) => {
 });
 
 router.param("userName", async (userName, ctx, next) => {
-  ctx.state.foundUser = await User.findByUsername(decodeURIComponent(userName));
+  ctx.state.foundUser = await (User as any).findByUsername(decodeURIComponent(userName));
 
   if (!ctx.state.foundUser) {
     throw createError(404, "User not found");
@@ -30,7 +29,7 @@ router.param("userName", async (userName, ctx, next) => {
 });
 
 router.get("/search", async (ctx) => {
-  const name: string = ctx.query.name || "";
+  const name: string = String(ctx.query.name || "");
 
   if (!name) {
     ctx.body = [];
@@ -38,7 +37,10 @@ router.get("/search", async (ctx) => {
 
   const conditions = { "security.slug": new RegExp("^" + name.toLocaleLowerCase()) };
 
-  const users = await User.find(conditions).select(User.publicInfo()).lean(true).limit(queryCount(ctx));
+  const users = await User.find(conditions)
+    .select((User as any).publicInfo())
+    .lean(true)
+    .limit(queryCount(ctx));
   ctx.body = users;
 });
 
@@ -84,34 +86,40 @@ router.get("/:userId/games/open", async (ctx) => {
     conditions["options.meta.unlisted"] = { $ne: true };
   }
 
-  ctx.body = await Game.findWithPlayer(ctx.state.foundUser._id)
+  ctx.body = await (Game as any)
+    .findWithPlayer(ctx.state.foundUser._id)
     // @ts-ignore
     .where(conditions)
     .skip(skipCount(ctx))
     .limit(queryCount(ctx))
-    .select(Game.basics());
+    .select((Game as any).basics());
 });
 
 router.get("/:userId/games/active", async (ctx) => {
-  ctx.body = await Game.findWithPlayer(ctx.state.foundUser._id)
+  ctx.body = await (Game as any)
+    .findWithPlayer(ctx.state.foundUser._id)
     .where("status")
     .equals("active")
     .skip(skipCount(ctx))
     .limit(queryCount(ctx))
-    .select(Game.basics());
+    .select((Game as any).basics());
 });
 
 router.get("/:userId/games/current-turn", async (ctx) => {
-  ctx.body = await Game.findWithPlayersTurn(ctx.state.foundUser._id).limit(queryCount(ctx)).select(Game.basics());
+  ctx.body = await (Game as any)
+    .findWithPlayersTurn(ctx.state.foundUser._id)
+    .limit(queryCount(ctx))
+    .select((Game as any).basics());
 });
 
 router.get("/:userId/games/(ended|closed)", async (ctx) => {
-  ctx.body = await Game.findWithPlayer(ctx.state.foundUser._id)
+  ctx.body = await (Game as any)
+    .findWithPlayer(ctx.state.foundUser._id)
     .where("status")
     .equals("ended")
     .skip(skipCount(ctx))
     .limit(queryCount(ctx))
-    .select(Game.basics());
+    .select((Game as any).basics());
 });
 
 router.get("/:userId/games/count/:status", async (ctx) => {

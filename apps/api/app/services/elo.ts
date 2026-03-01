@@ -1,9 +1,11 @@
 import type { GamePreferences as IGamePreferences } from "@bgs/types";
 import type { Dictionary } from "lodash";
-import { cloneDeep, keyBy, omit } from "lodash";
+import lodash from "lodash";
+const { cloneDeep, keyBy, omit } = lodash;
 import type { Types } from "mongoose";
-import { eloDiff } from "../engine/elo";
-import { Game, GameDocument, GamePreferences } from "../models";
+import { eloDiff } from "../engine/elo.ts";
+import { Game, GamePreferences } from "../models/index.ts";
+import type { GameDocument } from "../models/game.ts";
 
 export default class EloService {
   static async processGame(game: GameDocument) {

@@ -1,24 +1,26 @@
 import assert from "assert";
 import createError from "http-errors";
 import Jimp from "jimp";
-import { Context } from "koa";
+import type { Context } from "koa";
 import passport from "koa-passport";
 import Router from "koa-router";
-import { merge, pick } from "lodash";
+import lodash from "lodash";
+const { merge, pick } = lodash;
+import type {
+  Image} from "../../models/index.ts";
 import {
   Game,
   GameInfo,
   GamePreferences,
-  Image,
   ImageCollection,
   JwtRefreshToken,
   Log,
   User,
-  UserDocument,
-} from "../../models";
-import { loggedIn, loggedOut } from "../utils";
-import auth from "./auth";
-import { sendAuthInfo } from "./utils";
+} from "../../models/index.ts";
+import type { UserDocument } from "../../models/user.ts";
+import { loggedIn, loggedOut } from "../utils.ts";
+import auth from "./auth.ts";
+import { sendAuthInfo } from "./utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -48,7 +50,8 @@ router.get("/active-games", async (ctx) => {
   if (!ctx.state.user?._id) {
     ctx.body = [];
   } else {
-    ctx.body = await Game.findWithPlayersTurn(ctx.state.user._id)
+    ctx.body = await (Game as any)
+      .findWithPlayersTurn(ctx.state.user._id)
       .select("_id")
       .lean(true)
       .then((games) => games.map((game) => game._id));
@@ -56,7 +59,7 @@ router.get("/active-games", async (ctx) => {
 });
 
 router.post("/", loggedIn, async (ctx) => {
-  const body = ctx.request.body;
+  const body = ctx.request.body as any;
 
   // We only allow setting URLs through social media
   const avatar: string = body.account?.avatar;
@@ -79,8 +82,8 @@ router.post("/avatar", loggedIn, async (ctx) => {
   const mime = [Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(image.getMIME() as any)
     ? image.getMIME()
     : image.hasAlpha
-    ? Jimp.MIME_PNG
-    : Jimp.MIME_JPEG;
+      ? Jimp.MIME_PNG
+      : Jimp.MIME_JPEG;
 
   const images: Image["images"] = new Map();
   for (const size of [256, 128, 64]) {
@@ -110,10 +113,10 @@ router.post("/avatar", loggedIn, async (ctx) => {
 });
 
 router.post("/email", loggedIn, async (ctx) => {
-  const { email } = ctx.request.body;
+  const { email } = ctx.request.body as any;
   const user: UserDocument = ctx.state.user;
 
-  const foundUser = await User.findByEmail(email);
+  const foundUser = await (User as any).findByEmail(email);
 
   if (foundUser) {
     if (foundUser._id.equals(user._id)) {
@@ -183,7 +186,7 @@ router.post("/games/:game/ownership", loggedIn, async (ctx) => {
     },
     {
       $set: {
-        "access.ownership": ctx.request.body.access.ownership,
+        "access.ownership": (ctx.request.body as any).access.ownership,
       },
     },
     {
@@ -220,7 +223,7 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
   }
 
   if (gameInfo.viewer?.alternate?.url) {
-    newPrefs.alternateUI = !!ctx.request.body.alternateUI;
+    newPrefs.alternateUI = !!(ctx.request.body as any).alternateUI;
   }
 
   await GamePreferences.updateOne(
@@ -253,10 +256,11 @@ router.post("/signout", (ctx: Context) => {
 });
 
 router.post("/confirm", async (ctx: Context) => {
-  const user = await User.findByEmail(ctx.request.body.email);
+  const body = ctx.request.body as any;
+  const user = await (User as any).findByEmail(body.email);
 
   if (!user) {
-    throw createError(404, "Can't find user: " + ctx.request.body.email);
+    throw createError(404, "Can't find user: " + body.email);
   }
 
   if (user.security.confirmed) {
@@ -264,7 +268,7 @@ router.post("/confirm", async (ctx: Context) => {
     return;
   }
 
-  await user.confirm(ctx.request.body.key);
+  await user.confirm(body.key);
 
   ctx.state.user = user;
 
@@ -272,7 +276,7 @@ router.post("/confirm", async (ctx: Context) => {
 });
 
 router.post("/refresh", async (ctx: Context) => {
-  const { code, scopes } = ctx.request.body;
+  const { code, scopes } = ctx.request.body as any;
 
   const rt = await JwtRefreshToken.findOne({ code });
 
@@ -291,8 +295,8 @@ router.post("/refresh", async (ctx: Context) => {
 router.post("/reset", loggedOut, passport.authenticate("local-reset", { session: false }), sendAuthInfo);
 
 router.post("/forget", loggedOut, async (ctx: Context) => {
-  const { email } = ctx.request.body;
-  const user = await User.findByEmail(email);
+  const { email } = ctx.request.body as any;
+  const user = await (User as any).findByEmail(email);
 
   if (!user) {
     throw createError(404, "Utilisateur introuvable: " + email);

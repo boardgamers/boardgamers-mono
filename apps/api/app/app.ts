@@ -9,12 +9,13 @@ import compression from "koa-compress";
 import cookie from "koa-cookie";
 import morgan from "koa-morgan";
 import passport from "koa-passport";
-import env from "./config/env";
+import env from "./config/env.ts";
 /* Configure passport */
-import "./config/passport";
-import { ApiError, User, UserDocument } from "./models";
+import "./config/passport.ts";
+import { ApiError, User } from "./models/index.ts";
+import type { UserDocument } from "./models/user.ts";
 /* Local stuff */
-import router from "./routes";
+import router from "./routes/index.ts";
 
 async function listen(port = env.listen.port.api) {
   const app = new Koa<Koa.DefaultState & { user: UserDocument }>();
@@ -49,7 +50,7 @@ async function listen(port = env.listen.port.api) {
 
       await processToken(token);
     } else if (ctx.query.token) {
-      await processToken(ctx.query.token);
+      await processToken(String(ctx.query.token));
     }
 
     await next();
@@ -78,8 +79,9 @@ async function listen(port = env.listen.port.api) {
       }
 
       try {
-        if (ctx.request.body?.password) {
-          ctx.request.body.password = "*******";
+        const body = ctx.request.body as any;
+        if (body?.password) {
+          body.password = "*******";
         }
         await ApiError.create({
           request: {

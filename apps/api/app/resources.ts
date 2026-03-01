@@ -1,5 +1,5 @@
 /* Koa stuff */
-import { ViewerInfo } from "@bgs/types";
+import type { ViewerInfo } from "@bgs/types";
 import { AssertionError } from "assert";
 import type { Server } from "http";
 import createError from "http-errors";
@@ -9,8 +9,8 @@ import morgan from "koa-morgan";
 /* Local stuff */
 import Router from "koa-router";
 /* Configure passport */
-import env from "./config/env";
-import { GameInfo } from "./models";
+import env from "./config/env.ts";
+import { GameInfo } from "./models/index.ts";
 
 const router = new Router();
 

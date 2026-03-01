@@ -1,5 +1,15 @@
 {
   "compilerOptions": {
-    "types": ["mocha", "chai", "node"]
-  }
+    "target": "ES2024",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "declaration": true,
+    "outDir": "./dist",
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "verbatimModuleSyntax": true,
+    "types": ["node"]
+  },
+  "include": ["*.ts"],
+  "exclude": ["*.spec.ts"]
 }

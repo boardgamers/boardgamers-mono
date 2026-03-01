@@ -1,15 +1,23 @@
-import axios, { AxiosError, AxiosRequestConfig } from "axios";
-import chai, { expect } from "chai";
-import chaiAsPromised from "chai-as-promised";
+import { expect } from "chai";
 import mongoose, { Types } from "mongoose";
-import env from "../../config/env";
-import { Game, GameInfo, GamePreferences, JwtRefreshToken, User } from "../../models";
+import env from "../../config/env.ts";
+import { Game, GameInfo, GamePreferences, JwtRefreshToken, User } from "../../models/index.ts";
 
-chai.use(chaiAsPromised);
+const baseURL = () => `http://localhost:${env.listen.port.api}`;
+
+async function api(method: string, path: string, body?: unknown, headers?: Record<string, string>) {
+  const res = await fetch(`${baseURL()}${path}`, {
+    method,
+    headers: { "Content-Type": "application/json", ...headers },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = res.headers.get("content-type")?.includes("application/json") ? await res.json() : await res.text();
+  return { status: res.status, data, ok: res.ok };
+}
 
 describe("Game API", () => {
   const userId = new Types.ObjectId();
-  let axiosConfig: AxiosRequestConfig = {};
+  let authHeaders: Record<string, string> = {};
 
   before(async () => {
     await User.create({
@@ -35,16 +43,12 @@ describe("Game API", () => {
     });
     const refresh = await JwtRefreshToken.create({ user: userId });
     const token = await refresh.createAccessToken(["all"], false);
-    axiosConfig = {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      baseURL: `http://localhost:${env.listen.port.api}`,
-    };
+    authHeaders = { Authorization: `Bearer ${token}` };
   });
 
   it("should not be able to create a game without ownership", async () => {
-    const createP = axios.post(
+    const res = await api(
+      "POST",
       "/api/game/new-game",
       {
         gameId: "test",
@@ -54,14 +58,11 @@ describe("Game API", () => {
         players: 2,
         options: { join: true },
       },
-      axiosConfig
+      authHeaders
     );
 
-    const err: AxiosError = await createP.then(
-      (err) => Promise.reject(err),
-      (err) => err
-    );
-    expect(err.response.data?.message.includes("own the game")).to.be.true;
+    expect(res.ok).to.be.false;
+    expect((res.data as any)?.message.includes("own the game")).to.be.true;
   });
 
   it("should be able to create a game with ownership", async () => {
@@ -73,7 +74,8 @@ describe("Game API", () => {
       },
     });
 
-    const createP = axios.post(
+    const res = await api(
+      "POST",
       "/api/game/new-game",
       {
         gameId: "test",
@@ -83,14 +85,15 @@ describe("Game API", () => {
         players: 2,
         options: { join: true },
       },
-      axiosConfig
+      authHeaders
     );
 
-    await expect(createP).to.be.fulfilled;
+    expect(res.ok).to.be.true;
   });
 
   it("should not be able to create a game with the wrong number of players", async () => {
-    const createP = axios.post(
+    const res = await api(
+      "POST",
       "/api/game/new-game",
       {
         gameId: "test-fail",
@@ -100,35 +103,17 @@ describe("Game API", () => {
         players: 3,
         options: { join: true },
       },
-      axiosConfig
+      authHeaders
     );
 
-    const err: AxiosError = await createP.then(
-      (err) => Promise.reject(err),
-      (err) => err
-    );
-    expect(err.response.data?.message).to.equal("Wrong number of players");
+    expect(res.ok).to.be.false;
+    expect((res.data as any)?.message).to.equal("Wrong number of players");
   });
 
-  // it ("should not be able to create a game without the join option", async () => {
-  //   const createP = axios.post('/api/game/new-game', {
-  //     gameId: "test-fail2",
-  //     game: {game: "test", version: 1},
-  //     timePerMove: 5000,
-  //     timePerGame: 5000,
-  //     players: 2
-  //   },
-  //     axiosConfig
-  //   );
-
-  //   const err: AxiosError = await createP.then(err => Promise.reject(err.data), err => err);
-  //   expect(err.response.data?.message).to.equal("You need special authorization to create games without joining them!");
-  // });
-
   it("should be able to leave the game", async () => {
-    const unjoinP = axios.post("/api/game/test/unjoin", {}, axiosConfig);
+    const res = await api("POST", "/api/game/test/unjoin", {}, authHeaders);
 
-    await expect(unjoinP).to.be.fulfilled;
+    expect(res.ok).to.be.true;
 
     expect(await Game.countDocuments({ _id: "test" })).to.equal(0, "Game should be deleted after creator unjoins");
   });

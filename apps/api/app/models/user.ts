@@ -2,11 +2,12 @@ import type { IAbstractUser } from "@bgs/types";
 import assert from "assert";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { isEmpty, pick } from "lodash";
-import locks from "mongo-locks";
+import lodash from "lodash";
+const { isEmpty, pick } = lodash;
+import locks from "../config/locks.ts";
 import mongoose, { Types } from "mongoose";
-import { env, sendmail } from "../config";
-import { Game } from "./game";
+import { env, sendmail } from "../config/index.ts";
+import { Game } from "./game.ts";
 
 const Schema = mongoose.Schema;
 
@@ -193,7 +194,7 @@ schema.method("email", function (this: UserDocument) {
 schema.method("changeEmail", async function (this: UserDocument, email: string) {
   assert(!this.isSocialAccount(), "You can't change the email of a social account.");
 
-  assert(!(await User.findByEmail(email)), "User with this email already exists.");
+  assert(!(await (User as any).findByEmail(email)), "User with this email already exists.");
 
   this.account.email = email;
   this.security.confirmed = false;
@@ -266,8 +267,8 @@ schema.method("sendConfirmationEmail", function (this: UserDocument) {
     <p>Hello, we're delighted to have a new Gaia Project player among us!</p>
     <p>To finish your registration and confirm your account with us at ${env.site},
      click <a href='http://${env.site}/confirm?key=${encodeURIComponent(this.confirmKey())}&email=${encodeURIComponent(
-      this.email()
-    )}'>here</a>.</p>
+       this.email()
+     )}'>here</a>.</p>
 
     <p>If you didn't create an account with us, ignore this email.</p>`,
   });
@@ -334,7 +335,7 @@ schema.method("sendGameNotificationEmail", async function (this: UserDocument) {
       return;
     }
 
-    const activeGames = await Game.findWithPlayersTurn(user.id).select("-data").lean(true);
+    const activeGames = await (Game as any).findWithPlayersTurn(user.id).select("-data").lean(true);
 
     if (activeGames.length === 0) {
       user.meta.nextGameNotification = undefined;

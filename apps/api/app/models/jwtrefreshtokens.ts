@@ -1,8 +1,9 @@
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
-import mongoose, { ObjectId } from "mongoose";
-import { env } from "../config";
-import { User } from "./user";
+import type { ObjectId } from "mongoose";
+import mongoose from "mongoose";
+import { env } from "../config/index.ts";
+import { User } from "./user.ts";
 
 const Schema = mongoose.Schema;
 

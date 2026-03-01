@@ -1,10 +1,11 @@
 {
   "compilerOptions": {
-    "target": "es2020",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "target": "es2024",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "sourceMap": true,
-    "outDir": "./dist",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "allowJs": true,
@@ -12,8 +13,10 @@
     "strictNullChecks": false,
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "types": ["node", "mocha", "chai", "./app/types"],
-    "baseUrl": "."
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "types": ["node", "./app/types"]
   },
-  "include": ["app/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts", "server.ts"]
+  "include": ["app/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts", "server.ts"],
+  "exclude": ["**/*.spec.ts"]
 }

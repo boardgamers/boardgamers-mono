@@ -1,9 +1,9 @@
 import assert from "assert";
 import { Server } from "http";
 import mongoose from "mongoose";
-import { listen } from "../app";
-import initDb from "./db";
-import env from "./env";
+import { listen } from "../app.ts";
+import initDb from "./db.ts";
+import env from "./env.ts";
 
 assert(process.env.NODE_ENV === "test");
 

@@ -1,11 +1,11 @@
 import makeSchema from "@bgs/models/gameinfo";
-import { GameInfo } from "@bgs/types";
+import type { GameInfo as IGameInfo } from "@bgs/types";
 import mongoose from "mongoose";
 
 const schema = makeSchema<GameInfoModel>();
 
-export interface GameInfoDocument extends GameInfo, mongoose.Document {
-  _id: GameInfo["_id"];
+export interface GameInfoDocument extends IGameInfo, mongoose.Document {
+  _id: IGameInfo["_id"];
 }
 
 export interface GameInfoModel extends mongoose.Model<GameInfoDocument> {
@@ -19,6 +19,4 @@ schema.static("findWithVersion", function (this: GameInfoModel, game: string, ve
   return this.findById({ game, version });
 });
 
-const GameInfo = mongoose.model("GameInfo", schema);
-
-export { GameInfo };
+export const GameInfo = mongoose.model("GameInfo", schema);

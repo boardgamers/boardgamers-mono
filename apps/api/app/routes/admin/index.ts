@@ -1,16 +1,16 @@
 import checkDiskSpace from "check-disk-space";
 import fs from "fs";
 import createError from "http-errors";
-import { Context } from "koa";
+import type { Context } from "koa";
 import Router from "koa-router";
 import path from "path";
-import { env } from "../../config";
-import { Game, GameNotification, Log, Settings, SettingsKey, User } from "../../models";
-import { sendAuthInfo } from "../account";
-import { isAdmin } from "../utils";
-import gameInfo from "./gameinfo";
-import page from "./pages";
-import users from "./users";
+import { env } from "../../config/index.ts";
+import { Game, GameNotification, Log, Settings, SettingsKey, User } from "../../models/index.ts";
+import { sendAuthInfo } from "../account/index.ts";
+import { isAdmin } from "../utils.ts";
+import gameInfo from "./gameinfo.ts";
+import page from "./pages.ts";
+import users from "./users.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -35,8 +35,8 @@ router.get("/serverinfo", async (ctx) => {
 });
 
 router.post("/resend-confirmation", async (ctx) => {
-  const { email } = ctx.request.body;
-  const user = await User.findByEmail(email);
+  const { email } = ctx.request.body as any;
+  const user = await (User as any).findByEmail(email);
 
   if (!user) {
     throw createError(404, "User not found: " + email);
@@ -47,8 +47,8 @@ router.post("/resend-confirmation", async (ctx) => {
 });
 
 router.post("/login-as", async (ctx) => {
-  const { username } = ctx.request.body;
-  const user = await User.findByUsername(username);
+  const { username } = ctx.request.body as any;
+  const user = await (User as any).findByUsername(username);
 
   if (!user) {
     throw createError(404, "User not found: " + username);
@@ -60,8 +60,8 @@ router.post("/login-as", async (ctx) => {
 });
 
 router.post("/compute-karma", async (ctx) => {
-  const { username } = ctx.request.body;
-  const user = await User.findByUsername(username);
+  const { username } = ctx.request.body as any;
+  const user = await (User as any).findByUsername(username);
 
   if (!user) {
     throw createError(404, "User not found: " + username);
@@ -83,7 +83,7 @@ router.post("/compute-all-karma", async (ctx) => {
 });
 
 router.post("/load-games", async (ctx) => {
-  const dirPath = ctx.request.body?.path;
+  const dirPath = (ctx.request.body as any)?.path;
 
   for (const file of fs.readdirSync(dirPath)) {
     if (!file.endsWith("json")) {
@@ -105,7 +105,7 @@ router.post("/load-games", async (ctx) => {
 router.post("/announcement", async (ctx) => {
   await Settings.updateOne(
     { _id: SettingsKey.Announcement },
-    { $set: { value: ctx.request.body?.announcement } },
+    { $set: { value: (ctx.request.body as any)?.announcement } },
     { upsert: true }
   );
   ctx.status = 200;

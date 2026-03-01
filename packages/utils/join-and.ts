@@ -1,4 +1,5 @@
-import { intersection, isEmpty, omit, pick } from "lodash";
+import lodash from "lodash";
+const { intersection, isEmpty, omit, pick } = lodash;
 
 type Condition = Record<string, any>;
 

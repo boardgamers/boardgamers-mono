@@ -1,8 +1,8 @@
 import cluster from "cluster";
-import locks from "mongo-locks";
 import mongoose from "mongoose";
-import { migrate } from "../models/migrations";
-import env from "./env";
+import locks from "./locks.ts";
+import { migrate } from "../models/migrations.ts";
+import env from "./env.ts";
 
 mongoose.Promise = global.Promise; // native promises
 
@@ -22,7 +22,7 @@ export default async function initDb(url = env.database.bgs.url, runMigrations =
       .then(() => console.log("successfully connected to database"));
   await connect();
 
-  locks.init(mongoose.connection);
+  locks.init(mongoose.connection.db!.collection("locks"));
 
   if (cluster.isMaster && runMigrations) {
     let free = () => {};

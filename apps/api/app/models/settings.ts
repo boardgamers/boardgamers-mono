@@ -12,9 +12,11 @@ const schema = new mongoose.Schema({
 
 const Settings = mongoose.model<SettingsDocument>("settings", schema);
 
-export enum SettingsKey {
-  Announcement = "announcement",
-  DBVersion = "dbVersion",
-}
+const SettingsKey = {
+  Announcement: "announcement",
+  DBVersion: "dbVersion",
+} as const;
+export type SettingsKey = (typeof SettingsKey)[keyof typeof SettingsKey];
+export { SettingsKey };
 
 export { Settings };

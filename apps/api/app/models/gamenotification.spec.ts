@@ -1,7 +1,7 @@
 import chai, { expect } from "chai";
 import chaiAsPromised from "chai-as-promised";
 import mongoose, { Types } from "mongoose";
-import { defaultKarma, Game, GameNotification, GamePreferences, maxKarma, User } from "./index";
+import { defaultKarma, Game, GameNotification, GamePreferences, maxKarma, User } from "./index.ts";
 
 const { ObjectId } = Types;
 
@@ -36,7 +36,7 @@ describe("GameNotification", () => {
 
       it("should add karma to the active player and no karma to the dropped player", async () => {
         await GameNotification.create({ kind: "gameEnded", game: "test" });
-        await GameNotification.processGameEnded();
+        await (GameNotification as any).processGameEnded();
 
         const user = await User.findById(userId);
         const user2 = await User.findById(userId2);
@@ -48,7 +48,7 @@ describe("GameNotification", () => {
         await GameNotification.create({ kind: "gameEnded", game: "test" });
 
         await User.updateOne({ _id: userId }, { $set: { "account.karma": maxKarma } });
-        await GameNotification.processGameEnded();
+        await (GameNotification as any).processGameEnded();
 
         const user = await User.findById(userId);
         expect(user.account.karma).to.equal(maxKarma);
@@ -82,7 +82,7 @@ describe("GameNotification", () => {
 
       it("should add elo to player and player2, and min elo 100 to player3, set elo 1 to beginner player4 ", async () => {
         await GameNotification.create({ kind: "gameEnded", game: "test" });
-        await GameNotification.processGameEnded();
+        await (GameNotification as any).processGameEnded();
 
         const userPref = await GamePreferences.findOne({ user: userId, game: "gaia-project" });
         const userPref2 = await GamePreferences.findOne({ user: userId2, game: "gaia-project" });
@@ -121,7 +121,7 @@ describe("GameNotification", () => {
         );
 
         await GameNotification.create({ kind: "gameEnded", game: "test" });
-        await GameNotification.processGameEnded();
+        await (GameNotification as any).processGameEnded();
 
         const userPref = await GamePreferences.findOne({ user: userId, game: "gaia-project" });
         const userPref2 = await GamePreferences.findOne({ user: userId2, game: "gaia-project" });
@@ -159,7 +159,7 @@ describe("GameNotification", () => {
 
         await GameNotification.create({ kind: "gameEnded", game: "testCancelled" });
 
-        await expect(GameNotification.processGameEnded()).to.eventually.be.fulfilled;
+        await expect((GameNotification as any).processGameEnded()).to.eventually.be.fulfilled;
       });
     });
   });
@@ -178,7 +178,7 @@ describe("GameNotification", () => {
         kind: "playerDrop",
       });
 
-      await GameNotification.processPlayerDrop();
+      await (GameNotification as any).processPlayerDrop();
 
       const user = await User.findById(userId);
 
@@ -198,7 +198,7 @@ describe("GameNotification", () => {
         });
       }
 
-      await GameNotification.processPlayerDrop();
+      await (GameNotification as any).processPlayerDrop();
 
       const user = await User.findById(userId);
 
@@ -220,7 +220,7 @@ describe("GameNotification", () => {
         kind: "playerDrop",
       });
 
-      await GameNotification.processPlayerDrop();
+      await (GameNotification as any).processPlayerDrop();
 
       const user = await User.findById(userId);
       const user2 = await User.findById(userId2);

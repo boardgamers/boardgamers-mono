@@ -1,4 +1,5 @@
-import mongoose, { Types } from "mongoose";
+import type { Types } from "mongoose";
+import mongoose from "mongoose";
 
 export interface LogItem {
   kind: "processGameEnded" | "processPlayerDrop" | "mailChange";

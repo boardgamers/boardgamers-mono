@@ -1,7 +1,9 @@
 import { subHours, subWeeks } from "date-fns";
-import { shuffle } from "lodash";
-import locks from "mongo-locks";
-import { ChatMessage, Game, GameDocument, GameNotification } from "../models";
+import lodash from "lodash";
+const { shuffle } = lodash;
+import locks from "../config/locks.ts";
+import { ChatMessage, Game, GameNotification } from "../models/index.ts";
+import type { GameDocument } from "../models/game.ts";
 
 export async function notifyGameStart(game: GameDocument) {
   if (game.options.setup.playerOrder === "random") {

@@ -1,12 +1,12 @@
 import type { GameStatus } from "@bgs/types";
 import { joinAnd } from "@bgs/utils/join-and";
 import { removeFalsy } from "@bgs/utils/remove-falsy";
-import { Game } from "app/models";
-import GameInfoService from "app/services/gameinfo";
+import { Game } from "../../models/index.ts";
+import GameInfoService from "../../services/gameinfo.ts";
 import assert from "assert";
-import { Context } from "koa";
+import type { Context } from "koa";
 import Router from "koa-router";
-import { queryCount, skipCount } from "../utils";
+import { queryCount, skipCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -78,25 +78,25 @@ async function gameConditions<T>(
 }
 
 router.get("/:status/count", async (ctx) => {
-  const conditions: Record<string, unknown> = await gameConditions(ctx.params.status, {
-    user: ctx.query.user,
+  const conditions: Record<string, unknown> = await gameConditions(ctx.params.status as GameStatus, {
+    user: ctx.query.user ? String(ctx.query.user) : undefined,
     requester: ctx.state.user?._id,
-    boardgame: ctx.query.boardgame,
+    boardgame: ctx.query.boardgame ? String(ctx.query.boardgame) : undefined,
     maxKarma: ctx.query.maxKarma && +ctx.query.maxKarma,
     maxDuration: ctx.query.maxDuration && +ctx.query.maxDuration,
     minDuration: ctx.query.minDuration && +ctx.query.minDuration,
   });
-  ctx.body = await Game.count().where(conditions);
+  ctx.body = await (Game as any).count().where(conditions);
 });
 
 router.get("/:status", async (ctx) => {
-  const status: GameStatus = ctx.params.status;
-  const projection = status === "ended" ? [...Game.basics(), "cancelled"] : Game.basics();
+  const status: GameStatus = ctx.params.status as GameStatus;
+  const projection = status === "ended" ? [...(Game as any).basics(), "cancelled"] : (Game as any).basics();
   const sortOrder = status === "open" ? "-createdAt" : "-lastMove";
   const conditions = await gameConditions(status, {
-    user: ctx.query.user,
+    user: String(ctx.query.user || ""),
     requester: ctx.state.user?._id,
-    boardgame: ctx.query.boardgame,
+    boardgame: ctx.query.boardgame ? String(ctx.query.boardgame) : undefined,
     maxKarma: ctx.query.maxKarma && +ctx.query.maxKarma,
     maxDuration: ctx.query.maxDuration && +ctx.query.maxDuration,
     minDuration: ctx.query.minDuration && +ctx.query.minDuration,

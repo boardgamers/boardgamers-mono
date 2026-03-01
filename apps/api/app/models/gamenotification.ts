@@ -1,14 +1,16 @@
 import makeSchema from "@bgs/models/gamenotification";
-import { GameNotification } from "@bgs/types";
-import locks from "mongo-locks";
-import mongoose, { Types } from "mongoose";
-import EloService from "../services/elo";
-import { Game } from "./game";
-import { Log, LogItem } from "./log";
-import { maxKarma, User } from "./user";
+import type { GameNotification as IGameNotification } from "@bgs/types";
+import locks from "../config/locks.ts";
+import type { Types } from "mongoose";
+import mongoose from "mongoose";
+import EloService from "../services/elo.ts";
+import { Game } from "./game.ts";
+import { Log } from "./log.ts";
+import type { LogItem } from "./log.ts";
+import { maxKarma, User } from "./user.ts";
 
 const schema = makeSchema<GameNotificationDocument, GameNotificationModel>();
-interface GameNotificationDocument extends mongoose.Document, GameNotification<Types.ObjectId> {}
+interface GameNotificationDocument extends mongoose.Document, IGameNotification<Types.ObjectId> {}
 
 interface GameNotificationModel extends mongoose.Model<GameNotificationDocument> {
   processCurrentMove(): Promise<void>;
@@ -89,7 +91,7 @@ schema.static("processPlayerDrop", async function (this: GameNotificationModel) 
       Log.insertMany(
         notifications.map(
           (notification) =>
-            ({ kind: "processPlayerDrop", data: { game: notification.game, player: notification.user } } as LogItem)
+            ({ kind: "processPlayerDrop", data: { game: notification.game, player: notification.user } }) as LogItem
         )
       ),
       this.updateMany({ _id: { $in: notifications.map((x) => x._id) } }, { $set: { processed: true } }),
@@ -99,6 +101,4 @@ schema.static("processPlayerDrop", async function (this: GameNotificationModel) 
   }
 });
 
-const GameNotification = mongoose.model("GameNotification", schema);
-
-export { GameNotification };
+export const GameNotification = mongoose.model("GameNotification", schema);

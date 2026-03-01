@@ -60,7 +60,7 @@ const props = withDefaults(defineProps<{ mode: "new" | "edit"; modelValue: GameI
         public: false,
         needOwnership: true,
       },
-    } as GameInfo),
+    }) as GameInfo,
 });
 
 const emit = defineEmits<{
@@ -125,7 +125,7 @@ watch(
         fullScreen: false,
         replayable: false,
         trusted: false,
-      }
+      },
     );
     set(data, "factions.avatars", data.factions?.avatars ?? false);
     set(data, "settings", data.settings ?? []);
@@ -137,7 +137,7 @@ watch(
     setTimeout(() => rules.value?.setMarkdown(data.rules));
     setTimeout(() => description.value?.setMarkdown(data.description));
   },
-  { immediate: true }
+  { immediate: true },
 );
 </script>
 

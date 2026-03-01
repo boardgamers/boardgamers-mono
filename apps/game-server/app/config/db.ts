@@ -1,6 +1,6 @@
-import locks from "mongo-locks";
 import mongoose from "mongoose";
-import env from "./env";
+import env from "./env.ts";
+import locks from "./locks.ts";
 
 const connect = () =>
   mongoose
@@ -20,4 +20,4 @@ mongoose.connection.on("disconnected", () => {
   setTimeout(() => connect().catch(console.error), 5000);
 });
 
-locks.init(mongoose.connection);
+locks.init(mongoose.connection.db!.collection("locks"));

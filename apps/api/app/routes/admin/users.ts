@@ -1,13 +1,13 @@
 import assert from "assert";
-import { Context } from "koa";
+import type { Context } from "koa";
 import Router from "koa-router";
-import { ApiError, GameInfo, GamePreferences, User } from "../../models";
-import { queryCount } from "../utils";
+import { ApiError, GameInfo, GamePreferences, User } from "../../models/index.ts";
+import { queryCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
 router.get("/search", async (ctx) => {
-  const query: string = ctx.query.query || "";
+  const query: string = String(ctx.query.query || "");
 
   if (!query) {
     ctx.body = [];
@@ -26,7 +26,7 @@ router.post("/:userId", async (ctx) => {
   await User.updateOne(
     { _id: ctx.params.userId },
     {
-      $set: { "account.karma": ctx.request.body.account.karma },
+      $set: { "account.karma": (ctx.request.body as any).account.karma },
     }
   );
   ctx.status = 200;
@@ -35,18 +35,19 @@ router.post("/:userId", async (ctx) => {
 router.post("/:userId/elo/:game", async (ctx) => {
   await GamePreferences.updateOne(
     { user: ctx.params.userId, game: ctx.params.game },
-    { $set: { "elo.value": ctx.request.body.value } },
+    { $set: { "elo.value": (ctx.request.body as any).value } },
     { upsert: false }
   );
   ctx.status = 200;
 });
 
 router.post("/:userId/access/grant", async (ctx) => {
-  const type = ctx.request.body?.type;
+  const body = ctx.request.body as any;
+  const type = body?.type;
 
   assert(type === "game", "Wrong kind of access");
 
-  const gameInfo = await GameInfo.findWithVersion(ctx.request.body.game, ctx.request.body.version).lean(true);
+  const gameInfo = await (GameInfo as any).findWithVersion(body.game, body.version).lean(true);
 
   if (!gameInfo) {
     ctx.status = 404;
@@ -64,7 +65,7 @@ router.post("/:userId/access/grant", async (ctx) => {
   }
 
   await GamePreferences.updateOne(
-    { user: ctx.params.userId, game: ctx.request.body.game },
+    { user: ctx.params.userId, game: body.game },
     { $set: { "access.maxVersion": gameInfo._id.version } },
     { upsert: true }
   );
@@ -92,7 +93,7 @@ router.get("/:userId/api-errors", async (ctx) => {
 });
 
 router.get("/infoByName/:username", async (ctx) => {
-  const user = await User.findByUsername(ctx.params.username);
+  const user = await (User as any).findByUsername(ctx.params.username);
 
   if (!user) {
     ctx.status = 404;

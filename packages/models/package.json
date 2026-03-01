@@ -1,9 +1,17 @@
 {
   "name": "@bgs/models",
+  "type": "module",
   "dependencies": {
     "@bgs/types": "workspace:*"
   },
   "peerDependencies": {
     "mongoose": "^6.0.2"
+  },
+  "exports": {
+    "./api-error": "./api-error.ts",
+    "./chatmessage": "./chatmessage.ts",
+    "./game": "./game.ts",
+    "./gameinfo": "./gameinfo.ts",
+    "./gamenotification": "./gamenotification.ts"
   }
 }

@@ -1,8 +1,9 @@
-/* eslint-disable */
+ 
 
-import { GameDocument } from "./models/game";
-import { GameInfoDocument } from "./models/gameinfo";
-import { UserDocument } from "./models/user";
+
+import type { GameDocument } from "./models/game.ts";
+import type { GameInfoDocument } from "./models/gameinfo.ts";
+import type { UserDocument } from "./models/user.ts";
 
 declare global {
   namespace Application {

@@ -1,12 +1,14 @@
 import delay from "delay";
 import jwt from "jsonwebtoken";
-import { groupBy, keyBy, sortBy, uniq, uniqBy } from "lodash";
+import lodash from "lodash";
+const { groupBy, keyBy, sortBy, uniq, uniqBy } = lodash;
 import { Types } from "mongoose";
 import cache from "node-cache";
 import WebSocket, { Server } from "ws";
-import "./config/db";
-import env from "./config/env";
-import { ChatMessage, Game, GameDocument, User } from "./models";
+import "./config/db.ts";
+import env from "./config/env.ts";
+import { ChatMessage, Game, User } from "./models/index.ts";
+import type { GameDocument } from "./models/game.ts";
 
 const wss = new Server({ port: env.listen.port.ws, host: env.listen.host });
 
@@ -125,8 +127,8 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
                 Date.now() - (user.security.lastOnline ?? new Date(0)).getTime() < 60 * 1000
                   ? "online"
                   : Date.now() - (user.security.lastActive ?? new Date(0)).getTime() < 60 * 1000
-                  ? "away"
-                  : "offline",
+                    ? "away"
+                    : "offline",
             })),
           })
         );
@@ -177,7 +179,8 @@ setInterval(function ping() {
 
 function sendActiveGames(ws: AugmentedWebSocket) {
   if (ws.user) {
-    Game.findWithPlayersTurn(ws.user)
+    (Game as any)
+      .findWithPlayersTurn(ws.user)
       .select("_id")
       .lean(true)
       .then((games) => {
@@ -238,14 +241,14 @@ async function run() {
         const playerIds = (
           await Game.aggregate()
             .match({ _id: { $in: games.map((game) => game._id) } })
-            .project("players._id")
+            .project({ "players._id": 1 })
             .unwind("players")
             .group({ _id: "$players._id" })
         ).map((x) => x._id);
         const users = await User.find({ _id: { $in: playerIds } }, "security.lastActive security.lastOnline", {
           lean: true,
         });
-        const usersById = keyBy<typeof users[0]>(users, (user) => user._id.toString());
+        const usersById = keyBy<(typeof users)[0]>(users, (user) => user._id.toString());
 
         for (const ws of clients()) {
           if (ws.readyState !== WebSocket.OPEN) {
@@ -271,8 +274,8 @@ async function run() {
                         Date.now() - (user.security.lastOnline ?? new Date(0)).getTime() < 60 * 1000
                           ? "online"
                           : Date.now() - (user.security.lastActive ?? new Date(0)).getTime() < 60 * 1000
-                          ? "away"
-                          : "offline",
+                            ? "away"
+                            : "offline",
                     })),
                 })
               );
@@ -282,7 +285,7 @@ async function run() {
       }
     }
 
-    await delay(250);
+    await (delay as unknown as (ms: number) => Promise<void>)(250);
   }
 }
 

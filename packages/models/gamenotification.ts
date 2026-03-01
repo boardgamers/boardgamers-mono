@@ -1,4 +1,4 @@
-import { GameNotification } from "@bgs/types";
+import type { GameNotification } from "@bgs/types";
 import { Document, Model, Schema, Types } from "mongoose";
 
 const repr = {
@@ -24,7 +24,7 @@ const repr = {
 
 export default function makeSchema<
   T extends Document & GameNotification<Types.ObjectId>,
-  U extends Model<T> = Model<T>
+  U extends Model<T> = Model<T>,
 >() {
   const schema = new Schema<T, U>(repr as any, { timestamps: true });
 

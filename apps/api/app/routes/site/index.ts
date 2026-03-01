@@ -1,6 +1,6 @@
-import { Context } from "koa";
+import type { Context } from "koa";
 import Router from "koa-router";
-import { Settings, SettingsKey } from "../../models";
+import { Settings, SettingsKey } from "../../models/index.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 

@@ -1,4 +1,5 @@
-import mongoose, { ObjectId } from "mongoose";
+import type { ObjectId } from "mongoose";
+import mongoose from "mongoose";
 
 const Schema = mongoose.Schema;
 

@@ -1,8 +1,9 @@
-import mongoose, { Collection } from "mongoose";
-import { env } from "../app/config";
-import initDb from "../app/config/db";
-import * as models from "../app/models";
-import * as data from "./data";
+import type { Collection } from "mongoose";
+import mongoose from "mongoose";
+import { env } from "../app/config/index.ts";
+import initDb from "../app/config/db.ts";
+import * as models from "../app/models/index.ts";
+import * as data from "./data/index.ts";
 
 if (process.env.NODE_ENV !== "test") {
   env.script = true;

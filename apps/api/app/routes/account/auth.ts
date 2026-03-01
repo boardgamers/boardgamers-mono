@@ -2,8 +2,8 @@ import jwt from "jsonwebtoken";
 import type { Context } from "koa";
 import passport from "koa-passport";
 import Router from "koa-router";
-import { env } from "../../config";
-import { sendAuthInfo } from "./utils";
+import { env } from "../../config/index.ts";
+import { sendAuthInfo } from "./utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 

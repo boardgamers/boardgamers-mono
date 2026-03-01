@@ -1,4 +1,5 @@
-import { Document, Model, model, ObjectId, Schema } from "mongoose";
+import type { Document, Model, ObjectId} from "mongoose";
+import { model, Schema } from "mongoose";
 
 export interface Image {
   formats: string[];

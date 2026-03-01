@@ -1,8 +1,9 @@
-import Game, { GameDocument } from "app/models/game";
-import locks from "mongo-locks";
+import type { GameDocument } from "../models/game.ts";
+import Game from "../models/game.ts";
+import locks from "../config/locks.ts";
 import type { FilterQuery } from "mongoose";
-import { getEngine } from "./engines";
-import { afterMove } from "./game";
+import { getEngine } from "./engines.ts";
+import { afterMove } from "./game.ts";
 
 export async function batchReplay(cond: FilterQuery<GameDocument>) {
   let success = 0;

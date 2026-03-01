@@ -37,20 +37,7 @@ function getInput(elem: HTMLSelectElement) {
       :placeholder="props.label"
       :disabled="disabled"
       :multiple="multiple"
-      class="
-        shadow
-        appearance-none
-        border
-        rounded
-        w-full
-        py-2
-        px-3
-        text-gray-700
-        dark:bg-gray-700 dark:text-gray-300
-        leading-tight
-        focus:outline-none focus:shadow-outline
-        disabled:opacity-80 disabled:cursor-not-allowed disabled:select-none
-      "
+      class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:bg-gray-700 dark:text-gray-300 leading-tight focus:outline-none focus:shadow-outline disabled:opacity-80 disabled:cursor-not-allowed disabled:select-none"
       :[!multiple&&`value`]="props.modelValue ?? nullProp"
       @input="$emit('update:modelValue', getInput($event.target))"
     >

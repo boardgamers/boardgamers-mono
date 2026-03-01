@@ -1,4 +1,5 @@
-import { GameInfo, GamePreferences, UserDocument } from "../models";
+import { GameInfo, GamePreferences } from "../models/index.ts";
+import type { UserDocument } from "../models/user.ts";
 
 export default class GameInfoService {
   static async lastAccessibleVersion(game: string, user?: UserDocument) {

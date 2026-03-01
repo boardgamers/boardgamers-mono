@@ -1,11 +1,11 @@
 import Router from "koa-router";
-import account from "./account";
-import admin from "./admin";
-import boardgame from "./boardgame";
-import game from "./game";
-import page from "./pages";
-import site from "./site";
-import user from "./user";
+import account from "./account/index.ts";
+import admin from "./admin/index.ts";
+import boardgame from "./boardgame/index.ts";
+import game from "./game/index.ts";
+import page from "./pages/index.ts";
+import site from "./site/index.ts";
+import user from "./user/index.ts";
 
 const router = new Router();
 

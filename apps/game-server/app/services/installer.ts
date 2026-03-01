@@ -1,8 +1,8 @@
 import { spawn } from "child_process";
 import fs from "fs-extra";
-import pkg from "../../package.json";
-import GameInfo from "../models/gameinfo";
-import { refreshEngine } from "./engines";
+import pkg from "../../package.json" with { type: "json" };
+import GameInfo from "../models/gameinfo.ts";
+import { refreshEngine } from "./engines.ts";
 
 let installing = false;
 

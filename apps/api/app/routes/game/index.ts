@@ -2,10 +2,11 @@ import { timerDuration } from "@bgs/utils/time";
 import assert from "assert";
 import { addDays } from "date-fns";
 import createError from "http-errors";
-import { Context } from "koa";
+import type { Context } from "koa";
 import Router from "koa-router";
-import { omit } from "lodash";
-import locks from "mongo-locks";
+import lodash from "lodash";
+const { omit } = lodash;
+import locks from "../../config/locks.ts";
 import {
   ChatMessage,
   Game,
@@ -13,19 +14,19 @@ import {
   GameNotification,
   GamePreferences,
   RoomMetaData,
-  RoomMetaDataDocument,
   User,
-} from "../../models";
-import { notifyGameStart } from "../../services/game";
-import { isAdmin, isConfirmed, loggedIn } from "../utils";
-import listings from "./listings";
+} from "../../models/index.ts";
+import type { RoomMetaDataDocument } from "../../models/roommetadata.ts";
+import { notifyGameStart } from "../../services/game.ts";
+import { isAdmin, isConfirmed, loggedIn } from "../utils.ts";
+import listings from "./listings.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
 router.use("/status", listings.routes(), listings.allowedMethods());
 
 router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
-  const body = ctx.request.body;
+  const body = ctx.request.body as any;
   const {
     game: gameInfoId,
     gameId,
@@ -232,9 +233,10 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
       (ctx.state.user && ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id))),
     "You must be a player of the game to chat!"
   );
-  assert(ctx.request.body.type === "text" || ctx.request.body.type === "emoji");
+  const chatBody = ctx.request.body as any;
+  assert(chatBody.type === "text" || chatBody.type === "emoji");
 
-  const text = ctx.request.body?.data?.text?.trim();
+  const text = chatBody?.data?.text?.trim();
   assert(text, "Empty chat message");
 
   const doc = new ChatMessage({
@@ -244,9 +246,9 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
       name: ctx.state.user.account.username,
     },
     data: {
-      text: ctx.request.body.data.text,
+      text: chatBody.data.text,
     },
-    type: ctx.request.body.type,
+    type: chatBody.type,
   });
   await doc.save();
   ctx.status = 200;
@@ -259,7 +261,7 @@ router.post("/:gameId/invite", loggedIn, async (ctx) => {
   );
   // assert(ctx.state.game.options.timing.scheduledStart, "The game must have a scheduled start");
 
-  const { userId } = ctx.request.body;
+  const { userId } = ctx.request.body as any;
 
   const free = await locks.lock("game", ctx.params.gameId);
   try {
@@ -307,7 +309,7 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
     );
 
     if (karma < 50) {
-      const games = await Game.findWithPlayer(ctx.state.user._id).where("status").ne("ended").limit(2).count();
+      const games = await (Game as any).findWithPlayer(ctx.state.user._id).where("status").ne("ended").limit(2).count();
       assert(games < 2, "You can't join more than two games at the same time when your karma is less than 50");
     }
   }
@@ -418,7 +420,7 @@ router.post("/:gameId/start", loggedIn, async (ctx) => {
       "You can only start the game when all players have joined"
     );
 
-    const { playerOrder } = ctx.request.body;
+    const { playerOrder } = ctx.request.body as any;
 
     if (playerOrder) {
       game.players = [...game.players].sort(
@@ -561,7 +563,7 @@ router.post("/:roomId/notes", loggedIn, async (ctx) => {
       user: ctx.state.user._id,
     },
     {
-      notes: ctx.request.body.notes,
+      notes: (ctx.request.body as any).notes,
     },
     {
       runValidators: true,
@@ -593,7 +595,7 @@ router.get("/:roomId/chat/lastRead", loggedIn, async (ctx) => {
 router.post("/:roomId/chat/lastRead", loggedIn, async (ctx) => {
   await RoomMetaData.findOneAndUpdate(
     { room: ctx.params.roomId, user: ctx.state.user._id },
-    { lastChatMessageViewed: new Date(ctx.request.body.lastRead) },
+    { lastChatMessageViewed: new Date((ctx.request.body as any).lastRead) },
     { upsert: true }
   );
   ctx.status = 200;
