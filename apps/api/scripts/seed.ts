@@ -8,10 +8,10 @@ if (process.env.NODE_ENV !== "test") {
 }
 
 const collectionMap: Record<string, string> = {
-  users: "users",
-  games: "games",
-  gameInfos: "gameinfos",
-  gamePreferences: "gamepreferences",
+  User: "users",
+  Game: "games",
+  GameInfo: "gameinfos",
+  GamePreferences: "gamepreferences",
   chatMessages: "chatmessages",
   settings: "settings",
   pages: "pages",

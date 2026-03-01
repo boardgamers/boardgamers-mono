@@ -60,11 +60,10 @@
     "typescript": "~5.9.3"
   },
   "scripts": {
-    "start": "node --env-file=.env server.ts",
-    "dev": "node --watch --env-file=.env server.ts",
-    "seed": "node --env-file=.env scripts/seed.ts",
-    "test": "NODE_ENV=test node --env-file=.env --test './**/*.spec.ts'",
-    "test-only": "NODE_ENV=test node --env-file=.env --test './app/config/init.spec.ts'",
+    "start": "node --env-file-if-exists=.env server.ts",
+    "dev": "node --watch --env-file-if-exists=.env server.ts",
+    "seed": "node --env-file-if-exists=.env scripts/seed.ts",
+    "test": "NODE_ENV=test node --env-file-if-exists=.env --import ./app/config/test-hooks.ts --test --test-force-exit --test-concurrency=1 './**/*.spec.ts'",
     "lint": "eslint server.ts app/**/*.{js,ts,tsx} --fix",
     "lint-check": "eslint server.ts app/**/*.{js,ts,tsx} --max-warnings 0",
     "tsc": "tsc --noEmit"

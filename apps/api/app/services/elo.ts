@@ -24,7 +24,7 @@ export async function processEloForGame(game: Pick<GameDoc, "_id" | "players" | 
     elo: number;
     games: number;
     eloDelta?: number;
-  }[] = structuredClone(game.players).map(({ elo: _, ...pl }) => ({ ...pl, games: 0, elo: 0 }));
+  }[] = game.players.map(({ elo: _, ...pl }) => ({ ...pl, games: 0, elo: 0 }));
 
   for (const score of scores) {
     const gamePref = prefs[score._id.toString()];

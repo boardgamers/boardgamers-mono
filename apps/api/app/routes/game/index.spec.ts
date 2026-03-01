@@ -3,7 +3,6 @@ import { after, before, describe, it } from "node:test";
 import { ObjectId } from "mongodb";
 import { db } from "../../config/db.ts";
 import env from "../../config/env.ts";
-import { setup } from "../../config/test-setup.ts";
 import { colls } from "../../config/db.ts";
 import { createAccessToken, generateRefreshCode } from "../../models/jwtrefreshtokens.ts";
 
@@ -24,8 +23,6 @@ describe("Game API", () => {
   let authHeaders: Record<string, string> = {};
 
   before(async () => {
-    await setup();
-
     await colls.users.insertOne({
       _id: userId,
       account: { username: "test", email: "test@test.com" },
@@ -36,7 +33,7 @@ describe("Game API", () => {
       label: "Test",
       viewer: { url: "//test.com/test", topLevelVariable: "test" },
       players: [2],
-      meta: { public: true },
+      meta: { public: true, needOwnership: true },
     } as any);
     const code = generateRefreshCode();
     const tokenDoc = { user: userId, code, createdAt: new Date() };

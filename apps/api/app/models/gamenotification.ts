@@ -63,13 +63,20 @@ export async function processPlayerDrop() {
   const col = colls.gameNotifications;
   const notifications = await col.find({ kind: "playerDrop", processed: false }).toArray();
 
-  let userIds = notifications.map((n) => n.user!);
+  const dropCounts = new Map<string, { id: typeof notifications[0]["user"], count: number }>();
+  for (const n of notifications) {
+    const key = n.user!.toString();
+    const entry = dropCounts.get(key);
+    if (entry) {
+      entry.count++;
+    } else {
+      dropCounts.set(key, { id: n.user!, count: 1 });
+    }
+  }
 
-  do {
-    const set = new Set(userIds.map((id) => id.toString()));
-    await colls.users.updateMany({ _id: { $in: userIds } }, { $inc: { "account.karma": -10 } });
-    userIds = userIds.filter((id) => !set.delete(id.toString()));
-  } while (userIds.length > 0);
+  for (const { id, count } of dropCounts.values()) {
+    await colls.users.updateOne({ _id: id }, { $inc: { "account.karma": -10 * count } });
+  }
 
   await Promise.all([
     colls.logs.insertMany(

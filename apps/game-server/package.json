@@ -6,11 +6,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "batch-replay": "node --env-file=.env scripts/batch-replay.ts",
-    "dev": "node --watch --env-file=.env server.ts",
+    "batch-replay": "node --env-file-if-exists=.env scripts/batch-replay.ts",
+    "dev": "node --watch --env-file-if-exists=.env server.ts",
     "lint": "eslint server.ts app/**/*.{js,ts,tsx} --fix",
     "lint-check": "eslint server.ts app/**/*.{js,ts,tsx} --max-warnings 0",
-    "start": "node --env-file=.env server.ts",
+    "start": "node --env-file-if-exists=.env server.ts",
     "test": "node --test 'app/**/*.spec.ts'",
     "tsc": "tsc --noEmit"
   },

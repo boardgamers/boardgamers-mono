@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
 import { colls } from "../config/db.ts";
 import { findByUsername } from "../models/index.ts";
-import { setup } from "../config/test-setup.ts";
 import { seed } from "../../scripts/seed.ts";
 import GameInfoService from "./gameinfo.ts";
 
@@ -11,8 +10,6 @@ function sortedEntries(map: Map<string, number>) {
 }
 
 describe("GameInfoService", () => {
-  before(() => setup());
-
   describe("latestAccessibleGames", () => {
     before(async () => {
       await seed(["GameInfo", "User", "GamePreferences"], true);

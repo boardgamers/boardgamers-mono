@@ -24,10 +24,14 @@ export async function setup() {
   const collections = await db().listCollections().toArray();
   await Promise.all(collections.map((c) => db().dropCollection(c.name)));
 
-  env.listen.port.api = 50606;
+  env.listen.port.api = 0;
   env.silent = true;
 
   server = await listen();
+  const addr = server.address();
+  if (addr && typeof addr === "object") {
+    env.listen.port.api = addr.port;
+  }
 }
 
 export async function teardown() {
