@@ -1,33 +1,18 @@
 import type { ApiError } from "@bgs/types";
-import { Document, Model, Schema, Types } from "mongoose";
+import type { IndexDescription, ObjectId } from "mongodb";
 
-export interface ApiErrorDocument extends Document, ApiError<Types.ObjectId> {}
-
-const repr = {
-  error: {
-    name: String,
-    message: String,
-    stack: [String],
-  },
-  user: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
-  },
-  request: {
-    url: String,
-    method: String,
-    body: String,
-  },
-  meta: {},
-};
-
-export default function makeSchema<U extends Model<ApiErrorDocument> = Model<ApiErrorDocument>>() {
-  const schema = new Schema<ApiErrorDocument, U>(repr, {
-    timestamps: true,
-    capped: { size: 10 * 1024 * 1024, max: 10 * 1000 },
-  });
-
-  schema.index({ user: 1, createdAt: -1 });
-
-  return schema;
+export interface ApiErrorDoc extends Omit<ApiError<ObjectId>, "updatedAt"> {
+  _id?: ObjectId;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
+
+export const API_ERRORS_COLLECTION = "apierrors";
+
+/** Capped collection: 10 MB, max 10k docs */
+export const apiErrorsCollectionOptions = { capped: true, size: 10 * 1000 * 1000, max: 10000 } as const;
+
+export const apiErrorIndexes: IndexDescription[] = [
+  // api: admin error listing per user; game-server: same
+  { key: { user: 1, createdAt: -1 } },
+];

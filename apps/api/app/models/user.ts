@@ -1,482 +1,270 @@
-import type { IAbstractUser } from "@bgs/types";
+import type { UserDoc } from "@bgs/models";
 import assert from "assert";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import type { WithId } from "mongodb";
 import locks from "../config/locks.ts";
-import mongoose, { Types } from "mongoose";
+import { colls } from "../config/db.ts";
 import { env, sendmail } from "../config/index.ts";
-import { Game } from "./game.ts";
-
-const Schema = mongoose.Schema;
+import { findGamesWithPlayersTurn } from "./game.ts";
 
 export const defaultKarma = 75;
 export const maxKarma = 100;
 
 const secureId = () => crypto.randomBytes(12).toString("base64").replace(/\+/g, "_").replace(/\//g, "-");
 
-const publicInfo = Object.freeze(["_id", "account.username", "account.bio", "account.karma", "createdAt"] as const);
+export const publicInfoProjection = {
+  _id: 1,
+  "account.username": 1,
+  "account.bio": 1,
+  "account.karma": 1,
+  createdAt: 1,
+} as const;
 
-export interface UserDocument extends IAbstractUser, mongoose.Document {
-  isAdmin(): boolean;
-
-  generateHash(password: string): Promise<string>;
-  validPassword(password: string): Promise<boolean>;
-  resetPassword(password: string): Promise<void>;
-  email(): string;
-  // Filtered user for public consumption
-  publicInfo(): UserDocument;
-  changeEmail(email: string): Promise<void>;
-  generateResetLink(): Promise<void>;
-  resetKey(): string;
-  validateResetKey(key: string): void;
-  generateConfirmKey(): void;
-  confirmKey(): string;
-  confirm(key: string): Promise<void>;
-  recalculateKarma(since?: Date): Promise<void>;
-  sendConfirmationEmail(): Promise<void>;
-  sendResetEmail(): Promise<void>;
-  sendMailChangeEmail(newEmail: string): Promise<void>;
-  sendGameNotificationEmail(): Promise<void>;
-  updateGameNotification(): Promise<void>;
-  isSocialAccount(): boolean;
-  notifyLogin(ip: string): Promise<void>;
-  notifyLastIp(ip: string): Promise<void>;
+export async function findByEmail(email: string) {
+  return colls.users.findOne({ "account.email": email.toLowerCase().trim() });
 }
 
-interface UserModel extends mongoose.Model<UserDocument> {
-  findByEmail(email: string): Promise<UserDocument>;
-  findByUsername(name: string): Promise<UserDocument>;
-  findByUrl(urlComponent: string): Promise<UserDocument>;
-  publicInfo(): typeof publicInfo;
+export async function findByUsername(name: string) {
+  return colls.users.findOne({ "security.slug": name.toLowerCase().replace(/\s+/g, "-") });
 }
 
-// define the schema for our user model
-const schema = new Schema<UserDocument, UserModel>(
-  {
-    account: {
-      username: {
-        type: String,
-        maxlength: [20, "Pick a shorter username"],
-        minlength: [2, "Pick a longer username"],
-        trim: true,
-        unique: true,
-        sparse: true,
-      },
-      email: {
-        type: String,
-        unique: true,
-        maxlength: [50, "Too long email"],
-        trim: true,
-        lowercase: true,
-        sparse: true,
-      },
-      password: String,
-      karma: {
-        type: Number,
-        default: defaultKarma,
-        max: maxKarma,
-      },
-      termsAndConditions: Date,
-      avatar: {
-        type: String,
-        trim: true,
-        default: "pixel-art",
-        maxlength: 20,
-      },
-      bio: {
-        type: String,
-        trim: true,
-        maxlength: [500, "Too long bio"],
-      },
-      social: {
-        google: {
-          type: String,
-          sparse: true,
-          unique: true,
-        },
-        facebook: {
-          type: String,
-          sparse: true,
-          unique: true,
-        },
-        discord: {
-          type: String,
-          sparse: true,
-          unique: true,
-        },
-      },
-    },
-    settings: {
-      mailing: {
-        newsletter: Boolean,
-        game: {
-          delay: Number,
-          activated: Boolean,
-        },
-      },
-      game: {
-        soundNotification: Boolean,
-      },
-      home: {
-        showMyGames: {
-          type: Boolean,
-          default: true,
-        },
-      },
-    },
-    security: {
-      lastIp: { type: String, index: true },
-      lastActive: Date,
-      lastOnline: Date,
-      lastLogin: {
-        ip: String,
-        date: Date,
-      },
-      confirmed: Boolean,
-      confirmKey: String,
-      reset: {
-        key: String,
-        issued: Date,
-      },
-      slug: {
-        type: String,
-        sparse: true,
-        unique: true,
-        trim: true,
-        lowercase: true,
-      },
-    },
-    meta: {
-      nextGameNotification: Date,
-      lastGameNotification: Date,
-    },
-    authority: String,
-  },
-  {
-    toJSON: {
-      transform: (doc, ret) => {
-        delete ret.account.password;
-        delete ret.security.confirmKey;
-        delete (ret.security.reset || {}).key;
-        return ret;
-      },
-    },
-    timestamps: true,
-  }
-);
+export async function findByUrl(urlComponent: string) {
+  const { ObjectId } = await import("mongodb");
+  return colls.users.findOne({ _id: new ObjectId(urlComponent) });
+}
 
-// methods ======================
-// generating a hash
-schema.method("generateHash", function (this: UserDocument, password: string) {
+export function isAdmin(user: WithId<UserDoc>) {
+  return user.authority === "admin";
+}
+
+export async function generateHash(password: string) {
   return bcrypt.hash(password, 8);
-});
+}
 
-// checking if password is valid
-schema.method("validPassword", function (this: UserDocument, password: string) {
-  return bcrypt.compare(password, this.account.password);
-});
+export async function validPassword(user: WithId<UserDoc>, password: string) {
+  return bcrypt.compare(password, user.account.password!);
+}
 
-schema.method("resetPassword", function (this: UserDocument, password: string) {
-  return this.generateHash(password).then((hash: string) => {
-    return this.update({
-      "account.password": hash,
-      "security.reset": null,
-    });
-  });
-});
+export async function resetPassword(user: WithId<UserDoc>, password: string) {
+  const hash = await generateHash(password);
+  await colls.users.updateOne({ _id: user._id }, { $set: { "account.password": hash, "security.reset": null } });
+}
 
-schema.method("email", function (this: UserDocument) {
-  return this.account.email;
-});
+export function generateConfirmKey(): string {
+  return secureId();
+}
 
-schema.method("changeEmail", async function (this: UserDocument, email: string) {
-  assert(!this.isSocialAccount(), "You can't change the email of a social account.");
-
-  assert(!(await (User as any).findByEmail(email)), "User with this email already exists.");
-
-  this.account.email = email;
-  this.security.confirmed = false;
-  this.generateConfirmKey();
-
-  await this.update({
-    "account.email": email,
-    "security.confirmed": false,
-    "security.confirmKey": this.security.confirmKey,
-  });
-});
-
-schema.method("publicInfo", function (this: UserDocument) {
-  return {
-    _id: this._id,
-    account: {
-      username: this.account?.username,
-      bio: this.account?.bio,
-      karma: this.account?.karma,
-    },
-    createdAt: (this as any).createdAt,
-  };
-});
-
-schema.static("publicInfo", () => publicInfo);
-
-schema.method("generateResetLink", async function (this: UserDocument) {
-  this.security.reset = {
-    key: secureId(),
-    issued: new Date(),
-  };
-
-  await this.update({ "security.reset": this.security.reset });
-});
-
-schema.method("resetKey", function (this: UserDocument) {
-  return this.security.reset.key;
-});
-
-schema.method("validateResetKey", function (this: UserDocument, key: string) {
-  if (!this.security.reset || !this.security.reset.key) {
+export function validateResetKey(user: WithId<UserDoc>, key: string) {
+  if (!user.security.reset || !user.security.reset.key) {
     throw new Error("This user didn't ask for a password reset.");
   }
-  if (this.security.reset.key !== key) {
+  if (user.security.reset.key !== key) {
     throw new Error("The reset password link is wrong.");
   }
-  const resetIssued = new Date(this.security.reset.issued);
+  const resetIssued = new Date(user.security.reset.issued);
   if (Date.now() - resetIssued.getTime() > 24 * 3600 * 1000) {
     throw new Error("The reset link has expired.");
   }
-});
+}
 
-schema.method("generateConfirmKey", function (this: UserDocument) {
-  this.security.confirmKey = secureId();
-});
+export async function confirm(user: WithId<UserDoc>, key: string) {
+  assert(key && user.security.confirmKey === key, "Wrong confirm link.");
+  await colls.users.updateOne({ _id: user._id }, { $set: { "security.confirmed": true, "security.confirmKey": null } });
+}
 
-schema.method("confirmKey", function (this: UserDocument) {
-  return this.security.confirmKey;
-});
+export async function generateResetLink(user: WithId<UserDoc>) {
+  const reset = { key: secureId(), issued: new Date() };
+  await colls.users.updateOne({ _id: user._id }, { $set: { "security.reset": reset } });
+  user.security.reset = reset;
+}
 
-schema.method("confirm", function (this: UserDocument, key: string) {
-  assert(key && this.confirmKey() === key, `Wrong confirm link.`);
-  this.security.confirmed = true;
-  this.security.confirmKey = null;
-
-  return this.update({
-    "security.confirmed": true,
-    "security.confirmKey": null,
-  }).exec();
-});
-
-schema.method("sendConfirmationEmail", function (this: UserDocument) {
-  return sendmail({
-    from: env.noreply,
-    to: this.email(),
-    subject: "Confirm your account",
-    html: `
-    <p>Hello, we're delighted to have a new Gaia Project player among us!</p>
-    <p>To finish your registration and confirm your account with us at ${env.site},
-     click <a href='http://${env.site}/confirm?key=${encodeURIComponent(this.confirmKey())}&email=${encodeURIComponent(
-       this.email()
-     )}'>here</a>.</p>
-
-    <p>If you didn't create an account with us, ignore this email.</p>`,
-  });
-});
-
-schema.method("sendMailChangeEmail", function (this: UserDocument, newEmail: string) {
-  if (!this.email()) {
-    return Promise.resolve();
-  }
-
-  return sendmail({
-    from: env.noreply,
-    to: this.email(),
-    subject: "Mail change",
-    html: `
-    <p>Hello ${this.account.username},</p>
-    <p>We're here to send you confirmation of your email change to ${escape(newEmail)}!</p>
-    <p>If you didn't change your email, please contact us ASAP at ${env.contact}.</p>`,
-  });
-});
-
-schema.method("sendResetEmail", function (this: UserDocument) {
-  return sendmail({
-    from: env.noreply,
-    to: this.email(),
-    subject: "Forgotten password",
-    html: `
-    <p>A password reset was asked for your account,
-    click <a href='http://${env.site}/reset?key=${encodeURIComponent(this.resetKey())}&email=${encodeURIComponent(
-      this.email()
-    )}'>here</a> to reset your password.</p>
-
-    <p>If this didn't come from you, ignore this email.</p>`,
-  });
-});
-
-schema.method("sendGameNotificationEmail", async function (this: UserDocument) {
-  {
-    await using _lock = await locks.lock("game-notification", this.id);
-    try {
-      // Inside the lock, reload the user
-      const user = await User.findById(this.id);
-
-      if (!user.settings.mailing.game.activated) {
-        user.meta.nextGameNotification = undefined;
-        await user.save();
-        return;
-      }
-
-      if (!user.meta.nextGameNotification) {
-        return;
-      }
-
-      if (user.meta.nextGameNotification > new Date()) {
-        return;
-      }
-
-      /* check if timer already started was present at the time of the last notification for at least one game*/
-      const count = await Game.count({
-        currentPlayers: { $elemMatch: { _id: user._id, timerStart: { $lt: user.meta.lastGameNotification } } },
-        status: "active",
-      }).limit(1);
-
-      if (count > 0) {
-        return;
-      }
-
-      const activeGames = await (Game as any).findWithPlayersTurn(user.id).select("-data").lean(true);
-
-      if (activeGames.length === 0) {
-        user.meta.nextGameNotification = undefined;
-        await user.save();
-        return;
-      }
-
-      /* Check the oldest game where it's your turn */
-      let lastMove: Date = new Date();
-      for (const game of activeGames) {
-        const timerStart = game.currentPlayers.find((pl) => pl._id.equals(this.id))?.timerStart;
-        if (timerStart && timerStart < lastMove) {
-          lastMove = timerStart;
-        }
-      }
-
-      /* Test if we're sending the notification too early */
-      const notificationDate = new Date(lastMove.getTime() + (user.settings.mailing.game.delay || 30 * 60) * 1000);
-
-      if (notificationDate > new Date()) {
-        user.meta.nextGameNotification = notificationDate;
-        await user.save();
-        return;
-      }
-
-      const gameString = activeGames.length > 1 ? `${activeGames.length} games` : "one game";
-
-      // Send email
-      if (this.email() && this.security.confirmed) {
-        sendmail({
-          from: env.noreply,
-          to: this.email(),
-          subject: `Your turn`,
-          html: `
-        <p>Hello ${this.account.username}</p>
-
-        <p>It's your turn on ${gameString},
-        click <a href='http://${env.site}/user/${encodeURIComponent(
-            this.account.username
-          )}'>here</a> to see your active games.</p>
-
-        <p>You can also change your email settings and unsubscribe <a href='http://${
-            env.site
-          }/account'>here</a> with a simple click.</p>`,
-        }).catch(console.error);
-      }
-
-      user.meta.nextGameNotification = undefined;
-      user.meta.lastGameNotification = new Date(Date.now());
-
-      await user.save();
-    } catch (err) {
-      console.error(err);
-    }
-  }
-});
-
-schema.method("updateGameNotification", async function (this: UserDocument) {
-  if (!this.settings.mailing.game.activated) {
-    return;
-  }
-  const date = new Date(Date.now() + (this.settings.mailing.game.delay || 30 * 60) * 1000);
-  if (!this.meta.nextGameNotification || this.meta.nextGameNotification > date) {
-    this.meta.nextGameNotification = date;
-    await this.save();
-  }
-});
-
-schema.method("isSocialAccount", function (this: UserDocument) {
-  return false;
-});
-
-schema.method("notifyLogin", function (this: UserDocument, ip: string) {
-  return this.update({
-    "security.lastLogin.date": Date.now(),
-    "security.lastLogin.ip": ip,
-    "security.lastIp": ip,
-  });
-});
-
-schema.method("notifyLastIp", async function (this: UserDocument, ip: string) {
-  const update: { "security.lastIp"?: string; "security.lastActive"?: Date } = {};
-  if (this.security.lastIp !== ip) {
-    this.security.lastIp = ip;
-    update["security.lastIp"] = ip;
-  }
-  if (!this.security.lastActive || Date.now() - this.security.lastActive.getTime() > 60 * 1000) {
-    this.security.lastActive = new Date();
-    update["security.lastActive"] = new Date();
-  }
-  if (Object.keys(update).length > 0) {
-    await this.update(update);
-  }
-});
-
-schema.method("isAdmin", function (this: UserDocument) {
-  return this.authority === "admin";
-});
-
-schema.static("findByUrl", function (this: UserModel, urlComponent: string) {
-  return this.findById(new Types.ObjectId(urlComponent));
-});
-
-schema.static("findByUsername", function (this: UserModel, username: string) {
-  return this.findOne({ "security.slug": username.toLowerCase().replace(/\s+/g, "-") });
-});
-
-schema.static("findByEmail", function (this: UserModel, email: string) {
-  return this.findOne({ "account.email": email.toLowerCase().trim() });
-});
-
-schema.method("recalculateKarma", async function (this: UserDocument, since = new Date(0)) {
-  const games = await Game.find({ "players._id": this._id, lastMove: { $gte: since } }, "status cancelled players", {
-    lean: true,
-  }).sort("lastMove");
+export async function recalculateKarma(user: WithId<UserDoc>, since = new Date(0)) {
+  const playerGames = await colls.games
+    .find(
+      { "players._id": user._id, lastMove: { $gte: since } },
+      { projection: { status: 1, cancelled: 1, players: 1 }, sort: { lastMove: 1 } }
+    )
+    .toArray();
 
   let karma = defaultKarma;
 
-  for (const game of games) {
-    if (game.players.find((player) => player._id.equals(this._id)).dropped) {
+  for (const game of playerGames) {
+    if (game.players.find((player) => player._id.equals(user._id))?.dropped) {
       karma -= 10;
     } else if (!game.cancelled && game.status === "ended") {
       karma = Math.min(karma + 1, maxKarma);
     }
   }
 
-  this.account.karma = karma;
-});
+  user.account.karma = karma;
+  await colls.users.updateOne({ _id: user._id }, { $set: { "account.karma": karma } });
+}
 
-schema.pre("save", function (this: UserDocument) {
-  if (!this.security.slug && this.account.username) {
-    this.security.slug = this.account.username.toLowerCase().trim().replace(/\s+/g, "-");
+export async function notifyLogin(user: WithId<UserDoc>, ip: string) {
+  await colls.users.updateOne(
+    { _id: user._id },
+    { $set: { "security.lastLogin.date": new Date(), "security.lastLogin.ip": ip, "security.lastIp": ip } }
+  );
+}
+
+export async function notifyLastIp(user: WithId<UserDoc>, ip: string) {
+  const update: Record<string, any> = {};
+  if (user.security.lastIp !== ip) {
+    update["security.lastIp"] = ip;
   }
-});
+  if (!user.security.lastActive || Date.now() - new Date(user.security.lastActive).getTime() > 60 * 1000) {
+    update["security.lastActive"] = new Date();
+  }
+  if (Object.keys(update).length > 0) {
+    await colls.users.updateOne({ _id: user._id }, { $set: update });
+  }
+}
 
-const User = mongoose.model("User", schema);
-export { User };
+export function sendConfirmationEmail(user: WithId<UserDoc>) {
+  return sendmail({
+    from: env.noreply,
+    to: user.account.email!,
+    subject: "Confirm your account",
+    html: `
+    <p>Hello, we're delighted to have a new Gaia Project player among us!</p>
+    <p>To finish your registration and confirm your account with us at ${env.site},
+     click <a href='http://${env.site}/confirm?key=${encodeURIComponent(user.security.confirmKey!)}&email=${encodeURIComponent(user.account.email!)}'>here</a>.</p>
+
+    <p>If you didn't create an account with us, ignore this email.</p>`,
+  });
+}
+
+export function sendResetEmail(user: WithId<UserDoc>) {
+  return sendmail({
+    from: env.noreply,
+    to: user.account.email!,
+    subject: "Forgotten password",
+    html: `
+    <p>A password reset was asked for your account,
+    click <a href='http://${env.site}/reset?key=${encodeURIComponent(user.security.reset!.key!)}&email=${encodeURIComponent(user.account.email!)}'>here</a> to reset your password.</p>
+
+    <p>If this didn't come from you, ignore this email.</p>`,
+  });
+}
+
+export function sendMailChangeEmail(user: WithId<UserDoc>, newEmail: string) {
+  if (!user.account.email) {
+    return Promise.resolve();
+  }
+
+  return sendmail({
+    from: env.noreply,
+    to: user.account.email,
+    subject: "Mail change",
+    html: `
+    <p>Hello ${user.account.username},</p>
+    <p>We're here to send you confirmation of your email change to ${escape(newEmail)}!</p>
+    <p>If you didn't change your email, please contact us ASAP at ${env.contact}.</p>`,
+  });
+}
+
+export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
+  await using _lock = await locks.lock("game-notification", user._id.toString());
+  try {
+    const freshUser = await colls.users.findOne({ _id: user._id });
+    if (!freshUser) {
+      return;
+    }
+
+    if (!freshUser.settings?.mailing?.game?.activated) {
+      await colls.users.updateOne({ _id: user._id }, { $unset: { "meta.nextGameNotification": "" } });
+      return;
+    }
+
+    if (!freshUser.meta?.nextGameNotification || freshUser.meta.nextGameNotification > new Date()) {
+      return;
+    }
+
+    const count = await colls.games.countDocuments({
+      currentPlayers: { $elemMatch: { _id: user._id, timerStart: { $lt: freshUser.meta.lastGameNotification } } },
+      status: "active",
+    });
+
+    if (count > 0) {
+      return;
+    }
+
+    const activeGames = await findGamesWithPlayersTurn(user._id)
+      .project({ data: 0 })
+      .toArray();
+
+    if (activeGames.length === 0) {
+      await colls.users.updateOne({ _id: user._id }, { $unset: { "meta.nextGameNotification": "" } });
+      return;
+    }
+
+    let lastMove = new Date();
+    for (const game of activeGames) {
+      const timerStart = game.currentPlayers?.find((pl: any) => pl._id.equals(user._id))?.timerStart;
+      if (timerStart && timerStart < lastMove) {
+        lastMove = timerStart;
+      }
+    }
+
+    const notificationDate = new Date(
+      lastMove.getTime() + (freshUser.settings.mailing.game.delay || 30 * 60) * 1000
+    );
+
+    if (notificationDate > new Date()) {
+      await colls.users.updateOne({ _id: user._id }, { $set: { "meta.nextGameNotification": notificationDate } });
+      return;
+    }
+
+    const gameString = activeGames.length > 1 ? `${activeGames.length} games` : "one game";
+
+    if (freshUser.account.email && freshUser.security.confirmed) {
+      sendmail({
+        from: env.noreply,
+        to: freshUser.account.email,
+        subject: "Your turn",
+        html: `
+        <p>Hello ${freshUser.account.username}</p>
+        <p>It's your turn on ${gameString},
+        click <a href='http://${env.site}/user/${encodeURIComponent(freshUser.account.username!)}'>here</a> to see your active games.</p>
+        <p>You can also change your email settings and unsubscribe <a href='http://${env.site}/account'>here</a> with a simple click.</p>`,
+      }).catch(console.error);
+    }
+
+    await colls.users.updateOne(
+      { _id: user._id },
+      { $set: { "meta.lastGameNotification": new Date() }, $unset: { "meta.nextGameNotification": "" } }
+    );
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+export function stripSensitiveFields(user: WithId<UserDoc>): WithId<UserDoc> {
+  const copy = { ...user };
+  if (copy.account) {
+    copy.account = { ...copy.account };
+    delete (copy.account as any).password;
+  }
+  if (copy.security) {
+    copy.security = { ...copy.security };
+    delete (copy.security as any).confirmKey;
+    if (copy.security.reset) {
+      copy.security.reset = { ...copy.security.reset };
+      delete (copy.security.reset as any).key;
+    }
+  }
+  return copy;
+}
+
+export function userPublicInfo(user: WithId<UserDoc>) {
+  return {
+    _id: user._id,
+    account: {
+      username: user.account?.username,
+      bio: user.account?.bio,
+      karma: user.account?.karma,
+    },
+    createdAt: user.createdAt,
+  };
+}

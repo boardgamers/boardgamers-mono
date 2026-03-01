@@ -11,7 +11,7 @@ import morgan from "koa-morgan";
 import Router from "koa-router";
 /* Configure passport */
 import env from "./config/env.ts";
-import { GameInfo } from "./models/index.ts";
+import { colls } from "./config/db.ts";
 
 const router = new Router();
 
@@ -20,9 +20,9 @@ router.get("/iframe", (ctx) => {
 });
 
 router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
-  const gameInfo = await GameInfo.findById({ game: ctx.params.game_name, version: +ctx.params.game_version }).lean(
-    true
-  );
+  const gameInfo = await colls.gameInfos.findOne({
+    _id: { game: ctx.params.game_name, version: +ctx.params.game_version },
+  });
 
   if (!gameInfo) {
     console.log("Game info not found");

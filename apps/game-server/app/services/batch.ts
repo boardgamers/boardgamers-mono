@@ -1,15 +1,15 @@
-import type { GameDocument } from "../models/game.ts";
-import Game from "../models/game.ts";
+import type { GameDoc } from "@bgs/models";
+import type { Filter } from "mongodb";
+import { colls } from "../config/db.ts";
 import locks from "../config/locks.ts";
-import type { FilterQuery } from "mongoose";
 import { getEngine } from "./engines.ts";
 import { afterMove } from "./game.ts";
 
-export async function batchReplay(cond: FilterQuery<GameDocument>) {
+export async function batchReplay(cond: Filter<GameDoc>) {
   let success = 0;
   let total = 0;
 
-  for await (const game of Game.find(cond).lean(true).batchSize(1).cursor()) {
+  for await (const game of colls.games.find(cond)) {
     try {
       total++;
 

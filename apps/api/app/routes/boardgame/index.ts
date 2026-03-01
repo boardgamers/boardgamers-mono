@@ -1,15 +1,16 @@
 import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
-import { GameInfo, GamePreferences } from "../../models/index.ts";
+import { colls } from "../../config/db.ts";
 import GameInfoService from "../../services/gameinfo.ts";
 import { queryCount, skipCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
 router.param("boardgame", async (boardgame, ctx, next) => {
-  ctx.state.foundBoardgame = await GameInfo.findOne({ "_id.game": boardgame, "meta.public": true }).sort(
-    "-_id.version"
+  ctx.state.foundBoardgame = await colls.gameInfos.findOne(
+    { "_id.game": boardgame, "meta.public": true },
+    { sort: { "_id.version": -1 } }
   );
 
   if (!ctx.state.foundBoardgame) {
@@ -25,22 +26,24 @@ router.param("boardgame", async (boardgame, ctx, next) => {
 
 router.get("/info", async (ctx) => {
   const ownGames = ctx.state.user
-    ? await GamePreferences.find(
-        { user: ctx.state.user.id, "access.maxVersion": { $exists: true } },
-        "game access.maxVersion",
-        { lean: true }
-      )
+    ? await colls.gamePreferences
+        .find({
+          user: ctx.state.user._id,
+          "access.maxVersion": { $exists: true },
+        })
+        .project({ game: 1, "access.maxVersion": 1 })
+        .toArray()
     : [];
-  ctx.body = await GameInfo.find(
-    {
+  ctx.body = await colls.gameInfos
+    .find({
       $or: [
         { "meta.public": true },
         ...ownGames.map((game) => ({ _id: { game: game.game, version: game.access.maxVersion } })),
       ],
-    },
-    "-viewer",
-    { lean: true }
-  ).sort("_id.game -_id.version");
+    })
+    .project({ viewer: 0 })
+    .sort({ "_id.game": 1, "_id.version": -1 })
+    .toArray();
 });
 
 router.get("/:boardgame", (ctx) => {
@@ -61,7 +64,8 @@ router.get("/:boardgame/info/latest", async (ctx) => {
 
 router.get("/:boardgame/elo", async (ctx) => {
   const boardgameName = ctx.state.foundBoardgame._id.game;
-  ctx.body = await GamePreferences.aggregate([
+  ctx.body = await colls.gamePreferences
+    .aggregate([
     {
       $match: {
         game: boardgameName,
@@ -98,16 +102,19 @@ router.get("/:boardgame/elo", async (ctx) => {
         "user._id": "$userData._id",
       },
     },
-  ]);
+  ])
+    .toArray();
 });
 
 router.get("/:boardgame/elo/count", async (ctx) => {
   const boardgameName = ctx.state.foundBoardgame._id.game;
-  ctx.body = await GamePreferences.count({ game: boardgameName, "elo.value": { $gt: 0 } }).exec();
+  ctx.body = await colls.gamePreferences.countDocuments({ game: boardgameName, "elo.value": { $gt: 0 } });
 });
 
 router.get("/:boardgame/info/:version", async (ctx) => {
-  const game = await GameInfo.findOne({ _id: { game: ctx.params.boardgame, version: +ctx.params.version } }).lean(true);
+  const game = await colls.gameInfos.findOne({
+    _id: { game: ctx.params.boardgame, version: +ctx.params.version },
+  });
 
   if (game) {
     ctx.body = game;

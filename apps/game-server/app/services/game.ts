@@ -1,13 +1,10 @@
+import type { GameDoc, GameNotificationDoc } from "@bgs/models";
 import { deadline, elapsedSeconds } from "@bgs/utils/time";
 import assert from "assert";
 import crypto from "crypto";
+import { colls } from "../config/db.ts";
 import locks from "../config/locks.ts";
 import env from "../config/env.ts";
-import ChatMessage from "../models/chatmessage.ts";
-import type { GameDocument } from "../models/game.ts";
-import Game from "../models/game.ts";
-import type { GameNotificationDocument } from "../models/gamenotification.ts";
-import GameNotification from "../models/gamenotification.ts";
 import type { Engine, GameData } from "../types/engine.ts";
 import { getEngine } from "./engines.ts";
 
@@ -16,7 +13,7 @@ export async function handleMessages(engine: Engine, gameId: string, gameData: G
     const ret = engine.messages(gameData);
 
     for (const message of ret.messages) {
-      await ChatMessage.create({ room: gameId, type: "system", data: { text: message } });
+      await colls.chatMessages.insertOne({ room: gameId, type: "system", data: { text: message } } as any);
     }
 
     return ret.data;
@@ -26,11 +23,11 @@ export async function handleMessages(engine: Engine, gameId: string, gameData: G
 }
 
 export async function addMessage(gameId: string, message: string) {
-  await ChatMessage.create({ room: gameId, type: "system", data: { text: message } });
+  await colls.chatMessages.insertOne({ room: gameId, type: "system", data: { text: message } } as any);
 }
 
 export async function startNextGame(): Promise<boolean> {
-  const notification = await GameNotification.findOne({ kind: "gameStarted", processed: false });
+  const notification = await colls.gameNotifications.findOne({ kind: "gameStarted", processed: false });
 
   if (!notification) {
     return false;
@@ -40,11 +37,10 @@ export async function startNextGame(): Promise<boolean> {
     {
       await using _lock = await locks.lock("game", notification.game);
 
-      const game = await Game.findById(notification.game);
+      const game = await colls.games.findOne({ _id: notification.game as unknown as string });
 
       if (!game || game.status !== "open" || game.players.length < game.options.setup.nbPlayers) {
-        // Something happened, not ready to start
-        await notification.update({ processed: true });
+        await colls.gameNotifications.updateOne({ _id: notification._id }, { $set: { processed: true } });
         return true;
       }
 
@@ -53,7 +49,6 @@ export async function startNextGame(): Promise<boolean> {
       let seed = game.options.setup.seed;
 
       if (engine.stripSecret) {
-        // encrypt seed if there are secrets
         seed = crypto.createHash("sha256").update(seed).update(env.seedEncryptionKey).digest().toString("base64");
       }
 
@@ -78,7 +73,6 @@ export async function startNextGame(): Promise<boolean> {
 
       const currentPlayers: number[] = (() => {
         const current = engine.currentPlayer(gameData) ?? [];
-
         return Array.isArray(current) ? current : [current];
       })();
 
@@ -97,11 +91,16 @@ export async function startNextGame(): Promise<boolean> {
         game.context.round = engine.round(gameData);
       }
 
-      await game.save();
+      game.data = JSON.parse(JSON.stringify(game.data));
+      await colls.games.replaceOne({ _id: game._id }, game);
+
       const promises = (game.currentPlayers ?? []).map((pl) =>
-        GameNotification.create({ user: pl._id, createdAt: new Date(), game: game._id, kind: "currentMove" })
+        colls.gameNotifications.insertOne({ user: pl._id, createdAt: new Date(), game: game._id, kind: "currentMove", processed: false } as any)
       );
-      await Promise.all([...promises, notification.update({ processed: true })]);
+      await Promise.all([
+        ...promises,
+        colls.gameNotifications.updateOne({ _id: notification._id }, { $set: { processed: true } }),
+      ]);
 
       return true;
     }
@@ -111,23 +110,22 @@ export async function startNextGame(): Promise<boolean> {
   }
 }
 
-export async function processQuit(notification: GameNotificationDocument) {
+export async function processQuit(notification: GameNotificationDoc) {
   try {
     {
       await using _lock = await locks.lock("game", notification.game);
 
-      const game = await Game.findById(notification.game);
+      const game = await colls.games.findOne({ _id: notification.game as unknown as string });
 
       if (!game || game.status !== "active") {
-        // Something happened, not ready to start
-        await notification.update({ processed: true });
+        await colls.gameNotifications.updateOne({ _id: notification._id }, { $set: { processed: true } });
         return true;
       }
 
       const player = game.players.find((pl) => pl._id.equals(notification.user));
 
       if (!player || player.dropped || player.quit) {
-        await notification.update({ processed: true });
+        await colls.gameNotifications.updateOne({ _id: notification._id }, { $set: { processed: true } });
         return true;
       }
 
@@ -145,16 +143,18 @@ export async function processQuit(notification: GameNotificationDocument) {
         player.dropped = true;
       }
 
-      ChatMessage.create({
-        room: game._id,
-        type: "system",
-        data: {
-          text:
-            notification.kind === "playerQuit"
-              ? `${player.name} quit the game`
-              : `${player.name} was dropped from the game`,
-        },
-      }).catch(console.error);
+      colls.chatMessages
+        .insertOne({
+          room: game._id,
+          type: "system",
+          data: {
+            text:
+              notification.kind === "playerQuit"
+                ? `${player.name} quit the game`
+                : `${player.name} was dropped from the game`,
+          },
+        } as any)
+        .catch(console.error);
 
       if (engine.toSave) {
         gameData = engine.toSave(gameData);
@@ -163,14 +163,13 @@ export async function processQuit(notification: GameNotificationDocument) {
       if (gameData) {
         await afterMove(engine, game, gameData);
 
-        // Here to only trigger if the game is saved
         if (notification.kind === "dropPlayer") {
-          GameNotification.create({ kind: "playerDrop", game: notification.game, user: notification.user }).catch(
-            console.error
-          );
+          colls.gameNotifications
+            .insertOne({ kind: "playerDrop", game: notification.game, user: notification.user, processed: false } as any)
+            .catch(console.error);
         }
       }
-      await notification.update({ processed: true });
+      await colls.gameNotifications.updateOne({ _id: notification._id }, { $set: { processed: true } });
 
       return true;
     }
@@ -180,7 +179,7 @@ export async function processQuit(notification: GameNotificationDocument) {
   }
 }
 
-export async function afterMove(engine: Engine, game: GameDocument, gameData: GameData, alreadyEnded = false) {
+export async function afterMove(engine: Engine, game: GameDoc, gameData: GameData, alreadyEnded = false) {
   const oldPlayers = game.currentPlayers;
 
   gameData = await handleMessages(engine, game._id, gameData);
@@ -204,7 +203,6 @@ export async function afterMove(engine: Engine, game: GameDocument, gameData: Ga
   } else {
     const currentPlayers: number[] = (() => {
       const current = engine.currentPlayer(gameData) ?? [];
-
       return Array.isArray(current) ? current : [current];
     })();
     game.currentPlayers = currentPlayers.map((playerNumber) => {
@@ -244,9 +242,6 @@ export async function afterMove(engine: Engine, game: GameDocument, gameData: Ga
   }
 
   if (!engine.ended(gameData)) {
-    /**
-     * Update time of players who just played
-     */
     for (const oldPlayer of oldPlayers.filter((pl) => !game.currentPlayers?.some((pl2) => pl2._id.equals(pl._id)))) {
       const player = game.players.find((pl) => pl._id.equals(oldPlayer._id))!;
       player.remainingTime =
@@ -262,20 +257,23 @@ export async function afterMove(engine: Engine, game: GameDocument, gameData: Ga
         );
       }
     }
-
-    game.markModified("players");
   }
 
   game.lastMove = new Date();
-  game.data = gameData;
+  game.data = JSON.parse(JSON.stringify(gameData));
 
-  game.markModified("data");
+  await colls.games.replaceOne({ _id: game._id }, game);
 
-  await game.save();
   for (const player of game.currentPlayers ?? []) {
-    await GameNotification.create({ user: player, createdAt: new Date(), game: game._id, kind: "currentMove" });
+    await colls.gameNotifications.insertOne({
+      user: player._id,
+      createdAt: new Date(),
+      game: game._id,
+      kind: "currentMove",
+      processed: false,
+    } as any);
   }
   if (game.status === "ended" && !alreadyEnded) {
-    await GameNotification.create({ game: game._id, kind: "gameEnded" });
+    await colls.gameNotifications.insertOne({ game: game._id, kind: "gameEnded", processed: false } as any);
   }
 }

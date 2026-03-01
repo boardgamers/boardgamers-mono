@@ -1,31 +1,25 @@
 import { omit } from "@bgs/utils/object";
 import type { Context } from "koa";
 import Router from "koa-router";
-import { Page } from "../../models/index.ts";
+import { colls } from "../../config/db.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
 router.get("/", async (ctx) => {
-  ctx.body = await Page.find({}, "_id").lean(true);
+  ctx.body = await colls.pages.find({}, { projection: { _id: 1 } }).toArray();
 });
 
 router.post("/:name/:lang", async (ctx) => {
-  const page = await Page.findByIdAndUpdate(
-    {
-      name: ctx.params.name,
-      lang: ctx.params.lang,
-    },
-    omit(ctx.request.body as Record<string, unknown>, "_id"),
-    {
-      upsert: true,
-      runValidators: true,
-    }
+  const page = await colls.pages.findOneAndUpdate(
+    { _id: { name: ctx.params.name, lang: ctx.params.lang } },
+    { $set: omit(ctx.request.body as Record<string, unknown>, "_id") },
+    { upsert: true, returnDocument: "after" }
   );
   ctx.body = page;
 });
 
 router.delete("/:name/:lang", async (ctx) => {
-  await Page.deleteOne({
+  await colls.pages.deleteOne({
     _id: {
       name: ctx.params.name,
       lang: ctx.params.lang,

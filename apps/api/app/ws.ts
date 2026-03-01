@@ -1,20 +1,21 @@
 import { keyBy, sortBy, uniqBy } from "@bgs/utils/array";
 import delay from "delay";
 import jwt from "jsonwebtoken";
-import { Types } from "mongoose";
+import { ObjectId } from "mongodb";
 import cache from "node-cache";
 import WebSocket, { Server } from "ws";
 import "./config/db.ts";
 import env from "./config/env.ts";
-import { ChatMessage, Game, User } from "./models/index.ts";
-import type { GameDocument } from "./models/game.ts";
+import type { GameDoc } from "@bgs/models";
+import { colls } from "./config/db.ts";
+import { findGamesWithPlayersTurn } from "./models/index.ts";
 
 const wss = new Server({ port: env.listen.port.ws, host: env.listen.host });
 
 type AugmentedWebSocket = WebSocket & {
   game?: string;
   room?: string;
-  user?: Types.ObjectId;
+  user?: ObjectId | null;
   gameUpdate?: Date;
   isAlive?: boolean;
 };
@@ -56,34 +57,50 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
         ws.room = data.room;
 
         // Show only last 100 messages
-        const roomMessages = await ChatMessage.find({ room: data.room })
-          .lean(true)
-          // Migrate old schema where user contained the author id
-          // todo: Remove once all the old chat messages expire
-          .select({
-            author: { $cond: [{ $eq: [{ $type: "$author" }, "objectId"] }, { _id: "$author", name: "-" }, "$author"] },
-            _id: 1,
-            data: 1,
-            type: 1,
-          })
-          .sort("-_id")
-          .limit(100);
+        // Migrate old schema where user contained the author id
+        // todo: Remove once all the old chat messages expire
+        const roomMessages = await colls.chatMessages
+          .aggregate([
+            { $match: { room: data.room } },
+            { $sort: { _id: -1 } },
+            { $limit: 100 },
+            {
+              $project: {
+                author: {
+                  $cond: [
+                    { $eq: [{ $type: "$author" }, "objectId"] },
+                    { _id: "$author", name: "-" },
+                    "$author",
+                  ],
+                },
+                _id: 1,
+                data: 1,
+                type: 1,
+              },
+            },
+          ])
+          .toArray();
 
         // todo: Remove once all the old chat messages expire
-        const userIds = [...new Set(
-          roomMessages.filter((msg) => msg.author?.name === "-").map((msg) => msg.author._id.toString())
-        )];
+        const userIds = [
+          ...new Set(
+            roomMessages
+              .filter((msg: any) => msg.author?.name === "-")
+              .map((msg: any) => msg.author._id.toString())
+          ),
+        ];
         if (userIds.length > 0) {
           const userNames = Object.fromEntries(
             (
-              await User.find({ _id: { $in: userIds } })
-                .select("account.username")
-                .lean(true)
+              await colls.users
+                .find({ _id: { $in: userIds.map((id) => new ObjectId(id)) } })
+                .project({ "account.username": 1 })
+                .toArray()
             ).map((user) => [user._id.toString(), user.account.username])
           );
           for (const message of roomMessages) {
-            if (message.author?.name === "-") {
-              message.author.name = userNames[message.author._id.toString()] || "-";
+            if ((message as any).author?.name === "-") {
+              (message as any).author.name = userNames[(message as any).author._id.toString()] || "-";
             }
           }
         }
@@ -105,12 +122,11 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
         ws.gameUpdate = null;
       }
       if ("fetchPlayerStatus" in data && ws.game && gameCache.get(ws.game)) {
-        const game = gameCache.get<GameDocument>(ws.game);
-        const users = await User.find(
-          { _id: { $in: game.players.map((x) => x._id) } },
-          "security.lastActive security.lastOnline",
-          { lean: true }
-        );
+        const game = gameCache.get<GameDoc>(ws.game);
+        const userDocs = await colls.users
+          .find({ _id: { $in: game.players.map((x) => x._id) } })
+          .project({ "security.lastActive": 1, "security.lastOnline": 1 })
+          .toArray();
 
         if (ws.readyState !== ws.OPEN) {
           return;
@@ -120,7 +136,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
         ws.send(
           JSON.stringify({
             command: "game:playerStatus",
-            players: users.map((user) => ({
+            players: userDocs.map((user) => ({
               _id: user._id,
               status:
                 Date.now() - (user.security.lastOnline ?? new Date(0)).getTime() < 60 * 1000
@@ -137,7 +153,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
           const decoded = jwt.verify(data.jwt, env.jwt.keys.public) as { userId: string; scopes: string[] };
 
           if (decoded) {
-            ws.user = new Types.ObjectId(decoded.userId);
+            ws.user = new ObjectId(decoded.userId);
             updateActivity(ws.user, true).catch(console.error);
             sendActiveGames(ws);
           } else {
@@ -178,18 +194,17 @@ setInterval(function ping() {
 
 function sendActiveGames(ws: AugmentedWebSocket) {
   if (ws.user) {
-    (Game as any)
-      .findWithPlayersTurn(ws.user)
-      .select("_id")
-      .lean(true)
-      .then((games) => {
-        ws.send(JSON.stringify({ command: "games:currentTurn", games: games.map((game) => game._id) }));
+    findGamesWithPlayersTurn(ws.user)
+      .project({ _id: 1 })
+      .toArray()
+      .then((gamesList) => {
+        ws.send(JSON.stringify({ command: "games:currentTurn", games: gamesList.map((game) => game._id) }));
       })
       .catch(console.error);
   }
 }
 
-let lastChecked = Types.ObjectId.createFromTime(Math.floor(Date.now() / 1000));
+let lastChecked = ObjectId.createFromTime(Math.floor(Date.now() / 1000));
 
 const gameCache = new cache({ stdTTL: 24 * 3600 });
 
@@ -199,9 +214,9 @@ const gameCache = new cache({ stdTTL: 24 * 3600 });
 async function run() {
   while (1) {
     // Find new messages
-    const messages = await ChatMessage.find()
-      .where({ _id: { $gt: lastChecked } })
-      .lean();
+    const messages = await colls.chatMessages
+      .find({ _id: { $gt: lastChecked } })
+      .toArray();
     const messagesPerRooms = Object.groupBy(messages, (msg) => msg.room.toString());
 
     for (const msg of messages) {
@@ -230,24 +245,31 @@ async function run() {
     }));
 
     if (gameConditions.length > 0) {
-      const games = await Game.find({ $or: gameConditions }, "updatedAt players._id", { lean: true });
+      const gamesList = await colls.games
+        .find({ $or: gameConditions })
+        .project({ updatedAt: 1, "players._id": 1 })
+        .toArray();
 
-      for (const game of games) {
+      for (const game of gamesList) {
         gameCache.set(game._id, game);
       }
 
-      if (games.length > 0) {
+      if (gamesList.length > 0) {
         const playerIds = (
-          await Game.aggregate()
-            .match({ _id: { $in: games.map((game) => game._id) } })
-            .project({ "players._id": 1 })
-            .unwind("players")
-            .group({ _id: "$players._id" })
+          await colls.games
+            .aggregate([
+              { $match: { _id: { $in: gamesList.map((game) => game._id) } } },
+              { $project: { "players._id": 1 } },
+              { $unwind: "$players" },
+              { $group: { _id: "$players._id" } },
+            ])
+            .toArray()
         ).map((x) => x._id);
-        const users = await User.find({ _id: { $in: playerIds } }, "security.lastActive security.lastOnline", {
-          lean: true,
-        });
-        const usersById = keyBy<(typeof users)[0]>(users, (user) => user._id.toString());
+        const userDocs = await colls.users
+          .find({ _id: { $in: playerIds } })
+          .project({ "security.lastActive": 1, "security.lastOnline": 1 })
+          .toArray();
+        const usersById = keyBy<(typeof userDocs)[0]>(userDocs, (user) => user._id.toString());
 
         for (const ws of clients()) {
           if (ws.readyState !== WebSocket.OPEN) {
@@ -255,7 +277,7 @@ async function run() {
           }
 
           if (ws.game) {
-            const game = gameCache.get<GameDocument>(ws.game);
+            const game = gameCache.get<GameDoc>(ws.game);
             const localUpdate: Date = game?.updatedAt;
             if (localUpdate && (!ws.gameUpdate || ws.gameUpdate < localUpdate)) {
               ws.gameUpdate = localUpdate;
@@ -265,8 +287,8 @@ async function run() {
                 JSON.stringify({
                   command: "game:playerStatus",
                   players: game.players
-                    .filter((pl) => pl._id.toString() in usersById)
-                    .map((pl) => usersById[pl._id.toString()])
+                    .filter((pl: any) => pl._id.toString() in usersById)
+                    .map((pl: any) => usersById[pl._id.toString()])
                     .map((user) => ({
                       _id: user._id,
                       status:
@@ -293,15 +315,15 @@ run().catch((err: Error) => {
   process.exit(1);
 });
 
-async function updateActivity(user: Types.ObjectId, online: boolean) {
+async function updateActivity(user: ObjectId, online: boolean) {
   try {
     if (online) {
-      await User.updateOne(
+      await colls.users.updateOne(
         { _id: user },
         { $set: { "security.lastActive": new Date(), "security.lastOnline": new Date() } }
       );
     } else {
-      await User.updateOne({ _id: user }, { $set: { "security.lastActive": new Date() } });
+      await colls.users.updateOne({ _id: user }, { $set: { "security.lastActive": new Date() } });
     }
   } catch (err) {
     console.error(err);

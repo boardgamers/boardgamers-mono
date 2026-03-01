@@ -1,17 +1,16 @@
  
 
 
-import type { GameDocument } from "./models/game.ts";
-import type { GameInfoDocument } from "./models/gameinfo.ts";
-import type { UserDocument } from "./models/user.ts";
+import type { GameDoc, GameInfoDoc, UserDoc } from "@bgs/models";
+import type { WithId } from "mongodb";
 
 declare global {
   namespace Application {
     export interface DefaultState {
-      user?: UserDocument;
-      game?: GameDocument;
-      foundUser?: UserDocument;
-      foundBoardgame?: GameInfoDocument;
+      user?: WithId<UserDoc>;
+      game?: GameDoc;
+      foundUser?: WithId<UserDoc>;
+      foundBoardgame?: GameInfoDoc;
       ip: string;
     }
   }

@@ -1,26 +1,31 @@
-import type { Collection } from "mongoose";
-import mongoose from "mongoose";
+import type { Collection } from "mongodb";
 import { env } from "../app/config/index.ts";
-import initDb from "../app/config/db.ts";
-import * as models from "../app/models/index.ts";
+import initDb, { closeDb, db } from "../app/config/db.ts";
 import * as data from "./data/index.ts";
 
 if (process.env.NODE_ENV !== "test") {
   env.script = true;
 }
 
-/**
- *
- * @param collections Collection names to seed. If undefined, all collections in the seed file
- */
+const collectionMap: Record<string, string> = {
+  users: "users",
+  games: "games",
+  gameInfos: "gameinfos",
+  gamePreferences: "gamepreferences",
+  chatMessages: "chatmessages",
+  settings: "settings",
+  pages: "pages",
+};
+
 export async function seed(collections?: string[], dropIfExists?: boolean) {
   for (const collection of collections ?? Object.keys(data)) {
-    const coll: Collection = models[collection];
-
-    if (!coll) {
-      console.error(`Collection ${collection} is not registered in the code`);
+    const collName = collectionMap[collection];
+    if (!collName) {
+      console.error(`Collection ${collection} is not mapped`);
       continue;
     }
+
+    const coll = db().collection(collName);
 
     if (!(collection in data)) {
       console.error(`Collection ${collection} does not have a seeding file`);
@@ -34,17 +39,15 @@ export async function seed(collections?: string[], dropIfExists?: boolean) {
       continue;
     }
 
-    console.log(`Inserting ${data[collection].length} item(s) in collection ${collection}`);
-
-    await coll.insertMany(data[collection]);
+    console.log(`Inserting ${(data as any)[collection].length} item(s) in collection ${collection}`);
+    await coll.insertMany((data as any)[collection]);
   }
 }
 
 async function run() {
   await initDb();
   await seed();
-
-  mongoose.connection.close();
+  await closeDb();
 }
 
 if (process.env.NODE_ENV !== "test") {

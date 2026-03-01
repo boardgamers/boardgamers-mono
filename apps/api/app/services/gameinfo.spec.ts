@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
-import { GameInfo, GamePreferences, User } from "../models/index.ts";
+import { colls } from "../config/db.ts";
+import { findByUsername } from "../models/index.ts";
 import { setup } from "../config/test-setup.ts";
 import { seed } from "../../scripts/seed.ts";
 import GameInfoService from "./gameinfo.ts";
@@ -26,7 +27,7 @@ describe("GameInfoService", () => {
         ["powergrid", 1],
       ]);
 
-      await GameInfo.updateOne({ _id: { game: "container", version: 1 } }, { $set: { "meta.public": false } });
+      await colls.gameInfos.updateOne({ _id: { game: "container", version: 1 } }, { $set: { "meta.public": false } });
 
       games = await GameInfoService.latestAccessibleGames();
 
@@ -37,7 +38,7 @@ describe("GameInfoService", () => {
     });
 
     it("should return all available games for admin user", async () => {
-      const user = await (User as any).findByUsername("admin");
+      const user = await findByUsername("admin");
 
       let games = await GameInfoService.latestAccessibleGames(user._id);
 
@@ -46,8 +47,8 @@ describe("GameInfoService", () => {
         ["powergrid", 1],
       ]);
 
-      await GameInfo.updateOne({ _id: { game: "container", version: 1 } }, { $set: { "meta.public": false } });
-      await GamePreferences.updateOne({ user: user._id, game: "container" }, { $set: { "access.maxVersion": 1 } });
+      await colls.gameInfos.updateOne({ _id: { game: "container", version: 1 } }, { $set: { "meta.public": false } });
+      await colls.gamePreferences.updateOne({ user: user._id, game: "container" }, { $set: { "access.maxVersion": 1 } });
 
       games = await GameInfoService.latestAccessibleGames(user._id);
 

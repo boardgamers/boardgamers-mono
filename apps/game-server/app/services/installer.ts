@@ -1,7 +1,7 @@
 import { spawn } from "child_process";
 import fs from "fs-extra";
 import pkg from "../../package.json" with { type: "json" };
-import GameInfo from "../models/gameinfo.ts";
+import { colls } from "../config/db.ts";
 import { refreshEngine } from "./engines.ts";
 
 let installing = false;
@@ -26,10 +26,10 @@ export async function installNewGames() {
   try {
     await initIfNeeded();
 
-    const pkg = JSON.parse((await fs.readFile("./games/package.json")).toString("utf-8"));
-    const gameInfos = await GameInfo.find({}, "engine");
+    const currentPkg = JSON.parse((await fs.readFile("./games/package.json")).toString("utf-8"));
+    const infos = await colls.gameInfos.find({}, { projection: { engine: 1 } }).toArray();
 
-    for (const game of gameInfos) {
+    for (const game of infos) {
       if (!game.engine?.package?.version || !game.engine?.package?.name) {
         continue;
       }
@@ -37,8 +37,8 @@ export async function installNewGames() {
       const key = `${game._id.game}_${game._id.version}`;
       const value = `npm:${game.engine.package.name}@${game.engine.package.version}`;
 
-      if (pkg.dependencies?.[key] !== value) {
-        console.log("old version", pkg.dependencies?.[key], "new version", value);
+      if (currentPkg.dependencies?.[key] !== value) {
+        console.log("old version", currentPkg.dependencies?.[key], "new version", value);
         await new Promise((resolve, reject) => {
           const process = spawn("yarn", ["add", `${key}@${value}`], {
             shell: true,

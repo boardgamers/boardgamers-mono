@@ -16,8 +16,8 @@
   },
   "dependencies": {
     "@bgs/models": "workspace:*",
-    "@bgs/utils": "workspace:*",
     "@bgs/types": "workspace:*",
+    "@bgs/utils": "workspace:*",
     "decache": "^4.6.0",
     "fs-extra": "^9.0.0",
     "http-errors": "^1.7.3",
@@ -28,7 +28,7 @@
     "koa-morgan": "^1.0.1",
     "koa-router": "^8.0.8",
     "mongo-locks": "^3.1.2",
-    "mongoose": "^6.0.3"
+    "mongodb": "^7.1.0"
   },
   "devDependencies": {
     "@types/fs-extra": "^8.1.0",

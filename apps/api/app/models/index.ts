@@ -1,22 +1,30 @@
-export { ApiError } from "./apierror.ts";
-export { ChatMessage } from "./chatmessage.ts";
-export type { ChatMessageDocument } from "./chatmessage.ts";
-export { Game } from "./game.ts";
-export type { GameDocument, GameModel } from "./game.ts";
-export { GameInfo } from "./gameinfo.ts";
-export type { GameInfoDocument, GameInfoModel } from "./gameinfo.ts";
-export { GameNotification } from "./gamenotification.ts";
-export { GamePreferences } from "./gamepreferences.ts";
-export type { GamePreferencesDocument, GamePreferencesModel } from "./gamepreferences.ts";
-export { ImageCollection } from "./images.ts";
-export type { Image } from "./images.ts";
-export { JwtRefreshToken } from "./jwtrefreshtokens.ts";
-export { Log } from "./log.ts";
-export type { LogItem } from "./log.ts";
-export { migrations, migrate } from "./migrations.ts";
-export { Page } from "./page.ts";
-export { RoomMetaData } from "./roommetadata.ts";
-export type { RoomMetaDataDocument } from "./roommetadata.ts";
-export { Settings, SettingsKey } from "./settings.ts";
-export { defaultKarma, maxKarma, User } from "./user.ts";
-export type { UserDocument } from "./user.ts";
+export type { ApiErrorDoc } from "@bgs/models";
+export type { ChatMessageDoc } from "@bgs/models";
+export { findGamesWithPlayer, findGamesWithPlayersTurn, gameBasicsProjection } from "./game.ts";
+export type { GameDoc } from "@bgs/models";
+export { findGameInfoWithVersion } from "./gameinfo.ts";
+export type { GameInfoDoc } from "@bgs/models";
+export type { GameNotificationDoc } from "@bgs/models";
+export { eloProjection } from "./gamepreferences.ts";
+export type { GamePreferencesDoc } from "@bgs/models";
+export type { ImageDoc } from "@bgs/models";
+export { accessTokenDuration, createAccessToken, generateRefreshCode } from "./jwtrefreshtokens.ts";
+export type { JwtRefreshTokenDoc } from "@bgs/models";
+export type { LogDoc } from "@bgs/models";
+export type { PageDoc } from "@bgs/models";
+export type { RoomMetaDataDoc } from "@bgs/models";
+export { SettingsKey } from "@bgs/models";
+export type { SettingsDoc } from "@bgs/models";
+export {
+  defaultKarma,
+  maxKarma,
+  findByEmail,
+  findByUsername,
+  isAdmin as isUserAdmin,
+  stripSensitiveFields,
+  publicInfoProjection,
+  userPublicInfo,
+  recalculateKarma,
+  sendConfirmationEmail,
+} from "./user.ts";
+export type { UserDoc } from "@bgs/models";

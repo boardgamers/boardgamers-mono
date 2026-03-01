@@ -3,6 +3,7 @@ import type { Server } from "http";
 import createError from "http-errors";
 import { ZodError } from "zod";
 import jwt from "jsonwebtoken";
+import { ObjectId } from "mongodb";
 /* Koa stuff */
 import Koa from "koa";
 import bodyParser from "koa-bodyparser";
@@ -14,13 +15,15 @@ import passport from "koa-passport";
 import env from "./config/env.ts";
 /* Configure passport */
 import "./config/passport.ts";
-import { ApiError, User } from "./models/index.ts";
-import type { UserDocument } from "./models/user.ts";
+import type { UserDoc } from "@bgs/models";
+import type { WithId } from "mongodb";
+import { colls } from "./config/db.ts";
+import { notifyLogin, notifyLastIp } from "./models/user.ts";
 /* Local stuff */
 import router from "./routes/index.ts";
 
 async function listen(port = env.listen.port.api) {
-  const app = new Koa<Koa.DefaultState & { user: UserDocument }>();
+  const app = new Koa<Koa.DefaultState & { user: WithId<UserDoc> }>();
 
   /* Configuration */
   app.keys = [env.sessionSecret];
@@ -43,7 +46,7 @@ async function listen(port = env.listen.port.api) {
       const decoded = jwt.verify(token, env.jwt.keys.public) as { userId: string; scopes: string[] };
 
       if (decoded && decoded.scopes.includes("all")) {
-        ctx.state.user = await User.findById(decoded.userId);
+        ctx.state.user = await colls.users.findOne({ _id: new ObjectId(decoded.userId) });
       }
     };
 
@@ -88,7 +91,7 @@ async function listen(port = env.listen.port.api) {
         if (body?.password) {
           body.password = "*******";
         }
-        await ApiError.create({
+        await colls.apiErrors.insertOne({
           request: {
             url: ctx.request.originalUrl,
             method: ctx.request.method,
@@ -124,9 +127,9 @@ async function listen(port = env.listen.port.api) {
 
     if (user) {
       if (!oldUser) {
-        await user.notifyLogin(ctx.ip);
+        await notifyLogin(user, ctx.ip);
       } else {
-        await user.notifyLastIp(ctx.ip);
+        await notifyLastIp(user, ctx.ip);
       }
     }
   });
@@ -135,7 +138,7 @@ async function listen(port = env.listen.port.api) {
     await next();
 
     if (ctx.state.user) {
-      const user: UserDocument = ctx.state.user;
+      const user: WithId<UserDoc> = ctx.state.user;
 
       // Token for forum SSO
       ctx.cookies.set(

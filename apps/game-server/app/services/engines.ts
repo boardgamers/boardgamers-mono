@@ -1,15 +1,17 @@
 import assert from "assert";
 import cluster from "cluster";
 import decache from "decache";
-import GameInfo from "../models/gameinfo.ts";
+import { colls } from "../config/db.ts";
 import type { Engine } from "../types/engine.ts";
 
-const engines = {};
+const engines: Record<string, Engine> = {};
 
 async function requirePath(name: string, version: number) {
-  const entryPoint = (await GameInfo.findById({ game: name, version }, "engine.entryPoint", { lean: true })).engine
-    .entryPoint;
-  return `../../games/node_modules/${name}_${version}/${entryPoint}`;
+  const info = await colls.gameInfos.findOne(
+    { _id: { game: name, version } },
+    { projection: { "engine.entryPoint": 1 } }
+  );
+  return `../../games/node_modules/${name}_${version}/${info!.engine.entryPoint}`;
 }
 
 export async function getEngine(name: string, version: number): Promise<Engine> {
@@ -31,11 +33,9 @@ export function refreshEngine(name: string, version: number) {
   console.log("refreshing engine", name, version, cluster.isMaster);
   delete engines[`${name}_${version}`];
 
-  // Clear whole cache, because a module's depencies may need to be reloaded,
-  // as well as all its files
   if (cluster.isMaster) {
-    for (const worker of Object.values(cluster.workers)) {
-      worker.send({ type: "refreshEngine", name, version });
+    for (const worker of Object.values(cluster.workers!)) {
+      worker!.send({ type: "refreshEngine", name, version });
     }
   }
 }

@@ -9,8 +9,19 @@ import { Strategy as FacebookStrategy } from "passport-facebook";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as LocalStrategy } from "passport-local";
 import { z } from "zod";
-import { User } from "../models/index.ts";
-import type { UserDocument } from "../models/user.ts";
+import type { UserDoc } from "@bgs/models";
+import type { WithId } from "mongodb";
+import { colls } from "./db.ts";
+import {
+  findByEmail,
+  findByUsername,
+  generateConfirmKey,
+  generateHash,
+  sendConfirmationEmail,
+  validPassword,
+  validateResetKey,
+  resetPassword,
+} from "../models/user.ts";
 import env from "./env.ts";
 
 // =========================================================================
@@ -45,7 +56,7 @@ passport.use(
         }
 
         // check to see if there's already a user with that email
-        if (await (User as any).findByEmail(email)) {
+        if (await findByEmail(email)) {
           throw createError(409, "Email is already taken");
         }
 
@@ -55,27 +66,52 @@ passport.use(
           throw createError(422, "Specify a username");
         }
 
-        if (await (User as any).findByUsername(username)) {
+        if (await findByUsername(username)) {
           throw createError(422, `Username ${username} is taken`);
         }
 
         // if there is no user with that email
         // create the user
-        const newUser = new User();
+        const slug = username.toLowerCase().replace(/\s+/g, "-");
+        const confirmKey = generateConfirmKey();
+        const newUserDoc: UserDoc = {
+          account: {
+            email: email.toLowerCase().trim(),
+            username,
+            password: await generateHash(password),
+            karma: 75,
+            termsAndConditions: new Date(),
+            social: { google: "", facebook: "", discord: "" },
+            avatar: "avataaars",
+            bio: "",
+          },
+          settings: {
+            mailing: {
+              newsletter: req.body.newsletter === true || req.body.newsletter === "true",
+              game: { delay: 30 * 60, activated: true },
+            },
+            game: { soundNotification: true },
+            home: { showMyGames: false },
+          },
+          security: {
+            lastIp: "",
+            lastLogin: { ip: "", date: new Date(0) },
+            lastActive: new Date(0),
+            lastOnline: new Date(0),
+            confirmed: false,
+            confirmKey,
+            reset: { key: "", issued: new Date(0) },
+            slug,
+          },
+          meta: { nextGameNotification: new Date(0), lastGameNotification: new Date(0) },
+          authority: "user",
+        };
 
-        // set the user's local credentials
-        newUser.account.email = email;
-        newUser.account.username = username;
-        newUser.account.termsAndConditions = new Date();
-        newUser.account.password = await newUser.generateHash(password);
-        newUser.settings.mailing.newsletter = req.body.newsletter === true || req.body.newsletter === "true";
-        newUser.generateConfirmKey();
-
-        // save the user
-        await newUser.save();
+        const result = await colls.users.insertOne(newUserDoc);
+        const newUser: WithId<UserDoc> = { ...newUserDoc, _id: result.insertedId };
 
         if (!newUser.security.confirmed) {
-          await newUser.sendConfirmationEmail();
+          await sendConfirmationEmail(newUser);
         }
 
         return done(null, newUser);
@@ -107,7 +143,7 @@ passport.use(
           throw createError(422, "Specify a username");
         }
 
-        if (await (User as any).findByUsername(username)) {
+        if (await findByUsername(username)) {
           throw createError(422, `Username ${username} is taken`);
         }
 
@@ -121,15 +157,41 @@ passport.use(
         assert(["google", "facebook", "discord"].includes(decoded.provider), "Uknown social provider");
 
         // create the user
-        const newUser = new User();
+        const slug = username.toLowerCase().replace(/\s+/g, "-");
+        const social = { google: "", facebook: "", discord: "" };
+        social[decoded.provider as keyof typeof social] = decoded.id;
+        const newUserDoc: UserDoc = {
+          account: {
+            email: "",
+            username,
+            password: "",
+            karma: 75,
+            termsAndConditions: new Date(),
+            social,
+            avatar: "avataaars",
+            bio: "",
+          },
+          settings: {
+            mailing: { newsletter: false, game: { delay: 30 * 60, activated: true } },
+            game: { soundNotification: true },
+            home: { showMyGames: false },
+          },
+          security: {
+            lastIp: "",
+            lastLogin: { ip: "", date: new Date(0) },
+            lastActive: new Date(0),
+            lastOnline: new Date(0),
+            confirmed: true,
+            confirmKey: "",
+            reset: { key: "", issued: new Date(0) },
+            slug,
+          },
+          meta: { nextGameNotification: new Date(0), lastGameNotification: new Date(0) },
+          authority: "user",
+        };
 
-        newUser.account.username = username;
-        newUser.account.social[decoded.provider] = decoded.id;
-        newUser.account.termsAndConditions = new Date();
-        newUser.security.confirmed = true;
-
-        // save the user
-        await newUser.save();
+        const result = await colls.users.insertOne(newUserDoc);
+        const newUser: WithId<UserDoc> = { ...newUserDoc, _id: result.insertedId };
 
         return done(null, newUser);
       } catch (err) {
@@ -157,17 +219,17 @@ passport.use(
           throw createError(422, "Password too short");
         }
 
-        const user = await (User as any).findByEmail(email);
+        const user = await findByEmail(email);
 
         // check to see if theres already a user with that email
         if (!user) {
           throw createError(404, "No user with this email");
         }
 
-        user.validateResetKey(req.body.resetKey);
+        validateResetKey(user, req.body.resetKey);
 
         // set the user's local credentials
-        await user.resetPassword(password);
+        await resetPassword(user, password);
 
         return done(null, user);
       } catch (err) {
@@ -193,14 +255,14 @@ passport.use(
     },
     async (email, password, done) => {
       try {
-        const user = await (User as any).findByEmail(email);
+        const user = await findByEmail(email);
         // if no user is found, return the message
         if (!user) {
           throw createError(404, `${email} isn't registered`);
         }
 
         // if the user is found but the password is wrong
-        if (!(await user.validPassword(password))) {
+        if (!(await validPassword(user, password))) {
           throw createError(401, "Oops! Wrong password");
         }
         done(null, user);
@@ -223,21 +285,23 @@ function makeSocialStrategy<T extends Strategy>(provider: string, SocialStrategy
       },
       async function (req, token, tokenSecret, profile, done) {
         try {
-          const currentUser: UserDocument = req.user;
-          const existingUser = await User.findOne({ [`account.social.${provider}`]: profile.id });
+          const currentUser: WithId<UserDoc> = req.user;
+          const existingUser = await colls.users.findOne({ [`account.social.${provider}`]: profile.id });
 
           if (currentUser) {
-            if (existingUser && existingUser._id === currentUser._id) {
+            if (existingUser && existingUser._id.equals(currentUser._id)) {
               done(null, existingUser);
               return;
             }
             assert(!currentUser.account.social[provider], `You already have a ${provider} account connected`);
             assert(!existingUser, `Another user is already connected to that ${provider} account`);
 
-            currentUser.account.social[provider] = profile.id;
-
-            await currentUser.save();
-            done(null, currentUser);
+            await colls.users.updateOne(
+              { _id: currentUser._id },
+              { $set: { [`account.social.${provider}`]: profile.id } }
+            );
+            const updatedUser = await colls.users.findOne({ _id: currentUser._id });
+            done(null, updatedUser!);
           } else {
             if (existingUser) {
               done(null, existingUser);

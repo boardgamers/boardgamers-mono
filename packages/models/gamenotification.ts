@@ -1,35 +1,17 @@
 import type { GameNotification } from "@bgs/types";
-import { Document, Model, Schema, Types } from "mongoose";
+import type { IndexDescription, ObjectId } from "mongodb";
 
-const repr = {
-  user: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
-  },
-  game: {
-    type: String,
-    ref: "Game",
-  },
-  kind: {
-    type: String,
-    enum: ["currentMove", "gameEnded", "gameStarted", "playerDrop", "playerQuit", "dropPlayer"] as const,
-    index: true,
-  },
-  processed: {
-    type: Boolean,
-    default: false,
-  },
-  meta: {},
-};
-
-export default function makeSchema<
-  T extends Document & GameNotification<Types.ObjectId>,
-  U extends Model<T> = Model<T>,
->() {
-  const schema = new Schema<T, U>(repr as any, { timestamps: true });
-
-  schema.index({ processed: 1, kind: 1 });
-  schema.index({ updatedAt: 1 }, { expireAfterSeconds: 3600 * 24 * 30 });
-
-  return schema;
+export interface GameNotificationDoc extends GameNotification<ObjectId> {
+  _id?: ObjectId;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
+
+export const GAME_NOTIFICATIONS_COLLECTION = "gamenotifications";
+
+export const gameNotificationIndexes: IndexDescription[] = [
+  // api: cron processing of notifications by kind; game-server: same
+  { key: { processed: 1, kind: 1 } },
+  // api: auto-cleanup after 30 days
+  { key: { updatedAt: 1 }, expireAfterSeconds: 86400 * 30 },
+];

@@ -5,18 +5,25 @@ import type { Context } from "koa";
 import passport from "koa-passport";
 import Router from "koa-router";
 import { z } from "zod";
-import type {
-  Image} from "../../models/index.ts";
+import { colls } from "../../config/db.ts";
 import {
-  Game,
-  GameInfo,
-  GamePreferences,
-  ImageCollection,
-  JwtRefreshToken,
-  Log,
-  User,
+  accessTokenDuration,
+  createAccessToken,
+  findGamesWithPlayersTurn,
+  isUserAdmin,
 } from "../../models/index.ts";
-import type { UserDocument } from "../../models/user.ts";
+import {
+  confirm,
+  findByEmail,
+  findByUsername,
+  generateConfirmKey,
+  generateResetLink,
+  sendConfirmationEmail,
+  sendMailChangeEmail,
+  sendResetEmail,
+  stripSensitiveFields,
+} from "../../models/user.ts";
+import type { ImageDoc } from "@bgs/models";
 import { loggedIn, loggedOut } from "../utils.ts";
 import auth from "./auth.ts";
 import { sendAuthInfo } from "./utils.ts";
@@ -32,28 +39,28 @@ router.get("/", (ctx) => {
 });
 
 router.get("/avatar", loggedIn, async (ctx) => {
-  const item = await ImageCollection.findOne(
+  const item = await colls.images.findOne(
     { ref: ctx.state.user._id, refType: "User", key: "avatar" },
-    { "images.256x256": 1, mime: 1 }
+    { projection: { "images.256x256": 1 } }
   );
   if (!item) {
     return;
   }
 
-  ctx.set("Content-Type", item.images.get("256x256").mime);
+  const img = item.images["256x256"];
+  ctx.set("Content-Type", img.mime);
   ctx.set("Cache-Control", "no-cache");
-  ctx.body = item.images.get("256x256").raw;
+  ctx.body = img.raw;
 });
 
 router.get("/active-games", async (ctx) => {
   if (!ctx.state.user?._id) {
     ctx.body = [];
   } else {
-    ctx.body = await (Game as any)
-      .findWithPlayersTurn(ctx.state.user._id)
-      .select("_id")
-      .lean(true)
-      .then((games) => games.map((game) => game._id));
+    const games = await findGamesWithPlayersTurn(ctx.state.user._id)
+      .project({ _id: 1 })
+      .toArray();
+    ctx.body = games.map((game) => game._id);
   }
 });
 
@@ -69,17 +76,17 @@ router.post("/", loggedIn, async (ctx) => {
   const avatar = body.account?.avatar;
   assert(!avatar?.includes("/") && !avatar?.includes("."), "Invalid avatar");
 
-  if (body.settings != null) {
-    ctx.state.user.settings = body.settings;
+  const updateFields: Record<string, unknown> = {};
+  if (body.settings != null) updateFields.settings = body.settings;
+  if (body.account?.avatar != null) updateFields["account.avatar"] = body.account.avatar;
+  if (body.account?.bio != null) updateFields["account.bio"] = body.account.bio;
+
+  if (Object.keys(updateFields).length > 0) {
+    await colls.users.updateOne({ _id: ctx.state.user._id }, { $set: updateFields });
   }
-  if (body.account?.avatar != null) {
-    ctx.state.user.account.avatar = body.account.avatar;
-  }
-  if (body.account?.bio != null) {
-    ctx.state.user.account.bio = body.account.bio;
-  }
-  await ctx.state.user.save();
-  ctx.body = ctx.state.user;
+
+  const updatedUser = await colls.users.findOne({ _id: ctx.state.user._id });
+  ctx.body = updatedUser;
 });
 
 router.post("/avatar", loggedIn, async (ctx) => {
@@ -91,44 +98,45 @@ router.post("/avatar", loggedIn, async (ctx) => {
   const input = Buffer.concat(parts);
   const image = await Jimp.read(input);
 
-  const mime = [Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(image.getMIME() as any)
-    ? image.getMIME()
+  const mime: "image/jpeg" | "image/png" = [Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(
+    image.getMIME() as "image/jpeg" | "image/png"
+  )
+    ? (image.getMIME() as "image/jpeg" | "image/png")
     : image.hasAlpha
       ? Jimp.MIME_PNG
       : Jimp.MIME_JPEG;
 
-  const images: Image["images"] = new Map();
+  const imagesObj: ImageDoc["images"] = {};
   for (const size of [256, 128, 64]) {
     if (image.getWidth() > size || image.getHeight() > size) {
       image.cover(size, size);
     } else if (image.getWidth() !== image.getHeight()) {
       image.cover(Math.max(image.getWidth(), image.getHeight()), Math.max(image.getWidth(), image.getHeight()));
     }
-    const converted = await image.quality(85).getBufferAsync(mime);
-    images.set(`${size}x${size}`, { mime, raw: converted, size: converted.length });
+    const converted = await image.quality(85).getBufferAsync(mime as "image/jpeg" | "image/png");
+    imagesObj[`${size}x${size}`] = { mime, raw: converted, size: converted.length };
   }
 
-  await ImageCollection.updateOne(
+  await colls.images.updateOne(
     { ref: ctx.state.user._id, key: "avatar", refType: "User" },
     {
       $set: {
-        images,
-        formats: [...images.keys()],
+        images: imagesObj,
+        formats: Object.keys(imagesObj),
       },
     },
     { upsert: true }
   );
-  ctx.state.user.account.avatar = "upload";
-  await ctx.state.user.save();
+  await colls.users.updateOne({ _id: ctx.state.user._id }, { $set: { "account.avatar": "upload" } });
 
   ctx.status = 200;
 });
 
 router.post("/email", loggedIn, async (ctx) => {
   const { email } = z.object({ email: z.string().email() }).parse(ctx.request.body);
-  const user: UserDocument = ctx.state.user;
+  const user = ctx.state.user;
 
-  const foundUser = await (User as any).findByEmail(email);
+  const foundUser = await findByEmail(email);
 
   if (foundUser) {
     if (foundUser._id.equals(user._id)) {
@@ -139,36 +147,57 @@ router.post("/email", loggedIn, async (ctx) => {
     throw createError(400, "Another user with that email address already exists");
   }
 
-  await Log.create({ kind: "mailChange", data: { player: user._id, change: { from: user.account.email, to: email } } });
+  await colls.logs.insertOne({
+    kind: "mailChange",
+    data: { player: user._id, change: { from: user.account.email, to: email } },
+  });
 
-  user.sendMailChangeEmail(email).catch(console.error);
+  sendMailChangeEmail(user, email).catch(console.error);
 
-  user.account.email = email;
-  user.security.confirmed = false;
-  user.generateConfirmKey();
-  await user.save();
+  const confirmKey = generateConfirmKey();
+  await colls.users.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        "account.email": email,
+        "security.confirmed": false,
+        "security.confirmKey": confirmKey,
+      },
+    }
+  );
 
-  await user.sendConfirmationEmail();
-
-  ctx.body = user;
+  const updatedUser = await colls.users.findOne({ _id: user._id });
+  if (updatedUser) {
+    await sendConfirmationEmail(updatedUser);
+    ctx.body = stripSensitiveFields(updatedUser);
+  }
 });
 
 router.post("/terms-and-conditions", loggedIn, async (ctx) => {
   assert(!ctx.state.user.account.termsAndConditions, "You already accepted the Terms and Conditions");
-  ctx.state.user.account.termsAndConditions = new Date();
-  await ctx.state.user.save();
-  ctx.body = ctx.state.user;
+  await colls.users.updateOne(
+    { _id: ctx.state.user._id },
+    { $set: { "account.termsAndConditions": new Date() } }
+  );
+  const updatedUser = await colls.users.findOne({ _id: ctx.state.user._id });
+  ctx.body = updatedUser;
 });
 
 router.get("/games/settings", loggedIn, async (ctx) => {
-  ctx.body = await GamePreferences.find({ user: ctx.state.user._id }).lean(true);
+  ctx.body = await colls.gamePreferences.find({ user: ctx.state.user._id }).toArray();
 });
 
 router.get("/games/:game/settings", loggedIn, async (ctx) => {
-  let pref = await GamePreferences.findOne({ user: ctx.state.user._id, game: ctx.params.game }).lean(true);
+  let pref = await colls.gamePreferences.findOne({ user: ctx.state.user._id, game: ctx.params.game });
 
   if (!pref) {
-    pref = await GamePreferences.create({ user: ctx.state.user._id, game: ctx.params.game });
+    const newPref = {
+      user: ctx.state.user._id,
+      game: ctx.params.game,
+      access: { ownership: false } as const,
+    };
+    await colls.gamePreferences.insertOne(newPref as import("@bgs/models").GamePreferencesDoc);
+    pref = (await colls.gamePreferences.findOne({ user: ctx.state.user._id, game: ctx.params.game }))!;
   }
 
   // Unstringify stringified preferences
@@ -186,13 +215,13 @@ router.get("/games/:game/settings", loggedIn, async (ctx) => {
 
 router.post("/games/:game/ownership", loggedIn, async (ctx) => {
   const { access } = z.object({ access: z.object({ ownership: z.boolean() }) }).parse(ctx.request.body);
-  const gameInfo = await GameInfo.count({ "_id.game": ctx.params.game }).limit(1);
+  const count = await colls.gameInfos.countDocuments({ "_id.game": ctx.params.game });
 
-  if (!gameInfo) {
+  if (!count) {
     return;
   }
 
-  await GamePreferences.updateOne(
+  await colls.gamePreferences.updateOne(
     {
       user: ctx.state.user._id,
       game: ctx.params.game,
@@ -212,7 +241,7 @@ router.post("/games/:game/ownership", loggedIn, async (ctx) => {
 
 router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
   const body = z.record(z.unknown()).and(z.object({ alternateUI: z.boolean().optional() })).parse(ctx.request.body);
-  const gameInfo = await GameInfo.findById({ game: ctx.params.game, version: +ctx.params.version });
+  const gameInfo = await colls.gameInfos.findOne({ _id: { game: ctx.params.game, version: +ctx.params.version } });
 
   if (!gameInfo) {
     return;
@@ -240,7 +269,7 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
     newPrefs.alternateUI = !!body.alternateUI;
   }
 
-  await GamePreferences.updateOne(
+  await colls.gamePreferences.updateOne(
     {
       user: ctx.state.user._id,
       game: ctx.params.game,
@@ -271,7 +300,7 @@ router.post("/signout", (ctx: Context) => {
 
 router.post("/confirm", async (ctx: Context) => {
   const body = z.object({ email: z.string().email(), key: z.string() }).parse(ctx.request.body);
-  const user = await (User as any).findByEmail(body.email);
+  const user = await findByEmail(body.email);
 
   if (!user) {
     throw createError(404, "Can't find user: " + body.email);
@@ -282,9 +311,10 @@ router.post("/confirm", async (ctx: Context) => {
     return;
   }
 
-  await user.confirm(body.key);
+  await confirm(user, body.key);
 
-  ctx.state.user = user;
+  const updatedUser = await colls.users.findOne({ _id: user._id });
+  ctx.state.user = updatedUser;
 
   await sendAuthInfo(ctx);
 });
@@ -292,17 +322,20 @@ router.post("/confirm", async (ctx: Context) => {
 router.post("/refresh", async (ctx: Context) => {
   const { code, scopes } = z.object({ code: z.string(), scopes: z.array(z.string()).optional() }).parse(ctx.request.body);
 
-  const rt = await JwtRefreshToken.findOne({ code });
+  const rt = await colls.jwtRefreshTokens.findOne({ code });
 
   if (!rt) {
     throw createError(404, "Can't find refresh token: " + code);
   }
 
-  const user = await User.findById(rt.user);
+  const user = await colls.users.findOne({ _id: rt.user });
+  if (!user) {
+    throw createError(404, "User not found");
+  }
 
   ctx.body = {
-    code: await rt.createAccessToken(scopes, user.isAdmin()),
-    expiresAt: Date.now() + JwtRefreshToken.accessTokenDuration(),
+    code: await createAccessToken(rt, scopes, isUserAdmin(user)),
+    expiresAt: Date.now() + accessTokenDuration(),
   };
 });
 
@@ -310,14 +343,14 @@ router.post("/reset", loggedOut, passport.authenticate("local-reset", { session:
 
 router.post("/forget", loggedOut, async (ctx: Context) => {
   const { email } = z.object({ email: z.string().email() }).parse(ctx.request.body);
-  const user = await (User as any).findByEmail(email);
+  const user = await findByEmail(email);
 
   if (!user) {
     throw createError(404, "Utilisateur introuvable: " + email);
   }
 
-  await user.generateResetLink();
-  await user.sendResetEmail();
+  await generateResetLink(user);
+  await sendResetEmail(user);
   ctx.status = 200;
 });
 

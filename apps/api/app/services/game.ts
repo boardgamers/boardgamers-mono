@@ -1,25 +1,28 @@
 import { subHours, subWeeks } from "date-fns";
 import { shuffle } from "@bgs/utils/array";
 import locks from "../config/locks.ts";
-import { ChatMessage, Game, GameNotification } from "../models/index.ts";
-import type { GameDocument } from "../models/game.ts";
+import type { GameDoc } from "@bgs/models";
+import { colls } from "../config/db.ts";
 
-export async function notifyGameStart(game: GameDocument) {
+export async function notifyGameStart(game: GameDoc) {
   if (game.options.setup.playerOrder === "random") {
-    // Mongoose (5.10.0) will bug if I directly set to the shuffled value (because array item's .get are not set)
     const shuffled = shuffle(game.players);
     game.players = [];
     game.players.push(...shuffled);
-    await game.save();
+    await colls.games.replaceOne({ _id: game._id }, game);
   }
 
-  await ChatMessage.create({ room: game._id, type: "system", data: { text: "Game started" } });
-  await GameNotification.create({ game: game._id, kind: "gameStarted", processed: false });
+  await colls.chatMessages.insertOne({
+    room: game._id,
+    type: "system",
+    data: { text: "Game started" },
+  } as any);
+  await colls.gameNotifications.insertOne({ game: game._id, kind: "gameStarted", processed: false });
 }
 
 export async function cancelOldOpenGames() {
   // Remove live games an hour old
-  await Game.remove({
+  await colls.games.deleteMany({
     status: "open",
     "options.timing.scheduledStart": { $exists: false },
     "options.timing.timePerGame": { $lte: 600 },
@@ -27,7 +30,7 @@ export async function cancelOldOpenGames() {
   });
 
   // Remove fast games three hours old
-  await Game.remove({
+  await colls.games.deleteMany({
     status: "open",
     "options.timing.scheduledStart": { $exists: false },
     "options.timing.timePerGame": { $lte: 3600 },
@@ -35,7 +38,7 @@ export async function cancelOldOpenGames() {
   });
 
   // Remove games a week old
-  await Game.remove({
+  await colls.games.deleteMany({
     status: "open",
     "options.timing.scheduledStart": { $exists: false },
     createdAt: { $lt: subWeeks(Date.now(), 1) },
@@ -45,55 +48,59 @@ export async function cancelOldOpenGames() {
 export async function processSchedulesGames() {
   {
     await using _lock = await locks.lock("game", "scheduled-games");
-    for await (const game of Game.find({
+    const cursor = colls.games.find({
       status: "open",
       "options.timing.scheduledStart": { $lt: new Date() },
-    }).cursor()) {
-      const g: GameDocument = game;
+    });
+    for await (const game of cursor) {
+      const g: GameDoc = game;
 
       if (!g.ready) {
-        await ChatMessage.create({
+        await colls.chatMessages.insertOne({
           room: game._id,
           type: "system",
           data: { text: "Game cancelled because it's not fully ready at scheduled start date" },
-        });
+        } as any);
         g.cancelled = true;
         g.status = "ended";
-        await g.save();
+        await colls.games.replaceOne({ _id: g._id }, g);
         continue;
       }
       // Do this to avoid being caught in a loop again, before game server starts the game
       g.options.timing.scheduledStart = undefined;
-      await g.save();
+      await colls.games.replaceOne({ _id: g._id }, g);
       await notifyGameStart(g);
     }
   }
 }
 
 export async function processUnreadyGames() {
-  const games = await Game.find(
-    {
-      ready: false,
-      status: "open",
-      "currentPlayers.0.deadline": { $lt: Date.now() },
-    },
-    { _id: 1 }
-  ).lean(true);
+  const gamesList = await colls.games
+    .find(
+      {
+        ready: false,
+        status: "open",
+        "currentPlayers.0.deadline": { $lt: Date.now() },
+      },
+      { projection: { _id: 1 } }
+    )
+    .toArray();
 
-  for (const toFetch of games) {
+  for (const toFetch of gamesList) {
     try {
       await using _lock = await locks.lock("game", toFetch._id);
-      const game = await Game.findById(toFetch._id, { status: 1 });
+      const game = await colls.games.findOne({ _id: toFetch._id }, { projection: { status: 1 } });
 
-      if (game.status === "open") {
-        await ChatMessage.create({
+      if (game?.status === "open") {
+        await colls.chatMessages.insertOne({
           room: game._id,
           type: "system",
           data: { text: "Game cancelled because host didn't set the final options in time" },
-        });
-        game.cancelled = true;
-        game.status = "ended";
-        await game.save();
+        } as any);
+        await colls.games.updateOne(
+          { _id: game._id },
+          { $set: { cancelled: true, status: "ended" } }
+        );
       }
     } catch (err) {
       console.error(err);

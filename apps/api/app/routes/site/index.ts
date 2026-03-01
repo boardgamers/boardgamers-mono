@@ -1,11 +1,12 @@
 import type { Context } from "koa";
 import Router from "koa-router";
-import { Settings, SettingsKey } from "../../models/index.ts";
+import { colls } from "../../config/db.ts";
+import { SettingsKey } from "../../models/index.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
 router.get("/announcement", async (ctx) => {
-  ctx.body = (await Settings.findById(SettingsKey.Announcement, null, { lean: true }))?.value;
+  ctx.body = (await colls.settings.findOne({ _id: SettingsKey.Announcement }))?.value;
 });
 
 export default router;

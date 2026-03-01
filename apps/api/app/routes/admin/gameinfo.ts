@@ -1,31 +1,29 @@
 import { omit } from "@bgs/utils/object";
 import type { Context } from "koa";
 import Router from "koa-router";
-import { GameInfo } from "../../models/index.ts";
+import { colls } from "../../config/db.ts";
+import { findGameInfoWithVersion } from "../../models/index.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
 router.get("/", async (ctx) => {
-  ctx.body = await GameInfo.find({}, "_id").lean(true).sort("_id.game -_id.version");
+  ctx.body = await colls.gameInfos
+    .find({}, { projection: { _id: 1 } })
+    .sort({ "_id.game": 1, "_id.version": -1 })
+    .toArray();
 });
 
 router.post("/:game/:version", async (ctx) => {
-  const game = await GameInfo.findByIdAndUpdate(
-    {
-      game: ctx.params.game,
-      version: +ctx.params.version,
-    },
-    omit(ctx.request.body as Record<string, unknown>, "_id"),
-    {
-      upsert: true,
-      runValidators: true,
-    }
+  const game = await colls.gameInfos.findOneAndUpdate(
+    { _id: { game: ctx.params.game, version: +ctx.params.version } },
+    { $set: omit(ctx.request.body as Record<string, unknown>, "_id") },
+    { upsert: true, returnDocument: "after" }
   );
   ctx.body = game;
 });
 
 router.get("/:game/:version", async (ctx) => {
-  const game = await GameInfo.findById({ game: ctx.params.game, version: +ctx.params.version }).lean(true);
+  const game = await findGameInfoWithVersion(ctx.params.game, +ctx.params.version);
 
   if (game) {
     ctx.body = game;

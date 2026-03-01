@@ -2,9 +2,8 @@ import { keyBy } from "@bgs/utils/array";
 import { omit, pick } from "@bgs/utils/object";
 import assert from "assert";
 import Router from "koa-router";
+import { colls } from "../config/db.ts";
 import locks from "../config/locks.ts";
-import Game from "../models/game.ts";
-import GameInfo from "../models/gameinfo.ts";
 import { batchReplay } from "../services/batch.ts";
 import { getEngine } from "../services/engines.ts";
 import { afterMove } from "../services/game.ts";
@@ -24,15 +23,14 @@ router.post("/batch/replay", isAdmin, async (ctx) => {
 router.post("/:gameId/edit-data", isAdmin, async (ctx) => {
   {
     await using _lock = await locks.lock("game", ctx.params.gameId);
-    const game = await Game.findById(ctx.params.gameId);
+    const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
     if (!game) {
       ctx.status = 404;
       return;
     }
 
-    game.data = (ctx.request.body as any).json;
-    await game.save();
+    await colls.games.updateOne({ _id: ctx.params.gameId }, { $set: { data: (ctx.request.body as any).json } });
 
     ctx.status = 200;
   }
@@ -41,7 +39,7 @@ router.post("/:gameId/edit-data", isAdmin, async (ctx) => {
 router.post("/:gameId/replay", isAdmin, async (ctx) => {
   {
     await using _lock = await locks.lock("game", ctx.params.gameId);
-    const game = await Game.findById(ctx.params.gameId);
+    const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
     if (!game) {
       ctx.status = 404;
@@ -68,7 +66,7 @@ router.post("/:gameId/replay", isAdmin, async (ctx) => {
 router.post("/:gameId/move", loggedIn, async (ctx) => {
   {
     await using _lock = await locks.lock("game", ctx.params.gameId);
-    const game = await Game.findById(ctx.params.gameId);
+    const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
     if (!game) {
       ctx.status = 404;
@@ -94,7 +92,6 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
     const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 
     if (toSave) {
-      // For fast games, we add time back every move, not just every time the current player changes
       if (game.options.timing.timePerMove <= 15 * 60) {
         game.players[playerIndex].remainingTime = Math.min(
           game.options.timing.timePerGame,
@@ -105,7 +102,7 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
     }
 
     ctx.body = {
-      game: omit(game.toJSON() as Record<string, unknown>, "data"),
+      game: omit(game as Record<string, unknown>, "data"),
       log: {
         start: initialLogIndex,
         data: engine.logSlice(gameData, { start: initialLogIndex, player: playerIndex }),
@@ -115,7 +112,7 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 });
 
 router.post("/:gameId/settings", loggedIn, async (ctx) => {
-  const game = await Game.findById(ctx.params.gameId);
+  const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
   if (!game) {
     ctx.status = 404;
@@ -127,23 +124,22 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
   assert(playerIndex !== -1, "You're not part of this game");
   assert(game.status === "active", "You can only set settings on active games");
 
-  const gameInfo = await GameInfo.findById({ game: game.game.name, version: game.game.version })
-    .select("settings")
-    .lean(true);
-  const settings = keyBy(gameInfo.settings, (s) => s.name);
+  const gameInfo = await colls.gameInfos.findOne(
+    { _id: { game: game.game.name, version: game.game.version } },
+    { projection: { settings: 1 } }
+  );
+  const settingsMap = keyBy(gameInfo!.settings!, (s) => s.name);
 
-  // Make sure that the setting is well-formed
-  // could throw a BadRequestException instead
-  const filteredSettings = pick(ctx.request.body as Record<string, unknown>, Object.keys(settings));
+  const filteredSettings = pick(ctx.request.body as Record<string, unknown>, Object.keys(settingsMap));
   for (const [key, setting] of Object.entries(filteredSettings)) {
-    switch (settings[key].type) {
+    switch (settingsMap[key].type) {
       case "checkbox":
         if (typeof setting !== "boolean") {
           delete filteredSettings[key];
         }
         break;
       case "select":
-        if (!settings[key].items.some((item) => item.name === setting)) {
+        if (!settingsMap[key].items!.some((item) => item.name === setting)) {
           delete filteredSettings[key];
         }
         break;
@@ -158,20 +154,17 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
 
   {
     await using _lock = await locks.lock("game", ctx.params.gameId);
-    const game = await Game.findById(ctx.params.gameId);
+    const freshGame = await colls.games.findOne({ _id: ctx.params.gameId });
 
-    let gameData = game.data;
+    let gameData = freshGame!.data;
 
     gameData = engine.setPlayerSettings(gameData, playerIndex, filteredSettings);
 
     const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 
     if (toSave) {
-      game.data = toSave;
-      game.markModified("data");
+      await colls.games.updateOne({ _id: ctx.params.gameId }, { $set: { data: JSON.parse(JSON.stringify(toSave)) } });
     }
-
-    await game.save();
 
     ctx.body = {
       settings: toSave ? engine.playerSettings(toSave, playerIndex) : null,
@@ -180,7 +173,7 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
 });
 
 router.get("/:gameId/settings", loggedIn, async (ctx) => {
-  const game = await Game.findById(ctx.params.gameId);
+  const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
   if (!game) {
     ctx.status = 404;
@@ -203,7 +196,7 @@ router.get("/:gameId/log", async (ctx) => {
   const start = ctx.query.start ? +ctx.query.start : undefined;
   const end = ctx.query.end ? +ctx.query.end : undefined;
 
-  const game = await Game.findById(ctx.params.gameId);
+  const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
   if (!game) {
     ctx.status = 404;
@@ -212,7 +205,7 @@ router.get("/:gameId/log", async (ctx) => {
 
   const engine = await getEngine(game.game.name, game.game.version);
 
-  const playerId = ctx.state.user.id;
+  const playerId = ctx.state.user?.id;
   const playerIndex = game.players.findIndex((pl) => pl._id.equals(playerId));
 
   ctx.body = {
@@ -223,7 +216,7 @@ router.get("/:gameId/log", async (ctx) => {
 });
 
 router.get("/:gameId/length", async (ctx) => {
-  const game = await Game.findById(ctx.params.gameId);
+  const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
   if (!game) {
     ctx.status = 404;
@@ -236,7 +229,7 @@ router.get("/:gameId/length", async (ctx) => {
 });
 
 router.get("/:gameId", async (ctx) => {
-  const game = await Game.findById(ctx.params.gameId);
+  const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
   if (!ctx.state.user?.isAdmin && ctx.query.admin === "true") {
     ctx.status = 403;
@@ -253,20 +246,19 @@ router.get("/:gameId", async (ctx) => {
     const index = game.players.findIndex((pl) => pl._id.equals(ctx.state.user?.id));
 
     ctx.body = {
-      ...game.toJSON(),
+      ...game,
       data:
         engine.stripSecret && ctx.query.admin !== "true"
           ? engine.stripSecret(game.data, index === -1 ? undefined : index)
           : game.data,
     };
   } else {
-    // Separate data from game, because mongoose removes empty objects
-    ctx.body = { ...game.toJSON(), data: game.data };
+    ctx.body = game;
   }
 });
 
 router.get("/:gameId/data", async (ctx) => {
-  const game = await Game.findById(ctx.params.gameId);
+  const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
   if (!game) {
     ctx.status = 404;
@@ -279,7 +271,6 @@ router.get("/:gameId/data", async (ctx) => {
 
     ctx.body = engine.stripSecret ? engine.stripSecret(game.data, index === -1 ? undefined : index) : game.data;
   } else {
-    // Separate data from game, because mongoose removes empty objects
     ctx.body = game.data;
   }
 });

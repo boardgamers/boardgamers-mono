@@ -1,13 +1,13 @@
+import { SettingsKey } from "@bgs/models";
 import semver from "semver";
 import pkg from "../../package.json" with { type: "json" };
-import { Game } from "./game.ts";
-import { Settings, SettingsKey } from "./settings.ts";
-import { User } from "./user.ts";
+import { colls } from "../config/db.ts";
+import { recalculateKarma } from "./user.ts";
 
 export const migrations = {
   "1.0.0": {
     async up() {
-      await Game.updateMany({}, [
+      await colls.games.updateMany({}, [
         {
           $set: {
             players: {
@@ -49,10 +49,10 @@ export const migrations = {
   },
   "1.1.0": {
     async up() {
-      await Game.updateMany({ open: true }, { $set: { status: "open" }, $unset: { open: 1, active: 1 } });
-      await Game.updateMany({ active: true }, { $set: { status: "active" }, $unset: { open: 1, active: 1 } });
-      await Game.updateMany({ active: false }, { $set: { status: "ended" }, $unset: { open: 1, active: 1 } });
-      await Game.updateMany({ status: { $in: ["active", "ended"] } }, [
+      await colls.games.updateMany({ open: true }, { $set: { status: "open" }, $unset: { open: 1, active: 1 } });
+      await colls.games.updateMany({ active: true }, { $set: { status: "active" }, $unset: { open: 1, active: 1 } });
+      await colls.games.updateMany({ active: false }, { $set: { status: "ended" }, $unset: { open: 1, active: 1 } });
+      await colls.games.updateMany({ status: { $in: ["active", "ended"] } }, [
         {
           $set: {
             players: {
@@ -76,28 +76,30 @@ export const migrations = {
         },
       ]);
 
-      const openGames = await Game.find({ status: "open" });
+      const openGames = await colls.games.find({ status: "open" }).toArray();
 
       for (const game of openGames) {
         for (const player of game.players) {
-          player.name = (await User.findById(player._id)).account.username;
+          const user = await colls.users.findOne({ _id: player._id });
+          if (user) {
+            player.name = user.account.username;
+          }
         }
-        game.markModified("players");
-        await game.save();
+        await colls.games.replaceOne({ _id: game._id }, game);
       }
     },
   },
   "1.2.0": {
     async up() {
-      for (const user of await User.find({}, "account")) {
-        await user.recalculateKarma();
-        await user.save();
+      const usersList = await colls.users.find({}).toArray();
+      for (const user of usersList) {
+        await recalculateKarma(user);
       }
     },
   },
   "1.3.0": {
     async up() {
-      await Game.updateMany(
+      await colls.games.updateMany(
         {
           status: "active",
         },
@@ -119,9 +121,10 @@ export const migrations = {
   },
   "1.3.1": {
     async up() {
-      for (const user of await User.find({}, "account security")) {
-        user.security.slug = user.account.username.trim().toLowerCase().replace(/\s+/g, "-");
-        await user.save();
+      const usersList = await colls.users.find({}).toArray();
+      for (const user of usersList) {
+        const slug = user.account.username.trim().toLowerCase().replace(/\s+/g, "-");
+        await colls.users.updateOne({ _id: user._id }, { $set: { "security.slug": slug } });
       }
     },
   },
@@ -129,19 +132,28 @@ export const migrations = {
 
 export async function migrate() {
   const latestVersion = pkg.version;
-  let currentVersion = (await Settings.findById(SettingsKey.DBVersion).lean(true))?.value ?? "0.1.0";
+  const dbVersionDoc = await colls.settings.findOne({ _id: SettingsKey.DBVersion });
+  let currentVersion = dbVersionDoc?.value ?? "0.1.0";
 
   for (const [key, migration] of Object.entries(migrations)) {
     if (semver.gt(key, currentVersion)) {
       console.log("running migration for", key);
       await migration.up();
 
-      await Settings.updateOne({ _id: SettingsKey.DBVersion }, { value: key }, { upsert: true });
+      await colls.settings.updateOne(
+        { _id: SettingsKey.DBVersion },
+        { $set: { value: key } },
+        { upsert: true }
+      );
       currentVersion = key;
 
       console.log("migration done");
     }
   }
 
-  await Settings.updateOne({ _id: SettingsKey.DBVersion }, { value: latestVersion }, { upsert: true });
+  await colls.settings.updateOne(
+    { _id: SettingsKey.DBVersion },
+    { $set: { value: latestVersion } },
+    { upsert: true }
+  );
 }

@@ -1,7 +1,8 @@
 import type { GameStatus } from "@bgs/types";
 import { removeFalsy } from "@bgs/utils/remove-falsy";
 import { simplifyFilter } from "@coyotte508/mongo-query";
-import { Game } from "../../models/index.ts";
+import { colls } from "../../config/db.ts";
+import { gameBasicsProjection } from "../../models/index.ts";
 import GameInfoService from "../../services/gameinfo.ts";
 import assert from "assert";
 import type { Context } from "koa";
@@ -86,13 +87,14 @@ router.get("/:status/count", async (ctx) => {
     maxDuration: ctx.query.maxDuration && +ctx.query.maxDuration,
     minDuration: ctx.query.minDuration && +ctx.query.minDuration,
   });
-  ctx.body = await (Game as any).count().where(conditions);
+  ctx.body = await colls.games.countDocuments(conditions);
 });
 
 router.get("/:status", async (ctx) => {
   const status: GameStatus = ctx.params.status as GameStatus;
-  const projection = status === "ended" ? [...(Game as any).basics(), "cancelled"] : (Game as any).basics();
-  const sortOrder = status === "open" ? "-createdAt" : "-lastMove";
+  const projection =
+    status === "ended" ? { ...gameBasicsProjection, cancelled: 1 } : { ...gameBasicsProjection };
+  const sortOrder: Record<string, 1 | -1> = status === "open" ? { createdAt: -1 } : { lastMove: -1 };
   const conditions = await gameConditions(status, {
     user: String(ctx.query.user || ""),
     requester: ctx.state.user?._id,
@@ -103,23 +105,27 @@ router.get("/:status", async (ctx) => {
   });
 
   if (ctx.query.sample) {
-    ctx.body = await Game.aggregate()
-      .match(conditions)
-      .sample(queryCount(ctx) * 5)
-      .project(Object.fromEntries(projection.map((x) => [x, 1])))
-      .sort(sortOrder)
-      .group({ _id: "$creator", data: { $first: "$$ROOT" } })
-      .replaceRoot("$data")
-      .sort(sortOrder)
-      .limit(queryCount(ctx));
+    const pipeline = [
+      { $match: conditions },
+      { $sample: { size: queryCount(ctx) * 5 } },
+      { $project: projection },
+      { $sort: sortOrder },
+      { $group: { _id: "$creator", data: { $first: "$$ROOT" } } },
+      { $replaceRoot: { newRoot: "$data" } },
+      { $sort: sortOrder },
+      { $limit: queryCount(ctx) },
+    ];
+    ctx.body = await colls.games
+      .aggregate(pipeline)
+      .toArray();
   } else {
-    ctx.body = await Game.find()
-      .where(conditions)
+    ctx.body = await colls.games
+      .find(conditions)
       .sort(sortOrder)
       .skip(skipCount(ctx))
       .limit(queryCount(ctx))
-      .select(projection)
-      .lean(true);
+      .project(projection)
+      .toArray();
   }
 });
 

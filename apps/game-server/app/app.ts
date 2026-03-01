@@ -6,10 +6,9 @@ import Koa from "koa";
 import bodyParser from "koa-bodyparser";
 import compression from "koa-compress";
 import morgan from "koa-morgan";
-import "./config/db.ts";
+import { colls } from "./config/db.ts";
 /* Configure passport */
 import env from "./config/env.ts";
-import ApiError from "./models/apierror.ts";
 /* Local stuff */
 import router from "./routes/index.ts";
 
@@ -61,7 +60,7 @@ app.use(async (ctx, next) => {
       ctx.body = { message: "Internal error: " + err.message, stack: err.stack };
     }
 
-    await ApiError.create({
+    await colls.apiErrors.insertOne({
       request: {
         url: ctx.request.originalUrl,
         method: ctx.request.method,
@@ -72,10 +71,11 @@ app.use(async (ctx, next) => {
         stack: err.stack,
         message: err.message,
       },
-      user: ctx.state.user?.id,
+      user: ctx.state.user?.id as any,
       meta: {
         source: "game-server",
       },
+      createdAt: new Date(),
     });
   }
 });

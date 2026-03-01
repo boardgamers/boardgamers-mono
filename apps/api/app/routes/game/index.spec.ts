@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import mongoose, { Types } from "mongoose";
+import { ObjectId } from "mongodb";
+import { db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { setup } from "../../config/test-setup.ts";
-import { Game, GameInfo, GamePreferences, JwtRefreshToken, User } from "../../models/index.ts";
+import { colls } from "../../config/db.ts";
+import { createAccessToken, generateRefreshCode } from "../../models/jwtrefreshtokens.ts";
 
 const baseURL = () => `http://localhost:${env.listen.port.api}`;
 
@@ -18,35 +20,28 @@ async function api(method: string, path: string, body?: unknown, headers?: Recor
 }
 
 describe("Game API", () => {
-  const userId = new Types.ObjectId();
+  const userId = new ObjectId();
   let authHeaders: Record<string, string> = {};
 
   before(async () => {
     await setup();
 
-    await User.create({
+    await colls.users.insertOne({
       _id: userId,
       account: { username: "test", email: "test@test.com" },
       security: { confirmed: true },
-    });
-    await GameInfo.create({
-      _id: {
-        game: "test",
-        version: 1,
-      },
+    } as any);
+    await colls.gameInfos.insertOne({
+      _id: { game: "test", version: 1 },
       label: "Test",
-      viewer: {
-        url: "//test.com/test",
-        topLevelVariable: "test",
-      },
+      viewer: { url: "//test.com/test", topLevelVariable: "test" },
       players: [2],
-
-      meta: {
-        public: true,
-      },
-    });
-    const refresh = await JwtRefreshToken.create({ user: userId });
-    const token = await refresh.createAccessToken(["all"], false);
+      meta: { public: true },
+    } as any);
+    const code = generateRefreshCode();
+    const tokenDoc = { user: userId, code, createdAt: new Date() };
+    await colls.jwtRefreshTokens.insertOne(tokenDoc as any);
+    const token = await createAccessToken(tokenDoc as any, ["all"], false);
     authHeaders = { Authorization: `Bearer ${token}` };
   });
 
@@ -70,13 +65,11 @@ describe("Game API", () => {
   });
 
   it("should be able to create a game with ownership", async () => {
-    await GamePreferences.create({
+    await colls.gamePreferences.insertOne({
       user: userId,
       game: "test",
-      access: {
-        ownership: true,
-      },
-    });
+      access: { ownership: true },
+    } as any);
 
     const res = await api(
       "POST",
@@ -118,8 +111,8 @@ describe("Game API", () => {
     const res = await api("POST", "/api/game/test/unjoin", {}, authHeaders);
 
     assert.strictEqual(res.ok, true);
-    assert.strictEqual(await Game.countDocuments({ _id: "test" }), 0, "Game should be deleted after creator unjoins");
+    assert.strictEqual(await colls.games.countDocuments({ _id: "test" }), 0, "Game should be deleted after creator unjoins");
   });
 
-  after(() => mongoose.connection.db.dropDatabase());
+  after(() => db().dropDatabase());
 });
