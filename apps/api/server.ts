@@ -12,7 +12,7 @@ const handleError = (err: Error) => {
 initDb().catch(handleError);
 
 // In production, run a process for each CPU
-if (cluster.isMaster && env.isProduction && Number(env.threads) > 1) {
+if (cluster.isPrimary && env.isProduction && Number(env.threads) > 1) {
   for (let i = 0; i < Number(env.threads); i++) {
     cluster.fork();
   }
@@ -22,6 +22,6 @@ if (cluster.isMaster && env.isProduction && Number(env.threads) > 1) {
   await import("./app/ws.ts");
 }
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   await import("./app/services/cron.ts");
 }

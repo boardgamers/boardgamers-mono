@@ -30,10 +30,10 @@ export async function getEngine(name: string, version: number): Promise<Engine> 
 }
 
 export function refreshEngine(name: string, version: number) {
-  console.log("refreshing engine", name, version, cluster.isMaster);
+  console.log("refreshing engine", name, version, cluster.isPrimary);
   delete engines[`${name}_${version}`];
 
-  if (cluster.isMaster) {
+  if (cluster.isPrimary) {
     for (const worker of Object.values(cluster.workers!)) {
       worker!.send({ type: "refreshEngine", name, version });
     }

@@ -79,7 +79,7 @@ export default async function initDb(url = env.database.bgs.url, runMigrations =
   await ensureCollections(_db);
   await ensureIndexes(_db);
 
-  if (cluster.isMaster && runMigrations) {
+  if (cluster.isPrimary && runMigrations) {
     try {
       await using _lock = await locks.lock("migration");
       await migrate();

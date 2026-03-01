@@ -61,7 +61,7 @@ async function processDrops() {
   }
 }
 
-if (cluster.isMaster) {
+if (cluster.isPrimary) {
   void installGames();
 
   if (env.cron) {

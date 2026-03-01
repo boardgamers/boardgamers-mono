@@ -3,7 +3,7 @@ import env from "./app/config/env.ts";
 
 async function main() {
   // In production, run a process for each CPU
-  if (cluster.isMaster && env.isProduction && env.threads > 1) {
+  if (cluster.isPrimary && env.isProduction && env.threads > 1) {
     for (let i = 0; i < env.threads; i++) {
       cluster.fork();
     }
@@ -11,7 +11,7 @@ async function main() {
     await import("./app/app.ts");
   }
 
-  if (cluster.isMaster) {
+  if (cluster.isPrimary) {
     await import("./app/services/cron.ts");
   }
 }
