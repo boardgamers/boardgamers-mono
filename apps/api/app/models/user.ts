@@ -2,8 +2,6 @@ import type { IAbstractUser } from "@bgs/types";
 import assert from "assert";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import lodash from "lodash";
-const { isEmpty, pick } = lodash;
 import locks from "../config/locks.ts";
 import mongoose, { Types } from "mongoose";
 import { env, sendmail } from "../config/index.ts";
@@ -208,7 +206,15 @@ schema.method("changeEmail", async function (this: UserDocument, email: string) 
 });
 
 schema.method("publicInfo", function (this: UserDocument) {
-  return pick(this, publicInfo);
+  return {
+    _id: this._id,
+    account: {
+      username: this.account?.username,
+      bio: this.account?.bio,
+      karma: this.account?.karma,
+    },
+    createdAt: (this as any).createdAt,
+  };
 });
 
 schema.static("publicInfo", () => publicInfo);
@@ -306,91 +312,91 @@ schema.method("sendResetEmail", function (this: UserDocument) {
 });
 
 schema.method("sendGameNotificationEmail", async function (this: UserDocument) {
-  const free = await locks.lock("game-notification", this.id);
-  try {
-    // Inside the lock, reload the user
-    const user = await User.findById(this.id);
+  {
+    await using _lock = await locks.lock("game-notification", this.id);
+    try {
+      // Inside the lock, reload the user
+      const user = await User.findById(this.id);
 
-    if (!user.settings.mailing.game.activated) {
-      user.meta.nextGameNotification = undefined;
-      await user.save();
-      return;
-    }
-
-    if (!user.meta.nextGameNotification) {
-      return;
-    }
-
-    if (user.meta.nextGameNotification > new Date()) {
-      return;
-    }
-
-    /* check if timer already started was present at the time of the last notification for at least one game*/
-    const count = await Game.count({
-      currentPlayers: { $elemMatch: { _id: user._id, timerStart: { $lt: user.meta.lastGameNotification } } },
-      status: "active",
-    }).limit(1);
-
-    if (count > 0) {
-      return;
-    }
-
-    const activeGames = await (Game as any).findWithPlayersTurn(user.id).select("-data").lean(true);
-
-    if (activeGames.length === 0) {
-      user.meta.nextGameNotification = undefined;
-      await user.save();
-      return;
-    }
-
-    /* Check the oldest game where it's your turn */
-    let lastMove: Date = new Date();
-    for (const game of activeGames) {
-      const timerStart = game.currentPlayers.find((pl) => pl._id.equals(this.id))?.timerStart;
-      if (timerStart && timerStart < lastMove) {
-        lastMove = timerStart;
+      if (!user.settings.mailing.game.activated) {
+        user.meta.nextGameNotification = undefined;
+        await user.save();
+        return;
       }
-    }
 
-    /* Test if we're sending the notification too early */
-    const notificationDate = new Date(lastMove.getTime() + (user.settings.mailing.game.delay || 30 * 60) * 1000);
+      if (!user.meta.nextGameNotification) {
+        return;
+      }
 
-    if (notificationDate > new Date()) {
-      user.meta.nextGameNotification = notificationDate;
-      await user.save();
-      return;
-    }
+      if (user.meta.nextGameNotification > new Date()) {
+        return;
+      }
 
-    const gameString = activeGames.length > 1 ? `${activeGames.length} games` : "one game";
+      /* check if timer already started was present at the time of the last notification for at least one game*/
+      const count = await Game.count({
+        currentPlayers: { $elemMatch: { _id: user._id, timerStart: { $lt: user.meta.lastGameNotification } } },
+        status: "active",
+      }).limit(1);
 
-    // Send email
-    if (this.email() && this.security.confirmed) {
-      sendmail({
-        from: env.noreply,
-        to: this.email(),
-        subject: `Your turn`,
-        html: `
+      if (count > 0) {
+        return;
+      }
+
+      const activeGames = await (Game as any).findWithPlayersTurn(user.id).select("-data").lean(true);
+
+      if (activeGames.length === 0) {
+        user.meta.nextGameNotification = undefined;
+        await user.save();
+        return;
+      }
+
+      /* Check the oldest game where it's your turn */
+      let lastMove: Date = new Date();
+      for (const game of activeGames) {
+        const timerStart = game.currentPlayers.find((pl) => pl._id.equals(this.id))?.timerStart;
+        if (timerStart && timerStart < lastMove) {
+          lastMove = timerStart;
+        }
+      }
+
+      /* Test if we're sending the notification too early */
+      const notificationDate = new Date(lastMove.getTime() + (user.settings.mailing.game.delay || 30 * 60) * 1000);
+
+      if (notificationDate > new Date()) {
+        user.meta.nextGameNotification = notificationDate;
+        await user.save();
+        return;
+      }
+
+      const gameString = activeGames.length > 1 ? `${activeGames.length} games` : "one game";
+
+      // Send email
+      if (this.email() && this.security.confirmed) {
+        sendmail({
+          from: env.noreply,
+          to: this.email(),
+          subject: `Your turn`,
+          html: `
         <p>Hello ${this.account.username}</p>
 
         <p>It's your turn on ${gameString},
         click <a href='http://${env.site}/user/${encodeURIComponent(
-          this.account.username
-        )}'>here</a> to see your active games.</p>
+            this.account.username
+          )}'>here</a> to see your active games.</p>
 
         <p>You can also change your email settings and unsubscribe <a href='http://${
-          env.site
-        }/account'>here</a> with a simple click.</p>`,
-      }).catch(console.error);
+            env.site
+          }/account'>here</a> with a simple click.</p>`,
+        }).catch(console.error);
+      }
+
+      user.meta.nextGameNotification = undefined;
+      user.meta.lastGameNotification = new Date(Date.now());
+
+      await user.save();
+    } catch (err) {
+      console.error(err);
     }
-
-    user.meta.nextGameNotification = undefined;
-    user.meta.lastGameNotification = new Date(Date.now());
-
-    await user.save();
-  } catch (err) {
-    console.error(err);
-  } finally {
-    free().catch(console.error);
   }
 });
 
@@ -427,7 +433,7 @@ schema.method("notifyLastIp", async function (this: UserDocument, ip: string) {
     this.security.lastActive = new Date();
     update["security.lastActive"] = new Date();
   }
-  if (!isEmpty(update)) {
+  if (Object.keys(update).length > 0) {
     await this.update(update);
   }
 });

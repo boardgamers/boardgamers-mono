@@ -1,4 +1,5 @@
-export * from "./join-and.ts";
+export * from "./array.ts";
+export * from "./object.ts";
 export * from "./remove-falsy.ts";
 export * from "./time.ts";
 

@@ -31,9 +31,8 @@ schema.static("processCurrentMove", async function (this: GameNotificationModel)
 });
 
 schema.static("processGameEnded", async function (this: GameNotificationModel) {
-  const free = await locks.lock("game-notification", "gameEnded");
-
-  try {
+  {
+    await using _lock = await locks.lock("game-notification", "gameEnded");
     const notifications = await this.find({ kind: "gameEnded", processed: false }, null, { lean: true });
 
     for (const notification of notifications) {
@@ -65,15 +64,12 @@ schema.static("processGameEnded", async function (this: GameNotificationModel) {
         await Log.create({ kind: "processGameEnded", data: { game: notification.game } }),
       ]);
     }
-  } finally {
-    free().catch(console.error);
   }
 });
 
 schema.static("processPlayerDrop", async function (this: GameNotificationModel) {
-  const free = await locks.lock("game-notification", "playerDrop");
-
-  try {
+  {
+    await using _lock = await locks.lock("game-notification", "playerDrop");
     const notifications = await this.find({ kind: "playerDrop", processed: false }, null, { lean: true });
 
     let userIds = notifications.map((not) => not.user);
@@ -96,8 +92,6 @@ schema.static("processPlayerDrop", async function (this: GameNotificationModel) 
       ),
       this.updateMany({ _id: { $in: notifications.map((x) => x._id) } }, { $set: { processed: true } }),
     ]);
-  } finally {
-    free().catch(console.error);
   }
 });
 

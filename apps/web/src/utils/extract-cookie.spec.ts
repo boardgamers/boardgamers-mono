@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { extractCookie } from "./extract-cookie";
 
 describe("extract-cookie", () => {

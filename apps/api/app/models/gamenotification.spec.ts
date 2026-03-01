@@ -1,17 +1,18 @@
-import chai, { expect } from "chai";
-import chaiAsPromised from "chai-as-promised";
+import assert from "node:assert/strict";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import mongoose, { Types } from "mongoose";
+import { setup } from "../config/test-setup.ts";
 import { defaultKarma, Game, GameNotification, GamePreferences, maxKarma, User } from "./index.ts";
 
 const { ObjectId } = Types;
-
-chai.use(chaiAsPromised);
 
 describe("GameNotification", () => {
   const userId = new ObjectId();
   const userId2 = new ObjectId();
   const userId3 = new ObjectId();
   const userId4 = new ObjectId();
+
+  before(() => setup());
 
   describe("processGameEnded", () => {
     describe("karma", () => {
@@ -40,8 +41,8 @@ describe("GameNotification", () => {
 
         const user = await User.findById(userId);
         const user2 = await User.findById(userId2);
-        expect(user.account.karma).to.equal(defaultKarma + 1);
-        expect(user2.account.karma).to.equal(defaultKarma);
+        assert.strictEqual(user.account.karma, defaultKarma + 1);
+        assert.strictEqual(user2.account.karma, defaultKarma);
       });
 
       it("should not go above 100", async () => {
@@ -51,7 +52,7 @@ describe("GameNotification", () => {
         await (GameNotification as any).processGameEnded();
 
         const user = await User.findById(userId);
-        expect(user.account.karma).to.equal(maxKarma);
+        assert.strictEqual(user.account.karma, maxKarma);
       });
     });
 
@@ -88,19 +89,19 @@ describe("GameNotification", () => {
         const userPref2 = await GamePreferences.findOne({ user: userId2, game: "gaia-project" });
         const userPref3 = await GamePreferences.findOne({ user: userId3, game: "gaia-project" });
         const userPref4 = await GamePreferences.findOne({ user: userId4, game: "gaia-project" });
-        expect(userPref.elo.value).to.equal(136);
-        expect(userPref.elo.games).to.equal(121);
-        expect(userPref2.elo.value).to.equal(114);
-        expect(userPref3.elo.value).to.equal(100);
-        expect(userPref4.elo.value).to.equal(1);
-        expect(userPref4.elo.games).to.equal(1);
+        assert.strictEqual(userPref.elo.value, 136);
+        assert.strictEqual(userPref.elo.games, 121);
+        assert.strictEqual(userPref2.elo.value, 114);
+        assert.strictEqual(userPref3.elo.value, 100);
+        assert.strictEqual(userPref4.elo.value, 1);
+        assert.strictEqual(userPref4.elo.games, 1);
         const game = await Game.findOne({ _id: "test" });
-        expect(game.players[0].elo.initial).to.equal(120);
-        expect(game.players[0].elo.delta).to.equal(16);
-        expect(game.players[2].elo.initial).to.equal(105);
-        expect(game.players[2].elo.delta).to.equal(-58);
-        expect(game.players[3].elo.initial).to.equal(0);
-        expect(game.players[3].elo.delta).to.equal(-1);
+        assert.strictEqual(game.players[0].elo.initial, 120);
+        assert.strictEqual(game.players[0].elo.delta, 16);
+        assert.strictEqual(game.players[2].elo.initial, 105);
+        assert.strictEqual(game.players[2].elo.delta, -58);
+        assert.strictEqual(game.players[3].elo.initial, 0);
+        assert.strictEqual(game.players[3].elo.delta, -1);
       });
 
       it("should work when ranking is set", async () => {
@@ -127,19 +128,19 @@ describe("GameNotification", () => {
         const userPref2 = await GamePreferences.findOne({ user: userId2, game: "gaia-project" });
         const userPref3 = await GamePreferences.findOne({ user: userId3, game: "gaia-project" });
         const userPref4 = await GamePreferences.findOne({ user: userId4, game: "gaia-project" });
-        expect(userPref.elo.value).to.equal(136);
-        expect(userPref.elo.games).to.equal(121);
-        expect(userPref2.elo.value).to.equal(114);
-        expect(userPref3.elo.value).to.equal(100);
-        expect(userPref4.elo.value).to.equal(1);
-        expect(userPref4.elo.games).to.equal(1);
+        assert.strictEqual(userPref.elo.value, 136);
+        assert.strictEqual(userPref.elo.games, 121);
+        assert.strictEqual(userPref2.elo.value, 114);
+        assert.strictEqual(userPref3.elo.value, 100);
+        assert.strictEqual(userPref4.elo.value, 1);
+        assert.strictEqual(userPref4.elo.games, 1);
         const game = await Game.findOne({ _id: "test" });
-        expect(game.players[0].elo.initial).to.equal(120);
-        expect(game.players[0].elo.delta).to.equal(16);
-        expect(game.players[2].elo.initial).to.equal(105);
-        expect(game.players[2].elo.delta).to.equal(-58);
-        expect(game.players[3].elo.initial).to.equal(0);
-        expect(game.players[3].elo.delta).to.equal(-1);
+        assert.strictEqual(game.players[0].elo.initial, 120);
+        assert.strictEqual(game.players[0].elo.delta, 16);
+        assert.strictEqual(game.players[2].elo.initial, 105);
+        assert.strictEqual(game.players[2].elo.delta, -58);
+        assert.strictEqual(game.players[3].elo.initial, 0);
+        assert.strictEqual(game.players[3].elo.delta, -1);
       });
 
       it("should not cause errors when dealing with a cancelled game", async () => {
@@ -159,7 +160,7 @@ describe("GameNotification", () => {
 
         await GameNotification.create({ kind: "gameEnded", game: "testCancelled" });
 
-        await expect((GameNotification as any).processGameEnded()).to.eventually.be.fulfilled;
+        await (GameNotification as any).processGameEnded();
       });
     });
   });
@@ -182,8 +183,9 @@ describe("GameNotification", () => {
 
       const user = await User.findById(userId);
 
-      expect(user.account.karma).to.equal(defaultKarma - 10);
-      expect(await GameNotification.countDocuments({ processed: false })).to.equal(
+      assert.strictEqual(user.account.karma, defaultKarma - 10);
+      assert.strictEqual(
+        await GameNotification.countDocuments({ processed: false }),
         0,
         "Game notifications should be cleaned up"
       );
@@ -202,7 +204,7 @@ describe("GameNotification", () => {
 
       const user = await User.findById(userId);
 
-      expect(user.account.karma).to.equal(defaultKarma - 10 - 30);
+      assert.strictEqual(user.account.karma, defaultKarma - 10 - 30);
     });
 
     it("should handle multiple player drops simulatenously", async () => {
@@ -225,8 +227,8 @@ describe("GameNotification", () => {
       const user = await User.findById(userId);
       const user2 = await User.findById(userId2);
 
-      expect(user.account.karma).to.equal(defaultKarma - 10 - 30 - 30);
-      expect(user2.account.karma).to.equal(defaultKarma - 10);
+      assert.strictEqual(user.account.karma, defaultKarma - 10 - 30 - 30);
+      assert.strictEqual(user2.account.karma, defaultKarma - 10);
     });
   });
 });

@@ -1,6 +1,6 @@
-import assert from "assert";
 import type { Context } from "koa";
 import Router from "koa-router";
+import { z } from "zod";
 import { ApiError, GameInfo, GamePreferences, User } from "../../models/index.ts";
 import { queryCount } from "../utils.ts";
 
@@ -23,31 +23,34 @@ router.get("/search", async (ctx) => {
 });
 
 router.post("/:userId", async (ctx) => {
+  const { account } = z.object({ account: z.object({ karma: z.number() }) }).parse(ctx.request.body);
   await User.updateOne(
     { _id: ctx.params.userId },
     {
-      $set: { "account.karma": (ctx.request.body as any).account.karma },
+      $set: { "account.karma": account.karma },
     }
   );
   ctx.status = 200;
 });
 
 router.post("/:userId/elo/:game", async (ctx) => {
+  const { value } = z.object({ value: z.number() }).parse(ctx.request.body);
   await GamePreferences.updateOne(
     { user: ctx.params.userId, game: ctx.params.game },
-    { $set: { "elo.value": (ctx.request.body as any).value } },
+    { $set: { "elo.value": value } },
     { upsert: false }
   );
   ctx.status = 200;
 });
 
 router.post("/:userId/access/grant", async (ctx) => {
-  const body = ctx.request.body as any;
-  const type = body?.type;
+  const { game, version } = z.object({
+    type: z.literal("game"),
+    game: z.string(),
+    version: z.number().int(),
+  }).parse(ctx.request.body);
 
-  assert(type === "game", "Wrong kind of access");
-
-  const gameInfo = await (GameInfo as any).findWithVersion(body.game, body.version).lean(true);
+  const gameInfo = await (GameInfo as any).findWithVersion(game, version).lean(true);
 
   if (!gameInfo) {
     ctx.status = 404;
@@ -65,7 +68,7 @@ router.post("/:userId/access/grant", async (ctx) => {
   }
 
   await GamePreferences.updateOne(
-    { user: ctx.params.userId, game: body.game },
+    { user: ctx.params.userId, game },
     { $set: { "access.maxVersion": gameInfo._id.version } },
     { upsert: true }
   );

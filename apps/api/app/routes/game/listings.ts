@@ -1,6 +1,6 @@
 import type { GameStatus } from "@bgs/types";
-import { joinAnd } from "@bgs/utils/join-and";
 import { removeFalsy } from "@bgs/utils/remove-falsy";
+import { simplifyFilter } from "@coyotte508/mongo-query";
 import { Game } from "../../models/index.ts";
 import GameInfoService from "../../services/gameinfo.ts";
 import assert from "assert";
@@ -58,8 +58,8 @@ async function gameConditions<T>(
     }
   })();
 
-  return joinAnd(
-    ...removeFalsy([
+  return simplifyFilter({
+    $and: removeFalsy([
       baseConditions,
       params.maxKarma && {
         $or: [
@@ -73,8 +73,8 @@ async function gameConditions<T>(
       params.boardgame && { "game.name": params.boardgame },
       params.user && { "players._id": params.user },
       await filterAccessibleGames(params.requester),
-    ])
-  );
+    ]),
+  }) as Record<string, unknown>;
 }
 
 router.get("/:status/count", async (ctx) => {

@@ -8,7 +8,7 @@ import { Strategy as DiscordStrategy } from "passport-discord";
 import { Strategy as FacebookStrategy } from "passport-facebook";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as LocalStrategy } from "passport-local";
-import validator from "validator";
+import { z } from "zod";
 import { User } from "../models/index.ts";
 import type { UserDocument } from "../models/user.ts";
 import env from "./env.ts";
@@ -32,7 +32,7 @@ passport.use(
       try {
         // find a user whose email is the same as the forms email
         // we are checking to see if the user trying to login already exists
-        if (!validator.isEmail(email)) {
+        if (!z.string().email().safeParse(email).success) {
           throw createError(422, "Wrong email format");
         }
 

@@ -1,12 +1,13 @@
+import { omit } from "@bgs/utils/object";
 import { timerDuration } from "@bgs/utils/time";
 import assert from "assert";
 import { addDays } from "date-fns";
 import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
-import lodash from "lodash";
-const { omit } = lodash;
+import { z } from "zod";
 import locks from "../../config/locks.ts";
+import { zObjectId } from "../../utils/zod.ts";
 import {
   ChatMessage,
   Game,
@@ -21,12 +22,36 @@ import { notifyGameStart } from "../../services/game.ts";
 import { isAdmin, isConfirmed, loggedIn } from "../utils.ts";
 import listings from "./listings.ts";
 
+function withoutData(game: any) {
+  return omit(typeof game.toJSON === "function" ? game.toJSON() : game, "data");
+}
+
+const gameIdPattern = /^[A-Za-z0-9-]+$/;
+
+const newGameSchema = z.object({
+  game: z.object({
+    game: z.string(),
+    version: z.number().int(),
+  }),
+  gameId: z.string().regex(gameIdPattern, "Wrong format for game id"),
+  players: z.number().int().positive(),
+  expansions: z.array(z.string()).optional(),
+  timePerGame: z.number().positive("Wrong amount of time per game"),
+  timePerMove: z.number().positive("Wrong amount of time per move"),
+  timerStart: z.number().optional(),
+  timerEnd: z.number().optional(),
+  minimumKarma: z.number().int().nonnegative().optional().nullable(),
+  scheduledStart: z.number().optional(),
+  seed: z.string().regex(gameIdPattern).optional(),
+  options: z.record(z.union([z.string(), z.boolean()])).optional(),
+});
+
 const router = new Router<Application.DefaultState, Context>();
 
 router.use("/status", listings.routes(), listings.allowedMethods());
 
 router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
-  const body = ctx.request.body as any;
+  const body = newGameSchema.parse(ctx.request.body);
   const {
     game: gameInfoId,
     gameId,
@@ -206,7 +231,7 @@ router.param("gameId", async (gameId, ctx, next) => {
 
 // Metadata about the game
 router.get("/:gameId", (ctx) => {
-  ctx.body = omit(ctx.state.game.toJSON(), "data");
+  ctx.body = withoutData(ctx.state.game);
 });
 
 router.get("/:gameId/players", async (ctx) => {
@@ -233,11 +258,10 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
       (ctx.state.user && ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id))),
     "You must be a player of the game to chat!"
   );
-  const chatBody = ctx.request.body as any;
-  assert(chatBody.type === "text" || chatBody.type === "emoji");
-
-  const text = chatBody?.data?.text?.trim();
-  assert(text, "Empty chat message");
+  const body = z.object({
+    type: z.enum(["text", "emoji"]),
+    data: z.object({ text: z.string().min(1, "Empty chat message") }),
+  }).parse(ctx.request.body);
 
   const doc = new ChatMessage({
     room: ctx.state.game._id,
@@ -246,9 +270,9 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
       name: ctx.state.user.account.username,
     },
     data: {
-      text: chatBody.data.text,
+      text: body.data.text,
     },
-    type: chatBody.type,
+    type: body.type,
   });
   await doc.save();
   ctx.status = 200;
@@ -259,12 +283,10 @@ router.post("/:gameId/invite", loggedIn, async (ctx) => {
     ctx.state.user._id.equals(ctx.state.game.creator),
     "You must be the creator of the game to invite other players"
   );
-  // assert(ctx.state.game.options.timing.scheduledStart, "The game must have a scheduled start");
+  const { userId } = z.object({ userId: zObjectId() }).parse(ctx.request.body);
 
-  const { userId } = ctx.request.body as any;
-
-  const free = await locks.lock("game", ctx.params.gameId);
-  try {
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
     const game = await Game.findOne({
       _id: ctx.params.gameId,
       status: "open",
@@ -288,11 +310,9 @@ router.post("/:gameId/invite", loggedIn, async (ctx) => {
     game.currentPlayers.push({ _id: userId, timerStart: new Date(), deadline: game.options.timing.scheduledStart });
 
     await game.save();
-  } finally {
-    free().catch(console.error);
   }
 
-  ctx.body = omit(ctx.state.game, "data");
+  ctx.body = withoutData(ctx.state.game);
 });
 
 router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
@@ -314,8 +334,8 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
     }
   }
 
-  const free = await locks.lock("game", ctx.params.gameId);
-  try {
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
     const game = await Game.findOne({
       _id: ctx.params.gameId,
       status: "open",
@@ -359,15 +379,13 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
     if (game.ready && !game.options.timing.scheduledStart) {
       await notifyGameStart(game);
     }
-  } finally {
-    free().catch(console.error);
   }
-  ctx.body = omit(ctx.state.game, "data");
+  ctx.body = withoutData(ctx.state.game);
 });
 
 router.post("/:gameId/unjoin", loggedIn, async (ctx) => {
-  const free = await locks.lock("game", ctx.params.gameId);
-  try {
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
     const game = await Game.findOne({ _id: ctx.params.gameId, status: "open" });
 
     if (!game) {
@@ -394,15 +412,13 @@ router.post("/:gameId/unjoin", loggedIn, async (ctx) => {
     }
 
     ctx.state.game = game;
-  } finally {
-    free().catch(console.error);
   }
-  ctx.body = omit(ctx.state.game, "data");
+  ctx.body = withoutData(ctx.state.game);
 });
 
 router.post("/:gameId/start", loggedIn, async (ctx) => {
-  const free = await locks.lock("game", ctx.params.gameId);
-  try {
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
     const game = await Game.findOne({
       _id: ctx.params.gameId,
       status: "open",
@@ -420,7 +436,7 @@ router.post("/:gameId/start", loggedIn, async (ctx) => {
       "You can only start the game when all players have joined"
     );
 
-    const { playerOrder } = ctx.request.body as any;
+    const { playerOrder } = z.object({ playerOrder: z.array(z.string()).optional() }).parse(ctx.request.body);
 
     if (playerOrder) {
       game.players = [...game.players].sort(
@@ -436,10 +452,8 @@ router.post("/:gameId/start", loggedIn, async (ctx) => {
     }
 
     ctx.state.game = game;
-  } finally {
-    free().catch(console.error);
   }
-  ctx.body = omit(ctx.state.game, "data");
+  ctx.body = withoutData(ctx.state.game);
 });
 
 router.post("/:gameId/cancel", loggedIn, async (ctx) => {
@@ -448,9 +462,8 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
     "You must be a player of the game to vote!"
   );
 
-  const free = await locks.lock("game-cancel", ctx.params.gameId);
-
-  try {
+  {
+    await using _lock = await locks.lock("game-cancel", ctx.params.gameId);
     const game = await Game.findOne({ _id: ctx.params.gameId });
 
     assert(game, createError(404));
@@ -480,8 +493,6 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
       // Possible concurrency issue if game is cancelled at the exact same time as being finished
       await GameNotification.create({ kind: "gameEnded", game: game._id });
     }
-  } finally {
-    free().catch(console.error);
   }
 
   ctx.status = 200;
@@ -493,9 +504,8 @@ router.post("/:gameId/quit", loggedIn, async (ctx) => {
     "You must be a player of the game to quit!"
   );
 
-  const free = await locks.lock("game-cancel", ctx.params.gameId);
-
-  try {
+  {
+    await using _lock = await locks.lock("game-cancel", ctx.params.gameId);
     const game = await Game.findOne({ _id: ctx.params.gameId }).select("players status").lean(true);
 
     assert(game.status === "active", "The game is not ongoing");
@@ -505,8 +515,6 @@ router.post("/:gameId/quit", loggedIn, async (ctx) => {
     assert(!player.quit && !player.dropped, "You already quit the game");
 
     await GameNotification.create({ kind: "playerQuit", user: ctx.state.user._id, game: game._id });
-  } finally {
-    free().catch(console.error);
   }
 
   ctx.status = 200;
@@ -522,9 +530,8 @@ router.post("/:gameId/drop/:userId", loggedIn, async (ctx) => {
     targetId && ctx.state.game.players.some((pl) => pl._id.equals(targetId), "The target must be a player of the game!")
   );
 
-  const free = await locks.lock("game-cancel", ctx.params.gameId);
-
-  try {
+  {
+    await using _lock = await locks.lock("game-cancel", ctx.params.gameId);
     const game = await Game.findOne({ _id: ctx.params.gameId }).select("currentPlayers players status").lean(true);
 
     assert(game.status === "active", "The game is not ongoing");
@@ -549,22 +556,19 @@ router.post("/:gameId/drop/:userId", loggedIn, async (ctx) => {
         remainingTime: player.remainingTime,
       },
     });
-  } finally {
-    free().catch(console.error);
   }
 
   ctx.status = 200;
 });
 
 router.post("/:roomId/notes", loggedIn, async (ctx) => {
+  const { notes } = z.object({ notes: z.string() }).parse(ctx.request.body);
   await RoomMetaData.findOneAndUpdate(
     {
       room: ctx.params.roomId,
       user: ctx.state.user._id,
     },
-    {
-      notes: (ctx.request.body as any).notes,
-    },
+    { notes },
     {
       runValidators: true,
       upsert: true,
@@ -593,9 +597,10 @@ router.get("/:roomId/chat/lastRead", loggedIn, async (ctx) => {
 });
 
 router.post("/:roomId/chat/lastRead", loggedIn, async (ctx) => {
+  const { lastRead } = z.object({ lastRead: z.union([z.string(), z.number()]) }).parse(ctx.request.body);
   await RoomMetaData.findOneAndUpdate(
     { room: ctx.params.roomId, user: ctx.state.user._id },
-    { lastChatMessageViewed: new Date((ctx.request.body as any).lastRead) },
+    { lastChatMessageViewed: new Date(lastRead) },
     { upsert: true }
   );
   ctx.status = 200;

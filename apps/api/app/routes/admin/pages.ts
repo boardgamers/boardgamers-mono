@@ -1,7 +1,6 @@
+import { omit } from "@bgs/utils/object";
 import type { Context } from "koa";
 import Router from "koa-router";
-import lodash from "lodash";
-const { omit } = lodash;
 import { Page } from "../../models/index.ts";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -16,7 +15,7 @@ router.post("/:name/:lang", async (ctx) => {
       name: ctx.params.name,
       lang: ctx.params.lang,
     },
-    omit(ctx.request.body as object, "_id"),
+    omit(ctx.request.body as Record<string, unknown>, "_id"),
     {
       upsert: true,
       runValidators: true,

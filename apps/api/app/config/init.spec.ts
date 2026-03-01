@@ -1,39 +1,9 @@
-import assert from "assert";
-import { Server } from "http";
-import mongoose from "mongoose";
-import { listen } from "../app.ts";
-import initDb from "./db.ts";
-import env from "./env.ts";
+import { after, before, describe, it } from "node:test";
+import { setup, teardown } from "./test-setup.ts";
 
-assert(process.env.NODE_ENV === "test");
+describe("Test setup", () => {
+  before(() => setup());
+  after(() => teardown());
 
-let server: Server;
-
-async function init() {
-  assert(env.database.bgs.name.endsWith("-test"));
-  await initDb(env.database.bgs.url, false);
-
-  const users = await mongoose.connection.db.collection("users").countDocuments();
-  assert(users < 10, "This doesn't seem to be a test database");
-
-  const collections = await mongoose.connection.db.listCollections().toArray();
-  await Promise.all(collections.map((c) => mongoose.connection.db.dropCollection(c.name)));
-
-  env.listen.port.api = 50606;
-  env.silent = true;
-
-  server = await listen();
-
-  run();
-}
-
-init().catch((err) => {
-  console.error("Test init failed:", err);
-  process.exit(1);
-});
-
-after(async () => {
-  server.close();
-  await mongoose.connection.db.dropDatabase();
-  await mongoose.connection.close();
+  it("should initialize the test environment", () => {});
 });

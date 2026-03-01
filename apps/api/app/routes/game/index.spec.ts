@@ -1,6 +1,8 @@
-import { expect } from "chai";
+import assert from "node:assert/strict";
+import { after, before, describe, it } from "node:test";
 import mongoose, { Types } from "mongoose";
 import env from "../../config/env.ts";
+import { setup } from "../../config/test-setup.ts";
 import { Game, GameInfo, GamePreferences, JwtRefreshToken, User } from "../../models/index.ts";
 
 const baseURL = () => `http://localhost:${env.listen.port.api}`;
@@ -20,6 +22,8 @@ describe("Game API", () => {
   let authHeaders: Record<string, string> = {};
 
   before(async () => {
+    await setup();
+
     await User.create({
       _id: userId,
       account: { username: "test", email: "test@test.com" },
@@ -61,8 +65,8 @@ describe("Game API", () => {
       authHeaders
     );
 
-    expect(res.ok).to.be.false;
-    expect((res.data as any)?.message.includes("own the game")).to.be.true;
+    assert.strictEqual(res.ok, false);
+    assert.ok((res.data as any)?.message.includes("own the game"));
   });
 
   it("should be able to create a game with ownership", async () => {
@@ -88,7 +92,7 @@ describe("Game API", () => {
       authHeaders
     );
 
-    expect(res.ok).to.be.true;
+    assert.strictEqual(res.ok, true);
   });
 
   it("should not be able to create a game with the wrong number of players", async () => {
@@ -106,16 +110,15 @@ describe("Game API", () => {
       authHeaders
     );
 
-    expect(res.ok).to.be.false;
-    expect((res.data as any)?.message).to.equal("Wrong number of players");
+    assert.strictEqual(res.ok, false);
+    assert.strictEqual((res.data as any)?.message, "Wrong number of players");
   });
 
   it("should be able to leave the game", async () => {
     const res = await api("POST", "/api/game/test/unjoin", {}, authHeaders);
 
-    expect(res.ok).to.be.true;
-
-    expect(await Game.countDocuments({ _id: "test" })).to.equal(0, "Game should be deleted after creator unjoins");
+    assert.strictEqual(res.ok, true);
+    assert.strictEqual(await Game.countDocuments({ _id: "test" }), 0, "Game should be deleted after creator unjoins");
   });
 
   after(() => mongoose.connection.db.dropDatabase());

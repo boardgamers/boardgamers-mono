@@ -1,6 +1,7 @@
 import { AssertionError } from "assert";
 import type { Server } from "http";
 import createError from "http-errors";
+import { ZodError } from "zod";
 import jwt from "jsonwebtoken";
 /* Koa stuff */
 import Koa from "koa";
@@ -67,6 +68,9 @@ async function listen(port = env.listen.port.api) {
       if (err instanceof createError.HttpError) {
         ctx.status = err.statusCode;
         ctx.body = { message: err.message };
+      } else if (err instanceof ZodError) {
+        ctx.status = 400;
+        ctx.body = { message: err.issues.map((i) => i.message).join(", ") };
       } else if (err.name === "ValidationError") {
         const keys = Object.keys(err.errors);
         ctx.status = 422;

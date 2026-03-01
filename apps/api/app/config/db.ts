@@ -25,14 +25,11 @@ export default async function initDb(url = env.database.bgs.url, runMigrations =
   locks.init(mongoose.connection.db!.collection("locks"));
 
   if (cluster.isMaster && runMigrations) {
-    let free = () => {};
     try {
-      free = await locks.lock("migration");
+      await using _lock = await locks.lock("migration");
       await migrate();
     } catch (err) {
       console.error(err);
-    } finally {
-      free();
     }
   }
 

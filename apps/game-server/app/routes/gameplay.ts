@@ -1,7 +1,7 @@
+import { keyBy } from "@bgs/utils/array";
+import { omit, pick } from "@bgs/utils/object";
 import assert from "assert";
 import Router from "koa-router";
-import lodash from "lodash";
-const { keyBy, omit, pick } = lodash;
 import locks from "../config/locks.ts";
 import Game from "../models/game.ts";
 import GameInfo from "../models/gameinfo.ts";
@@ -13,21 +13,17 @@ import { isAdmin, loggedIn } from "./utils.ts";
 const router = new Router();
 
 router.post("/batch/replay", isAdmin, async (ctx) => {
-  const free = await locks.lock("batch-replay");
-
-  try {
+  {
+    await using _lock = await locks.lock("batch-replay");
     const gameIds: string[] = (ctx.request.body as any).gameIds;
 
     ctx.body = await batchReplay({ _id: { $in: gameIds } });
-  } finally {
-    free().catch(console.error);
   }
 });
 
 router.post("/:gameId/edit-data", isAdmin, async (ctx) => {
-  const free = await locks.lock("game", ctx.params.gameId);
-
-  try {
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
     const game = await Game.findById(ctx.params.gameId);
 
     if (!game) {
@@ -39,15 +35,12 @@ router.post("/:gameId/edit-data", isAdmin, async (ctx) => {
     await game.save();
 
     ctx.status = 200;
-  } finally {
-    free().catch(console.error);
   }
 });
 
 router.post("/:gameId/replay", isAdmin, async (ctx) => {
-  const free = await locks.lock("game", ctx.params.gameId);
-
-  try {
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
     const game = await Game.findById(ctx.params.gameId);
 
     if (!game) {
@@ -69,14 +62,12 @@ router.post("/:gameId/replay", isAdmin, async (ctx) => {
     } else {
       ctx.status = 500;
     }
-  } finally {
-    free().catch(console.error);
   }
 });
 
 router.post("/:gameId/move", loggedIn, async (ctx) => {
-  const free = await locks.lock("game", ctx.params.gameId);
-  try {
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
     const game = await Game.findById(ctx.params.gameId);
 
     if (!game) {
@@ -114,14 +105,12 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
     }
 
     ctx.body = {
-      game: omit(game, "data"),
+      game: omit(game.toJSON() as Record<string, unknown>, "data"),
       log: {
         start: initialLogIndex,
         data: engine.logSlice(gameData, { start: initialLogIndex, player: playerIndex }),
       },
     };
-  } finally {
-    free().catch(console.error);
   }
 });
 
@@ -141,11 +130,11 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
   const gameInfo = await GameInfo.findById({ game: game.game.name, version: game.game.version })
     .select("settings")
     .lean(true);
-  const settings = keyBy(gameInfo.settings, "name");
+  const settings = keyBy(gameInfo.settings, (s) => s.name);
 
   // Make sure that the setting is well-formed
   // could throw a BadRequestException instead
-  const filteredSettings = pick(ctx.request.body, Object.keys(settings));
+  const filteredSettings = pick(ctx.request.body as Record<string, unknown>, Object.keys(settings));
   for (const [key, setting] of Object.entries(filteredSettings)) {
     switch (settings[key].type) {
       case "checkbox":
@@ -167,8 +156,8 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
 
   assert(engine.setPlayerSettings, "This game does not support custom settings");
 
-  const free = await locks.lock("game", ctx.params.gameId);
-  try {
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
     const game = await Game.findById(ctx.params.gameId);
 
     let gameData = game.data;
@@ -187,8 +176,6 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
     ctx.body = {
       settings: toSave ? engine.playerSettings(toSave, playerIndex) : null,
     };
-  } finally {
-    free().catch(console.error);
   }
 });
 

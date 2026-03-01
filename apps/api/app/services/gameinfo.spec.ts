@@ -1,11 +1,17 @@
+import assert from "node:assert/strict";
+import { before, describe, it } from "node:test";
 import { GameInfo, GamePreferences, User } from "../models/index.ts";
-import { expect } from "chai";
-import lodash from "lodash";
-const { sortBy } = lodash;
+import { setup } from "../config/test-setup.ts";
 import { seed } from "../../scripts/seed.ts";
 import GameInfoService from "./gameinfo.ts";
 
+function sortedEntries(map: Map<string, number>) {
+  return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+}
+
 describe("GameInfoService", () => {
+  before(() => setup());
+
   describe("latestAccessibleGames", () => {
     before(async () => {
       await seed(["GameInfo", "User", "GamePreferences"], true);
@@ -14,7 +20,7 @@ describe("GameInfoService", () => {
     it("should return all public games for undefined user", async () => {
       let games = await GameInfoService.latestAccessibleGames();
 
-      expect(sortBy([...games.entries()], (entry) => entry[0])).to.deep.equal([
+      assert.deepStrictEqual(sortedEntries(games), [
         ["container", 1],
         ["gaia-project", 1],
         ["powergrid", 1],
@@ -24,7 +30,7 @@ describe("GameInfoService", () => {
 
       games = await GameInfoService.latestAccessibleGames();
 
-      expect(sortBy([...games.entries()], (entry) => entry[0])).to.deep.equal([
+      assert.deepStrictEqual(sortedEntries(games), [
         ["gaia-project", 1],
         ["powergrid", 1],
       ]);
@@ -35,7 +41,7 @@ describe("GameInfoService", () => {
 
       let games = await GameInfoService.latestAccessibleGames(user._id);
 
-      expect(sortBy([...games.entries()], (entry) => entry[0])).to.deep.equal([
+      assert.deepStrictEqual(sortedEntries(games), [
         ["gaia-project", 1],
         ["powergrid", 1],
       ]);
@@ -45,7 +51,7 @@ describe("GameInfoService", () => {
 
       games = await GameInfoService.latestAccessibleGames(user._id);
 
-      expect(sortBy([...games.entries()], (entry) => entry[0])).to.deep.equal([
+      assert.deepStrictEqual(sortedEntries(games), [
         ["container", 1],
         ["gaia-project", 1],
         ["powergrid", 1],

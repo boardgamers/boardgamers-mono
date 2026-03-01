@@ -1,6 +1,5 @@
 import { subHours, subWeeks } from "date-fns";
-import lodash from "lodash";
-const { shuffle } = lodash;
+import { shuffle } from "@bgs/utils/array";
 import locks from "../config/locks.ts";
 import { ChatMessage, Game, GameNotification } from "../models/index.ts";
 import type { GameDocument } from "../models/game.ts";
@@ -44,9 +43,8 @@ export async function cancelOldOpenGames() {
 }
 
 export async function processSchedulesGames() {
-  const free = await locks.lock("game", "scheduled-games");
-
-  try {
+  {
+    await using _lock = await locks.lock("game", "scheduled-games");
     for await (const game of Game.find({
       status: "open",
       "options.timing.scheduledStart": { $lt: new Date() },
@@ -69,8 +67,6 @@ export async function processSchedulesGames() {
       await g.save();
       await notifyGameStart(g);
     }
-  } finally {
-    free().catch(console.error);
   }
 }
 
@@ -86,22 +82,18 @@ export async function processUnreadyGames() {
 
   for (const toFetch of games) {
     try {
-      const free = await locks.lock("game", toFetch._id);
-      try {
-        const game = await Game.findById(toFetch._id, { status: 1 });
+      await using _lock = await locks.lock("game", toFetch._id);
+      const game = await Game.findById(toFetch._id, { status: 1 });
 
-        if (game.status === "open") {
-          await ChatMessage.create({
-            room: game._id,
-            type: "system",
-            data: { text: "Game cancelled because host didn't set the final options in time" },
-          });
-          game.cancelled = true;
-          game.status = "ended";
-          await game.save();
-        }
-      } finally {
-        free().catch(console.error);
+      if (game.status === "open") {
+        await ChatMessage.create({
+          room: game._id,
+          type: "system",
+          data: { text: "Game cancelled because host didn't set the final options in time" },
+        });
+        game.cancelled = true;
+        game.status = "ended";
+        await game.save();
       }
     } catch (err) {
       console.error(err);

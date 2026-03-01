@@ -30,155 +30,153 @@ export async function addMessage(gameId: string, message: string) {
 }
 
 export async function startNextGame(): Promise<boolean> {
-  let free = locks.noop;
+  const notification = await GameNotification.findOne({ kind: "gameStarted", processed: false });
+
+  if (!notification) {
+    return false;
+  }
+
   try {
-    const notification = await GameNotification.findOne({ kind: "gameStarted", processed: false });
+    {
+      await using _lock = await locks.lock("game", notification.game);
 
-    if (!notification) {
-      return false;
-    }
+      const game = await Game.findById(notification.game);
 
-    free = await locks.lock("game", notification.game);
+      if (!game || game.status !== "open" || game.players.length < game.options.setup.nbPlayers) {
+        // Something happened, not ready to start
+        await notification.update({ processed: true });
+        return true;
+      }
 
-    const game = await Game.findById(notification.game);
+      const engine = await getEngine(game.game.name, game.game.version);
 
-    if (!game || game.status !== "open" || game.players.length < game.options.setup.nbPlayers) {
-      // Something happened, not ready to start
-      await notification.update({ processed: true });
+      let seed = game.options.setup.seed;
+
+      if (engine.stripSecret) {
+        // encrypt seed if there are secrets
+        seed = crypto.createHash("sha256").update(seed).update(env.seedEncryptionKey).digest().toString("base64");
+      }
+
+      const creator = game.players.findIndex((pl) => pl._id.equals(game.creator));
+
+      let gameData = await engine.init(
+        game.options.setup.nbPlayers,
+        game.game.expansions,
+        game.game.options || {},
+        seed,
+        creator === -1 ? undefined : creator
+      );
+
+      if (engine.setPlayerMetaData) {
+        for (let i = 0; i < game.options.setup.nbPlayers; i++) {
+          gameData = engine.setPlayerMetaData(gameData, i, { name: game.players[i].name });
+        }
+      }
+
+      game.data = gameData;
+      game.status = "active";
+
+      const currentPlayers: number[] = (() => {
+        const current = engine.currentPlayer(gameData) ?? [];
+
+        return Array.isArray(current) ? current : [current];
+      })();
+
+      game.currentPlayers = currentPlayers.map((playerNumber) => ({
+        _id: game.players[playerNumber]._id,
+        timerStart: new Date(),
+        deadline: deadline(
+          game.players[playerNumber].remainingTime ?? game.options.timing.timePerGame,
+          game.options.timing.timer
+        ),
+      }));
+
+      game.lastMove = new Date();
+
+      if (engine.round) {
+        game.context.round = engine.round(gameData);
+      }
+
+      await game.save();
+      const promises = (game.currentPlayers ?? []).map((pl) =>
+        GameNotification.create({ user: pl._id, createdAt: new Date(), game: game._id, kind: "currentMove" })
+      );
+      await Promise.all([...promises, notification.update({ processed: true })]);
+
       return true;
     }
-
-    const engine = await getEngine(game.game.name, game.game.version);
-
-    let seed = game.options.setup.seed;
-
-    if (engine.stripSecret) {
-      // encrypt seed if there are secrets
-      seed = crypto.createHash("sha256").update(seed).update(env.seedEncryptionKey).digest().toString("base64");
-    }
-
-    const creator = game.players.findIndex((pl) => pl._id.equals(game.creator));
-
-    let gameData = await engine.init(
-      game.options.setup.nbPlayers,
-      game.game.expansions,
-      game.game.options || {},
-      seed,
-      creator === -1 ? undefined : creator
-    );
-
-    if (engine.setPlayerMetaData) {
-      for (let i = 0; i < game.options.setup.nbPlayers; i++) {
-        gameData = engine.setPlayerMetaData(gameData, i, { name: game.players[i].name });
-      }
-    }
-
-    game.data = gameData;
-    game.status = "active";
-
-    const currentPlayers: number[] = (() => {
-      const current = engine.currentPlayer(gameData) ?? [];
-
-      return Array.isArray(current) ? current : [current];
-    })();
-
-    game.currentPlayers = currentPlayers.map((playerNumber) => ({
-      _id: game.players[playerNumber]._id,
-      timerStart: new Date(),
-      deadline: deadline(
-        game.players[playerNumber].remainingTime ?? game.options.timing.timePerGame,
-        game.options.timing.timer
-      ),
-    }));
-
-    game.lastMove = new Date();
-
-    if (engine.round) {
-      game.context.round = engine.round(gameData);
-    }
-
-    await game.save();
-    const promises = (game.currentPlayers ?? []).map((pl) =>
-      GameNotification.create({ user: pl._id, createdAt: new Date(), game: game._id, kind: "currentMove" })
-    );
-    await Promise.all([...promises, notification.update({ processed: true })]);
-
-    return true;
   } catch (err) {
     console.error(err);
     return false;
-  } finally {
-    free().catch(console.error);
   }
 }
 
 export async function processQuit(notification: GameNotificationDocument) {
-  let free = locks.noop;
   try {
-    free = await locks.lock("game", notification.game);
+    {
+      await using _lock = await locks.lock("game", notification.game);
 
-    const game = await Game.findById(notification.game);
+      const game = await Game.findById(notification.game);
 
-    if (!game || game.status !== "active") {
-      // Something happened, not ready to start
-      await notification.update({ processed: true });
-      return true;
-    }
-
-    const player = game.players.find((pl) => pl._id.equals(notification.user));
-
-    if (!player || player.dropped || player.quit) {
-      await notification.update({ processed: true });
-      return true;
-    }
-
-    const engine = await getEngine(game.game.name, game.game.version);
-
-    let gameData = game.data;
-
-    gameData = await engine.dropPlayer(
-      gameData,
-      game.players.findIndex((pl) => pl._id.equals(player._id))
-    );
-    if (notification.kind === "playerQuit") {
-      player.quit = true;
-    } else {
-      player.dropped = true;
-    }
-
-    ChatMessage.create({
-      room: game._id,
-      type: "system",
-      data: {
-        text:
-          notification.kind === "playerQuit"
-            ? `${player.name} quit the game`
-            : `${player.name} was dropped from the game`,
-      },
-    }).catch(console.error);
-
-    if (engine.toSave) {
-      gameData = engine.toSave(gameData);
-    }
-
-    if (gameData) {
-      await afterMove(engine, game, gameData);
-
-      // Here to only trigger if the game is saved
-      if (notification.kind === "dropPlayer") {
-        GameNotification.create({ kind: "playerDrop", game: notification.game, user: notification.user }).catch(
-          console.error
-        );
+      if (!game || game.status !== "active") {
+        // Something happened, not ready to start
+        await notification.update({ processed: true });
+        return true;
       }
-    }
-    await notification.update({ processed: true });
 
-    return true;
+      const player = game.players.find((pl) => pl._id.equals(notification.user));
+
+      if (!player || player.dropped || player.quit) {
+        await notification.update({ processed: true });
+        return true;
+      }
+
+      const engine = await getEngine(game.game.name, game.game.version);
+
+      let gameData = game.data;
+
+      gameData = await engine.dropPlayer(
+        gameData,
+        game.players.findIndex((pl) => pl._id.equals(player._id))
+      );
+      if (notification.kind === "playerQuit") {
+        player.quit = true;
+      } else {
+        player.dropped = true;
+      }
+
+      ChatMessage.create({
+        room: game._id,
+        type: "system",
+        data: {
+          text:
+            notification.kind === "playerQuit"
+              ? `${player.name} quit the game`
+              : `${player.name} was dropped from the game`,
+        },
+      }).catch(console.error);
+
+      if (engine.toSave) {
+        gameData = engine.toSave(gameData);
+      }
+
+      if (gameData) {
+        await afterMove(engine, game, gameData);
+
+        // Here to only trigger if the game is saved
+        if (notification.kind === "dropPlayer") {
+          GameNotification.create({ kind: "playerDrop", game: notification.game, user: notification.user }).catch(
+            console.error
+          );
+        }
+      }
+      await notification.update({ processed: true });
+
+      return true;
+    }
   } catch (err) {
     console.error(err);
     return false;
-  } finally {
-    free().catch(console.error);
   }
 }
 

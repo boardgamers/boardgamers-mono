@@ -1,7 +1,6 @@
+import { keyBy, sortBy, uniqBy } from "@bgs/utils/array";
 import delay from "delay";
 import jwt from "jsonwebtoken";
-import lodash from "lodash";
-const { groupBy, keyBy, sortBy, uniq, uniqBy } = lodash;
 import { Types } from "mongoose";
 import cache from "node-cache";
 import WebSocket, { Server } from "ws";
@@ -71,9 +70,9 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
           .limit(100);
 
         // todo: Remove once all the old chat messages expire
-        const userIds = uniq(
+        const userIds = [...new Set(
           roomMessages.filter((msg) => msg.author?.name === "-").map((msg) => msg.author._id.toString())
-        );
+        )];
         if (userIds.length > 0) {
           const userNames = Object.fromEntries(
             (
@@ -203,7 +202,7 @@ async function run() {
     const messages = await ChatMessage.find()
       .where({ _id: { $gt: lastChecked } })
       .lean();
-    const messagesPerRooms = groupBy(messages, (msg) => msg.room.toString());
+    const messagesPerRooms = Object.groupBy(messages, (msg) => msg.room.toString());
 
     for (const msg of messages) {
       delete msg.room;
@@ -225,7 +224,7 @@ async function run() {
       lastChecked = messages[messages.length - 1]._id;
     }
 
-    const gameConditions = uniqBy(sortBy([...clients()], "gameUpdate"), "game").map((x) => ({
+    const gameConditions = uniqBy(sortBy([...clients()], (c) => String(c.gameUpdate ?? "")), (c) => c.game).map((x) => ({
       _id: x.game,
       updatedAt: { $gt: x.gameUpdate ?? new Date(0) },
     }));

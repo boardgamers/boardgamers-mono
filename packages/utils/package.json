@@ -2,26 +2,18 @@
   "name": "@bgs/utils",
   "type": "module",
   "scripts": {
-    "test": "mocha *.spec.ts"
+    "test": "node --test *.spec.ts"
   },
-  "dependencies": {
-    "lodash": "^4.17.21"
-  },
+  "dependencies": {},
   "main": "index.ts",
   "exports": {
     ".": "./index.ts",
-    "./join-and": "./join-and.ts",
+    "./array": "./array.ts",
+    "./object": "./object.ts",
     "./remove-falsy": "./remove-falsy.ts",
     "./time": "./time.ts"
   },
   "devDependencies": {
-    "@types/chai": "^4.2.22",
-    "@types/lodash": "^4.14.176",
-    "@types/luxon": "^2.0.4",
-    "@types/mocha": "^9.0.0",
-    "chai": "^4.3.4",
-    "luxon": "^2.0.2",
-    "mocha": "^11.7.5",
     "typescript": "~5.9.3"
   }
 }

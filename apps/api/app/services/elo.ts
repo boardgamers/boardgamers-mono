@@ -1,7 +1,5 @@
 import type { GamePreferences as IGamePreferences } from "@bgs/types";
-import type { Dictionary } from "lodash";
-import lodash from "lodash";
-const { cloneDeep, keyBy, omit } = lodash;
+import { keyBy } from "@bgs/utils/array";
 import type { Types } from "mongoose";
 import { eloDiff } from "../engine/elo.ts";
 import { Game, GamePreferences } from "../models/index.ts";
@@ -10,7 +8,7 @@ import type { GameDocument } from "../models/game.ts";
 export default class EloService {
   static async processGame(game: GameDocument) {
     const dropped = game.players.some((pl) => pl.dropped);
-    const prefs: Dictionary<IGamePreferences> = keyBy(
+    const prefs: Record<string, IGamePreferences> = keyBy(
       await GamePreferences.find(
         { game: game.game.name, user: { $in: game.players.map((pl) => pl._id) } },
         "user elo"
@@ -26,7 +24,7 @@ export default class EloService {
       elo: number;
       games: number;
       eloDelta?: number;
-    }[] = cloneDeep(game.players).map((pl) => ({ ...omit(pl, "elo"), games: 0, elo: 0 }));
+    }[] = structuredClone(game.players).map(({ elo: _, ...pl }) => ({ ...pl, games: 0, elo: 0 }));
 
     for (const score of scores) {
       const gamePref = prefs[score._id.toString()];

@@ -7,6 +7,7 @@ import path from "path";
 import { env } from "../../config/index.ts";
 import { Game, GameNotification, Log, Settings, SettingsKey, User } from "../../models/index.ts";
 import { sendAuthInfo } from "../account/index.ts";
+import { z } from "zod";
 import { isAdmin } from "../utils.ts";
 import gameInfo from "./gameinfo.ts";
 import page from "./pages.ts";
@@ -35,7 +36,7 @@ router.get("/serverinfo", async (ctx) => {
 });
 
 router.post("/resend-confirmation", async (ctx) => {
-  const { email } = ctx.request.body as any;
+  const { email } = z.object({ email: z.string().email() }).parse(ctx.request.body);
   const user = await (User as any).findByEmail(email);
 
   if (!user) {
@@ -47,7 +48,7 @@ router.post("/resend-confirmation", async (ctx) => {
 });
 
 router.post("/login-as", async (ctx) => {
-  const { username } = ctx.request.body as any;
+  const { username } = z.object({ username: z.string() }).parse(ctx.request.body);
   const user = await (User as any).findByUsername(username);
 
   if (!user) {
@@ -60,7 +61,7 @@ router.post("/login-as", async (ctx) => {
 });
 
 router.post("/compute-karma", async (ctx) => {
-  const { username } = ctx.request.body as any;
+  const { username } = z.object({ username: z.string() }).parse(ctx.request.body);
   const user = await (User as any).findByUsername(username);
 
   if (!user) {
@@ -83,7 +84,7 @@ router.post("/compute-all-karma", async (ctx) => {
 });
 
 router.post("/load-games", async (ctx) => {
-  const dirPath = (ctx.request.body as any)?.path;
+  const { path: dirPath } = z.object({ path: z.string() }).parse(ctx.request.body);
 
   for (const file of fs.readdirSync(dirPath)) {
     if (!file.endsWith("json")) {
@@ -103,9 +104,10 @@ router.post("/load-games", async (ctx) => {
 });
 
 router.post("/announcement", async (ctx) => {
+  const { announcement } = z.object({ announcement: z.string().optional() }).parse(ctx.request.body);
   await Settings.updateOne(
     { _id: SettingsKey.Announcement },
-    { $set: { value: (ctx.request.body as any)?.announcement } },
+    { $set: { value: announcement } },
     { upsert: true }
   );
   ctx.status = 200;

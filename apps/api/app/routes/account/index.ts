@@ -4,8 +4,7 @@ import Jimp from "jimp";
 import type { Context } from "koa";
 import passport from "koa-passport";
 import Router from "koa-router";
-import lodash from "lodash";
-const { merge, pick } = lodash;
+import { z } from "zod";
 import type {
   Image} from "../../models/index.ts";
 import {
@@ -59,13 +58,26 @@ router.get("/active-games", async (ctx) => {
 });
 
 router.post("/", loggedIn, async (ctx) => {
-  const body = ctx.request.body as any;
+  const body = z.object({
+    settings: z.any().optional(),
+    account: z.object({
+      avatar: z.string().optional(),
+      bio: z.string().optional(),
+    }).optional(),
+  }).parse(ctx.request.body);
 
-  // We only allow setting URLs through social media
-  const avatar: string = body.account?.avatar;
+  const avatar = body.account?.avatar;
   assert(!avatar?.includes("/") && !avatar?.includes("."), "Invalid avatar");
 
-  merge(ctx.state.user, pick(body, ["settings", "account.avatar", "account.bio"]));
+  if (body.settings != null) {
+    ctx.state.user.settings = body.settings;
+  }
+  if (body.account?.avatar != null) {
+    ctx.state.user.account.avatar = body.account.avatar;
+  }
+  if (body.account?.bio != null) {
+    ctx.state.user.account.bio = body.account.bio;
+  }
   await ctx.state.user.save();
   ctx.body = ctx.state.user;
 });
@@ -113,7 +125,7 @@ router.post("/avatar", loggedIn, async (ctx) => {
 });
 
 router.post("/email", loggedIn, async (ctx) => {
-  const { email } = ctx.request.body as any;
+  const { email } = z.object({ email: z.string().email() }).parse(ctx.request.body);
   const user: UserDocument = ctx.state.user;
 
   const foundUser = await (User as any).findByEmail(email);
@@ -173,6 +185,7 @@ router.get("/games/:game/settings", loggedIn, async (ctx) => {
 });
 
 router.post("/games/:game/ownership", loggedIn, async (ctx) => {
+  const { access } = z.object({ access: z.object({ ownership: z.boolean() }) }).parse(ctx.request.body);
   const gameInfo = await GameInfo.count({ "_id.game": ctx.params.game }).limit(1);
 
   if (!gameInfo) {
@@ -186,7 +199,7 @@ router.post("/games/:game/ownership", loggedIn, async (ctx) => {
     },
     {
       $set: {
-        "access.ownership": (ctx.request.body as any).access.ownership,
+        "access.ownership": access.ownership,
       },
     },
     {
@@ -198,6 +211,7 @@ router.post("/games/:game/ownership", loggedIn, async (ctx) => {
 });
 
 router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
+  const body = z.record(z.unknown()).and(z.object({ alternateUI: z.boolean().optional() })).parse(ctx.request.body);
   const gameInfo = await GameInfo.findById({ game: ctx.params.game, version: +ctx.params.version });
 
   if (!gameInfo) {
@@ -207,11 +221,11 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
   const newPrefs: Record<string, boolean | string | { stringified: true; value: string }> = {};
 
   for (const pref of gameInfo.preferences) {
-    const newVal = ctx.request.body[pref.name];
+    const newVal = body[pref.name];
     if (pref.type === "checkbox") {
       newPrefs[pref.name] = !!newVal;
     } else if (pref.type === "select") {
-      newPrefs[pref.name] = pref.items.some((it) => it.name === newVal) ? newVal : pref.items[0]?.name;
+      newPrefs[pref.name] = pref.items.some((it) => it.name === newVal) ? (newVal as string) : pref.items[0]?.name;
     } else if (pref.type === "hidden") {
       newPrefs[pref.name] = {
         value: JSON.stringify(newVal),
@@ -223,7 +237,7 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
   }
 
   if (gameInfo.viewer?.alternate?.url) {
-    newPrefs.alternateUI = !!(ctx.request.body as any).alternateUI;
+    newPrefs.alternateUI = !!body.alternateUI;
   }
 
   await GamePreferences.updateOne(
@@ -256,7 +270,7 @@ router.post("/signout", (ctx: Context) => {
 });
 
 router.post("/confirm", async (ctx: Context) => {
-  const body = ctx.request.body as any;
+  const body = z.object({ email: z.string().email(), key: z.string() }).parse(ctx.request.body);
   const user = await (User as any).findByEmail(body.email);
 
   if (!user) {
@@ -276,7 +290,7 @@ router.post("/confirm", async (ctx: Context) => {
 });
 
 router.post("/refresh", async (ctx: Context) => {
-  const { code, scopes } = ctx.request.body as any;
+  const { code, scopes } = z.object({ code: z.string(), scopes: z.array(z.string()).optional() }).parse(ctx.request.body);
 
   const rt = await JwtRefreshToken.findOne({ code });
 
@@ -295,7 +309,7 @@ router.post("/refresh", async (ctx: Context) => {
 router.post("/reset", loggedOut, passport.authenticate("local-reset", { session: false }), sendAuthInfo);
 
 router.post("/forget", loggedOut, async (ctx: Context) => {
-  const { email } = ctx.request.body as any;
+  const { email } = z.object({ email: z.string().email() }).parse(ctx.request.body);
   const user = await (User as any).findByEmail(email);
 
   if (!user) {

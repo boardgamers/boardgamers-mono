@@ -11,7 +11,7 @@
     "lint": "eslint server.ts app/**/*.{js,ts,tsx} --fix",
     "lint-check": "eslint server.ts app/**/*.{js,ts,tsx} --max-warnings 0",
     "start": "node --env-file=.env server.ts",
-    "test": "mocha app/**/*.spec.ts app/*.spec.ts",
+    "test": "node --test 'app/**/*.spec.ts'",
     "tsc": "tsc --noEmit"
   },
   "dependencies": {
@@ -27,7 +27,6 @@
     "koa-compress": "^4.0.0",
     "koa-morgan": "^1.0.1",
     "koa-router": "^8.0.8",
-    "lodash": "^4.17.15",
     "mongo-locks": "^3.1.2",
     "mongoose": "^6.0.3"
   },
@@ -40,12 +39,10 @@
     "@types/koa-compress": "^2.0.9",
     "@types/koa-morgan": "^1.0.4",
     "@types/koa-router": "^7.4.0",
-    "@types/lodash": "^4.14.150",
     "@types/node": "^24.0.0",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
     "eslint": "^9.27.0",
-    "mocha": "^11.7.5",
     "typescript": "~5.9.3"
   }
 }
