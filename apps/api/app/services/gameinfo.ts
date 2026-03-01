@@ -5,10 +5,7 @@ import { colls } from "../config/db.ts";
 export default class GameInfoService {
   static async lastAccessibleVersion(game: string, user?: WithId<UserDoc>) {
     if (!user) {
-      return colls.gameInfos.findOne(
-        { "_id.game": game, "meta.public": true },
-        { sort: { "_id.version": -1 } }
-      );
+      return colls.gameInfos.findOne({ "_id.game": game, "meta.public": true }, { sort: { "_id.version": -1 } });
     }
 
     const pref = await colls.gamePreferences.findOne(
@@ -25,10 +22,7 @@ export default class GameInfoService {
         { sort: { "_id.version": -1 } }
       );
     } else {
-      return colls.gameInfos.findOne(
-        { "_id.game": game, "meta.public": true },
-        { sort: { "_id.version": -1 } }
-      );
+      return colls.gameInfos.findOne({ "_id.game": game, "meta.public": true }, { sort: { "_id.version": -1 } });
     }
   }
 
@@ -40,12 +34,10 @@ export default class GameInfoService {
           .toArray()
       : [];
     const publicGames = await colls.gameInfos
-      .aggregate<{ _id: string; version: number }>([
-        { $match: { "meta.public": true } },
-        { $sort: { "_id.game": 1, "_id.version": -1 } },
-        { $project: { _id: 1 } },
-        { $group: { _id: "$_id.game", version: { $first: "$_id.version" } } },
-      ])
+      .aggregate<{
+        _id: string;
+        version: number;
+      }>([{ $match: { "meta.public": true } }, { $sort: { "_id.game": 1, "_id.version": -1 } }, { $project: { _id: 1 } }, { $group: { _id: "$_id.game", version: { $first: "$_id.version" } } }])
       .toArray();
 
     const map = new Map<string, number>();

@@ -111,7 +111,11 @@ describe("Game API", () => {
     const res = await api("POST", "/api/game/test/unjoin", {}, authHeaders);
 
     assert.strictEqual(res.ok, true);
-    assert.strictEqual(await colls.games.countDocuments({ _id: "test" }), 0, "Game should be deleted after creator unjoins");
+    assert.strictEqual(
+      await colls.games.countDocuments({ _id: "test" }),
+      0,
+      "Game should be deleted after creator unjoins"
+    );
   });
 
   after(() => db().dropDatabase());

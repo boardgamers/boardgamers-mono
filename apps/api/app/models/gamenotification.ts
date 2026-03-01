@@ -40,10 +40,9 @@ export async function processGameEnded() {
     }
 
     if (!game.cancelled) {
-      await colls.users.updateMany(
-        { _id: { $in: game.players.filter((pl) => !pl.dropped).map((pl) => pl._id) } },
-        [{ $set: { "account.karma": { $min: [{ $add: ["$account.karma", 1] }, maxKarma] } } }]
-      );
+      await colls.users.updateMany({ _id: { $in: game.players.filter((pl) => !pl.dropped).map((pl) => pl._id) } }, [
+        { $set: { "account.karma": { $min: [{ $add: ["$account.karma", 1] }, maxKarma] } } },
+      ]);
     }
 
     await processEloForGame(game);
@@ -74,14 +73,11 @@ export async function processPlayerDrop() {
 
   await Promise.all([
     colls.logs.insertMany(
-      notifications.map(
-        (n) =>
-          ({
-            kind: "processPlayerDrop",
-            data: { game: n.game, player: n.user },
-            createdAt: new Date(),
-          })
-      )
+      notifications.map((n) => ({
+        kind: "processPlayerDrop",
+        data: { game: n.game, player: n.user },
+        createdAt: new Date(),
+      }))
     ),
     col.updateMany({ _id: { $in: notifications.map((x) => x._id!) } }, { $set: { processed: true } }),
   ]);

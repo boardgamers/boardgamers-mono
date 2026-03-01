@@ -25,15 +25,27 @@ export default [
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-empty-interface": "off",
       "@typescript-eslint/no-require-imports": "off",
-      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
-      "@typescript-eslint/consistent-type-imports": ["error", { prefer: "type-imports", fixStyle: "separate-type-imports" }],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/consistent-type-imports": [
+        "error",
+        { prefer: "type-imports", fixStyle: "separate-type-imports" },
+      ],
       "no-constant-condition": ["error", { checkLoops: false }],
-      "no-restricted-imports": ["error", {
-        patterns: [{
-          regex: "^(assert|buffer|child_process|cluster|console|constants|crypto|dgram|dns|domain|events|fs|http|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|tty|url|util|v8|vm|wasi|worker_threads|zlib)(/|$)",
-          message: "Use \"node:\" prefix for Node.js built-in modules.",
-        }],
-      }],
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex:
+                "^(assert|buffer|child_process|cluster|console|constants|crypto|dgram|dns|domain|events|fs|http|https|inspector|module|net|os|path|perf_hooks|process|punycode|querystring|readline|repl|stream|string_decoder|sys|timers|tls|tty|url|util|v8|vm|wasi|worker_threads|zlib)(/|$)",
+              message: 'Use "node:" prefix for Node.js built-in modules.',
+            },
+          ],
+        },
+      ],
     },
   },
 ];

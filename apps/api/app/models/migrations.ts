@@ -133,28 +133,19 @@ export const migrations = {
 export async function migrate() {
   const latestVersion = pkg.version;
   const dbVersionDoc = await colls.settings.findOne({ _id: SettingsKey.DBVersion });
-  let currentVersion =
-    typeof dbVersionDoc?.value === "string" ? dbVersionDoc.value : "0.1.0";
+  let currentVersion = typeof dbVersionDoc?.value === "string" ? dbVersionDoc.value : "0.1.0";
 
   for (const [key, migration] of Object.entries(migrations)) {
     if (semver.gt(key, currentVersion)) {
       console.log("running migration for", key);
       await migration.up();
 
-      await colls.settings.updateOne(
-        { _id: SettingsKey.DBVersion },
-        { $set: { value: key } },
-        { upsert: true }
-      );
+      await colls.settings.updateOne({ _id: SettingsKey.DBVersion }, { $set: { value: key } }, { upsert: true });
       currentVersion = key;
 
       console.log("migration done");
     }
   }
 
-  await colls.settings.updateOne(
-    { _id: SettingsKey.DBVersion },
-    { $set: { value: latestVersion } },
-    { upsert: true }
-  );
+  await colls.settings.updateOne({ _id: SettingsKey.DBVersion }, { $set: { value: latestVersion } }, { upsert: true });
 }

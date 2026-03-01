@@ -46,11 +46,7 @@ router.get("/search", async (ctx) => {
 
   const conditions = { "security.slug": new RegExp("^" + name.toLocaleLowerCase()) };
 
-  const usersList = await colls.users
-    .find(conditions)
-    .project(publicInfoProjection)
-    .limit(queryCount(ctx))
-    .toArray();
+  const usersList = await colls.users.find(conditions).project(publicInfoProjection).limit(queryCount(ctx)).toArray();
   ctx.body = usersList;
 });
 

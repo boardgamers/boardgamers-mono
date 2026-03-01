@@ -1,6 +1,3 @@
- 
-
-
 import type { GameDoc, GameInfoDoc, UserDoc } from "@bgs/models";
 import type { WithId } from "mongodb";
 

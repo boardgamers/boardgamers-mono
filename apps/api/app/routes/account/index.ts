@@ -7,12 +7,7 @@ import Router from "koa-router";
 import type { GamePreferencesDoc } from "@bgs/models";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
-import {
-  accessTokenDuration,
-  createAccessToken,
-  findGamesWithPlayersTurn,
-  isUserAdmin,
-} from "../../models/index.ts";
+import { accessTokenDuration, createAccessToken, findGamesWithPlayersTurn, isUserAdmin } from "../../models/index.ts";
 import {
   confirm,
   findByEmail,
@@ -57,21 +52,23 @@ router.get("/active-games", async (ctx) => {
   if (!ctx.state.user?._id) {
     ctx.body = [];
   } else {
-    const games = await findGamesWithPlayersTurn(ctx.state.user._id)
-      .project({ _id: 1 })
-      .toArray();
+    const games = await findGamesWithPlayersTurn(ctx.state.user._id).project({ _id: 1 }).toArray();
     ctx.body = games.map((game) => game._id);
   }
 });
 
 router.post("/", loggedIn, async (ctx) => {
-  const body = z.object({
-    settings: z.any().optional(),
-    account: z.object({
-      avatar: z.string().optional(),
-      bio: z.string().optional(),
-    }).optional(),
-  }).parse(ctx.request.body);
+  const body = z
+    .object({
+      settings: z.any().optional(),
+      account: z
+        .object({
+          avatar: z.string().optional(),
+          bio: z.string().optional(),
+        })
+        .optional(),
+    })
+    .parse(ctx.request.body);
 
   const avatar = body.account?.avatar;
   assert(!avatar?.includes("/") && !avatar?.includes("."), "Invalid avatar");
@@ -175,10 +172,7 @@ router.post("/email", loggedIn, async (ctx) => {
 
 router.post("/terms-and-conditions", loggedIn, async (ctx) => {
   assert(!ctx.state.user.account.termsAndConditions, "You already accepted the Terms and Conditions");
-  await colls.users.updateOne(
-    { _id: ctx.state.user._id },
-    { $set: { "account.termsAndConditions": new Date() } }
-  );
+  await colls.users.updateOne({ _id: ctx.state.user._id }, { $set: { "account.termsAndConditions": new Date() } });
   const updatedUser = await colls.users.findOne({ _id: ctx.state.user._id });
   ctx.body = updatedUser;
 });
@@ -240,7 +234,10 @@ router.post("/games/:game/ownership", loggedIn, async (ctx) => {
 });
 
 router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
-  const body = z.record(z.string(), z.unknown()).and(z.object({ alternateUI: z.boolean().optional() })).parse(ctx.request.body);
+  const body = z
+    .record(z.string(), z.unknown())
+    .and(z.object({ alternateUI: z.boolean().optional() }))
+    .parse(ctx.request.body);
   const gameInfo = await colls.gameInfos.findOne({ _id: { game: ctx.params.game, version: +ctx.params.version } });
 
   if (!gameInfo) {
@@ -320,7 +317,9 @@ router.post("/confirm", async (ctx: Context) => {
 });
 
 router.post("/refresh", async (ctx: Context) => {
-  const { code, scopes } = z.object({ code: z.string(), scopes: z.array(z.string()).optional() }).parse(ctx.request.body);
+  const { code, scopes } = z
+    .object({ code: z.string(), scopes: z.array(z.string()).optional() })
+    .parse(ctx.request.body);
 
   const rt = await colls.jwtRefreshTokens.findOne({ code });
 

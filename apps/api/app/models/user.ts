@@ -190,9 +190,7 @@ export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
       return;
     }
 
-    const activeGames = await findGamesWithPlayersTurn(user._id)
-      .project({ data: 0 })
-      .toArray();
+    const activeGames = await findGamesWithPlayersTurn(user._id).project({ data: 0 }).toArray();
 
     if (activeGames.length === 0) {
       await colls.users.updateOne({ _id: user._id }, { $unset: { "meta.nextGameNotification": "" } });
@@ -207,9 +205,7 @@ export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
       }
     }
 
-    const notificationDate = new Date(
-      lastMove.getTime() + (freshUser.settings.mailing.game.delay || 30 * 60) * 1000
-    );
+    const notificationDate = new Date(lastMove.getTime() + (freshUser.settings.mailing.game.delay || 30 * 60) * 1000);
 
     if (notificationDate > new Date()) {
       await colls.users.updateOne({ _id: user._id }, { $set: { "meta.nextGameNotification": notificationDate } });

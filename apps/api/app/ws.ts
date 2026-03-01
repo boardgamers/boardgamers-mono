@@ -67,11 +67,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
             {
               $project: {
                 author: {
-                  $cond: [
-                    { $eq: [{ $type: "$author" }, "objectId"] },
-                    { _id: "$author", name: "-" },
-                    "$author",
-                  ],
+                  $cond: [{ $eq: [{ $type: "$author" }, "objectId"] }, { _id: "$author", name: "-" }, "$author"],
                 },
                 _id: 1,
                 data: 1,
@@ -85,7 +81,9 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
         const userIds = [
           ...new Set(
             roomMessages
-              .filter((msg: { author?: { name?: string; _id?: { toString: () => string } } }) => msg.author?.name === "-")
+              .filter(
+                (msg: { author?: { name?: string; _id?: { toString: () => string } } }) => msg.author?.name === "-"
+              )
               .map((msg: { author: { _id: { toString: () => string } } }) => msg.author._id.toString())
           ),
         ];
@@ -215,9 +213,7 @@ const gameCache = new cache({ stdTTL: 24 * 3600 });
 async function run() {
   while (1) {
     // Find new messages
-    const messages = await colls.chatMessages
-      .find({ _id: { $gt: lastChecked } })
-      .toArray();
+    const messages = await colls.chatMessages.find({ _id: { $gt: lastChecked } }).toArray();
     const messagesPerRooms = Object.groupBy(messages, (msg) => msg.room.toString());
 
     for (const msg of messages) {
@@ -240,7 +236,10 @@ async function run() {
       lastChecked = messages[messages.length - 1]._id;
     }
 
-    const gameConditions = uniqBy(sortBy([...clients()], (c) => String(c.gameUpdate ?? "")), (c) => c.game).map((x) => ({
+    const gameConditions = uniqBy(
+      sortBy([...clients()], (c) => String(c.gameUpdate ?? "")),
+      (c) => c.game
+    ).map((x) => ({
       _id: x.game,
       updatedAt: { $gt: x.gameUpdate ?? new Date(0) },
     }));

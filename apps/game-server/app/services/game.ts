@@ -14,7 +14,12 @@ export async function handleMessages(engine: Engine, gameId: string, gameData: G
     const ret = engine.messages(gameData);
 
     for (const message of ret.messages) {
-      await colls.chatMessages.insertOne({ _id: new ObjectId(), room: gameId, type: "system", data: { text: message } });
+      await colls.chatMessages.insertOne({
+        _id: new ObjectId(),
+        room: gameId,
+        type: "system",
+        data: { text: message },
+      });
     }
 
     return ret.data;

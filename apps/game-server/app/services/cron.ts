@@ -24,7 +24,10 @@ async function startGames() {
 async function processQuits() {
   while (1) {
     try {
-      const notifications = await colls.gameNotifications.find({ kind: "playerQuit", processed: false }).limit(1000).toArray();
+      const notifications = await colls.gameNotifications
+        .find({ kind: "playerQuit", processed: false })
+        .limit(1000)
+        .toArray();
 
       for (const notification of notifications) {
         try {
@@ -44,7 +47,10 @@ async function processQuits() {
 async function processDrops() {
   while (1) {
     try {
-      const notifications = await colls.gameNotifications.find({ kind: "dropPlayer", processed: false }).limit(1000).toArray();
+      const notifications = await colls.gameNotifications
+        .find({ kind: "dropPlayer", processed: false })
+        .limit(1000)
+        .toArray();
 
       for (const notification of notifications) {
         try {

@@ -48,7 +48,10 @@ describe("GameInfoService", () => {
       ]);
 
       await colls.gameInfos.updateOne({ _id: { game: "container", version: 1 } }, { $set: { "meta.public": false } });
-      await colls.gamePreferences.updateOne({ user: user._id, game: "container" }, { $set: { "access.maxVersion": 1 } });
+      await colls.gamePreferences.updateOne(
+        { user: user._id, game: "container" },
+        { $set: { "access.maxVersion": 1 } }
+      );
 
       games = await GameInfoService.latestAccessibleGames(user._id);
 

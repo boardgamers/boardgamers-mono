@@ -81,7 +81,11 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 
   if (gameInfo.meta.needOwnership) {
     assert(
-      await colls.gamePreferences.findOne({ game: gameInfoId.game, user: ctx.state.user._id, "access.ownership": true }),
+      await colls.gamePreferences.findOne({
+        game: gameInfoId.game,
+        user: ctx.state.user._id,
+        "access.ownership": true,
+      }),
       "You need to own the game in order to host a new game. Check your account settings."
     );
   }
@@ -247,9 +251,7 @@ router.get("/:gameId", (ctx) => {
 router.get("/:gameId/players", async (ctx) => {
   const ret = [];
   const ids = [...ctx.state.game.players.map((pl) => pl._id), ctx.state.game.creator];
-  const userDocs = await colls.users
-    .find({ _id: { $in: ids } }, { projection: { "account.username": 1 } })
-    .toArray();
+  const userDocs = await colls.users.find({ _id: { $in: ids } }, { projection: { "account.username": 1 } }).toArray();
   const gamePrefs = await colls.gamePreferences
     .find({
       game: ctx.state.game.game.name,
@@ -270,10 +272,12 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
       (ctx.state.user && ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id))),
     "You must be a player of the game to chat!"
   );
-  const body = z.object({
-    type: z.enum(["text", "emoji"]),
-    data: z.object({ text: z.string().min(1, "Empty chat message") }),
-  }).parse(ctx.request.body);
+  const body = z
+    .object({
+      type: z.enum(["text", "emoji"]),
+      data: z.object({ text: z.string().min(1, "Empty chat message") }),
+    })
+    .parse(ctx.request.body);
 
   await colls.chatMessages.insertOne({
     _id: new ObjectId(),
@@ -347,7 +351,10 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
         .find({ "players._id": ctx.state.user._id, status: { $ne: "ended" } })
         .limit(2)
         .toArray();
-      assert(activeGames.length < 2, "You can't join more than two games at the same time when your karma is less than 50");
+      assert(
+        activeGames.length < 2,
+        "You can't join more than two games at the same time when your karma is less than 50"
+      );
     }
   }
 
@@ -499,7 +506,12 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
     });
 
     if (game.players.every((pl) => pl.voteCancel || pl.dropped)) {
-      await colls.chatMessages.insertOne({ _id: new ObjectId(), room: game._id, type: "system", data: { text: `Game cancelled` } });
+      await colls.chatMessages.insertOne({
+        _id: new ObjectId(),
+        room: game._id,
+        type: "system",
+        data: { text: `Game cancelled` },
+      });
       game.status = "ended";
       game.cancelled = true;
       game.currentPlayers = null;
@@ -524,10 +536,7 @@ router.post("/:gameId/quit", loggedIn, async (ctx) => {
 
   {
     await using _lock = await locks.lock("game-cancel", ctx.params.gameId);
-    const game = await colls.games.findOne(
-      { _id: ctx.params.gameId },
-      { projection: { players: 1, status: 1 } }
-    );
+    const game = await colls.games.findOne({ _id: ctx.params.gameId }, { projection: { players: 1, status: 1 } });
 
     assert(game.status === "active", "The game is not ongoing");
 
@@ -535,7 +544,12 @@ router.post("/:gameId/quit", loggedIn, async (ctx) => {
 
     assert(!player.quit && !player.dropped, "You already quit the game");
 
-    await colls.gameNotifications.insertOne({ kind: "playerQuit", user: ctx.state.user._id, game: game._id, processed: false });
+    await colls.gameNotifications.insertOne({
+      kind: "playerQuit",
+      user: ctx.state.user._id,
+      game: game._id,
+      processed: false,
+    });
   }
 
   ctx.status = 200;

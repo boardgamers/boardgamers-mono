@@ -5,8 +5,7 @@ import { eloDiff } from "./elo.ts";
 describe("eloDiff", () => {
   it("should let player win if the opponent dropped", () => {
     assert.ok(
-      eloDiff({ elo: 105, score: 0, dropped: false, games: 105 }, { elo: 106, score: 10, dropped: true }, false, 2) >
-        10
+      eloDiff({ elo: 105, score: 0, dropped: false, games: 105 }, { elo: 106, score: 10, dropped: true }, false, 2) > 10
     );
   });
 

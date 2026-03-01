@@ -1,9 +1,5 @@
 import env from "../config/env.ts";
-import {
-  processCurrentMove,
-  processGameEnded,
-  processPlayerDrop,
-} from "../models/gamenotification.ts";
+import { processCurrentMove, processGameEnded, processPlayerDrop } from "../models/gamenotification.ts";
 import { sendGameNotificationEmail } from "../models/user.ts";
 import { colls } from "../config/db.ts";
 import { cancelOldOpenGames, processSchedulesGames, processUnreadyGames } from "./game.ts";
@@ -21,9 +17,7 @@ if (env.cron) {
 if (env.automatedEmails) {
   setInterval(async () => {
     try {
-      const toEmail = await colls.users
-        .find({ "meta.nextGameNotification": { $lte: new Date() } })
-        .toArray();
+      const toEmail = await colls.users.find({ "meta.nextGameNotification": { $lte: new Date() } }).toArray();
 
       for (const user of toEmail) {
         sendGameNotificationEmail(user).catch((err) => console.error(err));

@@ -92,8 +92,7 @@ router.get("/:status/count", async (ctx) => {
 
 router.get("/:status", async (ctx) => {
   const status: GameStatus = ctx.params.status as GameStatus;
-  const projection =
-    status === "ended" ? { ...gameBasicsProjection, cancelled: 1 } : { ...gameBasicsProjection };
+  const projection = status === "ended" ? { ...gameBasicsProjection, cancelled: 1 } : { ...gameBasicsProjection };
   const sortOrder: Record<string, 1 | -1> = status === "open" ? { createdAt: -1 } : { lastMove: -1 };
   const conditions = await gameConditions(status, {
     user: String(ctx.query.user || ""),
@@ -115,9 +114,7 @@ router.get("/:status", async (ctx) => {
       { $sort: sortOrder },
       { $limit: queryCount(ctx) },
     ];
-    ctx.body = await colls.games
-      .aggregate(pipeline)
-      .toArray();
+    ctx.body = await colls.games.aggregate(pipeline).toArray();
   } else {
     ctx.body = await colls.games
       .find(conditions)

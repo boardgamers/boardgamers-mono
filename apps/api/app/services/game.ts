@@ -101,10 +101,7 @@ export async function processUnreadyGames() {
           type: "system",
           data: { text: "Game cancelled because host didn't set the final options in time" },
         });
-        await colls.games.updateOne(
-          { _id: game._id },
-          { $set: { cancelled: true, status: "ended" } }
-        );
+        await colls.games.updateOne({ _id: game._id }, { $set: { cancelled: true, status: "ended" } });
       }
     } catch (err) {
       console.error(err);

@@ -3,10 +3,7 @@ import Router from "koa-router";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
-import {
-  findGameInfoWithVersion,
-  findByUsername,
-} from "../../models/index.ts";
+import { findGameInfoWithVersion, findByUsername } from "../../models/index.ts";
 import { queryCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -53,11 +50,13 @@ router.post("/:userId/elo/:game", async (ctx) => {
 });
 
 router.post("/:userId/access/grant", async (ctx) => {
-  const { game, version } = z.object({
-    type: z.literal("game"),
-    game: z.string(),
-    version: z.number().int(),
-  }).parse(ctx.request.body);
+  const { game, version } = z
+    .object({
+      type: z.literal("game"),
+      game: z.string(),
+      version: z.number().int(),
+    })
+    .parse(ctx.request.body);
 
   const gameInfo = await findGameInfoWithVersion(game, version);
 

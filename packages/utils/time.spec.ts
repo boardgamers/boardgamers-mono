@@ -124,15 +124,27 @@ describe("Time Utils", () => {
   describe("deadline", () => {
     it("should work when timer is currently paused", () => {
       assertUTC(deadline(50 * oneMinute, { start: 8 * oneHour, end: 9 * oneHour }, summerDate), {
-        year: 2020, month: 4, day: 16, hour: 8, minute: 50,
+        year: 2020,
+        month: 4,
+        day: 16,
+        hour: 8,
+        minute: 50,
       });
 
       assertUTC(deadline(oneHour + 10 * oneMinute, { start: 8 * oneHour, end: 9 * oneHour }, summerDate), {
-        year: 2020, month: 4, day: 17, hour: 8, minute: 10,
+        year: 2020,
+        month: 4,
+        day: 17,
+        hour: 8,
+        minute: 10,
       });
 
       assertUTC(deadline(oneHour, { start: 8 * oneHour, end: 9 * oneHour }, summerDate), {
-        year: 2020, month: 4, day: 16, hour: 9, minute: 0,
+        year: 2020,
+        month: 4,
+        day: 16,
+        hour: 9,
+        minute: 0,
       });
 
       assertUTC(
@@ -145,7 +157,11 @@ describe("Time Utils", () => {
       );
 
       assertUTC(deadline(20 * oneMinute, { start: 9 * oneHour, end: 5 * oneHour }, summerDate), {
-        year: 2020, month: 4, day: 16, hour: 9, minute: 20,
+        year: 2020,
+        month: 4,
+        day: 16,
+        hour: 9,
+        minute: 20,
       });
 
       assertUTC(
@@ -160,11 +176,19 @@ describe("Time Utils", () => {
 
     it("should work when timer is currently running", () => {
       assertUTC(deadline(50 * oneMinute, { start: 7 * oneHour, end: 9 * oneHour }, summerDate), {
-        year: 2020, month: 4, day: 16, hour: 8, minute: 37,
+        year: 2020,
+        month: 4,
+        day: 16,
+        hour: 8,
+        minute: 37,
       });
 
       assertUTC(deadline(50 * oneMinute, { start: 7 * oneHour, end: 8 * oneHour }, summerDate), {
-        year: 2020, month: 4, day: 17, hour: 7, minute: 37,
+        year: 2020,
+        month: 4,
+        day: 17,
+        hour: 7,
+        minute: 37,
       });
     });
   });

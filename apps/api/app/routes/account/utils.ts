@@ -1,11 +1,6 @@
 import type { Context } from "koa";
 import { colls } from "../../config/db.ts";
-import {
-  accessTokenDuration,
-  createAccessToken,
-  generateRefreshCode,
-  isUserAdmin,
-} from "../../models/index.ts";
+import { accessTokenDuration, createAccessToken, generateRefreshCode, isUserAdmin } from "../../models/index.ts";
 
 export async function sendAuthInfo(ctx: Context) {
   const code = generateRefreshCode();

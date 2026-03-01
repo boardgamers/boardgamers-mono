@@ -69,9 +69,21 @@ describe("GameNotification", () => {
             { _id: userId4, score: 25, dropped: false },
           ],
         } as any);
-        await colls.gamePreferences.insertOne({ game: "gaia-project", user: userId, elo: { value: 120, games: 120 } } as any);
-        await colls.gamePreferences.insertOne({ game: "gaia-project", user: userId2, elo: { value: 110, games: 110 } } as any);
-        await colls.gamePreferences.insertOne({ game: "gaia-project", user: userId3, elo: { value: 105, games: 5 } } as any);
+        await colls.gamePreferences.insertOne({
+          game: "gaia-project",
+          user: userId,
+          elo: { value: 120, games: 120 },
+        } as any);
+        await colls.gamePreferences.insertOne({
+          game: "gaia-project",
+          user: userId2,
+          elo: { value: 110, games: 110 },
+        } as any);
+        await colls.gamePreferences.insertOne({
+          game: "gaia-project",
+          user: userId3,
+          elo: { value: 105, games: 5 },
+        } as any);
       });
       afterEach(() => db().dropDatabase());
 
@@ -103,10 +115,14 @@ describe("GameNotification", () => {
           { _id: "test" },
           {
             $set: {
-              "players.0.score": 0, "players.0.ranking": 1,
-              "players.1.score": 0, "players.1.ranking": 2,
-              "players.2.score": 0, "players.2.ranking": 4,
-              "players.3.score": 0, "players.3.ranking": 3,
+              "players.0.score": 0,
+              "players.0.ranking": 1,
+              "players.1.score": 0,
+              "players.1.ranking": 2,
+              "players.2.score": 0,
+              "players.2.ranking": 4,
+              "players.3.score": 0,
+              "players.3.ranking": 3,
             },
           }
         );
@@ -174,7 +190,12 @@ describe("GameNotification", () => {
 
     it("should drop 30 more karma if dropped 3 times simulatenously", async () => {
       for (let i = 0; i < 3; i++) {
-        await colls.gameNotifications.insertOne({ game: "test" + i, user: userId, kind: "playerDrop", processed: false } as any);
+        await colls.gameNotifications.insertOne({
+          game: "test" + i,
+          user: userId,
+          kind: "playerDrop",
+          processed: false,
+        } as any);
       }
       await processPlayerDrop();
 
@@ -184,9 +205,19 @@ describe("GameNotification", () => {
 
     it("should handle multiple player drops simulatenously", async () => {
       for (let i = 0; i < 3; i++) {
-        await colls.gameNotifications.insertOne({ game: "test" + i, user: userId, kind: "playerDrop", processed: false } as any);
+        await colls.gameNotifications.insertOne({
+          game: "test" + i,
+          user: userId,
+          kind: "playerDrop",
+          processed: false,
+        } as any);
       }
-      await colls.gameNotifications.insertOne({ game: "test", user: userId2, kind: "playerDrop", processed: false } as any);
+      await colls.gameNotifications.insertOne({
+        game: "test",
+        user: userId2,
+        kind: "playerDrop",
+        processed: false,
+      } as any);
       await processPlayerDrop();
 
       const user = await colls.users.findOne({ _id: userId });

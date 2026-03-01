@@ -66,43 +66,43 @@ router.get("/:boardgame/elo", async (ctx) => {
   const boardgameName = ctx.state.foundBoardgame._id.game;
   ctx.body = await colls.gamePreferences
     .aggregate([
-    {
-      $match: {
-        game: boardgameName,
-        "elo.value": { $gt: 0 },
+      {
+        $match: {
+          game: boardgameName,
+          "elo.value": { $gt: 0 },
+        },
       },
-    },
-    {
-      $sort: {
-        "elo.value": -1,
+      {
+        $sort: {
+          "elo.value": -1,
+        },
       },
-    },
-    {
-      $skip: skipCount(ctx),
-    },
-    {
-      $limit: queryCount(ctx),
-    },
-    {
-      $lookup: {
-        from: "users",
-        localField: "user",
-        foreignField: "_id",
-        as: "userData",
+      {
+        $skip: skipCount(ctx),
       },
-    },
-    {
-      $unwind: "$userData",
-    },
-    {
-      $project: {
-        elo: 1,
-        "access.ownership": 1,
-        "user.name": "$userData.account.username",
-        "user._id": "$userData._id",
+      {
+        $limit: queryCount(ctx),
       },
-    },
-  ])
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "userData",
+        },
+      },
+      {
+        $unwind: "$userData",
+      },
+      {
+        $project: {
+          elo: 1,
+          "access.ownership": 1,
+          "user.name": "$userData.account.username",
+          "user._id": "$userData._id",
+        },
+      },
+    ])
     .toArray();
 });
 
