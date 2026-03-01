@@ -1,14 +1,13 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-export type GameData = any;
+export type GameData = unknown;
 
 type Many<T> = T | T[];
 
 export interface Engine {
   // Creator is -1 if not among the players
-  init(players: number, expansions: string[], options: any, seed: string, creator?: number): Promise<GameData>;
+  init(players: number, expansions: string[], options: Record<string, unknown>, seed: string, creator?: number): Promise<GameData>;
 
   // Returns the new data to send to player
-  move(data: GameData, move: any, player: number): Promise<GameData>;
+  move(data: GameData, move: unknown, player: number): Promise<GameData>;
 
   // Did the game end?
   ended(data: GameData): boolean;
@@ -28,7 +27,7 @@ export interface Engine {
   // Return log info to pass to the viewer. It can have any structure you want,
   // though we recommend something like {log: items[], availableMoves: moves[]}
   // Note: the secrets should be stripped if necessary, the player receiving the data is options.player
-  logSlice(data: GameData, options?: { player?: number; start?: number; end?: number }): any;
+  logSlice(data: GameData, options?: { player?: number; start?: number; end?: number }): unknown;
 
   // **************************************************************************************
   // ************************************** OPTIONAL **************************************
@@ -58,19 +57,19 @@ export interface Engine {
 
   // Middleware to process data to be sent to a player, strip secrets if needed
   // In case of a spectator, the player is undefined
-  stripSecret(data: GameData, player?: number): any;
+  stripSecret(data: GameData, player?: number): unknown;
 
   // Middleware to process data to be sent to the backend
   // Undefined = do not save anything (for example if a move was
   // made just to request a backend calculation)
-  toSave(data: GameData): any | undefined;
+  toSave(data: GameData): unknown | undefined;
 
   // Important system messages to show in chat
   // Another call on `ret.data` should not show the same messages
   messages(data: GameData): { messages: string[]; data: GameData };
 
   // Replays the game, after GameData was manually edited by an admin
-  replay(data: GameData, options?: { to?: number }): GameData;
+  replay(data: GameData, options?: { to?: number }): GameData | Promise<GameData>;
 
   // Get global stats on the game
   stats(data: GameData): Record<string, Many<Record<string, string | number>>>;

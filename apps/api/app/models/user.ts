@@ -109,7 +109,7 @@ export async function notifyLogin(user: WithId<UserDoc>, ip: string) {
 }
 
 export async function notifyLastIp(user: WithId<UserDoc>, ip: string) {
-  const update: Record<string, any> = {};
+  const update: Record<string, unknown> = {};
   if (user.security.lastIp !== ip) {
     update["security.lastIp"] = ip;
   }
@@ -201,7 +201,7 @@ export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
 
     let lastMove = new Date();
     for (const game of activeGames) {
-      const timerStart = game.currentPlayers?.find((pl: any) => pl._id.equals(user._id))?.timerStart;
+      const timerStart = game.currentPlayers?.find((pl) => pl._id.equals(user._id))?.timerStart;
       if (timerStart && timerStart < lastMove) {
         lastMove = timerStart;
       }
@@ -241,20 +241,22 @@ export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
 }
 
 export function stripSensitiveFields(user: WithId<UserDoc>): WithId<UserDoc> {
-  const copy = { ...user };
-  if (copy.account) {
-    copy.account = { ...copy.account };
-    delete (copy.account as any).password;
+  const { password: _password, ...account } = user.account;
+  if (!user.security) {
+    return { ...user, account: { ...account } } as WithId<UserDoc>;
   }
-  if (copy.security) {
-    copy.security = { ...copy.security };
-    delete (copy.security as any).confirmKey;
-    if (copy.security.reset) {
-      copy.security.reset = { ...copy.security.reset };
-      delete (copy.security.reset as any).key;
-    }
-  }
-  return copy;
+  const { confirmKey: _confirmKey, reset, ...securityRest } = user.security;
+  const resetWithoutKey = reset
+    ? (() => {
+        const { key: _key, ...rest } = reset;
+        return rest;
+      })()
+    : undefined;
+  return {
+    ...user,
+    account: { ...account },
+    security: { ...securityRest, reset: resetWithoutKey },
+  } as WithId<UserDoc>;
 }
 
 export function userPublicInfo(user: WithId<UserDoc>) {

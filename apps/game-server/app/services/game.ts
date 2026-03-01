@@ -2,6 +2,7 @@ import type { GameDoc, GameNotificationDoc } from "@bgs/models";
 import { deadline, elapsedSeconds } from "@bgs/utils/time";
 import assert from "node:assert";
 import crypto from "node:crypto";
+import { ObjectId } from "mongodb";
 import { colls } from "../config/db.ts";
 import locks from "../config/locks.ts";
 import env from "../config/env.ts";
@@ -13,7 +14,7 @@ export async function handleMessages(engine: Engine, gameId: string, gameData: G
     const ret = engine.messages(gameData);
 
     for (const message of ret.messages) {
-      await colls.chatMessages.insertOne({ room: gameId, type: "system", data: { text: message } } as any);
+      await colls.chatMessages.insertOne({ _id: new ObjectId(), room: gameId, type: "system", data: { text: message } });
     }
 
     return ret.data;
@@ -23,7 +24,7 @@ export async function handleMessages(engine: Engine, gameId: string, gameData: G
 }
 
 export async function addMessage(gameId: string, message: string) {
-  await colls.chatMessages.insertOne({ room: gameId, type: "system", data: { text: message } } as any);
+  await colls.chatMessages.insertOne({ _id: new ObjectId(), room: gameId, type: "system", data: { text: message } });
 }
 
 export async function startNextGame(): Promise<boolean> {
@@ -37,7 +38,7 @@ export async function startNextGame(): Promise<boolean> {
     {
       await using _lock = await locks.lock("game", notification.game);
 
-      const game = await colls.games.findOne({ _id: notification.game as unknown as string });
+      const game = await colls.games.findOne({ _id: notification.game });
 
       if (!game || game.status !== "open" || game.players.length < game.options.setup.nbPlayers) {
         await colls.gameNotifications.updateOne({ _id: notification._id }, { $set: { processed: true } });
@@ -95,7 +96,13 @@ export async function startNextGame(): Promise<boolean> {
       await colls.games.replaceOne({ _id: game._id }, game);
 
       const promises = (game.currentPlayers ?? []).map((pl) =>
-        colls.gameNotifications.insertOne({ user: pl._id, createdAt: new Date(), game: game._id, kind: "currentMove", processed: false } as any)
+        colls.gameNotifications.insertOne({
+          user: pl._id,
+          createdAt: new Date(),
+          game: game._id,
+          kind: "currentMove",
+          processed: false,
+        })
       );
       await Promise.all([
         ...promises,
@@ -115,7 +122,7 @@ export async function processQuit(notification: GameNotificationDoc) {
     {
       await using _lock = await locks.lock("game", notification.game);
 
-      const game = await colls.games.findOne({ _id: notification.game as unknown as string });
+      const game = await colls.games.findOne({ _id: notification.game });
 
       if (!game || game.status !== "active") {
         await colls.gameNotifications.updateOne({ _id: notification._id }, { $set: { processed: true } });
@@ -145,6 +152,7 @@ export async function processQuit(notification: GameNotificationDoc) {
 
       colls.chatMessages
         .insertOne({
+          _id: new ObjectId(),
           room: game._id,
           type: "system",
           data: {
@@ -153,7 +161,7 @@ export async function processQuit(notification: GameNotificationDoc) {
                 ? `${player.name} quit the game`
                 : `${player.name} was dropped from the game`,
           },
-        } as any)
+        })
         .catch(console.error);
 
       if (engine.toSave) {
@@ -165,7 +173,12 @@ export async function processQuit(notification: GameNotificationDoc) {
 
         if (notification.kind === "dropPlayer") {
           colls.gameNotifications
-            .insertOne({ kind: "playerDrop", game: notification.game, user: notification.user, processed: false } as any)
+            .insertOne({
+              kind: "playerDrop",
+              game: notification.game,
+              user: notification.user,
+              processed: false,
+            })
             .catch(console.error);
         }
       }
@@ -271,9 +284,13 @@ export async function afterMove(engine: Engine, game: GameDoc, gameData: GameDat
       game: game._id,
       kind: "currentMove",
       processed: false,
-    } as any);
+    });
   }
   if (game.status === "ended" && !alreadyEnded) {
-    await colls.gameNotifications.insertOne({ game: game._id, kind: "gameEnded", processed: false } as any);
+    await colls.gameNotifications.insertOne({
+      game: game._id,
+      kind: "gameEnded",
+      processed: false,
+    });
   }
 }

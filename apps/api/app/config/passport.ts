@@ -273,7 +273,7 @@ passport.use(
   )
 );
 
-function makeSocialStrategy<T extends Strategy>(provider: string, SocialStrategy: new (...args: unknown[]) => T) {
+function makeSocialStrategy<T extends Strategy>(provider: string, SocialStrategy: new (..._args: unknown[]) => T) {
   passport.use(
     provider,
     new SocialStrategy(

@@ -3,7 +3,7 @@ import type { ViewerInfo } from "@bgs/types";
 import { AssertionError } from "node:assert";
 import type { Server } from "node:http";
 import createError from "http-errors";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 import Koa from "koa";
 import compression from "koa-compress";
 import morgan from "koa-morgan";
@@ -190,7 +190,7 @@ async function listen(port = env.listen.port.resources) {
         ctx.body = { message: err.message };
       } else if (err instanceof ZodError) {
         ctx.status = 400;
-        ctx.body = { message: err.issues.map((i) => i.message).join(", ") };
+        ctx.body = { message: z.prettifyError(err) };
       } else if (err.name === "ValidationError") {
         const keys = Object.keys(err.errors);
         ctx.status = 422;

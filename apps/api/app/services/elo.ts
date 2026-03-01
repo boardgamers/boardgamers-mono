@@ -1,6 +1,6 @@
-import type { ObjectId } from "mongodb";
+import type { AnyBulkWriteOperation, ObjectId } from "mongodb";
 import { keyBy } from "@bgs/utils/array";
-import type { GameDoc } from "@bgs/models";
+import type { GameDoc, GamePreferencesDoc } from "@bgs/models";
 import { colls } from "../config/db.ts";
 import { eloDiff } from "../engine/elo.ts";
 
@@ -41,7 +41,7 @@ export async function processEloForGame(game: Pick<GameDoc, "_id" | "players" | 
     return;
   }
 
-  const gamePrefOps: any[] = [];
+  const gamePrefOps: AnyBulkWriteOperation<GamePreferencesDoc>[] = [];
 
   for (const score of scores) {
     let eloDelta = 0;

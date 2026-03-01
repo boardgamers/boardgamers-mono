@@ -7,6 +7,7 @@ import type { Context } from "koa";
 import Router from "koa-router";
 import { z } from "zod";
 import type { GameDoc, RoomMetaDataDoc } from "@bgs/models";
+import { ObjectId } from "mongodb";
 import { colls } from "../../config/db.ts";
 import locks from "../../config/locks.ts";
 import { zObjectId } from "../../utils/zod.ts";
@@ -14,8 +15,9 @@ import { notifyGameStart } from "../../services/game.ts";
 import { isAdmin, isConfirmed, loggedIn } from "../utils.ts";
 import listings from "./listings.ts";
 
-function withoutData(game: any) {
-  return omit(game, "data");
+function withoutData(game: GameDoc): Omit<GameDoc, "data"> {
+  const { data: _data, ...rest } = game;
+  return rest;
 }
 
 const gameIdPattern = /^[A-Za-z0-9-]+$/;
@@ -35,7 +37,7 @@ const newGameSchema = z.object({
   minimumKarma: z.number().int().nonnegative().optional().nullable(),
   scheduledStart: z.number().optional(),
   seed: z.string().regex(gameIdPattern).optional(),
-  options: z.record(z.union([z.string(), z.boolean()])).optional(),
+  options: z.record(z.string(), z.union([z.string(), z.boolean()])).optional(),
 });
 
 const router = new Router<Application.DefaultState, Context>();
@@ -144,9 +146,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
     timePerMove,
     timePerGame,
     timer: { start: 0, end: 24 * 3600 - 1 },
-    scheduledStart: undefined as any,
   };
-
   if (scheduledStart) {
     assert(scheduledStart > Date.now(), "The scheduled start must not be in the past");
     assert(
@@ -171,8 +171,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
   }
 
   const meta: GameDoc["options"]["meta"] = {
-    unlisted: (options.unlisted as boolean) ?? false,
-    minimumKarma: undefined as any,
+    unlisted: !!options.unlisted,
   };
   if (minimumKarma !== undefined && minimumKarma !== null) {
     assert(+minimumKarma === minimumKarma && Math.floor(minimumKarma) === minimumKarma && minimumKarma >= 0);
@@ -200,7 +199,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
           ]
         : [],
     currentPlayers: [],
-    data: {} as any,
+    data: {},
     context: { round: 0 },
     options: {
       setup: {
@@ -277,6 +276,7 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
   }).parse(ctx.request.body);
 
   await colls.chatMessages.insertOne({
+    _id: new ObjectId(),
     room: ctx.state.game._id,
     author: {
       _id: ctx.state.user._id,
@@ -286,7 +286,7 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
       text: body.data.text,
     },
     type: body.type,
-  } as any);
+  });
   ctx.status = 200;
 });
 
@@ -492,13 +492,14 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
 
     player.voteCancel = true;
     await colls.chatMessages.insertOne({
+      _id: new ObjectId(),
       room: game._id,
       type: "system",
       data: { text: `${player.name} voted to cancel this game` },
-    } as any);
+    });
 
     if (game.players.every((pl) => pl.voteCancel || pl.dropped)) {
-      await colls.chatMessages.insertOne({ room: game._id, type: "system", data: { text: `Game cancelled` } } as any);
+      await colls.chatMessages.insertOne({ _id: new ObjectId(), room: game._id, type: "system", data: { text: `Game cancelled` } });
       game.status = "ended";
       game.cancelled = true;
       game.currentPlayers = null;

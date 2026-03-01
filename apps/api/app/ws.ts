@@ -1,5 +1,5 @@
 import { keyBy, sortBy, uniqBy } from "@bgs/utils/array";
-import delay from "delay";
+import { setTimeout as sleep } from "node:timers/promises";
 import jwt from "jsonwebtoken";
 import { ObjectId } from "mongodb";
 import cache from "node-cache";
@@ -24,8 +24,8 @@ function clients(): AugmentedWebSocket[] {
   return [...wss.clients].filter((ws) => ws.readyState === WebSocket.OPEN);
 }
 
-function catchError(target: (...args: any[]) => any, callback?: () => unknown) {
-  return async (...args: any[]) => {
+function catchError(target: (...args: unknown[]) => unknown, callback?: () => unknown) {
+  return async (...args: unknown[]) => {
     try {
       return await target(...args);
     } catch (err) {
@@ -85,8 +85,8 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
         const userIds = [
           ...new Set(
             roomMessages
-              .filter((msg: any) => msg.author?.name === "-")
-              .map((msg: any) => msg.author._id.toString())
+              .filter((msg: { author?: { name?: string; _id?: { toString: () => string } } }) => msg.author?.name === "-")
+              .map((msg: { author: { _id: { toString: () => string } } }) => msg.author._id.toString())
           ),
         ];
         if (userIds.length > 0) {
@@ -99,8 +99,9 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
             ).map((user) => [user._id.toString(), user.account.username])
           );
           for (const message of roomMessages) {
-            if ((message as any).author?.name === "-") {
-              (message as any).author.name = userNames[(message as any).author._id.toString()] || "-";
+            const msg = message as { author?: { name?: string; _id?: { toString: () => string } } };
+            if (msg.author?.name === "-") {
+              msg.author.name = userNames[msg.author._id!.toString()] || "-";
             }
           }
         }
@@ -159,7 +160,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
           } else {
             ws.user = null;
           }
-        } catch (err) {
+        } catch {
           ws.user = null;
         }
       }
@@ -287,8 +288,8 @@ async function run() {
                 JSON.stringify({
                   command: "game:playerStatus",
                   players: game.players
-                    .filter((pl: any) => pl._id.toString() in usersById)
-                    .map((pl: any) => usersById[pl._id.toString()])
+                    .filter((pl) => pl._id.toString() in usersById)
+                    .map((pl) => usersById[pl._id.toString()])
                     .map((user) => ({
                       _id: user._id,
                       status:
@@ -306,7 +307,7 @@ async function run() {
       }
     }
 
-    await (delay as unknown as (ms: number) => Promise<void>)(250);
+    await sleep(250);
   }
 }
 

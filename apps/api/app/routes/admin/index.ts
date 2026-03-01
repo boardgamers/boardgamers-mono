@@ -103,9 +103,7 @@ router.post("/load-games", async (ctx) => {
     const game = await colls.games.findOne({ _id: gameId });
     if (!game) continue;
 
-    for (const key of Object.keys(json)) {
-      (game as Record<string, unknown>)[key] = json[key];
-    }
+    Object.assign(game, json);
 
     await colls.games.replaceOne({ _id: gameId }, game);
   }

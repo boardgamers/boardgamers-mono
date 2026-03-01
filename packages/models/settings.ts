@@ -1,6 +1,6 @@
 export interface SettingsDoc {
   _id: string;
-  value: any;
+  value: unknown;
 }
 
 export const SETTINGS_COLLECTION = "settings";

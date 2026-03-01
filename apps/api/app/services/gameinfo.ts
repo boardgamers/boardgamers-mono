@@ -39,14 +39,14 @@ export default class GameInfoService {
           .project({ game: 1, "access.maxVersion": 1 })
           .toArray()
       : [];
-    const publicGames = (await colls.gameInfos
+    const publicGames = await colls.gameInfos
       .aggregate<{ _id: string; version: number }>([
         { $match: { "meta.public": true } },
         { $sort: { "_id.game": 1, "_id.version": -1 } },
         { $project: { _id: 1 } },
         { $group: { _id: "$_id.game", version: { $first: "$_id.version" } } },
       ])
-      .toArray()) as Array<{ _id: string; version: number }>;
+      .toArray();
 
     const map = new Map<string, number>();
 

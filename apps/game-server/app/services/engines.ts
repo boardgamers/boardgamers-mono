@@ -41,7 +41,7 @@ export function refreshEngine(name: string, version: number) {
 }
 
 if (cluster.isWorker) {
-  process.on("message", (msg: any) => {
+  process.on("message", (msg: { type?: string; name?: string; version?: number }) => {
     console.log("received message from master", msg);
     if (msg.type === "refreshEngine") {
       refreshEngine(msg.name, msg.version);

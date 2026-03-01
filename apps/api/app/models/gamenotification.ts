@@ -1,4 +1,3 @@
-import type { LogDoc } from "@bgs/models";
 import locks from "../config/locks.ts";
 import { colls } from "../config/db.ts";
 import { processEloForGame } from "../services/elo.ts";
@@ -31,7 +30,7 @@ export async function processGameEnded() {
 
   for (const notification of notifications) {
     const game = await colls.games.findOne(
-      { _id: notification.game as unknown as string },
+      { _id: notification.game },
       { projection: { players: 1, "game.name": 1, cancelled: 1 } }
     );
 
@@ -53,9 +52,9 @@ export async function processGameEnded() {
       col.updateOne({ _id: notification._id }, { $set: { processed: true } }),
       colls.logs.insertOne({
         kind: "processGameEnded",
-        data: { game: notification.game as unknown as string },
+        data: { game: notification.game },
         createdAt: new Date(),
-      } as LogDoc),
+      }),
     ]);
   }
 }
@@ -79,9 +78,9 @@ export async function processPlayerDrop() {
         (n) =>
           ({
             kind: "processPlayerDrop",
-            data: { game: n.game as unknown as string, player: n.user },
+            data: { game: n.game, player: n.user },
             createdAt: new Date(),
-          }) as LogDoc
+          })
       )
     ),
     col.updateMany({ _id: { $in: notifications.map((x) => x._id!) } }, { $set: { processed: true } }),

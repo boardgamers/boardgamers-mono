@@ -1,5 +1,6 @@
 import { subHours, subWeeks } from "date-fns";
 import { shuffle } from "@bgs/utils/array";
+import { ObjectId } from "mongodb";
 import locks from "../config/locks.ts";
 import type { GameDoc } from "@bgs/models";
 import { colls } from "../config/db.ts";
@@ -13,10 +14,11 @@ export async function notifyGameStart(game: GameDoc) {
   }
 
   await colls.chatMessages.insertOne({
+    _id: new ObjectId(),
     room: game._id,
     type: "system",
     data: { text: "Game started" },
-  } as any);
+  });
   await colls.gameNotifications.insertOne({ game: game._id, kind: "gameStarted", processed: false });
 }
 
@@ -57,10 +59,11 @@ export async function processSchedulesGames() {
 
       if (!g.ready) {
         await colls.chatMessages.insertOne({
+          _id: new ObjectId(),
           room: game._id,
           type: "system",
           data: { text: "Game cancelled because it's not fully ready at scheduled start date" },
-        } as any);
+        });
         g.cancelled = true;
         g.status = "ended";
         await colls.games.replaceOne({ _id: g._id }, g);
@@ -93,10 +96,11 @@ export async function processUnreadyGames() {
 
       if (game?.status === "open") {
         await colls.chatMessages.insertOne({
+          _id: new ObjectId(),
           room: game._id,
           type: "system",
           data: { text: "Game cancelled because host didn't set the final options in time" },
-        } as any);
+        });
         await colls.games.updateOne(
           { _id: game._id },
           { $set: { cancelled: true, status: "ended" } }

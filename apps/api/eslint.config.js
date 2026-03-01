@@ -3,6 +3,9 @@ import tsparser from "@typescript-eslint/parser";
 
 export default [
   {
+    ignores: ["**/*.d.ts", "**/*.spec.ts"],
+  },
+  {
     files: ["**/*.ts"],
     languageOptions: {
       parser: tsparser,
@@ -21,8 +24,8 @@ export default [
       "@typescript-eslint/no-empty-function": "off",
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-empty-interface": "off",
-      "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
       "@typescript-eslint/consistent-type-imports": ["error", { prefer: "type-imports", fixStyle: "separate-type-imports" }],
       "no-constant-condition": ["error", { checkLoops: false }],
       "no-restricted-imports": ["error", {
@@ -31,12 +34,6 @@ export default [
           message: "Use \"node:\" prefix for Node.js built-in modules.",
         }],
       }],
-    },
-  },
-  {
-    files: ["**/*.spec.ts"],
-    rules: {
-      "@typescript-eslint/no-floating-promises": "off",
     },
   },
 ];

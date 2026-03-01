@@ -2,6 +2,8 @@
 import { AssertionError } from "node:assert";
 import createError from "http-errors";
 import jwt from "jsonwebtoken";
+import { ObjectId } from "mongodb";
+import { z, ZodError } from "zod";
 import Koa from "koa";
 import bodyParser from "koa-bodyparser";
 import compression from "koa-compress";
@@ -52,6 +54,9 @@ app.use(async (ctx, next) => {
       const keys = Object.keys(err.errors);
       ctx.status = 422;
       ctx.body = { message: err.errors[keys[0]].message };
+    } else if (err instanceof ZodError) {
+      ctx.status = 400;
+      ctx.body = { message: z.prettifyError(err) };
     } else if (err instanceof AssertionError) {
       ctx.status = 422;
       ctx.body = { message: err.message };
@@ -71,7 +76,7 @@ app.use(async (ctx, next) => {
         stack: err.stack,
         message: err.message,
       },
-      user: ctx.state.user?.id as any,
+      user: ctx.state.user?.id ? new ObjectId(ctx.state.user.id) : undefined,
       meta: {
         source: "game-server",
       },

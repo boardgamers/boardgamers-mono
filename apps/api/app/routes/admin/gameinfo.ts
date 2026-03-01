@@ -1,6 +1,7 @@
 import { omit } from "@bgs/utils/object";
 import type { Context } from "koa";
 import Router from "koa-router";
+import { z } from "zod";
 import { colls } from "../../config/db.ts";
 import { findGameInfoWithVersion } from "../../models/index.ts";
 
@@ -16,7 +17,7 @@ router.get("/", async (ctx) => {
 router.post("/:game/:version", async (ctx) => {
   const game = await colls.gameInfos.findOneAndUpdate(
     { _id: { game: ctx.params.game, version: +ctx.params.version } },
-    { $set: omit(ctx.request.body as Record<string, unknown>, "_id") },
+    { $set: omit(z.record(z.string(), z.unknown()).parse(ctx.request.body), "_id") },
     { upsert: true, returnDocument: "after" }
   );
   ctx.body = game;

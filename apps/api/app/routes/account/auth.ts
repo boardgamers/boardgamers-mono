@@ -38,7 +38,11 @@ router.get(
     })(ctx, next);
   },
   async (ctx) => {
-    const feedback = ctx.state.user as any as { createSocialAccount: boolean; provider: string; id: string };
+    const feedback = ctx.state.user as unknown as {
+      createSocialAccount: boolean;
+      provider: string;
+      id: string;
+    };
     if (feedback.createSocialAccount) {
       const { provider, id } = feedback;
 

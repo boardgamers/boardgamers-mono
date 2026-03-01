@@ -1,6 +1,7 @@
 import { omit } from "@bgs/utils/object";
 import type { Context } from "koa";
 import Router from "koa-router";
+import { z } from "zod";
 import { colls } from "../../config/db.ts";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -12,7 +13,7 @@ router.get("/", async (ctx) => {
 router.post("/:name/:lang", async (ctx) => {
   const page = await colls.pages.findOneAndUpdate(
     { _id: { name: ctx.params.name, lang: ctx.params.lang } },
-    { $set: omit(ctx.request.body as Record<string, unknown>, "_id") },
+    { $set: omit(z.record(z.string(), z.unknown()).parse(ctx.request.body), "_id") },
     { upsert: true, returnDocument: "after" }
   );
   ctx.body = page;

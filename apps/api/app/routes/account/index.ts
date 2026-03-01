@@ -4,6 +4,7 @@ import Jimp from "jimp";
 import type { Context } from "koa";
 import passport from "koa-passport";
 import Router from "koa-router";
+import type { GamePreferencesDoc } from "@bgs/models";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
 import {
@@ -15,7 +16,6 @@ import {
 import {
   confirm,
   findByEmail,
-  findByUsername,
   generateConfirmKey,
   generateResetLink,
   sendConfirmationEmail,
@@ -196,7 +196,7 @@ router.get("/games/:game/settings", loggedIn, async (ctx) => {
       game: ctx.params.game,
       access: { ownership: false } as const,
     };
-    await colls.gamePreferences.insertOne(newPref as import("@bgs/models").GamePreferencesDoc);
+    await colls.gamePreferences.insertOne(newPref as GamePreferencesDoc);
     pref = (await colls.gamePreferences.findOne({ user: ctx.state.user._id, game: ctx.params.game }))!;
   }
 
@@ -240,7 +240,7 @@ router.post("/games/:game/ownership", loggedIn, async (ctx) => {
 });
 
 router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
-  const body = z.record(z.unknown()).and(z.object({ alternateUI: z.boolean().optional() })).parse(ctx.request.body);
+  const body = z.record(z.string(), z.unknown()).and(z.object({ alternateUI: z.boolean().optional() })).parse(ctx.request.body);
   const gameInfo = await colls.gameInfos.findOne({ _id: { game: ctx.params.game, version: +ctx.params.version } });
 
   if (!gameInfo) {

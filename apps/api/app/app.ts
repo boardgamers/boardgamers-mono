@@ -1,7 +1,7 @@
 import { AssertionError } from "node:assert";
 import type { Server } from "node:http";
 import createError from "http-errors";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 import jwt from "jsonwebtoken";
 import { ObjectId } from "mongodb";
 /* Koa stuff */
@@ -9,7 +9,7 @@ import Koa from "koa";
 import bodyParser from "koa-bodyparser";
 import compression from "koa-compress";
 import _cookie from "koa-cookie";
-const cookie = (_cookie as any).default ?? _cookie;
+const cookie = (_cookie as { default?: typeof _cookie }).default ?? _cookie;
 import morgan from "koa-morgan";
 import passport from "koa-passport";
 import env from "./config/env.ts";
@@ -73,7 +73,7 @@ async function listen(port = env.listen.port.api) {
         ctx.body = { message: err.message };
       } else if (err instanceof ZodError) {
         ctx.status = 400;
-        ctx.body = { message: err.issues.map((i) => i.message).join(", ") };
+        ctx.body = { message: z.prettifyError(err) };
       } else if (err.name === "ValidationError") {
         const keys = Object.keys(err.errors);
         ctx.status = 422;
@@ -87,7 +87,7 @@ async function listen(port = env.listen.port.api) {
       }
 
       try {
-        const body = ctx.request.body as any;
+        const body = ctx.request.body as Record<string, unknown>;
         if (body?.password) {
           body.password = "*******";
         }
@@ -110,9 +110,9 @@ async function listen(port = env.listen.port.api) {
         if (process.env.NODE_ENV !== "production" && !env.silent) {
           console.error(err);
         }
-      } catch (_err) {
+      } catch (err) {
         if (!env.silent) {
-          console.error(_err);
+          console.error(err);
         }
       }
     }

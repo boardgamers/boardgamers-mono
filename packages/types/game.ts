@@ -54,11 +54,11 @@ export interface IAbstractGame<T = string, Game = any, GameOptions = any> {
         end: number;
       };
       // The game will be cancelled if the game isn't full at this time
-      scheduledStart: Date;
+      scheduledStart?: Date;
     };
     meta: {
       unlisted: boolean;
-      minimumKarma: number;
+      minimumKarma?: number;
     };
   };
 

@@ -2,6 +2,7 @@ import { keyBy } from "@bgs/utils/array";
 import { omit, pick } from "@bgs/utils/object";
 import assert from "node:assert";
 import Router from "koa-router";
+import { z } from "zod";
 import { colls } from "../config/db.ts";
 import locks from "../config/locks.ts";
 import { batchReplay } from "../services/batch.ts";
@@ -14,7 +15,7 @@ const router = new Router();
 router.post("/batch/replay", isAdmin, async (ctx) => {
   {
     await using _lock = await locks.lock("batch-replay");
-    const gameIds: string[] = (ctx.request.body as any).gameIds;
+    const { gameIds } = z.object({ gameIds: z.array(z.string()) }).parse(ctx.request.body);
 
     ctx.body = await batchReplay({ _id: { $in: gameIds } });
   }
@@ -30,7 +31,8 @@ router.post("/:gameId/edit-data", isAdmin, async (ctx) => {
       return;
     }
 
-    await colls.games.updateOne({ _id: ctx.params.gameId }, { $set: { data: (ctx.request.body as any).json } });
+    const { json } = z.object({ json: z.unknown() }).parse(ctx.request.body);
+    await colls.games.updateOne({ _id: ctx.params.gameId }, { $set: { data: json } });
 
     ctx.status = 200;
   }
@@ -50,7 +52,8 @@ router.post("/:gameId/replay", isAdmin, async (ctx) => {
 
     assert(engine.replay, "The engine of this game does not support replaying");
 
-    const gameData = await engine.replay(game.data, { to: (ctx.request.body as any).to });
+    const { to } = z.object({ to: z.number().optional() }).parse(ctx.request.body);
+    const gameData = await engine.replay(game.data, { to });
 
     const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 
@@ -87,7 +90,8 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 
     const initialLogIndex = engine.logLength(gameData);
 
-    gameData = await engine.move(gameData, (ctx.request.body as any).move, playerIndex);
+    const { move } = z.object({ move: z.unknown() }).parse(ctx.request.body);
+    gameData = await engine.move(gameData, move, playerIndex);
 
     const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 
@@ -102,7 +106,7 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
     }
 
     ctx.body = {
-      game: omit(game as Record<string, unknown>, "data"),
+      game: omit(game, "data"),
       log: {
         start: initialLogIndex,
         data: engine.logSlice(gameData, { start: initialLogIndex, player: playerIndex }),
@@ -130,7 +134,7 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
   );
   const settingsMap = keyBy(gameInfo!.settings!, (s) => s.name);
 
-  const filteredSettings = pick(ctx.request.body as Record<string, unknown>, Object.keys(settingsMap));
+  const filteredSettings = pick(z.record(z.string(), z.unknown()).parse(ctx.request.body), Object.keys(settingsMap));
   for (const [key, setting] of Object.entries(filteredSettings)) {
     switch (settingsMap[key].type) {
       case "checkbox":

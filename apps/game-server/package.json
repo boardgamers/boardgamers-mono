@@ -28,7 +28,8 @@
     "koa-morgan": "^1.0.1",
     "koa-router": "^8.0.8",
     "mongo-locks": "^3.1.2",
-    "mongodb": "^7.1.0"
+    "mongodb": "^7.1.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/fs-extra": "^8.1.0",
