@@ -1,5 +1,5 @@
-import assert from "assert";
-import cluster from "cluster";
+import assert from "node:assert";
+import cluster from "node:cluster";
 import decache from "decache";
 import { colls } from "../config/db.ts";
 import type { Engine } from "../types/engine.ts";

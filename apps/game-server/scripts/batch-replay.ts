@@ -1,4 +1,4 @@
-import assert from "assert";
+import assert from "node:assert";
 import { batchReplay } from "../app/services/batch.ts";
 
 const [_tsNode, _fileName, gameName] = process.argv;

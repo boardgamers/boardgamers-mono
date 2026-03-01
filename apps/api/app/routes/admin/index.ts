@@ -1,9 +1,9 @@
 import checkDiskSpace from "check-disk-space";
-import fs from "fs";
+import fs from "node:fs";
 import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
-import path from "path";
+import path from "node:path";
 import { env } from "../../config/index.ts";
 import { colls } from "../../config/db.ts";
 import {

@@ -1,4 +1,4 @@
-import assert from "assert";
+import assert from "node:assert";
 import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";

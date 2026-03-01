@@ -1,6 +1,6 @@
 import { keyBy } from "@bgs/utils/array";
 import { omit, pick } from "@bgs/utils/object";
-import assert from "assert";
+import assert from "node:assert";
 import Router from "koa-router";
 import { colls } from "../config/db.ts";
 import locks from "../config/locks.ts";

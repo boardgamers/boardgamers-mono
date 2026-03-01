@@ -1,4 +1,4 @@
-import cluster from "cluster";
+import cluster from "node:cluster";
 import { colls } from "../config/db.ts";
 import env from "../config/env.ts";
 import { delay } from "../utils/delay.ts";

@@ -3,7 +3,7 @@ import Vue from "@vitejs/plugin-vue";
 import "dotenv/config";
 import LinkAttributes from "markdown-it-link-attributes";
 import Prism from "markdown-it-prism";
-import path from "path";
+import path from "node:path";
 import AutoImport from "unplugin-auto-import/vite";
 import IconsResolver from "unplugin-icons/resolver";
 import Icons from "unplugin-icons/vite";

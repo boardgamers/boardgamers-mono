@@ -1,5 +1,5 @@
-import { AssertionError } from "assert";
-import type { Server } from "http";
+import { AssertionError } from "node:assert";
+import type { Server } from "node:http";
 import createError from "http-errors";
 import { ZodError } from "zod";
 import jwt from "jsonwebtoken";

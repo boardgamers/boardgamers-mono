@@ -1,4 +1,4 @@
-import cluster from "cluster";
+import cluster from "node:cluster";
 import env from "./app/config/env.ts";
 
 async function main() {

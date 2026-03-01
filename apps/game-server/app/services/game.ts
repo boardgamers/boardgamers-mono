@@ -1,7 +1,7 @@
 import type { GameDoc, GameNotificationDoc } from "@bgs/models";
 import { deadline, elapsedSeconds } from "@bgs/utils/time";
-import assert from "assert";
-import crypto from "crypto";
+import assert from "node:assert";
+import crypto from "node:crypto";
 import { colls } from "../config/db.ts";
 import locks from "../config/locks.ts";
 import env from "../config/env.ts";

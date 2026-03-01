@@ -1,4 +1,4 @@
-import cluster from "cluster";
+import cluster from "node:cluster";
 import { listen } from "./app/app.ts";
 import initDb from "./app/config/db.ts";
 import env from "./app/config/env.ts";

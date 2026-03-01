@@ -1,5 +1,5 @@
 /* Koa stuff */
-import { AssertionError } from "assert";
+import { AssertionError } from "node:assert";
 import createError from "http-errors";
 import jwt from "jsonwebtoken";
 import Koa from "koa";

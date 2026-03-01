@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { JwtRefreshTokenDoc } from "@bgs/models";
 import { colls } from "../config/db.ts";

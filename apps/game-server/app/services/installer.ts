@@ -1,4 +1,4 @@
-import { spawn } from "child_process";
+import { spawn } from "node:child_process";
 import fs from "fs-extra";
 import pkg from "../../package.json" with { type: "json" };
 import { colls } from "../config/db.ts";

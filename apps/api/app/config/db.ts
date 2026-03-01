@@ -1,4 +1,4 @@
-import cluster from "cluster";
+import cluster from "node:cluster";
 import { type Collection, type Db, MongoClient } from "mongodb";
 import {
   type ApiErrorDoc, API_ERRORS_COLLECTION,

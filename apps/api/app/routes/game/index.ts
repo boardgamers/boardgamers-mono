@@ -1,6 +1,6 @@
 import { omit } from "@bgs/utils/object";
 import { timerDuration } from "@bgs/utils/time";
-import assert from "assert";
+import assert from "node:assert";
 import { addDays } from "date-fns";
 import createError from "http-errors";
 import type { Context } from "koa";

@@ -4,7 +4,7 @@ import { simplifyFilter } from "@coyotte508/mongo-query";
 import { colls } from "../../config/db.ts";
 import { gameBasicsProjection } from "../../models/index.ts";
 import GameInfoService from "../../services/gameinfo.ts";
-import assert from "assert";
+import assert from "node:assert";
 import type { Context } from "koa";
 import Router from "koa-router";
 import { queryCount, skipCount } from "../utils.ts";

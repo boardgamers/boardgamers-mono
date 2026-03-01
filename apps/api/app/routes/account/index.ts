@@ -1,4 +1,4 @@
-import assert from "assert";
+import assert from "node:assert";
 import createError from "http-errors";
 import Jimp from "jimp";
 import type { Context } from "koa";

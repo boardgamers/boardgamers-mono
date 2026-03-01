@@ -1,7 +1,7 @@
 import type { UserDoc } from "@bgs/models";
-import assert from "assert";
+import assert from "node:assert";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
+import crypto from "node:crypto";
 import type { WithId } from "mongodb";
 import locks from "../config/locks.ts";
 import { colls } from "../config/db.ts";
