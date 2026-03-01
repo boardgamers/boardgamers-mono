@@ -15,7 +15,9 @@ async function init() {
 
   const users = await mongoose.connection.db.collection("users").countDocuments();
   assert(users < 10, "This doesn't seem to be a test database");
-  await mongoose.connection.db.dropDatabase();
+
+  const collections = await mongoose.connection.db.listCollections().toArray();
+  await Promise.all(collections.map((c) => mongoose.connection.db.dropCollection(c.name)));
 
   env.listen.port.api = 50606;
   env.silent = true;
@@ -25,7 +27,10 @@ async function init() {
   run();
 }
 
-init();
+init().catch((err) => {
+  console.error("Test init failed:", err);
+  process.exit(1);
+});
 
 after(async () => {
   server.close();

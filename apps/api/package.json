@@ -74,7 +74,7 @@
     "start": "node --env-file=.env server.ts",
     "dev": "node --watch --env-file=.env server.ts",
     "seed": "node --env-file=.env scripts/seed.ts",
-    "test": "NODE_ENV=test mocha --delay --recursive './**/*.spec.ts'",
+    "test": "NODE_ENV=test mocha --delay --exit --recursive './**/*.spec.ts'",
     "test-only": "NODE_ENV=test mocha --delay --recursive './**/init.spec.ts'",
     "lint": "eslint server.ts app/**/*.{js,ts,tsx} --fix",
     "lint-check": "eslint server.ts app/**/*.{js,ts,tsx} --max-warnings 0",
