@@ -12,6 +12,7 @@ import {
   GAME_NOTIFICATIONS_COLLECTION,
   ensureCollections,
   ensureIndexes,
+  ensureValidation,
 } from "@bgs/models";
 import env from "./env.ts";
 import locks from "./locks.ts";
@@ -47,3 +48,4 @@ locks.init(_db.collection("locks"));
 
 await ensureCollections(_db);
 await ensureIndexes(_db);
+await ensureValidation(_db);

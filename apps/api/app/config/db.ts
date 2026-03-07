@@ -29,6 +29,7 @@ import {
   USERS_COLLECTION,
   ensureCollections,
   ensureIndexes,
+  ensureValidation,
 } from "@bgs/models";
 import locks from "./locks.ts";
 import { migrate } from "../models/migrations.ts";
@@ -91,6 +92,7 @@ export default async function initDb(url = env.database.bgs.url, runMigrations =
 
   await ensureCollections(_db);
   await ensureIndexes(_db);
+  await ensureValidation(_db);
 
   if (cluster.isPrimary && runMigrations) {
     try {
