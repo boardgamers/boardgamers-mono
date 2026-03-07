@@ -86,7 +86,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
         user: ctx.state.user._id,
         "access.ownership": true,
       }),
-      "You need to own the game in order to host a new game. Check your account settings."
+      "You need to own the game in order to host a new game. Check your account settings.",
     );
   }
 
@@ -135,7 +135,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
       } else if (item.type === "select") {
         assert(
           typeof val === "string" && item.items?.some((it) => it.name === val),
-          "Invalid value for option: " + key
+          "Invalid value for option: " + key,
         );
       } else {
         continue;
@@ -155,7 +155,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
     assert(scheduledStart > Date.now(), "The scheduled start must not be in the past");
     assert(
       scheduledStart < Date.now() + 10 * 24 * 3600 * 1000,
-      "The scheduled start must not be more than 10 days in the future"
+      "The scheduled start must not be more than 10 days in the future",
     );
     timing.scheduledStart = new Date(scheduledStart);
   }
@@ -169,7 +169,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
   ) {
     assert(
       timerDuration({ start: timerStart, end: timerEnd }) >= 3 * 3600,
-      "You need at least have a 3 hour window of play time"
+      "You need at least have a 3 hour window of play time",
     );
     timing.timer = { start: timerStart, end: timerEnd };
   }
@@ -181,7 +181,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
     assert(+minimumKarma === minimumKarma && Math.floor(minimumKarma) === minimumKarma && minimumKarma >= 0);
     assert(
       minimumKarma + 5 <= ctx.state.user.account.karma,
-      "You can't create a game with that high of a karma restriction"
+      "You can't create a game with that high of a karma restriction",
     );
     meta.minimumKarma = minimumKarma;
   }
@@ -270,7 +270,7 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
   assert(
     ctx.state.user?.authority === "admin" ||
       (ctx.state.user && ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id))),
-    "You must be a player of the game to chat!"
+    "You must be a player of the game to chat!",
   );
   const body = z
     .object({
@@ -297,7 +297,7 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
 router.post("/:gameId/invite", loggedIn, async (ctx) => {
   assert(
     ctx.state.user._id.equals(ctx.state.game.creator),
-    "You must be the creator of the game to invite other players"
+    "You must be the creator of the game to invite other players",
   );
   const { userId } = z.object({ userId: zObjectId() }).parse(ctx.request.body);
 
@@ -312,7 +312,7 @@ router.post("/:gameId/invite", loggedIn, async (ctx) => {
     assert(!game.players.some((pl) => pl._id.equals(userId)), "That user is already in the player list");
 
     const userDoc = await colls.users.findOne({ _id: userId }, { projection: { "account.username": 1 } });
-    const userName = userDoc!.account.username;
+    const userName = userDoc.account.username;
 
     game.players.push({
       _id: userId,
@@ -343,7 +343,7 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
   } else {
     assert(
       ctx.state.game.options.meta.minimumKarma === undefined || karma >= ctx.state.game.options.meta.minimumKarma,
-      "You do not have enough karma to join this game"
+      "You do not have enough karma to join this game",
     );
 
     if (karma < 50) {
@@ -353,7 +353,7 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
         .toArray();
       assert(
         activeGames.length < 2,
-        "You can't join more than two games at the same time when your karma is less than 50"
+        "You can't join more than two games at the same time when your karma is less than 50",
       );
     }
   }
@@ -425,7 +425,7 @@ router.post("/:gameId/unjoin", loggedIn, async (ctx) => {
     // In case host needed to choose options after all players joined, and player unjoined before
     // he could chose the options, he now has to wait again
     game.currentPlayers = (game.currentPlayers ?? []).filter(
-      (pl) => !pl._id.equals(ctx.state.user._id) && !pl._id.equals(game.creator)
+      (pl) => !pl._id.equals(ctx.state.user._id) && !pl._id.equals(game.creator),
     );
 
     if (/* ctx.state.user._id.equals(game.creator) && */ game.players.length === 0) {
@@ -457,14 +457,14 @@ router.post("/:gameId/start", loggedIn, async (ctx) => {
 
     assert(
       game.players.length === game.options.setup.nbPlayers,
-      "You can only start the game when all players have joined"
+      "You can only start the game when all players have joined",
     );
 
     const { playerOrder } = z.object({ playerOrder: z.array(z.string()).optional() }).parse(ctx.request.body);
 
     if (playerOrder) {
-      game.players = [...game.players].sort(
-        (p1, p2) => playerOrder.indexOf(p1._id.toString()) - playerOrder.indexOf(p2._id.toString())
+      game.players = [...game.players].toSorted(
+        (p1, p2) => playerOrder.indexOf(p1._id.toString()) - playerOrder.indexOf(p2._id.toString()),
       );
     }
     game.ready = true;
@@ -483,7 +483,7 @@ router.post("/:gameId/start", loggedIn, async (ctx) => {
 router.post("/:gameId/cancel", loggedIn, async (ctx) => {
   assert(
     ctx.state.user && ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id)),
-    "You must be a player of the game to vote!"
+    "You must be a player of the game to vote!",
   );
 
   {
@@ -531,7 +531,7 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
 router.post("/:gameId/quit", loggedIn, async (ctx) => {
   assert(
     ctx.state.user && ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id)),
-    "You must be a player of the game to quit!"
+    "You must be a player of the game to quit!",
   );
 
   {
@@ -558,19 +558,19 @@ router.post("/:gameId/quit", loggedIn, async (ctx) => {
 router.post("/:gameId/drop/:userId", loggedIn, async (ctx) => {
   assert(
     ctx.state.user && ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id)),
-    "You must be a player of the game!"
+    "You must be a player of the game!",
   );
   const targetId = ctx.params.userId;
   assert(
     targetId && ctx.state.game.players.some((pl) => pl._id.equals(targetId)),
-    "The target must be a player of the game!"
+    "The target must be a player of the game!",
   );
 
   {
     await using _lock = await locks.lock("game-cancel", ctx.params.gameId);
     const game = await colls.games.findOne(
       { _id: ctx.params.gameId },
-      { projection: { currentPlayers: 1, players: 1, status: 1 } }
+      { projection: { currentPlayers: 1, players: 1, status: 1 } },
     );
 
     assert(game.status === "active", "The game is not ongoing");
@@ -609,7 +609,7 @@ router.post("/:roomId/notes", loggedIn, async (ctx) => {
       user: ctx.state.user._id,
     },
     { $set: { notes } },
-    { upsert: true }
+    { upsert: true },
   );
   ctx.status = 200;
 });
@@ -638,7 +638,7 @@ router.post("/:roomId/chat/lastRead", loggedIn, async (ctx) => {
   await colls.roomMetaData.updateOne(
     { room: ctx.params.roomId, user: ctx.state.user._id },
     { $set: { lastChatMessageViewed: new Date(lastRead) } },
-    { upsert: true }
+    { upsert: true },
   );
   ctx.status = 200;
 });

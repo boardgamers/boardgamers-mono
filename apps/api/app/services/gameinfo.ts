@@ -10,7 +10,7 @@ export default class GameInfoService {
 
     const pref = await colls.gamePreferences.findOne(
       { user: user._id, game, "access.maxVersion": { $exists: true } },
-      { projection: { "access.maxVersion": 1 } }
+      { projection: { "access.maxVersion": 1 } },
     );
 
     if (pref) {
@@ -19,7 +19,7 @@ export default class GameInfoService {
           "_id.game": game,
           $or: [{ "meta.public": true }, { "_id.version": pref.access.maxVersion }],
         },
-        { sort: { "_id.version": -1 } }
+        { sort: { "_id.version": -1 } },
       );
     } else {
       return colls.gameInfos.findOne({ "_id.game": game, "meta.public": true }, { sort: { "_id.version": -1 } });
@@ -52,7 +52,7 @@ export default class GameInfoService {
     }
 
     for (const game of publicGames) {
-      if (!map.has(game._id) || map.get(game._id)! < game.version) {
+      if (!map.has(game._id) || map.get(game._id) < game.version) {
         map.set(game._id, game.version);
       }
     }

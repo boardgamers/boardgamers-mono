@@ -43,7 +43,7 @@ export async function generateHash(password: string) {
 }
 
 export async function validPassword(user: WithId<UserDoc>, password: string) {
-  return bcrypt.compare(password, user.account.password!);
+  return bcrypt.compare(password, user.account.password);
 }
 
 export async function resetPassword(user: WithId<UserDoc>, password: string) {
@@ -83,7 +83,7 @@ export async function recalculateKarma(user: WithId<UserDoc>, since = new Date(0
   const playerGames = await colls.games
     .find(
       { "players._id": user._id, lastMove: { $gte: since } },
-      { projection: { status: 1, cancelled: 1, players: 1 }, sort: { lastMove: 1 } }
+      { projection: { status: 1, cancelled: 1, players: 1 }, sort: { lastMove: 1 } },
     )
     .toArray();
 
@@ -104,7 +104,7 @@ export async function recalculateKarma(user: WithId<UserDoc>, since = new Date(0
 export async function notifyLogin(user: WithId<UserDoc>, ip: string) {
   await colls.users.updateOne(
     { _id: user._id },
-    { $set: { "security.lastLogin.date": new Date(), "security.lastLogin.ip": ip, "security.lastIp": ip } }
+    { $set: { "security.lastLogin.date": new Date(), "security.lastLogin.ip": ip, "security.lastIp": ip } },
   );
 }
 
@@ -124,12 +124,12 @@ export async function notifyLastIp(user: WithId<UserDoc>, ip: string) {
 export function sendConfirmationEmail(user: WithId<UserDoc>) {
   return sendmail({
     from: env.noreply,
-    to: user.account.email!,
+    to: user.account.email,
     subject: "Confirm your account",
     html: `
     <p>Hello, we're delighted to have a new Gaia Project player among us!</p>
     <p>To finish your registration and confirm your account with us at ${env.site},
-     click <a href='http://${env.site}/confirm?key=${encodeURIComponent(user.security.confirmKey!)}&email=${encodeURIComponent(user.account.email!)}'>here</a>.</p>
+     click <a href='http://${env.site}/confirm?key=${encodeURIComponent(user.security.confirmKey)}&email=${encodeURIComponent(user.account.email)}'>here</a>.</p>
 
     <p>If you didn't create an account with us, ignore this email.</p>`,
   });
@@ -138,11 +138,11 @@ export function sendConfirmationEmail(user: WithId<UserDoc>) {
 export function sendResetEmail(user: WithId<UserDoc>) {
   return sendmail({
     from: env.noreply,
-    to: user.account.email!,
+    to: user.account.email,
     subject: "Forgotten password",
     html: `
     <p>A password reset was asked for your account,
-    click <a href='http://${env.site}/reset?key=${encodeURIComponent(user.security.reset!.key!)}&email=${encodeURIComponent(user.account.email!)}'>here</a> to reset your password.</p>
+    click <a href='http://${env.site}/reset?key=${encodeURIComponent(user.security.reset.key)}&email=${encodeURIComponent(user.account.email)}'>here</a> to reset your password.</p>
 
     <p>If this didn't come from you, ignore this email.</p>`,
   });
@@ -222,14 +222,14 @@ export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
         html: `
         <p>Hello ${freshUser.account.username}</p>
         <p>It's your turn on ${gameString},
-        click <a href='http://${env.site}/user/${encodeURIComponent(freshUser.account.username!)}'>here</a> to see your active games.</p>
+        click <a href='http://${env.site}/user/${encodeURIComponent(freshUser.account.username)}'>here</a> to see your active games.</p>
         <p>You can also change your email settings and unsubscribe <a href='http://${env.site}/account'>here</a> with a simple click.</p>`,
       }).catch(console.error);
     }
 
     await colls.users.updateOne(
       { _id: user._id },
-      { $set: { "meta.lastGameNotification": new Date() }, $unset: { "meta.nextGameNotification": "" } }
+      { $set: { "meta.lastGameNotification": new Date() }, $unset: { "meta.nextGameNotification": "" } },
     );
   } catch (err) {
     console.error(err);

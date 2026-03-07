@@ -25,7 +25,7 @@ describe("Game API", () => {
 
   before(async () => {
     await colls.users.insertOne(
-      testUser({ _id: userId, account: { username: "test", email: "test@test.com" }, security: { confirmed: true } })
+      testUser({ _id: userId, account: { username: "test", email: "test@test.com" }, security: { confirmed: true } }),
     );
     await colls.gameInfos.insertOne({
       _id: { game: "test", version: 1 },
@@ -53,7 +53,7 @@ describe("Game API", () => {
         players: 2,
         options: { join: true },
       },
-      authHeaders
+      authHeaders,
     );
 
     assert.strictEqual(res.ok, false);
@@ -61,9 +61,7 @@ describe("Game API", () => {
   });
 
   it("should be able to create a game with ownership", async () => {
-    await colls.gamePreferences.insertOne(
-      testGamePrefs({ user: userId, game: "test", access: { ownership: true } })
-    );
+    await colls.gamePreferences.insertOne(testGamePrefs({ user: userId, game: "test", access: { ownership: true } }));
 
     const res = await api(
       "POST",
@@ -76,7 +74,7 @@ describe("Game API", () => {
         players: 2,
         options: { join: true },
       },
-      authHeaders
+      authHeaders,
     );
 
     assert.strictEqual(res.ok, true);
@@ -94,7 +92,7 @@ describe("Game API", () => {
         players: 3,
         options: { join: true },
       },
-      authHeaders
+      authHeaders,
     );
 
     assert.strictEqual(res.ok, false);
@@ -108,7 +106,7 @@ describe("Game API", () => {
     assert.strictEqual(
       await colls.games.countDocuments({ _id: "test" }),
       0,
-      "Game should be deleted after creator unjoins"
+      "Game should be deleted after creator unjoins",
     );
   });
 

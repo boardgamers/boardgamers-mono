@@ -1,10 +1,6 @@
 {
   "name": "@bgs/utils",
   "type": "module",
-  "scripts": {
-    "test": "node --test *.spec.ts"
-  },
-  "dependencies": {},
   "main": "index.ts",
   "exports": {
     ".": "./index.ts",
@@ -13,7 +9,18 @@
     "./remove-falsy": "./remove-falsy.ts",
     "./time": "./time.ts"
   },
+  "scripts": {
+    "test": "node --test *.spec.ts",
+    "lint": "oxlint --fix",
+    "lint-check": "oxlint",
+    "fmt": "oxfmt",
+    "fmt-check": "oxfmt --check",
+    "tsc": "tsgo --noEmit"
+  },
   "devDependencies": {
-    "typescript": "~5.9.3"
+    "@typescript/native-preview": "7.0.0-dev.20260307.1",
+    "oxfmt": "^0.36.0",
+    "oxlint": "^1.51.0",
+    "oxlint-tsgolint": "^0.16.0"
   }
 }

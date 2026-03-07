@@ -6,11 +6,23 @@ export { apiErrorSchema, API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollec
 
 // --- Chat Message ---
 export type { ChatMessageDoc, ChatMessageFront } from "./chatmessage.ts";
-export { chatMessageSchema, CHAT_MESSAGES_COLLECTION, chatMessageIndexes, chatMessagesCollectionOptions } from "./chatmessage.ts";
+export {
+  chatMessageSchema,
+  CHAT_MESSAGES_COLLECTION,
+  chatMessageIndexes,
+  chatMessagesCollectionOptions,
+} from "./chatmessage.ts";
 
 // --- Game ---
 export type { GameDoc, GameFront, PlayerInfo, PlayerInfoFront, GameStatus, PlayerOrder } from "./game.ts";
-export { gameSchema, playerInfoSchema, gameStatusSchema, playerOrderSchema, GAMES_COLLECTION, gameIndexes } from "./game.ts";
+export {
+  gameSchema,
+  playerInfoSchema,
+  gameStatusSchema,
+  playerOrderSchema,
+  GAMES_COLLECTION,
+  gameIndexes,
+} from "./game.ts";
 
 // --- Game Info ---
 export type { GameInfoDoc, GameInfoFront, ViewerInfo, GameInfoOption } from "./gameinfo.ts";
@@ -18,7 +30,12 @@ export { gameInfoSchema, viewerInfoSchema, gameInfoOptionSchema, GAME_INFOS_COLL
 
 // --- Game Notification ---
 export type { GameNotificationDoc, GameNotificationFront, NotificationKind } from "./gamenotification.ts";
-export { gameNotificationSchema, notificationKindSchema, GAME_NOTIFICATIONS_COLLECTION, gameNotificationIndexes } from "./gamenotification.ts";
+export {
+  gameNotificationSchema,
+  notificationKindSchema,
+  GAME_NOTIFICATIONS_COLLECTION,
+  gameNotificationIndexes,
+} from "./gamenotification.ts";
 
 // --- Game Preferences ---
 export type { GamePreferencesDoc, GamePreferencesFront } from "./gamepreferences.ts";
@@ -71,7 +88,12 @@ export type { NotificationKind as notificationKind } from "./gamenotification.ts
 
 import type { ZodType } from "zod";
 import { API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollectionOptions, apiErrorSchema } from "./api-error.ts";
-import { CHAT_MESSAGES_COLLECTION, chatMessageIndexes, chatMessagesCollectionOptions, chatMessageSchema } from "./chatmessage.ts";
+import {
+  CHAT_MESSAGES_COLLECTION,
+  chatMessageIndexes,
+  chatMessagesCollectionOptions,
+  chatMessageSchema,
+} from "./chatmessage.ts";
 import { GAMES_COLLECTION, gameIndexes, gameSchema } from "./game.ts";
 import { GAME_INFOS_COLLECTION, gameInfoSchema } from "./gameinfo.ts";
 import { GAME_NOTIFICATIONS_COLLECTION, gameNotificationIndexes, gameNotificationSchema } from "./gamenotification.ts";
@@ -136,7 +158,9 @@ export async function ensureValidation(db: Db) {
   const existing = new Set((await db.listCollections().toArray()).map((c) => c.name));
 
   for (const [collection, schema] of validationMap) {
-    if (!existing.has(collection)) continue;
+    if (!existing.has(collection)) {
+      continue;
+    }
     try {
       const $jsonSchema = zodToMongoSchema(schema);
       await db.command({

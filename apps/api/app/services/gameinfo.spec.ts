@@ -6,7 +6,7 @@ import { seed } from "../../scripts/seed.ts";
 import GameInfoService from "./gameinfo.ts";
 
 function sortedEntries(map: Map<string, number>) {
-  return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  return [...map.entries()].toSorted((a, b) => a[0].localeCompare(b[0]));
 }
 
 describe("GameInfoService", () => {
@@ -47,7 +47,7 @@ describe("GameInfoService", () => {
       await colls.gameInfos.updateOne({ _id: { game: "container", version: 1 } }, { $set: { "meta.public": false } });
       await colls.gamePreferences.updateOne(
         { user: user._id, game: "container" },
-        { $set: { "access.maxVersion": 1 } }
+        { $set: { "access.maxVersion": 1 } },
       );
 
       games = await GameInfoService.latestAccessibleGames(user._id);

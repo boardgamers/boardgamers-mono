@@ -32,7 +32,7 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
 
   const viewer: ViewerInfo =
     gameInfo?.viewer?.alternate?.url && ctx.query.alternate === "1" ? gameInfo?.viewer.alternate : gameInfo.viewer;
-  const viewerUrl = ctx.query.customViewerUrl || viewer.url;
+  const viewerUrl = String(ctx.query.customViewerUrl || viewer.url);
 
   const stylesheets = viewer.dependencies.stylesheets
     .map((dep) => `<link type='text/css' rel='stylesheet' href='${dep}'></link>`)

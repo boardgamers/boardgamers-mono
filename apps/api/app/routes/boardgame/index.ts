@@ -10,7 +10,7 @@ const router = new Router<Application.DefaultState, Context>();
 router.param("boardgame", async (boardgame, ctx, next) => {
   ctx.state.foundBoardgame = await colls.gameInfos.findOne(
     { "_id.game": boardgame, "meta.public": true },
-    { sort: { "_id.version": -1 } }
+    { sort: { "_id.version": -1 } },
   );
 
   if (!ctx.state.foundBoardgame) {

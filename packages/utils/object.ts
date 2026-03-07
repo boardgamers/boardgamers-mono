@@ -9,7 +9,7 @@ export function pick<T, K extends keyof T>(o: T, props: K[] | readonly K[]): Pic
       if (o[prop] !== undefined) {
         return { [prop]: o[prop] };
       }
-    })
+    }),
   );
 }
 

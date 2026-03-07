@@ -50,6 +50,7 @@ router.post("/:gameId/replay", isAdmin, async (ctx) => {
 
     const engine = await getEngine(game.game.name, game.game.version);
 
+    // oxlint-disable-next-line typescript/unbound-method -- existence check, not a call
     assert(engine.replay, "The engine of this game does not support replaying");
 
     const { to } = z.object({ to: z.number().optional() }).parse(ctx.request.body);
@@ -78,7 +79,7 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 
     assert(
       game.currentPlayers?.some((pl) => pl._id.equals(ctx.state.user.id)),
-      "It's not your turn to play."
+      "It's not your turn to play.",
     );
 
     const engine = await getEngine(game.game.name, game.game.version);
@@ -99,7 +100,8 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
       if (game.options.timing.timePerMove <= 15 * 60) {
         game.players[playerIndex].remainingTime = Math.min(
           game.options.timing.timePerGame,
-          (game.players[playerIndex].remainingTime ?? game.options.timing.timePerGame) + game.options.timing.timePerMove
+          (game.players[playerIndex].remainingTime ?? game.options.timing.timePerGame) +
+            game.options.timing.timePerMove,
         );
       }
       await afterMove(engine, game, toSave);
@@ -130,9 +132,9 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
 
   const gameInfo = await colls.gameInfos.findOne(
     { _id: { game: game.game.name, version: game.game.version } },
-    { projection: { settings: 1 } }
+    { projection: { settings: 1 } },
   );
-  const settingsMap = keyBy(gameInfo!.settings!, (s) => s.name);
+  const settingsMap = keyBy(gameInfo.settings, (s) => s.name);
 
   const filteredSettings = pick(z.record(z.string(), z.unknown()).parse(ctx.request.body), Object.keys(settingsMap));
   for (const [key, setting] of Object.entries(filteredSettings)) {
@@ -143,7 +145,7 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
         }
         break;
       case "select":
-        if (!settingsMap[key].items!.some((item) => item.name === setting)) {
+        if (!settingsMap[key].items.some((item) => item.name === setting)) {
           delete filteredSettings[key];
         }
         break;
@@ -154,13 +156,14 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
 
   const engine = await getEngine(game.game.name, game.game.version);
 
+  // oxlint-disable-next-line typescript/unbound-method -- existence check, not a call
   assert(engine.setPlayerSettings, "This game does not support custom settings");
 
   {
     await using _lock = await locks.lock("game", ctx.params.gameId);
     const freshGame = await colls.games.findOne({ _id: ctx.params.gameId });
 
-    let gameData = freshGame!.data;
+    let gameData = freshGame.data;
 
     gameData = engine.setPlayerSettings(gameData, playerIndex, filteredSettings);
 
@@ -191,6 +194,7 @@ router.get("/:gameId/settings", loggedIn, async (ctx) => {
 
   const engine = await getEngine(game.game.name, game.game.version);
 
+  // oxlint-disable-next-line typescript/unbound-method -- existence check, not a call
   assert(engine.playerSettings, "This game does not support custom settings");
 
   ctx.body = engine.playerSettings(game.data, playerIndex);

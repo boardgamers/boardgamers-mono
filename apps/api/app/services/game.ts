@@ -85,7 +85,7 @@ export async function processUnreadyGames() {
         status: "open",
         "currentPlayers.0.deadline": { $lt: Date.now() },
       },
-      { projection: { _id: 1 } }
+      { projection: { _id: 1 } },
     )
     .toArray();
 

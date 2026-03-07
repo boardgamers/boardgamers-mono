@@ -14,7 +14,7 @@ router.post("/:name/:lang", async (ctx) => {
   const page = await colls.pages.findOneAndUpdate(
     { _id: { name: ctx.params.name, lang: ctx.params.lang } },
     { $set: omit(z.record(z.string(), z.unknown()).parse(ctx.request.body), "_id") },
-    { upsert: true, returnDocument: "after" }
+    { upsert: true, returnDocument: "after" },
   );
   ctx.body = page;
 });

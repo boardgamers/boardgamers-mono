@@ -36,7 +36,7 @@ router.get("/", (ctx) => {
 router.get("/avatar", loggedIn, async (ctx) => {
   const item = await colls.images.findOne(
     { ref: ctx.state.user._id, refType: "User", key: "avatar" },
-    { projection: { "images.256x256": 1 } }
+    { projection: { "images.256x256": 1 } },
   );
   if (!item) {
     return;
@@ -74,9 +74,15 @@ router.post("/", loggedIn, async (ctx) => {
   assert(!avatar?.includes("/") && !avatar?.includes("."), "Invalid avatar");
 
   const updateFields: Record<string, unknown> = {};
-  if (body.settings != null) updateFields.settings = body.settings;
-  if (body.account?.avatar != null) updateFields["account.avatar"] = body.account.avatar;
-  if (body.account?.bio != null) updateFields["account.bio"] = body.account.bio;
+  if (body.settings != null) {
+    updateFields.settings = body.settings;
+  }
+  if (body.account?.avatar != null) {
+    updateFields["account.avatar"] = body.account.avatar;
+  }
+  if (body.account?.bio != null) {
+    updateFields["account.bio"] = body.account.bio;
+  }
 
   if (Object.keys(updateFields).length > 0) {
     await colls.users.updateOne({ _id: ctx.state.user._id }, { $set: updateFields });
@@ -96,7 +102,7 @@ router.post("/avatar", loggedIn, async (ctx) => {
   const image = await Jimp.read(input);
 
   const mime: "image/jpeg" | "image/png" = [Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(
-    image.getMIME() as "image/jpeg" | "image/png"
+    image.getMIME() as "image/jpeg" | "image/png",
   )
     ? (image.getMIME() as "image/jpeg" | "image/png")
     : image.hasAlpha
@@ -110,7 +116,7 @@ router.post("/avatar", loggedIn, async (ctx) => {
     } else if (image.getWidth() !== image.getHeight()) {
       image.cover(Math.max(image.getWidth(), image.getHeight()), Math.max(image.getWidth(), image.getHeight()));
     }
-    const converted = await image.quality(85).getBufferAsync(mime as "image/jpeg" | "image/png");
+    const converted = await image.quality(85).getBufferAsync(mime);
     imagesObj[`${size}x${size}`] = { mime, raw: converted, size: converted.length };
   }
 
@@ -122,7 +128,7 @@ router.post("/avatar", loggedIn, async (ctx) => {
         formats: Object.keys(imagesObj),
       },
     },
-    { upsert: true }
+    { upsert: true },
   );
   await colls.users.updateOne({ _id: ctx.state.user._id }, { $set: { "account.avatar": "upload" } });
 
@@ -160,7 +166,7 @@ router.post("/email", loggedIn, async (ctx) => {
         "security.confirmed": false,
         "security.confirmKey": confirmKey,
       },
-    }
+    },
   );
 
   const updatedUser = await colls.users.findOne({ _id: user._id });
@@ -227,7 +233,7 @@ router.post("/games/:game/ownership", loggedIn, async (ctx) => {
     },
     {
       upsert: true,
-    }
+    },
   );
 
   ctx.status = 200;
@@ -278,7 +284,7 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
     },
     {
       upsert: true,
-    }
+    },
   );
 
   ctx.status = 200;

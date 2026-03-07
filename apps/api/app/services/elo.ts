@@ -1,4 +1,4 @@
-import type { AnyBulkWriteOperation, ObjectId } from "mongodb";
+import type { AnyBulkWriteOperation } from "mongodb";
 import { keyBy } from "@bgs/utils/array";
 import type { GameDoc, GamePreferencesDoc } from "@bgs/models";
 import { colls } from "../config/db.ts";
@@ -10,10 +10,10 @@ export async function processEloForGame(game: Pick<GameDoc, "_id" | "players" | 
     await colls.gamePreferences
       .find(
         { game: game.game.name, user: { $in: game.players.map((pl) => pl._id) } },
-        { projection: { user: 1, elo: 1 } }
+        { projection: { user: 1, elo: 1 } },
       )
       .toArray(),
-    (pref) => pref.user.toString()
+    (pref) => pref.user.toString(),
   );
 
   const scores = game.players.map((pl) => ({
@@ -100,6 +100,6 @@ export async function processEloForGame(game: Pick<GameDoc, "_id" | "players" | 
 
   await colls.games.updateOne(
     { _id: game._id },
-    { $set: scoreVals.reduce((acc, scoreVal) => ({ ...acc, ...scoreVal }), {}) }
+    { $set: scoreVals.reduce((acc, scoreVal) => ({ ...acc, ...scoreVal }), {}) },
   );
 }

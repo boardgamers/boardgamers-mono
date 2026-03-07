@@ -14,7 +14,7 @@ async function initIfNeeded() {
   await fs.mkdirp("games");
   await fs.writeFile(
     "./games/package.json",
-    JSON.stringify({ name: "boardgamers-server-games", version: pkg.version, dependencies: {} })
+    JSON.stringify({ name: "boardgamers-server-games", version: pkg.version, dependencies: {} }),
   );
 }
 
@@ -52,7 +52,7 @@ export async function installNewGames() {
         console.log(
           "installed new dependency",
           `${game._id.game}_${game._id.version}`,
-          `npm:${game.engine.package.name}@${game.engine.package.version}`
+          `npm:${game.engine.package.name}@${game.engine.package.version}`,
         );
 
         refreshEngine(game._id.game, game._id.version);

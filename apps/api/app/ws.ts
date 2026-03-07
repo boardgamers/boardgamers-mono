@@ -51,58 +51,18 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
   ws.on(
     "message",
     catchError(async (message: WebSocket.Data) => {
-      const data = JSON.parse(message.toString());
+      // oxlint-disable-next-line typescript/no-base-to-string -- WebSocket.Data is always stringifiable
+      const data = JSON.parse(String(message));
 
       if ("room" in data) {
         ws.room = data.room;
 
-        // Show only last 100 messages
-        // Migrate old schema where user contained the author id
-        // todo: Remove once all the old chat messages expire
         const roomMessages = await colls.chatMessages
-          .aggregate([
-            { $match: { room: data.room } },
-            { $sort: { _id: -1 } },
-            { $limit: 100 },
-            {
-              $project: {
-                author: {
-                  $cond: [{ $eq: [{ $type: "$author" }, "objectId"] }, { _id: "$author", name: "-" }, "$author"],
-                },
-                _id: 1,
-                data: 1,
-                type: 1,
-              },
-            },
-          ])
+          .find({ room: data.room })
+          .sort({ _id: -1 })
+          .limit(100)
+          .project({ _id: 1, author: 1, data: 1, type: 1 })
           .toArray();
-
-        // todo: Remove once all the old chat messages expire
-        const userIds = [
-          ...new Set(
-            roomMessages
-              .filter(
-                (msg: { author?: { name?: string; _id?: { toString: () => string } } }) => msg.author?.name === "-"
-              )
-              .map((msg: { author: { _id: { toString: () => string } } }) => msg.author._id.toString())
-          ),
-        ];
-        if (userIds.length > 0) {
-          const userNames = Object.fromEntries(
-            (
-              await colls.users
-                .find({ _id: { $in: userIds.map((id) => new ObjectId(id)) } })
-                .project({ "account.username": 1 })
-                .toArray()
-            ).map((user) => [user._id.toString(), user.account.username])
-          );
-          for (const message of roomMessages) {
-            const msg = message as { author?: { name?: string; _id?: { toString: () => string } } };
-            if (msg.author?.name === "-") {
-              msg.author.name = userNames[msg.author._id!.toString()] || "-";
-            }
-          }
-        }
 
         if (ws.readyState !== ws.OPEN) {
           return;
@@ -112,8 +72,8 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
           JSON.stringify({
             room: data.room,
             command: "messageList",
-            messages: roomMessages.reverse(),
-          })
+            messages: roomMessages.toReversed(),
+          }),
         );
       }
       if ("game" in data) {
@@ -144,7 +104,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
                     ? "away"
                     : "offline",
             })),
-          })
+          }),
         );
       }
       if ("jwt" in data) {
@@ -165,7 +125,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
       if (data.online && ws.user) {
         updateActivity(ws.user, true).catch(console.error);
       }
-    })
+    }),
   );
 
   ws.on("close", () => {
@@ -180,7 +140,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
 // Check if sockets are alive, close them otherwise
 setInterval(function ping() {
   for (const ws of clients()) {
-    if (ws.isAlive === false) {
+    if (!ws.isAlive) {
       ws.terminate();
     }
 
@@ -227,7 +187,7 @@ async function run() {
             room: ws.room,
             messages: messagesPerRooms[ws.room],
             command: "newMessages",
-          })
+          }),
         );
       }
     }
@@ -238,7 +198,7 @@ async function run() {
 
     const gameConditions = uniqBy(
       sortBy([...clients()], (c) => String(c.gameUpdate ?? "")),
-      (c) => c.game
+      (c) => c.game,
     ).map((x) => ({
       _id: x.game,
       updatedAt: { $gt: x.gameUpdate ?? new Date(0) },
@@ -298,7 +258,7 @@ async function run() {
                             ? "away"
                             : "offline",
                     })),
-                })
+                }),
               );
             }
           }
@@ -320,7 +280,7 @@ async function updateActivity(user: ObjectId, online: boolean) {
     if (online) {
       await colls.users.updateOne(
         { _id: user },
-        { $set: { "security.lastActive": new Date(), "security.lastOnline": new Date() } }
+        { $set: { "security.lastActive": new Date(), "security.lastOnline": new Date() } },
       );
     } else {
       await colls.users.updateOne({ _id: user }, { $set: { "security.lastActive": new Date() } });

@@ -2,7 +2,7 @@ export function eloDiff(
   player: { elo: number; score: number; dropped: boolean; games: number },
   opponent: { elo: number; score: number; dropped: boolean },
   droppedGame: boolean,
-  numPlayers: number
+  numPlayers: number,
 ) {
   const prob = 1.0 / (1.0 + Math.pow(10, (opponent.elo - player.elo) / 400));
   let wlt = 0;

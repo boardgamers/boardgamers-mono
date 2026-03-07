@@ -150,9 +150,9 @@ async function listen(port = env.listen.port.api) {
             email: user.account.email,
           },
           env.jwt.keys.private,
-          { expiresIn: "1h", algorithm: env.jwt.algorithm }
+          { expiresIn: "1h", algorithm: env.jwt.algorithm },
         ),
-        { httpOnly: true, sameSite: true, domain: env.domain }
+        { httpOnly: true, sameSite: true, domain: env.domain },
       );
     } else if (ctx.cookies.get("token")) {
       // Remove cookie if logged out

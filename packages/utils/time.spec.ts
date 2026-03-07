@@ -52,60 +52,60 @@ describe("Time Utils", () => {
     it("should work when the timer has always been paused", () => {
       assert.strictEqual(
         elapsedSeconds(summerDate, { start: 10 * oneHour, end: 12 * oneHour }, summerDate.getTime() + oneHourMs * 2),
-        0
+        0,
       );
     });
     it("should work when the timer is currently paused", () => {
       assert.strictEqual(
         isPaused(new Date(summerDate.getTime() + oneHourMs * 2), { start: 7 * oneHour, end: 9 * oneHour }),
-        true
+        true,
       );
       assert.strictEqual(
         elapsedSeconds(summerDate, { start: 7 * oneHour, end: 9 * oneHour }, summerDate.getTime() + oneHourMs * 2),
-        oneHour + oneMinute * 13
+        oneHour + oneMinute * 13,
       );
 
       assert.strictEqual(
         elapsedSeconds(summerDate, { start: 10 * oneHour, end: 12 * oneHour }, summerDate.getTime() + oneDayMs),
-        2 * oneHour
+        2 * oneHour,
       );
       assert.strictEqual(
         elapsedSeconds(summerDate, { start: 8 * oneHour, end: 10 * oneHour }, summerDate.getTime() + oneDayMs),
-        2 * oneHour
+        2 * oneHour,
       );
     });
 
     it("should work when the timer is currently running", () => {
       assert.strictEqual(
         isPaused(new Date(summerDate.getTime() + oneHourMs * 2), { start: 8 * oneHour, end: 10 * oneHour }),
-        false
+        false,
       );
       assert.strictEqual(
         elapsedSeconds(summerDate, { start: 8 * oneHour, end: 10 * oneHour }, summerDate.getTime() + oneHourMs * 2),
-        oneHour + oneMinute * 47
+        oneHour + oneMinute * 47,
       );
       assert.strictEqual(
         elapsedSeconds(
           summerDate,
           { start: 8 * oneHour, end: 10 * oneHour },
-          summerDate.getTime() + oneHourMs * 2 + oneDayMs * 10
+          summerDate.getTime() + oneHourMs * 2 + oneDayMs * 10,
         ),
-        10 * 2 * oneHour + oneHour + oneMinute * 47
+        10 * 2 * oneHour + oneHour + oneMinute * 47,
       );
 
       assert.strictEqual(
         isPaused(new Date(summerDate.getTime() + oneHourMs * 1), { start: 7 * oneHour, end: 9 * oneHour }),
-        false
+        false,
       );
       assert.strictEqual(
         elapsedSeconds(summerDate, { start: 7 * oneHour, end: 9 * oneHour }, summerDate.getTime() + oneHourMs * 1),
-        oneHour
+        oneHour,
       );
 
       assert.strictEqual(isPaused(summerDate, { start: 7 * oneHour, end: 9 * oneHour }), false);
       assert.strictEqual(
         elapsedSeconds(summerDate, { start: 7 * oneHour, end: 9 * oneHour }, summerDate.getTime() + oneDayMs),
-        oneHour * 2
+        oneHour * 2,
       );
     });
 
@@ -114,9 +114,9 @@ describe("Time Utils", () => {
         elapsedSeconds(
           summerDate,
           { start: 10 * oneHour, end: 12 * oneHour },
-          summerDate.getTime() - oneHourMs * 24 * 100
+          summerDate.getTime() - oneHourMs * 24 * 100,
         ),
-        0
+        0,
       );
     });
   });
@@ -151,9 +151,9 @@ describe("Time Utils", () => {
         deadline(
           20 * oneMinute,
           { start: 8 * oneHour, end: 9 * oneHour },
-          new Date(summerDate.getTime() + 2 * oneHourMs)
+          new Date(summerDate.getTime() + 2 * oneHourMs),
         ),
-        { year: 2020, month: 4, day: 17, hour: 8, minute: 20 }
+        { year: 2020, month: 4, day: 17, hour: 8, minute: 20 },
       );
 
       assertUTC(deadline(20 * oneMinute, { start: 9 * oneHour, end: 5 * oneHour }, summerDate), {
@@ -168,9 +168,9 @@ describe("Time Utils", () => {
         deadline(
           20 * oneMinute + 10 * oneHour,
           { start: 8 * oneHour, end: 9 * oneHour },
-          new Date(summerDate.getTime() + 2 * oneHourMs)
+          new Date(summerDate.getTime() + 2 * oneHourMs),
         ),
-        { year: 2020, month: 4, day: 27, hour: 8, minute: 20 }
+        { year: 2020, month: 4, day: 27, hour: 8, minute: 20 },
       );
     });
 

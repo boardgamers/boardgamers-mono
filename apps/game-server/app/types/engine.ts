@@ -9,7 +9,7 @@ export interface Engine {
     expansions: string[],
     options: Record<string, unknown>,
     seed: string,
-    creator?: number
+    creator?: number,
   ): Promise<GameData>;
 
   // Returns the new data to send to player
@@ -68,13 +68,14 @@ export interface Engine {
   // Middleware to process data to be sent to the backend
   // Undefined = do not save anything (for example if a move was
   // made just to request a backend calculation)
-  toSave(data: GameData): unknown | undefined;
+  toSave(data: GameData): unknown;
 
   // Important system messages to show in chat
   // Another call on `ret.data` should not show the same messages
   messages(data: GameData): { messages: string[]; data: GameData };
 
   // Replays the game, after GameData was manually edited by an admin
+  // oxlint-disable-next-line typescript/no-redundant-type-constituents -- GameData is unknown now but won't always be
   replay(data: GameData, options?: { to?: number }): GameData | Promise<GameData>;
 
   // Get global stats on the game

@@ -1,18 +1,20 @@
 {
   "name": "@bgs/game-server",
   "version": "1.0.0",
-  "main": "server.ts",
-  "license": "AGPL-3.0",
   "private": true,
+  "license": "AGPL-3.0",
   "type": "module",
+  "main": "server.ts",
   "scripts": {
     "batch-replay": "node --env-file-if-exists=.env scripts/batch-replay.ts",
     "dev": "node --watch --env-file-if-exists=.env server.ts",
-    "lint": "eslint server.ts app/**/*.{js,ts,tsx} --fix",
-    "lint-check": "eslint server.ts app/**/*.{js,ts,tsx} --max-warnings 0",
+    "fmt": "oxfmt",
+    "fmt-check": "oxfmt --check",
+    "lint": "oxlint --fix",
+    "lint-check": "oxlint",
     "start": "node --env-file-if-exists=.env server.ts",
     "test": "node --test 'app/**/*.spec.ts'",
-    "tsc": "tsc --noEmit"
+    "tsc": "tsgo --noEmit"
   },
   "dependencies": {
     "@bgs/models": "workspace:*",
@@ -40,9 +42,9 @@
     "@types/koa-morgan": "^1.0.4",
     "@types/koa-router": "^7.4.0",
     "@types/node": "^24.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.32.1",
-    "@typescript-eslint/parser": "^8.32.1",
-    "eslint": "^9.27.0",
-    "typescript": "~5.9.3"
+    "@typescript/native-preview": "7.0.0-dev.20260307.1",
+    "oxfmt": "^0.36.0",
+    "oxlint": "^1.51.0",
+    "oxlint-tsgolint": "^0.16.0"
   }
 }

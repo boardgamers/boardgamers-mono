@@ -8,7 +8,7 @@ export async function processCurrentMove() {
   const notifications = await col.find({ kind: "currentMove", processed: false }).toArray();
 
   const userCol = colls.users;
-  const userDocs = await userCol.find({ _id: { $in: notifications.map((n) => n.user!) } }).toArray();
+  const userDocs = await userCol.find({ _id: { $in: notifications.map((n) => n.user) } }).toArray();
 
   for (const user of userDocs) {
     if (!user.settings?.mailing?.game?.activated) {
@@ -20,7 +20,7 @@ export async function processCurrentMove() {
     }
   }
 
-  await col.updateMany({ _id: { $in: notifications.map((x) => x._id!) } }, { $set: { processed: true } });
+  await col.updateMany({ _id: { $in: notifications.map((x) => x._id) } }, { $set: { processed: true } });
 }
 
 export async function processGameEnded() {
@@ -31,7 +31,7 @@ export async function processGameEnded() {
   for (const notification of notifications) {
     const game = await colls.games.findOne(
       { _id: notification.game },
-      { projection: { players: 1, "game.name": 1, cancelled: 1 } }
+      { projection: { players: 1, "game.name": 1, cancelled: 1 } },
     );
 
     if (!game) {
@@ -65,12 +65,12 @@ export async function processPlayerDrop() {
 
   const dropCounts = new Map<string, { id: (typeof notifications)[0]["user"]; count: number }>();
   for (const n of notifications) {
-    const key = n.user!.toString();
+    const key = n.user.toString();
     const entry = dropCounts.get(key);
     if (entry) {
       entry.count++;
     } else {
-      dropCounts.set(key, { id: n.user!, count: 1 });
+      dropCounts.set(key, { id: n.user, count: 1 });
     }
   }
 
@@ -84,8 +84,8 @@ export async function processPlayerDrop() {
         kind: "processPlayerDrop",
         data: { game: n.game, player: n.user },
         createdAt: new Date(),
-      }))
+      })),
     ),
-    col.updateMany({ _id: { $in: notifications.map((x) => x._id!) } }, { $set: { processed: true } }),
+    col.updateMany({ _id: { $in: notifications.map((x) => x._id) } }, { $set: { processed: true } }),
   ]);
 }

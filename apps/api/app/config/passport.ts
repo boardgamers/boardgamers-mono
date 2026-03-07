@@ -118,8 +118,8 @@ passport.use(
       } catch (err) {
         return done(err);
       }
-    }
-  )
+    },
+  ),
 );
 
 passport.use(
@@ -197,8 +197,8 @@ passport.use(
       } catch (err) {
         return done(err);
       }
-    }
-  )
+    },
+  ),
 );
 
 passport.use(
@@ -235,8 +235,8 @@ passport.use(
       } catch (err) {
         return done(err);
       }
-    }
-  )
+    },
+  ),
 );
 
 // =========================================================================
@@ -269,8 +269,8 @@ passport.use(
       } catch (err) {
         done(err);
       }
-    }
-  )
+    },
+  ),
 );
 
 function makeSocialStrategy<T extends Strategy>(provider: string, SocialStrategy: new (..._args: unknown[]) => T) {
@@ -298,10 +298,10 @@ function makeSocialStrategy<T extends Strategy>(provider: string, SocialStrategy
 
             await colls.users.updateOne(
               { _id: currentUser._id },
-              { $set: { [`account.social.${provider}`]: profile.id } }
+              { $set: { [`account.social.${provider}`]: profile.id } },
             );
             const updatedUser = await colls.users.findOne({ _id: currentUser._id });
-            done(null, updatedUser!);
+            done(null, updatedUser);
           } else {
             if (existingUser) {
               done(null, existingUser);
@@ -313,8 +313,8 @@ function makeSocialStrategy<T extends Strategy>(provider: string, SocialStrategy
         } catch (err) {
           done(err);
         }
-      }
-    )
+      },
+    ),
   );
 }
 

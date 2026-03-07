@@ -34,7 +34,7 @@ router.post("/:userId", async (ctx) => {
     { _id: new ObjectId(ctx.params.userId) },
     {
       $set: { "account.karma": account.karma },
-    }
+    },
   );
   ctx.status = 200;
 });
@@ -44,7 +44,7 @@ router.post("/:userId/elo/:game", async (ctx) => {
   await colls.gamePreferences.updateOne(
     { user: new ObjectId(ctx.params.userId), game: ctx.params.game },
     { $set: { "elo.value": value } },
-    { upsert: false }
+    { upsert: false },
   );
   ctx.status = 200;
 });
@@ -78,7 +78,7 @@ router.post("/:userId/access/grant", async (ctx) => {
   await colls.gamePreferences.updateOne(
     { user: new ObjectId(ctx.params.userId), game },
     { $set: { "access.maxVersion": gameInfo._id.version } },
-    { upsert: true }
+    { upsert: true },
   );
   ctx.status = 200;
 });
@@ -90,7 +90,7 @@ router.post("/:userId/confirm", async (ctx) => {
 
   await colls.users.updateOne(
     { _id: new ObjectId(ctx.params.userId) },
-    { $set: { "security.confirmed": true, "security.confirmKey": null } }
+    { $set: { "security.confirmed": true, "security.confirmKey": null } },
   );
   ctx.status = 200;
 });

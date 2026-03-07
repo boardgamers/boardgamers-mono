@@ -50,14 +50,10 @@ export const gameInfoSchema = z.object({
     })
     .optional(),
   preferences: z.array(gameInfoOptionSchema).optional(),
-  settings: z
-    .array(gameInfoOptionSchema.extend({ faction: z.string().optional() }))
-    .optional(),
+  settings: z.array(gameInfoOptionSchema.extend({ faction: z.string().optional() })).optional(),
   options: z.array(gameInfoOptionSchema).optional(),
   players: z.array(z.number()),
-  expansions: z
-    .array(z.object({ label: z.string(), name: z.string() }))
-    .optional(),
+  expansions: z.array(z.object({ label: z.string(), name: z.string() })).optional(),
   factions: z
     .object({
       avatars: z.boolean().optional(),

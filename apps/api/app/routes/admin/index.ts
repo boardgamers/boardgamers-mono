@@ -101,7 +101,9 @@ router.post("/load-games", async (ctx) => {
     const json = JSON.parse(fs.readFileSync(path.join(dirPath, file)).toString("utf-8"));
 
     const game = await colls.games.findOne({ _id: gameId });
-    if (!game) continue;
+    if (!game) {
+      continue;
+    }
 
     Object.assign(game, json);
 
@@ -114,7 +116,7 @@ router.post("/announcement", async (ctx) => {
   await colls.settings.updateOne(
     { _id: SettingsKey.Announcement },
     { $set: { value: announcement } },
-    { upsert: true }
+    { upsert: true },
   );
   ctx.status = 200;
 });
@@ -181,7 +183,7 @@ router.post("/recreate-notifications", async (ctx) => {
 
   if (notifications.length > 0) {
     await colls.gameNotifications.insertMany(
-      notifications.map((n) => ({ game: n.game, kind: n.kind, processed: false }))
+      notifications.map((n) => ({ game: n.game, kind: n.kind, processed: false })),
     );
   }
   ctx.status = 200;

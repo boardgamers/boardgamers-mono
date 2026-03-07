@@ -1,9 +1,20 @@
 {
   "name": "@bgs/api",
   "version": "1.3.1",
-  "license": "AGPL-3.0",
   "private": true,
+  "license": "AGPL-3.0",
   "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.ts",
+    "dev": "node --watch --env-file-if-exists=.env server.ts",
+    "seed": "node --env-file-if-exists=.env scripts/seed.ts",
+    "test": "NODE_ENV=test node --env-file-if-exists=.env --import ./app/config/test-hooks.ts --test --test-force-exit --test-concurrency=1 './**/*.spec.ts'",
+    "lint": "oxlint --fix",
+    "lint-check": "oxlint",
+    "fmt": "oxfmt",
+    "fmt-check": "oxfmt --check",
+    "tsc": "tsgo --noEmit"
+  },
   "dependencies": {
     "@bgs/models": "workspace:*",
     "@bgs/utils": "workspace:*",
@@ -52,19 +63,10 @@
     "@types/passport-local": "^1.0.33",
     "@types/semver": "^7.1.0",
     "@types/ws": "^6.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.32.1",
-    "@typescript-eslint/parser": "^8.32.1",
-    "eslint": "^9.27.0",
+    "@typescript/native-preview": "7.0.0-dev.20260307.1",
     "koa-cookie": "^1.0.0",
-    "typescript": "~5.9.3"
-  },
-  "scripts": {
-    "start": "node --env-file-if-exists=.env server.ts",
-    "dev": "node --watch --env-file-if-exists=.env server.ts",
-    "seed": "node --env-file-if-exists=.env scripts/seed.ts",
-    "test": "NODE_ENV=test node --env-file-if-exists=.env --import ./app/config/test-hooks.ts --test --test-force-exit --test-concurrency=1 './**/*.spec.ts'",
-    "lint": "eslint server.ts app/**/*.{js,ts,tsx} --fix",
-    "lint-check": "eslint server.ts app/**/*.{js,ts,tsx} --max-warnings 0",
-    "tsc": "tsc --noEmit"
+    "oxfmt": "^0.36.0",
+    "oxlint": "^1.51.0",
+    "oxlint-tsgolint": "^0.16.0"
   }
 }

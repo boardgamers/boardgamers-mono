@@ -39,7 +39,7 @@ async function gameConditions<T>(
     maxKarma?: number;
     maxDuration?: number;
     minDuration?: number;
-  }
+  },
 ) {
   const baseConditions = (() => {
     switch (status) {

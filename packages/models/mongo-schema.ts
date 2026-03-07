@@ -56,17 +56,39 @@ function convert(schema: JsonSchema): JsonSchema {
     out.anyOf = (schema.anyOf as JsonSchema[]).map(convert);
   }
 
-  if (typeof schema.minimum === "number") out.minimum = schema.minimum;
-  if (typeof schema.maximum === "number") out.maximum = schema.maximum;
-  if (typeof schema.exclusiveMinimum === "number") out.exclusiveMinimum = schema.exclusiveMinimum;
-  if (typeof schema.exclusiveMaximum === "number") out.exclusiveMaximum = schema.exclusiveMaximum;
-  if (typeof schema.minLength === "number") out.minLength = schema.minLength;
-  if (typeof schema.maxLength === "number") out.maxLength = schema.maxLength;
-  if (typeof schema.minItems === "number") out.minItems = schema.minItems;
-  if (typeof schema.maxItems === "number") out.maxItems = schema.maxItems;
-  if (typeof schema.pattern === "string") out.pattern = schema.pattern;
-  if (typeof schema.description === "string") out.description = schema.description;
-  if (typeof schema.title === "string") out.title = schema.title;
+  if (typeof schema.minimum === "number") {
+    out.minimum = schema.minimum;
+  }
+  if (typeof schema.maximum === "number") {
+    out.maximum = schema.maximum;
+  }
+  if (typeof schema.exclusiveMinimum === "number") {
+    out.exclusiveMinimum = schema.exclusiveMinimum;
+  }
+  if (typeof schema.exclusiveMaximum === "number") {
+    out.exclusiveMaximum = schema.exclusiveMaximum;
+  }
+  if (typeof schema.minLength === "number") {
+    out.minLength = schema.minLength;
+  }
+  if (typeof schema.maxLength === "number") {
+    out.maxLength = schema.maxLength;
+  }
+  if (typeof schema.minItems === "number") {
+    out.minItems = schema.minItems;
+  }
+  if (typeof schema.maxItems === "number") {
+    out.maxItems = schema.maxItems;
+  }
+  if (typeof schema.pattern === "string") {
+    out.pattern = schema.pattern;
+  }
+  if (typeof schema.description === "string") {
+    out.description = schema.description;
+  }
+  if (typeof schema.title === "string") {
+    out.title = schema.title;
+  }
 
   return out;
 }

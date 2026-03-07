@@ -67,7 +67,7 @@ router.get("/:userId/avatar", async (ctx) => {
         key: "avatar",
         [`images.${format}`]: { $exists: true },
       },
-      { projection: { [`images.${format}`]: 1 } }
+      { projection: { [`images.${format}`]: 1 } },
     );
     if (!item) {
       return;
@@ -81,8 +81,8 @@ router.get("/:userId/avatar", async (ctx) => {
 
   const response = await fetch(
     `https://api.dicebear.com/9.x/${encodeURIComponent(account.avatar)}/svg?seed=${encodeURIComponent(
-      account.username
-    )}`
+      account.username,
+    )}`,
   );
 
   assert(response.ok, "Error when loading image");

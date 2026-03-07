@@ -6,3 +6,9 @@ build
 .svelte-kit
 auto-imports.d.ts
 .pnpm-store
+
+# Backend packages use oxfmt instead
+apps/api
+apps/game-server
+packages/models
+packages/utils

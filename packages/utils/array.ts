@@ -7,7 +7,7 @@ export function keyBy<T>(arr: T[], fn: (item: T) => string): Record<string, T> {
 }
 
 export function sortBy<T>(arr: T[], fn: (item: T) => string | number): T[] {
-  return [...arr].sort((a, b) => {
+  return [...arr].toSorted((a, b) => {
     const va = fn(a);
     const vb = fn(b);
     return va < vb ? -1 : va > vb ? 1 : 0;

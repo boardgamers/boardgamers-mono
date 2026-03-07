@@ -3,7 +3,7 @@ import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { ObjectId } from "mongodb";
 import { db } from "../config/db.ts";
 import { colls } from "../config/db.ts";
-import { testUser, testGame, testPlayer, testNotification, testGamePrefs } from "../config/test-helpers.ts";
+import { testUser, testGame, testNotification, testGamePrefs } from "../config/test-helpers.ts";
 import { defaultKarma, maxKarma } from "./user.ts";
 import { processGameEnded, processPlayerDrop } from "./gamenotification.ts";
 
@@ -18,8 +18,12 @@ describe("GameNotification", () => {
       before(async () => {
         await db().dropDatabase();
 
-        await colls.users.insertOne(testUser({ _id: userId, account: { username: "test", email: "test@test.com", karma: defaultKarma } }));
-        await colls.users.insertOne(testUser({ _id: userId2, account: { username: "test2", email: "test2@test.com", karma: defaultKarma } }));
+        await colls.users.insertOne(
+          testUser({ _id: userId, account: { username: "test", email: "test@test.com", karma: defaultKarma } }),
+        );
+        await colls.users.insertOne(
+          testUser({ _id: userId2, account: { username: "test2", email: "test2@test.com", karma: defaultKarma } }),
+        );
         await colls.games.insertOne(
           testGame({
             _id: "test",
@@ -28,13 +32,15 @@ describe("GameNotification", () => {
               { _id: userId, dropped: false },
               { _id: userId2, dropped: true },
             ],
-          })
+          }),
         );
       });
       after(() => db().dropDatabase());
 
       it("should add karma to the active player and no karma to the dropped player", async () => {
-        await colls.gameNotifications.insertOne(testNotification({ kind: "gameEnded", game: "test", processed: false }));
+        await colls.gameNotifications.insertOne(
+          testNotification({ kind: "gameEnded", game: "test", processed: false }),
+        );
         await processGameEnded();
 
         const user = await colls.users.findOne({ _id: userId });
@@ -44,7 +50,9 @@ describe("GameNotification", () => {
       });
 
       it("should not go above 100", async () => {
-        await colls.gameNotifications.insertOne(testNotification({ kind: "gameEnded", game: "test", processed: false }));
+        await colls.gameNotifications.insertOne(
+          testNotification({ kind: "gameEnded", game: "test", processed: false }),
+        );
         await colls.users.updateOne({ _id: userId }, { $set: { "account.karma": maxKarma } });
         await processGameEnded();
 
@@ -55,10 +63,18 @@ describe("GameNotification", () => {
 
     describe("elo", () => {
       beforeEach(async () => {
-        await colls.users.insertOne(testUser({ _id: userId, account: { username: "test", email: "test@test.com", karma: defaultKarma } }));
-        await colls.users.insertOne(testUser({ _id: userId2, account: { username: "test2", email: "test2@test.com", karma: defaultKarma } }));
-        await colls.users.insertOne(testUser({ _id: userId3, account: { username: "test3", email: "test3@test.com", karma: defaultKarma } }));
-        await colls.users.insertOne(testUser({ _id: userId4, account: { username: "test4", email: "test4@test.com", karma: defaultKarma } }));
+        await colls.users.insertOne(
+          testUser({ _id: userId, account: { username: "test", email: "test@test.com", karma: defaultKarma } }),
+        );
+        await colls.users.insertOne(
+          testUser({ _id: userId2, account: { username: "test2", email: "test2@test.com", karma: defaultKarma } }),
+        );
+        await colls.users.insertOne(
+          testUser({ _id: userId3, account: { username: "test3", email: "test3@test.com", karma: defaultKarma } }),
+        );
+        await colls.users.insertOne(
+          testUser({ _id: userId4, account: { username: "test4", email: "test4@test.com", karma: defaultKarma } }),
+        );
         await colls.games.insertOne(
           testGame({
             _id: "test",
@@ -69,16 +85,24 @@ describe("GameNotification", () => {
               { _id: userId3, score: 20, dropped: false },
               { _id: userId4, score: 25, dropped: false },
             ],
-          })
+          }),
         );
-        await colls.gamePreferences.insertOne(testGamePrefs({ game: "gaia-project", user: userId, elo: { value: 120, games: 120 } }));
-        await colls.gamePreferences.insertOne(testGamePrefs({ game: "gaia-project", user: userId2, elo: { value: 110, games: 110 } }));
-        await colls.gamePreferences.insertOne(testGamePrefs({ game: "gaia-project", user: userId3, elo: { value: 105, games: 5 } }));
+        await colls.gamePreferences.insertOne(
+          testGamePrefs({ game: "gaia-project", user: userId, elo: { value: 120, games: 120 } }),
+        );
+        await colls.gamePreferences.insertOne(
+          testGamePrefs({ game: "gaia-project", user: userId2, elo: { value: 110, games: 110 } }),
+        );
+        await colls.gamePreferences.insertOne(
+          testGamePrefs({ game: "gaia-project", user: userId3, elo: { value: 105, games: 5 } }),
+        );
       });
       afterEach(() => db().dropDatabase());
 
       it("should add elo to player and player2, and min elo 100 to player3, set elo 1 to beginner player4 ", async () => {
-        await colls.gameNotifications.insertOne(testNotification({ kind: "gameEnded", game: "test", processed: false }));
+        await colls.gameNotifications.insertOne(
+          testNotification({ kind: "gameEnded", game: "test", processed: false }),
+        );
         await processGameEnded();
 
         const userPref = await colls.gamePreferences.findOne({ user: userId, game: "gaia-project" });
@@ -114,10 +138,12 @@ describe("GameNotification", () => {
               "players.3.score": 0,
               "players.3.ranking": 3,
             },
-          }
+          },
         );
 
-        await colls.gameNotifications.insertOne(testNotification({ kind: "gameEnded", game: "test", processed: false }));
+        await colls.gameNotifications.insertOne(
+          testNotification({ kind: "gameEnded", game: "test", processed: false }),
+        );
         await processGameEnded();
 
         const userPref = await colls.gamePreferences.findOne({ user: userId, game: "gaia-project" });
@@ -150,10 +176,12 @@ describe("GameNotification", () => {
               { _id: userId3, score: 20, dropped: false },
               { _id: userId4, score: 25, dropped: false },
             ],
-          })
+          }),
         );
 
-        await colls.gameNotifications.insertOne(testNotification({ kind: "gameEnded", game: "testCancelled", processed: false }));
+        await colls.gameNotifications.insertOne(
+          testNotification({ kind: "gameEnded", game: "testCancelled", processed: false }),
+        );
         await processGameEnded();
       });
     });
@@ -161,14 +189,20 @@ describe("GameNotification", () => {
 
   describe("processPlayerDrop", () => {
     before(async () => {
-      await colls.users.insertOne(testUser({ _id: userId, account: { username: "test", email: "test@test.com", karma: defaultKarma } }));
-      await colls.users.insertOne(testUser({ _id: userId2, account: { username: "test2", email: "test2@test.com", karma: defaultKarma } }));
+      await colls.users.insertOne(
+        testUser({ _id: userId, account: { username: "test", email: "test@test.com", karma: defaultKarma } }),
+      );
+      await colls.users.insertOne(
+        testUser({ _id: userId2, account: { username: "test2", email: "test2@test.com", karma: defaultKarma } }),
+      );
     });
 
     after(() => db().dropDatabase());
 
     it("should drop 10 karma after dropping out", async () => {
-      await colls.gameNotifications.insertOne(testNotification({ user: userId, kind: "playerDrop", game: "test", processed: false }));
+      await colls.gameNotifications.insertOne(
+        testNotification({ user: userId, kind: "playerDrop", game: "test", processed: false }),
+      );
       await processPlayerDrop();
 
       const user = await colls.users.findOne({ _id: userId });
@@ -176,14 +210,14 @@ describe("GameNotification", () => {
       assert.strictEqual(
         await colls.gameNotifications.countDocuments({ processed: false }),
         0,
-        "Game notifications should be cleaned up"
+        "Game notifications should be cleaned up",
       );
     });
 
     it("should drop 30 more karma if dropped 3 times simulatenously", async () => {
       for (let i = 0; i < 3; i++) {
         await colls.gameNotifications.insertOne(
-          testNotification({ game: "test" + i, user: userId, kind: "playerDrop", processed: false })
+          testNotification({ game: "test" + i, user: userId, kind: "playerDrop", processed: false }),
         );
       }
       await processPlayerDrop();
@@ -195,11 +229,11 @@ describe("GameNotification", () => {
     it("should handle multiple player drops simulatenously", async () => {
       for (let i = 0; i < 3; i++) {
         await colls.gameNotifications.insertOne(
-          testNotification({ game: "test" + i, user: userId, kind: "playerDrop", processed: false })
+          testNotification({ game: "test" + i, user: userId, kind: "playerDrop", processed: false }),
         );
       }
       await colls.gameNotifications.insertOne(
-        testNotification({ game: "test", user: userId2, kind: "playerDrop", processed: false })
+        testNotification({ game: "test", user: userId2, kind: "playerDrop", processed: false }),
       );
       await processPlayerDrop();
 

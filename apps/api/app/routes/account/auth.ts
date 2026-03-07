@@ -61,7 +61,7 @@ router.get(
     } else {
       await sendAuthInfo(ctx);
     }
-  }
+  },
 );
 
 export default router;

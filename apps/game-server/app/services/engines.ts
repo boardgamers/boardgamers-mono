@@ -9,9 +9,9 @@ const engines: Record<string, Engine> = {};
 async function requirePath(name: string, version: number) {
   const info = await colls.gameInfos.findOne(
     { _id: { game: name, version } },
-    { projection: { "engine.entryPoint": 1 } }
+    { projection: { "engine.entryPoint": 1 } },
   );
-  return `../../games/node_modules/${name}_${version}/${info!.engine.entryPoint}`;
+  return `../../games/node_modules/${name}_${version}/${info.engine.entryPoint}`;
 }
 
 export async function getEngine(name: string, version: number): Promise<Engine> {
@@ -34,8 +34,8 @@ export function refreshEngine(name: string, version: number) {
   delete engines[`${name}_${version}`];
 
   if (cluster.isPrimary) {
-    for (const worker of Object.values(cluster.workers!)) {
-      worker!.send({ type: "refreshEngine", name, version });
+    for (const worker of Object.values(cluster.workers)) {
+      worker.send({ type: "refreshEngine", name, version });
     }
   }
 }

@@ -65,7 +65,7 @@ export async function startNextGame(): Promise<boolean> {
         game.game.expansions,
         (game.game.options as Record<string, unknown>) || {},
         seed,
-        creator === -1 ? undefined : creator
+        creator === -1 ? undefined : creator,
       );
 
       if (engine.setPlayerMetaData) {
@@ -87,7 +87,7 @@ export async function startNextGame(): Promise<boolean> {
         timerStart: new Date(),
         deadline: deadline(
           game.players[playerNumber].remainingTime ?? game.options.timing.timePerGame,
-          game.options.timing.timer
+          game.options.timing.timer,
         ),
       }));
 
@@ -107,7 +107,7 @@ export async function startNextGame(): Promise<boolean> {
           game: game._id,
           kind: "currentMove",
           processed: false,
-        })
+        }),
       );
       await Promise.all([
         ...promises,
@@ -147,7 +147,7 @@ export async function processQuit(notification: GameNotificationDoc) {
 
       gameData = await engine.dropPlayer(
         gameData,
-        game.players.findIndex((pl) => pl._id.equals(player._id))
+        game.players.findIndex((pl) => pl._id.equals(player._id)),
       );
       if (notification.kind === "playerQuit") {
         player.quit = true;
@@ -247,7 +247,7 @@ export async function afterMove(engine: Engine, game: GameDoc, gameData: GameDat
     let rankings = engine.rankings?.(gameData);
 
     if (!rankings) {
-      const sortedScores = [...scores].sort((a, b) => b - a);
+      const sortedScores = [...scores].toSorted((a, b) => b - a);
       rankings = scores.map((x) => sortedScores.indexOf(x) + 1);
     }
 
@@ -261,7 +261,7 @@ export async function afterMove(engine: Engine, game: GameDoc, gameData: GameDat
 
   if (!engine.ended(gameData)) {
     for (const oldPlayer of oldPlayers.filter((pl) => !game.currentPlayers?.some((pl2) => pl2._id.equals(pl._id)))) {
-      const player = game.players.find((pl) => pl._id.equals(oldPlayer._id))!;
+      const player = game.players.find((pl) => pl._id.equals(oldPlayer._id));
       player.remainingTime =
         (player.remainingTime ?? game.options.timing.timePerGame) -
         elapsedSeconds(oldPlayer.timerStart, game.options.timing.timer);
@@ -271,7 +271,7 @@ export async function afterMove(engine: Engine, game: GameDoc, gameData: GameDat
 
         player.remainingTime = Math.max(
           Math.min(game.options.timing.timePerGame, player.remainingTime),
-          game.options.timing.timePerMove
+          game.options.timing.timePerMove,
         );
       }
     }

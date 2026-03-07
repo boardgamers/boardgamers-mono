@@ -1,4 +1,3 @@
-import type { Collection } from "mongodb";
 import { env } from "../app/config/index.ts";
 import initDb, { closeDb, db } from "../app/config/db.ts";
 import * as data from "./data/index.ts";
@@ -39,8 +38,9 @@ export async function seed(collections?: string[], dropIfExists?: boolean) {
       continue;
     }
 
-    console.log(`Inserting ${(data as any)[collection].length} item(s) in collection ${collection}`);
-    await coll.insertMany((data as any)[collection]);
+    const items = (data as Record<string, unknown[]>)[collection];
+    console.log(`Inserting ${items.length} item(s) in collection ${collection}`);
+    await coll.insertMany(items);
   }
 }
 
@@ -51,5 +51,5 @@ async function run() {
 }
 
 if (process.env.NODE_ENV !== "test") {
-  run();
+  void run();
 }

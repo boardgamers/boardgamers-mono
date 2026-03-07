@@ -11,7 +11,7 @@ export const imageSchema = z.object({
       mime: z.string(),
       raw: z.instanceof(Buffer),
       size: z.number(),
-    })
+    }),
   ),
   key: z.string(),
   ref: zObjectId(),

@@ -32,7 +32,7 @@ export function testPlayer(overrides: Partial<PlayerInfo> & { _id: ObjectId }): 
 export function testGame(
   overrides: Partial<Omit<GameDoc, "players">> & { _id: string; players?: Partial<PlayerInfo>[] } & {
     game: { name: string; version: number; expansions?: string[]; options?: unknown };
-  }
+  },
 ): OptionalId<GameDoc> {
   const creatorId = overrides.creator ?? overrides.players?.[0]?._id ?? new ObjectId();
   return {
@@ -49,7 +49,7 @@ export function testGame(
     ...overrides,
     creator: creatorId,
     game: { expansions: [], ...overrides.game },
-    players: (overrides.players ?? []).map((p) => testPlayer({ _id: new ObjectId(), ...p })),
+    players: (overrides.players ?? []).map((p) => testPlayer({ _id: p._id ?? new ObjectId(), ...p })),
   };
 }
 
@@ -58,13 +58,13 @@ export function testNotification(
     kind: GameNotificationDoc["kind"];
     game: string;
     processed: boolean;
-  }
+  },
 ): OptionalId<GameNotificationDoc> {
   return { ...overrides };
 }
 
 export function testGamePrefs(
-  overrides: Partial<OptionalId<GamePreferencesDoc>> & { user: ObjectId; game: string }
+  overrides: Partial<OptionalId<GamePreferencesDoc>> & { user: ObjectId; game: string },
 ): OptionalId<GamePreferencesDoc> {
   return {
     access: { ownership: false },

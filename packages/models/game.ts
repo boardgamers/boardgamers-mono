@@ -41,7 +41,7 @@ export const gameSchema = z.object({
         _id: zObjectId(),
         timerStart: zDate(),
         deadline: zDate(),
-      })
+      }),
     )
     .optional(),
   data: z.unknown(),
