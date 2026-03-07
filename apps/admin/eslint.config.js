@@ -1,19 +1,23 @@
-import antfu from "@antfu/eslint-config";
+import eslintPluginSvelte from "eslint-plugin-svelte";
+import eslintConfigPrettier from "eslint-config-prettier";
+import tseslint from "@typescript-eslint/eslint-plugin";
+import tsparser from "@typescript-eslint/parser";
 
-export default antfu({
-  rules: {
-    "no-console": process.env.NODE_ENV === "production" ? "warn" : "off",
-    "no-debugger": process.env.NODE_ENV === "production" ? "warn" : "off",
-    "style/semi": ["error", "always"],
-    curly: "off",
-    "@typescript-eslint/no-non-null-assertion": "off",
-    "@typescript-eslint/consistent-type-assertions": "off",
-    "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/no-empty-function": "off",
-    "@typescript-eslint/no-unused-vars": "off",
-    "no-return-assign": "off",
-    "style/quotes": "off",
-    "style/space-before-function-paren": "off",
-    "style/comma-dangle": "off",
-  },
-});
+export default [
+	{
+		files: ["**/*.ts"],
+		languageOptions: {
+			parser: tsparser,
+			parserOptions: { sourceType: "module", ecmaVersion: "latest" },
+		},
+		plugins: { "@typescript-eslint": tseslint },
+		rules: {
+			...tseslint.configs.recommended.rules,
+			"@typescript-eslint/no-explicit-any": "warn",
+			"@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+		},
+	},
+	...eslintPluginSvelte.configs["flat/recommended"],
+	eslintConfigPrettier,
+	{ ignores: [".svelte-kit/", "build/", "node_modules/"] },
+];
