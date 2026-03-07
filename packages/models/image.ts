@@ -1,15 +1,26 @@
-import type { IndexDescription, ObjectId } from "mongodb";
+import { z } from "zod";
+import type { IndexDescription } from "mongodb";
+import { zDate, zObjectId } from "./helpers.ts";
 
-export interface ImageDoc {
-  _id?: ObjectId;
-  formats: string[];
-  images: Record<string, { mime: string; raw: Buffer; size: number }>;
-  key: string;
-  ref: ObjectId;
-  refType: "User";
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+export const imageSchema = z.object({
+  _id: zObjectId().optional(),
+  formats: z.array(z.string()),
+  images: z.record(
+    z.string(),
+    z.object({
+      mime: z.string(),
+      raw: z.instanceof(Buffer),
+      size: z.number(),
+    })
+  ),
+  key: z.string(),
+  ref: zObjectId(),
+  refType: z.literal("User"),
+  createdAt: zDate().optional(),
+  updatedAt: zDate().optional(),
+});
+
+export type ImageDoc = z.output<typeof imageSchema>;
 
 export const IMAGES_COLLECTION = "images";
 

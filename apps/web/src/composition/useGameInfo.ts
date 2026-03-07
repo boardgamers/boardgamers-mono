@@ -1,5 +1,5 @@
 import type { RemoveReadable } from "@/utils";
-import type { GameInfo } from "@bgs/types";
+import type { GameInfo } from "@bgs/models";
 import { sortBy, uniqBy } from "lodash";
 import { get as $, writable } from "svelte/store";
 import type { SetOptional, ValueOf } from "type-fest";

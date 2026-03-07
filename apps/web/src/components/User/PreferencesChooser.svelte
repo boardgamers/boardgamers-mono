@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createWatcher, handleError } from "@/utils";
   import PreferenceInput from "./PreferenceInput.svelte";
-  import type { GameInfo } from "@bgs/types";
+  import type { GameInfo } from "@bgs/models";
   import type { Primitive } from "type-fest";
   import { useGamePreferences } from "@/composition/useGamePreferences";
   import { useAccount } from "@/composition/useAccount";

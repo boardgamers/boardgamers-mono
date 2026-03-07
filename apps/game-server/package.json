@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "@bgs/models": "workspace:*",
-    "@bgs/types": "workspace:*",
     "@bgs/utils": "workspace:*",
     "decache": "^4.6.0",
     "fs-extra": "^9.0.0",

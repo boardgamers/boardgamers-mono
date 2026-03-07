@@ -1,43 +1,70 @@
 import type { Db, IndexDescription } from "mongodb";
 
-export type { ApiErrorDoc } from "./api-error.ts";
-export { API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollectionOptions } from "./api-error.ts";
+// --- API Error ---
+export type { ApiErrorDoc, ApiErrorFront } from "./api-error.ts";
+export { apiErrorSchema, API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollectionOptions } from "./api-error.ts";
 
-export type { ChatMessageDoc } from "./chatmessage.ts";
-export { CHAT_MESSAGES_COLLECTION, chatMessageIndexes, chatMessagesCollectionOptions } from "./chatmessage.ts";
+// --- Chat Message ---
+export type { ChatMessageDoc, ChatMessageFront } from "./chatmessage.ts";
+export { chatMessageSchema, CHAT_MESSAGES_COLLECTION, chatMessageIndexes, chatMessagesCollectionOptions } from "./chatmessage.ts";
 
-export type { GameDoc } from "./game.ts";
-export { GAMES_COLLECTION, gameIndexes } from "./game.ts";
+// --- Game ---
+export type { GameDoc, GameFront, PlayerInfo, PlayerInfoFront, GameStatus, PlayerOrder } from "./game.ts";
+export { gameSchema, playerInfoSchema, gameStatusSchema, playerOrderSchema, GAMES_COLLECTION, gameIndexes } from "./game.ts";
 
-export type { GameInfoDoc } from "./gameinfo.ts";
-export { GAME_INFOS_COLLECTION } from "./gameinfo.ts";
+// --- Game Info ---
+export type { GameInfoDoc, GameInfoFront, ViewerInfo, GameInfoOption } from "./gameinfo.ts";
+export { gameInfoSchema, viewerInfoSchema, gameInfoOptionSchema, GAME_INFOS_COLLECTION } from "./gameinfo.ts";
 
-export type { GameNotificationDoc } from "./gamenotification.ts";
-export { GAME_NOTIFICATIONS_COLLECTION, gameNotificationIndexes } from "./gamenotification.ts";
+// --- Game Notification ---
+export type { GameNotificationDoc, GameNotificationFront, NotificationKind } from "./gamenotification.ts";
+export { gameNotificationSchema, notificationKindSchema, GAME_NOTIFICATIONS_COLLECTION, gameNotificationIndexes } from "./gamenotification.ts";
 
-export type { GamePreferencesDoc } from "./gamepreferences.ts";
-export { GAME_PREFERENCES_COLLECTION, gamePreferencesIndexes } from "./gamepreferences.ts";
+// --- Game Preferences ---
+export type { GamePreferencesDoc, GamePreferencesFront } from "./gamepreferences.ts";
+export { gamePreferencesSchema, GAME_PREFERENCES_COLLECTION, gamePreferencesIndexes } from "./gamepreferences.ts";
 
+// --- Image ---
 export type { ImageDoc } from "./image.ts";
-export { IMAGES_COLLECTION, imageIndexes } from "./image.ts";
+export { imageSchema, IMAGES_COLLECTION, imageIndexes } from "./image.ts";
 
+// --- JWT Refresh Token ---
 export type { JwtRefreshTokenDoc } from "./jwtrefreshtoken.ts";
-export { JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenIndexes } from "./jwtrefreshtoken.ts";
+export { jwtRefreshTokenSchema, JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenIndexes } from "./jwtrefreshtoken.ts";
 
+// --- Log ---
 export type { LogDoc } from "./log.ts";
-export { LOGS_COLLECTION, logsCollectionOptions } from "./log.ts";
+export { logSchema, LOGS_COLLECTION, logsCollectionOptions } from "./log.ts";
 
-export type { PageDoc } from "./page.ts";
-export { PAGES_COLLECTION } from "./page.ts";
+// --- Page ---
+export type { PageDoc, PageFront } from "./page.ts";
+export { pageSchema, PAGES_COLLECTION } from "./page.ts";
 
+// --- Room Metadata ---
 export type { RoomMetaDataDoc } from "./roommetadata.ts";
-export { ROOM_METADATA_COLLECTION, roomMetaDataIndexes } from "./roommetadata.ts";
+export { roomMetaDataSchema, ROOM_METADATA_COLLECTION, roomMetaDataIndexes } from "./roommetadata.ts";
 
+// --- Settings ---
 export type { SettingsDoc } from "./settings.ts";
-export { SETTINGS_COLLECTION, SettingsKey } from "./settings.ts";
+export { settingsSchema, SETTINGS_COLLECTION, SettingsKey } from "./settings.ts";
 
-export type { UserDoc } from "./user.ts";
-export { USERS_COLLECTION, userIndexes } from "./user.ts";
+// --- User ---
+export type { UserDoc, UserFront } from "./user.ts";
+export { userSchema, USERS_COLLECTION, userIndexes } from "./user.ts";
+
+// --- Helpers ---
+export { zObjectId, zDate } from "./helpers.ts";
+
+// --- Backward-compat aliases for frontend migration from @bgs/types ---
+export type { UserFront as IUser, UserFront as IAbstractUser } from "./user.ts";
+export type { GameFront as IGame, GameFront as IAbstractGame } from "./game.ts";
+export type { GameInfoFront as GameInfo } from "./gameinfo.ts";
+export type { GamePreferencesFront as GamePreferences } from "./gamepreferences.ts";
+export type { GameNotificationFront as GameNotification } from "./gamenotification.ts";
+export type { ChatMessageFront as ChatMessage } from "./chatmessage.ts";
+export type { ApiErrorFront as ApiError } from "./api-error.ts";
+export type { PageFront as Page } from "./page.ts";
+export type { NotificationKind as notificationKind } from "./gamenotification.ts";
 
 // --- Setup helpers ---
 
@@ -79,9 +106,6 @@ export async function ensureIndexes(db: Db) {
   ];
 
   for (const [collection, indexes] of indexMap) {
-    for (const index of indexes) {
-      const { key, ...options } = index;
-      await db.collection(collection).createIndex(key as any, options);
-    }
+    await db.collection(collection).createIndexes(indexes);
   }
 }

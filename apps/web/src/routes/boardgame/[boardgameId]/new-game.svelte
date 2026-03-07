@@ -6,7 +6,7 @@
   import { goto } from "$app/navigation";
   import { adjectives, nouns } from "@/data";
   import { fade } from "svelte/transition";
-  import type { PlayerOrder } from "@bgs/types";
+  import type { PlayerOrder } from "@bgs/models";
   import { playerOrders } from "@/data/playerOrders";
   import { useAccount } from "@/composition/useAccount";
   import { useLoggedIn } from "@/composition/useLoggedIn";

@@ -63,7 +63,7 @@ export async function startNextGame(): Promise<boolean> {
       let gameData = await engine.init(
         game.options.setup.nbPlayers,
         game.game.expansions,
-        game.game.options || {},
+        (game.game.options as Record<string, unknown>) || {},
         seed,
         creator === -1 ? undefined : creator
       );

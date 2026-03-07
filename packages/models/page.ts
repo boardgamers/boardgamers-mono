@@ -1,7 +1,16 @@
-import type { Page } from "@bgs/types";
+import { z } from "zod";
+import type { Jsonify } from "type-fest";
 
-export interface PageDoc extends Page {
-  _id: { name: string; lang: string };
-}
+export const pageSchema = z.object({
+  _id: z.object({
+    name: z.string(),
+    lang: z.string(),
+  }),
+  title: z.string(),
+  content: z.string(),
+});
+
+export type PageDoc = z.output<typeof pageSchema>;
+export type PageFront = Jsonify<PageDoc>;
 
 export const PAGES_COLLECTION = "pages";

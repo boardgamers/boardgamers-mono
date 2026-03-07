@@ -1,12 +1,16 @@
-import type { IndexDescription, ObjectId } from "mongodb";
+import { z } from "zod";
+import type { IndexDescription } from "mongodb";
+import { zObjectId, zDate } from "./helpers.ts";
 
-export interface JwtRefreshTokenDoc {
-  _id?: ObjectId;
-  user: ObjectId;
-  code: string;
-  createdAt: Date;
-  updatedAt?: Date;
-}
+export const jwtRefreshTokenSchema = z.object({
+  _id: zObjectId().optional(),
+  user: zObjectId(),
+  code: z.string(),
+  createdAt: zDate(),
+  updatedAt: zDate().optional(),
+});
+
+export type JwtRefreshTokenDoc = z.output<typeof jwtRefreshTokenSchema>;
 
 export const JWT_REFRESH_TOKENS_COLLECTION = "jwtrefreshtokens";
 

@@ -1,4 +1,4 @@
-import type { GameStatus } from "@bgs/types";
+import type { GameStatus } from "@bgs/models";
 import { removeFalsy } from "@bgs/utils/remove-falsy";
 import { simplifyFilter } from "@coyotte508/mongo-query";
 import { colls } from "../../config/db.ts";

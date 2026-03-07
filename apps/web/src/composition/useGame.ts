@@ -1,4 +1,4 @@
-import type { IGame, PlayerInfo } from "@bgs/types";
+import type { IGame, PlayerInfoFront } from "@bgs/models";
 import { defineStore } from "./defineStore";
 import { useRest } from "./useRest";
 
@@ -9,7 +9,7 @@ export const useGame = defineStore(() => {
     return get<IGame>(`/gameplay/${gameId}`);
   }
 
-  function loadGamePlayers(gameId: string): Promise<PlayerInfo[]> {
+  function loadGamePlayers(gameId: string): Promise<PlayerInfoFront[]> {
     return get(`/game/${gameId}/players`);
   }
 

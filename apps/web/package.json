@@ -14,7 +14,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@bgs/types": "workspace:*",
     "@bgs/utils": "workspace:*",
     "@iconify/icons-bi": "^1.1.12",
     "@iconify/svelte": "^2.1.0",
@@ -31,6 +30,7 @@
     "type-fest": "^2.1.0"
   },
   "devDependencies": {
+    "@bgs/models": "workspace:*",
     "@sveltejs/adapter-node": "^1.0.0-next.58",
     "@sveltejs/kit": "1.0.0-next.216",
     "@types/cookie": "^0.4.1",

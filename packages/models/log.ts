@@ -1,14 +1,17 @@
-import type { ObjectId } from "mongodb";
+import { z } from "zod";
+import { zObjectId, zDate } from "./helpers.ts";
 
-export interface LogDoc {
-  kind: "processGameEnded" | "processPlayerDrop" | "mailChange";
-  data: {
-    game?: string;
-    player?: ObjectId;
-    change?: { from: string; to: string };
-  };
-  createdAt?: Date;
-}
+export const logSchema = z.object({
+  kind: z.enum(["processGameEnded", "processPlayerDrop", "mailChange"]),
+  data: z.object({
+    game: z.string().optional(),
+    player: zObjectId().optional(),
+    change: z.object({ from: z.string(), to: z.string() }).optional(),
+  }),
+  createdAt: zDate().optional(),
+});
+
+export type LogDoc = z.output<typeof logSchema>;
 
 export const LOGS_COLLECTION = "logs";
 

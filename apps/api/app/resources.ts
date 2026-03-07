@@ -1,5 +1,5 @@
 /* Koa stuff */
-import type { ViewerInfo } from "@bgs/types";
+import type { ViewerInfo } from "@bgs/models";
 import { AssertionError } from "node:assert";
 import type { Server } from "node:http";
 import createError from "http-errors";

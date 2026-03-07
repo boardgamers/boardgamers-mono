@@ -3,7 +3,7 @@
   import { keyBy } from "lodash";
   import { elapsedSeconds } from "@bgs/utils";
   import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
-  import type { PlayerInfo } from "@bgs/types";
+  import type { PlayerInfoFront } from "@bgs/models";
   import Portal from "@/modules/portal";
   import clockHistory from "@iconify/icons-bi/clock-history.js";
   import { Button, Icon, Badge } from "@/modules/cdk";
@@ -81,7 +81,7 @@
 
   $: updateRemainingTimes(), [secondsCounter];
 
-  function remainingTime(player: PlayerInfo) {
+  function remainingTime(player: PlayerInfoFront) {
     const currentPlayer = currentPlayersById[player._id];
     if (currentPlayer) {
       const spent = elapsedSeconds(new Date(currentPlayer.timerStart as any), $game.options.timing.timer);

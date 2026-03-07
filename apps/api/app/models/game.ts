@@ -1,5 +1,5 @@
 import type { GameDoc } from "@bgs/models";
-import type { GameStatus } from "@bgs/types";
+import type { GameStatus } from "@bgs/models";
 import type { Filter, ObjectId } from "mongodb";
 import { colls } from "../config/db.ts";
 

@@ -1,12 +1,16 @@
-import type { IndexDescription, ObjectId } from "mongodb";
+import { z } from "zod";
+import type { IndexDescription } from "mongodb";
+import { zObjectId, zDate } from "./helpers.ts";
 
-export interface RoomMetaDataDoc {
-  _id?: ObjectId;
-  room: string;
-  user: ObjectId;
-  notes?: string;
-  lastChatMessageViewed?: Date;
-}
+export const roomMetaDataSchema = z.object({
+  _id: zObjectId().optional(),
+  room: z.string(),
+  user: zObjectId(),
+  notes: z.string().optional(),
+  lastChatMessageViewed: zDate().optional(),
+});
+
+export type RoomMetaDataDoc = z.output<typeof roomMetaDataSchema>;
 
 export const ROOM_METADATA_COLLECTION = "roommetadatas";
 

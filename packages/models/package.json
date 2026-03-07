@@ -2,7 +2,8 @@
   "name": "@bgs/models",
   "type": "module",
   "dependencies": {
-    "@bgs/types": "workspace:*"
+    "type-fest": "^5.4.4",
+    "zod": "^4.3.6"
   },
   "peerDependencies": {
     "mongodb": ">=6"

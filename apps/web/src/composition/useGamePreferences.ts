@@ -1,6 +1,6 @@
 import { browser } from "$app/env";
 import type { RemoveReadable } from "@/utils";
-import type { GameInfo, GamePreferences } from "@bgs/types";
+import type { GameInfo, GamePreferences } from "@bgs/models";
 import { isEmpty, set } from "lodash";
 import { get as $, writable } from "svelte/store";
 import type { Primitive } from "type-fest";

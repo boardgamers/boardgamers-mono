@@ -1,6 +1,6 @@
 import { browser } from "$app/env";
 import { handleError, skipOnce } from "@/utils";
-import type { IUser } from "@bgs/types";
+import type { IUser } from "@bgs/models";
 import { derived, writable } from "svelte/store";
 import { defineStore } from "./defineStore";
 import { useAccessTokens } from "./useAccessTokens";

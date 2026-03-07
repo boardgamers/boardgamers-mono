@@ -39,7 +39,7 @@
   import SEO from "../SEO.svelte";
   import removeMarkdown from "remove-markdown";
   import { gameLabel } from "@/utils/game-label";
-  import type { IUser } from "@bgs/types";
+  import type { IUser } from "@bgs/models";
   import { debounce, map } from "lodash";
 
   const { post, get } = useRest();

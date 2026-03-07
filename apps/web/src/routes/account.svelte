@@ -20,7 +20,7 @@
   import { useRest } from "@/composition/useRest";
   import { get as storeGet } from "svelte/store";
   import { redirectLoggedIn } from "@/utils/redirect";
-  import type { IUser } from "@bgs/types";
+  import type { IUser } from "@bgs/models";
   import { browser } from "$app/env";
   import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
   import { useLoggedIn } from "@/composition/useLoggedIn";

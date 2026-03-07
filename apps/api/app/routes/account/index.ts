@@ -197,9 +197,9 @@ router.get("/games/:game/settings", loggedIn, async (ctx) => {
   // Unstringify stringified preferences
   if (pref.preferences) {
     for (const key in pref.preferences) {
-      if (pref.preferences[key]?.stringified) {
-        pref.preferences[key] =
-          pref.preferences[key].value !== undefined ? JSON.parse(pref.preferences[key].value) : undefined;
+      const val = pref.preferences[key] as { stringified?: boolean; value?: string } | undefined;
+      if (val?.stringified) {
+        pref.preferences[key] = val.value !== undefined ? JSON.parse(val.value) : undefined;
       }
     }
   }

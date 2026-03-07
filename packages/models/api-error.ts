@@ -1,18 +1,34 @@
-import type { ApiError } from "@bgs/types";
-import type { IndexDescription, ObjectId } from "mongodb";
+import { z } from "zod";
+import type { Jsonify } from "type-fest";
+import type { IndexDescription } from "mongodb";
+import { zObjectId, zDate } from "./helpers.ts";
 
-export interface ApiErrorDoc extends Omit<ApiError<ObjectId>, "updatedAt"> {
-  _id?: ObjectId;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+export const apiErrorSchema = z.object({
+  _id: zObjectId().optional(),
+  error: z.object({
+    name: z.string(),
+    message: z.string(),
+    stack: z.array(z.string()),
+  }),
+  request: z.object({
+    url: z.string(),
+    method: z.string(),
+    body: z.string(),
+  }),
+  meta: z.unknown(),
+  user: zObjectId().optional(),
+  createdAt: zDate().optional(),
+  updatedAt: zDate().optional(),
+});
+
+export type ApiErrorDoc = z.output<typeof apiErrorSchema>;
+export type ApiErrorFront = Jsonify<ApiErrorDoc>;
 
 export const API_ERRORS_COLLECTION = "apierrors";
 
-/** Capped collection: 10 MB, max 10k docs */
-export const apiErrorsCollectionOptions = { capped: true, size: 10 * 1000 * 1000, max: 10000 } as const;
+export const apiErrorsCollectionOptions = { size: 10 * 1000 * 1000, max: 10000 };
 
 export const apiErrorIndexes: IndexDescription[] = [
-  // api: admin error listing per user; game-server: same
+  // api + game-server: admin error listing per user
   { key: { user: 1, createdAt: -1 } },
 ];

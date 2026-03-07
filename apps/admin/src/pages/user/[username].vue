@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { IUser } from "@bgs/types";
+import { IUser, ApiError } from "@bgs/models";
 import { pick } from "lodash";
-import { ApiError } from "@bgs/types";
 import { ref, watch } from "vue-demi";
 import { handleError, handleInfo } from "~/utils";
 import { get, post } from "~/api/rest";
