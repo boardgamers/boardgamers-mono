@@ -1,19 +1,40 @@
 import type { UserDoc, GameDoc, PlayerInfo, GameNotificationDoc, GamePreferencesDoc } from "@bgs/models";
 import { ObjectId } from "mongodb";
 import type { OptionalId } from "mongodb";
-import { defaultKarma } from "../models/user.ts";
+import { defaultKarma, makeDefaultUser } from "../models/user.ts";
 
 let userCounter = 0;
 
 export function testUser(overrides: Partial<OptionalId<UserDoc>> & { _id?: ObjectId } = {}): OptionalId<UserDoc> {
   const n = ++userCounter;
+  const base = makeDefaultUser({
+    username: `user${n}`,
+    email: `user${n}@test.com`,
+    slug: `user${n}`,
+    password: "",
+    confirmKey: "",
+    confirmed: true,
+    newsletter: false,
+  });
+  // Deep-merge overrides: top-level spread first, then per-subobject spreads
   return {
+    ...base,
     ...overrides,
     account: {
-      username: `user${n}`,
-      email: `user${n}@test.com`,
-      karma: defaultKarma,
+      ...base.account,
       ...overrides.account,
+    },
+    settings: {
+      ...base.settings,
+      ...overrides.settings,
+    },
+    security: {
+      ...base.security,
+      ...overrides.security,
+    },
+    meta: {
+      ...base.meta,
+      ...overrides.meta,
     },
   };
 }

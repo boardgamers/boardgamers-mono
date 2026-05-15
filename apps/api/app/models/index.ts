@@ -18,6 +18,7 @@ export type { SettingsDoc } from "@bgs/models";
 export {
   defaultKarma,
   maxKarma,
+  makeDefaultUser,
   findByEmail,
   findByUsername,
   isAdmin as isUserAdmin,

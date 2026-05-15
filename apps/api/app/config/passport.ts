@@ -17,6 +17,7 @@ import {
   findByUsername,
   generateConfirmKey,
   generateHash,
+  makeDefaultUser,
   sendConfirmationEmail,
   validPassword,
   validateResetKey,
@@ -74,38 +75,15 @@ passport.use(
         // create the user
         const slug = username.toLowerCase().replace(/\s+/g, "-");
         const confirmKey = generateConfirmKey();
-        const newUserDoc: UserDoc = {
-          account: {
-            email: email.toLowerCase().trim(),
-            username,
-            password: await generateHash(password),
-            karma: 75,
-            termsAndConditions: new Date(),
-            social: { google: "", facebook: "", discord: "" },
-            avatar: "avataaars",
-            bio: "",
-          },
-          settings: {
-            mailing: {
-              newsletter: req.body.newsletter === true || req.body.newsletter === "true",
-              game: { delay: 30 * 60, activated: true },
-            },
-            game: { soundNotification: true },
-            home: { showMyGames: false },
-          },
-          security: {
-            lastIp: "",
-            lastLogin: { ip: "", date: new Date(0) },
-            lastActive: new Date(0),
-            lastOnline: new Date(0),
-            confirmed: false,
-            confirmKey,
-            reset: { key: "", issued: new Date(0) },
-            slug,
-          },
-          meta: { nextGameNotification: new Date(0), lastGameNotification: new Date(0) },
-          authority: "user",
-        };
+        const newUserDoc: UserDoc = makeDefaultUser({
+          username,
+          email: email.toLowerCase().trim(),
+          slug,
+          password: await generateHash(password),
+          confirmKey,
+          confirmed: false,
+          newsletter: req.body.newsletter === true || req.body.newsletter === "true",
+        });
 
         const result = await colls.users.insertOne(newUserDoc);
         const newUser: WithId<UserDoc> = { ...newUserDoc, _id: result.insertedId };
@@ -158,37 +136,17 @@ passport.use(
 
         // create the user
         const slug = username.toLowerCase().replace(/\s+/g, "-");
-        const social = { google: "", facebook: "", discord: "" };
-        social[decoded.provider as keyof typeof social] = decoded.id;
-        const newUserDoc: UserDoc = {
-          account: {
-            email: "",
-            username,
-            password: "",
-            karma: 75,
-            termsAndConditions: new Date(),
-            social,
-            avatar: "avataaars",
-            bio: "",
-          },
-          settings: {
-            mailing: { newsletter: false, game: { delay: 30 * 60, activated: true } },
-            game: { soundNotification: true },
-            home: { showMyGames: false },
-          },
-          security: {
-            lastIp: "",
-            lastLogin: { ip: "", date: new Date(0) },
-            lastActive: new Date(0),
-            lastOnline: new Date(0),
-            confirmed: true,
-            confirmKey: "",
-            reset: { key: "", issued: new Date(0) },
-            slug,
-          },
-          meta: { nextGameNotification: new Date(0), lastGameNotification: new Date(0) },
-          authority: "user",
-        };
+        const social = { [decoded.provider]: decoded.id };
+        const newUserDoc: UserDoc = makeDefaultUser({
+          username,
+          email: "",
+          slug,
+          password: "",
+          confirmKey: "",
+          confirmed: true,
+          newsletter: false,
+          social,
+        });
 
         const result = await colls.users.insertOne(newUserDoc);
         const newUser: WithId<UserDoc> = { ...newUserDoc, _id: result.insertedId };

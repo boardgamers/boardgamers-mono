@@ -13,6 +13,50 @@ export const maxKarma = 100;
 
 const secureId = () => crypto.randomBytes(12).toString("base64").replace(/\+/g, "_").replace(/\//g, "-");
 
+export function makeDefaultUser(params: {
+  username: string;
+  email: string;
+  slug: string;
+  password: string;
+  confirmKey: string;
+  confirmed: boolean;
+  newsletter: boolean;
+  social?: { google?: string; facebook?: string; discord?: string };
+}): UserDoc {
+  const now = new Date();
+  return {
+    account: {
+      username: params.username,
+      email: params.email,
+      password: params.password,
+      karma: defaultKarma,
+      termsAndConditions: now,
+      social: { google: "", facebook: "", discord: "", ...params.social },
+      avatar: "avataaars",
+      bio: "",
+    },
+    settings: {
+      mailing: { newsletter: params.newsletter, game: { delay: 30 * 60, activated: true } },
+      game: { soundNotification: true },
+      home: { showMyGames: false },
+    },
+    security: {
+      lastIp: "",
+      lastLogin: { ip: "", date: new Date(0) },
+      lastActive: now,
+      lastOnline: now,
+      confirmed: params.confirmed,
+      confirmKey: params.confirmKey,
+      reset: { key: "", issued: new Date(0) },
+      slug: params.slug,
+    },
+    meta: { nextGameNotification: new Date(0), lastGameNotification: new Date(0) },
+    authority: "user",
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 export const publicInfoProjection = {
   _id: 1,
   "account.username": 1,

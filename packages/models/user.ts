@@ -9,74 +9,66 @@ export const userSchema = z.object({
     username: z.string(),
     email: z.string(),
     password: z.string().optional(),
-    karma: z.number().optional(),
+    karma: z.number(),
     termsAndConditions: zDate().optional(),
-    social: z
+    social: z.object({
+      google: z.string().optional(),
+      facebook: z.string().optional(),
+      discord: z.string().optional(),
+    }),
+    avatar: z.string(),
+    bio: z.string(),
+  }),
+  settings: z.object({
+    mailing: z
       .object({
-        google: z.string().optional(),
-        facebook: z.string().optional(),
-        discord: z.string().optional(),
+        newsletter: z.boolean().optional(),
+        game: z
+          .object({
+            delay: z.number().optional(),
+            activated: z.boolean().optional(),
+          })
+          .optional(),
       })
       .optional(),
-    avatar: z.string().optional(),
-    bio: z.string().optional(),
+    game: z
+      .object({
+        soundNotification: z.boolean().optional(),
+      })
+      .optional(),
+    home: z
+      .object({
+        showMyGames: z.boolean().optional(),
+      })
+      .optional(),
   }),
-  settings: z
-    .object({
-      mailing: z
-        .object({
-          newsletter: z.boolean().optional(),
-          game: z
-            .object({
-              delay: z.number().optional(),
-              activated: z.boolean().optional(),
-            })
-            .optional(),
-        })
-        .optional(),
-      game: z
-        .object({
-          soundNotification: z.boolean().optional(),
-        })
-        .optional(),
-      home: z
-        .object({
-          showMyGames: z.boolean().optional(),
-        })
-        .optional(),
-    })
-    .optional(),
-  security: z
-    .object({
-      lastIp: z.string().optional(),
-      lastLogin: z
-        .object({
-          ip: z.string(),
-          date: zDate(),
-        })
-        .optional(),
-      lastActive: zDate().optional(),
-      lastOnline: zDate().optional(),
-      confirmed: z.boolean().optional(),
-      confirmKey: z.string().optional(),
-      reset: z
-        .object({
-          key: z.string(),
-          issued: zDate(),
-        })
-        .optional(),
-      slug: z.string().optional(),
-    })
-    .optional(),
-  meta: z
-    .object({
-      nextGameNotification: zDate().optional(),
-      lastGameNotification: zDate().optional(),
-    })
-    .optional(),
-  authority: z.string().optional(),
-  createdAt: zDate().optional(),
-  updatedAt: zDate().optional(),
+  security: z.object({
+    lastIp: z.string().optional(),
+    lastLogin: z
+      .object({
+        ip: z.string(),
+        date: zDate(),
+      })
+      .optional(),
+    lastActive: zDate().optional(),
+    lastOnline: zDate().optional(),
+    confirmed: z.boolean().optional(),
+    confirmKey: z.string().optional(),
+    reset: z
+      .object({
+        key: z.string(),
+        issued: zDate(),
+      })
+      .optional(),
+    slug: z.string().optional(),
+  }),
+  meta: z.object({
+    nextGameNotification: zDate().optional(),
+    lastGameNotification: zDate().optional(),
+  }),
+  authority: z.string(),
+  createdAt: zDate(),
+  updatedAt: zDate(),
 });
 
 export type UserDoc = z.output<typeof userSchema>;
