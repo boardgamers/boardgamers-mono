@@ -182,8 +182,9 @@ router.post("/recreate-notifications", async (ctx) => {
     .toArray();
 
   if (notifications.length > 0) {
+    const adminNow = new Date();
     await colls.gameNotifications.insertMany(
-      notifications.map((n) => ({ game: n.game, kind: n.kind, processed: false })),
+      notifications.map((n) => ({ game: n.game, kind: n.kind, processed: false, createdAt: adminNow, updatedAt: adminNow })),
     );
   }
   ctx.status = 200;

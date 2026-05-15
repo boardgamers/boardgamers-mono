@@ -521,7 +521,8 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
 
     if (game.status === "ended") {
       // Possible concurrency issue if game is cancelled at the exact same time as being finished
-      await colls.gameNotifications.insertOne({ kind: "gameEnded", game: game._id, processed: false });
+      const now2 = new Date();
+      await colls.gameNotifications.insertOne({ kind: "gameEnded", game: game._id, processed: false, createdAt: now2, updatedAt: now2 });
     }
   }
 
@@ -544,11 +545,14 @@ router.post("/:gameId/quit", loggedIn, async (ctx) => {
 
     assert(!player.quit && !player.dropped, "You already quit the game");
 
+    const quitNow = new Date();
     await colls.gameNotifications.insertOne({
       kind: "playerQuit",
       user: ctx.state.user._id,
       game: game._id,
       processed: false,
+      createdAt: quitNow,
+      updatedAt: quitNow,
     });
   }
 
@@ -584,11 +588,14 @@ router.post("/:gameId/drop/:userId", loggedIn, async (ctx) => {
     assert(currentPlayer, "It's not that player's turn to play");
     assert(currentPlayer.deadline < new Date(), "The player's time is not elapsed");
 
+    const dropNow = new Date();
     await colls.gameNotifications.insertOne({
       kind: "dropPlayer",
       user: player._id,
       game: game._id,
       processed: false,
+      createdAt: dropNow,
+      updatedAt: dropNow,
       meta: {
         dropper: ctx.state.user._id,
         deadline: currentPlayer.deadline,

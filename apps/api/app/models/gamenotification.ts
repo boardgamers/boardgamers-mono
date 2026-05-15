@@ -20,7 +20,7 @@ export async function processCurrentMove() {
     }
   }
 
-  await col.updateMany({ _id: { $in: notifications.map((x) => x._id) } }, { $set: { processed: true } });
+  await col.updateMany({ _id: { $in: notifications.map((x) => x._id) } }, { $set: { processed: true, updatedAt: new Date() } });
 }
 
 export async function processGameEnded() {
@@ -35,7 +35,7 @@ export async function processGameEnded() {
     );
 
     if (!game) {
-      await col.updateOne({ _id: notification._id }, { $set: { processed: true } });
+      await col.updateOne({ _id: notification._id }, { $set: { processed: true, updatedAt: new Date() } });
       continue;
     }
 
@@ -48,7 +48,7 @@ export async function processGameEnded() {
     await processEloForGame(game);
 
     await Promise.all([
-      col.updateOne({ _id: notification._id }, { $set: { processed: true } }),
+      col.updateOne({ _id: notification._id }, { $set: { processed: true, updatedAt: new Date() } }),
       colls.logs.insertOne({
         kind: "processGameEnded",
         data: { game: notification.game },
@@ -86,6 +86,6 @@ export async function processPlayerDrop() {
         createdAt: new Date(),
       })),
     ),
-    col.updateMany({ _id: { $in: notifications.map((x) => x._id) } }, { $set: { processed: true } }),
+    col.updateMany({ _id: { $in: notifications.map((x) => x._id) } }, { $set: { processed: true, updatedAt: new Date() } }),
   ]);
 }
