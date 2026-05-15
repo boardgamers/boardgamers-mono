@@ -50,10 +50,6 @@ app.use(async (ctx, next) => {
     if (err instanceof createError.HttpError) {
       ctx.status = err.statusCode;
       ctx.body = { message: err.message };
-    } else if (err.name === "ValidationError") {
-      const keys = Object.keys(err.errors);
-      ctx.status = 422;
-      ctx.body = { message: err.errors[keys[0]].message };
     } else if (err instanceof ZodError) {
       ctx.status = 400;
       ctx.body = { message: z.prettifyError(err) };

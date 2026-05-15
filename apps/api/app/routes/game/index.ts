@@ -514,7 +514,7 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
       });
       game.status = "ended";
       game.cancelled = true;
-      game.currentPlayers = null;
+      game.currentPlayers = [];
     }
 
     await colls.games.replaceOne({ _id: game._id }, game);

@@ -215,12 +215,12 @@ export async function afterMove(engine: Engine, game: GameDoc, gameData: GameDat
     (engine.cancelled && engine.cancelled(gameData)) ||
     game.players.every((pl) => pl.dropped || pl.quit || pl.voteCancel)
   ) {
-    game.currentPlayers = null;
+    game.currentPlayers = [];
     game.status = "ended";
     game.cancelled = true;
     await addMessage(game._id, "Game cancelled");
   } else if (engine.ended(gameData)) {
-    game.currentPlayers = null;
+    game.currentPlayers = [];
     game.status = "ended";
     await addMessage(game._id, "Game ended");
   } else {
