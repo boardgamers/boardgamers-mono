@@ -35,7 +35,7 @@ router.get("/", (ctx) => {
 
 router.get("/avatar", loggedIn, async (ctx) => {
   const item = await colls.images.findOne(
-    { ref: ctx.state.user._id, refType: "User", key: "avatar" },
+    { ref: ctx.state.user!._id, refType: "User", key: "avatar" },
     { projection: { "images.256x256": 1 } },
   );
   if (!item) {
@@ -85,10 +85,10 @@ router.post("/", loggedIn, async (ctx) => {
   }
 
   if (Object.keys(updateFields).length > 0) {
-    await colls.users.updateOne({ _id: ctx.state.user._id }, { $set: updateFields });
+    await colls.users.updateOne({ _id: ctx.state.user!._id }, { $set: updateFields });
   }
 
-  const updatedUser = await colls.users.findOne({ _id: ctx.state.user._id });
+  const updatedUser = await colls.users.findOne({ _id: ctx.state.user!._id });
   ctx.body = updatedUser;
 });
 
@@ -105,7 +105,7 @@ router.post("/avatar", loggedIn, async (ctx) => {
     image.getMIME() as "image/jpeg" | "image/png",
   )
     ? (image.getMIME() as "image/jpeg" | "image/png")
-    : image.hasAlpha
+    : image.hasAlpha()
       ? Jimp.MIME_PNG
       : Jimp.MIME_JPEG;
 
@@ -121,7 +121,7 @@ router.post("/avatar", loggedIn, async (ctx) => {
   }
 
   await colls.images.updateOne(
-    { ref: ctx.state.user._id, key: "avatar", refType: "User" },
+    { ref: ctx.state.user!._id, key: "avatar", refType: "User" },
     {
       $set: {
         images: imagesObj,
@@ -130,14 +130,14 @@ router.post("/avatar", loggedIn, async (ctx) => {
     },
     { upsert: true },
   );
-  await colls.users.updateOne({ _id: ctx.state.user._id }, { $set: { "account.avatar": "upload" } });
+  await colls.users.updateOne({ _id: ctx.state.user!._id }, { $set: { "account.avatar": "upload" } });
 
   ctx.status = 200;
 });
 
 router.post("/email", loggedIn, async (ctx) => {
   const { email } = z.object({ email: z.string().email() }).parse(ctx.request.body);
-  const user = ctx.state.user;
+  const user = ctx.state.user!;
 
   const foundUser = await findByEmail(email);
 
@@ -177,27 +177,27 @@ router.post("/email", loggedIn, async (ctx) => {
 });
 
 router.post("/terms-and-conditions", loggedIn, async (ctx) => {
-  assert(!ctx.state.user.account.termsAndConditions, "You already accepted the Terms and Conditions");
-  await colls.users.updateOne({ _id: ctx.state.user._id }, { $set: { "account.termsAndConditions": new Date() } });
-  const updatedUser = await colls.users.findOne({ _id: ctx.state.user._id });
+  assert(!ctx.state.user!.account.termsAndConditions, "You already accepted the Terms and Conditions");
+  await colls.users.updateOne({ _id: ctx.state.user!._id }, { $set: { "account.termsAndConditions": new Date() } });
+  const updatedUser = await colls.users.findOne({ _id: ctx.state.user!._id });
   ctx.body = updatedUser;
 });
 
 router.get("/games/settings", loggedIn, async (ctx) => {
-  ctx.body = await colls.gamePreferences.find({ user: ctx.state.user._id }).toArray();
+  ctx.body = await colls.gamePreferences.find({ user: ctx.state.user!._id }).toArray();
 });
 
 router.get("/games/:game/settings", loggedIn, async (ctx) => {
-  let pref = await colls.gamePreferences.findOne({ user: ctx.state.user._id, game: ctx.params.game });
+  let pref = await colls.gamePreferences.findOne({ user: ctx.state.user!._id, game: ctx.params.game });
 
   if (!pref) {
     const newPref = {
-      user: ctx.state.user._id,
+      user: ctx.state.user!._id,
       game: ctx.params.game,
       access: { ownership: false } as const,
     };
     await colls.gamePreferences.insertOne(newPref as GamePreferencesDoc);
-    pref = (await colls.gamePreferences.findOne({ user: ctx.state.user._id, game: ctx.params.game }))!;
+    pref = (await colls.gamePreferences.findOne({ user: ctx.state.user!._id, game: ctx.params.game }))!;
   }
 
   // Unstringify stringified preferences
@@ -223,7 +223,7 @@ router.post("/games/:game/ownership", loggedIn, async (ctx) => {
 
   await colls.gamePreferences.updateOne(
     {
-      user: ctx.state.user._id,
+      user: ctx.state.user!._id,
       game: ctx.params.game,
     },
     {
@@ -252,12 +252,12 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
 
   const newPrefs: Record<string, boolean | string | { stringified: true; value: string }> = {};
 
-  for (const pref of gameInfo.preferences) {
+  for (const pref of gameInfo.preferences ?? []) {
     const newVal = body[pref.name];
     if (pref.type === "checkbox") {
       newPrefs[pref.name] = !!newVal;
     } else if (pref.type === "select") {
-      newPrefs[pref.name] = pref.items.some((it) => it.name === newVal) ? (newVal as string) : pref.items[0]?.name;
+      newPrefs[pref.name] = pref.items!.some((it) => it.name === newVal) ? (newVal as string) : pref.items![0].name;
     } else if (pref.type === "hidden") {
       newPrefs[pref.name] = {
         value: JSON.stringify(newVal),
@@ -274,7 +274,7 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
 
   await colls.gamePreferences.updateOne(
     {
-      user: ctx.state.user._id,
+      user: ctx.state.user!._id,
       game: ctx.params.game,
     },
     {

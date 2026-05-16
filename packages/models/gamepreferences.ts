@@ -12,7 +12,7 @@ export const gamePreferencesSchema = z.object({
     .and(z.object({ alternateUI: z.boolean().optional() }))
     .optional(),
   access: z.object({
-    ownership: z.boolean(),
+    ownership: z.boolean().optional(),
     maxVersion: z.number().optional(),
   }).optional(),
   elo: z
