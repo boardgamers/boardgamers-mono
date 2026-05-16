@@ -67,6 +67,7 @@
     "koa-cookie": "^1.0.0",
     "oxfmt": "^0.36.0",
     "oxlint": "^1.51.0",
-    "oxlint-tsgolint": "^0.16.0"
+    "oxlint-tsgolint": "^0.16.0",
+    "type-fest": "^5.6.0"
   }
 }

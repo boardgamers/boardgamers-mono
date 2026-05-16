@@ -14,7 +14,7 @@ export const gamePreferencesSchema = z.object({
   access: z.object({
     ownership: z.boolean(),
     maxVersion: z.number().optional(),
-  }),
+  }).optional(),
   elo: z
     .object({
       value: z.number(),

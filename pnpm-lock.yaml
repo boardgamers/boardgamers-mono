@@ -238,6 +238,9 @@ importers:
       oxlint-tsgolint:
         specifier: ^0.16.0
         version: 0.16.0
+      type-fest:
+        specifier: ^5.6.0
+        version: 5.6.0
 
   apps/docs:
     devDependencies:
@@ -7929,6 +7932,10 @@ packages:
 
   type-fest@5.4.4:
     resolution: {integrity: sha512-JnTrzGu+zPV3aXIUhnyWJj4z/wigMsdYajGLIYakqyOW1nPllzXEJee0QQbHj+CTIQtXGlAjuK0UY+2xTyjVAw==}
+    engines: {node: '>=20'}
+
+  type-fest@5.6.0:
+    resolution: {integrity: sha512-8ZiHFm91orbSAe2PSAiSVBVko18pbhbiB3U9GglSzF/zCGkR+rxpHx6sEMCUm4kxY4LjDIUGgCfUMtwfZfjfUA==}
     engines: {node: '>=20'}
 
   type-is@1.6.18:
@@ -17045,6 +17052,10 @@ snapshots:
   type-fest@2.19.0: {}
 
   type-fest@5.4.4:
+    dependencies:
+      tagged-tag: 1.0.0
+
+  type-fest@5.6.0:
     dependencies:
       tagged-tag: 1.0.0
 

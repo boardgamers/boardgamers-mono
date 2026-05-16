@@ -1,5 +1,6 @@
-import type { UserDoc } from "@bgs/models";
+import type { UserDoc, GamePreferencesDoc } from "@bgs/models";
 import type { WithId } from "mongodb";
+import type { PickDeep } from "type-fest";
 import { colls } from "../config/db.ts";
 
 export default class GameInfoService {
@@ -8,7 +9,7 @@ export default class GameInfoService {
       return colls.gameInfos.findOne({ "_id.game": game, "meta.public": true }, { sort: { "_id.version": -1 } });
     }
 
-    const pref = await colls.gamePreferences.findOne(
+    const pref = await colls.gamePreferences.findOne<PickDeep<GamePreferencesDoc, "access.maxVersion">>(
       { user: user._id, game, "access.maxVersion": { $exists: true } },
       { projection: { "access.maxVersion": 1 } },
     );
@@ -17,7 +18,7 @@ export default class GameInfoService {
       return colls.gameInfos.findOne(
         {
           "_id.game": game,
-          $or: [{ "meta.public": true }, { "_id.version": pref.access.maxVersion }],
+          $or: [{ "meta.public": true }, { "_id.version": pref.access!.maxVersion }],
         },
         { sort: { "_id.version": -1 } },
       );
@@ -30,7 +31,7 @@ export default class GameInfoService {
     const ownGames = userId
       ? await colls.gamePreferences
           .find({ user: userId, "access.maxVersion": { $exists: true } })
-          .project({ game: 1, "access.maxVersion": 1 })
+          .project<PickDeep<GamePreferencesDoc, "game" | "access.maxVersion">>({ game: 1, "access.maxVersion": 1 })
           .toArray()
       : [];
     const publicGames = await colls.gameInfos
@@ -48,11 +49,11 @@ export default class GameInfoService {
     const map = new Map<string, number>();
 
     for (const game of ownGames) {
-      map.set(game.game, game.access.maxVersion);
+      map.set(game.game, game.access!.maxVersion!);
     }
 
     for (const game of publicGames) {
-      if (!map.has(game._id) || map.get(game._id) < game.version) {
+      if (!map.has(game._id) || map.get(game._id)! < game.version) {
         map.set(game._id, game.version);
       }
     }

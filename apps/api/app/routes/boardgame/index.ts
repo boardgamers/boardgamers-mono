@@ -1,6 +1,8 @@
 import createError from "http-errors";
+import type { GamePreferencesDoc } from "@bgs/models";
 import type { Context } from "koa";
 import Router from "koa-router";
+import type {PickDeep} from "type-fest";
 import { colls } from "../../config/db.ts";
 import GameInfoService from "../../services/gameinfo.ts";
 import { queryCount, skipCount } from "../utils.ts";
@@ -8,18 +10,20 @@ import { queryCount, skipCount } from "../utils.ts";
 const router = new Router<Application.DefaultState, Context>();
 
 router.param("boardgame", async (boardgame, ctx, next) => {
-  ctx.state.foundBoardgame = await colls.gameInfos.findOne(
+  let foundGame = await colls.gameInfos.findOne(
     { "_id.game": boardgame, "meta.public": true },
     { sort: { "_id.version": -1 } },
   );
 
-  if (!ctx.state.foundBoardgame) {
-    ctx.state.foundBoardgame = await GameInfoService.lastAccessibleVersion(ctx.params.boardgame, ctx.state.user);
+  if (!foundGame) {
+    foundGame = await GameInfoService.lastAccessibleVersion(ctx.params.boardgame, ctx.state.user);
   }
 
-  if (!ctx.state.foundBoardgame) {
+  if (!foundGame) {
     throw createError(404, "Boardgame not found");
   }
+
+	ctx.state.foundBoardgame = foundGame;
 
   await next();
 });
@@ -31,14 +35,14 @@ router.get("/info", async (ctx) => {
           user: ctx.state.user._id,
           "access.maxVersion": { $exists: true },
         })
-        .project({ game: 1, "access.maxVersion": 1 })
+        .project<PickDeep<GamePreferencesDoc, "game" | "access.maxVersion">>({ game: 1, "access.maxVersion": 1 })
         .toArray()
     : [];
   ctx.body = await colls.gameInfos
     .find({
       $or: [
         { "meta.public": true },
-        ...ownGames.map((game) => ({ _id: { game: game.game, version: game.access.maxVersion } })),
+        ...ownGames.map((game) => ({ _id: { game: game.game, version: game.access!.maxVersion } })),
       ],
     })
     .project({ viewer: 0 })
@@ -63,7 +67,7 @@ router.get("/:boardgame/info/latest", async (ctx) => {
 });
 
 router.get("/:boardgame/elo", async (ctx) => {
-  const boardgameName = ctx.state.foundBoardgame._id.game;
+  const boardgameName = ctx.state.foundBoardgame!._id.game;
   ctx.body = await colls.gamePreferences
     .aggregate([
       {
@@ -107,7 +111,7 @@ router.get("/:boardgame/elo", async (ctx) => {
 });
 
 router.get("/:boardgame/elo/count", async (ctx) => {
-  const boardgameName = ctx.state.foundBoardgame._id.game;
+  const boardgameName = ctx.state.foundBoardgame!._id.game;
   ctx.body = await colls.gamePreferences.countDocuments({ game: boardgameName, "elo.value": { $gt: 0 } });
 });
 
