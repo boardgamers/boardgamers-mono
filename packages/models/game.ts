@@ -11,12 +11,12 @@ export type GameStatus = z.output<typeof gameStatusSchema>;
 
 export const playerInfoSchema = z.object({
   _id: zObjectId(),
-  remainingTime: z.number(),
+  remainingTime: z.number().nullable().optional(),
   score: z.number(),
-  dropped: z.boolean(),
-  quit: z.boolean(),
+  dropped: z.boolean().optional(),
+  quit: z.boolean().optional(),
   name: z.string(),
-  faction: z.string().optional(),
+  faction: z.string().nullable().optional(),
   voteCancel: z.boolean().optional(),
   ranking: z.number().optional(),
   pending: z.boolean().optional(),
@@ -40,33 +40,34 @@ export const gameSchema = z.object({
       z.object({
         _id: zObjectId(),
         timerStart: zDate(),
-        deadline: zDate(),
+        deadline: zDate().optional(),
       }),
     )
+		.nullable()
     .optional(),
-  data: z.unknown(),
+  data: z.unknown().optional(),
   context: z.object({
     round: z.number(),
-  }),
+  }).optional(),
   options: z.object({
     setup: z.object({
       seed: z.string(),
       nbPlayers: z.number(),
-      playerOrder: playerOrderSchema,
+	      playerOrder: playerOrderSchema,
     }),
     timing: z.object({
-      timePerGame: z.number(),
-      timePerMove: z.number(),
+      timePerGame: z.number().optional(),
+      timePerMove: z.number().optional(),
       timer: z.object({
         start: z.number(),
         end: z.number(),
-      }),
+      }).optional(),
       scheduledStart: zDate().optional(),
     }),
     meta: z.object({
-      unlisted: z.boolean(),
+      unlisted: z.boolean().optional(),
       minimumKarma: z.number().optional(),
-    }),
+    }).optional(),
   }),
   game: z.object({
     name: z.string(),
@@ -75,8 +76,8 @@ export const gameSchema = z.object({
     options: z.unknown().optional(),
   }),
   status: gameStatusSchema,
-  ready: z.boolean(),
-  cancelled: z.boolean(),
+  ready: z.boolean().optional(),
+  cancelled: z.boolean().optional(),
   lastMove: zDate().optional(),
   createdAt: zDate().optional(),
   updatedAt: zDate().optional(),

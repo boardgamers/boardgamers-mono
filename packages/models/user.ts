@@ -7,7 +7,7 @@ export const userSchema = z.object({
   _id: zObjectId().optional(),
   account: z.object({
     username: z.string(),
-    email: z.string(),
+    email: z.string().optional(),
     password: z.string().optional(),
     karma: z.number(),
     termsAndConditions: zDate().optional(),
@@ -15,9 +15,9 @@ export const userSchema = z.object({
       google: z.string().optional(),
       facebook: z.string().optional(),
       discord: z.string().optional(),
-    }),
-    avatar: z.string(),
-    bio: z.string(),
+    }).optional(),
+    avatar: z.string().optional(),
+    bio: z.string().optional(),
   }),
   settings: z.object({
     mailing: z
@@ -41,7 +41,7 @@ export const userSchema = z.object({
         showMyGames: z.boolean().optional(),
       })
       .optional(),
-  }),
+  }).optional(),
   security: z.object({
     lastIp: z.string().optional(),
     lastLogin: z
@@ -53,20 +53,21 @@ export const userSchema = z.object({
     lastActive: zDate().optional(),
     lastOnline: zDate().optional(),
     confirmed: z.boolean().optional(),
-    confirmKey: z.string().optional(),
+    confirmKey: z.string().nullable().optional(),
     reset: z
       .object({
-        key: z.string(),
+        key: z.string().nullable(),
         issued: zDate(),
       })
+			.nullable()
       .optional(),
     slug: z.string().optional(),
   }),
   meta: z.object({
     nextGameNotification: zDate().optional(),
     lastGameNotification: zDate().optional(),
-  }),
-  authority: z.string(),
+  }).optional(),
+  authority: z.string().optional(),
   createdAt: zDate(),
   updatedAt: zDate(),
 });

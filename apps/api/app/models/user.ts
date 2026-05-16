@@ -1,4 +1,4 @@
-import type { UserDoc } from "@bgs/models";
+import type { UserDoc, GameDoc } from "@bgs/models";
 import assert from "node:assert";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
@@ -87,6 +87,9 @@ export async function generateHash(password: string) {
 }
 
 export async function validPassword(user: WithId<UserDoc>, password: string) {
+  if (!user.account.password) {
+		return false;
+	}
   return bcrypt.compare(password, user.account.password);
 }
 
@@ -173,7 +176,7 @@ export function sendConfirmationEmail(user: WithId<UserDoc>) {
     html: `
     <p>Hello, we're delighted to have a new Gaia Project player among us!</p>
     <p>To finish your registration and confirm your account with us at ${env.site},
-     click <a href='http://${env.site}/confirm?key=${encodeURIComponent(user.security.confirmKey)}&email=${encodeURIComponent(user.account.email)}'>here</a>.</p>
+     click <a href='http://${env.site}/confirm?key=${encodeURIComponent(user.security.confirmKey!)}&email=${encodeURIComponent(user.account.email)}'>here</a>.</p>
 
     <p>If you didn't create an account with us, ignore this email.</p>`,
   });
@@ -186,7 +189,7 @@ export function sendResetEmail(user: WithId<UserDoc>) {
     subject: "Forgotten password",
     html: `
     <p>A password reset was asked for your account,
-    click <a href='http://${env.site}/reset?key=${encodeURIComponent(user.security.reset.key)}&email=${encodeURIComponent(user.account.email)}'>here</a> to reset your password.</p>
+    click <a href='http://${env.site}/reset?key=${encodeURIComponent(user.security.reset!.key)}&email=${encodeURIComponent(user.account.email)}'>here</a> to reset your password.</p>
 
     <p>If this didn't come from you, ignore this email.</p>`,
   });
@@ -234,7 +237,7 @@ export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
       return;
     }
 
-    const activeGames = await findGamesWithPlayersTurn(user._id).project({ data: 0 }).toArray();
+    const activeGames = await findGamesWithPlayersTurn(user._id).project<Omit<GameDoc, "data">>({ data: 0 }).toArray();
 
     if (activeGames.length === 0) {
       await colls.users.updateOne({ _id: user._id }, { $unset: { "meta.nextGameNotification": "" } });

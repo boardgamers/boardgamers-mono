@@ -6,7 +6,7 @@ export const logSchema = z.object({
   data: z.object({
     game: z.string().optional(),
     player: zObjectId().optional(),
-    change: z.object({ from: z.string(), to: z.string() }).optional(),
+    change: z.object({ from: z.string().optional(), to: z.string() }).optional(),
   }),
   createdAt: zDate().optional(),
 });
