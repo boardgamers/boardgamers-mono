@@ -3,9 +3,9 @@ import { z } from "zod";
 
 type JsonSchema = Record<string, unknown>;
 
-const typeToBsonType: Record<string, string> = {
+const typeToBsonType: Record<string, string | string[]> = {
   string: "string",
-  number: "double",
+  number: ["int", "long", "double"],
   integer: "int",
   boolean: "bool",
   object: "object",
@@ -25,7 +25,8 @@ function convert(schema: JsonSchema): JsonSchema {
   }
 
   if (typeof schema.type === "string") {
-    out.bsonType = typeToBsonType[schema.type] ?? schema.type;
+    const bsonType = typeToBsonType[schema.type] ?? schema.type;
+    out.bsonType = bsonType;
   }
 
   if (schema.enum) {
