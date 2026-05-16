@@ -20,7 +20,7 @@ export type ViewerInfo = z.output<typeof viewerInfoSchema>;
 export const gameInfoOptionSchema = z.object({
   label: z.string(),
   type: z.enum(["checkbox", "select", "hidden", "category"]),
-  default: z.unknown(),
+  default: z.unknown().optional(),
   category: z.string().optional(),
   name: z.string(),
   items: z
