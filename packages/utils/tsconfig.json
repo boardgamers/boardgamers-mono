@@ -1,6 +1,9 @@
 {
   "compilerOptions": {
-    "target": "ES2024",
+    // ESNext (instead of ES2024) because vite 2's bundled esbuild (0.14) used by apps/web
+    // doesn't recognize "ES2023"+ as a target. ESNext tells esbuild "don't down-transpile";
+    // modern-Node consumers (api, game-server) don't care, and TS type-checks see the same lib.
+    "target": "ESNext",
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "declaration": true,

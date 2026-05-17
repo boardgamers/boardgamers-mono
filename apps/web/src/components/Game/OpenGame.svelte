@@ -107,7 +107,10 @@
     const index = playerOrder.indexOf(playerId);
 
     if (index > 0) {
-      [playerOrder[index - 1], playerOrder[index]] = [playerOrder[index], playerOrder[index - 1]];
+      const tmp = playerOrder[index - 1];
+      playerOrder[index - 1] = playerOrder[index];
+      playerOrder[index] = tmp;
+      playerOrder = playerOrder;
     }
   };
 
@@ -115,7 +118,10 @@
     const index = playerOrder.indexOf(playerId);
 
     if (index + 1 < playerOrder.length) {
-      [playerOrder[index + 1], playerOrder[index]] = [playerOrder[index], playerOrder[index + 1]];
+      const tmp = playerOrder[index + 1];
+      playerOrder[index + 1] = playerOrder[index];
+      playerOrder[index] = tmp;
+      playerOrder = playerOrder;
     }
   };
 
@@ -171,7 +177,7 @@
   title="{gameId} - {gameLabel($gameInfo.label)} game"
   description="{$game.players.length} / {$game.options.setup.nbPlayers} players. Timer of {duration(
     $game.options.timing.timePerGame
-  )} per player, with an additional {duration($game.options.timing.timePerMove)} per move. 
+  )} per player, with an additional {duration($game.options.timing.timePerMove)} per move.
 {$game.game.expansions?.length > 0 &&
     `
       Expansions: ${$game.game.expansions.join(',')}
