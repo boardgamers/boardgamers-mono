@@ -2,6 +2,10 @@ services:
   mongo:
     image: mongo:8
     command: --replSet rs0 --bind_ip_all
+    ulimits:
+      nofile:
+        soft: 64000
+        hard: 64000
     mem_limit: "5g"
     mem_reservation: "3g"
     healthcheck:
