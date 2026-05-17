@@ -9,7 +9,9 @@ import Koa from "koa";
 import bodyParser from "koa-bodyparser";
 import compression from "koa-compress";
 import _cookie from "koa-cookie";
-const cookie = (_cookie as { default?: typeof _cookie }).default ?? _cookie;
+// Handle both CJS default-as-namespace and ESM-default imports of koa-cookie.
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion
+const cookie = (_cookie as unknown as { default?: typeof _cookie }).default ?? _cookie;
 import morgan from "koa-morgan";
 import passport from "koa-passport";
 import env from "./config/env.ts";
@@ -18,6 +20,7 @@ import "./config/passport.ts";
 import type { UserDoc } from "@bgs/models";
 import type { WithId } from "mongodb";
 import { colls } from "./config/db.ts";
+import { accessTokenPayloadSchema } from "./models/jwtrefreshtokens.ts";
 import { notifyLogin, notifyLastIp } from "./models/user.ts";
 /* Local stuff */
 import router from "./routes/index.ts";
@@ -44,9 +47,9 @@ async function listen(port = env.listen.port.api) {
   const tokenQuerySchema = z.object({ token: z.string().optional() });
   app.use(async (ctx, next) => {
     const processToken = async (token: string) => {
-      const decoded = jwt.verify(token, env.jwt.keys.public) as { userId: string; scopes: string[] };
+      const decoded = accessTokenPayloadSchema.parse(jwt.verify(token, env.jwt.keys.public));
 
-      if (decoded && decoded.scopes.includes("all")) {
+      if (decoded.scopes.includes("all")) {
         ctx.state.user = (await colls.users.findOne({ _id: new ObjectId(decoded.userId) })) ?? undefined;
       }
     };
@@ -88,9 +91,11 @@ async function listen(port = env.listen.port.api) {
       }
 
       try {
-        const body = ctx.request.body as Record<string, unknown>;
-        if (body?.password) {
-          body.password = "*******";
+        const body: unknown = ctx.request.body;
+        if (body && typeof body === "object" && "password" in body && body.password) {
+          // Redact the password before logging the request body.
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+          (body as Record<string, unknown>).password = "*******";
         }
         await colls.apiErrors.insertOne({
           request: {

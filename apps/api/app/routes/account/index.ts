@@ -101,13 +101,10 @@ router.post("/avatar", loggedIn, async (ctx) => {
   const input = Buffer.concat(parts);
   const image = await Jimp.read(input);
 
-  const mime: "image/jpeg" | "image/png" = [Jimp.MIME_JPEG, Jimp.MIME_PNG].includes(
-    image.getMIME() as "image/jpeg" | "image/png",
-  )
-    ? (image.getMIME() as "image/jpeg" | "image/png")
-    : image.hasAlpha()
-      ? Jimp.MIME_PNG
-      : Jimp.MIME_JPEG;
+  const supportedMimes: readonly ("image/jpeg" | "image/png")[] = [Jimp.MIME_JPEG, Jimp.MIME_PNG];
+  const detectedMime = image.getMIME();
+  const mime: "image/jpeg" | "image/png" = supportedMimes.find((m) => m === detectedMime)
+    ?? (image.hasAlpha() ? Jimp.MIME_PNG : Jimp.MIME_JPEG);
 
   const imagesObj: ImageDoc["images"] = {};
   for (const size of [256, 128, 64]) {
@@ -191,21 +188,22 @@ router.get("/games/:game/settings", loggedIn, async (ctx) => {
   let pref = await colls.gamePreferences.findOne({ user: ctx.state.user!._id, game: ctx.params.game });
 
   if (!pref) {
-    const newPref = {
+    const newPref: GamePreferencesDoc = {
       user: ctx.state.user!._id,
       game: ctx.params.game,
-      access: { ownership: false } as const,
+      access: { ownership: false },
     };
-    await colls.gamePreferences.insertOne(newPref as GamePreferencesDoc);
+    await colls.gamePreferences.insertOne(newPref);
     pref = (await colls.gamePreferences.findOne({ user: ctx.state.user!._id, game: ctx.params.game }))!;
   }
 
   // Unstringify stringified preferences
+  const stringifiedSchema = z.object({ stringified: z.literal(true), value: z.string().optional() });
   if (pref.preferences) {
     for (const key in pref.preferences) {
-      const val = pref.preferences[key] as { stringified?: boolean; value?: string } | undefined;
-      if (val?.stringified) {
-        pref.preferences[key] = val.value !== undefined ? JSON.parse(val.value) : undefined;
+      const parsed = stringifiedSchema.safeParse(pref.preferences[key]);
+      if (parsed.success) {
+        pref.preferences[key] = parsed.data.value !== undefined ? JSON.parse(parsed.data.value) : undefined;
       }
     }
   }
@@ -257,7 +255,8 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
     if (pref.type === "checkbox") {
       newPrefs[pref.name] = !!newVal;
     } else if (pref.type === "select") {
-      newPrefs[pref.name] = pref.items!.some((it) => it.name === newVal) ? (newVal as string) : pref.items![0].name;
+      newPrefs[pref.name] =
+        typeof newVal === "string" && pref.items!.some((it) => it.name === newVal) ? newVal : pref.items![0].name;
     } else if (pref.type === "hidden") {
       newPrefs[pref.name] = {
         value: JSON.stringify(newVal),

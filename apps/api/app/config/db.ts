@@ -42,6 +42,10 @@ export function db(): Db {
   return _db;
 }
 
+// Populated by `initColls()` once the DB connection is open. Consumers see the
+// non-nullable types so they don't have to guard every access; calling any
+// collection before `initDb()` resolves is a programmer error.
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 export const colls = {} as {
   apiErrors: Collection<ApiErrorDoc>;
   chatMessages: Collection<ChatMessageDoc>;
@@ -58,21 +62,21 @@ export const colls = {} as {
   users: Collection<UserDoc>;
 };
 
-function initColls(db: Db) {
+function initColls(database: Db) {
   Object.assign(colls, {
-    apiErrors: db.collection<ApiErrorDoc>(API_ERRORS_COLLECTION),
-    chatMessages: db.collection<ChatMessageDoc>(CHAT_MESSAGES_COLLECTION),
-    games: db.collection<GameDoc>(GAMES_COLLECTION),
-    gameInfos: db.collection<GameInfoDoc>(GAME_INFOS_COLLECTION),
-    gameNotifications: db.collection<GameNotificationDoc>(GAME_NOTIFICATIONS_COLLECTION),
-    gamePreferences: db.collection<GamePreferencesDoc>(GAME_PREFERENCES_COLLECTION),
-    images: db.collection<ImageDoc>(IMAGES_COLLECTION),
-    jwtRefreshTokens: db.collection<JwtRefreshTokenDoc>(JWT_REFRESH_TOKENS_COLLECTION),
-    logs: db.collection<LogDoc>(LOGS_COLLECTION),
-    pages: db.collection<PageDoc>(PAGES_COLLECTION),
-    roomMetaData: db.collection<RoomMetaDataDoc>(ROOM_METADATA_COLLECTION),
-    settings: db.collection<SettingsDoc>(SETTINGS_COLLECTION),
-    users: db.collection<UserDoc>(USERS_COLLECTION),
+    apiErrors: database.collection<ApiErrorDoc>(API_ERRORS_COLLECTION),
+    chatMessages: database.collection<ChatMessageDoc>(CHAT_MESSAGES_COLLECTION),
+    games: database.collection<GameDoc>(GAMES_COLLECTION),
+    gameInfos: database.collection<GameInfoDoc>(GAME_INFOS_COLLECTION),
+    gameNotifications: database.collection<GameNotificationDoc>(GAME_NOTIFICATIONS_COLLECTION),
+    gamePreferences: database.collection<GamePreferencesDoc>(GAME_PREFERENCES_COLLECTION),
+    images: database.collection<ImageDoc>(IMAGES_COLLECTION),
+    jwtRefreshTokens: database.collection<JwtRefreshTokenDoc>(JWT_REFRESH_TOKENS_COLLECTION),
+    logs: database.collection<LogDoc>(LOGS_COLLECTION),
+    pages: database.collection<PageDoc>(PAGES_COLLECTION),
+    roomMetaData: database.collection<RoomMetaDataDoc>(ROOM_METADATA_COLLECTION),
+    settings: database.collection<SettingsDoc>(SETTINGS_COLLECTION),
+    users: database.collection<UserDoc>(USERS_COLLECTION),
   });
 }
 

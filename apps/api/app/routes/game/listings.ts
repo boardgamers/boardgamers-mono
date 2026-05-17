@@ -3,7 +3,7 @@ import { removeFalsy } from "@bgs/utils/remove-falsy";
 import { simplifyFilter } from "@coyotte508/mongo-query";
 import { colls } from "../../config/db.ts";
 import { gameBasicsProjection } from "../../models/index.ts";
-import GameInfoService from "../../services/gameinfo.ts";
+import { latestAccessibleGames } from "../../services/gameinfo.ts";
 import assert from "node:assert";
 import type { Context } from "koa";
 import Router from "koa-router";
@@ -27,7 +27,7 @@ const listingsQuerySchema = z.object({
 });
 
 const filterAccessibleGames = async <T>(userId: T) => {
-  const games = await GameInfoService.latestAccessibleGames(userId);
+  const games = await latestAccessibleGames(userId);
 
   if (!games.size) {
     return {};

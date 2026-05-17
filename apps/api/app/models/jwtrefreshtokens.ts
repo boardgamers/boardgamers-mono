@@ -1,8 +1,14 @@
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
+import { z } from "zod";
 import type { JwtRefreshTokenDoc } from "@bgs/models";
 import { colls } from "../config/db.ts";
 import { env } from "../config/index.ts";
+
+export const accessTokenPayloadSchema = z.object({
+  userId: z.string(),
+  scopes: z.array(z.string()),
+});
 
 export function accessTokenDuration() {
   return 3600 * 1000;

@@ -4,7 +4,7 @@ import type { Context } from "koa";
 import Router from "koa-router";
 import type {PickDeep} from "type-fest";
 import { colls } from "../../config/db.ts";
-import GameInfoService from "../../services/gameinfo.ts";
+import { lastAccessibleVersion } from "../../services/gameinfo.ts";
 import { queryCount, skipCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -16,7 +16,7 @@ router.param("boardgame", async (boardgame, ctx, next) => {
   );
 
   if (!foundGame) {
-    foundGame = await GameInfoService.lastAccessibleVersion(ctx.params.boardgame, ctx.state.user);
+    foundGame = await lastAccessibleVersion(ctx.params.boardgame, ctx.state.user);
   }
 
   if (!foundGame) {
@@ -59,7 +59,7 @@ router.get("/:boardgame/info", (ctx) => {
 });
 
 router.get("/:boardgame/info/latest", async (ctx) => {
-  const game = await GameInfoService.lastAccessibleVersion(ctx.params.boardgame, ctx.state.user);
+  const game = await lastAccessibleVersion(ctx.params.boardgame, ctx.state.user);
 
   if (game) {
     ctx.body = game;

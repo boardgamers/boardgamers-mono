@@ -8,7 +8,7 @@ import "./config/db.ts";
 import env from "./config/env.ts";
 import type { GameDoc } from "@bgs/models";
 import { colls } from "./config/db.ts";
-import { findGamesWithPlayersTurn } from "./models/index.ts";
+import { accessTokenPayloadSchema, findGamesWithPlayersTurn } from "./models/index.ts";
 
 const wss = new Server({ port: env.listen.port.ws, host: env.listen.host });
 
@@ -32,7 +32,7 @@ function catchError<Args extends unknown[]>(
     try {
       return await target(...args);
     } catch (err) {
-      console.error(err as Error);
+      console.error(err);
     } finally {
       callback?.();
     }
@@ -117,15 +117,11 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
       }
       if ("jwt" in data) {
         try {
-          const decoded = jwt.verify(data.jwt, env.jwt.keys.public) as { userId: string; scopes: string[] };
+          const decoded = accessTokenPayloadSchema.parse(jwt.verify(data.jwt, env.jwt.keys.public));
 
-          if (decoded) {
-            ws.user = new ObjectId(decoded.userId);
-            updateActivity(ws.user, true).catch(console.error);
-            sendActiveGames(ws);
-          } else {
-            ws.user = null;
-          }
+          ws.user = new ObjectId(decoded.userId);
+          updateActivity(ws.user, true).catch(console.error);
+          sendActiveGames(ws);
         } catch {
           ws.user = null;
         }

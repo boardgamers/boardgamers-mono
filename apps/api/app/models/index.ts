@@ -8,7 +8,12 @@ export type { GameNotificationDoc } from "@bgs/models";
 export { eloProjection } from "./gamepreferences.ts";
 export type { GamePreferencesDoc } from "@bgs/models";
 export type { ImageDoc } from "@bgs/models";
-export { accessTokenDuration, createAccessToken, generateRefreshCode } from "./jwtrefreshtokens.ts";
+export {
+  accessTokenDuration,
+  accessTokenPayloadSchema,
+  createAccessToken,
+  generateRefreshCode,
+} from "./jwtrefreshtokens.ts";
 export type { JwtRefreshTokenDoc } from "@bgs/models";
 export type { LogDoc } from "@bgs/models";
 export type { PageDoc } from "@bgs/models";

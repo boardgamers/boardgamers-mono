@@ -6,7 +6,7 @@ import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
 import { z } from "zod";
-import type { GameDoc, RoomMetaDataDoc } from "@bgs/models";
+import { playerOrderSchema, type GameDoc, type RoomMetaDataDoc } from "@bgs/models";
 import { ObjectId } from "mongodb";
 import { colls } from "../../config/db.ts";
 import locks from "../../config/locks.ts";
@@ -124,7 +124,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
     if (["join", "unlisted"].includes(key)) {
       assert(typeof val === "boolean", "Invalid value for option: " + key);
     } else if (key === "playerOrder") {
-      // Mongoose will throw if playerOrder is invalid
+      assert(playerOrderSchema.safeParse(val).success, "Invalid value for option: " + key);
     } else {
       const item = (gameInfo.options ?? []).find((opt) => opt.name === key);
       if (!item) {
@@ -211,7 +211,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
       setup: {
         seed,
         nbPlayers: players,
-        playerOrder: (options.playerOrder ?? "random") as "random" | "host" | "join",
+        playerOrder: playerOrderSchema.parse(options.playerOrder ?? "random"),
       },
       timing,
       meta,

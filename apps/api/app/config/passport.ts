@@ -125,14 +125,13 @@ passport.use(
           throw createError(422, `Username ${username} is taken`);
         }
 
-        const decoded = jwt.verify(token, env.jwt.keys.public) as {
-          id: string;
-          provider: string;
-          createSocialAccount: true;
-        };
-
-        assert(decoded.createSocialAccount, "Malformed JWT payload");
-        assert(["google", "facebook", "discord"].includes(decoded.provider), "Uknown social provider");
+        const decoded = z
+          .object({
+            id: z.string(),
+            provider: z.enum(["google", "facebook", "discord"]),
+            createSocialAccount: z.literal(true),
+          })
+          .parse(jwt.verify(token, env.jwt.keys.public));
 
         // create the user
         const slug = username.toLowerCase().replace(/\s+/g, "-");
@@ -232,13 +231,12 @@ passport.use(
 );
 
 type SocialProvider = keyof typeof env.social;
-type SocialKey = keyof NonNullable<UserDoc["account"]["social"]>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SocialStrategyCtor<T extends Strategy> = new (options: any, verify: any) => T;
 
 function makeSocialStrategy<T extends Strategy>(
-  provider: SocialProvider & SocialKey,
+  provider: SocialProvider,
   SocialStrategy: SocialStrategyCtor<T>,
 ) {
   passport.use(

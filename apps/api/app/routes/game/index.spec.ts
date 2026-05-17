@@ -15,8 +15,17 @@ async function api(method: string, path: string, body?: unknown, headers?: Recor
     headers: { "Content-Type": "application/json", ...headers },
     body: body ? JSON.stringify(body) : undefined,
   });
-  const data = res.headers.get("content-type")?.includes("application/json") ? await res.json() : await res.text();
+  const data: unknown = res.headers.get("content-type")?.includes("application/json")
+    ? await res.json()
+    : await res.text();
   return { status: res.status, data, ok: res.ok };
+}
+
+function errorMessage(data: unknown): string | undefined {
+  if (data && typeof data === "object" && "message" in data && typeof data.message === "string") {
+    return data.message;
+  }
+  return undefined;
 }
 
 describe("Game API", () => {
@@ -57,7 +66,7 @@ describe("Game API", () => {
     );
 
     assert.strictEqual(res.ok, false);
-    assert.ok((res.data as Record<string, string>)?.message.includes("own the game"));
+    assert.ok(errorMessage(res.data)?.includes("own the game"));
   });
 
   it("should be able to create a game with ownership", async () => {
@@ -96,7 +105,7 @@ describe("Game API", () => {
     );
 
     assert.strictEqual(res.ok, false);
-    assert.strictEqual((res.data as Record<string, string>)?.message, "Wrong number of players");
+    assert.strictEqual(errorMessage(res.data), "Wrong number of players");
   });
 
   it("should be able to leave the game", async () => {

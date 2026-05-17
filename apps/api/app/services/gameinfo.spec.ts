@@ -3,7 +3,7 @@ import { before, describe, it } from "node:test";
 import { colls } from "../config/db.ts";
 import { findByUsername } from "../models/index.ts";
 import { seed } from "../../scripts/seed.ts";
-import GameInfoService from "./gameinfo.ts";
+import { latestAccessibleGames } from "./gameinfo.ts";
 
 function sortedEntries(map: Map<string, number>) {
   return [...map.entries()].toSorted((a, b) => a[0].localeCompare(b[0]));
@@ -16,7 +16,7 @@ describe("GameInfoService", () => {
     });
 
     it("should return all public games for undefined user", async () => {
-      let games = await GameInfoService.latestAccessibleGames();
+      let games = await latestAccessibleGames();
 
       assert.deepStrictEqual(sortedEntries(games), [
         ["container", 1],
@@ -26,7 +26,7 @@ describe("GameInfoService", () => {
 
       await colls.gameInfos.updateOne({ _id: { game: "container", version: 1 } }, { $set: { "meta.public": false } });
 
-      games = await GameInfoService.latestAccessibleGames();
+      games = await latestAccessibleGames();
 
       assert.deepStrictEqual(sortedEntries(games), [
         ["gaia-project", 1],
@@ -38,7 +38,7 @@ describe("GameInfoService", () => {
       const user = await findByUsername("admin");
       assert.ok(user, "admin user should exist");
 
-      let games = await GameInfoService.latestAccessibleGames(user._id);
+      let games = await latestAccessibleGames(user._id);
 
       assert.deepStrictEqual(sortedEntries(games), [
         ["gaia-project", 1],
@@ -51,7 +51,7 @@ describe("GameInfoService", () => {
         { $set: { "access.maxVersion": 1 } },
       );
 
-      games = await GameInfoService.latestAccessibleGames(user._id);
+      games = await latestAccessibleGames(user._id);
 
       assert.deepStrictEqual(sortedEntries(games), [
         ["container", 1],

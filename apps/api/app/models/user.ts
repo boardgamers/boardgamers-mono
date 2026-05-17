@@ -88,8 +88,8 @@ export async function generateHash(password: string) {
 
 export async function validPassword(user: WithId<UserDoc>, password: string) {
   if (!user.account.password) {
-		return false;
-	}
+    return false;
+  }
   return bcrypt.compare(password, user.account.password);
 }
 
@@ -290,20 +290,20 @@ export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
 export function stripSensitiveFields(user: WithId<UserDoc>): WithId<UserDoc> {
   const { password: _password, ...account } = user.account;
   if (!user.security) {
-    return { ...user, account: { ...account } } as WithId<UserDoc>;
+    return { ...user, account: { ...account } };
   }
   const { confirmKey: _confirmKey, reset, ...securityRest } = user.security;
   const resetWithoutKey = reset
     ? (() => {
         const { key: _key, ...rest } = reset;
-        return rest;
+        return { ...rest, key: null };
       })()
     : undefined;
   return {
     ...user,
     account: { ...account },
     security: { ...securityRest, reset: resetWithoutKey },
-  } as WithId<UserDoc>;
+  };
 }
 
 export function userPublicInfo(user: WithId<UserDoc>) {

@@ -1,3 +1,7 @@
+// `${"script"}` literals are intentional to avoid having raw `</script>` tokens
+// in this file's source — historical caution for tooling that might inline the
+// HTML strings into an HTML context.
+// oxlint-disable typescript/no-unnecessary-template-expression
 /* Koa stuff */
 import type { ViewerInfo } from "@bgs/models";
 import { AssertionError } from "node:assert";
