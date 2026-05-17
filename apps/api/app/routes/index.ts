@@ -1,3 +1,4 @@
+import type { Context } from "koa";
 import Router from "koa-router";
 import account from "./account/index.ts";
 import admin from "./admin/index.ts";
@@ -7,7 +8,7 @@ import page from "./pages/index.ts";
 import site from "./site/index.ts";
 import user from "./user/index.ts";
 
-const router = new Router();
+const router = new Router<Application.DefaultState, Context>();
 
 router.use("/api/account", account.routes(), account.allowedMethods());
 router.use("/api/admin", admin.routes(), admin.allowedMethods());

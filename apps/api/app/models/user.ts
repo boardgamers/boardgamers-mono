@@ -169,6 +169,8 @@ export async function notifyLastIp(user: WithId<UserDoc>, ip: string) {
 }
 
 export function sendConfirmationEmail(user: WithId<UserDoc>) {
+  assert(user.account.email, "Cannot send confirmation email: user has no email address");
+  assert(user.security.confirmKey, "Cannot send confirmation email: user has no confirm key");
   return sendmail({
     from: env.noreply,
     to: user.account.email,
@@ -176,20 +178,22 @@ export function sendConfirmationEmail(user: WithId<UserDoc>) {
     html: `
     <p>Hello, we're delighted to have a new Gaia Project player among us!</p>
     <p>To finish your registration and confirm your account with us at ${env.site},
-     click <a href='http://${env.site}/confirm?key=${encodeURIComponent(user.security.confirmKey!)}&email=${encodeURIComponent(user.account.email)}'>here</a>.</p>
+     click <a href='http://${env.site}/confirm?key=${encodeURIComponent(user.security.confirmKey)}&email=${encodeURIComponent(user.account.email)}'>here</a>.</p>
 
     <p>If you didn't create an account with us, ignore this email.</p>`,
   });
 }
 
 export function sendResetEmail(user: WithId<UserDoc>) {
+  assert(user.account.email, "Cannot send reset email: user has no email address");
+  assert(user.security.reset?.key, "Cannot send reset email: user has no reset key");
   return sendmail({
     from: env.noreply,
     to: user.account.email,
     subject: "Forgotten password",
     html: `
     <p>A password reset was asked for your account,
-    click <a href='http://${env.site}/reset?key=${encodeURIComponent(user.security.reset!.key)}&email=${encodeURIComponent(user.account.email)}'>here</a> to reset your password.</p>
+    click <a href='http://${env.site}/reset?key=${encodeURIComponent(user.security.reset.key)}&email=${encodeURIComponent(user.account.email)}'>here</a> to reset your password.</p>
 
     <p>If this didn't come from you, ignore this email.</p>`,
   });

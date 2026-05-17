@@ -23,7 +23,7 @@ import { notifyLogin, notifyLastIp } from "./models/user.ts";
 import router from "./routes/index.ts";
 
 async function listen(port = env.listen.port.api) {
-  const app = new Koa<Koa.DefaultState & { user: WithId<UserDoc> }>();
+  const app = new Koa<Application.DefaultState>();
 
   /* Configuration */
   app.keys = [env.sessionSecret];
@@ -46,7 +46,7 @@ async function listen(port = env.listen.port.api) {
       const decoded = jwt.verify(token, env.jwt.keys.public) as { userId: string; scopes: string[] };
 
       if (decoded && decoded.scopes.includes("all")) {
-        ctx.state.user = await colls.users.findOne({ _id: new ObjectId(decoded.userId) });
+        ctx.state.user = (await colls.users.findOne({ _id: new ObjectId(decoded.userId) })) ?? undefined;
       }
     };
 
@@ -68,6 +68,7 @@ async function listen(port = env.listen.port.api) {
       if (!env.silent) {
         console.error("Caught err", err);
       }
+      const error = err instanceof Error ? err : new Error(String(err));
       if (err instanceof createError.HttpError) {
         ctx.status = err.statusCode;
         ctx.body = { message: err.message };
@@ -79,7 +80,7 @@ async function listen(port = env.listen.port.api) {
         ctx.body = { message: err.message };
       } else {
         ctx.status = 500;
-        ctx.body = { message: "Internal error: " + err.message, stack: err.stack };
+        ctx.body = { message: "Internal error: " + error.message, stack: error.stack };
       }
 
       try {
@@ -94,9 +95,9 @@ async function listen(port = env.listen.port.api) {
             body: JSON.stringify(ctx.request.body),
           },
           error: {
-            name: err.name,
-            stack: err.stack,
-            message: err.message,
+            name: error.name,
+            stack: error.stack ? error.stack.split("\n") : [],
+            message: error.message,
           },
           user: ctx.state.user?._id,
           meta: {
@@ -106,9 +107,9 @@ async function listen(port = env.listen.port.api) {
         if (process.env.NODE_ENV !== "production" && !env.silent) {
           console.error(err);
         }
-      } catch (err) {
+      } catch (innerErr) {
         if (!env.silent) {
-          console.error(err);
+          console.error(innerErr);
         }
       }
     }
@@ -159,7 +160,7 @@ async function listen(port = env.listen.port.api) {
   app.use(router.routes());
   app.use(router.allowedMethods());
 
-  let server: Server;
+  let server!: Server;
 
   await new Promise<void>((resolve, reject) => {
     console.log("listening...");

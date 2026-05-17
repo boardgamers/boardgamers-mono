@@ -231,7 +231,16 @@ passport.use(
   ),
 );
 
-function makeSocialStrategy<T extends Strategy>(provider: string, SocialStrategy: new (..._args: unknown[]) => T) {
+type SocialProvider = keyof typeof env.social;
+type SocialKey = keyof NonNullable<UserDoc["account"]["social"]>;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SocialStrategyCtor<T extends Strategy> = new (options: any, verify: any) => T;
+
+function makeSocialStrategy<T extends Strategy>(
+  provider: SocialProvider & SocialKey,
+  SocialStrategy: SocialStrategyCtor<T>,
+) {
   passport.use(
     provider,
     new SocialStrategy(
@@ -241,9 +250,15 @@ function makeSocialStrategy<T extends Strategy>(provider: string, SocialStrategy
         passReqToCallback: true,
         callbackURL: `https://${env.site}/auth/${provider}/callback`,
       },
-      async function (req, token, tokenSecret, profile, done) {
+      async function (
+        req: { user?: WithId<UserDoc> },
+        _token: string,
+        _tokenSecret: string,
+        profile: { id: string },
+        done: (err: unknown, user?: unknown) => void,
+      ) {
         try {
-          const currentUser: WithId<UserDoc> = req.user;
+          const currentUser = req.user;
           const existingUser = await colls.users.findOne({ [`account.social.${provider}`]: profile.id });
 
           if (currentUser) {
@@ -251,7 +266,7 @@ function makeSocialStrategy<T extends Strategy>(provider: string, SocialStrategy
               done(null, existingUser);
               return;
             }
-            assert(!currentUser.account.social[provider], `You already have a ${provider} account connected`);
+            assert(!currentUser.account.social?.[provider], `You already have a ${provider} account connected`);
             assert(!existingUser, `Another user is already connected to that ${provider} account`);
 
             await colls.users.updateOne(

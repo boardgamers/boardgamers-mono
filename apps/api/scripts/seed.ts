@@ -38,7 +38,7 @@ export async function seed(collections?: string[], dropIfExists?: boolean) {
       continue;
     }
 
-    const items = (data as Record<string, unknown[]>)[collection];
+    const items = (data as Record<string, Record<string, unknown>[]>)[collection];
     console.log(`Inserting ${items.length} item(s) in collection ${collection}`);
     await coll.insertMany(items);
   }

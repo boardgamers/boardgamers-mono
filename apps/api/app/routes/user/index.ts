@@ -17,7 +17,7 @@ import { queryCount, skipCount } from "../utils.ts";
 const router = new Router<Application.DefaultState, Context>();
 
 router.param("userId", async (userId, ctx, next) => {
-  ctx.state.foundUser = await colls.users.findOne({ _id: new ObjectId(userId) });
+  ctx.state.foundUser = (await colls.users.findOne({ _id: new ObjectId(userId) })) ?? undefined;
 
   if (!ctx.state.foundUser) {
     throw createError(404, "User not found");
@@ -27,7 +27,7 @@ router.param("userId", async (userId, ctx, next) => {
 });
 
 router.param("userName", async (userName, ctx, next) => {
-  ctx.state.foundUser = await findByUsername(decodeURIComponent(userName));
+  ctx.state.foundUser = (await findByUsername(decodeURIComponent(userName))) ?? undefined;
 
   if (!ctx.state.foundUser) {
     throw createError(404, "User not found");
@@ -51,18 +51,19 @@ router.get("/search", async (ctx) => {
 });
 
 router.get("/infoByName/:userName", (ctx) => {
-  ctx.body = userPublicInfo(ctx.state.foundUser);
+  ctx.body = userPublicInfo(ctx.state.foundUser!);
 });
 
 router.get("/:userId/avatar", async (ctx) => {
-  const account = ctx.state.foundUser.account;
+  const foundUser = ctx.state.foundUser!;
+  const account = foundUser.account;
 
   if (account.avatar === "upload") {
     const size = Number(ctx.query.size);
     const format = isNaN(size) || !size || size > 128 ? "256x256" : size > 64 ? "128x128" : "64x64";
     const item = await colls.images.findOne(
       {
-        ref: ctx.state.foundUser._id,
+        ref: foundUser._id,
         refType: "User",
         key: "avatar",
         [`images.${format}`]: { $exists: true },
@@ -80,7 +81,7 @@ router.get("/:userId/avatar", async (ctx) => {
   }
 
   const response = await fetch(
-    `https://api.dicebear.com/9.x/${encodeURIComponent(account.avatar)}/svg?seed=${encodeURIComponent(
+    `https://api.dicebear.com/9.x/${encodeURIComponent(account.avatar ?? "avataaars")}/svg?seed=${encodeURIComponent(
       account.username,
     )}`,
   );
@@ -92,12 +93,13 @@ router.get("/:userId/avatar", async (ctx) => {
 });
 
 router.get("/:userId/games/open", async (ctx) => {
+  const foundUser = ctx.state.foundUser!;
   const conditions: Record<string, unknown> = {
-    "players._id": ctx.state.foundUser._id,
+    "players._id": foundUser._id,
     status: "open",
   };
 
-  if (!ctx.state.user?._id?.equals(ctx.state.foundUser._id)) {
+  if (!ctx.state.user?._id?.equals(foundUser._id)) {
     conditions["options.meta.unlisted"] = { $ne: true };
   }
 
@@ -112,7 +114,7 @@ router.get("/:userId/games/open", async (ctx) => {
 
 router.get("/:userId/games/active", async (ctx) => {
   ctx.body = await colls.games
-    .find({ "players._id": ctx.state.foundUser._id, status: "active" })
+    .find({ "players._id": ctx.state.foundUser!._id, status: "active" })
     .sort({ lastMove: -1 })
     .skip(skipCount(ctx))
     .limit(queryCount(ctx))
@@ -121,7 +123,7 @@ router.get("/:userId/games/active", async (ctx) => {
 });
 
 router.get("/:userId/games/current-turn", async (ctx) => {
-  ctx.body = await findGamesWithPlayersTurn(ctx.state.foundUser._id)
+  ctx.body = await findGamesWithPlayersTurn(ctx.state.foundUser!._id)
     .limit(queryCount(ctx))
     .project(gameBasicsProjection)
     .toArray();
@@ -129,7 +131,7 @@ router.get("/:userId/games/current-turn", async (ctx) => {
 
 router.get("/:userId/games/(ended|closed)", async (ctx) => {
   ctx.body = await colls.games
-    .find({ "players._id": ctx.state.foundUser._id, status: "ended" })
+    .find({ "players._id": ctx.state.foundUser!._id, status: "ended" })
     .sort({ lastMove: -1 })
     .skip(skipCount(ctx))
     .limit(queryCount(ctx))
@@ -138,16 +140,17 @@ router.get("/:userId/games/(ended|closed)", async (ctx) => {
 });
 
 router.get("/:userId/games/count/:status", async (ctx) => {
+  const foundUser = ctx.state.foundUser!;
   const conditions: Record<string, unknown> = (() => {
     switch (ctx.params.status) {
       case "closed":
       case "ended":
-        return { status: "ended", "players._id": ctx.state.foundUser._id };
+        return { status: "ended", "players._id": foundUser._id };
       case "dropped":
         return {
           players: {
             $elemMatch: {
-              _id: ctx.state.foundUser._id,
+              _id: foundUser._id,
               dropped: true,
             },
           },
@@ -159,7 +162,7 @@ router.get("/:userId/games/count/:status", async (ctx) => {
 
   if (ctx.query.since) {
     conditions.lastMove = {
-      $gte: new Date(+ctx.query.since),
+      $gte: new Date(Number(ctx.query.since)),
     };
   }
 
@@ -173,7 +176,7 @@ router.get("/:userId/games/count/:status", async (ctx) => {
 router.get("/:userId/games/elo", async (ctx) => {
   ctx.body = await colls.gamePreferences
     .find({
-      user: ctx.state.foundUser._id,
+      user: ctx.state.foundUser!._id,
       "elo.games": { $gt: 0 },
     })
     .skip(skipCount(ctx))
@@ -185,7 +188,7 @@ router.get("/:userId/games/elo", async (ctx) => {
 
 router.get("/:userId/games/access", async (ctx) => {
   ctx.body = await colls.gamePreferences
-    .find({ user: ctx.state.foundUser._id })
+    .find({ user: ctx.state.foundUser!._id })
     .skip(skipCount(ctx))
     .limit(queryCount(ctx))
     .sort({ game: 1 })

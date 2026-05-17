@@ -35,11 +35,11 @@ export async function isAdmin(ctx: Context, next: Next) {
 }
 
 export function queryCount(ctx: Context, max = 100) {
-  return Math.max(Math.min(+ctx.query.count || 20, max), 1);
+  return Math.max(Math.min(Number(ctx.query.count) || 20, max), 1);
 }
 
 export function skipCount(ctx: Context) {
-  return +ctx.query.skip || 0;
+  return Number(ctx.query.skip) || 0;
 }
 
 const internalCache = new NodeCache({ stdTTL: 10 });

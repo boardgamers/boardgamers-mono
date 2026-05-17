@@ -36,9 +36,9 @@ export default {
   },
   listen: {
     port: {
-      api: +process.env.port || 50801,
-      ws: +process.env.wsPort || 50802,
-      resources: +process.env.resourcesPort || 50804,
+      api: Number(process.env.port) || 50801,
+      ws: Number(process.env.wsPort) || 50802,
+      resources: Number(process.env.resourcesPort) || 50804,
     },
     host: process.env.listenHost ?? "localhost",
   },

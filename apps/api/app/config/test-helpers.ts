@@ -1,11 +1,22 @@
 import type { UserDoc, GameDoc, PlayerInfo, GameNotificationDoc, GamePreferencesDoc } from "@bgs/models";
 import { ObjectId } from "mongodb";
 import type { OptionalId } from "mongodb";
-import { defaultKarma, makeDefaultUser } from "../models/user.ts";
+import { makeDefaultUser } from "../models/user.ts";
 
 let userCounter = 0;
 
-export function testUser(overrides: Partial<OptionalId<UserDoc>> & { _id?: ObjectId } = {}): OptionalId<UserDoc> {
+type TestUserOverrides = {
+  _id?: ObjectId;
+  account?: Partial<UserDoc["account"]>;
+  settings?: Partial<UserDoc["settings"]>;
+  security?: Partial<UserDoc["security"]>;
+  meta?: Partial<UserDoc["meta"]>;
+  authority?: UserDoc["authority"];
+  createdAt?: UserDoc["createdAt"];
+  updatedAt?: UserDoc["updatedAt"];
+};
+
+export function testUser(overrides: TestUserOverrides = {}): OptionalId<UserDoc> {
   const n = ++userCounter;
   const base = makeDefaultUser({
     username: `user${n}`,
@@ -51,11 +62,12 @@ export function testPlayer(overrides: Partial<PlayerInfo> & { _id: ObjectId }): 
 }
 
 export function testGame(
-  overrides: Partial<Omit<GameDoc, "players">> & { _id: string; players?: Partial<PlayerInfo>[] } & {
+  overrides: Partial<Omit<GameDoc, "players" | "_id" | "game">> & { _id: string; players?: Partial<PlayerInfo>[] } & {
     game: { name: string; version: number; expansions?: string[]; options?: unknown };
   },
-): OptionalId<GameDoc> {
+): GameDoc {
   const creatorId = overrides.creator ?? overrides.players?.[0]?._id ?? new ObjectId();
+  const { game: gameOverride, players: _playersOverride, creator: _creatorOverride, ...restOverrides } = overrides;
   return {
     status: "open",
     ready: false,
@@ -67,9 +79,9 @@ export function testGame(
       timing: { timePerGame: 5000, timePerMove: 5000, timer: { start: 0, end: 86400 } },
       meta: { unlisted: false },
     },
-    ...overrides,
+    ...restOverrides,
     creator: creatorId,
-    game: { expansions: [], ...overrides.game },
+    game: { ...gameOverride, expansions: gameOverride.expansions ?? [] },
     players: (overrides.players ?? []).map((p) => testPlayer({ _id: p._id ?? new ObjectId(), ...p })),
   };
 }

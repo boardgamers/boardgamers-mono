@@ -34,10 +34,12 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
     gameInfo?.viewer?.alternate?.url && ctx.query.alternate === "1" ? gameInfo?.viewer.alternate : gameInfo.viewer;
   const viewerUrl = String(ctx.query.customViewerUrl || viewer.url);
 
-  const stylesheets = viewer.dependencies.stylesheets
+  const stylesheets = (viewer.dependencies?.stylesheets ?? [])
     .map((dep) => `<link type='text/css' rel='stylesheet' href='${dep}'></link>`)
     .join("\n");
-  const scripts = viewer.dependencies.scripts.map((dep) => `<${"script"} src='${dep}'></${"script"}>`).join("\n");
+  const scripts = (viewer.dependencies?.scripts ?? [])
+    .map((dep) => `<${"script"} src='${dep}'></${"script"}>`)
+    .join("\n");
   const viewerScript = `<${"script"} src='${viewerUrl}' type='text/javascript'></${"script"}>`;
 
   const template =
@@ -204,7 +206,7 @@ async function listen(port = env.listen.port.resources) {
   app.use(router.routes());
   app.use(router.allowedMethods());
 
-  let server: Server;
+  let server!: Server;
   const promise = new Promise<void>((resolve, reject) => {
     server = app.listen(port, env.listen.host, () => resolve());
     app.once("error", (err) => reject(err));

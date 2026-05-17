@@ -20,7 +20,7 @@ export async function processEloForGame(game: Pick<GameDoc, "_id" | "players" | 
     _id: pl._id,
     score: pl.score,
     ranking: pl.ranking,
-    dropped: pl.dropped,
+    dropped: pl.dropped ?? false,
     elo: 0,
     games: 0,
     eloDelta: undefined as number | undefined,

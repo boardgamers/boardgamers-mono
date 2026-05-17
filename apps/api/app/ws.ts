@@ -24,8 +24,11 @@ function clients(): AugmentedWebSocket[] {
   return [...wss.clients].filter((ws) => ws.readyState === WebSocket.OPEN);
 }
 
-function catchError(target: (...args: unknown[]) => unknown, callback?: () => unknown) {
-  return async (...args: unknown[]) => {
+function catchError<Args extends unknown[]>(
+  target: (...args: Args) => unknown,
+  callback?: () => unknown,
+): (...args: Args) => Promise<unknown> {
+  return async (...args: Args) => {
     try {
       return await target(...args);
     } catch (err) {
@@ -45,7 +48,9 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
   ws.isAlive = true;
   ws.on("pong", () => {
     ws.isAlive = true;
-    updateActivity(ws.user, false).catch(console.error);
+    if (ws.user) {
+      updateActivity(ws.user, false).catch(console.error);
+    }
   });
 
   ws.on(
@@ -78,10 +83,13 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
       }
       if ("game" in data) {
         ws.game = data.game;
-        ws.gameUpdate = null;
+        ws.gameUpdate = undefined;
       }
       if ("fetchPlayerStatus" in data && ws.game && gameCache.get(ws.game)) {
         const game = gameCache.get<GameDoc>(ws.game);
+        if (!game) {
+          return;
+        }
         const userDocs = await colls.users
           .find({ _id: { $in: game.players.map((x) => x._id) } })
           .project({ "security.lastActive": 1, "security.lastOnline": 1 })
@@ -176,16 +184,21 @@ async function run() {
     const messages = await colls.chatMessages.find({ _id: { $gt: lastChecked } }).toArray();
     const messagesPerRooms = Object.groupBy(messages, (msg) => msg.room.toString());
 
-    for (const msg of messages) {
-      delete msg.room;
+    // Strip the `room` field from messages before sending them to clients
+    const sanitizedPerRoom = new Map<string, Omit<(typeof messages)[number], "room">[]>();
+    for (const [room, msgs] of Object.entries(messagesPerRooms)) {
+      sanitizedPerRoom.set(
+        room,
+        (msgs ?? []).map(({ room: _room, ...rest }) => rest),
+      );
     }
 
     for (const ws of clients()) {
-      if (ws.room in messagesPerRooms) {
+      if (ws.room && sanitizedPerRoom.has(ws.room)) {
         ws.send(
           JSON.stringify({
             room: ws.room,
-            messages: messagesPerRooms[ws.room],
+            messages: sanitizedPerRoom.get(ws.room),
             command: "newMessages",
           }),
         );
@@ -238,8 +251,8 @@ async function run() {
 
           if (ws.game) {
             const game = gameCache.get<GameDoc>(ws.game);
-            const localUpdate: Date = game?.updatedAt;
-            if (localUpdate && (!ws.gameUpdate || ws.gameUpdate < localUpdate)) {
+            const localUpdate = game?.updatedAt;
+            if (game && localUpdate && (!ws.gameUpdate || ws.gameUpdate < localUpdate)) {
               ws.gameUpdate = localUpdate;
 
               ws.send(JSON.stringify({ command: "game:lastUpdate", lastUpdate: localUpdate, game: ws.game }));

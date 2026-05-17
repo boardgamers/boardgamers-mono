@@ -36,6 +36,7 @@ describe("GameInfoService", () => {
 
     it("should return all available games for admin user", async () => {
       const user = await findByUsername("admin");
+      assert.ok(user, "admin user should exist");
 
       let games = await GameInfoService.latestAccessibleGames(user._id);
 

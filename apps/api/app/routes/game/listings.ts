@@ -78,14 +78,22 @@ async function gameConditions<T>(
   }) as Record<string, unknown>;
 }
 
+function parseNumberQuery(value: string | string[] | undefined): number | undefined {
+  if (value === undefined || value === "") {
+    return undefined;
+  }
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 router.get("/:status/count", async (ctx) => {
   const conditions: Record<string, unknown> = await gameConditions(ctx.params.status as GameStatus, {
     user: ctx.query.user ? String(ctx.query.user) : undefined,
     requester: ctx.state.user?._id,
     boardgame: ctx.query.boardgame ? String(ctx.query.boardgame) : undefined,
-    maxKarma: ctx.query.maxKarma && +ctx.query.maxKarma,
-    maxDuration: ctx.query.maxDuration && +ctx.query.maxDuration,
-    minDuration: ctx.query.minDuration && +ctx.query.minDuration,
+    maxKarma: parseNumberQuery(ctx.query.maxKarma),
+    maxDuration: parseNumberQuery(ctx.query.maxDuration),
+    minDuration: parseNumberQuery(ctx.query.minDuration),
   });
   ctx.body = await colls.games.countDocuments(conditions);
 });
@@ -98,9 +106,9 @@ router.get("/:status", async (ctx) => {
     user: String(ctx.query.user || ""),
     requester: ctx.state.user?._id,
     boardgame: ctx.query.boardgame ? String(ctx.query.boardgame) : undefined,
-    maxKarma: ctx.query.maxKarma && +ctx.query.maxKarma,
-    maxDuration: ctx.query.maxDuration && +ctx.query.maxDuration,
-    minDuration: ctx.query.minDuration && +ctx.query.minDuration,
+    maxKarma: parseNumberQuery(ctx.query.maxKarma),
+    maxDuration: parseNumberQuery(ctx.query.maxDuration),
+    minDuration: parseNumberQuery(ctx.query.minDuration),
   });
 
   if (ctx.query.sample) {

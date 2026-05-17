@@ -7,8 +7,9 @@ export async function processCurrentMove() {
   const col = colls.gameNotifications;
   const notifications = await col.find({ kind: "currentMove", processed: false }).toArray();
 
+  const userIds = notifications.map((n) => n.user).filter((id) => id !== undefined);
   const userCol = colls.users;
-  const userDocs = await userCol.find({ _id: { $in: notifications.map((n) => n.user) } }).toArray();
+  const userDocs = await userCol.find({ _id: { $in: userIds } }).toArray();
 
   for (const user of userDocs) {
     if (!user.settings?.mailing?.game?.activated) {
@@ -63,8 +64,11 @@ export async function processPlayerDrop() {
   const col = colls.gameNotifications;
   const notifications = await col.find({ kind: "playerDrop", processed: false }).toArray();
 
-  const dropCounts = new Map<string, { id: (typeof notifications)[0]["user"]; count: number }>();
+  const dropCounts = new Map<string, { id: NonNullable<(typeof notifications)[0]["user"]>; count: number }>();
   for (const n of notifications) {
+    if (!n.user) {
+      continue;
+    }
     const key = n.user.toString();
     const entry = dropCounts.get(key);
     if (entry) {

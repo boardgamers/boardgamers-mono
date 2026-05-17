@@ -46,7 +46,7 @@ router.get(
     if (feedback.createSocialAccount) {
       const { provider, id } = feedback;
 
-      ctx.state.user = null;
+      ctx.state.user = undefined;
 
       const body = {
         createSocialAccount: true,
