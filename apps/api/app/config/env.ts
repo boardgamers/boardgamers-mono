@@ -40,7 +40,10 @@ export default {
       ws: Number(process.env.wsPort) || 50802,
       resources: Number(process.env.resourcesPort) || 50804,
     },
-    host: process.env.listenHost ?? "localhost",
+    // Bind on IPv4 by default. On Node 18+, listening on "localhost" resolves to ::1,
+    // but the web app's SSR fetch and vite's dev proxy resolve to 127.0.0.1 first
+    // → ECONNREFUSED in dev. Override with $listenHost (e.g. 0.0.0.0) if you need IPv6/dual-stack.
+    host: process.env.listenHost ?? "127.0.0.1",
   },
   database: {
     bgs: {

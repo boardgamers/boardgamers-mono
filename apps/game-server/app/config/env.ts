@@ -24,7 +24,9 @@ export default {
   },
   listen: {
     port: +process.env.port || 50803,
-    host: process.env.listenHost ?? "localhost",
+    // Bind on IPv4 by default (Node 18+ resolves "localhost" to ::1, but vite's dev
+    // proxy and svelte-kit SSR resolve to 127.0.0.1 first → ECONNREFUSED in dev).
+    host: process.env.listenHost ?? "127.0.0.1",
   },
   database: {
     bgs: {
