@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node --env-file-if-exists=.env server.ts",
-    "dev": "node --watch --env-file-if-exists=.env server.ts",
+    "dev": "tsx watch --env-file-if-exists=.env server.ts",
     "seed": "node --env-file-if-exists=.env scripts/seed.ts",
     "test": "NODE_ENV=test node --env-file-if-exists=.env --import ./app/config/test-hooks.ts --test --test-force-exit --test-concurrency=1 './**/*.spec.ts'",
     "lint": "oxlint --fix",

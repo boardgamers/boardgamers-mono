@@ -7,7 +7,7 @@
   "main": "server.ts",
   "scripts": {
     "batch-replay": "node --env-file-if-exists=.env scripts/batch-replay.ts",
-    "dev": "node --watch --env-file-if-exists=.env server.ts",
+    "dev": "tsx watch --env-file-if-exists=.env server.ts",
     "fmt": "oxfmt",
     "fmt-check": "oxfmt --check",
     "lint": "oxlint --fix",
