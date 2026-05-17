@@ -25,6 +25,12 @@ export async function setup() {
   await Promise.all(collections.map((c) => db().dropCollection(c.name)));
 
   env.listen.port.api = 0;
+  // Bind explicitly to 127.0.0.1 so the address the tests fetch (also 127.0.0.1
+  // via "localhost") matches the one the server is bound to. Otherwise on hosts
+  // where `localhost` resolves to ::1 first (e.g. some Linux containers),
+  // app.listen("localhost") binds only ::1 while undici's fetch dials 127.0.0.1
+  // → ECONNREFUSED.
+  env.listen.host = "127.0.0.1";
   env.silent = true;
 
   server = await listen();

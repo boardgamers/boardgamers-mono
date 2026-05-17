@@ -177,7 +177,9 @@ async function listen(port = env.listen.port.api) {
     app.once("error", (err) => reject(err));
   });
 
-  console.log("app started on port", port, "and host", env.listen.host);
+  const addr = server.address();
+  const actualPort = addr && typeof addr === "object" ? addr.port : port;
+  console.log("app started on port", actualPort, "and host", env.listen.host);
 
   return server;
 }

@@ -7,7 +7,7 @@ import { colls } from "../../config/db.ts";
 import { testUser, testGamePrefs } from "../../config/test-helpers.ts";
 import { createAccessToken, generateRefreshCode } from "../../models/jwtrefreshtokens.ts";
 
-const baseURL = () => `http://localhost:${env.listen.port.api}`;
+const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
 
 async function api(method: string, path: string, body?: unknown, headers?: Record<string, string>) {
   const res = await fetch(`${baseURL()}${path}`, {
