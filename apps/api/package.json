@@ -41,7 +41,7 @@
     "passport-google-oauth20": "^2.0.0",
     "passport-local": "^1.0.0",
     "semver": "^7.2.2",
-    "ws": "^6.0.0",
+    "ws": "^8.20.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -62,7 +62,7 @@
     "@types/passport-google-oauth20": "^2.0.3",
     "@types/passport-local": "^1.0.33",
     "@types/semver": "^7.1.0",
-    "@types/ws": "^6.0.0",
+    "@types/ws": "^8.18.1",
     "@typescript/native-preview": "7.0.0-dev.20260307.1",
     "koa-cookie": "^1.0.0",
     "oxfmt": "^0.36.0",

@@ -3,14 +3,14 @@ import { setTimeout as sleep } from "node:timers/promises";
 import jwt from "jsonwebtoken";
 import { ObjectId } from "mongodb";
 import cache from "node-cache";
-import WebSocket, { Server } from "ws";
+import WebSocket, { WebSocketServer } from "ws";
 import "./config/db.ts";
 import env from "./config/env.ts";
 import type { GameDoc } from "@bgs/models";
 import { colls } from "./config/db.ts";
 import { accessTokenPayloadSchema, findGamesWithPlayersTurn } from "./models/index.ts";
 
-const wss = new Server({ port: env.listen.port.ws, host: env.listen.host });
+const wss = new WebSocketServer({ port: env.listen.port.ws, host: env.listen.host });
 
 type AugmentedWebSocket = WebSocket & {
   game?: string;
@@ -55,8 +55,8 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
 
   ws.on(
     "message",
-    catchError(async (message: WebSocket.Data) => {
-      // oxlint-disable-next-line typescript/no-base-to-string -- WebSocket.Data is always stringifiable
+    catchError(async (message: WebSocket.RawData) => {
+      // oxlint-disable-next-line typescript/no-base-to-string
       const data = JSON.parse(String(message));
 
       if ("room" in data) {
