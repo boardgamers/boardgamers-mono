@@ -9,7 +9,7 @@ const handleError = (err: Error) => {
   process.exit(1);
 };
 
-initDb().catch(handleError);
+await initDb().catch(handleError);
 
 // In production, run a process for each CPU
 if (cluster.isPrimary && env.isProduction && Number(env.threads) > 1) {
