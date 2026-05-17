@@ -15,11 +15,19 @@ import { colls } from "./config/db.ts";
 
 const router = new Router();
 
+const iframeQuerySchema = z.object({ src: z.string().optional() });
+const gameIframeQuerySchema = z.object({
+  alternate: z.string().optional(),
+  customViewerUrl: z.string().optional(),
+});
+
 router.get("/iframe", (ctx) => {
-  ctx.body = ctx.query.src;
+  const { src } = iframeQuerySchema.parse(ctx.query);
+  ctx.body = src;
 });
 
 router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
+  const { alternate, customViewerUrl } = gameIframeQuerySchema.parse(ctx.query);
   const gameInfo = await colls.gameInfos.findOne({
     _id: { game: ctx.params.game_name, version: +ctx.params.game_version },
   });
@@ -31,8 +39,8 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
   }
 
   const viewer: ViewerInfo =
-    gameInfo?.viewer?.alternate?.url && ctx.query.alternate === "1" ? gameInfo?.viewer.alternate : gameInfo.viewer;
-  const viewerUrl = String(ctx.query.customViewerUrl || viewer.url);
+    gameInfo?.viewer?.alternate?.url && alternate === "1" ? gameInfo?.viewer.alternate : gameInfo.viewer;
+  const viewerUrl = customViewerUrl || viewer.url;
 
   const stylesheets = (viewer.dependencies?.stylesheets ?? [])
     .map((dep) => `<link type='text/css' rel='stylesheet' href='${dep}'></link>`)

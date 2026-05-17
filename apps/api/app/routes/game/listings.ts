@@ -1,4 +1,4 @@
-import type { GameStatus } from "@bgs/models";
+import { gameStatusSchema, type GameStatus } from "@bgs/models";
 import { removeFalsy } from "@bgs/utils/remove-falsy";
 import { simplifyFilter } from "@coyotte508/mongo-query";
 import { colls } from "../../config/db.ts";
@@ -7,9 +7,24 @@ import GameInfoService from "../../services/gameinfo.ts";
 import assert from "node:assert";
 import type { Context } from "koa";
 import Router from "koa-router";
+import { z } from "zod";
+import { zIntQuery } from "../../utils/zod.ts";
 import { queryCount, skipCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
+
+const listingsParamsSchema = z.object({
+  status: gameStatusSchema,
+});
+
+const listingsQuerySchema = z.object({
+  user: z.string().optional(),
+  boardgame: z.string().optional(),
+  maxKarma: zIntQuery().optional(),
+  maxDuration: zIntQuery().optional(),
+  minDuration: zIntQuery().optional(),
+  sample: z.string().optional(),
+});
 
 const filterAccessibleGames = async <T>(userId: T) => {
   const games = await GameInfoService.latestAccessibleGames(userId);
@@ -78,40 +93,35 @@ async function gameConditions<T>(
   }) as Record<string, unknown>;
 }
 
-function parseNumberQuery(value: string | string[] | undefined): number | undefined {
-  if (value === undefined || value === "") {
-    return undefined;
-  }
-  const n = Number(value);
-  return Number.isFinite(n) ? n : undefined;
-}
-
 router.get("/:status/count", async (ctx) => {
-  const conditions: Record<string, unknown> = await gameConditions(ctx.params.status as GameStatus, {
-    user: ctx.query.user ? String(ctx.query.user) : undefined,
+  const { status } = listingsParamsSchema.parse(ctx.params);
+  const query = listingsQuerySchema.parse(ctx.query);
+  const conditions: Record<string, unknown> = await gameConditions(status, {
+    user: query.user,
     requester: ctx.state.user?._id,
-    boardgame: ctx.query.boardgame ? String(ctx.query.boardgame) : undefined,
-    maxKarma: parseNumberQuery(ctx.query.maxKarma),
-    maxDuration: parseNumberQuery(ctx.query.maxDuration),
-    minDuration: parseNumberQuery(ctx.query.minDuration),
+    boardgame: query.boardgame,
+    maxKarma: query.maxKarma,
+    maxDuration: query.maxDuration,
+    minDuration: query.minDuration,
   });
   ctx.body = await colls.games.countDocuments(conditions);
 });
 
 router.get("/:status", async (ctx) => {
-  const status: GameStatus = ctx.params.status as GameStatus;
+  const { status } = listingsParamsSchema.parse(ctx.params);
+  const query = listingsQuerySchema.parse(ctx.query);
   const projection = status === "ended" ? { ...gameBasicsProjection, cancelled: 1 } : { ...gameBasicsProjection };
   const sortOrder: Record<string, 1 | -1> = status === "open" ? { createdAt: -1 } : { lastMove: -1 };
   const conditions = await gameConditions(status, {
-    user: String(ctx.query.user || ""),
+    user: query.user,
     requester: ctx.state.user?._id,
-    boardgame: ctx.query.boardgame ? String(ctx.query.boardgame) : undefined,
-    maxKarma: parseNumberQuery(ctx.query.maxKarma),
-    maxDuration: parseNumberQuery(ctx.query.maxDuration),
-    minDuration: parseNumberQuery(ctx.query.minDuration),
+    boardgame: query.boardgame,
+    maxKarma: query.maxKarma,
+    maxDuration: query.maxDuration,
+    minDuration: query.minDuration,
   });
 
-  if (ctx.query.sample) {
+  if (query.sample) {
     const pipeline = [
       { $match: conditions },
       { $sample: { size: queryCount(ctx) * 5 } },

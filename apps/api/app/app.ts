@@ -41,6 +41,7 @@ async function listen(port = env.listen.port.api) {
   app.use(passport.initialize());
 
   // JWT auth
+  const tokenQuerySchema = z.object({ token: z.string().optional() });
   app.use(async (ctx, next) => {
     const processToken = async (token: string) => {
       const decoded = jwt.verify(token, env.jwt.keys.public) as { userId: string; scopes: string[] };
@@ -54,8 +55,11 @@ async function listen(port = env.listen.port.api) {
       const token = ctx.get("Authorization").slice("Bearer ".length);
 
       await processToken(token);
-    } else if (ctx.query.token) {
-      await processToken(String(ctx.query.token));
+    } else {
+      const { token } = tokenQuerySchema.parse(ctx.query);
+      if (token) {
+        await processToken(token);
+      }
     }
 
     await next();

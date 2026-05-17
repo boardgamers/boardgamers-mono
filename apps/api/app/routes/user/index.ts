@@ -3,6 +3,7 @@ import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
 import { ObjectId } from "mongodb";
+import { z } from "zod";
 import { colls } from "../../config/db.ts";
 import {
   eloProjection,
@@ -12,6 +13,7 @@ import {
   publicInfoProjection,
   userPublicInfo,
 } from "../../models/index.ts";
+import { zIntQuery } from "../../utils/zod.ts";
 import { queryCount, skipCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -37,7 +39,7 @@ router.param("userName", async (userName, ctx, next) => {
 });
 
 router.get("/search", async (ctx) => {
-  const name: string = String(ctx.query.name || "");
+  const { name } = z.object({ name: z.string().optional() }).parse(ctx.query);
 
   if (!name) {
     ctx.body = [];
@@ -57,10 +59,10 @@ router.get("/infoByName/:userName", (ctx) => {
 router.get("/:userId/avatar", async (ctx) => {
   const foundUser = ctx.state.foundUser!;
   const account = foundUser.account;
+  const { size } = z.object({ size: zIntQuery().optional() }).parse(ctx.query);
 
   if (account.avatar === "upload") {
-    const size = Number(ctx.query.size);
-    const format = isNaN(size) || !size || size > 128 ? "256x256" : size > 64 ? "128x128" : "64x64";
+    const format = !size || size > 128 ? "256x256" : size > 64 ? "128x128" : "64x64";
     const item = await colls.images.findOne(
       {
         ref: foundUser._id,
@@ -139,10 +141,21 @@ router.get("/:userId/games/(ended|closed)", async (ctx) => {
     .toArray();
 });
 
+const gameCountParamsSchema = z.object({
+  status: z.enum(["closed", "ended", "dropped"]),
+});
+
+const gameCountQuerySchema = z.object({
+  since: zIntQuery().optional(),
+  game: z.string().optional(),
+});
+
 router.get("/:userId/games/count/:status", async (ctx) => {
   const foundUser = ctx.state.foundUser!;
+  const { status } = gameCountParamsSchema.parse(ctx.params);
+  const { since, game } = gameCountQuerySchema.parse(ctx.query);
   const conditions: Record<string, unknown> = (() => {
-    switch (ctx.params.status) {
+    switch (status) {
       case "closed":
       case "ended":
         return { status: "ended", "players._id": foundUser._id };
@@ -155,19 +168,17 @@ router.get("/:userId/games/count/:status", async (ctx) => {
             },
           },
         };
-      default:
-        assert(false, "Wrong status requested: " + ctx.params.ended);
     }
   })();
 
-  if (ctx.query.since) {
+  if (since !== undefined) {
     conditions.lastMove = {
-      $gte: new Date(Number(ctx.query.since)),
+      $gte: new Date(since),
     };
   }
 
-  if (ctx.query.game) {
-    conditions["game.name"] = ctx.query.game;
+  if (game) {
+    conditions["game.name"] = game;
   }
 
   ctx.body = await colls.games.countDocuments(conditions);

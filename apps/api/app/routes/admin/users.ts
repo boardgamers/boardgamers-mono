@@ -8,8 +8,13 @@ import { queryCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
+const userSearchQuerySchema = z.object({
+  query: z.string().optional(),
+  mode: z.enum(["email", "username"]).optional(),
+});
+
 router.get("/search", async (ctx) => {
-  const query: string = String(ctx.query.query || "");
+  const { query, mode } = userSearchQuerySchema.parse(ctx.query);
 
   if (!query) {
     ctx.body = [];
@@ -17,7 +22,7 @@ router.get("/search", async (ctx) => {
   }
 
   const conditions =
-    ctx.query.mode === "email"
+    mode === "email"
       ? { "account.email": new RegExp("^" + query.toLowerCase()) }
       : { "security.slug": new RegExp("^" + query.toLowerCase()) };
 
