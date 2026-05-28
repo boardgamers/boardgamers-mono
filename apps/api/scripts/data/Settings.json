@@ -3,7 +3,7 @@
     "_id": "announcement",
     "value": {
       "title": "Welcome to your local Boardgamers dev environment 🎲",
-      "content": "This is a **dummy announcement** seeded for local development.\n\nEdit it from the [admin panel](/admin) or via `POST /admin/announcement`, and tweak the seed in `apps/api/scripts/data/Settings.json`."
+      "content": "This is a **dummy announcement** seeded for local development.\n\nEdit it from the [admin panel](/admin) ."
     }
   }
 ]
