@@ -133,7 +133,17 @@ export const migrations = {
 export async function migrate() {
   const latestVersion = pkg.version;
   const dbVersionDoc = await colls.settings.findOne({ _id: SettingsKey.DBVersion });
-  let currentVersion = typeof dbVersionDoc?.value === "string" ? dbVersionDoc.value : "0.1.0";
+
+  if (!dbVersionDoc) {
+    const latestMigration = Object.keys(migrations).reduce((max, key) => (semver.gt(key, max) ? key : max), "0.1.0");
+    const baseline = semver.gt(latestVersion, latestMigration) ? latestVersion : latestMigration;
+
+    console.log("fresh database detected, skipping historical migrations and stamping version", baseline);
+    await colls.settings.updateOne({ _id: SettingsKey.DBVersion }, { $set: { value: baseline } }, { upsert: true });
+    return;
+  }
+
+  let currentVersion = typeof dbVersionDoc.value === "string" ? dbVersionDoc.value : "0.1.0";
 
   for (const [key, migration] of Object.entries(migrations)) {
     if (semver.gt(key, currentVersion)) {
