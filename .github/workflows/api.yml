@@ -37,3 +37,11 @@ jobs:
       - run: pnpm run lint-check
       - run: pnpm run tsc
       - run: pnpm run test
+
+      - name: Check new migrations will run when merged
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          pnpm run check-migrations
