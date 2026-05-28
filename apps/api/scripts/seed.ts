@@ -34,13 +34,6 @@ export async function seed(collections?: string[], dropIfExists?: boolean) {
       continue;
     }
 
-    if (dropIfExists) {
-      await coll.deleteMany({});
-    } else if ((await coll.estimatedDocumentCount()) > 0) {
-      console.warn(`Collection ${collection} is not empty, skipping`);
-      continue;
-    }
-
     let items = (data as Record<string, Record<string, unknown>[]>)[collection];
 
     // In dev, seed GameInfo with the latest *public* version of each game,
@@ -55,8 +48,38 @@ export async function seed(collections?: string[], dropIfExists?: boolean) {
       }
     }
 
-    console.log(`Inserting ${items.length} item(s) in collection ${collection}`);
-    await coll.insertMany(items);
+    if (dropIfExists) {
+      await coll.deleteMany({});
+    }
+
+    // The `settings` collection is special: migrations write a `dbVersion` doc
+    // into it independently of seeding, so a plain "skip if not empty" guard
+    // would never seed our other settings (e.g. the announcement). Instead we
+    // insert each missing settings doc by `_id` (via `$setOnInsert`), which
+    // leaves existing docs untouched and stays idempotent on re-runs.
+    // All other collections keep the original all-or-nothing behaviour.
+    const insertMissingById = collection === "settings" && !dropIfExists;
+
+    if (!dropIfExists && !insertMissingById && (await coll.estimatedDocumentCount()) > 0) {
+      console.warn(`Collection ${collection} is not empty, skipping`);
+      continue;
+    }
+
+    if (insertMissingById) {
+      console.log(`Inserting missing item(s) into collection ${collection} (existing docs left untouched)`);
+      await Promise.all(
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+        (items as { _id: object; [key: string]: unknown }[]).map(({ _id, ...rest }) =>
+          // `_id` is fixed by the filter; `$setOnInsert` never touches existing docs.
+          coll.updateOne({ _id }, Object.keys(rest).length ? { $setOnInsert: rest } : { $setOnInsert: { _id } }, {
+            upsert: true,
+          }),
+        ),
+      );
+    } else {
+      console.log(`Inserting ${items.length} item(s) in collection ${collection}`);
+      await coll.insertMany(items);
+    }
   }
 }
 
