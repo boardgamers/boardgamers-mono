@@ -32,7 +32,7 @@ import {
   ensureValidation,
 } from "@bgs/models";
 import locks from "./locks.ts";
-import { migrate } from "../models/migrations.ts";
+import { migrate } from "../models/migrations/index.ts";
 import env from "./env.ts";
 
 let client: MongoClient;
