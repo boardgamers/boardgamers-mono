@@ -24,11 +24,20 @@
     const [game, players] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
     await Promise.all([loadGameInfo(game.game.name, game.game.version), loadGamePreferences(game.game.name)]);
 
+    const info = gameInfo(game.game.name, game.game.version);
+
+    if (!info) {
+      return {
+        status: 404,
+        error: new Error(`No game info for ${game.game.name} v${game.game.version}`),
+      };
+    }
+
     return {
       props: {
         game,
         players,
-        gameInfo: gameInfo(game.game.name, game.game.version),
+        gameInfo: info,
       },
     };
   }

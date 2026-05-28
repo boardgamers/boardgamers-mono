@@ -107,6 +107,10 @@ export default async function initDb(url = env.database.bgs.url, runMigrations =
     }
   }
 
+  if (cluster.isPrimary && !env.isProduction && (await colls.users.estimatedDocumentCount()) === 0) {
+    console.log("\n⚠️  No users found in the database. Run `pnpm seed` to populate it with dev data.\n");
+  }
+
   client.on("error", (err) => {
     console.error("db error", err);
   });

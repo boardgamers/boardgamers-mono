@@ -1,7 +1,9 @@
+import type { GameDoc, GameInfoDoc, GameNotificationDoc, UserDoc } from "@bgs/models";
 import { env } from "../app/config/index.ts";
 import initDb, { closeDb, db } from "../app/config/db.ts";
-import * as data from "./data/index.ts";
-import { fetchGameInfos } from "./fetch-gameinfos.ts";
+import * as fixtures from "./fixtures/index.ts";
+import { buildSeedGame } from "./lib/build-seed-game.ts";
+import { fetchGameInfos } from "./lib/fetch-gameinfos.ts";
 
 const isTest = process.env.NODE_ENV === "test";
 
@@ -11,7 +13,6 @@ if (process.env.NODE_ENV !== "test") {
 
 const collectionMap: Record<string, string> = {
   User: "users",
-  Game: "games",
   GameInfo: "gameinfos",
   GamePreferences: "gamepreferences",
   chatMessages: "chatmessages",
@@ -27,7 +28,7 @@ export type SeedOptions = {
 };
 
 export async function seed({ collections, drop }: SeedOptions = {}) {
-  for (const collection of collections ?? Object.keys(data)) {
+  for (const collection of collections ?? Object.keys(fixtures)) {
     const collName = collectionMap[collection];
     if (!collName) {
       console.error(`Collection ${collection} is not mapped`);
@@ -36,12 +37,12 @@ export async function seed({ collections, drop }: SeedOptions = {}) {
 
     const coll = db().collection(collName);
 
-    if (!(collection in data)) {
+    if (!(collection in fixtures)) {
       console.error(`Collection ${collection} does not have a seeding file`);
       continue;
     }
 
-    let items = (data as Record<string, Record<string, unknown>[]>)[collection];
+    let items = (fixtures as Record<string, Record<string, unknown>[]>)[collection];
 
     // In dev, seed GameInfo with the latest *public* version of each game,
     // pulled live from a public BGS API. Tests stay deterministic on the
@@ -88,6 +89,42 @@ export async function seed({ collections, drop }: SeedOptions = {}) {
       await coll.insertMany(items);
     }
   }
+
+  // Build a startable game from the seeded data. Dev-only: it derives the game
+  // from whatever GameInfo was actually seeded (correct version + default
+  // options) and emits a `gameStarted` notification so the game-server engine
+  // initializes it. Skipped in tests, which assert on a fixed fixture state.
+  if (!isTest && (!collections || collections.includes("Game"))) {
+    await seedStartableGame(drop);
+  }
+}
+
+async function seedStartableGame(drop?: boolean) {
+  const games = db().collection<GameDoc>("games");
+
+  if (drop) {
+    await games.deleteMany({});
+  } else if ((await games.estimatedDocumentCount()) > 0) {
+    console.warn("Collection games is not empty, skipping startable game");
+    return;
+  }
+
+  const gameInfo = await db()
+    .collection<GameInfoDoc>("gameinfos")
+    .findOne({ "_id.game": "gaia-project" }, { sort: { "_id.version": -1 } });
+
+  if (!gameInfo) {
+    console.warn("No gaia-project game info seeded; skipping startable game");
+    return;
+  }
+
+  const users = await db().collection<UserDoc>("users").find({}).limit(4).toArray();
+
+  const { game, notification } = buildSeedGame(gameInfo, users);
+
+  console.log(`Inserting startable ${game.game.name} v${game.game.version} game (${game._id})`);
+  await games.insertOne(game);
+  await db().collection<GameNotificationDoc>("gamenotifications").insertOne(notification);
 }
 
 async function run() {
