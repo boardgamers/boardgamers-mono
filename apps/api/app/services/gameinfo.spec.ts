@@ -12,7 +12,7 @@ function sortedEntries(map: Map<string, number>) {
 describe("GameInfoService", () => {
   describe("latestAccessibleGames", () => {
     before(async () => {
-      await seed(["GameInfo", "User", "GamePreferences"], true);
+      await seed({ collections: ["GameInfo", "User", "GamePreferences"], drop: true });
     });
 
     it("should return all public games for undefined user", async () => {

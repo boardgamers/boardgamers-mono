@@ -5,6 +5,7 @@
       "karma": 75,
       "email": "admin@test.com",
       "username": "admin",
+      "avatar": "bottts",
       "termsAndConditions": "2021-03-07T17:07:02.202Z",
       "password": "$2a$08$Sks1Maugi8qImAVMrv6K/ew6iNKKsyowG0ZC4ZL5LfNlt7MD3nDpW"
     },
@@ -35,6 +36,7 @@
       "karma": 75,
       "email": "user@test.com",
       "username": "user",
+      "avatar": "avataaars",
       "termsAndConditions": "2021-03-07T17:07:27.300Z",
       "password": "$2a$08$yEfkAXKAA7UMaj8vASckb.1u2/D/lSVy6OZf89Y6cTMPixcVi7G5i"
     },
@@ -64,6 +66,7 @@
       "karma": 75,
       "email": "user2@test.com",
       "username": "user2",
+      "avatar": "pixel-art",
       "termsAndConditions": "2021-03-07T17:07:27.300Z",
       "password": "$2a$08$yEfkAXKAA7UMaj8vASckb.1u2/D/lSVy6OZf89Y6cTMPixcVi7G5i"
     },

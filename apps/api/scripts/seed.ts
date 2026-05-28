@@ -19,7 +19,14 @@ const collectionMap: Record<string, string> = {
   pages: "pages",
 };
 
-export async function seed(collections?: string[], dropIfExists?: boolean) {
+export type SeedOptions = {
+  /** Which collections to seed. Defaults to every collection with a fixture. */
+  collections?: string[];
+  /** Clear each collection before inserting, so the fixtures fully replace its contents. */
+  drop?: boolean;
+};
+
+export async function seed({ collections, drop }: SeedOptions = {}) {
   for (const collection of collections ?? Object.keys(data)) {
     const collName = collectionMap[collection];
     if (!collName) {
@@ -48,7 +55,7 @@ export async function seed(collections?: string[], dropIfExists?: boolean) {
       }
     }
 
-    if (dropIfExists) {
+    if (drop) {
       await coll.deleteMany({});
     }
 
@@ -58,9 +65,9 @@ export async function seed(collections?: string[], dropIfExists?: boolean) {
     // insert each missing settings doc by `_id` (via `$setOnInsert`), which
     // leaves existing docs untouched and stays idempotent on re-runs.
     // All other collections keep the original all-or-nothing behaviour.
-    const insertMissingById = collection === "settings" && !dropIfExists;
+    const insertMissingById = collection === "settings" && !drop;
 
-    if (!dropIfExists && !insertMissingById && (await coll.estimatedDocumentCount()) > 0) {
+    if (!drop && !insertMissingById && (await coll.estimatedDocumentCount()) > 0) {
       console.warn(`Collection ${collection} is not empty, skipping`);
       continue;
     }
@@ -84,8 +91,14 @@ export async function seed(collections?: string[], dropIfExists?: boolean) {
 }
 
 async function run() {
+  const drop = process.argv.includes("--drop");
+
+  if (drop) {
+    console.warn("Running with --drop: existing documents in seeded collections will be removed");
+  }
+
   await initDb();
-  await seed();
+  await seed({ drop });
   await closeDb();
 }
 
