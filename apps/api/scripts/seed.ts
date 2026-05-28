@@ -1,6 +1,9 @@
 import { env } from "../app/config/index.ts";
 import initDb, { closeDb, db } from "../app/config/db.ts";
 import * as data from "./data/index.ts";
+import { fetchGameInfos } from "./fetch-gameinfos.ts";
+
+const isTest = process.env.NODE_ENV === "test";
 
 if (process.env.NODE_ENV !== "test") {
   env.script = true;
@@ -38,7 +41,20 @@ export async function seed(collections?: string[], dropIfExists?: boolean) {
       continue;
     }
 
-    const items = (data as Record<string, Record<string, unknown>[]>)[collection];
+    let items = (data as Record<string, Record<string, unknown>[]>)[collection];
+
+    // In dev, seed GameInfo with the latest *public* version of each game,
+    // pulled live from a public BGS API. Tests stay deterministic on the
+    // committed JSON fixtures, and any fetch failure falls back to them too.
+    if (collection === "GameInfo" && !isTest) {
+      try {
+        items = await fetchGameInfos();
+        console.log(`Fetched ${items.length} game info(s) from the public API`);
+      } catch (err) {
+        console.warn("Could not fetch game infos from the public API, falling back to local data:", err);
+      }
+    }
+
     console.log(`Inserting ${items.length} item(s) in collection ${collection}`);
     await coll.insertMany(items);
   }
