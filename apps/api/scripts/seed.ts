@@ -1,4 +1,6 @@
 import type { GameDoc, GameInfoDoc, GameNotificationDoc, UserDoc } from "@bgs/models";
+import { gameInfoSchema, gamePreferencesSchema, settingsSchema, userSchema } from "@bgs/models";
+import type { ZodType } from "zod";
 import { env } from "../app/config/index.ts";
 import initDb, { closeDb, db } from "../app/config/db.ts";
 import * as fixtures from "./fixtures/index.ts";
@@ -18,6 +20,17 @@ const collectionMap: Record<string, string> = {
   chatMessages: "chatmessages",
   settings: "settings",
   pages: "pages",
+};
+
+// Fixtures are plain JSON, so id/date fields arrive as strings. Parsing each
+// item through its document schema applies the zObjectId()/zDate() transforms,
+// turning them into real ObjectId/Date values before insert — otherwise the API
+// (which queries by ObjectId) never matches a string _id. See WORKAROUNDS.md.
+const schemaMap: Record<string, ZodType> = {
+  User: userSchema,
+  GameInfo: gameInfoSchema,
+  GamePreferences: gamePreferencesSchema,
+  settings: settingsSchema,
 };
 
 export type SeedOptions = {
@@ -42,7 +55,10 @@ export async function seed({ collections, drop }: SeedOptions = {}) {
       continue;
     }
 
-    let items = (fixtures as Record<string, Record<string, unknown>[]>)[collection];
+    let items: Record<string, unknown>[] = (fixtures as Record<string, Record<string, unknown>[]>)[collection];
+    // Whether `items` still needs schema parsing. fetchGameInfos already returns
+    // parsed GameInfoDocs, so we skip re-parsing those.
+    let parsed = false;
 
     // In dev, seed GameInfo with the latest *public* version of each game,
     // pulled live from a public BGS API. Tests stay deterministic on the
@@ -50,22 +66,26 @@ export async function seed({ collections, drop }: SeedOptions = {}) {
     if (collection === "GameInfo" && !isTest) {
       try {
         items = await fetchGameInfos();
+        parsed = true;
         console.log(`Fetched ${items.length} game info(s) from the public API`);
       } catch (err) {
         console.warn("Could not fetch game infos from the public API, falling back to local data:", err);
       }
     }
 
+    // Apply the document schema so id/date strings in the JSON fixtures become
+    // real ObjectId/Date values (see schemaMap above).
+    const schema = schemaMap[collection];
+    if (schema && !parsed) {
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+      items = items.map((item) => schema.parse(item) as Record<string, unknown>);
+    }
+
     if (drop) {
       await coll.deleteMany({});
     }
 
-    // The `settings` collection is special: migrations write a `dbVersion` doc
-    // into it independently of seeding, so a plain "skip if not empty" guard
-    // would never seed our other settings (e.g. the announcement). Instead we
-    // insert each missing settings doc by `_id` (via `$setOnInsert`), which
-    // leaves existing docs untouched and stays idempotent on re-runs.
-    // All other collections keep the original all-or-nothing behaviour.
+    // Allow inserting seed announcement, ... even with auto-inserted data regarding migrations
     const insertMissingById = collection === "settings" && !drop;
 
     if (!drop && !insertMissingById && (await coll.estimatedDocumentCount()) > 0) {
