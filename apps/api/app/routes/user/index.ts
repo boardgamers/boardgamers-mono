@@ -2,7 +2,7 @@ import assert from "node:assert";
 import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
-import { ObjectId } from "mongodb";
+import { type Binary, ObjectId } from "mongodb";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
 import {
@@ -78,7 +78,9 @@ router.get("/:userId/avatar", async (ctx) => {
 
     const imageData = item.images[format];
     ctx.set("Content-Type", imageData.mime);
-    ctx.body = imageData.raw;
+    // The driver returns binary fields as BSON Binary, which Koa doesn't treat
+    // as a buffer and base64-encodes as JSON. Hand it a Node Buffer instead.
+    ctx.body = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from((imageData.raw as Binary).buffer);
     return;
   }
 
@@ -91,7 +93,9 @@ router.get("/:userId/avatar", async (ctx) => {
   assert(response.ok, "Error when loading image");
 
   ctx.set("Content-Type", "image/svg+xml");
-  ctx.body = response.body;
+  // Buffer the SVG: Koa only streams Node streams, so handing it fetch()'s WHATWG
+  // ReadableStream falls through to JSON.stringify and serializes as `{}`.
+  ctx.body = Buffer.from(await response.arrayBuffer());
 });
 
 router.get("/:userId/games/open", async (ctx) => {
