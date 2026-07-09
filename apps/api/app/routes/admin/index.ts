@@ -34,10 +34,37 @@ router.get("/backup/games", async (ctx) => {
 });
 
 router.get("/serverinfo", async (ctx) => {
+  const [disk, nbUsers, gamesByStatus, recentUsers, recentGames, announcement] = await Promise.all([
+    checkDiskSpace(process.cwd()),
+    colls.users.countDocuments({}),
+    colls.games
+      .aggregate<{ _id: string; count: number }>([{ $group: { _id: "$status", count: { $sum: 1 } } }])
+      .toArray(),
+    colls.users
+      .find({}, { projection: { _id: 1, "account.username": 1, createdAt: 1 } })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .toArray(),
+    colls.games
+      .find({}, { projection: { _id: 1, "game.name": 1, status: 1, lastMove: 1, createdAt: 1 } })
+      .sort({ lastMove: -1 })
+      .limit(5)
+      .toArray(),
+    colls.settings.findOne({ _id: SettingsKey.Announcement }),
+  ]);
+
+  const games: Record<string, number> = {};
+  for (const g of gamesByStatus) {
+    games[g._id] = g.count;
+  }
+
   ctx.body = {
-    disk: await checkDiskSpace(process.cwd()),
-    nbUsers: await colls.users.countDocuments({}),
-    announcement: (await colls.settings.findOne({ _id: SettingsKey.Announcement }))?.value,
+    disk,
+    nbUsers,
+    games,
+    recentUsers,
+    recentGames,
+    announcement: announcement?.value,
     cron: env.cron,
   };
 });
@@ -184,7 +211,13 @@ router.post("/recreate-notifications", async (ctx) => {
   if (notifications.length > 0) {
     const adminNow = new Date();
     await colls.gameNotifications.insertMany(
-      notifications.map((n) => ({ game: n.game, kind: n.kind, processed: false, createdAt: adminNow, updatedAt: adminNow })),
+      notifications.map((n) => ({
+        game: n.game,
+        kind: n.kind,
+        processed: false,
+        createdAt: adminNow,
+        updatedAt: adminNow,
+      })),
     );
   }
   ctx.status = 200;

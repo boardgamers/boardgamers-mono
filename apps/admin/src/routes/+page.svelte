@@ -4,9 +4,24 @@
 	import { filesize } from "$lib/utils.ts";
 	import { auth } from "$lib/auth.svelte.ts";
 
+	interface RecentUser {
+		_id: string;
+		account: { username: string };
+		createdAt: string;
+	}
+	interface RecentGame {
+		_id: string;
+		game: { name: string };
+		status: string;
+		lastMove: string;
+		createdAt: string;
+	}
 	interface ServerInfo {
 		disk: { free: number; size: number };
 		nbUsers: number;
+		games: Record<string, number>;
+		recentUsers: RecentUser[];
+		recentGames: RecentGame[];
 		announcement: { title: string; content: string };
 		cron: boolean;
 	}
@@ -20,6 +35,14 @@
 	let editJson = $state("");
 	let showJsonEditor = $state(false);
 	let batchGameIds = $state("");
+
+
+
+	const gameStatuses = [
+		{ key: "open", label: "Open", color: "text-blue-600 dark:text-blue-400" },
+		{ key: "active", label: "Active", color: "text-amber-600 dark:text-amber-400" },
+		{ key: "ended", label: "Ended", color: "text-gray-500 dark:text-gray-400" },
+	] as const;
 
 	$effect(() => {
 		loadServerInfo();
@@ -131,42 +154,122 @@
 		const token = auth.accessTokens["all"]?.code ?? "";
 		return `/api/admin/backup/games?token=${encodeURIComponent(token)}`;
 	}
+
+	function timeAgo(iso: string): string {
+		const diff = Date.now() - new Date(iso).getTime();
+		const sec = Math.floor(diff / 1000);
+		if (sec < 60) return `${sec}s ago`;
+		const min = Math.floor(sec / 60);
+		if (min < 60) return `${min}m ago`;
+		const hr = Math.floor(min / 60);
+		if (hr < 24) return `${hr}h ago`;
+		const day = Math.floor(hr / 24);
+		return `${day}d ago`;
+	}
 </script>
 
-<div class="max-w-5xl space-y-6">
-	<h2 class="text-xl font-bold">Dashboard</h2>
+<div class="space-y-6">
+	<div class="flex items-center justify-between">
+		<h2 class="text-xl font-bold">Dashboard</h2>
+		<button
+			onclick={loadServerInfo}
+			class="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+		>
+			Refresh
+		</button>
+	</div>
 
-	<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+	<!-- Metrics row -->
+	{#if serverInfo}
+		{@const totalGames = Object.values(serverInfo.games).reduce<number>((a, b) => a + (b ?? 0), 0)}
+		<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Users</div>
+				<div class="text-2xl font-bold mt-1">{serverInfo.nbUsers.toLocaleString()}</div>
+			</div>
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Games</div>
+				<div class="text-2xl font-bold mt-1">{totalGames.toLocaleString()}</div>
+				<div class="flex gap-3 mt-1.5 text-xs">
+					{#each gameStatuses as s}
+						<span class={s.color}>
+							{serverInfo.games[s.key] ?? 0} {s.label.toLowerCase()}
+						</span>
+					{/each}
+				</div>
+			</div>
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Disk Free</div>
+				<div class="text-2xl font-bold mt-1">{filesize(serverInfo.disk.free)}</div>
+				<div class="text-xs text-gray-400 mt-1">of {filesize(serverInfo.disk.size)}</div>
+			</div>
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Cron</div>
+				<div class="text-2xl font-bold mt-1 flex items-center gap-2">
+					<span
+						class="inline-block w-2.5 h-2.5 rounded-full {serverInfo.cron
+							? 'bg-green-500'
+							: 'bg-gray-400'}"
+					></span>
+					{serverInfo.cron ? "Active" : "Inactive"}
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Activity row -->
+	{#if serverInfo}
+		<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+				<h3 class="text-sm font-semibold mb-3">Recent users</h3>
+				{#if serverInfo.recentUsers?.length}
+					<ul class="space-y-2">
+						{#each serverInfo.recentUsers as u}
+							<li class="flex items-center justify-between text-sm">
+								<a href={`/user/${u.account.username}`} class="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+									{u.account.username}
+								</a>
+								<span class="text-xs text-gray-400">{timeAgo(u.createdAt)}</span>
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="text-sm text-gray-400">No users</p>
+				{/if}
+			</div>
+
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+				<h3 class="text-sm font-semibold mb-3">Recent games</h3>
+				{#if serverInfo.recentGames?.length}
+					<ul class="space-y-2">
+						{#each serverInfo.recentGames as g}
+							<li class="flex items-center justify-between text-sm">
+								<a href={`/game/${g._id}`} class="text-blue-600 dark:text-blue-400 hover:underline font-medium truncate">
+									{g.game.name}
+								</a>
+								<span class="text-xs text-gray-400 flex-shrink-0">{timeAgo(g.lastMove)}</span>
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="text-sm text-gray-400">No games</p>
+				{/if}
+			</div>
+		</div>
+	{/if}
+
+	<!-- Tools -->
+	<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 		<!-- Server Info + Announcement -->
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-4">
-			<h3 class="text-sm font-semibold">Server Info</h3>
-			{#if serverInfo}
-				<div class="grid grid-cols-3 gap-3 text-sm">
-					<div>
-						<div class="text-xs text-gray-500 dark:text-gray-400 uppercase">Users</div>
-						<div class="text-lg font-bold">{serverInfo.nbUsers.toLocaleString()}</div>
-					</div>
-					<div>
-						<div class="text-xs text-gray-500 dark:text-gray-400 uppercase">Disk Free</div>
-						<div class="text-lg font-bold">{filesize(serverInfo.disk.free)}</div>
-						<div class="text-xs text-gray-400">of {filesize(serverInfo.disk.size)}</div>
-					</div>
-					<div>
-						<div class="text-xs text-gray-500 dark:text-gray-400 uppercase">Cron</div>
-						<div class="text-lg font-bold">{serverInfo.cron ? "Active" : "Inactive"}</div>
-					</div>
-				</div>
-			{/if}
-
-			<hr class="border-gray-100 dark:border-gray-800" />
-
+			<h3 class="text-sm font-semibold">Announcement</h3>
 			<div class="space-y-2">
-				<label class="block text-xs font-medium text-gray-500">Announcement Title</label>
+				<label class="block text-xs font-medium text-gray-500">Title</label>
 				<input
 					bind:value={announcement.title}
 					class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 				/>
-				<label class="block text-xs font-medium text-gray-500">Announcement Content</label>
+				<label class="block text-xs font-medium text-gray-500">Content</label>
 				<textarea
 					bind:value={announcement.content}
 					rows="3"
@@ -181,7 +284,20 @@
 			</div>
 		</div>
 
-		<!-- Game Lookup -->
+		<!-- Backups -->
+		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
+			<h3 class="text-sm font-semibold">Backups</h3>
+			<a
+				href={backupUrl()}
+				target="_blank"
+				rel="noopener"
+				class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 font-medium underline"
+			>
+				Download games backup
+			</a>
+		</div>
+
+		<!-- Game Management -->
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
 			<h3 class="text-sm font-semibold">Game Management</h3>
 			<div>
@@ -204,14 +320,16 @@
 					<span class="text-xs text-gray-400 ml-2">of {gameLength}</span>
 				</div>
 
-				<div>
-					<label class="block text-xs font-medium text-gray-500 mb-1">JSON</label>
-					<textarea
-						bind:value={editJson}
-						rows="10"
-						class="w-full font-mono text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-blue-500"
-					></textarea>
-				</div>
+				{#if showJsonEditor}
+					<div>
+						<label class="block text-xs font-medium text-gray-500 mb-1">JSON</label>
+						<textarea
+							bind:value={editJson}
+							rows="10"
+							class="w-full font-mono text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-blue-500"
+						></textarea>
+					</div>
+				{/if}
 			{/if}
 
 			<div class="flex flex-wrap gap-2">
@@ -226,13 +344,18 @@
 						class="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium">Replay</button
 					>
 					<button
+						onclick={() => (showJsonEditor = !showJsonEditor)}
+						class="px-3 py-2 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg text-sm font-medium">{showJsonEditor
+							? "Hide JSON"
+							: "Edit JSON"}</button
+					>
+					<button
 						onclick={editGameData}
 						class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">Save JSON</button
 					>
 					<button
 						onclick={deleteGame}
-						class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium ml-auto"
-						>Delete</button
+						class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium ml-auto">Delete</button
 					>
 				{/if}
 			</div>
@@ -253,27 +376,13 @@
 			<div class="flex gap-2">
 				<button
 					onclick={batchReplay}
-					class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium"
-					>Mass replay</button
+					class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium">Mass replay</button
 				>
 				<button
 					onclick={loadReplays}
 					class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium">Load replays</button
 				>
 			</div>
-		</div>
-
-		<!-- Backups -->
-		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
-			<h3 class="text-sm font-semibold">Backups</h3>
-			<a
-				href={backupUrl()}
-				target="_blank"
-				rel="noopener"
-				class="text-sm text-blue-600 hover:text-blue-500 font-medium underline"
-			>
-				Download games backup
-			</a>
 		</div>
 	</div>
 </div>
