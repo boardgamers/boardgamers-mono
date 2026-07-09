@@ -57,7 +57,7 @@
 	}
 </script>
 
-<div class="max-w-3xl">
+<div>
 	<h2 class="text-xl font-bold mb-6">New Boardgame</h2>
 	<GameEdit mode="new" bind:value onsave={save} />
 </div>

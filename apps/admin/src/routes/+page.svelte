@@ -4,6 +4,7 @@
 	import { filesize, gameEmoji } from "$lib/utils.ts";
 	import { auth } from "$lib/auth.svelte.ts";
 	import { data } from "$lib/stores.svelte.ts";
+	import MarkdownEditor from "$components/MarkdownEditor.svelte";
 
 	interface RecentUser {
 		_id: string;
@@ -279,12 +280,7 @@
 					bind:value={announcement.title}
 					class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 				/>
-				<label class="block text-xs font-medium text-gray-500">Content</label>
-				<textarea
-					bind:value={announcement.content}
-					rows="3"
-					class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-				></textarea>
+				<MarkdownEditor bind:value={announcement.content} label="Content (Markdown)" rows={3} />
 				<button
 					onclick={saveAnnouncement}
 					class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"

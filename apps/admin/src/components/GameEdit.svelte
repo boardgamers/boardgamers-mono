@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { GameInfoFront } from "@bgs/models";
+	import MarkdownEditor from "./MarkdownEditor.svelte";
 
 	export type GameInfoData = Partial<Pick<GameInfoFront, "_id">> & Omit<GameInfoFront, "_id">;
 
@@ -316,14 +317,8 @@
 	</details>
 
 	<!-- Description & Rules -->
-	<div>
-		<label class={labelClass}>Description</label>
-		<textarea bind:value={value.description} rows="4" class={inputClass}></textarea>
-	</div>
-	<div>
-		<label class={labelClass}>Rules (Markdown)</label>
-		<textarea bind:value={value.rules} rows="8" class="{inputClass} font-mono"></textarea>
-	</div>
+	<MarkdownEditor bind:value={value.description} label="Description (Markdown)" rows={4} />
+	<MarkdownEditor bind:value={value.rules} label="Rules (Markdown)" rows={8} />
 
 	<!-- Expansions, Options, Preferences, Settings -->
 	{#each [{ key: "expansions" as const, label: "Expansions", showType: false, showFaction: false, showCategory: false }, { key: "options" as const, label: "Options", showType: true, showFaction: false, showCategory: false }, { key: "preferences" as const, label: "Preferences", showType: true, showFaction: false, showCategory: true }, { key: "settings" as const, label: "Settings", showType: true, showFaction: true, showCategory: false }] as section}

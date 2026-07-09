@@ -2,7 +2,7 @@
 	import { marked } from "marked";
 
 	interface Props {
-		value: string;
+		value: string | undefined;
 		label?: string;
 		rows?: number;
 	}
@@ -19,7 +19,7 @@
 		<button
 			type="button"
 			onclick={() => (showPreview = !showPreview)}
-			class="text-xs font-medium text-blue-600 hover:text-blue-500"
+			class="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-500 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-900 hover:bg-blue-50 dark:hover:bg-blue-950"
 		>
 			{showPreview ? "Edit" : "Preview"}
 		</button>

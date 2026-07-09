@@ -62,7 +62,7 @@
 </script>
 
 {#if value}
-	<div class="max-w-3xl">
+	<div>
 		<h2 class="text-xl font-bold mb-6">{value.label} <span class="text-gray-400 font-normal">v{version}</span></h2>
 		<GameEdit mode="edit" bind:value onsave={save} onduplicate={duplicate} ondelete={remove} />
 	</div>
