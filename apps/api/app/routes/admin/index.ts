@@ -34,11 +34,17 @@ router.get("/backup/games", async (ctx) => {
 });
 
 router.get("/serverinfo", async (ctx) => {
-  const [disk, nbUsers, gamesByStatus, recentUsers, recentGames, announcement] = await Promise.all([
+  const [disk, nbUsers, gamesByStatus, queueByKind, recentUsers, recentGames, announcement] = await Promise.all([
     checkDiskSpace(process.cwd()),
     colls.users.countDocuments({}),
     colls.games
       .aggregate<{ _id: string; count: number }>([{ $group: { _id: "$status", count: { $sum: 1 } } }])
+      .toArray(),
+    colls.gameNotifications
+      .aggregate<{ _id: string; count: number }>([
+        { $match: { processed: false } },
+        { $group: { _id: "$kind", count: { $sum: 1 } } },
+      ])
       .toArray(),
     colls.users
       .find({}, { projection: { _id: 1, "account.username": 1, createdAt: 1 } })
@@ -58,10 +64,16 @@ router.get("/serverinfo", async (ctx) => {
     games[g._id] = g.count;
   }
 
+  const queue: Record<string, number> = {};
+  for (const q of queueByKind) {
+    queue[q._id] = q.count;
+  }
+
   ctx.body = {
     disk,
     nbUsers,
     games,
+    queue,
     recentUsers,
     recentGames,
     announcement: announcement?.value,

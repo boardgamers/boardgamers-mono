@@ -22,6 +22,7 @@
 		disk: { free: number; size: number };
 		nbUsers: number;
 		games: Record<string, number>;
+		queue: Record<string, number>;
 		recentUsers: RecentUser[];
 		recentGames: RecentGame[];
 		announcement: { title: string; content: string };
@@ -189,7 +190,9 @@
 	<!-- Metrics row -->
 	{#if serverInfo}
 		{@const totalGames = Object.values(serverInfo.games).reduce<number>((a, b) => a + (b ?? 0), 0)}
-		<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+		{@const queueEntries = Object.entries(serverInfo.queue ?? {}).sort((a, b) => b[1] - a[1])}
+		{@const totalQueue = queueEntries.reduce((a, [, n]) => a + n, 0)}
+		<div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
 			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
 				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Users</div>
 				<div class="text-2xl font-bold mt-1">{serverInfo.nbUsers.toLocaleString()}</div>
@@ -204,6 +207,19 @@
 						</span>
 					{/each}
 				</div>
+			</div>
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Queue</div>
+				<div class="text-2xl font-bold mt-1">{totalQueue.toLocaleString()}</div>
+				{#if queueEntries.length}
+					<div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+						{#each queueEntries as [kind, count]}
+							<span>{count} {kind}</span>
+						{/each}
+					</div>
+				{:else}
+					<div class="text-xs text-gray-400 mt-1">empty</div>
+				{/if}
 			</div>
 			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
 				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Disk Free</div>
