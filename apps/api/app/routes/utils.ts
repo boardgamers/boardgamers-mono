@@ -2,6 +2,7 @@ import createError from "http-errors";
 import type { Context, Next } from "koa";
 import NodeCache from "node-cache";
 import { z } from "zod";
+import { isUserAdmin } from "../models/index.ts";
 
 export async function loggedIn(ctx: Context, next: Next) {
   if (!ctx.state.user) {
@@ -28,7 +29,7 @@ export async function loggedOut(ctx: Context, next: Next) {
 }
 
 export async function isAdmin(ctx: Context, next: Next) {
-  if (!ctx.state.user?.isAdmin()) {
+  if (!ctx.state.user || !isUserAdmin(ctx.state.user)) {
     throw createError(403, "You need to be admin");
   }
 
