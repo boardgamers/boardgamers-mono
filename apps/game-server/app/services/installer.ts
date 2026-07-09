@@ -22,6 +22,7 @@ export async function installNewGames() {
   if (installing) {
     return;
   }
+  installing = true;
 
   try {
     await initIfNeeded();
@@ -39,14 +40,20 @@ export async function installNewGames() {
 
       if (currentPkg.dependencies?.[key] !== value) {
         console.log("old version", currentPkg.dependencies?.[key], "new version", value);
-        await new Promise((resolve, reject) => {
-          const process = spawn("yarn", ["add", `${key}@${value}`], {
+        await new Promise<void>((resolve, reject) => {
+          // npm rather than yarn/pnpm: corepack refuses to run yarn inside this
+          // repo because the root package.json pins "packageManager: pnpm".
+          // --save-exact so the written dependency matches `value` and the
+          // install stays idempotent.
+          const process = spawn("npm", ["install", "--save-exact", "--no-audit", "--no-fund", `${key}@${value}`], {
             shell: true,
             cwd: "./games",
           });
 
           process.on("error", reject);
-          process.on("close", resolve);
+          process.on("close", (code) =>
+            code === 0 ? resolve() : reject(new Error(`npm install ${key}@${value} exited with code ${code}`)),
+          );
         });
 
         console.log(

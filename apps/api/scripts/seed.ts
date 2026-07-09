@@ -125,6 +125,7 @@ async function seedStartableGame(drop?: boolean) {
   if (drop) {
     await games.deleteMany({});
   } else if ((await games.estimatedDocumentCount()) > 0) {
+    await reemitLostStartNotifications();
     console.warn("Collection games is not empty, skipping startable game");
     return;
   }
@@ -145,6 +146,33 @@ async function seedStartableGame(drop?: boolean) {
   console.log(`Inserting startable ${game.game.name} v${game.game.version} game (${game._id})`);
   await games.insertOne(game);
   await db().collection<GameNotificationDoc>("gamenotifications").insertOne(notification);
+}
+
+/**
+ * The `gameStarted` notification that starts a seeded game can be lost: the
+ * gamenotifications TTL index deletes docs 30 days after `updatedAt`, so if the
+ * game-server didn't process it in time (not running, engine install failing),
+ * the game stays `open` forever with an empty queue. Re-emit it for any full,
+ * open, ready game that has no pending `gameStarted` notification.
+ */
+async function reemitLostStartNotifications() {
+  const games = db().collection<GameDoc>("games");
+  const notifications = db().collection<GameNotificationDoc>("gamenotifications");
+
+  const stuck = await games
+    .find({ status: "open", ready: true, $expr: { $gte: [{ $size: "$players" }, "$options.setup.nbPlayers"] } })
+    .project<{ _id: string }>({ _id: 1 })
+    .toArray();
+
+  for (const { _id } of stuck) {
+    const pending = await notifications.countDocuments({ game: _id, kind: "gameStarted", processed: false });
+    if (pending > 0) {
+      continue;
+    }
+    const now = new Date();
+    await notifications.insertOne({ game: _id, kind: "gameStarted", processed: false, createdAt: now, updatedAt: now });
+    console.log(`Re-emitted gameStarted notification for stuck game ${_id}`);
+  }
 }
 
 async function run() {
