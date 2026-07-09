@@ -2,6 +2,7 @@
 	import { page } from "$app/state";
 	import { data, loadGames, loadPages } from "$lib/stores.svelte.ts";
 	import { auth } from "$lib/auth.svelte.ts";
+	import { gameLabelParts } from "$lib/utils.ts";
 
 	let gamesOpen = $state(true);
 	let pagesOpen = $state(true);
@@ -60,17 +61,20 @@
 						+ New game
 					</a>
 					{#each data.games as g}
-						{@const href = `/game/${g._id.game}/${g._id.version}`}
-						<a
-							{href}
-							class="px-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 truncate {isActive(href)
-								? 'bg-gray-100 dark:bg-gray-800 font-semibold'
-								: ''}"
-							title="{g.label} v{g._id.version}"
-						>
-							{g.label} <span class="text-gray-400">v{g._id.version}</span>
-						</a>
-					{/each}
+										{@const href = `/game/${g._id.game}/${g._id.version}`}
+										{@const { emoji, name } = gameLabelParts(g.label)}
+										<a
+											{href}
+											class="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive(href)
+												? 'bg-gray-100 dark:bg-gray-800 font-semibold'
+												: ''}"
+											title="{g._id.game} v{g._id.version}"
+										>
+											{#if emoji}<span class="flex-shrink-0">{emoji}</span>{/if}
+											<span class="truncate flex-1">{name || g._id.game}</span>
+											<span class="text-gray-400 flex-shrink-0">v{g._id.version}</span>
+										</a>
+									{/each}
 				</div>
 			{/if}
 		</div>

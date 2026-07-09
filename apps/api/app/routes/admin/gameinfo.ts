@@ -9,7 +9,7 @@ const router = new Router<Application.DefaultState, Context>();
 
 router.get("/", async (ctx) => {
   ctx.body = await colls.gameInfos
-    .find({}, { projection: { _id: 1 } })
+    .find({}, { projection: { _id: 1, label: 1 } })
     .sort({ "_id.game": 1, "_id.version": -1 })
     .toArray();
 });

@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
-	import { filesize } from "$lib/utils.ts";
+	import { filesize, gameEmoji } from "$lib/utils.ts";
 	import { auth } from "$lib/auth.svelte.ts";
+	import { data } from "$lib/stores.svelte.ts";
 
 	interface RecentUser {
 		_id: string;
@@ -47,6 +48,11 @@
 	$effect(() => {
 		loadServerInfo();
 	});
+
+	// Map boardgame id → emoji, built from the sidebar's GameInfo labels.
+	const gameEmojiByName = $derived(
+		Object.fromEntries(data.games.map((g) => [g._id.game, gameEmoji(g.label)])),
+	);
 
 	async function loadServerInfo() {
 		try {
@@ -244,8 +250,12 @@
 					<ul class="space-y-2">
 						{#each serverInfo.recentGames as g}
 							<li class="flex items-center justify-between text-sm">
-								<a href={`/game/${g._id}`} class="text-blue-600 dark:text-blue-400 hover:underline font-medium truncate">
-									{g.game.name}
+								<a
+									href={`/game/${g._id}`}
+									class="text-blue-600 dark:text-blue-400 hover:underline font-medium truncate"
+								>
+									<span class="mr-1">{gameEmojiByName[g.game.name] ?? ""}</span>
+									{g._id}
 								</a>
 								<span class="text-xs text-gray-400 flex-shrink-0">{timeAgo(g.lastMove)}</span>
 							</li>
