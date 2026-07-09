@@ -34,9 +34,25 @@ router.get("/backup/games", async (ctx) => {
 });
 
 router.get("/serverinfo", async (ctx) => {
-  const [disk, nbUsers, gamesByStatus, queueByKind, recentUsers, recentGames, announcement] = await Promise.all([
+  // Same 60s heuristic the ws layer uses for player status dots:
+  // lastOnline = user marked themselves online; lastActive = ws connection alive (pong).
+  const activityCutoff = new Date(Date.now() - 60 * 1000);
+
+  const [
+    disk,
+    nbUsers,
+    onlineUsers,
+    connectedUsers,
+    gamesByStatus,
+    queueByKind,
+    recentUsers,
+    recentGames,
+    announcement,
+  ] = await Promise.all([
     checkDiskSpace(process.cwd()),
     colls.users.countDocuments({}),
+    colls.users.countDocuments({ "security.lastOnline": { $gt: activityCutoff } }),
+    colls.users.countDocuments({ "security.lastActive": { $gt: activityCutoff } }),
     colls.games
       .aggregate<{ _id: string; count: number }>([{ $group: { _id: "$status", count: { $sum: 1 } } }])
       .toArray(),
@@ -72,6 +88,8 @@ router.get("/serverinfo", async (ctx) => {
   ctx.body = {
     disk,
     nbUsers,
+    onlineUsers,
+    connectedUsers,
     games,
     queue,
     recentUsers,

@@ -21,6 +21,8 @@
 	interface ServerInfo {
 		disk: { free: number; size: number };
 		nbUsers: number;
+		onlineUsers: number;
+		connectedUsers: number;
 		games: Record<string, number>;
 		queue: Record<string, number>;
 		recentUsers: RecentUser[];
@@ -196,6 +198,17 @@
 			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
 				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Users</div>
 				<div class="text-2xl font-bold mt-1">{serverInfo.nbUsers.toLocaleString()}</div>
+				<div class="flex items-center gap-1.5 mt-1.5 text-xs">
+					<span
+						class="inline-block w-2 h-2 rounded-full {serverInfo.onlineUsers > 0 ? 'bg-green-500' : 'bg-gray-400'}"
+					></span>
+					<span class="text-gray-500 dark:text-gray-400">
+						{serverInfo.onlineUsers} online
+						{#if serverInfo.connectedUsers > serverInfo.onlineUsers}
+							· {serverInfo.connectedUsers} connected
+						{/if}
+					</span>
+				</div>
 			</div>
 			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
 				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Games</div>
