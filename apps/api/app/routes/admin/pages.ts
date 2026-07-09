@@ -10,14 +10,19 @@ router.get("/", async (ctx) => {
   ctx.body = await colls.pages.find({}, { projection: { _id: 1 } }).toArray();
 });
 
-router.post("/:name/:lang", async (ctx) => {
+async function upsert(ctx: Context) {
   const page = await colls.pages.findOneAndUpdate(
     { _id: { name: ctx.params.name, lang: ctx.params.lang } },
     { $set: omit(z.record(z.string(), z.unknown()).parse(ctx.request.body), "_id") },
     { upsert: true, returnDocument: "after" },
   );
   ctx.body = page;
-});
+}
+
+// oxlint-disable no-async-endpoint-handlers -- Express-specific rule; Koa awaits async middleware natively
+router.post("/:name/:lang", upsert);
+router.put("/:name/:lang", upsert);
+// oxlint-enable no-async-endpoint-handlers
 
 router.delete("/:name/:lang", async (ctx) => {
   await colls.pages.deleteOne({

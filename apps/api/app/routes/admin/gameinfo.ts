@@ -14,13 +14,23 @@ router.get("/", async (ctx) => {
     .toArray();
 });
 
-router.post("/:game/:version", async (ctx) => {
+async function upsert(ctx: Context) {
   const game = await colls.gameInfos.findOneAndUpdate(
     { _id: { game: ctx.params.game, version: +ctx.params.version } },
     { $set: omit(z.record(z.string(), z.unknown()).parse(ctx.request.body), "_id") },
     { upsert: true, returnDocument: "after" },
   );
   ctx.body = game;
+}
+
+// oxlint-disable no-async-endpoint-handlers -- Express-specific rule; Koa awaits async middleware natively
+router.post("/:game/:version", upsert);
+router.put("/:game/:version", upsert);
+// oxlint-enable no-async-endpoint-handlers
+
+router.delete("/:game/:version", async (ctx) => {
+  await colls.gameInfos.deleteOne({ _id: { game: ctx.params.game, version: +ctx.params.version } });
+  ctx.status = 200;
 });
 
 router.get("/:game/:version", async (ctx) => {

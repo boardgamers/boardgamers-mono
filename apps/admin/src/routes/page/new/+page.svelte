@@ -16,8 +16,12 @@
 			toast.error("Page name is required");
 			return;
 		}
+		if (!data._id.lang) {
+			toast.error("Page language is required");
+			return;
+		}
 		try {
-			await api.post("/admin/page", data);
+			await api.post(`/admin/page/${encodeURIComponent(data._id.name)}/${encodeURIComponent(data._id.lang)}`, data);
 			toast.success("Page created");
 			await loadPages();
 			goto(`/page/${data._id.name}/${data._id.lang}`);

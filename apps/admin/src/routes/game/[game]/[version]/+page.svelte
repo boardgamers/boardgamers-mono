@@ -39,7 +39,7 @@
 		const newVersion = version + 1;
 		try {
 			const dup = { ...value, _id: { game: gameId!, version: newVersion } };
-			await api.post("/admin/gameinfo", dup);
+			await api.post(`/admin/gameinfo/${gameId}/${newVersion}`, dup);
 			toast.success(`Duplicated as v${newVersion}`);
 			await loadGames();
 			goto(`/game/${gameId}/${newVersion}`);

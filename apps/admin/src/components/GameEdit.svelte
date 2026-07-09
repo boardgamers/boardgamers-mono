@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { GameInfoFront } from "@bgs/models";
 	import MarkdownEditor from "./MarkdownEditor.svelte";
+	import { toast } from "$lib/toast.svelte.ts";
+	import { fetchLatestVersion, parseNpmUrl, setNpmVersion } from "$lib/npm.ts";
 
 	export type GameInfoData = Partial<Pick<GameInfoFront, "_id">> & Omit<GameInfoFront, "_id">;
 
@@ -29,6 +31,73 @@
 		"w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 	const labelClass = "block text-xs font-medium mb-1 text-gray-500 dark:text-gray-400";
 	const btnSmClass = "px-2 py-1 text-xs rounded-md font-medium";
+
+	// Per-section ("Viewer" / "Alternate Viewer" / "engine") npm version check state.
+	const upgrade: Record<string, { checking?: boolean; pkg?: string; latest?: string } | undefined> = $state({});
+
+	async function checkViewerVersion(key: string, viewer: ViewerData) {
+		const parsed = parseNpmUrl(viewer.url);
+		if (!parsed) {
+			toast.error("No npm package detected in the viewer URL (expected …/npm/<package>@<version>/…)");
+			return;
+		}
+		upgrade[key] = { checking: true };
+		try {
+			const latest = await fetchLatestVersion(parsed.pkg);
+			if (latest === parsed.version) {
+				toast.success(`${parsed.pkg} is already at the latest version (${latest})`);
+				upgrade[key] = undefined;
+			} else {
+				upgrade[key] = { pkg: parsed.pkg, latest };
+			}
+		} catch (err) {
+			upgrade[key] = undefined;
+			toast.error(err instanceof Error ? err.message : "Failed to fetch latest version");
+		}
+	}
+
+	function applyViewerUpgrade(key: string, viewer: ViewerData) {
+		const info = upgrade[key];
+		if (!info?.pkg || !info.latest) return;
+		viewer.url = setNpmVersion(viewer.url, info.pkg, info.latest);
+		if (viewer.dependencies) {
+			viewer.dependencies.scripts = viewer.dependencies.scripts.map((s) => setNpmVersion(s, info.pkg!, info.latest!));
+			viewer.dependencies.stylesheets = viewer.dependencies.stylesheets.map((s) =>
+				setNpmVersion(s, info.pkg!, info.latest!),
+			);
+		}
+		upgrade[key] = undefined;
+		toast.success(`Updated ${info.pkg} to ${info.latest} — don't forget to save`);
+	}
+
+	async function checkEngineVersion() {
+		const pkg = value.engine?.package.name;
+		if (!pkg) {
+			toast.error("Set the engine package name first");
+			return;
+		}
+		upgrade["engine"] = { checking: true };
+		try {
+			const latest = await fetchLatestVersion(pkg);
+			if (latest === value.engine!.package.version) {
+				toast.success(`${pkg} is already at the latest version (${latest})`);
+				upgrade["engine"] = undefined;
+			} else {
+				upgrade["engine"] = { pkg, latest };
+			}
+		} catch (err) {
+			upgrade["engine"] = undefined;
+			toast.error(err instanceof Error ? err.message : "Failed to fetch latest version");
+		}
+	}
+
+	function applyEngineUpgrade() {
+		const info = upgrade["engine"];
+		if (!info?.latest) return;
+		value.engine = { ...value.engine!, package: { ...value.engine!.package, version: info.latest } };
+		upgrade["engine"] = undefined;
+		toast.success(`Updated ${info.pkg} to ${info.latest} — don't forget to save`);
+	}
 
 	function ensureViewer() {
 		value.viewer ??= { url: "" } as ViewerData;
@@ -96,6 +165,50 @@
 		if (target < 0 || target >= arr.length) return;
 		[arr[idx], arr[target]] = [arr[target], arr[idx]];
 		setList(variable, [...arr]);
+	}
+
+	// --- Drag & drop reordering ---
+	// `key` identifies a list: a section key ("options", …) or "<section>#<index>" for a select's sub-items.
+	let drag: { key: string; from: number } | null = $state(null);
+	let dragOver: { key: string; to: number } | null = $state(null);
+
+	function reorder<T>(arr: T[], from: number, to: number): T[] {
+		const copy = [...arr];
+		const [moved] = copy.splice(from, 1);
+		copy.splice(to, 0, moved);
+		return copy;
+	}
+
+	function handleDragStart(e: DragEvent, key: string, from: number) {
+		drag = { key, from };
+		if (e.dataTransfer) {
+			e.dataTransfer.effectAllowed = "move";
+			// Drag the whole card/row visually, not just the handle.
+			const card = (e.target as HTMLElement).closest("[data-draggable-card]");
+			if (card) e.dataTransfer.setDragImage(card, 16, 16);
+		}
+	}
+
+	function handleDragOver(e: DragEvent, key: string, to: number) {
+		if (drag?.key !== key) return;
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+		dragOver = { key, to };
+	}
+
+	function handleDrop(key: string, to: number, apply: (from: number, to: number) => void) {
+		if (drag?.key === key && drag.from !== to) apply(drag.from, to);
+		drag = null;
+		dragOver = null;
+	}
+
+	function handleDragEnd() {
+		drag = null;
+		dragOver = null;
+	}
+
+	function isDropTarget(key: string, index: number): boolean {
+		return drag !== null && dragOver?.key === key && dragOver.to === index && drag.from !== index;
 	}
 
 	function addSelectItem(option: OptionItem) {
@@ -194,7 +307,25 @@
 			<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">{title}</summary>
 			<div class="px-5 pb-4 space-y-3">
 				<div>
-					<label class={labelClass}>URL</label>
+					<div class="flex items-center justify-between mb-1">
+						<label class="{labelClass} mb-0">URL</label>
+						{#if upgrade[title]?.latest}
+							<button
+								onclick={() => applyViewerUpgrade(title, viewer)}
+								class="cursor-pointer text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-0.5 rounded"
+							>
+								Update to {upgrade[title]?.latest}
+							</button>
+						{:else}
+							<button
+								onclick={() => checkViewerVersion(title, viewer)}
+								disabled={upgrade[title]?.checking}
+								class="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-500 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-900 hover:bg-blue-50 dark:hover:bg-blue-950 disabled:opacity-50"
+							>
+								{upgrade[title]?.checking ? "Checking…" : "Check latest"}
+							</button>
+						{/if}
+					</div>
 					<input bind:value={viewer.url} class={inputClass} />
 				</div>
 				<div>
@@ -281,7 +412,25 @@
 				/>
 			</div>
 			<div>
-				<label class={labelClass}>Package version</label>
+				<div class="flex items-center justify-between mb-1">
+					<label class="{labelClass} mb-0">Package version</label>
+					{#if upgrade["engine"]?.latest}
+						<button
+							onclick={applyEngineUpgrade}
+							class="cursor-pointer text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-0.5 rounded"
+						>
+							Update to {upgrade["engine"]?.latest}
+						</button>
+					{:else}
+						<button
+							onclick={checkEngineVersion}
+							disabled={upgrade["engine"]?.checking}
+							class="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-500 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-900 hover:bg-blue-50 dark:hover:bg-blue-950 disabled:opacity-50"
+						>
+							{upgrade["engine"]?.checking ? "Checking…" : "Check latest"}
+						</button>
+					{/if}
+				</div>
 				<input
 					value={value.engine?.package.version ?? ""}
 					oninput={(e) => {
@@ -327,7 +476,18 @@
 			<div class="px-5 pb-4 space-y-3">
 				{#each value[section.key] ?? [] as item, i}
 					{@const items = value[section.key] as OptionItem[]}
-					<div class="border border-gray-100 dark:border-gray-800 rounded-lg p-3 space-y-2">
+					<div
+						data-draggable-card
+						role="listitem"
+						class="border rounded-lg p-3 space-y-2 transition-colors {isDropTarget(section.key, i)
+							? 'border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/30'
+							: 'border-gray-100 dark:border-gray-800'}"
+						ondragover={(e) => handleDragOver(e, section.key, i)}
+						ondrop={(e) => {
+							e.preventDefault();
+							handleDrop(section.key, i, (from, to) => setList(section.key, reorder(getList(section.key), from, to)));
+						}}
+					>
 						<div class="flex gap-2 items-start">
 							<div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
 								<div>
@@ -393,21 +553,29 @@
 							</div>
 
 							<!-- Reorder & Delete -->
-							<div class="flex flex-col gap-1 pt-5">
-								{#if i > 0}
-									<button
-										onclick={() => moveItem(section.key, i, -1)}
-										class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-										title="Move up">&#9650;</button
-									>
-								{/if}
-								{#if i < items.length - 1}
-									<button
-										onclick={() => moveItem(section.key, i, 1)}
-										class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-										title="Move down">&#9660;</button
-									>
-								{/if}
+							<div class="flex flex-col gap-1 pt-5 items-center">
+								<span
+									draggable="true"
+									role="button"
+									tabindex="-1"
+									aria-label="Drag to reorder"
+									title="Drag to reorder"
+									class="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1 select-none leading-none"
+									ondragstart={(e) => handleDragStart(e, section.key, i)}
+									ondragend={handleDragEnd}>⠿</span
+								>
+								<button
+									onclick={() => moveItem(section.key, i, -1)}
+									disabled={i === 0}
+									class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-25"
+									title="Move up">&#9650;</button
+								>
+								<button
+									onclick={() => moveItem(section.key, i, 1)}
+									disabled={i === items.length - 1}
+									class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-25"
+									title="Move down">&#9660;</button
+								>
 								<button
 									onclick={() => removeListItem(section.key, i)}
 									class="{btnSmClass} text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -418,10 +586,34 @@
 
 						<!-- Select items sub-list -->
 						{#if section.showType && (item as OptionItem).type === "select"}
+							{@const subKey = `${section.key}#${i}`}
 							<div class="ml-4 mt-2 border-l-2 border-gray-200 dark:border-gray-700 pl-4 space-y-2">
 								<span class="text-xs font-semibold text-gray-500">Items for {(item as OptionItem).name || "..."}</span>
 								{#each (item as OptionItem).items ?? [] as subItem, j}
-									<div class="flex gap-2">
+									<div
+										data-draggable-card
+										role="listitem"
+										class="flex gap-2 items-center rounded-lg transition-colors {isDropTarget(subKey, j)
+											? 'ring-2 ring-blue-400 dark:ring-blue-500'
+											: ''}"
+										ondragover={(e) => handleDragOver(e, subKey, j)}
+										ondrop={(e) => {
+											e.preventDefault();
+											handleDrop(subKey, j, (from, to) => {
+												(item as OptionItem).items = reorder((item as OptionItem).items ?? [], from, to);
+											});
+										}}
+									>
+										<span
+											draggable="true"
+											role="button"
+											tabindex="-1"
+											aria-label="Drag to reorder"
+											title="Drag to reorder"
+											class="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 select-none leading-none"
+											ondragstart={(e) => handleDragStart(e, subKey, j)}
+											ondragend={handleDragEnd}>⠿</span
+										>
 										<input bind:value={subItem.name} placeholder="ID" class="{inputClass} flex-1" />
 										<input bind:value={subItem.label} placeholder="Label" class="{inputClass} flex-1" />
 										<button onclick={() => removeSelectItem(item as OptionItem, j)} class="{btnSmClass} text-red-600"
