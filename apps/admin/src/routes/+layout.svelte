@@ -21,9 +21,10 @@
 	async function checkAuth() {
 		if (auth.refreshToken && !auth.user) {
 			try {
-				const data = await api.get<{ user: typeof auth.user }>("/account");
-				if (data?.user) {
-					auth.user = data.user;
+				// GET /account returns the user document directly (see apps/web).
+				const user = await api.get<NonNullable<(typeof auth)["user"]>>("/account");
+				if (user?._id) {
+					auth.user = user;
 				}
 			} catch {
 				// not logged in
