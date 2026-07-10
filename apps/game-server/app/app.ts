@@ -1,5 +1,6 @@
 /* Koa stuff */
 import { AssertionError } from "node:assert";
+import { randomUUID } from "node:crypto";
 import createError from "http-errors";
 import jwt from "jsonwebtoken";
 import { ObjectId } from "mongodb";
@@ -15,10 +16,17 @@ import env from "./config/env.ts";
 /* Local stuff */
 import router from "./routes/index.ts";
 
-const app = new Koa<Koa.DefaultState & { user: { id: string; isAdmin: boolean } }>();
+const app = new Koa<Koa.DefaultState & { user: { id: string; isAdmin: boolean }; requestId: string }>();
 
 /* App stuff */
 app.use(morgan("dev"));
+// Assign a request ID, preferring the incoming X-Request-ID header so it
+// correlates with the web app / nginx. Echo it back in the response header.
+app.use(async (ctx, next) => {
+  ctx.state.requestId = ctx.get("x-request-id") || randomUUID();
+  await next();
+  ctx.set("x-request-id", ctx.state.requestId);
+});
 app.use(async (ctx, next) => {
   const start = Date.now();
   try {
@@ -31,6 +39,7 @@ app.use(async (ctx, next) => {
       durationMs: Date.now() - start,
       ip: ctx.ip,
       userId: ctx.state.user?.id,
+      requestId: ctx.state.requestId,
     });
   }
 });
@@ -82,6 +91,8 @@ app.use(async (ctx, next) => {
         url: ctx.request.originalUrl,
         method: ctx.request.method,
         body: JSON.stringify(ctx.request.body),
+        status: ctx.status,
+        id: ctx.state.requestId,
       },
       error: {
         name: err.name,

@@ -14,6 +14,8 @@ export const apiErrorSchema = z.object({
     url: z.string(),
     method: z.string(),
     body: z.string(),
+    status: z.number().optional(),
+    id: z.string().optional(),
   }),
   meta: z.unknown(),
   user: zObjectId().optional(),

@@ -1,4 +1,5 @@
 import { AssertionError } from "node:assert";
+import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
 import createError from "http-errors";
 import { z, ZodError } from "zod";
@@ -36,6 +37,15 @@ async function listen(port = env.listen.port.api) {
   if (!env.silent) {
     app.use(morgan("dev"));
   }
+  // Assign a short request ID so logs, DB error records, and the client-facing
+  // response header all share a single correlation key. Use the incoming
+  // X-Request-ID if provided (e.g. from nginx), otherwise generate one.
+  app.use(async (ctx, next) => {
+    ctx.state.requestId = ctx.get("x-request-id") || randomUUID();
+    await next();
+    ctx.set("x-request-id", ctx.state.requestId);
+  });
+
   // Structured JSON request log (one line per request, including silent 4xx).
   app.use(async (ctx, next) => {
     const start = Date.now();
@@ -50,6 +60,7 @@ async function listen(port = env.listen.port.api) {
         durationMs: Date.now() - start,
         ip: ctx.ip,
         userId: user?._id?.toString(),
+        requestId: ctx.state.requestId,
       });
     }
   });
@@ -127,6 +138,8 @@ async function listen(port = env.listen.port.api) {
             url: ctx.request.originalUrl,
             method: ctx.request.method,
             body: JSON.stringify(ctx.request.body),
+            status: ctx.status,
+            id: ctx.state.requestId,
           },
           error: {
             name: error.name,

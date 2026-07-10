@@ -177,22 +177,26 @@
 				<div class="overflow-x-auto">
 					<table class="w-full text-sm">
 						<thead>
-							<tr class="text-left text-xs text-gray-400 border-b border-gray-200 dark:border-gray-800">
-								<th class="pb-2 font-medium">Time</th>
-								<th class="pb-2 font-medium">Error</th>
-								<th class="pb-2 font-medium">Method</th>
-								<th class="pb-2 font-medium">URL</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each dbErrors as err}
-								<tr class="border-b border-gray-100 dark:border-gray-800/50">
-									<td class="py-2 text-xs text-gray-400 whitespace-nowrap">{err.createdAt ? new Date(err.createdAt).toLocaleString() : "—"}</td>
-									<td class="py-2"><span class="font-mono text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">{err.error.name}</span><span class="ml-2 text-xs text-gray-500 dark:text-gray-400">{err.error.message}</span></td>
-									<td class="py-2 font-mono text-xs">{err.request.method}</td>
-									<td class="py-2 font-mono text-xs truncate max-w-[250px]">{err.request.url}</td>
-								</tr>
-							{/each}
+											<tr class="text-left text-xs text-gray-400 border-b border-gray-200 dark:border-gray-800">
+												<th class="pb-2 font-medium">Time</th>
+												<th class="pb-2 font-medium">Error</th>
+												<th class="pb-2 font-medium">Status</th>
+												<th class="pb-2 font-medium">Method</th>
+												<th class="pb-2 font-medium">URL</th>
+												<th class="pb-2 font-medium">Req ID</th>
+											</tr>
+										</thead>
+										<tbody>
+											{#each dbErrors as err}
+												<tr class="border-b border-gray-100 dark:border-gray-800/50">
+													<td class="py-2 text-xs text-gray-400 whitespace-nowrap">{err.createdAt ? new Date(err.createdAt).toLocaleString() : "—"}</td>
+													<td class="py-2"><span class="font-mono text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">{err.error.name}</span><span class="ml-2 text-xs text-gray-500 dark:text-gray-400">{err.error.message}</span></td>
+													<td class="py-2"><span class="font-mono text-xs px-1.5 py-0.5 rounded {Number(err.request.status) >= 500 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'}">{err.request.status ?? "—"}</span></td>
+													<td class="py-2 font-mono text-xs">{err.request.method}</td>
+													<td class="py-2 font-mono text-xs truncate max-w-[200px]">{err.request.url}</td>
+													<td class="py-2 font-mono text-[10px] text-gray-400 truncate max-w-[120px]">{err.request.id ?? "—"}</td>
+												</tr>
+											{/each}
 						</tbody>
 					</table>
 				</div>
@@ -232,8 +236,11 @@
 								<span class="flex-1 truncate">{err.line}</span>
 							{/if}
 							{#if err.ip}
-								<span class="text-gray-400 dark:text-gray-500 font-mono text-[10px] flex-shrink-0">{err.ip}</span>
-							{/if}
+													<span class="text-gray-400 dark:text-gray-500 font-mono text-[10px] flex-shrink-0">{err.ip}</span>
+												{/if}
+												{#if err.requestId}
+													<span class="text-gray-400 dark:text-gray-500 font-mono text-[10px] flex-shrink-0 truncate max-w-[100px]" title={err.requestId}>{err.requestId}</span>
+												{/if}
 						</div>
 					{/each}
 				</div>

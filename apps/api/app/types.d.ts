@@ -9,6 +9,7 @@ declare global {
       foundUser?: WithId<UserDoc>;
       foundBoardgame?: GameInfoDoc;
       ip: string;
+      requestId: string;
     }
   }
 }

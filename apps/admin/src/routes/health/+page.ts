@@ -18,7 +18,7 @@ interface LokiRangeResult {
 export interface ApiErrorEntry {
 	_id: string;
 	error: { name: string; message: string };
-	request: { method: string; url: string };
+	request: { method: string; url: string; status?: number; id?: string };
 	user?: string | null;
 	createdAt?: string;
 }
@@ -27,7 +27,7 @@ export interface HealthData {
 	statusCounts: { status: string; count: number }[];
 	slowEndpoints: { path: string; value: number }[];
 	errorEndpoints: { path: string; value: number }[];
-	recentErrors: { timestamp: number; line: string; source: string; level: string; status?: string; path?: string; ip?: string }[];
+	recentErrors: { timestamp: number; line: string; source: string; level: string; status?: string; path?: string; ip?: string; requestId?: string }[];
 	dbErrors: ApiErrorEntry[];
 	lokiAvailable: boolean;
 }
@@ -98,14 +98,15 @@ export async function load(): Promise<{ health: HealthData }> {
 						// non-JSON line (morgan format, stack trace)
 					}
 					return {
-						timestamp: ts,
-						line: typeof parsed.msg === "string" ? (parsed as { msg: string }).msg : line,
-						source: (parsed.source as string) ?? stream.metric.source ?? "?",
-						level: (parsed.level as string) ?? stream.metric.level ?? "?",
-						status: parsed.status != null ? String(parsed.status) : undefined,
-						path: (parsed.path as string) ?? undefined,
-						ip: (parsed.ip as string) ?? undefined,
-					};
+										timestamp: ts,
+										line: typeof parsed.msg === "string" ? (parsed as { msg: string }).msg : line,
+										source: (parsed.source as string) ?? stream.metric.source ?? "?",
+										level: (parsed.level as string) ?? stream.metric.level ?? "?",
+										status: parsed.status != null ? String(parsed.status) : undefined,
+										path: (parsed.path as string) ?? undefined,
+										ip: (parsed.ip as string) ?? undefined,
+										requestId: (parsed.requestId as string) ?? undefined,
+									};
 				}),
 			),
 			dbErrors,

@@ -18,6 +18,14 @@
         "includeAll": true,
         "multi": true,
         "current": { "selected": true, "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "requestId",
+        "type": "textbox",
+        "query": "",
+        "current": { "text": "", "value": "" },
+        "label": "Request ID",
+        "description": "Paste a request ID to trace it across web → API → game-server"
       }
     ]
   },
@@ -143,6 +151,29 @@
         "showCommonLabels": false,
         "wrapLogMessage": true,
         "prettifyLogMessage": false,
+        "enableLogDetails": true
+      }
+    },
+    {
+      "id": 8,
+      "title": "Request Trace (by request ID)",
+      "type": "logs",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 36 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{job=\"pm2\"} | json | requestId=\"$requestId\"",
+          "queryType": "range"
+        }
+      ],
+      "description": "Shows all log lines for a given request ID across web, api, and game-server. Enter a request ID in the variable above. Empty = no results.",
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
         "enableLogDetails": true
       }
     }

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ExternalFetch, Handle } from "@sveltejs/kit";
 import type { ServerResponse } from "@sveltejs/kit/types/hooks";
@@ -14,9 +15,13 @@ export type Session = {
 
 // `externalFetch` runs in the same async chain as `handle` (handle → resolve →
 // load → fetch → externalFetch), so an AsyncLocalStorage set in `handle` is
-// visible inside `externalFetch`. We use it to pass the real client IP through
-// to the API, which otherwise sees only 127.0.0.1 (the SvelteKit server).
-const clientIpStorage = new AsyncLocalStorage<string | undefined>();
+// visible inside `externalFetch`. We use it to pass the request ID and real
+// client IP through to the API, which otherwise sees only 127.0.0.1.
+interface RequestContext {
+  requestId: string;
+  clientIp: string | undefined;
+}
+const requestContextStorage = new AsyncLocalStorage<RequestContext>();
 
 export function getSession(request: { headers: Record<string, string> }): Session {
   const refreshToken = extractCookie("refreshToken", request.headers.cookie ?? "");
@@ -37,9 +42,10 @@ export function getSession(request: { headers: Record<string, string> }): Sessio
  * name="description">` tag back to using real newlines.
  */
 export async function handle({ request, resolve }: Parameters<Handle>[0]): Promise<ServerResponse> {
-  // Capture the client IP for externalFetch (see clientIpStorage above).
+  // Capture the client IP and request ID for externalFetch (see requestContextStorage above).
   const clientIp = request.headers["x-forwarded-for"]?.split(",")[0].trim() || request.headers["x-real-ip"];
-  return clientIpStorage.run(clientIp, async () => {
+  const requestId = request.headers["x-request-id"] || randomUUID();
+  return requestContextStorage.run({ requestId, clientIp }, async () => {
   const start = Date.now();
   const path = request.url.pathname;
   let response: ServerResponse;
@@ -50,6 +56,7 @@ export async function handle({ request, resolve }: Parameters<Handle>[0]): Promi
       source: "web",
       method: request.method,
       path,
+      requestId,
       error: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack?.split("\n") : undefined,
     });
@@ -64,6 +71,7 @@ export async function handle({ request, resolve }: Parameters<Handle>[0]): Promi
     path,
     status,
     durationMs,
+    requestId,
   });
 
   let body = response.body;
@@ -78,8 +86,9 @@ export async function handle({ request, resolve }: Parameters<Handle>[0]): Promi
   return {
     ...response,
     body,
+    headers: { ...response.headers, "x-request-id": requestId },
   };
-  }); // clientIpStorage.run
+  }); // requestContextStorage.run
 }
 
 /**
@@ -136,10 +145,13 @@ export const externalFetch: ExternalFetch = async (request) => {
     // prototype getters, not own enumerable props. Pass the original Request
     // as init so the constructor copies method/body/mode, then mutate headers.
     request = new Request(request.url.replace(host, backend), request);
-    const clientIp = clientIpStorage.getStore();
-    if (clientIp) {
-      const existing = request.headers.get("x-forwarded-for");
-      request.headers.set("x-forwarded-for", existing ? `${existing}, ${clientIp}` : clientIp);
+    const ctx = requestContextStorage.getStore();
+    if (ctx) {
+      request.headers.set("x-request-id", ctx.requestId);
+      if (ctx.clientIp) {
+        const existing = request.headers.get("x-forwarded-for");
+        request.headers.set("x-forwarded-for", existing ? `${existing}, ${ctx.clientIp}` : ctx.clientIp);
+      }
     }
   }
 
@@ -149,6 +161,7 @@ export const externalFetch: ExternalFetch = async (request) => {
       source: "web",
       path,
       status: response.status,
+      requestId: requestContextStorage.getStore()?.requestId,
     });
   }
   return normalizeNullBodyStatus(response);

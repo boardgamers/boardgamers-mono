@@ -39,6 +39,7 @@ export interface RequestLogContext {
   durationMs: number;
   ip?: string;
   userId?: string;
+  requestId?: string;
   error?: string;
 }
 

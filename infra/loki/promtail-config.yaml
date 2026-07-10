@@ -37,6 +37,7 @@ scrape_configs:
             status: status
             durationMs: durationMs
             userId: userId
+            requestId: requestId
             error: error
       - labels:
           level:
