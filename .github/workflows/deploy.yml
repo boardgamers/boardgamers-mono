@@ -1,0 +1,54 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.repository == 'boardgamers/boardgamers-mono'
+    timeout-minutes: 10
+    steps:
+      - name: Deploy to coyo
+        env:
+          SSH_KEY: ${{ secrets.COYO_SSH_KEY }}
+          SSH_HOST: ${{ secrets.COYO_SSH_HOST }}
+          SSH_PORT: ${{ secrets.COYO_SSH_PORT || '22' }}
+          KNOWN_HOSTS: ${{ secrets.COYO_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+
+          # Write the private key
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/coyo_deploy_key
+          chmod 600 ~/.ssh/coyo_deploy_key
+
+          # Pin the host key (prevents MITM, avoids ssh-keyscan)
+          if [ -n "$KNOWN_HOSTS" ]; then
+            echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            # Fallback: trust-on-first-use keyscan
+            ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+
+          ssh -i ~/.ssh/coyo_deploy_key -p "$SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes bgs@"$SSH_HOST" 'bash -lc "
+            set -euo pipefail
+            cd ~/boardgamers-mono
+
+            echo \":: pulling latest code\"
+            git fetch origin master
+            git reset --hard origin/master
+
+            echo \":: installing dependencies\"
+            pnpm install --frozen-lockfile
+
+            echo \":: building web (SvelteKit SSR)\"
+            pnpm --filter @bgs/web build
+
+            echo \":: reloading PM2 processes\"
+            pm2 reload ecosystem.config.cjs
+
+            echo \":: deploy complete\"
+          "'
