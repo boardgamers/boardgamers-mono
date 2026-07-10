@@ -1,6 +1,7 @@
 import { gameStatusSchema, type GameStatus } from "@bgs/models";
 import { removeFalsy } from "@bgs/utils/remove-falsy";
 import { simplifyFilter } from "@coyotte508/mongo-query";
+import type { ObjectId } from "mongodb";
 import { colls } from "../../config/db.ts";
 import { gameBasicsProjection } from "../../models/index.ts";
 import { latestAccessibleGames } from "../../services/gameinfo.ts";
@@ -8,7 +9,7 @@ import assert from "node:assert";
 import type { Context } from "koa";
 import Router from "koa-router";
 import { z } from "zod";
-import { zIntQuery } from "../../utils/zod.ts";
+import { zIntQuery, zObjectId } from "../../utils/zod.ts";
 import { queryCount, skipCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -18,7 +19,7 @@ const listingsParamsSchema = z.object({
 });
 
 const listingsQuerySchema = z.object({
-  user: z.string().optional(),
+  user: zObjectId().optional(),
   boardgame: z.string().optional(),
   maxKarma: zIntQuery().optional(),
   maxDuration: zIntQuery().optional(),
@@ -48,7 +49,7 @@ const filterAccessibleGames = async <T>(userId: T) => {
 async function gameConditions<T>(
   status: GameStatus,
   params: {
-    user?: string;
+    userId?: ObjectId;
     requester?: T;
     boardgame?: string;
     maxKarma?: number;
@@ -59,8 +60,8 @@ async function gameConditions<T>(
   const baseConditions = (() => {
     switch (status) {
       case "active":
-        return params.user
-          ? { $or: [{ status: "active" }, { "currentPlayers._id": params.user }] }
+        return params.userId
+          ? { $or: [{ status: "active" }, { "currentPlayers._id": params.userId }] }
           : { status: "active" };
       case "ended":
         return { status: "ended" };
@@ -87,7 +88,7 @@ async function gameConditions<T>(
       params.minDuration && { "options.timing.timePerGame": { $gte: params.minDuration } },
       params.maxDuration && { "options.timing.timePerGame": { $lte: params.maxDuration } },
       params.boardgame && { "game.name": params.boardgame },
-      params.user && { "players._id": params.user },
+      params.userId && { "players._id": params.userId },
       await filterAccessibleGames(params.requester),
     ]),
   }) as Record<string, unknown>;
@@ -97,7 +98,7 @@ router.get("/:status/count", async (ctx) => {
   const { status } = listingsParamsSchema.parse(ctx.params);
   const query = listingsQuerySchema.parse(ctx.query);
   const conditions: Record<string, unknown> = await gameConditions(status, {
-    user: query.user,
+    userId: query.user,
     requester: ctx.state.user?._id,
     boardgame: query.boardgame,
     maxKarma: query.maxKarma,
@@ -113,7 +114,7 @@ router.get("/:status", async (ctx) => {
   const projection = status === "ended" ? { ...gameBasicsProjection, cancelled: 1 } : { ...gameBasicsProjection };
   const sortOrder: Record<string, 1 | -1> = status === "open" ? { createdAt: -1 } : { lastMove: -1 };
   const conditions = await gameConditions(status, {
-    user: query.user,
+    userId: query.user,
     requester: ctx.state.user?._id,
     boardgame: query.boardgame,
     maxKarma: query.maxKarma,
