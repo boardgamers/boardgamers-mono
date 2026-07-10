@@ -40,6 +40,7 @@ scrape_configs:
             error: error
       - labels:
           level:
+          msg:
           source:
           status:
           method:
