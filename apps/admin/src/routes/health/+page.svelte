@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from "svelte";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 
@@ -40,7 +41,7 @@
 	let recentErrors = $state<ErrorLog[]>([]);
 	let lastUpdated = $state<Date | null>(null);
 
-	$effect(() => {
+	onMount(() => {
 		loadHealth();
 	});
 

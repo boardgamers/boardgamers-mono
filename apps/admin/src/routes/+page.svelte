@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from "svelte";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { filesize, gameEmoji } from "$lib/utils.ts";
@@ -55,7 +56,7 @@
 		{ key: "ended", label: "Ended", color: "text-gray-500 dark:text-gray-400" },
 	] as const;
 
-	$effect(() => {
+	onMount(() => {
 		loadServerInfo();
 		loadHealthStatus();
 	});
