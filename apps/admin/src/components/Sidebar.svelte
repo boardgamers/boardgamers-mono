@@ -37,6 +37,14 @@
 		>
 			Users
 		</a>
+		<a
+			href="/health"
+			class="px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive('/health')
+				? 'bg-gray-100 dark:bg-gray-800 font-semibold'
+				: ''}"
+		>
+			Server Health
+		</a>
 
 		<div class="mt-4">
 			<button
@@ -61,20 +69,22 @@
 						+ New game
 					</a>
 					{#each data.games as g}
-										{@const href = `/game/${g._id.game}/${g._id.version}`}
-										{@const { emoji, name } = gameLabelParts(g.label)}
-										<a
-											{href}
-											class="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive(href)
-												? 'bg-gray-100 dark:bg-gray-800 font-semibold'
-												: ''}"
-											title="{g._id.game} v{g._id.version}"
-										>
-											{#if emoji}<span class="flex-shrink-0">{emoji}</span>{/if}
-											<span class="truncate flex-1">{name || g._id.game}</span>
-											<span class="text-gray-400 flex-shrink-0">v{g._id.version}</span>
-										</a>
-									{/each}
+						{@const href = `/game/${g._id.game}/${g._id.version}`}
+						{@const { emoji, name } = gameLabelParts(g.label)}
+						<a
+							{href}
+							class="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive(
+								href,
+							)
+								? 'bg-gray-100 dark:bg-gray-800 font-semibold'
+								: ''}"
+							title="{g._id.game} v{g._id.version}"
+						>
+							{#if emoji}<span class="flex-shrink-0">{emoji}</span>{/if}
+							<span class="truncate flex-1">{name || g._id.game}</span>
+							<span class="text-gray-400 flex-shrink-0">v{g._id.version}</span>
+						</a>
+					{/each}
 				</div>
 			{/if}
 		</div>

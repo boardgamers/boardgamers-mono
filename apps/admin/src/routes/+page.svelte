@@ -30,8 +30,16 @@
 		announcement: { title: string; content: string };
 		cron: boolean;
 	}
+	interface LokiInstantResult {
+		status: string;
+		data: {
+			resultType: "vector";
+			result: { metric: Record<string, string>; value: [number, string] }[];
+		};
+	}
 
 	let serverInfo: ServerInfo | null = $state(null);
+	let healthStatus = $state<{ total: number; errors: number; level: "ok" | "warn" | "error" | "down" } | null>(null);
 	let announcement = $state({ title: "", content: "" });
 	let gameId = $state("");
 	let gameData: unknown = $state(null);
@@ -41,8 +49,6 @@
 	let showJsonEditor = $state(false);
 	let batchGameIds = $state("");
 
-
-
 	const gameStatuses = [
 		{ key: "open", label: "Open", color: "text-blue-600 dark:text-blue-400" },
 		{ key: "active", label: "Active", color: "text-amber-600 dark:text-amber-400" },
@@ -51,12 +57,11 @@
 
 	$effect(() => {
 		loadServerInfo();
+		loadHealthStatus();
 	});
 
 	// Map boardgame id → emoji, built from the sidebar's GameInfo labels.
-	const gameEmojiByName = $derived(
-		Object.fromEntries(data.games.map((g) => [g._id.game, gameEmoji(g.label)])),
-	);
+	const gameEmojiByName = $derived(Object.fromEntries(data.games.map((g) => [g._id.game, gameEmoji(g.label)])));
 
 	async function loadServerInfo() {
 		try {
@@ -67,6 +72,25 @@
 			}
 		} catch {
 			toast.error("Failed to load server info");
+		}
+	}
+
+	async function loadHealthStatus() {
+		try {
+			const result = await api.get<LokiInstantResult>("/admin/loki/query/statusCounts");
+			const counts = (result.data.result ?? []).map((r) => ({
+				status: r.metric.status ?? "?",
+				count: Math.round(Number(r.value[1])),
+			}));
+			const total = counts.reduce((a, b) => a + b.count, 0);
+			const errors = counts.filter((s) => Number(s.status) >= 400).reduce((a, b) => a + b.count, 0);
+			healthStatus = {
+				total,
+				errors,
+				level: total === 0 ? "ok" : errors === 0 ? "ok" : errors / total > 0.1 ? "error" : "warn",
+			};
+		} catch {
+			healthStatus = { total: 0, errors: 0, level: "down" };
 		}
 	}
 
@@ -182,16 +206,42 @@
 	<div class="flex items-center justify-between">
 		<h2 class="text-xl font-bold">Dashboard</h2>
 		<button
-			onclick={loadServerInfo}
+			onclick={() => {
+				loadServerInfo();
+				loadHealthStatus();
+			}}
 			class="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
 		>
 			Refresh
 		</button>
 	</div>
 
+	<!-- Health indicator row -->
+	{#if healthStatus}
+		{@const healthConfig = {
+			ok: { dot: "bg-green-500", text: "text-green-600 dark:text-green-400", label: "All healthy" },
+			warn: { dot: "bg-amber-500", text: "text-amber-600 dark:text-amber-400", label: "Some errors" },
+			error: { dot: "bg-red-500", text: "text-red-600 dark:text-red-400", label: "High error rate" },
+			down: { dot: "bg-gray-400", text: "text-gray-500 dark:text-gray-400", label: "Loki unavailable" },
+		}[healthStatus.level]}
+		<a
+			href="/health"
+			class="flex items-center gap-3 px-4 py-2.5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition-colors"
+		>
+			<span class="inline-block w-2.5 h-2.5 rounded-full {healthConfig.dot}"></span>
+			<span class="text-sm font-medium {healthConfig.text}">{healthConfig.label}</span>
+			{#if healthStatus.total > 0}
+				<span class="text-xs text-gray-400">
+					{healthStatus.errors} errors / {healthStatus.total} requests (1h)
+				</span>
+			{/if}
+			<span class="ml-auto text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">View details →</span>
+		</a>
+	{/if}
+
 	<!-- Metrics row -->
 	{#if serverInfo}
-		{@const totalGames = Object.values(serverInfo.games).reduce<number>((a, b) => a + (b ?? 0), 0)}
+		{@const totalGames = Object.values(serverInfo.games).reduce < number > ((a, b) => a + (b ?? 0), 0)}
 		{@const queueEntries = Object.entries(serverInfo.queue ?? {}).sort((a, b) => b[1] - a[1])}
 		{@const totalQueue = queueEntries.reduce((a, [, n]) => a + n, 0)}
 		<div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
@@ -199,8 +249,7 @@
 				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Users</div>
 				<div class="text-2xl font-bold mt-1">{serverInfo.nbUsers.toLocaleString()}</div>
 				<div class="flex items-center gap-1.5 mt-1.5 text-xs">
-					<span
-						class="inline-block w-2 h-2 rounded-full {serverInfo.onlineUsers > 0 ? 'bg-green-500' : 'bg-gray-400'}"
+					<span class="inline-block w-2 h-2 rounded-full {serverInfo.onlineUsers > 0 ? 'bg-green-500' : 'bg-gray-400'}"
 					></span>
 					<span class="text-gray-500 dark:text-gray-400">
 						{serverInfo.onlineUsers} online
@@ -216,7 +265,8 @@
 				<div class="flex gap-3 mt-1.5 text-xs">
 					{#each gameStatuses as s}
 						<span class={s.color}>
-							{serverInfo.games[s.key] ?? 0} {s.label.toLowerCase()}
+							{serverInfo.games[s.key] ?? 0}
+							{s.label.toLowerCase()}
 						</span>
 					{/each}
 				</div>
@@ -242,11 +292,7 @@
 			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
 				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Cron</div>
 				<div class="text-2xl font-bold mt-1 flex items-center gap-2">
-					<span
-						class="inline-block w-2.5 h-2.5 rounded-full {serverInfo.cron
-							? 'bg-green-500'
-							: 'bg-gray-400'}"
-					></span>
+					<span class="inline-block w-2.5 h-2.5 rounded-full {serverInfo.cron ? 'bg-green-500' : 'bg-gray-400'}"></span>
 					{serverInfo.cron ? "Active" : "Inactive"}
 				</div>
 			</div>
@@ -262,7 +308,10 @@
 					<ul class="space-y-2">
 						{#each serverInfo.recentUsers as u}
 							<li class="flex items-center justify-between text-sm">
-								<a href={`/user/${u.account.username}`} class="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+								<a
+									href={`/user/${u.account.username}`}
+									class="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+								>
 									{u.account.username}
 								</a>
 								<span class="text-xs text-gray-400">{timeAgo(u.createdAt)}</span>
@@ -380,9 +429,8 @@
 					>
 					<button
 						onclick={() => (showJsonEditor = !showJsonEditor)}
-						class="px-3 py-2 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg text-sm font-medium">{showJsonEditor
-							? "Hide JSON"
-							: "Edit JSON"}</button
+						class="px-3 py-2 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg text-sm font-medium"
+						>{showJsonEditor ? "Hide JSON" : "Edit JSON"}</button
 					>
 					<button
 						onclick={editGameData}
@@ -390,7 +438,8 @@
 					>
 					<button
 						onclick={deleteGame}
-						class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium ml-auto">Delete</button
+						class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium ml-auto"
+						>Delete</button
 					>
 				{/if}
 			</div>
@@ -411,7 +460,8 @@
 			<div class="flex gap-2">
 				<button
 					onclick={batchReplay}
-					class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium">Mass replay</button
+					class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium"
+					>Mass replay</button
 				>
 				<button
 					onclick={loadReplays}

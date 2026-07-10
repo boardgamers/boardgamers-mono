@@ -17,6 +17,7 @@ import { sendAuthInfo } from "../account/index.ts";
 import { z } from "zod";
 import { isAdmin } from "../utils.ts";
 import gameInfo from "./gameinfo.ts";
+import loki from "./loki.ts";
 import page from "./pages.ts";
 import usersRouter from "./users.ts";
 
@@ -25,6 +26,7 @@ const router = new Router<Application.DefaultState, Context>();
 router.use(isAdmin);
 
 router.use("/gameinfo", gameInfo.routes(), gameInfo.allowedMethods());
+router.use("/loki", loki.routes(), loki.allowedMethods());
 router.use("/page", page.routes(), page.allowedMethods());
 router.use("/users", usersRouter.routes(), usersRouter.allowedMethods());
 

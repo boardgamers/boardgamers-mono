@@ -1,0 +1,61 @@
+server:
+  http_listen_port: 9080
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # Tail all PM2 out-logs (morgan + our JSON request logger) and error-logs.
+  # The JSON pipeline extracts level/source/method/path/status/durationMs as
+  # labels so they're queryable in Grafana without parsing in LogQL.
+  - job_name: pm2
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: pm2
+          host: coyo
+          __path__: /logs/*-out.log
+      - targets: [localhost]
+        labels:
+          job: pm2
+          host: coyo
+          stream: stderr
+          __path__: /logs/*-error.log
+    pipeline_stages:
+      # Only parse lines that look like our JSON logger output. Non-JSON lines
+      # (morgan dev format, console.log, stack traces) pass through unlabelled.
+      - json:
+          expressions:
+            level: level
+            msg: msg
+            source: source
+            method: method
+            path: path
+            status: status
+            durationMs: durationMs
+            userId: userId
+            error: error
+      - labels:
+          level:
+          source:
+          status:
+          method:
+      # Extract a coarse path label (strip IDs/params) so we can group by
+      # endpoint rather than by exact URL.
+      - replace:
+          expression: "/api/user/[a-f0-9]{24}"
+          replace: "/api/user/:id"
+      - replace:
+          expression: "/api/game/[^/]+"
+          replace: "/api/game/:id"
+      - replace:
+          expression: "/api/boardgame/[^/]+"
+          replace: "/api/boardgame/:id"
+      - replace:
+          expression: "/api/page/[^/]+/[^/]+"
+          replace: "/api/page/:name/:lang"
+      - labels:
+          path:

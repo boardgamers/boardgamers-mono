@@ -1,0 +1,153 @@
+{
+  "title": "Boardgamers — Server Health",
+  "uid": "bgs-health",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "tags": ["boardgamers"],
+  "templating": {
+    "list": [
+      {
+        "name": "source",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "loki" },
+        "query": "label_values({job=\"pm2\"}, source)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (req/s) by Source",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (source) (rate({job=\"pm2\", msg=\"request\"}[$__rate_interval]))",
+          "legendFormat": "{{source}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 2,
+      "title": "Status Code Distribution (5m)",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (status) (count_over_time({job=\"pm2\", msg=\"request\"}[$__range]))",
+          "legendFormat": "{{status}}"
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      }
+    },
+    {
+      "id": 3,
+      "title": "Error Rate (errors/min) by Source",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (source) (rate({job=\"pm2\", level=~\"error|warn\"}[$__rate_interval]) * 60)",
+          "legendFormat": "{{source}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 4,
+      "title": "p50 / p95 / p99 Latency (ms)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate({job=\"pm2\", msg=\"request\"} | unwrap durationMs [$__rate_interval])))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate({job=\"pm2\", msg=\"request\"} | unwrap durationMs [$__rate_interval])))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate({job=\"pm2\", msg=\"request\"} | unwrap durationMs [$__rate_interval])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" } }
+    },
+    {
+      "id": 5,
+      "title": "Top 10 Slowest Endpoints (avg ms, last 1h)",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, avg by (path) (avg_over_time({job=\"pm2\", msg=\"request\"} | unwrap durationMs [1h])))",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" } }
+    },
+    {
+      "id": 6,
+      "title": "Endpoints with Most 5xx Errors (last 1h)",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, sum by (path) (count_over_time({job=\"pm2\", level=\"error\"} [1h])))",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+    {
+      "id": 7,
+      "title": "Recent Errors (live stream)",
+      "type": "logs",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 24 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{job=\"pm2\", level=~\"error|warn\"}"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true
+      }
+    }
+  ]
+}
