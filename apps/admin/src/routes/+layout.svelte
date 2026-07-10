@@ -2,7 +2,7 @@
 	import "../app.css";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
-	import { untrack } from "svelte";
+	import { onMount } from "svelte";
 	import { auth } from "$lib/auth.svelte.ts";
 	import { api } from "$lib/api.ts";
 	import NavBar from "$components/NavBar.svelte";
@@ -15,35 +15,23 @@
 	let loading = $state(true);
 	const isLoginPage = $derived(page.url.pathname === "/login");
 
-	$effect(() => {
-		// checkAuth reads auth.refreshToken/auth.user (reactive deps) then awaits an API
-		// call. Mutating $state after an await inside an $effect throws state_unsafe_mutation,
-		// so the post-await writes are untracked — they're side-effects of the check, not
-		// reactive outputs that should retrigger the effect.
-		const token = auth.refreshToken;
-		const hasUser = !!auth.user;
-		if (token && !hasUser) {
-			checkAuth();
-		} else {
-			loading = false;
-		}
+	onMount(() => {
+		checkAuth();
 	});
 
 	async function checkAuth() {
-		try {
-			// GET /account returns the user document directly (see apps/web).
-			const user = await api.get<NonNullable<(typeof auth)["user"]>>("/account");
-			if (user?._id) {
-				untrack(() => {
+		if (auth.refreshToken && !auth.user) {
+			try {
+				// GET /account returns the user document directly (see apps/web).
+				const user = await api.get<NonNullable<(typeof auth)["user"]>>("/account");
+				if (user?._id) {
 					auth.user = user;
-				});
+				}
+			} catch {
+				// not logged in
 			}
-		} catch {
-			// not logged in
 		}
-		untrack(() => {
-			loading = false;
-		});
+		loading = false;
 	}
 
 	$effect(() => {
