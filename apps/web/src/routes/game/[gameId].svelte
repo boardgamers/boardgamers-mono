@@ -21,7 +21,26 @@
 
     const gameId = input.params.gameId;
 
-    const [game, players] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
+    let game, players;
+    try {
+      [game, players] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
+    } catch {
+      // loadGame rejects with Error("Not Found") (status 404) when the gameplay API returns 404.
+      return {
+        status: 404,
+        error: new Error("Game not found"),
+      };
+    }
+
+    // game.game can be absent on legacy/corrupt docs — Mongo validation is "warn"/"moderate",
+    // so the schema is not enforced on existing data. Guard before dereferencing.
+    if (!game?.game) {
+      return {
+        status: 404,
+        error: new Error("Game data is incomplete"),
+      };
+    }
+
     await Promise.all([loadGameInfo(game.game.name, game.game.version), loadGamePreferences(game.game.name)]);
 
     return {

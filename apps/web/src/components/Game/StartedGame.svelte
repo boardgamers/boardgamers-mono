@@ -55,7 +55,7 @@
     gameIframe?.contentWindow?.postMessage(message, "*");
   }
 
-  $: gameName = $game?.game.name;
+  $: gameName = $game?.game?.name;
   $: (postUser(), [$user]);
   $: prefs = addDefaults($gamePreferences[gameName], $gameInfo);
   $: (postPreferences(), [prefs]);
