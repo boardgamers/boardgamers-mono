@@ -18,8 +18,8 @@
 	const health = $derived(data.health);
 	const lokiAvailable = $derived(health.lokiAvailable);
 	const statusCounts = $derived(health.statusCounts);
-	const slowEndpoints = $derived(health.slowEndpoints);
-	const errorEndpoints = $derived(health.errorEndpoints);
+	const slowEndpoints = $derived([...health.slowEndpoints].sort((a, b) => b.value - a.value));
+	const errorEndpoints = $derived([...health.errorEndpoints].sort((a, b) => b.value - a.value));
 	const recentErrors = $derived(health.recentErrors);
 	const dbErrors = $derived(health.dbErrors);
 
