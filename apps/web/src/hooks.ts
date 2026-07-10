@@ -132,13 +132,15 @@ export const externalFetch: ExternalFetch = async (request) => {
   if (backend) {
     // Forward the real client IP so the API logs it instead of 127.0.0.1.
     // `app.proxy = true` on the API side trusts X-Forwarded-For.
-    const headers = new Headers(request.headers);
+    // Spread ({ ...request }) drops method/body — Request properties are
+    // prototype getters, not own enumerable props. Pass the original Request
+    // as init so the constructor copies method/body/mode, then mutate headers.
+    request = new Request(request.url.replace(host, backend), request);
     const clientIp = clientIpStorage.getStore();
     if (clientIp) {
-      const existing = headers.get("x-forwarded-for");
-      headers.set("x-forwarded-for", existing ? `${existing}, ${clientIp}` : clientIp);
+      const existing = request.headers.get("x-forwarded-for");
+      request.headers.set("x-forwarded-for", existing ? `${existing}, ${clientIp}` : clientIp);
     }
-    request = new Request(request.url.replace(host, backend), { ...request, headers });
   }
 
   const response = await fetch(request);
