@@ -499,6 +499,9 @@ importers:
 
   packages/utils:
     devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.11.0
       '@typescript/native-preview':
         specifier: 7.0.0-dev.20260307.1
         version: 7.0.0-dev.20260307.1

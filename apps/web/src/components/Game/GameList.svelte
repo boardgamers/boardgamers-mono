@@ -91,8 +91,8 @@
 
   const onCurrentPageChanged = createWatcher(() => load(false));
 
-  $: load(true), [userId, boardgameId, $logoClicks];
-  $: onCurrentPageChanged(), [currentPage];
+  $: (load(true), [userId, boardgameId, $logoClicks]);
+  $: (onCurrentPageChanged(), [currentPage]);
 </script>
 
 <Loading loading={loadingGames}>

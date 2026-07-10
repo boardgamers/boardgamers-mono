@@ -83,8 +83,8 @@
   }
 
   $: userId = $account?._id;
-  $: onMessagesChanged(), [$chatMessages, isOpen];
-  $: loadLastRead(), [userId, room];
+  $: (onMessagesChanged(), [$chatMessages, isOpen]);
+  $: (loadLastRead(), [userId, room]);
   $: unreadMessages = $chatMessages.filter(
     (msg) => msg.type !== "system" && dateFromObjectId(msg._id).getTime() > lastRead
   ).length;
@@ -153,7 +153,11 @@
   .chat-messages {
     display: flex;
     flex-direction: column;
-    font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+    font-family:
+      Helvetica Neue,
+      Helvetica,
+      Arial,
+      sans-serif;
     max-height: calc(100vh - 300px);
     overflow-y: auto;
 

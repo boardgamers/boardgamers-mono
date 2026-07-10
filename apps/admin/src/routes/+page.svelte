@@ -241,7 +241,7 @@
 
 	<!-- Metrics row -->
 	{#if serverInfo}
-		{@const totalGames = Object.values(serverInfo.games).reduce < number > ((a, b) => a + (b ?? 0), 0)}
+		{@const totalGames = Object.values(serverInfo.games).reduce<number>((a, b) => a + (b ?? 0), 0)}
 		{@const queueEntries = Object.entries(serverInfo.queue ?? {}).sort((a, b) => b[1] - a[1])}
 		{@const totalQueue = queueEntries.reduce((a, [, n]) => a + n, 0)}
 		<div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">

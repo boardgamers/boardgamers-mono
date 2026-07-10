@@ -30,7 +30,7 @@
   let info = latestGameInfos();
 
   const watcher = createWatcher(loadAllGamePreferences);
-  $: watcher(), [$accountId];
+  $: (watcher(), [$accountId]);
 
   const onClick = async (gameInfo: IterableElement<typeof info>) => {
     if (gameInfo.meta.needOwnership && !$gamePreferences[gameInfo._id.game]?.access?.ownership) {

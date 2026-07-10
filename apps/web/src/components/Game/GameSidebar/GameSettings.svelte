@@ -30,7 +30,7 @@
     }
   }
 
-  $: loadSettings(), [gameStatus, userId, $gameInfo];
+  $: (loadSettings(), [gameStatus, userId, $gameInfo]);
 
   async function postSettings() {
     if (!$account) {

@@ -67,8 +67,8 @@
     loadGamePreferences(boardgameId).catch(handleError);
   };
 
-  $: onUserChanged(), [accountId, boardgameId];
-  $: (boardgame = gameInfo(boardgameId, "latest") as GameInfo), [gameInfos];
+  $: (onUserChanged(), [accountId, boardgameId]);
+  $: ((boardgame = gameInfo(boardgameId, "latest") as GameInfo), [gameInfos]);
   $: hasOwnership = $gamePreferences[boardgameId]?.access?.ownership;
   $: needOwnership = boardgame?.meta?.needOwnership;
 

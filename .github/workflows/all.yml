@@ -11,4 +11,8 @@ jobs:
           node-version: '24'
       - run: corepack enable
       - run: pnpm install
+      # Root check (docs, config files). Admin/web are excluded from the root
+      # check — they have their own .prettierrc with prettier-plugin-svelte + Svelte 5.
       - run: pnpm run prettier-check
+      - run: cd apps/admin && npx prettier --check .
+      - run: cd apps/web && npx prettier --check .

@@ -19,7 +19,7 @@
     });
   }
 
-  $: onLogChanged(), [$log, showLog];
+  $: (onLogChanged(), [$log, showLog]);
 
   function toggleShowLog() {
     showLog = !showLog;

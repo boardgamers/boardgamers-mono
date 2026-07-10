@@ -12,3 +12,7 @@ apps/api
 apps/game-server
 packages/models
 packages/utils
+
+# Frontend apps have their own .prettierrc with prettier-plugin-svelte + svelte 5
+apps/admin
+apps/web

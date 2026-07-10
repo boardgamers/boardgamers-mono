@@ -56,9 +56,9 @@
   }
 
   $: gameName = $game?.game.name;
-  $: postUser(), [$user];
+  $: (postUser(), [$user]);
   $: prefs = addDefaults($gamePreferences[gameName], $gameInfo);
-  $: postPreferences(), [prefs];
+  $: (postPreferences(), [prefs]);
   $: gameId = $game?._id;
 
   const updateSrc = () => {
@@ -72,11 +72,11 @@
       }&customViewerUrl=${customUrl}`;
     }
   };
-  $: updateSrc(), [$gameInfo, prefs];
+  $: (updateSrc(), [$gameInfo, prefs]);
 
   const onSrcChanged = () => (stateSent = false);
 
-  $: onSrcChanged(), [src, gameId];
+  $: (onSrcChanged(), [src, gameId]);
 
   const onGameUpdated = createWatcher(() => {
     if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
@@ -84,7 +84,7 @@
     }
   });
 
-  $: onGameUpdated(), [$lastGameUpdate];
+  $: (onGameUpdated(), [$lastGameUpdate]);
 
   function postGamedata() {
     gameIframe?.contentWindow?.postMessage({ type: "state", state: $game.data }, "*");

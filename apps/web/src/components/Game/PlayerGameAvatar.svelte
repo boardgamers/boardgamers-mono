@@ -24,12 +24,12 @@
   let style: string;
 
   $: highlightedPlayerId = userId ?? $account?._id;
-  $: (style = `background-image: url('${
+  $: ((style = `background-image: url('${
     player.faction && gameInfo(game)?.factions?.avatars
       ? `/images/factions/icons/${player.faction}.svg`
       : `/api/user/${player._id}/avatar?d=${$account?.account.avatar}`
   }')`),
-    [$gameInfos];
+    [$gameInfos]);
 </script>
 
 <div

@@ -32,7 +32,7 @@
 
   const loadPrefs = createWatcher(() => loadGamePreferences(boardgameId));
 
-  $: loadPrefs(), [$accountId];
+  $: (loadPrefs(), [$accountId]);
 </script>
 
 {#each preferenceItems.filter((item) => item.type === "checkbox" && item.category == null) as item}

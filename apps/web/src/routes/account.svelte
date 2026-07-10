@@ -162,7 +162,7 @@
     customAvatarError = false;
   }
 
-  $: onNotificationsChanged(), [notifications];
+  $: (onNotificationsChanged(), [notifications]);
 </script>
 
 <svelte:head>

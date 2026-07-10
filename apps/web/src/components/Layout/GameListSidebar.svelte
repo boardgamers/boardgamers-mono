@@ -12,7 +12,7 @@
   loadGameInfos().catch(handleError);
 
   let games: GameInfo[];
-  $: (games = latestGameInfos() as GameInfo[]), [$gameInfos];
+  $: ((games = latestGameInfos() as GameInfo[]), [$gameInfos]);
   $: boardgameId = $page!.params.boardgameId;
 
   function gameRoute(gameId: string) {

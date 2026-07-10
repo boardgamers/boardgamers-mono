@@ -18,7 +18,7 @@
       .then((prefs) => (gamePreferences = prefs))
       .catch(handleError);
 
-  $: onUserIdChanged(), [userId];
+  $: (onUserIdChanged(), [userId]);
 
   async function gameName(game: string): Promise<string> {
     const info = gameInfo(game, "latest");

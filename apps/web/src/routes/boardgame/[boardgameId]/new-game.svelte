@@ -281,8 +281,8 @@
           The game will automatically be cancelled if not started after {timePerGame <= 600
             ? "an hour"
             : timePerGame <= 3600
-            ? "three hours"
-            : "a week"}.
+              ? "three hours"
+              : "a week"}.
         </p>
       {/if}
 

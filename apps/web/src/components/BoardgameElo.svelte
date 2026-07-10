@@ -39,7 +39,7 @@
 
   const reload = createWatcher(() => load(true), { immediate: !initial });
 
-  $: reload(), [boardgameId];
+  $: (reload(), [boardgameId]);
 
   const onPageChange = createWatcher(() => !baseUrl && load(false));
 
@@ -49,7 +49,7 @@
     }
   }
 
-  $: onPageChange(), [currentPage];
+  $: (onPageChange(), [currentPage]);
 </script>
 
 <div>

@@ -66,7 +66,7 @@
     }
   };
 
-  $: onGameChanged(), [userId, $game];
+  $: (onGameChanged(), [userId, $game]);
 
   let remainingTimes: Record<string, number> = {};
 
@@ -79,7 +79,7 @@
     remainingTimes = ret;
   }
 
-  $: updateRemainingTimes(), [secondsCounter];
+  $: (updateRemainingTimes(), [secondsCounter]);
 
   function remainingTime(player: PlayerInfoFront) {
     const currentPlayer = currentPlayersById[player._id];

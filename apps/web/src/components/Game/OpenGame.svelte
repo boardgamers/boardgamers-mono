@@ -101,7 +101,7 @@
     playerOrder = $game.players.map((_, i) => i);
   }
 
-  $: refreshPlayerOrder(), [$game];
+  $: (refreshPlayerOrder(), [$game]);
 
   const moveUp = (playerId: number) => {
     const index = playerOrder.indexOf(playerId);
@@ -156,7 +156,7 @@
     { leading: false }
   );
 
-  $: watcher(), query;
+  $: (watcher(), query);
 
   const updateGameWatcher = createWatcher(async () => {
     if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
@@ -170,7 +170,7 @@
   });
 
   // Autorefresh when another player joins
-  $: updateGameWatcher(), $lastGameUpdate;
+  $: (updateGameWatcher(), $lastGameUpdate);
 </script>
 
 <SEO
@@ -188,8 +188,8 @@
       pref.type === 'checkbox'
         ? pref.label
         : pref.type === 'select' && pref.items
-        ? pref.label + ': ' + pref.items.find((x) => x.name === $game.game.options[pref.name])?.label
-        : ''
+          ? pref.label + ': ' + pref.items.find((x) => x.name === $game.game.options[pref.name])?.label
+          : ''
     )
     .filter(Boolean)
     .map((str) => `- ${removeMarkdown(str)}`)

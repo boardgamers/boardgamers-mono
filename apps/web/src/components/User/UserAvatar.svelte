@@ -24,8 +24,8 @@
     userId === "me"
       ? `/api/account/avatar?d=${$imageCache}&token=${encodeURIComponent(token)}`
       : userId
-      ? `/api/user/${userId}/avatar?d=${$imageCache}`
-      : `https://avatars.dicebear.com/api/${art}/${username}.svg?r=0`;
+        ? `/api/user/${userId}/avatar?d=${$imageCache}`
+        : `https://avatars.dicebear.com/api/${art}/${username}.svg?r=0`;
 </script>
 
 <img

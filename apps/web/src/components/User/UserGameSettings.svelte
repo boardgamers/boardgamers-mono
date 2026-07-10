@@ -65,8 +65,8 @@
     $devGameSettings[key]?.viewerUrl;
   }
 
-  $: updateDevSettings(), [customViewerUrl];
-  $: updateViewerUrl(), [key];
+  $: (updateDevSettings(), [customViewerUrl]);
+  $: (updateViewerUrl(), [key]);
 </script>
 
 <Card class={classes} header={title || game.label}>

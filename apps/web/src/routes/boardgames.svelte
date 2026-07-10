@@ -29,7 +29,7 @@
   let info = latestGameInfos();
 
   const watcher = createWatcher(loadAllGamePreferences);
-  $: watcher(), [$accountId];
+  $: (watcher(), [$accountId]);
 </script>
 
 <SEO title="Game selection" />

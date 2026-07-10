@@ -25,4 +25,6 @@ jobs:
           node-version: '24'
       - run: corepack enable
       - run: pnpm install --filter {./}...
+      - run: pnpm run lint-check
+      - run: pnpm run tsc
       - run: pnpm test

@@ -67,7 +67,7 @@
     }
   };
 
-  $: browser && onHasGamesChanged(), [hasGames];
+  $: (browser && onHasGamesChanged(), [hasGames]);
 </script>
 
 <Navbar color="primary" class={className} dark expand>

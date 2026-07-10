@@ -17,5 +17,13 @@
       { "argsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_", "varsIgnorePattern": "^_" }
     ],
     "unicorn/prefer-node-protocol": "error"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["**/*.spec.ts"],
+      "rules": {
+        "typescript/no-floating-promises": "off"
+      }
+    }
+  ]
 }

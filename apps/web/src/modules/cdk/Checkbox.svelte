@@ -26,7 +26,7 @@
     }
   };
 
-  $: onValueChanged(), [checked];
+  $: (onValueChanged(), [checked]);
 </script>
 
 <div class={classes}>
