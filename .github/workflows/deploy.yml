@@ -43,7 +43,7 @@ jobs:
             git reset --hard origin/master
 
             echo \":: installing dependencies\"
-            pnpm install --frozen-lockfile
+            CI=true pnpm install --frozen-lockfile
 
             echo \":: building web (SvelteKit SSR)\"
             pnpm --filter @bgs/web build

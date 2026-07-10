@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@bgs/models": "workspace:*",
-    "@sveltejs/adapter-node": "^1.0.0-next.58",
+    "@sveltejs/adapter-node": "1.0.0-next.58",
     "@sveltejs/kit": "1.0.0-next.216",
     "@types/cookie": "^0.4.1",
     "@types/dompurify": "^2.2.1",

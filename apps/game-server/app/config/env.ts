@@ -17,16 +17,14 @@ export default {
       // private: process.env.jwtMode === "asymmetric" ? fs.readFileSync(path.join(__dirname, 'private.key')) : (process.env.jwtSecret || "Secret du token JSON..."),
       public:
         process.env.jwtMode === "asymmetric"
-          ? fs.readFileSync(path.join(__dirname, "public.pem"))
+          ? fs.readFileSync(new URL("public.pem", import.meta.url))
           : process.env.jwtSecret || "Secret du token JSON...",
     },
     // algorithm: process.env.jwtMode === "asymmetric" ? "RS256" : "HS256" as "RS256" | "HS256"
   },
   listen: {
     port: +process.env.port || 50803,
-    // Bind on IPv4 by default (Node 18+ resolves "localhost" to ::1, but vite's dev
-    // proxy and svelte-kit SSR resolve to 127.0.0.1 first → ECONNREFUSED in dev).
-    host: process.env.listenHost ?? "127.0.0.1",
+    host: process.env.listenHost ?? "localhost",
   },
   database: {
     bgs: {

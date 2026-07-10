@@ -1,7 +1,5 @@
 import fs from "node:fs";
 import os from "node:os";
-import path from "node:path";
-
 const domain = process.env.domain || "boardgamers.space";
 let dbName = process.env.dbName ?? "bgs";
 
@@ -25,11 +23,11 @@ export default {
     keys: {
       private:
         process.env.jwtMode === "asymmetric"
-          ? fs.readFileSync(path.join(__dirname, "private.key"))
+          ? fs.readFileSync(new URL("private.key", import.meta.url))
           : process.env.jwtSecret || "Secret du token JSON...",
       public:
         process.env.jwtMode === "asymmetric"
-          ? fs.readFileSync(path.join(__dirname, "public.pem"))
+          ? fs.readFileSync(new URL("public.pem", import.meta.url))
           : process.env.jwtSecret || "Secret du token JSON...",
     },
     algorithm: process.env.jwtMode === "asymmetric" ? "RS256" : ("HS256" as "RS256" | "HS256"),
@@ -40,10 +38,7 @@ export default {
       ws: Number(process.env.wsPort) || 50802,
       resources: Number(process.env.resourcesPort) || 50804,
     },
-    // Bind on IPv4 by default. On Node 18+, listening on "localhost" resolves to ::1,
-    // but the web app's SSR fetch and vite's dev proxy resolve to 127.0.0.1 first
-    // → ECONNREFUSED in dev. Override with $listenHost (e.g. 0.0.0.0) if you need IPv6/dual-stack.
-    host: process.env.listenHost ?? "127.0.0.1",
+    host: process.env.listenHost ?? "localhost",
   },
   database: {
     bgs: {
