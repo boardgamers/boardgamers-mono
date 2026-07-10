@@ -46,7 +46,26 @@ jobs:
             CI=true pnpm install --frozen-lockfile
 
             echo \":: building web (SvelteKit SSR)\"
-            pnpm --filter @bgs/web build
+            # Build into a temp dir so the live build/ is never half-written.
+            WEB_ADAPTER_OUT=build-new pnpm --filter @bgs/web build
+
+            # Atomically swap the new build into place, then reload PM2.
+            # PM2 runs index.js from cwd ./apps/web/build in cluster mode,
+            # so reload picks up the new files with zero downtime.
+            rm -rf apps/web/build-old
+            if [ -d apps/web/build ]; then mv apps/web/build apps/web/build-old; fi
+            mv apps/web/build-new apps/web/build
+            rm -rf apps/web/build-old
+
+            echo \":: building admin (SPA)\"
+            # Same pattern: build to a temp dir, then atomically swap.
+            # Nginx serves admin from dist/ directly (no PM2), so the swap
+            # is the only protection against a half-written directory.
+            ADMIN_ADAPTER_OUT=dist-new pnpm --filter @bgs/admin build
+            rm -rf apps/admin/dist-old
+            if [ -d apps/admin/dist ]; then mv apps/admin/dist apps/admin/dist-old; fi
+            mv apps/admin/dist-new apps/admin/dist
+            rm -rf apps/admin/dist-old
 
             echo \":: reloading PM2 processes\"
             pm2 reload ecosystem.config.cjs

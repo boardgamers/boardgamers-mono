@@ -1,3 +1,6 @@
 .svelte-kit
 build
+dist
+dist-new
+dist-old
 node_modules

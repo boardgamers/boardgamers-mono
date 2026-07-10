@@ -6,6 +6,7 @@ const config = {
 	preprocess: vitePreprocess(),
 	kit: {
 		adapter: adapter({
+			pages: process.env.ADMIN_ADAPTER_OUT ?? "dist",
 			fallback: "index.html",
 		}),
 		alias: {

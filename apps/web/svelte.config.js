@@ -17,7 +17,7 @@ const config = {
 
   kit: {
     target: "body",
-    adapter: adapter({ out: "build" }),
+    adapter: adapter({ out: process.env.WEB_ADAPTER_OUT ?? "build" }),
     vite: {
       resolve: {
         alias: {

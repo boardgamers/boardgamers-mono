@@ -1,4 +1,6 @@
 .snowpack
 build
+build-new
+build-old
 node_modules
 /.svelte-kit
