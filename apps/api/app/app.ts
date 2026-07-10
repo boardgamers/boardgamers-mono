@@ -65,10 +65,17 @@ async function listen(port = env.listen.port.api) {
   const tokenQuerySchema = z.object({ token: z.string().optional() });
   app.use(async (ctx, next) => {
     const processToken = async (token: string) => {
-      const decoded = accessTokenPayloadSchema.parse(jwt.verify(token, env.jwt.keys.public));
+      try {
+        const decoded = accessTokenPayloadSchema.parse(jwt.verify(token, env.jwt.keys.public));
 
-      if (decoded.scopes.includes("all")) {
-        ctx.state.user = (await colls.users.findOne({ _id: new ObjectId(decoded.userId) })) ?? undefined;
+        if (decoded.scopes.includes("all")) {
+          ctx.state.user = (await colls.users.findOne({ _id: new ObjectId(decoded.userId) })) ?? undefined;
+        }
+      } catch {
+        // Invalid/expired token — treat as unauthenticated, not a server error.
+        // jwt.verify throws JsonWebTokenError ("invalid signature", "jwt expired",
+        // "jwt malformed"); Zod throws on unexpected payload shape. Either way the
+        // caller just gets no user and downstream auth middleware returns 401.
       }
     };
 
