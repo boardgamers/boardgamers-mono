@@ -1,5 +1,6 @@
 import type { ExternalFetch, Handle } from "@sveltejs/kit";
 import type { ServerResponse } from "@sveltejs/kit/types/hooks";
+import { logEvent } from "@bgs/utils/log";
 import { extractCookie } from "./utils/extract-cookie";
 
 export type Session = {
@@ -29,7 +30,31 @@ export function getSession(request: { headers: Record<string, string> }): Sessio
  * name="description">` tag back to using real newlines.
  */
 export async function handle({ request, resolve }: Parameters<Handle>[0]): Promise<ServerResponse> {
-  const response = await resolve(request);
+  const start = Date.now();
+  const path = request.url.pathname;
+  let response: ServerResponse;
+  try {
+    response = await resolve(request);
+  } catch (err) {
+    logEvent("error", "ssr", {
+      source: "web",
+      method: request.method,
+      path,
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack?.split("\n") : undefined,
+    });
+    throw err;
+  }
+
+  const durationMs = Date.now() - start;
+  const status = response.status;
+  logEvent(status >= 500 ? "error" : status >= 400 ? "warn" : "info", "request", {
+    source: "web",
+    method: request.method,
+    path,
+    status,
+    durationMs,
+  });
 
   let body = response.body;
   if (typeof body === "string") {
@@ -104,5 +129,13 @@ export const externalFetch: ExternalFetch = async (request) => {
     );
   }
 
-  return normalizeNullBodyStatus(await fetch(request));
+  const response = await fetch(request);
+  if (!response.ok) {
+    logEvent(response.status >= 500 ? "error" : "warn", "upstream", {
+      source: "web",
+      path,
+      status: response.status,
+    });
+  }
+  return normalizeNullBodyStatus(response);
 };

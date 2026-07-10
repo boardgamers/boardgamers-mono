@@ -2,10 +2,13 @@ import cluster from "node:cluster";
 import { listen } from "./app/app.ts";
 import initDb from "./app/config/db.ts";
 import env from "./app/config/env.ts";
+import { installProcessHandlers, logEvent } from "@bgs/utils/log";
 import { listen as listenResources } from "./app/resources.ts";
 
+installProcessHandlers("api");
+
 const handleError = (err: Error) => {
-  console.error(err);
+  logEvent("error", "startup", { source: "api", error: err.message, stack: err.stack?.split("\n") });
   process.exit(1);
 };
 
@@ -16,6 +19,10 @@ if (cluster.isPrimary && env.isProduction && Number(env.threads) > 1) {
   for (let i = 0; i < Number(env.threads); i++) {
     cluster.fork();
   }
+  cluster.on("exit", (worker, code, signal) => {
+    logEvent("warn", "workerExited", { source: "api", workerId: worker.id, code, signal });
+    cluster.fork();
+  });
 } else {
   listen().catch(handleError);
   listenResources().catch(handleError);

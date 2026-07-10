@@ -11,6 +11,7 @@ import { z, ZodError } from "zod";
 import Koa from "koa";
 import compression from "koa-compress";
 import morgan from "koa-morgan";
+import { logRequest } from "@bgs/utils/log";
 /* Local stuff */
 import Router from "koa-router";
 /* Configure passport */
@@ -189,6 +190,20 @@ async function listen(port = env.listen.port.resources) {
   if (!env.silent) {
     app.use(morgan("dev"));
   }
+  app.use(async (ctx, next) => {
+    const start = Date.now();
+    try {
+      await next();
+    } finally {
+      logRequest("resources", {
+        method: ctx.request.method,
+        path: ctx.request.path,
+        status: ctx.status,
+        durationMs: Date.now() - start,
+        ip: ctx.ip,
+      });
+    }
+  });
   app.proxy = true;
   app.use(compression());
 

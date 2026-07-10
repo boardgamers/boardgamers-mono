@@ -8,6 +8,7 @@ import Koa from "koa";
 import bodyParser from "koa-bodyparser";
 import compression from "koa-compress";
 import morgan from "koa-morgan";
+import { logRequest } from "@bgs/utils/log";
 import { colls } from "./config/db.ts";
 /* Configure passport */
 import env from "./config/env.ts";
@@ -18,6 +19,21 @@ const app = new Koa<Koa.DefaultState & { user: { id: string; isAdmin: boolean } 
 
 /* App stuff */
 app.use(morgan("dev"));
+app.use(async (ctx, next) => {
+  const start = Date.now();
+  try {
+    await next();
+  } finally {
+    logRequest("game-server", {
+      method: ctx.request.method,
+      path: ctx.request.path,
+      status: ctx.status,
+      durationMs: Date.now() - start,
+      ip: ctx.ip,
+      userId: ctx.state.user?.id,
+    });
+  }
+});
 app.proxy = true;
 app.use(compression());
 app.use(bodyParser());

@@ -14,6 +14,7 @@ import _cookie from "koa-cookie";
 const cookie = (_cookie as unknown as { default?: typeof _cookie }).default ?? _cookie;
 import morgan from "koa-morgan";
 import passport from "koa-passport";
+import { logRequest } from "@bgs/utils/log";
 import env from "./config/env.ts";
 /* Configure passport */
 import "./config/passport.ts";
@@ -35,6 +36,23 @@ async function listen(port = env.listen.port.api) {
   if (!env.silent) {
     app.use(morgan("dev"));
   }
+  // Structured JSON request log (one line per request, including silent 4xx).
+  app.use(async (ctx, next) => {
+    const start = Date.now();
+    try {
+      await next();
+    } finally {
+      const user = ctx.state.user as { _id?: { toString(): string } } | undefined;
+      logRequest("api", {
+        method: ctx.request.method,
+        path: ctx.request.path,
+        status: ctx.status,
+        durationMs: Date.now() - start,
+        ip: ctx.ip,
+        userId: user?._id?.toString(),
+      });
+    }
+  });
   app.proxy = true;
   app.use(compression());
   app.use(bodyParser());
