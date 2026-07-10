@@ -4,6 +4,7 @@ import path from "path";
 import preprocess from "svelte-preprocess";
 
 dotenv.config();
+dotenv.config({ path: ".env." + (process.env.NODE_ENV || "development") });
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {

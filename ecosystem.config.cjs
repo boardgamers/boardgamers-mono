@@ -5,6 +5,7 @@ module.exports = {
       script: "./index.js",
       cwd: "./apps/web/build",
       env: {
+        NODE_ENV: "production",
         HOST: "127.0.0.1",
         PORT: 8612,
       },

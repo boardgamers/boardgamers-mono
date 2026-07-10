@@ -6,13 +6,13 @@
   "type": "module",
   "main": "server.ts",
   "scripts": {
-    "batch-replay": "node --env-file-if-exists=.env scripts/batch-replay.ts",
-    "dev": "tsx watch --env-file-if-exists=.env server.ts",
+    "batch-replay": "node --env-file-if-exists=.env --env-file-if-exists=.env.${NODE_ENV} scripts/batch-replay.ts",
+    "dev": "tsx watch --env-file-if-exists=.env --env-file-if-exists=.env.${NODE_ENV} server.ts",
     "fmt": "oxfmt",
     "fmt-check": "oxfmt --check",
     "lint": "oxlint --fix",
     "lint-check": "oxlint",
-    "start": "node --env-file-if-exists=.env server.ts",
+    "start": "node --env-file-if-exists=.env --env-file-if-exists=.env.${NODE_ENV} server.ts",
     "test": "node --test 'app/**/*.spec.ts'",
     "tsc": "tsgo --noEmit"
   },
