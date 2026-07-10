@@ -20,6 +20,10 @@ Boardgamers — an online board game platform. pnpm workspace, Node ≥ 24, ESM 
 
 Default to no comment — write self-explanatory code. Only comment the non-obvious: a _why_ (decision, constraint, gotcha), or a workaround for an external bug (link the issue/PR).
 
+## Secrets
+
+Avoid reading env vars & secrets directly, you can store them in files or env and load them, but avoid reading them directly
+
 ## Workarounds
 
 Each project keeps a `WORKAROUNDS.md` (e.g. `apps/web/WORKAROUNDS.md`, `apps/api/WORKAROUNDS.md`) listing temporary shims and deferred cleanups — things intentional for now but to revisit later. When you add such a thing, log a short entry there; when you touch related code, check whether an entry can be removed.

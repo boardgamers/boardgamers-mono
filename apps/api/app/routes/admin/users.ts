@@ -9,25 +9,24 @@ import { queryCount } from "../utils.ts";
 const router = new Router<Application.DefaultState, Context>();
 
 const userSearchQuerySchema = z.object({
-  query: z.string().optional(),
-  mode: z.enum(["email", "username"]).optional(),
+  search: z.string().optional(),
 });
 
-router.get("/search", async (ctx) => {
-  const { query, mode } = userSearchQuerySchema.parse(ctx.query);
+const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-  if (!query) {
+router.get("/search", async (ctx) => {
+  const { search } = userSearchQuerySchema.parse(ctx.query);
+
+  if (!search || search.trim().length < 2) {
     ctx.body = [];
     return;
   }
 
-  const conditions =
-    mode === "email"
-      ? { "account.email": new RegExp("^" + query.toLowerCase()) }
-      : { "security.slug": new RegExp("^" + query.toLowerCase()) };
+  const pattern = new RegExp("^" + escapeRegex(search.trim().toLowerCase()));
 
+  // Search both username (via slug) and email, with username matches first.
   const foundUsers = await colls.users
-    .find(conditions, { projection: { account: 1 } })
+    .find({ $or: [{ "security.slug": pattern }, { "account.email": pattern }] }, { projection: { account: 1 } })
     .limit(queryCount(ctx))
     .toArray();
   ctx.body = foundUsers;
@@ -59,7 +58,7 @@ router.post("/:userId/access/grant", async (ctx) => {
     .object({
       type: z.literal("game"),
       game: z.string(),
-      version: z.number().int(),
+      version: z.union([z.number().int(), z.literal("latest")]),
     })
     .parse(ctx.request.body);
 
