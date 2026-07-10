@@ -1,18 +1,12 @@
 <script lang="ts">
 	import { page } from "$app/state";
-	import { data, loadGames, loadPages } from "$lib/stores.svelte.ts";
-	import { auth } from "$lib/auth.svelte.ts";
 	import { gameLabelParts } from "$lib/utils.ts";
+	import type { GameInfoFront, PageFront } from "@bgs/models";
+
+	let { data }: { data: { games: GameInfoFront[]; pages: PageFront[] } } = $props();
 
 	let gamesOpen = $state(true);
 	let pagesOpen = $state(true);
-
-	$effect(() => {
-		if (auth.user) {
-			loadGames();
-			loadPages();
-		}
-	});
 
 	function isActive(href: string): boolean {
 		return page.url.pathname === href;

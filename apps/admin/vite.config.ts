@@ -8,11 +8,13 @@ export default defineConfig({
 		port: 5180,
 		proxy: {
 			"/api/gameplay": {
-				target: "http://localhost:50803",
+				// 127.0.0.1, not localhost: the dev servers bind 127.0.0.1 and on hosts
+				// where localhost → ::1 first, dialing localhost hits a refused IPv4 socket.
+				target: "http://127.0.0.1:50803",
 				changeOrigin: true,
 			},
 			"/api": {
-				target: "http://localhost:50801",
+				target: "http://127.0.0.1:50801",
 				changeOrigin: true,
 			},
 		},

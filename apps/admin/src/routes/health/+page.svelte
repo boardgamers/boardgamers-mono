@@ -1,99 +1,26 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import { api } from "$lib/api.ts";
-	import { toast } from "$lib/toast.svelte.ts";
+	import { invalidateAll } from "$app/navigation";
+	import type { HealthData } from "./+page.ts";
 
-	// Loki query result shapes (subset of the Loki API response we use)
-	interface LokiInstantResult {
-		status: string;
-		data: {
-			resultType: "vector";
-			result: { metric: Record<string, string>; value: [number, string] }[];
-		};
-	}
-	interface LokiRangeResult {
-		status: string;
-		data: {
-			resultType: "matrix" | "streams";
-			result: { metric: Record<string, string>; values: [number, string][] }[];
-		};
-	}
+	let { data }: { data: { health: HealthData } } = $props();
 
-	interface StatusCount {
-		status: string;
-		count: number;
-	}
-	interface EndpointStat {
-		path: string;
-		value: number;
-	}
-	interface ErrorLog {
-		timestamp: number;
-		line: string;
-		source: string;
-		level: string;
-	}
+	let refreshing = $state(false);
 
-	let loading = $state(true);
-	let statusCounts = $state<StatusCount[]>([]);
-	let slowEndpoints = $state<EndpointStat[]>([]);
-	let errorEndpoints = $state<EndpointStat[]>([]);
-	let recentErrors = $state<ErrorLog[]>([]);
-	let lastUpdated = $state<Date | null>(null);
-
-	onMount(() => {
-		loadHealth();
-	});
-
-	async function loadHealth() {
-		loading = true;
+	async function refresh() {
+		refreshing = true;
 		try {
-			const [status, slow, errors, logs] = await Promise.all([
-				api.get<LokiInstantResult>("/admin/loki/query/statusCounts"),
-				api.get<LokiInstantResult>("/admin/loki/query/slowEndpoints"),
-				api.get<LokiInstantResult>("/admin/loki/query/errorEndpoints"),
-				api.get<LokiRangeResult>("/admin/loki/query/recentErrors?limit=50"),
-			]);
-
-			statusCounts = (status.data.result ?? []).map((r) => ({
-				status: r.metric.status ?? "?",
-				count: Math.round(Number(r.value[1])),
-			}));
-
-			slowEndpoints = (slow.data.result ?? []).map((r) => ({
-				path: r.metric.path ?? "?",
-				value: Math.round(Number(r.value[1])),
-			}));
-
-			errorEndpoints = (errors.data.result ?? []).map((r) => ({
-				path: r.metric.path ?? "?",
-				value: Math.round(Number(r.value[1])),
-			}));
-
-			recentErrors = (logs.data.result ?? []).flatMap((stream) =>
-				(stream.values ?? []).map(([ts, line]) => {
-					let parsed: Record<string, unknown> = {};
-					try {
-						parsed = JSON.parse(line);
-					} catch {
-						// non-JSON line (morgan format, stack trace)
-					}
-					return {
-						timestamp: ts,
-						line: typeof parsed.msg === "string" ? (parsed as { msg: string }).msg : line,
-						source: (parsed.source as string) ?? stream.metric.source ?? "?",
-						level: (parsed.level as string) ?? stream.metric.level ?? "?",
-					};
-				}),
-			);
-
-			lastUpdated = new Date();
-		} catch {
-			toast.error("Failed to load health data — is Loki running?");
+			await invalidateAll();
 		} finally {
-			loading = false;
+			refreshing = false;
 		}
 	}
+
+	const health = $derived(data.health);
+	const lokiAvailable = $derived(health.lokiAvailable);
+	const statusCounts = $derived(health.statusCounts);
+	const slowEndpoints = $derived(health.slowEndpoints);
+	const errorEndpoints = $derived(health.errorEndpoints);
+	const recentErrors = $derived(health.recentErrors);
 
 	function statusClass(status: string): string {
 		const c = Number(status);
@@ -118,26 +45,31 @@
 	<div class="flex items-center justify-between">
 		<div>
 			<h2 class="text-xl font-bold">Server Health</h2>
-			{#if lastUpdated}
-				<p class="text-xs text-gray-400 mt-0.5">Last updated {lastUpdated.toLocaleTimeString()}</p>
-			{/if}
 		</div>
 		<button
-			onclick={loadHealth}
-			class="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+			onclick={refresh}
+			disabled={refreshing}
+			class="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
 		>
-			Refresh
-		</button>
-	</div>
+			{refreshing ? "Refreshing…" : "Refresh"}
+				</button>
+			</div>
 
-	{#if loading}
-		<div class="flex items-center justify-center py-12">
-			<div
-				class="w-8 h-8 border-4 border-gray-300 dark:border-gray-600 border-t-blue-600 rounded-full animate-spin"
-			></div>
-		</div>
-	{:else}
-		<!-- Summary cards -->
+			{#if !lokiAvailable}
+				<div
+					class="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl"
+				>
+					<span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+					<div class="text-sm">
+						<span class="font-medium text-amber-700 dark:text-amber-400">Loki is unavailable.</span>
+						<span class="text-amber-600 dark:text-amber-500/80"
+							> Logging is not running, so no health metrics are available. Start the stack with
+							<code class="font-mono text-xs">systemctl start bgs-loki</code> and refresh.</span
+						>
+					</div>
+				</div>
+			{:else}
+				<!-- Summary cards -->
 		<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
 			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
 				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Requests (1h)</div>

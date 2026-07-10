@@ -24,7 +24,9 @@ export default {
   },
   listen: {
     port: +process.env.port || 50803,
-    host: process.env.listenHost ?? "localhost",
+    // Bind explicitly to 127.0.0.1: see apps/api/app/config/env.ts for the full
+    // rationale (localhost → ::1 bind vs 127.0.0.1 dial → ECONNREFUSED).
+    host: process.env.listenHost ?? "127.0.0.1",
   },
   database: {
     bgs: {

@@ -1,14 +1,18 @@
 <script lang="ts">
-	import { auth, logOut } from "$lib/auth.svelte.ts";
-	import { goto } from "$app/navigation";
+	import { goto, invalidateAll } from "$app/navigation";
+	import { clearTokens } from "$lib/auth.svelte.ts";
+	import type { UserFront } from "@bgs/models";
+
+	let { user }: { user: UserFront & { _id: string } } = $props();
 
 	function toggleDark() {
 		document.documentElement.classList.toggle("dark");
 		localStorage.setItem("theme", document.documentElement.classList.contains("dark") ? "dark" : "light");
 	}
 
-	function handleLogout() {
-		logOut();
+	async function handleLogout() {
+		clearTokens();
+		await invalidateAll();
 		goto("/login");
 	}
 </script>
@@ -19,10 +23,8 @@
 	<h1 class="text-lg font-semibold tracking-tight">BGS Admin</h1>
 	<div class="flex-1"></div>
 
-	{#if auth.user}
-		<span class="text-sm text-gray-500 dark:text-gray-400">{auth.user.account.username}</span>
-		<button onclick={handleLogout} class="text-sm text-red-600 hover:text-red-500 font-medium">Log out</button>
-	{/if}
+	<span class="text-sm text-gray-500 dark:text-gray-400">{user.account.username}</span>
+	<button onclick={handleLogout} class="text-sm text-red-600 hover:text-red-500 font-medium">Log out</button>
 
 	<button
 		onclick={toggleDark}

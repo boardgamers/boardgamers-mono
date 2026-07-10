@@ -1,15 +1,12 @@
-import type { GameInfoFront, PageFront } from "@bgs/models";
-import { api } from "./api.ts";
+import { invalidateAll } from "$app/navigation";
 
-export const data: { games: GameInfoFront[]; pages: PageFront[] } = $state({
-	games: [],
-	pages: [],
-});
-
+// Games/pages are now loaded by +layout.ts and passed to Sidebar as data.
+// These wrappers exist for backward-compat with pages that call them after mutations
+// to refresh the sidebar — they now just invalidate the layout load.
 export async function loadGames() {
-	data.games = await api.get<GameInfoFront[]>("/admin/gameinfo");
+	await invalidateAll();
 }
 
 export async function loadPages() {
-	data.pages = await api.get<PageFront[]>("/admin/page");
+	await invalidateAll();
 }

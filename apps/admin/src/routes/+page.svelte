@@ -1,46 +1,17 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { invalidateAll } from "$app/navigation";
+	import { page } from "$app/state";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { filesize, gameEmoji } from "$lib/utils.ts";
-	import { auth } from "$lib/auth.svelte.ts";
-	import { data } from "$lib/stores.svelte.ts";
+	import { tokens } from "$lib/auth.svelte.ts";
+	import type { GameInfoFront } from "@bgs/models";
 	import MarkdownEditor from "$components/MarkdownEditor.svelte";
+	import type { ServerInfo, HealthStatus } from "./+page.ts";
 
-	interface RecentUser {
-		_id: string;
-		account: { username: string };
-		createdAt: string;
-	}
-	interface RecentGame {
-		_id: string;
-		game: { name: string };
-		status: string;
-		lastMove: string;
-		createdAt: string;
-	}
-	interface ServerInfo {
-		disk: { free: number; size: number };
-		nbUsers: number;
-		onlineUsers: number;
-		connectedUsers: number;
-		games: Record<string, number>;
-		queue: Record<string, number>;
-		recentUsers: RecentUser[];
-		recentGames: RecentGame[];
-		announcement: { title: string; content: string };
-		cron: boolean;
-	}
-	interface LokiInstantResult {
-		status: string;
-		data: {
-			resultType: "vector";
-			result: { metric: Record<string, string>; value: [number, string] }[];
-		};
-	}
+	let { data }: { data: { serverInfo: ServerInfo | null; healthStatus: HealthStatus } } = $props();
 
-	let serverInfo: ServerInfo | null = $state(null);
-	let healthStatus = $state<{ total: number; errors: number; level: "ok" | "warn" | "error" | "down" } | null>(null);
+	let refreshing = $state(false);
 	let announcement = $state({ title: "", content: "" });
 	let gameId = $state("");
 	let gameData: unknown = $state(null);
@@ -50,48 +21,34 @@
 	let showJsonEditor = $state(false);
 	let batchGameIds = $state("");
 
+	// Initialise the editable announcement from the loaded serverInfo.
+	$effect(() => {
+		if (data.serverInfo?.announcement) {
+			announcement.title = data.serverInfo.announcement.title ?? "";
+			announcement.content = data.serverInfo.announcement.content ?? "";
+		}
+	});
+
+	const serverInfo = $derived(data.serverInfo);
+	const healthStatus = $derived(data.healthStatus);
+
 	const gameStatuses = [
 		{ key: "open", label: "Open", color: "text-blue-600 dark:text-blue-400" },
 		{ key: "active", label: "Active", color: "text-amber-600 dark:text-amber-400" },
 		{ key: "ended", label: "Ended", color: "text-gray-500 dark:text-gray-400" },
 	] as const;
 
-	onMount(() => {
-		loadServerInfo();
-		loadHealthStatus();
-	});
-
 	// Map boardgame id → emoji, built from the sidebar's GameInfo labels.
-	const gameEmojiByName = $derived(Object.fromEntries(data.games.map((g) => [g._id.game, gameEmoji(g.label)])));
+	const gameEmojiByName = $derived(
+		Object.fromEntries((page.data.games as GameInfoFront[]).map((g) => [g._id.game, gameEmoji(g.label)])),
+	);
 
-	async function loadServerInfo() {
+	async function refresh() {
+		refreshing = true;
 		try {
-			serverInfo = await api.get<ServerInfo>("/admin/serverinfo");
-			if (serverInfo?.announcement) {
-				announcement.title = serverInfo.announcement.title ?? "";
-				announcement.content = serverInfo.announcement.content ?? "";
-			}
-		} catch {
-			toast.error("Failed to load server info");
-		}
-	}
-
-	async function loadHealthStatus() {
-		try {
-			const result = await api.get<LokiInstantResult>("/admin/loki/query/statusCounts");
-			const counts = (result.data.result ?? []).map((r) => ({
-				status: r.metric.status ?? "?",
-				count: Math.round(Number(r.value[1])),
-			}));
-			const total = counts.reduce((a, b) => a + b.count, 0);
-			const errors = counts.filter((s) => Number(s.status) >= 400).reduce((a, b) => a + b.count, 0);
-			healthStatus = {
-				total,
-				errors,
-				level: total === 0 ? "ok" : errors === 0 ? "ok" : errors / total > 0.1 ? "error" : "warn",
-			};
-		} catch {
-			healthStatus = { total: 0, errors: 0, level: "down" };
+			await invalidateAll();
+		} finally {
+			refreshing = false;
 		}
 	}
 
@@ -186,7 +143,7 @@
 	}
 
 	function backupUrl(): string {
-		const token = auth.accessTokens["all"]?.code ?? "";
+		const token = tokens.getAccess("all")?.code ?? "";
 		return `/api/admin/backup/games?token=${encodeURIComponent(token)}`;
 	}
 
@@ -207,13 +164,11 @@
 	<div class="flex items-center justify-between">
 		<h2 class="text-xl font-bold">Dashboard</h2>
 		<button
-			onclick={() => {
-				loadServerInfo();
-				loadHealthStatus();
-			}}
-			class="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+			onclick={refresh}
+			disabled={refreshing}
+			class="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
 		>
-			Refresh
+			{refreshing ? "Refreshing…" : "Refresh"}
 		</button>
 	</div>
 

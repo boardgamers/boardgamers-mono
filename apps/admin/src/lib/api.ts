@@ -1,17 +1,27 @@
-import { auth, logOut } from "./auth.svelte.ts";
+import { tokens, clearTokens } from "./auth.svelte.ts";
 
 const BASE = "/api";
+
+export class ApiError extends Error {
+	readonly status: number;
+	constructor(message: string, status: number) {
+		super(message);
+		this.name = "ApiError";
+		this.status = status;
+	}
+}
 
 async function getAccessToken(url: string): Promise<string | null> {
 	const scopes = url.startsWith("/api/gameplay") ? ["gameplay"] : ["all"];
 	const key = scopes.join(",");
 
-	const existing = auth.accessTokens[key];
+	const existing = tokens.getAccess(key);
 	if (existing && existing.expiresAt > Date.now() + 5 * 60 * 1000) {
 		return existing.code;
 	}
 
-	if (!auth.refreshToken) {
+	const refresh = tokens.refresh;
+	if (!refresh) {
 		return null;
 	}
 
@@ -19,11 +29,11 @@ async function getAccessToken(url: string): Promise<string | null> {
 		const res = await fetch(`${BASE}/account/refresh`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ code: auth.refreshToken.code, scopes }),
+			body: JSON.stringify({ code: refresh.code, scopes }),
 		});
 
 		if (res.status === 404) {
-			logOut();
+			clearTokens();
 			return null;
 		}
 
@@ -32,7 +42,7 @@ async function getAccessToken(url: string): Promise<string | null> {
 		}
 
 		const data = await res.json();
-		auth.accessTokens[key] = data;
+		tokens.setAccess(key, data);
 		return data.code;
 	} catch {
 		return null;
@@ -74,7 +84,7 @@ async function request<T = unknown>(
 		} catch {
 			message = text;
 		}
-		throw new Error(message || `Request failed: ${res.status}`);
+		throw new ApiError(message || `Request failed: ${res.status}`, res.status);
 	}
 
 	const contentType = res.headers.get("content-type");

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
+	import { goto, invalidateAll } from "$app/navigation";
 	import { page } from "$app/state";
-	import { setAuth } from "$lib/auth.svelte.ts";
+	import { setTokens } from "$lib/auth.svelte.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 
 	let email = $state("");
@@ -25,9 +25,10 @@
 			}
 
 			const data = await res.json();
-			setAuth(data);
+			setTokens(data);
 
 			const redirect = page.url.searchParams.get("redirect") || "/";
+			await invalidateAll();
 			goto(redirect);
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Login failed");

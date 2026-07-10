@@ -38,7 +38,12 @@ export default {
       ws: Number(process.env.wsPort) || 50802,
       resources: Number(process.env.resourcesPort) || 50804,
     },
-    host: process.env.listenHost ?? "localhost",
+    // Bind explicitly to 127.0.0.1 so the address the upstream dials (127.0.0.1,
+    // e.g. nginx in prod and the Vite proxy in dev) matches the one the server is
+    // bound to. Otherwise on hosts where `localhost` resolves to ::1 first,
+    // app.listen("localhost") binds only ::1 while clients dial 127.0.0.1 →
+    // ECONNREFUSED. Operators can still force ::1 / 0.0.0.0 via `listenHost`.
+    host: process.env.listenHost ?? "127.0.0.1",
   },
   database: {
     bgs: {

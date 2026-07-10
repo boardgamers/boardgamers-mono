@@ -4,6 +4,15 @@ import Router from "koa-router";
 
 const LOKI_URL = process.env.lokiUrl || "http://127.0.0.1:3100";
 
+// Node 18+ wraps network failures from fetch() as TypeError("fetch failed") with
+// the real cause (ECONNREFUSED, ENOTFOUND, …) on err.cause. Check both layers.
+function isLokiDown(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if (err.message.includes("ECONNREFUSED") || err.message.includes("fetch failed")) return true;
+  const cause = (err as { cause?: unknown }).cause;
+  return cause instanceof Error && /ECONNREFUSED|ENOTFOUND|EAI_AGAIN/.test(cause.message);
+}
+
 // Pre-built LogQL queries for the admin health dashboard. The admin panel
 // never sends raw LogQL — it picks a key from this map and the server adds
 // time bounds. This keeps the proxy read-only and prevents LogQL injection.
@@ -80,7 +89,7 @@ router.get("/query/:key", async (ctx) => {
     const data = await res.json();
     ctx.body = data;
   } catch (err) {
-    if (err instanceof Error && err.message.includes("ECONNREFUSED")) {
+    if (isLokiDown(err)) {
       throw createError(503, "Loki is not running");
     }
     throw err;
@@ -96,7 +105,7 @@ router.get("/labels", async (ctx) => {
     }
     ctx.body = await res.json();
   } catch (err) {
-    if (err instanceof Error && err.message.includes("ECONNREFUSED")) {
+    if (isLokiDown(err)) {
       throw createError(503, "Loki is not running");
     }
     throw err;
