@@ -46,48 +46,48 @@ export async function handle({ request, resolve }: Parameters<Handle>[0]): Promi
   const clientIp = request.headers["x-forwarded-for"]?.split(",")[0].trim() || request.headers["x-real-ip"];
   const requestId = request.headers["x-request-id"] || randomUUID();
   return requestContextStorage.run({ requestId, clientIp }, async () => {
-  const start = Date.now();
-  const path = request.url.pathname;
-  let response: ServerResponse;
-  try {
-    response = await resolve(request);
-  } catch (err) {
-    logEvent("error", "ssr", {
+    const start = Date.now();
+    const path = request.url.pathname;
+    let response: ServerResponse;
+    try {
+      response = await resolve(request);
+    } catch (err) {
+      logEvent("error", "ssr", {
+        source: "web",
+        method: request.method,
+        path,
+        requestId,
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack?.split("\n") : undefined,
+      });
+      throw err;
+    }
+
+    const durationMs = Date.now() - start;
+    const status = response.status;
+    logEvent(status >= 500 ? "error" : status >= 400 ? "warn" : "info", "request", {
       source: "web",
       method: request.method,
       path,
+      status,
+      durationMs,
       requestId,
-      error: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack?.split("\n") : undefined,
     });
-    throw err;
-  }
 
-  const durationMs = Date.now() - start;
-  const status = response.status;
-  logEvent(status >= 500 ? "error" : status >= 400 ? "warn" : "info", "request", {
-    source: "web",
-    method: request.method,
-    path,
-    status,
-    durationMs,
-    requestId,
-  });
-
-  let body = response.body;
-  if (typeof body === "string") {
-    const start = body.indexOf('<meta name="description"');
-    const end = body.indexOf(">", start);
-    if (start !== -1 && end !== -1 && body.indexOf("\\n", start) < end) {
-      body = body.slice(0, start) + body.slice(start, end).replaceAll("\\n", "\n") + body.slice(end);
+    let body = response.body;
+    if (typeof body === "string") {
+      const start = body.indexOf('<meta name="description"');
+      const end = body.indexOf(">", start);
+      if (start !== -1 && end !== -1 && body.indexOf("\\n", start) < end) {
+        body = body.slice(0, start) + body.slice(start, end).replaceAll("\\n", "\n") + body.slice(end);
+      }
     }
-  }
 
-  return {
-    ...response,
-    body,
-    headers: { ...response.headers, "x-request-id": requestId },
-  };
+    return {
+      ...response,
+      body,
+      headers: { ...response.headers, "x-request-id": requestId },
+    };
   }); // requestContextStorage.run
 }
 
@@ -131,12 +131,11 @@ export const externalFetch: ExternalFetch = async (request) => {
   const host = request.url.slice(0, delimiter + 8);
   const path = request.url.slice(delimiter + 8);
 
-  const backend =
-    path.startsWith("/api/gameplay")
-      ? ((import.meta.env as unknown as Record<string, string>).VITE_backend ?? "http://localhost:50803")
-      : path.startsWith("/api/")
-        ? ((import.meta.env as unknown as Record<string, string>).VITE_backend ?? "http://localhost:50801")
-        : null;
+  const backend = path.startsWith("/api/gameplay")
+    ? ((import.meta.env as unknown as Record<string, string>).VITE_backend ?? "http://localhost:50803")
+    : path.startsWith("/api/")
+      ? ((import.meta.env as unknown as Record<string, string>).VITE_backend ?? "http://localhost:50801")
+      : null;
 
   if (backend) {
     // Forward the real client IP so the API logs it instead of 127.0.0.1.
