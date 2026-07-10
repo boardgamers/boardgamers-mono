@@ -20,6 +20,7 @@ export type { PageDoc } from "@bgs/models";
 export type { RoomMetaDataDoc } from "@bgs/models";
 export { SettingsKey } from "@bgs/models";
 export type { SettingsDoc } from "@bgs/models";
+export { announcementSchema } from "@bgs/models";
 export {
   defaultKarma,
   maxKarma,

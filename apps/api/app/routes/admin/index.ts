@@ -7,6 +7,7 @@ import path from "node:path";
 import { env } from "../../config/index.ts";
 import { colls } from "../../config/db.ts";
 import {
+  announcementSchema,
   findByEmail,
   findByUsername,
   recalculateKarma,
@@ -171,7 +172,7 @@ router.post("/load-games", async (ctx) => {
 });
 
 router.post("/announcement", async (ctx) => {
-  const { announcement } = z.object({ announcement: z.string().optional() }).parse(ctx.request.body);
+  const { announcement } = z.object({ announcement: announcementSchema.optional() }).parse(ctx.request.body);
   await colls.settings.updateOne(
     { _id: SettingsKey.Announcement },
     { $set: { value: announcement } },

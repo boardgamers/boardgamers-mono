@@ -62,8 +62,8 @@ export type { RoomMetaDataDoc } from "./roommetadata.ts";
 export { roomMetaDataSchema, ROOM_METADATA_COLLECTION, roomMetaDataIndexes } from "./roommetadata.ts";
 
 // --- Settings ---
-export type { SettingsDoc } from "./settings.ts";
-export { settingsSchema, SETTINGS_COLLECTION, SettingsKey } from "./settings.ts";
+export type { SettingsDoc, Announcement } from "./settings.ts";
+export { settingsSchema, SETTINGS_COLLECTION, SettingsKey, announcementSchema } from "./settings.ts";
 
 // --- User ---
 export type { UserDoc, UserFront } from "./user.ts";
