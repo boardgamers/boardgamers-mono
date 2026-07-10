@@ -10,6 +10,13 @@ router.get("/", async (ctx) => {
   ctx.body = await colls.pages.find({}, { projection: { _id: 1 } }).toArray();
 });
 
+router.get("/:name/:lang", async (ctx) => {
+  const page = await colls.pages.findOne({ _id: { name: ctx.params.name, lang: ctx.params.lang } });
+  if (page) {
+    ctx.body = page;
+  } // else 404
+});
+
 async function upsert(ctx: Context) {
   const page = await colls.pages.findOneAndUpdate(
     { _id: { name: ctx.params.name, lang: ctx.params.lang } },
