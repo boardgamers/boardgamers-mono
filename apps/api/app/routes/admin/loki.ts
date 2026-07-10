@@ -7,8 +7,12 @@ const LOKI_URL = process.env.lokiUrl || "http://127.0.0.1:3100";
 // Node 18+ wraps network failures from fetch() as TypeError("fetch failed") with
 // the real cause (ECONNREFUSED, ENOTFOUND, …) on err.cause. Check both layers.
 function isLokiDown(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  if (err.message.includes("ECONNREFUSED") || err.message.includes("fetch failed")) return true;
+  if (!(err instanceof Error)) {
+    return false;
+  }
+  if (err.message.includes("ECONNREFUSED") || err.message.includes("fetch failed")) {
+    return true;
+  }
   const cause = (err as { cause?: unknown }).cause;
   return cause instanceof Error && /ECONNREFUSED|ENOTFOUND|EAI_AGAIN/.test(cause.message);
 }

@@ -73,7 +73,8 @@
   },
 	"lint-staged": {
 		"*.ts": [
-			"oxfmt"
+			"oxfmt",
+			"oxlint --fix"
 		]
 	}
 }
