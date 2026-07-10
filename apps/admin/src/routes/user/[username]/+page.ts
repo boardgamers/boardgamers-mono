@@ -1,9 +1,27 @@
 import { api } from "$lib/api.ts";
 
+export interface RecentGame {
+	_id: string;
+	game: { name: string };
+	status: string;
+	lastMove: string;
+	createdAt: string;
+}
+
 export interface UserInfo {
 	_id: string;
 	account: { username: string; email: string; karma: number };
-	security?: { lastIp?: string; confirmed?: boolean };
+	security?: {
+		lastIp?: string;
+		confirmed?: boolean;
+		lastLogin?: { ip: string; date: string };
+		lastActive?: string;
+		lastOnline?: string;
+	};
+	authority?: string;
+	createdAt: string;
+	games?: Record<string, number>;
+	recentGames?: RecentGame[];
 }
 
 export interface ApiErrorItem {

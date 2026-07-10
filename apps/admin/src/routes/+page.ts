@@ -15,6 +15,7 @@ interface RecentGame {
 export interface ServerInfo {
 	disk: { free: number; size: number };
 	nbUsers: number;
+	nbAdmins: number;
 	onlineUsers: number;
 	connectedUsers: number;
 	games: Record<string, number>;

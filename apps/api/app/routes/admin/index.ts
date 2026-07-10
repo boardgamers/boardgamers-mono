@@ -69,6 +69,7 @@ router.get("/serverinfo", async (ctx) => {
   const [
     disk,
     nbUsers,
+    nbAdmins,
     onlineUsers,
     connectedUsers,
     gamesByStatus,
@@ -79,6 +80,7 @@ router.get("/serverinfo", async (ctx) => {
   ] = await Promise.all([
     checkDiskSpace(process.cwd()),
     colls.users.countDocuments({}),
+    colls.users.countDocuments({ authority: "admin" }),
     colls.users.countDocuments({ "security.lastOnline": { $gt: activityCutoff } }),
     colls.users.countDocuments({ "security.lastActive": { $gt: activityCutoff } }),
     colls.games
@@ -116,6 +118,7 @@ router.get("/serverinfo", async (ctx) => {
   ctx.body = {
     disk,
     nbUsers,
+    nbAdmins,
     onlineUsers,
     connectedUsers,
     games,

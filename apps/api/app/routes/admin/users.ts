@@ -8,6 +8,94 @@ import { queryCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
+// GET /api/admin/users/admins — list all admin users with activity info
+router.get("/admins", async (ctx) => {
+  const admins = await colls.users
+    .find({ authority: "admin" }, { projection: { account: 1, createdAt: 1, security: 1 } })
+    .sort({ createdAt: 1 })
+    .toArray();
+
+  // Batch-count games for all admins in one aggregation
+  const adminIds = admins.map((a) => a._id);
+  const gameCounts = await colls.games
+    .aggregate<{ _id: ObjectId; total: number; active: number; ended: number }>([
+      { $match: { "players._id": { $in: adminIds } } },
+      { $unwind: "$players" },
+      { $match: { "players._id": { $in: adminIds } } },
+      {
+        $group: {
+          _id: "$players._id",
+          total: { $sum: 1 },
+          active: { $sum: { $cond: [{ $eq: ["$status", "active"] }, 1, 0] } },
+          ended: { $sum: { $cond: [{ $eq: ["$status", "ended"] }, 1, 0] } },
+        },
+      },
+    ])
+    .toArray();
+
+  const gameCountMap = new Map(gameCounts.map((g) => [g._id.toString(), g]));
+
+  ctx.body = admins.map((a) => {
+    const gc = gameCountMap.get(a._id.toString());
+    return {
+      _id: a._id,
+      account: a.account,
+      createdAt: a.createdAt,
+      security: {
+        lastOnline: a.security?.lastOnline,
+        lastActive: a.security?.lastActive,
+        lastLogin: a.security?.lastLogin,
+      },
+      games: gc ? { total: gc.total, active: gc.active, ended: gc.ended } : { total: 0, active: 0, ended: 0 },
+    };
+  });
+});
+
+// GET /api/admin/users/stats — user metrics for dashboard chart
+router.get("/stats", async (ctx) => {
+  const days = 30;
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  // Truncate to start of day
+  since.setHours(0, 0, 0, 0);
+
+  const activityCutoff = new Date(Date.now() - 60 * 1000);
+
+  const [newUsersByDay, confirmedCount, adminCount, onlineCount, connectedCount] = await Promise.all([
+    colls.users
+      .aggregate<{ _id: string; count: number }>([
+        { $match: { createdAt: { $gte: since } } },
+        { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, count: { $sum: 1 } } },
+        { $sort: { _id: 1 } },
+      ])
+      .toArray(),
+    colls.users.countDocuments({ "security.confirmed": true }),
+    colls.users.countDocuments({ authority: "admin" }),
+    colls.users.countDocuments({ "security.lastOnline": { $gt: activityCutoff } }),
+    colls.users.countDocuments({ "security.lastActive": { $gt: activityCutoff } }),
+  ]);
+
+  // Fill in missing days with 0
+  const dateMap = new Map(newUsersByDay.map((d) => [d._id, d.count]));
+  const dailyData: { date: string; count: number }[] = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(since);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    dailyData.push({ date: dateStr, count: dateMap.get(dateStr) ?? 0 });
+  }
+
+  const totalUsers = await colls.users.countDocuments({});
+
+  ctx.body = {
+    totalUsers,
+    confirmedUsers: confirmedCount,
+    adminUsers: adminCount,
+    onlineUsers: onlineCount,
+    connectedUsers: connectedCount,
+    newUsersByDay: dailyData,
+  };
+});
+
 const userSearchQuerySchema = z.object({
   search: z.string().optional(),
 });
@@ -40,6 +128,12 @@ router.post("/:userId", async (ctx) => {
       $set: { "account.karma": account.karma },
     },
   );
+  ctx.status = 200;
+});
+
+router.post("/:userId/authority", async (ctx) => {
+  const { authority } = z.object({ authority: z.enum(["user", "admin"]) }).parse(ctx.request.body);
+  await colls.users.updateOne({ _id: new ObjectId(ctx.params.userId) }, { $set: { authority } });
   ctx.status = 200;
 });
 
@@ -99,6 +193,26 @@ router.post("/:userId/confirm", async (ctx) => {
   ctx.status = 200;
 });
 
+router.delete("/:userId", async (ctx) => {
+  const userId = new ObjectId(ctx.params.userId);
+
+  if (!(await colls.users.countDocuments({ _id: userId }))) {
+    ctx.status = 404;
+    return;
+  }
+
+  await Promise.all([
+    colls.users.deleteOne({ _id: userId }),
+    colls.jwtRefreshTokens.deleteMany({ user: userId }),
+    colls.gamePreferences.deleteMany({ user: userId }),
+    colls.apiErrors.deleteMany({ user: userId }),
+    colls.gameNotifications.deleteMany({ user: userId }),
+    colls.roomMetaData.deleteMany({ user: userId }),
+  ]);
+
+  ctx.status = 200;
+});
+
 router.get("/:userId/api-errors", async (ctx) => {
   if (!(await colls.users.countDocuments({ _id: new ObjectId(ctx.params.userId) }))) {
     return;
@@ -119,7 +233,30 @@ router.get("/infoByName/:username", async (ctx) => {
     return;
   }
 
-  ctx.body = user;
+  // Count games by status and get recent games
+  const [gameCounts, recentGames] = await Promise.all([
+    colls.games
+      .aggregate<{ _id: string; count: number }>([
+        { $match: { "players._id": user._id } },
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+      ])
+      .toArray(),
+    colls.games
+      .find(
+        { "players._id": user._id },
+        { projection: { _id: 1, "game.name": 1, status: 1, lastMove: 1, createdAt: 1 } },
+      )
+      .sort({ lastMove: -1 })
+      .limit(10)
+      .toArray(),
+  ]);
+
+  const games: Record<string, number> = {};
+  for (const g of gameCounts) {
+    games[g._id] = g.count;
+  }
+
+  ctx.body = { ...user, games, recentGames };
 });
 
 export default router;

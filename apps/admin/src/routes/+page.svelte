@@ -214,6 +214,11 @@
 						{/if}
 					</span>
 				</div>
+				{#if serverInfo.nbAdmins}
+					<a href="/users" class="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1 inline-block">
+						{serverInfo.nbAdmins} admin{serverInfo.nbAdmins > 1 ? "s" : ""}
+					</a>
+				{/if}
 			</div>
 			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
 				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Games</div>

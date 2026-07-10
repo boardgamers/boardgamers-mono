@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
-	import { invalidateAll } from "$app/navigation";
-	import type { UserInfo, ApiErrorItem } from "./+page.ts";
+	import { goto, invalidateAll } from "$app/navigation";
+	import type { UserInfo, ApiErrorItem, RecentGame } from "./+page.ts";
 
 	let { data }: { data: { user: UserInfo | null; errors: ApiErrorItem[] } } = $props();
 
@@ -76,33 +76,149 @@
 	function toggleError(id: string) {
 		expandedError = expandedError === id ? null : id;
 	}
+
+	let showDeleteConfirm = $state(false);
+	let deleting = $state(false);
+	let togglingAdmin = $state(false);
+
+	async function toggleAdmin() {
+		if (!user) return;
+		togglingAdmin = true;
+		const newAuthority = user.authority === "admin" ? "user" : "admin";
+		try {
+			await api.post(`/admin/users/${user._id}/authority`, { authority: newAuthority });
+			user.authority = newAuthority;
+			toast.success(newAuthority === "admin" ? "Promoted to admin" : "Demoted to user");
+			await invalidateAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed");
+		} finally {
+			togglingAdmin = false;
+		}
+	}
+
+	async function deleteUser() {
+		if (!user) return;
+		deleting = true;
+		try {
+			await api.del(`/admin/users/${user._id}`);
+			toast.success("User deleted");
+			goto("/users");
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed to delete user");
+		} finally {
+			deleting = false;
+			showDeleteConfirm = false;
+		}
+	}
+
+	function timeAgo(iso?: string): string {
+		if (!iso) return "never";
+		const diff = Date.now() - new Date(iso).getTime();
+		const sec = Math.floor(diff / 1000);
+		if (sec < 60) return `${sec}s ago`;
+		const min = Math.floor(sec / 60);
+		if (min < 60) return `${min}m ago`;
+		const hr = Math.floor(min / 60);
+		if (hr < 24) return `${hr}h ago`;
+		const day = Math.floor(hr / 24);
+		if (day < 30) return `${day}d ago`;
+		const mon = Math.floor(day / 30);
+		return `${mon}mo ago`;
+	}
+
+	const totalGames = $derived(
+		user?.games ? Object.values(user.games).reduce((a, b) => a + (b ?? 0), 0) : 0,
+	);
+	const isOnline = $derived(
+		user?.security?.lastOnline && Date.now() - new Date(user.security.lastOnline).getTime() < 60000,
+	);
 </script>
 
 {#if user}
-	<div class="max-w-4xl space-y-6">
-		<div class="flex items-center gap-4">
-			<h2 class="text-xl font-bold">{user.account.username}</h2>
-			{#if user.security?.confirmed}
-				<span
-					class="px-2 py-0.5 text-xs font-medium bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-full"
-					>Confirmed</span
-				>
-			{:else}
-				<button
-					onclick={confirmUser}
-					class="px-3 py-1 text-xs font-medium bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 rounded-full hover:opacity-80"
-				>
-					Confirm user
-				</button>
-			{/if}
-		</div>
+	<div class="space-y-6">
+		<div class="flex items-center gap-4 flex-wrap">
+				<h2 class="text-xl font-bold">{user.account.username}</h2>
+				{#if user.authority === "admin"}
+					<span
+						class="px-2 py-0.5 text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full"
+						>Admin</span
+					>
+				{:else}
+					<button
+						onclick={toggleAdmin}
+						disabled={togglingAdmin}
+						class="px-3 py-1 text-xs font-medium bg-purple-600 hover:bg-purple-700 text-white rounded-full disabled:opacity-50"
+					>
+						{togglingAdmin ? "…" : "Promote to admin"}
+					</button>
+				{/if}
+				{#if user.security?.confirmed}
+					<span
+						class="px-2 py-0.5 text-xs font-medium bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-full"
+						>Confirmed</span
+					>
+				{:else}
+					<button
+						onclick={confirmUser}
+						class="px-3 py-1 text-xs font-medium bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 rounded-full hover:opacity-80"
+					>
+						Confirm user
+					</button>
+				{/if}
+				{#if user.authority === "admin"}
+					<button
+						onclick={toggleAdmin}
+						disabled={togglingAdmin}
+						class="px-3 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full disabled:opacity-50"
+					>
+						{togglingAdmin ? "…" : "Demote to user"}
+					</button>
+				{/if}
+			</div>
 
-		<div class="text-sm text-gray-500 dark:text-gray-400 space-y-1">
-			<p>Email: <span class="text-gray-900 dark:text-white">{user.account.email}</span></p>
-			{#if user.security?.lastIp}
-				<p>Last IP: <span class="text-gray-900 dark:text-white">{user.security.lastIp}</span></p>
-			{/if}
-		</div>
+		<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+				<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+					<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</div>
+					<div class="text-sm font-medium mt-1 flex items-center gap-1.5">
+						<span class="inline-block w-2 h-2 rounded-full {isOnline ? 'bg-green-500' : 'bg-gray-400'}"></span>
+						{isOnline ? "Online" : "Offline"}
+					</div>
+				</div>
+				<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+					<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Last Active</div>
+					<div class="text-sm font-medium mt-1">{timeAgo(user.security?.lastActive)}</div>
+				</div>
+				<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+					<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Last Login</div>
+					<div class="text-sm font-medium mt-1">{timeAgo(user.security?.lastLogin?.date)}</div>
+					{#if user.security?.lastLogin?.ip}
+						<div class="text-xs text-gray-400 mt-0.5">{user.security.lastLogin.ip}</div>
+					{/if}
+				</div>
+				<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+					<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Joined</div>
+					<div class="text-sm font-medium mt-1">{timeAgo(user.createdAt)}</div>
+				</div>
+				<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+					<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Games</div>
+					<div class="text-sm font-medium mt-1">{totalGames}</div>
+					{#if user.games}
+						<div class="flex gap-2 text-xs text-gray-400 mt-0.5">
+							{#if user.games.active}<span class="text-amber-500">{user.games.active} active</span>{/if}
+							{#if user.games.ended}<span class="text-gray-400">{user.games.ended} ended</span>{/if}
+							{#if user.games.open}<span class="text-blue-500">{user.games.open} open</span>{/if}
+						</div>
+					{/if}
+				</div>
+				<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+					<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Email</div>
+					<div class="text-sm font-medium mt-1 truncate">{user.account.email}</div>
+					{#if user.security?.lastIp}
+						<div class="text-xs text-gray-400 mt-0.5">IP: {user.security.lastIp}</div>
+					{/if}
+				</div>
+			</div>
 
 		<!-- User Management -->
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
@@ -165,7 +281,38 @@
 			</div>
 		</div>
 
-		<!-- API Errors -->
+			<!-- Recent Games -->
+			{#if user.recentGames && user.recentGames.length > 0}
+				<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+					<div class="px-5 py-3 border-b border-gray-200 dark:border-gray-800">
+						<h3 class="text-sm font-semibold">Recent Games ({user.recentGames.length})</h3>
+					</div>
+					<div class="divide-y divide-gray-100 dark:divide-gray-800">
+						{#each user.recentGames as game}
+							<a
+								href={`/game/${game._id}`}
+								class="px-5 py-2.5 flex items-center justify-between text-sm hover:bg-gray-50 dark:hover:bg-gray-800/50"
+							>
+								<span class="font-mono text-xs truncate flex-1">{game._id}</span>
+								<span class="text-xs text-gray-500 ml-3 flex-shrink-0">{game.game.name}</span>
+								<span
+									class="ml-3 px-1.5 py-0.5 text-[10px] font-medium rounded flex-shrink-0 {game.status ===
+									"active"
+										? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
+										: game.status === "ended"
+											? "bg-gray-100 dark:bg-gray-800 text-gray-500"
+											: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"}"
+								>
+									{game.status}
+								</span>
+								<span class="ml-3 text-xs text-gray-400 flex-shrink-0 w-16 text-right">{timeAgo(game.lastMove)}</span>
+							</a>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- API Errors -->
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
 			<div class="px-5 py-3 border-b border-gray-200 dark:border-gray-800">
 				<h3 class="text-sm font-semibold">API Errors ({errors.length})</h3>
@@ -217,10 +364,47 @@
 					</table>
 				</div>
 			{:else}
-				<p class="px-5 py-4 text-sm text-gray-500">No API errors.</p>
-			{/if}
-		</div>
-	</div>
+					<p class="px-5 py-4 text-sm text-gray-500">No API errors.</p>
+					{/if}
+				</div>
+
+				<!-- Danger zone -->
+				<div class="bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800 p-5">
+					<h3 class="text-sm font-semibold text-red-700 dark:text-red-400">Danger Zone</h3>
+					{#if !showDeleteConfirm}
+						<div class="flex items-center justify-between mt-2">
+							<p class="text-sm text-red-600 dark:text-red-500/80">Permanently delete this user and all associated data.</p>
+							<button
+								onclick={() => (showDeleteConfirm = true)}
+								class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium flex-shrink-0"
+							>
+								Delete user
+							</button>
+						</div>
+					{:else}
+						<div class="mt-2 space-y-3">
+							<p class="text-sm text-red-700 dark:text-red-400">
+								Are you sure? This will delete the user, refresh tokens, game preferences, notifications, room metadata, and API error records. This cannot be undone.
+							</p>
+							<div class="flex gap-2">
+								<button
+									onclick={deleteUser}
+									disabled={deleting}
+									class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+								>
+									{deleting ? "Deleting…" : "Yes, delete permanently"}
+								</button>
+								<button
+									onclick={() => (showDeleteConfirm = false)}
+									class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-sm font-medium"
+								>
+									Cancel
+								</button>
+							</div>
+						</div>
+					{/if}
+				</div>
+			</div>
 {:else}
 	<div class="flex items-center justify-center h-32">
 		<div class="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>

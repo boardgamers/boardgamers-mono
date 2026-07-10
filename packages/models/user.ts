@@ -91,4 +91,8 @@ export const userIndexes: IndexDescription[] = [
   { key: { "security.slug": 1 }, unique: true, sparse: true },
   // api: admin IP-based lookups
   { key: { "security.lastIp": 1 } },
+  // admin: list all admins / promote-demote
+  { key: { authority: 1 } },
+  // admin: online/connected user counts on dashboard
+  { key: { "security.lastOnline": 1 } },
 ];
