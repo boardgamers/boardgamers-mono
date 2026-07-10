@@ -109,9 +109,6 @@ async function listen(port = env.listen.port.api) {
     try {
       await next();
     } catch (err) {
-      if (!env.silent) {
-        console.error("Caught err", err);
-      }
       const error = err instanceof Error ? err : new Error(String(err));
       if (err instanceof createError.HttpError) {
         ctx.status = err.statusCode;
@@ -127,37 +124,45 @@ async function listen(port = env.listen.port.api) {
         ctx.body = { message: "Internal error: " + error.message, stack: error.stack };
       }
 
-      try {
-        const body: unknown = ctx.request.body;
-        if (body && typeof body === "object" && "password" in body && body.password) {
-          // Redact the password before logging the request body.
-          // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-          (body as Record<string, unknown>).password = "*******";
-        }
-        await colls.apiErrors.insertOne({
-          request: {
-            url: ctx.request.originalUrl,
-            method: ctx.request.method,
-            body: JSON.stringify(ctx.request.body),
-            status: ctx.status,
-            id: ctx.state.requestId,
-          },
-          error: {
-            name: error.name,
-            stack: error.stack ? error.stack.split("\n") : [],
-            message: error.message,
-          },
-          user: ctx.state.user?._id,
-          meta: {
-            source: "api-node",
-          },
-        });
-        if (process.env.NODE_ENV !== "production" && !env.silent) {
-          console.error(err);
-        }
-      } catch (innerErr) {
+      // Routine 401 auth checks are expected traffic, not real errors — skip
+      // the console dump and DB error record for them.
+      const isRoutineAuth = err instanceof createError.HttpError && err.statusCode === 401;
+      if (!isRoutineAuth) {
         if (!env.silent) {
-          console.error(innerErr);
+          console.error("Caught err", err);
+        }
+        try {
+          const body: unknown = ctx.request.body;
+          if (body && typeof body === "object" && "password" in body && body.password) {
+            // Redact the password before logging the request body.
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+            (body as Record<string, unknown>).password = "*******";
+          }
+          await colls.apiErrors.insertOne({
+            request: {
+              url: ctx.request.originalUrl,
+              method: ctx.request.method,
+              body: JSON.stringify(ctx.request.body),
+              status: ctx.status,
+              id: ctx.state.requestId,
+            },
+            error: {
+              name: error.name,
+              stack: error.stack ? error.stack.split("\n") : [],
+              message: error.message,
+            },
+            user: ctx.state.user?._id,
+            meta: {
+              source: "api-node",
+            },
+          });
+          if (process.env.NODE_ENV !== "production" && !env.silent) {
+            console.error(err);
+          }
+        } catch (innerErr) {
+          if (!env.silent) {
+            console.error(innerErr);
+          }
         }
       }
     }

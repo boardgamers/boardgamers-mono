@@ -72,7 +72,6 @@ app.use(async (ctx, next) => {
   try {
     await next();
   } catch (err) {
-    console.error(err);
     if (err instanceof createError.HttpError) {
       ctx.status = err.statusCode;
       ctx.body = { message: err.message };
@@ -87,25 +86,31 @@ app.use(async (ctx, next) => {
       ctx.body = { message: "Internal error: " + err.message, stack: err.stack };
     }
 
-    await colls.apiErrors.insertOne({
-      request: {
-        url: ctx.request.originalUrl,
-        method: ctx.request.method,
-        body: JSON.stringify(ctx.request.body),
-        status: ctx.status,
-        id: ctx.state.requestId,
-      },
-      error: {
-        name: err.name,
-        stack: err.stack,
-        message: err.message,
-      },
-      user: ctx.state.user?.id ? new ObjectId(ctx.state.user.id) : undefined,
-      meta: {
-        source: "game-server",
-      },
-      createdAt: new Date(),
-    });
+    // Routine 401 auth checks are expected traffic, not real errors — skip
+    // the console dump and DB error record for them.
+    const isRoutineAuth = err instanceof createError.HttpError && err.statusCode === 401;
+    if (!isRoutineAuth) {
+      console.error(err);
+      await colls.apiErrors.insertOne({
+        request: {
+          url: ctx.request.originalUrl,
+          method: ctx.request.method,
+          body: JSON.stringify(ctx.request.body),
+          status: ctx.status,
+          id: ctx.state.requestId,
+        },
+        error: {
+          name: err.name,
+          stack: err.stack,
+          message: err.message,
+        },
+        user: ctx.state.user?.id ? new ObjectId(ctx.state.user.id) : undefined,
+        meta: {
+          source: "game-server",
+        },
+        createdAt: new Date(),
+      });
+    }
   }
 });
 
