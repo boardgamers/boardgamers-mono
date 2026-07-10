@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { ExternalFetch, Handle } from "@sveltejs/kit";
 import type { ServerResponse } from "@sveltejs/kit/types/hooks";
 import { logEvent } from "@bgs/utils/log";
@@ -10,6 +11,12 @@ export type Session = {
   refreshToken: string | undefined;
   sidebarOpen: boolean | undefined;
 };
+
+// `externalFetch` runs in the same async chain as `handle` (handle → resolve →
+// load → fetch → externalFetch), so an AsyncLocalStorage set in `handle` is
+// visible inside `externalFetch`. We use it to pass the real client IP through
+// to the API, which otherwise sees only 127.0.0.1 (the SvelteKit server).
+const clientIpStorage = new AsyncLocalStorage<string | undefined>();
 
 export function getSession(request: { headers: Record<string, string> }): Session {
   const refreshToken = extractCookie("refreshToken", request.headers.cookie ?? "");
@@ -30,6 +37,9 @@ export function getSession(request: { headers: Record<string, string> }): Sessio
  * name="description">` tag back to using real newlines.
  */
 export async function handle({ request, resolve }: Parameters<Handle>[0]): Promise<ServerResponse> {
+  // Capture the client IP for externalFetch (see clientIpStorage above).
+  const clientIp = request.headers["x-forwarded-for"]?.split(",")[0].trim() || request.headers["x-real-ip"];
+  return clientIpStorage.run(clientIp, async () => {
   const start = Date.now();
   const path = request.url.pathname;
   let response: ServerResponse;
@@ -69,6 +79,7 @@ export async function handle({ request, resolve }: Parameters<Handle>[0]): Promi
     ...response,
     body,
   };
+  }); // clientIpStorage.run
 }
 
 /**
@@ -111,22 +122,23 @@ export const externalFetch: ExternalFetch = async (request) => {
   const host = request.url.slice(0, delimiter + 8);
   const path = request.url.slice(delimiter + 8);
 
-  if (path.startsWith("/api/gameplay")) {
-    request = new Request(
-      request.url.replace(
-        host,
-        (import.meta.env as unknown as Record<string, string>).VITE_backend ?? "http://localhost:50803"
-      ),
-      request
-    );
-  } else if (path.startsWith("/api/")) {
-    request = new Request(
-      request.url.replace(
-        host,
-        (import.meta.env as unknown as Record<string, string>).VITE_backend ?? "http://localhost:50801"
-      ),
-      request
-    );
+  const backend =
+    path.startsWith("/api/gameplay")
+      ? ((import.meta.env as unknown as Record<string, string>).VITE_backend ?? "http://localhost:50803")
+      : path.startsWith("/api/")
+        ? ((import.meta.env as unknown as Record<string, string>).VITE_backend ?? "http://localhost:50801")
+        : null;
+
+  if (backend) {
+    // Forward the real client IP so the API logs it instead of 127.0.0.1.
+    // `app.proxy = true` on the API side trusts X-Forwarded-For.
+    const headers = new Headers(request.headers);
+    const clientIp = clientIpStorage.getStore();
+    if (clientIp) {
+      const existing = headers.get("x-forwarded-for");
+      headers.set("x-forwarded-for", existing ? `${existing}, ${clientIp}` : clientIp);
+    }
+    request = new Request(request.url.replace(host, backend), { ...request, headers });
   }
 
   const response = await fetch(request);
