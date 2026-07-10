@@ -358,7 +358,7 @@
 					bind:value={announcement.title}
 					class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 				/>
-				<MarkdownEditor bind:value={announcement.content} label="Content (Markdown)" rows={3} />
+				<MarkdownEditor bind:value={announcement.content} label="Content (Markdown)" rows={5} />
 				<button
 					onclick={saveAnnouncement}
 					class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"

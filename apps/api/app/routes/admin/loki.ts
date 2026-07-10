@@ -51,7 +51,7 @@ const QUERIES: Record<string, { type: "query" | "query_range"; logql: string }> 
 const router = new Router<Application.DefaultState, Context>();
 
 // GET /api/admin/loki/query/:key — runs a pre-built LogQL query
-router.get("/loki/query/:key", async (ctx) => {
+router.get("/query/:key", async (ctx) => {
   const { key } = ctx.params;
   const query = QUERIES[key];
   if (!query) {
@@ -88,7 +88,7 @@ router.get("/loki/query/:key", async (ctx) => {
 });
 
 // GET /api/admin/loki/labels — list available labels (for debugging)
-router.get("/loki/labels", async (ctx) => {
+router.get("/labels", async (ctx) => {
   try {
     const res = await fetch(`${LOKI_URL}/loki/api/v1/labels`);
     if (!res.ok) {
