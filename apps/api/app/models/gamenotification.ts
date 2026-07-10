@@ -21,7 +21,10 @@ export async function processCurrentMove() {
     }
   }
 
-  await col.updateMany({ _id: { $in: notifications.map((x) => x._id) } }, { $set: { processed: true, updatedAt: new Date() } });
+  await col.updateMany(
+    { _id: { $in: notifications.map((x) => x._id) } },
+    { $set: { processed: true, updatedAt: new Date() } },
+  );
 }
 
 export async function processGameEnded() {
@@ -64,6 +67,10 @@ export async function processPlayerDrop() {
   const col = colls.gameNotifications;
   const notifications = await col.find({ kind: "playerDrop", processed: false }).toArray();
 
+  if (notifications.length === 0) {
+    return;
+  }
+
   const dropCounts = new Map<string, { id: NonNullable<(typeof notifications)[0]["user"]>; count: number }>();
   for (const n of notifications) {
     if (!n.user) {
@@ -90,6 +97,9 @@ export async function processPlayerDrop() {
         createdAt: new Date(),
       })),
     ),
-    col.updateMany({ _id: { $in: notifications.map((x) => x._id) } }, { $set: { processed: true, updatedAt: new Date() } }),
+    col.updateMany(
+      { _id: { $in: notifications.map((x) => x._id) } },
+      { $set: { processed: true, updatedAt: new Date() } },
+    ),
   ]);
 }

@@ -28,6 +28,7 @@ import {
   type UserDoc,
   USERS_COLLECTION,
   ensureCollections,
+  withAutoUpdatedAt,
   ensureIndexes,
   ensureValidation,
 } from "@bgs/models";
@@ -63,20 +64,21 @@ export const colls = {} as {
 };
 
 function initColls(database: Db) {
+  // withAutoUpdatedAt wraps the collections whose schema carries `updatedAt`.
   Object.assign(colls, {
-    apiErrors: database.collection<ApiErrorDoc>(API_ERRORS_COLLECTION),
+    apiErrors: withAutoUpdatedAt(database.collection<ApiErrorDoc>(API_ERRORS_COLLECTION)),
     chatMessages: database.collection<ChatMessageDoc>(CHAT_MESSAGES_COLLECTION),
-    games: database.collection<GameDoc>(GAMES_COLLECTION),
+    games: withAutoUpdatedAt(database.collection<GameDoc>(GAMES_COLLECTION)),
     gameInfos: database.collection<GameInfoDoc>(GAME_INFOS_COLLECTION),
-    gameNotifications: database.collection<GameNotificationDoc>(GAME_NOTIFICATIONS_COLLECTION),
+    gameNotifications: withAutoUpdatedAt(database.collection<GameNotificationDoc>(GAME_NOTIFICATIONS_COLLECTION)),
     gamePreferences: database.collection<GamePreferencesDoc>(GAME_PREFERENCES_COLLECTION),
-    images: database.collection<ImageDoc>(IMAGES_COLLECTION),
-    jwtRefreshTokens: database.collection<JwtRefreshTokenDoc>(JWT_REFRESH_TOKENS_COLLECTION),
+    images: withAutoUpdatedAt(database.collection<ImageDoc>(IMAGES_COLLECTION)),
+    jwtRefreshTokens: withAutoUpdatedAt(database.collection<JwtRefreshTokenDoc>(JWT_REFRESH_TOKENS_COLLECTION)),
     logs: database.collection<LogDoc>(LOGS_COLLECTION),
     pages: database.collection<PageDoc>(PAGES_COLLECTION),
     roomMetaData: database.collection<RoomMetaDataDoc>(ROOM_METADATA_COLLECTION),
     settings: database.collection<SettingsDoc>(SETTINGS_COLLECTION),
-    users: database.collection<UserDoc>(USERS_COLLECTION),
+    users: withAutoUpdatedAt(database.collection<UserDoc>(USERS_COLLECTION)),
   });
 }
 

@@ -20,7 +20,13 @@ export async function notifyGameStart(game: GameDoc) {
     data: { text: "Game started" },
   });
   const now = new Date();
-  await colls.gameNotifications.insertOne({ game: game._id, kind: "gameStarted", processed: false, createdAt: now, updatedAt: now });
+  await colls.gameNotifications.insertOne({
+    game: game._id,
+    kind: "gameStarted",
+    processed: false,
+    createdAt: now,
+    updatedAt: now,
+  });
 }
 
 export async function cancelOldOpenGames() {

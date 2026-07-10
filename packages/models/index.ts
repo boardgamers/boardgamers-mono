@@ -72,6 +72,7 @@ export { userSchema, USERS_COLLECTION, userIndexes } from "./user.ts";
 // --- Helpers ---
 export { zObjectId, zDate } from "./helpers.ts";
 export { zodToMongoSchema } from "./mongo-schema.ts";
+export { withAutoUpdatedAt } from "./auto-updated-at.ts";
 
 // --- Backward-compat aliases for frontend migration from @bgs/types ---
 export type { UserFront as IUser, UserFront as IAbstractUser } from "./user.ts";
