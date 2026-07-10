@@ -6,12 +6,12 @@ Production runs on a single bare-metal server (**coyo**, Debian 12, 31 GB RAM, 9
 
 All apps run under PM2 as the `bgs` user, managed via `ecosystem.config.cjs` at the repo root.
 
-| PM2 name      | App               | Mode    | Notes                                    |
-| ------------- | ------------------ | ------- | ---------------------------------------- |
-| `api`         | `apps/api`         | fork    | Koa REST API, `npm start`                |
-| `game-server` | `apps/game-server` | fork    | Game engine runner, `npm start`          |
-| `web`         | `apps/web`         | cluster | SvelteKit SSR (pinned prerelease), 2 instances |
-| `pm2-logrotate` | (module)         | fork    | Rotates PM2 logs at 10 MB, 30-day retain |
+| PM2 name        | App                | Mode    | Notes                                          |
+| --------------- | ------------------ | ------- | ---------------------------------------------- |
+| `api`           | `apps/api`         | fork    | Koa REST API, `npm start`                      |
+| `game-server`   | `apps/game-server` | fork    | Game engine runner, `npm start`                |
+| `web`           | `apps/web`         | cluster | SvelteKit SSR (pinned prerelease), 2 instances |
+| `pm2-logrotate` | (module)           | fork    | Rotates PM2 logs at 10 MB, 30-day retain       |
 
 PM2 is managed as the `bgs` user (not root). Logs are in `~/.pm2/logs/`.
 
@@ -53,12 +53,12 @@ Automated via GitHub Actions (`.github/workflows/deploy.yml`). On push to `maste
 
 ### Required GitHub secrets
 
-| Secret               | Purpose                                                      |
-| -------------------- | ------------------------------------------------------------ |
-| `COYO_SSH_KEY`       | Private SSH key for the `bgs` user on coyo                   |
-| `COYO_SSH_HOST`      | Hostname/IP of coyo (e.g. `62.210.93.85`)                     |
-| `COYO_SSH_PORT`      | SSH port (default `22`)                                      |
-| `COYO_KNOWN_HOSTS`   | Output of `ssh-keyscan` for coyo (pins host key, prevents MITM) |
+| Secret             | Purpose                                                         |
+| ------------------ | --------------------------------------------------------------- |
+| `COYO_SSH_KEY`     | Private SSH key for the `bgs` user on coyo                      |
+| `COYO_SSH_HOST`    | Hostname/IP of coyo (e.g. `62.210.93.85`)                       |
+| `COYO_SSH_PORT`    | SSH port (default `22`)                                         |
+| `COYO_KNOWN_HOSTS` | Output of `ssh-keyscan` for coyo (pins host key, prevents MITM) |
 
 To set up: generate an SSH keypair, add the public key to `~bgs/.ssh/authorized_keys` on coyo, and add the private key as a GitHub secret. For `COYO_KNOWN_HOSTS`, run `ssh-keyscan -p 22 62.210.93.85` and paste the output as the secret value.
 
@@ -82,13 +82,13 @@ Redis (`127.0.0.1:6379`) is used by NodeBB.
 
 ## Other services on coyo
 
-| Service  | Port  | Purpose                     |
-| -------- | ----- | --------------------------- |
-| MongoDB  | 27017 | Primary database            |
-| Redis    | 6379  | NodeBB sessions/cache       |
-| Nginx    | 80/443| Reverse proxy + SSL         |
-| NodeBB   | 4567  | Forums                      |
-| PM2 God  | -     | Process supervisor for `bgs`|
+| Service | Port   | Purpose                      |
+| ------- | ------ | ---------------------------- |
+| MongoDB | 27017  | Primary database             |
+| Redis   | 6379   | NodeBB sessions/cache        |
+| Nginx   | 80/443 | Reverse proxy + SSL          |
+| NodeBB  | 4567   | Forums                       |
+| PM2 God | -      | Process supervisor for `bgs` |
 
 ## SSH access
 

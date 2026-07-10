@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'boardgamers/boardgamers-mono'
     timeout-minutes: 10
+    environment: deploy
     steps:
       - name: Deploy to coyo
         env:
