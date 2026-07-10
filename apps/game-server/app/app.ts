@@ -35,6 +35,7 @@ app.use(async (ctx, next) => {
     logRequest("game-server", {
       method: ctx.request.method,
       path: ctx.request.path,
+      route: (ctx as { _matchedRoute?: string })._matchedRoute,
       status: ctx.status,
       durationMs: Date.now() - start,
       ip: ctx.ip,

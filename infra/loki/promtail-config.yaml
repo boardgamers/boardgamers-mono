@@ -34,6 +34,7 @@ scrape_configs:
             source: source
             method: method
             path: path
+            route: route
             status: status
             durationMs: durationMs
             userId: userId
@@ -45,19 +46,4 @@ scrape_configs:
           source:
           status:
           method:
-      # Extract a coarse path label (strip IDs/params) so we can group by
-      # endpoint rather than by exact URL.
-      - replace:
-          expression: "/api/user/[a-f0-9]{24}"
-          replace: "/api/user/:id"
-      - replace:
-          expression: "/api/game/[^/]+"
-          replace: "/api/game/:id"
-      - replace:
-          expression: "/api/boardgame/[^/]+"
-          replace: "/api/boardgame/:id"
-      - replace:
-          expression: "/api/page/[^/]+/[^/]+"
-          replace: "/api/page/:name/:lang"
-      - labels:
-          path:
+          route:

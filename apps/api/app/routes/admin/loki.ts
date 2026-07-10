@@ -42,21 +42,21 @@ const QUERIES: Record<string, { type: "query" | "query_range"; logql: string }> 
     type: "query_range",
     logql: 'avg by (source) (avg_over_time({job="pm2", msg="request"} | json | unwrap durationMs [$__interval]))',
   },
-  // Top 10 slowest endpoints (instant vector)
+  // Top 10 slowest endpoints by parameterized route (instant vector)
   slowEndpoints: {
     type: "query",
-    logql: 'topk(10, avg by (path) (avg_over_time({job="pm2", msg="request"} | json | unwrap durationMs [1h])))',
+    logql: 'topk(10, avg by (route) (avg_over_time({job="pm2", msg="request"} | json | unwrap durationMs [1h])))',
   },
-  // Endpoints with most 5xx errors (instant vector)
+  // Endpoints with most errors (4xx except 401, and 5xx), grouped by parameterized route
   errorEndpoints: {
     type: "query",
     logql:
-      'topk(10, sum by (path) (count_over_time({job="pm2", msg="request"} | json | status =~ "[45][0-9][0-9]" [1h])))',
+      'topk(10, sum by (route) (count_over_time({job="pm2", msg="request"} | json | status =~ "[45][0-9][0-9]" | status != 401 [1h])))',
   },
-  // Recent error log lines (stream)
+  // Recent error log lines (stream), excluding routine 401 auth checks
   recentErrors: {
     type: "query_range",
-    logql: '{job="pm2", level=~"error|warn"}',
+    logql: '{job="pm2", level=~"error|warn"} | json | status != 401',
   },
 };
 

@@ -35,6 +35,7 @@ export function logEvent(level: Level, msg: string, fields: Record<string, unkno
 export interface RequestLogContext {
   method: string;
   path: string;
+  route?: string;
   status: number;
   durationMs: number;
   ip?: string;

@@ -107,7 +107,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, avg by (path) (avg_over_time({job=\"pm2\", msg=\"request\"} | json | unwrap durationMs [1h])))",
+          "expr": "topk(10, avg by (route) (avg_over_time({job=\"pm2\", msg=\"request\"} | json | unwrap durationMs [1h])))",
           "queryType": "instant",
           "format": "table",
           "instant": true
@@ -117,14 +117,14 @@
     },
     {
       "id": 6,
-      "title": "Endpoints with Most 5xx Errors (last 1h)",
+      "title": "Endpoints with Most Errors (4xx¬401 + 5xx, last 1h)",
       "type": "table",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, sum by (path) (count_over_time({job=\"pm2\", msg=\"request\"} | json | status =~ \"[45][0-9][0-9]\" [1h])))",
+          "expr": "topk(10, sum by (route) (count_over_time({job=\"pm2\", msg=\"request\"} | json | status =~ \"[45][0-9][0-9]\" | status != 401 [1h])))",
           "queryType": "instant",
           "format": "table",
           "instant": true

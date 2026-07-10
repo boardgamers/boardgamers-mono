@@ -39,7 +39,10 @@
 	}
 
 	const totalRequests = $derived(statusCounts.reduce((a, b) => a + b.count, 0));
-	const errorCount = $derived(statusCounts.filter((s) => Number(s.status) >= 400).reduce((a, b) => a + b.count, 0));
+	// Exclude 401s (routine auth checks) from the error count — they're not real errors.
+	const errorCount = $derived(
+		statusCounts.filter((s) => Number(s.status) >= 400 && s.status !== "401").reduce((a, b) => a + b.count, 0),
+	);
 </script>
 
 <div class="space-y-6">
@@ -77,7 +80,7 @@
 				<div class="text-2xl font-bold mt-1">{totalRequests.toLocaleString()}</div>
 			</div>
 			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Errors (4xx+5xx)</div>
+				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Errors (5xx + 4xx¬401)</div>
 				<div class="text-2xl font-bold mt-1 text-red-500">{errorCount.toLocaleString()}</div>
 			</div>
 			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
@@ -91,7 +94,7 @@
 				<div class="text-2xl font-bold mt-1">
 					{slowEndpoints[0]?.value ?? "—"}<span class="text-sm font-normal text-gray-400">ms</span>
 				</div>
-				<div class="text-xs text-gray-400 mt-0.5 truncate">{slowEndpoints[0]?.path ?? ""}</div>
+				<div class="text-xs text-gray-400 mt-0.5 truncate">{slowEndpoints[0]?.route ?? ""}</div>
 			</div>
 		</div>
 
@@ -128,14 +131,14 @@
 					<table class="w-full text-sm">
 						<thead>
 							<tr class="text-left text-xs text-gray-400 border-b border-gray-200 dark:border-gray-800">
-								<th class="pb-2 font-medium">Path</th>
-								<th class="pb-2 font-medium text-right">Avg ms</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each slowEndpoints as e}
-								<tr class="border-b border-gray-100 dark:border-gray-800/50">
-									<td class="py-2 font-mono text-xs truncate max-w-[200px]">{e.path}</td>
+								<th class="pb-2 font-medium">Route</th>
+															<th class="pb-2 font-medium text-right">Avg ms</th>
+														</tr>
+													</thead>
+													<tbody>
+														{#each slowEndpoints as e}
+															<tr class="border-b border-gray-100 dark:border-gray-800/50">
+																<td class="py-2 font-mono text-xs truncate max-w-[200px]">{e.route}</td>
 									<td class="py-2 text-right font-medium">{e.value}</td>
 								</tr>
 							{/each}
@@ -153,14 +156,14 @@
 					<table class="w-full text-sm">
 						<thead>
 							<tr class="text-left text-xs text-gray-400 border-b border-gray-200 dark:border-gray-800">
-								<th class="pb-2 font-medium">Path</th>
-								<th class="pb-2 font-medium text-right">Errors</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each errorEndpoints as e}
-								<tr class="border-b border-gray-100 dark:border-gray-800/50">
-									<td class="py-2 font-mono text-xs truncate max-w-[200px]">{e.path}</td>
+								<th class="pb-2 font-medium">Route</th>
+															<th class="pb-2 font-medium text-right">Errors</th>
+														</tr>
+													</thead>
+													<tbody>
+														{#each errorEndpoints as e}
+															<tr class="border-b border-gray-100 dark:border-gray-800/50">
+																<td class="py-2 font-mono text-xs truncate max-w-[200px]">{e.route}</td>
 									<td class="py-2 text-right font-medium text-red-500">{e.value}</td>
 								</tr>
 							{/each}
@@ -251,14 +254,14 @@
 							{/if}
 							<span class="text-gray-400 font-mono w-16 flex-shrink-0">{formatTime(err.timestamp)}</span>
 							<span class="text-gray-500 dark:text-gray-400 w-20 flex-shrink-0">{err.source}</span>
-							{#if err.path}
-								<span
-									class="text-gray-400 dark:text-gray-500 font-mono text-[10px] flex-shrink-0 truncate max-w-[180px]"
-									>{err.path}</span
-								>
-							{:else}
-								<span class="flex-1 truncate">{err.line}</span>
-							{/if}
+							{#if err.route ?? err.path}
+													<span
+														class="text-gray-400 dark:text-gray-500 font-mono text-[10px] flex-shrink-0 truncate max-w-[180px]"
+														>{err.route ?? err.path}</span
+													>
+												{:else}
+													<span class="flex-1 truncate">{err.line}</span>
+												{/if}
 							{#if err.ip}
 								<span class="text-gray-400 dark:text-gray-500 font-mono text-[10px] flex-shrink-0">{err.ip}</span>
 							{/if}

@@ -56,6 +56,7 @@ async function listen(port = env.listen.port.api) {
       logRequest("api", {
         method: ctx.request.method,
         path: ctx.request.path,
+        route: (ctx as { _matchedRoute?: string })._matchedRoute,
         status: ctx.status,
         durationMs: Date.now() - start,
         ip: ctx.ip,
