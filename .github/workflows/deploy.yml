@@ -70,5 +70,13 @@ jobs:
             echo \":: reloading PM2 processes\"
             pm2 reload ecosystem.config.cjs
 
+            # Grafana provisions dashboards at startup only (no file watching).
+            # Restart it so the updated bgs-health.json is picked up.
+            # Promtail auto-reloads via watchConfig, so it doesn't need a restart.
+            if podman container exists bgs-grafana; then
+              echo \":: restarting grafana (dashboard re-provisioning)\"
+              podman restart bgs-grafana
+            fi
+
             echo \":: deploy complete\"
           "'
