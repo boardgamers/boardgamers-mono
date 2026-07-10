@@ -21,6 +21,7 @@
 	const slowEndpoints = $derived(health.slowEndpoints);
 	const errorEndpoints = $derived(health.errorEndpoints);
 	const recentErrors = $derived(health.recentErrors);
+	const dbErrors = $derived(health.dbErrors);
 
 	function statusClass(status: string): string {
 		const c = Number(status);
@@ -169,10 +170,39 @@
 			</div>
 		</div>
 
-		<!-- Recent errors stream -->
+		<!-- Server errors from DB (genuine exceptions, not routine 4xx) -->
+		{#if dbErrors.length > 0}
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+				<h3 class="text-sm font-semibold mb-3">Server Errors ({dbErrors.length})</h3>
+				<div class="overflow-x-auto">
+					<table class="w-full text-sm">
+						<thead>
+							<tr class="text-left text-xs text-gray-400 border-b border-gray-200 dark:border-gray-800">
+								<th class="pb-2 font-medium">Time</th>
+								<th class="pb-2 font-medium">Error</th>
+								<th class="pb-2 font-medium">Method</th>
+								<th class="pb-2 font-medium">URL</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each dbErrors as err}
+								<tr class="border-b border-gray-100 dark:border-gray-800/50">
+									<td class="py-2 text-xs text-gray-400 whitespace-nowrap">{err.createdAt ? new Date(err.createdAt).toLocaleString() : "—"}</td>
+									<td class="py-2"><span class="font-mono text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400">{err.error.name}</span><span class="ml-2 text-xs text-gray-500 dark:text-gray-400">{err.error.message}</span></td>
+									<td class="py-2 font-mono text-xs">{err.request.method}</td>
+									<td class="py-2 font-mono text-xs truncate max-w-[250px]">{err.request.url}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Recent log stream (Loki) -->
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
 			<div class="flex items-center justify-between mb-3">
-				<h3 class="text-sm font-semibold">Recent Errors & Warnings</h3>
+				<h3 class="text-sm font-semibold">Recent Logs (warnings & errors)</h3>
 				<a
 					href="https://grafana.boardgamers.space/d/bgs-health"
 					target="_blank"
@@ -185,15 +215,25 @@
 			{:else}
 				<div class="space-y-1.5 max-h-96 overflow-y-auto">
 					{#each recentErrors.slice(0, 50) as err}
-						<div class="flex items-start gap-3 text-xs py-1.5 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800/50">
+						<div class="flex items-start gap-2 text-xs py-1.5 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800/50">
 							<span
-								class="px-1.5 py-0.5 rounded font-mono text-[10px] font-medium {err.level === 'error'
+								class="px-1.5 py-0.5 rounded font-mono text-[10px] font-medium flex-shrink-0 {err.level === 'error'
 									? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
 									: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'}">{err.level}</span
 							>
+							{#if err.status}
+								<span class="px-1.5 py-0.5 rounded font-mono text-[10px] font-medium flex-shrink-0 {Number(err.status) >= 500 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}">{err.status}</span>
+							{/if}
 							<span class="text-gray-400 font-mono w-16 flex-shrink-0">{formatTime(err.timestamp)}</span>
 							<span class="text-gray-500 dark:text-gray-400 w-20 flex-shrink-0">{err.source}</span>
-							<span class="flex-1 truncate">{err.line}</span>
+							{#if err.path}
+								<span class="text-gray-400 dark:text-gray-500 font-mono text-[10px] flex-shrink-0 truncate max-w-[180px]">{err.path}</span>
+							{:else}
+								<span class="flex-1 truncate">{err.line}</span>
+							{/if}
+							{#if err.ip}
+								<span class="text-gray-400 dark:text-gray-500 font-mono text-[10px] flex-shrink-0">{err.ip}</span>
+							{/if}
 						</div>
 					{/each}
 				</div>

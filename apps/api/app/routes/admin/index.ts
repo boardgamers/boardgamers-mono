@@ -31,6 +31,29 @@ router.use("/loki", loki.routes(), loki.allowedMethods());
 router.use("/page", page.routes(), page.allowedMethods());
 router.use("/users", usersRouter.routes(), usersRouter.allowedMethods());
 
+// GET /api/admin/errors — recent genuine errors from the apierrors DB collection
+// (uncaught exceptions, assertion failures — not routine 4xx HTTP responses).
+router.get("/errors", async (ctx) => {
+  const errors = await colls.apiErrors
+    .find(
+      {},
+      {
+        projection: {
+          "error.name": 1,
+          "error.message": 1,
+          "request.method": 1,
+          "request.url": 1,
+          user: 1,
+          createdAt: 1,
+        },
+      },
+    )
+    .sort({ createdAt: -1 })
+    .limit(20)
+    .toArray();
+  ctx.body = errors;
+});
+
 router.get("/backup/games", async (ctx) => {
   ctx.set({ "Content-Type": "application/gzip", "Content-Disposition": 'attachment; filename="games.bson.gz"' });
   ctx.body = fs.createReadStream(`../../../dump/${env.database.bgs.name}/games.bson.gz`);

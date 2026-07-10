@@ -15,11 +15,20 @@ interface LokiRangeResult {
 	};
 }
 
+export interface ApiErrorEntry {
+	_id: string;
+	error: { name: string; message: string };
+	request: { method: string; url: string };
+	user?: string | null;
+	createdAt?: string;
+}
+
 export interface HealthData {
 	statusCounts: { status: string; count: number }[];
 	slowEndpoints: { path: string; value: number }[];
 	errorEndpoints: { path: string; value: number }[];
-	recentErrors: { timestamp: number; line: string; source: string; level: string }[];
+	recentErrors: { timestamp: number; line: string; source: string; level: string; status?: string; path?: string; ip?: string }[];
+	dbErrors: ApiErrorEntry[];
 	lokiAvailable: boolean;
 }
 
@@ -28,6 +37,7 @@ const EMPTY_HEALTH: HealthData = {
 	slowEndpoints: [],
 	errorEndpoints: [],
 	recentErrors: [],
+	dbErrors: [],
 	lokiAvailable: false,
 };
 
@@ -38,6 +48,8 @@ export async function load(): Promise<{ health: HealthData }> {
 		api.get<LokiInstantResult>("/admin/loki/query/errorEndpoints"),
 		api.get<LokiRangeResult>("/admin/loki/query/recentErrors?limit=50"),
 	]);
+	// DB errors are independent of Loki — always fetch them.
+	const dbErrors = await api.get<ApiErrorEntry[]>("/admin/errors").catch(() => []);
 
 	// All four queries hit the same Loki instance. A 502/503 means Loki itself
 	// is down — degrade gracefully. Any other failure (401, 500, network) is a
@@ -46,7 +58,7 @@ export async function load(): Promise<{ health: HealthData }> {
 		(r) => r.status === "rejected" && r.reason instanceof ApiError && [502, 503].includes(r.reason.status),
 	);
 	if (lokiDown) {
-		return { health: EMPTY_HEALTH };
+		return { health: { ...EMPTY_HEALTH, dbErrors } };
 	}
 
 	if (!results.every((r) => r.status === "fulfilled")) {
@@ -90,9 +102,13 @@ export async function load(): Promise<{ health: HealthData }> {
 						line: typeof parsed.msg === "string" ? (parsed as { msg: string }).msg : line,
 						source: (parsed.source as string) ?? stream.metric.source ?? "?",
 						level: (parsed.level as string) ?? stream.metric.level ?? "?",
+						status: parsed.status != null ? String(parsed.status) : undefined,
+						path: (parsed.path as string) ?? undefined,
+						ip: (parsed.ip as string) ?? undefined,
 					};
 				}),
 			),
+			dbErrors,
 		},
 	};
 }

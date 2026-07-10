@@ -116,7 +116,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, sum by (path) (count_over_time({job=\"pm2\", level=\"error\"} [1h])))",
+          "expr": "topk(10, sum by (path) (count_over_time({job=\"pm2\", msg=\"request\"} | json | status =~ \"[45][0-9][0-9]\" [1h])))",
           "queryType": "instant",
           "format": "table",
           "instant": true

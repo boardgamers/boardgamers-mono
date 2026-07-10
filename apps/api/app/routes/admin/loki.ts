@@ -46,7 +46,8 @@ const QUERIES: Record<string, { type: "query" | "query_range"; logql: string }> 
   // Endpoints with most 5xx errors (instant vector)
   errorEndpoints: {
     type: "query",
-    logql: 'topk(10, sum by (path) (count_over_time({job="pm2", level="error"} [1h])))',
+    logql:
+      'topk(10, sum by (path) (count_over_time({job="pm2", msg="request"} | json | status =~ "[45][0-9][0-9]" [1h])))',
   },
   // Recent error log lines (stream)
   recentErrors: {
