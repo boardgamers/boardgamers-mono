@@ -9,7 +9,7 @@ import Koa from "koa";
 import bodyParser from "koa-bodyparser";
 import compression from "koa-compress";
 import morgan from "koa-morgan";
-import { logRequest } from "@bgs/utils/log";
+import { logRequest, matchedRoute } from "@bgs/utils/log";
 import { colls } from "./config/db.ts";
 /* Configure passport */
 import env from "./config/env.ts";
@@ -35,7 +35,7 @@ app.use(async (ctx, next) => {
     logRequest("game-server", {
       method: ctx.request.method,
       path: ctx.request.path,
-      route: (ctx as { _matchedRoute?: string })._matchedRoute,
+      route: matchedRoute(ctx),
       status: ctx.status,
       durationMs: Date.now() - start,
       ip: ctx.ip,

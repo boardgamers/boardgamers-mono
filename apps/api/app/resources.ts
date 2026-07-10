@@ -11,7 +11,7 @@ import { z, ZodError } from "zod";
 import Koa from "koa";
 import compression from "koa-compress";
 import morgan from "koa-morgan";
-import { logRequest } from "@bgs/utils/log";
+import { logRequest, matchedRoute } from "@bgs/utils/log";
 /* Local stuff */
 import Router from "koa-router";
 /* Configure passport */
@@ -198,7 +198,7 @@ async function listen(port = env.listen.port.resources) {
       logRequest("resources", {
         method: ctx.request.method,
         path: ctx.request.path,
-        route: (ctx as { _matchedRoute?: string })._matchedRoute,
+        route: matchedRoute(ctx),
         status: ctx.status,
         durationMs: Date.now() - start,
         ip: ctx.ip,

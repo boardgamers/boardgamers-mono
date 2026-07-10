@@ -44,6 +44,19 @@ export interface RequestLogContext {
   error?: string;
 }
 
+/**
+ * Extract the parameterized route pattern from a Koa context (e.g.
+ * `/api/admin/users/:userId`). koa-router v8's `ctx._matchedRoute` is
+ * unreliable with nested routers — it shows the mount-point prefix, not the
+ * leaf route. `ctx.matched` contains all matched layers (including middleware
+ * mounts), so we find the first layer with actual HTTP methods — that's the
+ * most specific route. Falls back to the raw path for unmatched requests (404).
+ */
+export function matchedRoute(ctx: { matched?: { path: string; methods: string[] }[]; path: string }): string {
+  const layer = ctx.matched?.find((l) => l.methods.length > 0);
+  return layer?.path ?? ctx.path;
+}
+
 /** Log a completed request — used by the Koa middleware in each app. */
 export function logRequest(label: string, ctx: RequestLogContext): void {
   logEvent(levelForStatus(ctx.status), "request", { source: label, ...ctx });

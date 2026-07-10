@@ -15,7 +15,7 @@ import _cookie from "koa-cookie";
 const cookie = (_cookie as unknown as { default?: typeof _cookie }).default ?? _cookie;
 import morgan from "koa-morgan";
 import passport from "koa-passport";
-import { logRequest } from "@bgs/utils/log";
+import { logRequest, matchedRoute } from "@bgs/utils/log";
 import env from "./config/env.ts";
 /* Configure passport */
 import "./config/passport.ts";
@@ -56,7 +56,7 @@ async function listen(port = env.listen.port.api) {
       logRequest("api", {
         method: ctx.request.method,
         path: ctx.request.path,
-        route: (ctx as { _matchedRoute?: string })._matchedRoute,
+        route: matchedRoute(ctx),
         status: ctx.status,
         durationMs: Date.now() - start,
         ip: ctx.ip,
