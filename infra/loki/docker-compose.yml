@@ -1,7 +1,7 @@
 version: "3.8"
 
 # Loki logging stack for boardgamers.space
-# Grafana (3030)  — dashboards at http://coyo:3030  (admin/admin, change on first login)
+# Grafana (3030)  — dashboards at https://grafana.boardgamers.space  (admin / see GF_SECURITY_ADMIN_PASSWORD)
 # Loki   (3100)  — log storage, internal only
 # Promtail (9080) — tails PM2 logs, internal only
 #
@@ -41,7 +41,12 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=bgs-grafana-2024
+      # GF_SECURITY_ADMIN_PASSWORD is only read on first DB init; afterwards the password
+      # lives in the grafana-data volume. The committed default below is overwritten on
+      # fresh installs by setting GRAFANA_ADMIN_PASSWORD in the env. To rotate an existing
+      # install: `podman exec bgs-grafana grafana-cli admin reset-admin-password <pw>`.
+      # Current password is stored out-of-band at /home/bgs/.grafana-admin-password (chmod 600).
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
     depends_on:
       - loki
