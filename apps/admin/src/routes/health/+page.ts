@@ -23,6 +23,13 @@ export interface ApiErrorEntry {
 	createdAt?: string;
 }
 
+export interface DbErrorsResult {
+	errors: ApiErrorEntry[];
+	total: number;
+	page: number;
+	limit: number;
+}
+
 export interface HealthData {
 	statusCounts: { status: string; count: number }[];
 	slowEndpoints: { route: string; value: number }[];
@@ -39,6 +46,7 @@ export interface HealthData {
 		requestId?: string;
 	}[];
 	dbErrors: ApiErrorEntry[];
+	dbErrorsTotal: number;
 	lokiAvailable: boolean;
 }
 
@@ -48,6 +56,7 @@ const EMPTY_HEALTH: HealthData = {
 	errorEndpoints: [],
 	recentErrors: [],
 	dbErrors: [],
+	dbErrorsTotal: 0,
 	lokiAvailable: false,
 };
 
@@ -58,8 +67,10 @@ export async function load(): Promise<{ health: HealthData }> {
 		api.get<LokiInstantResult>("/admin/loki/query/errorEndpoints"),
 		api.get<LokiRangeResult>("/admin/loki/query/recentErrors?limit=50"),
 	]);
-	// DB errors are independent of Loki — always fetch them.
-	const dbErrors = await api.get<ApiErrorEntry[]>("/admin/errors").catch(() => []);
+	// DB errors are independent of Loki — always fetch them (page 1).
+	const dbErrorsResult = await api
+		.get<DbErrorsResult>("/admin/errors?page=1&limit=20")
+		.catch(() => ({ errors: [], total: 0, page: 1, limit: 20 }));
 
 	// All four queries hit the same Loki instance. A 502/503 means Loki itself
 	// is down — degrade gracefully. Any other failure (401, 500, network) is a
@@ -68,7 +79,7 @@ export async function load(): Promise<{ health: HealthData }> {
 		(r) => r.status === "rejected" && r.reason instanceof ApiError && [502, 503].includes(r.reason.status),
 	);
 	if (lokiDown) {
-		return { health: { ...EMPTY_HEALTH, dbErrors } };
+		return { health: { ...EMPTY_HEALTH, dbErrors: dbErrorsResult.errors, dbErrorsTotal: dbErrorsResult.total } };
 	}
 
 	if (!results.every((r) => r.status === "fulfilled")) {
@@ -120,7 +131,8 @@ export async function load(): Promise<{ health: HealthData }> {
 					};
 				}),
 			),
-			dbErrors,
-		},
-	};
-}
+			dbErrors: dbErrorsResult.errors,
+					dbErrorsTotal: dbErrorsResult.total,
+				},
+				};
+			}

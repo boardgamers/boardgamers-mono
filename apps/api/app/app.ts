@@ -155,6 +155,7 @@ async function listen(port = env.listen.port.api) {
             meta: {
               source: "api-node",
             },
+            createdAt: new Date(),
           });
           if (process.env.NODE_ENV !== "production" && !env.silent) {
             console.error(err);

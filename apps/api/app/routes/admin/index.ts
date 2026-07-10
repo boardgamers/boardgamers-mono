@@ -31,29 +31,40 @@ router.use("/loki", loki.routes(), loki.allowedMethods());
 router.use("/page", page.routes(), page.allowedMethods());
 router.use("/users", usersRouter.routes(), usersRouter.allowedMethods());
 
-// GET /api/admin/errors — recent genuine errors from the apierrors DB collection
+const errorsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+// GET /api/admin/errors — genuine errors from the apierrors DB collection
 // (uncaught exceptions, assertion failures — not routine 4xx HTTP responses).
+// Supports pagination: ?page=1&limit=20 → { errors: [...], total, page, limit }
 router.get("/errors", async (ctx) => {
-  const errors = await colls.apiErrors
-    .find(
-      {},
-      {
-        projection: {
-          "error.name": 1,
-          "error.message": 1,
-          "request.method": 1,
-          "request.url": 1,
-          "request.status": 1,
-          "request.id": 1,
-          user: 1,
-          createdAt: 1,
+  const { page, limit } = errorsQuerySchema.parse(ctx.query);
+  const [errors, total] = await Promise.all([
+    colls.apiErrors
+      .find(
+        {},
+        {
+          projection: {
+            "error.name": 1,
+            "error.message": 1,
+            "request.method": 1,
+            "request.url": 1,
+            "request.status": 1,
+            "request.id": 1,
+            user: 1,
+            createdAt: 1,
+          },
         },
-      },
-    )
-    .sort({ createdAt: -1 })
-    .limit(20)
-    .toArray();
-  ctx.body = errors;
+      )
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .toArray(),
+    colls.apiErrors.countDocuments({}),
+  ]);
+  ctx.body = { errors, total, page, limit };
 });
 
 router.get("/backup/games", async (ctx) => {

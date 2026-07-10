@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from "$app/navigation";
-	import type { HealthData } from "./+page.ts";
+	import { api } from "$lib/api.ts";
+	import type { HealthData, ApiErrorEntry } from "./+page.ts";
 
 	let { data }: { data: { health: HealthData } } = $props();
 
@@ -21,7 +22,33 @@
 	const slowEndpoints = $derived([...health.slowEndpoints].sort((a, b) => b.value - a.value));
 	const errorEndpoints = $derived([...health.errorEndpoints].sort((a, b) => b.value - a.value));
 	const recentErrors = $derived(health.recentErrors);
-	const dbErrors = $derived(health.dbErrors);
+	const dbErrorsTotal = $derived(health.dbErrorsTotal);
+	let dbErrorsPage = $state(1);
+	let dbErrorsLoading = $state(false);
+	let allDbErrors = $state<ApiErrorEntry[]>([...health.dbErrors]);
+	let hasMoreDbErrors = $derived(allDbErrors.length < dbErrorsTotal);
+
+	$effect(() => {
+		// Reset on refresh
+		allDbErrors = [...health.dbErrors];
+		dbErrorsPage = 1;
+	});
+
+	async function loadMoreErrors() {
+		if (dbErrorsLoading) return;
+		dbErrorsLoading = true;
+		try {
+			const res = await api.get<{ errors: ApiErrorEntry[]; total: number }>(
+				`/admin/errors?page=${dbErrorsPage + 1}&limit=20`,
+			);
+			allDbErrors = [...allDbErrors, ...res.errors];
+			dbErrorsPage++;
+		} catch {
+			// ignore
+		} finally {
+			dbErrorsLoading = false;
+		}
+	}
 
 	function statusClass(status: string): string {
 		const c = Number(status);
@@ -67,9 +94,15 @@
 			<div class="text-sm">
 				<span class="font-medium text-amber-700 dark:text-amber-400">Loki is unavailable.</span>
 				<span class="text-amber-600 dark:text-amber-500/80">
-					Logging is not running, so no health metrics are available. Start the stack with
-					<code class="font-mono text-xs">systemctl start bgs-loki</code> and refresh.</span
+					Logging is not running, so Loki-based metrics are unavailable.</span
 				>
+			</div>
+		</div>
+		<!-- DB-only summary when Loki is down -->
+		<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">DB Errors</div>
+				<div class="text-2xl font-bold mt-1 text-red-500">{dbErrorsTotal.toLocaleString()}</div>
 			</div>
 		</div>
 	{:else}
@@ -171,12 +204,13 @@
 					</table>
 				{/if}
 			</div>
-		</div>
+				</div>
+				{/if}
 
-		<!-- Server errors from DB (genuine exceptions, not routine 4xx) -->
-		{#if dbErrors.length > 0}
+				<!-- Server errors from DB (genuine exceptions, not routine 4xx) -->
+				{#if allDbErrors.length > 0}
 			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-				<h3 class="text-sm font-semibold mb-3">Server Errors ({dbErrors.length})</h3>
+				<h3 class="text-sm font-semibold mb-3">Server Errors ({allDbErrors.length} of {dbErrorsTotal})</h3>
 				<div class="overflow-x-auto">
 					<table class="w-full text-sm">
 						<thead>
@@ -190,7 +224,7 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each dbErrors as err}
+							{#each allDbErrors as err}
 								<tr class="border-b border-gray-100 dark:border-gray-800/50">
 									<td class="py-2 text-xs text-gray-400 whitespace-nowrap"
 										>{err.createdAt ? new Date(err.createdAt).toLocaleString() : "—"}</td
@@ -219,9 +253,19 @@
 						</tbody>
 					</table>
 				</div>
+				{#if hasMoreDbErrors}
+					<button
+						onclick={loadMoreErrors}
+						disabled={dbErrorsLoading}
+						class="mt-3 px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+					>
+						{dbErrorsLoading ? "Loading…" : `Load more (${dbErrorsTotal - allDbErrors.length} remaining)`}
+					</button>
+				{/if}
 			</div>
 		{/if}
 
+	{#if lokiAvailable}
 		<!-- Recent log stream (Loki) -->
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
 			<div class="flex items-center justify-between mb-3">
