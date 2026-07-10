@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import os from "node:os";
-import path from "node:path";
 
 let dbName = process.env.dbName ?? "bgs";
 
@@ -13,8 +12,7 @@ if (process.env.NODE_ENV === "test") {
 export default {
   jwt: {
     keys: {
-      // PRIVATE KEY NOT NEEDED! We don't sign jwt tokens here
-      // private: process.env.jwtMode === "asymmetric" ? fs.readFileSync(path.join(__dirname, 'private.key')) : (process.env.jwtSecret || "Secret du token JSON..."),
+      // PRIVATE KEY NOT NEEDED! We don't sign jwt tokens here.
       public:
         process.env.jwtMode === "asymmetric"
           ? fs.readFileSync(new URL("public.pem", import.meta.url))

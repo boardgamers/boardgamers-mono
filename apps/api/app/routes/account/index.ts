@@ -27,10 +27,8 @@ const router = new Router<Application.DefaultState, Context>();
 
 router.use("/auth", auth.routes(), auth.allowedMethods());
 
-router.get("/", (ctx) => {
-  if (ctx.state.user) {
-    ctx.body = ctx.state.user;
-  }
+router.get("/", loggedIn, (ctx) => {
+  ctx.body = ctx.state.user;
 });
 
 router.get("/avatar", loggedIn, async (ctx) => {
@@ -103,8 +101,8 @@ router.post("/avatar", loggedIn, async (ctx) => {
 
   const supportedMimes: readonly ("image/jpeg" | "image/png")[] = [Jimp.MIME_JPEG, Jimp.MIME_PNG];
   const detectedMime = image.getMIME();
-  const mime: "image/jpeg" | "image/png" = supportedMimes.find((m) => m === detectedMime)
-    ?? (image.hasAlpha() ? Jimp.MIME_PNG : Jimp.MIME_JPEG);
+  const mime: "image/jpeg" | "image/png" =
+    supportedMimes.find((m) => m === detectedMime) ?? (image.hasAlpha() ? Jimp.MIME_PNG : Jimp.MIME_JPEG);
 
   const imagesObj: ImageDoc["images"] = {};
   for (const size of [256, 128, 64]) {

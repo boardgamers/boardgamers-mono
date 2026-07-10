@@ -32,6 +32,7 @@
         {
           "refId": "A",
           "expr": "sum by (source) (rate({job=\"pm2\", msg=\"request\"}[$__rate_interval]))",
+          "queryType": "range",
           "legendFormat": "{{source}}"
         }
       ],
@@ -47,6 +48,7 @@
         {
           "refId": "A",
           "expr": "sum by (status) (count_over_time({job=\"pm2\", msg=\"request\"}[$__range]))",
+          "queryType": "range",
           "legendFormat": "{{status}}"
         }
       ],
@@ -66,6 +68,7 @@
         {
           "refId": "A",
           "expr": "sum by (source) (rate({job=\"pm2\", level=~\"error|warn\"}[$__rate_interval]) * 60)",
+          "queryType": "range",
           "legendFormat": "{{source}}"
         }
       ],
@@ -81,16 +84,19 @@
         {
           "refId": "A",
           "expr": "histogram_quantile(0.50, sum by (le) (rate({job=\"pm2\", msg=\"request\"} | unwrap durationMs [$__rate_interval])))",
+          "queryType": "range",
           "legendFormat": "p50"
         },
         {
           "refId": "B",
           "expr": "histogram_quantile(0.95, sum by (le) (rate({job=\"pm2\", msg=\"request\"} | unwrap durationMs [$__rate_interval])))",
+          "queryType": "range",
           "legendFormat": "p95"
         },
         {
           "refId": "C",
           "expr": "histogram_quantile(0.99, sum by (le) (rate({job=\"pm2\", msg=\"request\"} | unwrap durationMs [$__rate_interval])))",
+          "queryType": "range",
           "legendFormat": "p99"
         }
       ],
@@ -106,6 +112,7 @@
         {
           "refId": "A",
           "expr": "topk(10, avg by (path) (avg_over_time({job=\"pm2\", msg=\"request\"} | unwrap durationMs [1h])))",
+          "queryType": "instant",
           "format": "table",
           "instant": true
         }
@@ -122,6 +129,7 @@
         {
           "refId": "A",
           "expr": "topk(10, sum by (path) (count_over_time({job=\"pm2\", level=\"error\"} [1h])))",
+          "queryType": "instant",
           "format": "table",
           "instant": true
         }
@@ -137,7 +145,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "{job=\"pm2\", level=~\"error|warn\"}"
+          "expr": "{job=\"pm2\", level=~\"error|warn\"}",
+          "queryType": "range"
         }
       ],
       "options": {

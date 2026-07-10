@@ -27,7 +27,7 @@ export const useAccount = defineStore(() => {
         loaded = true;
         account.set(val);
       },
-      (err) => (err.status !== 404 ? handleError(err) : void 0)
+      (err) => (err.status !== 401 && err.status !== 404 ? handleError(err) : void 0)
     );
   };
 
