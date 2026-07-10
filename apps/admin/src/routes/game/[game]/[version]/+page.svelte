@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
@@ -7,26 +6,20 @@
 	import GameEdit, { type GameInfoData } from "$components/GameEdit.svelte";
 	import type { GameInfoFront } from "@bgs/models";
 
-	let value: GameInfoData | null = $state(null);
+	let { data }: { data: { value: GameInfoFront | null } } = $props();
 
-	const gameId = $derived(page.params.game);
-	const version = $derived(Number(page.params.version));
+	const gameId = data.value?._id?.game ?? "";
+	const version = data.value?._id?.version ?? 0;
+
+	let value = $state<GameInfoData | null>(data.value);
 
 	$effect(() => {
-		if (gameId && version) load(gameId, version);
+		value = data.value;
 	});
 
-	async function load(game: string, ver: number) {
+	async function save(saveData: GameInfoData) {
 		try {
-			value = await api.get<GameInfoFront>(`/admin/gameinfo/${game}/${ver}`);
-		} catch {
-			toast.error("Game not found");
-		}
-	}
-
-	async function save(data: GameInfoData) {
-		try {
-			await api.put(`/admin/gameinfo/${gameId}/${version}`, data);
+			await api.put(`/admin/gameinfo/${gameId}/${version}`, saveData);
 			toast.success("Game saved");
 			await loadGames();
 		} catch (err) {
@@ -38,7 +31,7 @@
 		if (!value) return;
 		const newVersion = version + 1;
 		try {
-			const dup = { ...value, _id: { game: gameId!, version: newVersion } };
+			const dup = { ...value, _id: { game: gameId, version: newVersion } };
 			await api.post(`/admin/gameinfo/${gameId}/${newVersion}`, dup);
 			toast.success(`Duplicated as v${newVersion}`);
 			await loadGames();

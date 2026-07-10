@@ -228,7 +228,7 @@
 		onsave(value);
 	}
 
-	$effect(() => {
+	$effect.pre(() => {
 		ensureViewer();
 		value.factions ??= { avatars: false };
 		value.expansions ??= [];

@@ -1,42 +1,21 @@
 <script lang="ts">
-	import { page } from "$app/state";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
+	import { invalidateAll } from "$app/navigation";
+	import type { UserInfo, ApiErrorItem } from "./+page.ts";
 
-	interface UserInfo {
-		_id: string;
-		account: { username: string; email: string; karma: number };
-		security?: { lastIp?: string; confirmed?: boolean };
-	}
+	let { data }: { data: { user: UserInfo | null; errors: ApiErrorItem[] } } = $props();
 
-	interface ApiErrorItem {
-		_id: string;
-		error: { name: string; message: string };
-		request: { url: string; method: string };
-		createdAt: string;
-		[key: string]: unknown;
-	}
-
-	let user: UserInfo | null = $state(null);
-	let errors: ApiErrorItem[] = $state([]);
-	let expandedError: string | null = $state(null);
+	let user = $state<UserInfo | null>(data.user);
+	let errors = $state<ApiErrorItem[]>(data.errors);
+	let expandedError = $state<string | null>(null);
 	let gameName = $state("");
 	let elo = $state(0);
 
-	const username = $derived(page.params.username);
-
 	$effect(() => {
-		if (username) loadUser(username);
+		user = data.user;
+		errors = data.errors;
 	});
-
-	async function loadUser(name: string) {
-		try {
-			user = await api.get<UserInfo>(`/admin/users/infoByName/${name}`);
-			errors = await api.get<ApiErrorItem[]>(`/admin/users/${user?._id}/api-errors`);
-		} catch {
-			toast.error("User not found");
-		}
-	}
 
 	async function grantAccess() {
 		if (!gameName.trim() || !user) return;
@@ -63,7 +42,7 @@
 		try {
 			await api.post(`/admin/users/${user._id}/confirm`, {});
 			toast.success("User confirmed");
-			user.security = { ...user.security, confirmed: true };
+			await invalidateAll();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed");
 		}
@@ -72,8 +51,8 @@
 	async function loginAs() {
 		if (!user) return;
 		try {
-			const data = await api.post<{ refreshToken: unknown }>("/admin/login-as", { username: user.account.username });
-			const token = encodeURIComponent(JSON.stringify(data.refreshToken));
+			const res = await api.post<{ refreshToken: unknown }>("/admin/login-as", { username: user.account.username });
+			const token = encodeURIComponent(JSON.stringify(res.refreshToken));
 			if (location.hostname === "localhost") {
 				location.href = `http://localhost:8615/login?refreshToken=${token}`;
 			} else {

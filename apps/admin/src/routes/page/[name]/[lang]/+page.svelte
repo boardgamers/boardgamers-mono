@@ -1,31 +1,25 @@
 <script lang="ts">
-	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { loadPages } from "$lib/stores.svelte.ts";
 	import PageEdit from "$components/PageEdit.svelte";
+	import type { PageData } from "./+page.ts";
 
-	let value: { _id: { name: string; lang: string }; title: string; content: string } | null = $state(null);
+	let { data }: { data: { value: PageData | null } } = $props();
 
-	const name = $derived(page.params.name);
-	const lang = $derived(page.params.lang);
+	const name = data.value?._id.name ?? "";
+	const lang = data.value?._id.lang ?? "";
+
+	let value = $state<PageData | null>(data.value);
 
 	$effect(() => {
-		if (name && lang) load(name, lang);
+		value = data.value;
 	});
 
-	async function load(n: string, l: string) {
+	async function save(saveData: NonNullable<PageData>) {
 		try {
-			value = await api.get(`/admin/page/${n}/${l}`);
-		} catch {
-			toast.error("Page not found");
-		}
-	}
-
-	async function save(data: NonNullable<typeof value>) {
-		try {
-			await api.put(`/admin/page/${name}/${lang}`, data);
+			await api.put(`/admin/page/${name}/${lang}`, saveData);
 			toast.success("Page saved");
 			await loadPages();
 		} catch (err) {

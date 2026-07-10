@@ -2,7 +2,7 @@
   "title": "Boardgamers — Server Health",
   "uid": "bgs-health",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "timezone": "browser",
   "refresh": "10s",
   "time": { "from": "now-1h", "to": "now" },
@@ -31,7 +31,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (source) (rate({job=\"pm2\", msg=\"request\"}[$__rate_interval]))",
+          "expr": "sum by (source) (rate({job=\"pm2\", msg=\"request\"}[$__interval]))",
           "queryType": "range",
           "legendFormat": "{{source}}"
         }
@@ -67,7 +67,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (source) (rate({job=\"pm2\", level=~\"error|warn\"}[$__rate_interval]) * 60)",
+          "expr": "sum by (source) (rate({job=\"pm2\", level=~\"error|warn\"}[$__interval]) * 60)",
           "queryType": "range",
           "legendFormat": "{{source}}"
         }
@@ -76,28 +76,16 @@
     },
     {
       "id": 4,
-      "title": "p50 / p95 / p99 Latency (ms)",
+      "title": "Avg Latency (ms) by Source",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
         {
           "refId": "A",
-          "expr": "histogram_quantile(0.50, sum by (le) (rate({job=\"pm2\", msg=\"request\"} | unwrap durationMs [$__rate_interval])))",
+          "expr": "avg by (source) (avg_over_time({job=\"pm2\", msg=\"request\"} | json | unwrap durationMs [$__interval]))",
           "queryType": "range",
-          "legendFormat": "p50"
-        },
-        {
-          "refId": "B",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate({job=\"pm2\", msg=\"request\"} | unwrap durationMs [$__rate_interval])))",
-          "queryType": "range",
-          "legendFormat": "p95"
-        },
-        {
-          "refId": "C",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate({job=\"pm2\", msg=\"request\"} | unwrap durationMs [$__rate_interval])))",
-          "queryType": "range",
-          "legendFormat": "p99"
+          "legendFormat": "{{source}}"
         }
       ],
       "fieldConfig": { "defaults": { "unit": "ms" } }
@@ -111,7 +99,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(10, avg by (path) (avg_over_time({job=\"pm2\", msg=\"request\"} | unwrap durationMs [1h])))",
+          "expr": "topk(10, avg by (path) (avg_over_time({job=\"pm2\", msg=\"request\"} | json | unwrap durationMs [1h])))",
           "queryType": "instant",
           "format": "table",
           "instant": true

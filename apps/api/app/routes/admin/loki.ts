@@ -32,18 +32,16 @@ const QUERIES: Record<string, { type: "query" | "query_range"; logql: string }> 
     type: "query_range",
     logql: 'sum by (source) (rate({job="pm2", level=~"error|warn"}[$__interval]))',
   },
-  // p50/p95/p99 latency (range vector, unwrapping durationMs)
+  // Avg latency by source (range vector, unwrapping durationMs). Loki 3.0 needs
+  // | json before unwrap so it parses the log line's JSON to find the field.
   latency: {
     type: "query_range",
-    logql:
-      'quantile_over_time(0.50, {job="pm2", msg="request"} | unwrap durationMs [$__interval]),' +
-      'quantile_over_time(0.95, {job="pm2", msg="request"} | unwrap durationMs [$__interval]),' +
-      'quantile_over_time(0.99, {job="pm2", msg="request"} | unwrap durationMs [$__interval])',
+    logql: 'avg by (source) (avg_over_time({job="pm2", msg="request"} | json | unwrap durationMs [$__interval]))',
   },
   // Top 10 slowest endpoints (instant vector)
   slowEndpoints: {
     type: "query",
-    logql: 'topk(10, avg by (path) (avg_over_time({job="pm2", msg="request"} | unwrap durationMs [1h])))',
+    logql: 'topk(10, avg by (path) (avg_over_time({job="pm2", msg="request"} | json | unwrap durationMs [1h])))',
   },
   // Endpoints with most 5xx errors (instant vector)
   errorEndpoints: {
