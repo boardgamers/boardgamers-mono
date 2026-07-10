@@ -20,10 +20,7 @@
     "typescript": "^5.9.3"
   },
   "_pnpmOverridesNote": "Pin is-generator-function to 1.1.0: 1.1.1+ depends on generator-function@2.x whose exports field (experimental ESM 'module.exports' named export) trips tsx's CJS/ESM interop, breaking require('generator-function') from koa. Upstream: https://github.com/inspect-js/is-generator-function/issues/46 (tsx bug acknowledged, PR #47 not yet merged).",
-  "lint-staged": {
-    "*": "prettier --write --ignore-unknown",
-    "*.{ts,js,svelte}": "oxlint --fix"
-  },
+  
   "pnpm": {
     "overrides": {
       "is-generator-function": "1.1.0"
