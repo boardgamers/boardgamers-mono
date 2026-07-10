@@ -29,7 +29,8 @@ A recent version of node, 14+ ideally, is required
 There is a [webapp](./apps/web/README.md) and an [admin](./apps/admin/README.md).
 
 ```bash
-pnpm dev --filter @bgs/web --filter @bgs/admin
+pnpm --filter web dev
+pnpm --filter admin dev
 ```
 
 You can directly run the frontend against the website! No need to run the backend. To do so, just create `.env` in the apps/web folder with `VITE_backend=https://www.boardgamers.space`.
@@ -43,9 +44,9 @@ You can follow the instructions in [api-node](./apps/api/README.md) and [game-se
 docker compose up -d
 
 
-pnpm dev --filter @bgs/api
+pnpm --filter api dev
 # launch in another terminal
-pnpm dev --filter @bgs/game-server
+pnpm --filter game-server dev
 ```
 
 ## Contributing

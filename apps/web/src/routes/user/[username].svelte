@@ -28,7 +28,7 @@
 </script>
 
 <script lang="ts">
-  import type { IUser } from "@bgs/types";
+  import type { IUser } from "@bgs/models";
   import { UserGames, UserElo, SEO, UserAvatar } from "@/components";
   import { Row, Col, Container, Card } from "@/modules/cdk";
   import { useLoad } from "@/composition/useLoad";

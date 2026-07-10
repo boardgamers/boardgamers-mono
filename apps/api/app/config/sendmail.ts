@@ -1,5 +1,5 @@
 import Mailgun from "mailgun-js";
-import env from "./env";
+import env from "./env.ts";
 
 const mailgun = Mailgun({
   apiKey: env.mailing.api.key,

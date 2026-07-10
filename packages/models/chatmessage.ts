@@ -1,40 +1,31 @@
-import type { ChatMessage } from "@bgs/types";
-import { Model, Schema, Types } from "mongoose";
+import { z } from "zod";
+import type { Jsonify } from "type-fest";
+import type { IndexDescription } from "mongodb";
+import { zObjectId } from "./helpers.ts";
 
-const repr = {
-  room: {
-    type: String,
-    required: true,
-  },
-  author: {
-    _id: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-    },
-    name: String,
-  },
-  data: {
-    text: {
-      type: String,
-      minlength: [1, "You can't send empty messages"],
-      maxlength: [300, "You can't send messages too long"],
-    },
-  },
-  type: {
-    type: String,
-    required: true,
-    default: "text",
-    enum: ["text", "emoji", "system"] as const,
-  },
-};
+export const chatMessageSchema = z.object({
+  _id: zObjectId().optional(),
+  room: z.string(),
+  author: z
+    .object({
+      _id: zObjectId(),
+      name: z.string(),
+    })
+    .optional(),
+  data: z.object({
+    text: z.string(),
+  }),
+  type: z.enum(["text", "emoji", "system"]),
+});
 
-export default function makeSchema<T extends ChatMessage<Types.ObjectId>, U extends Model<T> = Model<T>>() {
-  const schema = new Schema<T, U>(repr as any, {
-    // We only keep 100MB of chat logs
-    capped: 100 * 1024 * 1024,
-  });
+export type ChatMessageDoc = z.output<typeof chatMessageSchema>;
+export type ChatMessageFront = Jsonify<ChatMessageDoc>;
 
-  schema.index({ room: 1, _id: -1 });
+export const CHAT_MESSAGES_COLLECTION = "chatmessages";
 
-  return schema;
-}
+export const chatMessagesCollectionOptions = { size: 100 * 1000 * 1000 };
+
+export const chatMessageIndexes: IndexDescription[] = [
+  // api: chat history per room; game-server: system messages
+  { key: { room: 1, _id: -1 } },
+];

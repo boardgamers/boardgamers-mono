@@ -1,5 +1,5 @@
 import { browser } from "$app/env";
-import type { ChatMessage } from "@bgs/types";
+import type { ChatMessage } from "@bgs/models";
 import { writable } from "svelte/store";
 import { defineStore } from "./defineStore";
 import { useCurrentGame } from "./useCurrentGame";

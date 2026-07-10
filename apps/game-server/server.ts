@@ -1,17 +1,26 @@
-import cluster from "cluster";
-import "dotenv/config";
-import env from "./app/config/env";
+import cluster from "node:cluster";
+import env from "./app/config/env.ts";
+import { installProcessHandlers, logEvent } from "@bgs/utils/log";
 
-// In production, run a process for each CPU
-if (cluster.isMaster && env.isProduction && env.threads > 1) {
-  for (let i = 0; i < env.threads; i++) {
-    cluster.fork();
+installProcessHandlers("game-server");
+
+async function main() {
+  // In production, run a process for each CPU
+  if (cluster.isPrimary && env.isProduction && env.threads > 1) {
+    for (let i = 0; i < env.threads; i++) {
+      cluster.fork();
+    }
+    cluster.on("exit", (worker, code, signal) => {
+      logEvent("warn", "workerExited", { source: "game-server", workerId: worker.id, code, signal });
+      cluster.fork();
+    });
+  } else {
+    await import("./app/app.ts");
   }
-} else {
-  // tslint:disable-next-line no-var-requires
-  require("./app/app");
+
+  if (cluster.isPrimary) {
+    await import("./app/services/cron.ts");
+  }
 }
 
-if (cluster.isMaster) {
-  require("./app/services/cron");
-}
+void main();

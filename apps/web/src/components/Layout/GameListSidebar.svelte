@@ -4,7 +4,7 @@
   import { useLogoClicks } from "@/composition/useLogoClicks";
   import { ListGroup } from "@/modules/cdk";
   import { handleError } from "@/utils";
-  import type { GameInfo } from "@bgs/types";
+  import type { GameInfo } from "@bgs/models";
 
   const { loadGameInfos, gameInfos, latestGameInfos } = useGameInfo();
   const { logoClick } = useLogoClicks();

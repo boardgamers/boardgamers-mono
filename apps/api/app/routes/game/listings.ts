@@ -1,17 +1,33 @@
-import type { GameStatus } from "@bgs/types";
-import { joinAnd } from "@bgs/utils/join-and";
+import { gameStatusSchema, type GameStatus } from "@bgs/models";
 import { removeFalsy } from "@bgs/utils/remove-falsy";
-import { Game } from "app/models";
-import GameInfoService from "app/services/gameinfo";
-import assert from "assert";
-import { Context } from "koa";
+import { simplifyFilter } from "@coyotte508/mongo-query";
+import { colls } from "../../config/db.ts";
+import { gameBasicsProjection } from "../../models/index.ts";
+import { latestAccessibleGames } from "../../services/gameinfo.ts";
+import assert from "node:assert";
+import type { Context } from "koa";
 import Router from "koa-router";
-import { queryCount, skipCount } from "../utils";
+import { z } from "zod";
+import { zIntQuery } from "../../utils/zod.ts";
+import { queryCount, skipCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
+const listingsParamsSchema = z.object({
+  status: gameStatusSchema,
+});
+
+const listingsQuerySchema = z.object({
+  user: z.string().optional(),
+  boardgame: z.string().optional(),
+  maxKarma: zIntQuery().optional(),
+  maxDuration: zIntQuery().optional(),
+  minDuration: zIntQuery().optional(),
+  sample: z.string().optional(),
+});
+
 const filterAccessibleGames = async <T>(userId: T) => {
-  const games = await GameInfoService.latestAccessibleGames(userId);
+  const games = await latestAccessibleGames(userId);
 
   if (!games.size) {
     return {};
@@ -38,7 +54,7 @@ async function gameConditions<T>(
     maxKarma?: number;
     maxDuration?: number;
     minDuration?: number;
-  }
+  },
 ) {
   const baseConditions = (() => {
     switch (status) {
@@ -58,8 +74,8 @@ async function gameConditions<T>(
     }
   })();
 
-  return joinAnd(
-    ...removeFalsy([
+  return simplifyFilter({
+    $and: removeFalsy([
       baseConditions,
       params.maxKarma && {
         $or: [
@@ -73,53 +89,58 @@ async function gameConditions<T>(
       params.boardgame && { "game.name": params.boardgame },
       params.user && { "players._id": params.user },
       await filterAccessibleGames(params.requester),
-    ])
-  );
+    ]),
+  }) as Record<string, unknown>;
 }
 
 router.get("/:status/count", async (ctx) => {
-  const conditions: Record<string, unknown> = await gameConditions(ctx.params.status, {
-    user: ctx.query.user,
+  const { status } = listingsParamsSchema.parse(ctx.params);
+  const query = listingsQuerySchema.parse(ctx.query);
+  const conditions: Record<string, unknown> = await gameConditions(status, {
+    user: query.user,
     requester: ctx.state.user?._id,
-    boardgame: ctx.query.boardgame,
-    maxKarma: ctx.query.maxKarma && +ctx.query.maxKarma,
-    maxDuration: ctx.query.maxDuration && +ctx.query.maxDuration,
-    minDuration: ctx.query.minDuration && +ctx.query.minDuration,
+    boardgame: query.boardgame,
+    maxKarma: query.maxKarma,
+    maxDuration: query.maxDuration,
+    minDuration: query.minDuration,
   });
-  ctx.body = await Game.count().where(conditions);
+  ctx.body = await colls.games.countDocuments(conditions);
 });
 
 router.get("/:status", async (ctx) => {
-  const status: GameStatus = ctx.params.status;
-  const projection = status === "ended" ? [...Game.basics(), "cancelled"] : Game.basics();
-  const sortOrder = status === "open" ? "-createdAt" : "-lastMove";
+  const { status } = listingsParamsSchema.parse(ctx.params);
+  const query = listingsQuerySchema.parse(ctx.query);
+  const projection = status === "ended" ? { ...gameBasicsProjection, cancelled: 1 } : { ...gameBasicsProjection };
+  const sortOrder: Record<string, 1 | -1> = status === "open" ? { createdAt: -1 } : { lastMove: -1 };
   const conditions = await gameConditions(status, {
-    user: ctx.query.user,
+    user: query.user,
     requester: ctx.state.user?._id,
-    boardgame: ctx.query.boardgame,
-    maxKarma: ctx.query.maxKarma && +ctx.query.maxKarma,
-    maxDuration: ctx.query.maxDuration && +ctx.query.maxDuration,
-    minDuration: ctx.query.minDuration && +ctx.query.minDuration,
+    boardgame: query.boardgame,
+    maxKarma: query.maxKarma,
+    maxDuration: query.maxDuration,
+    minDuration: query.minDuration,
   });
 
-  if (ctx.query.sample) {
-    ctx.body = await Game.aggregate()
-      .match(conditions)
-      .sample(queryCount(ctx) * 5)
-      .project(Object.fromEntries(projection.map((x) => [x, 1])))
-      .sort(sortOrder)
-      .group({ _id: "$creator", data: { $first: "$$ROOT" } })
-      .replaceRoot("$data")
-      .sort(sortOrder)
-      .limit(queryCount(ctx));
+  if (query.sample) {
+    const pipeline = [
+      { $match: conditions },
+      { $sample: { size: queryCount(ctx) * 5 } },
+      { $project: projection },
+      { $sort: sortOrder },
+      { $group: { _id: "$creator", data: { $first: "$$ROOT" } } },
+      { $replaceRoot: { newRoot: "$data" } },
+      { $sort: sortOrder },
+      { $limit: queryCount(ctx) },
+    ];
+    ctx.body = await colls.games.aggregate(pipeline).toArray();
   } else {
-    ctx.body = await Game.find()
-      .where(conditions)
+    ctx.body = await colls.games
+      .find(conditions)
       .sort(sortOrder)
       .skip(skipCount(ctx))
       .limit(queryCount(ctx))
-      .select(projection)
-      .lean(true);
+      .project(projection)
+      .toArray();
   }
 });
 

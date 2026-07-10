@@ -2,10 +2,17 @@ import jwt from "jsonwebtoken";
 import type { Context } from "koa";
 import passport from "koa-passport";
 import Router from "koa-router";
-import { env } from "../../config";
-import { sendAuthInfo } from "./utils";
+import { z } from "zod";
+import { env } from "../../config/index.ts";
+import { sendAuthInfo } from "./utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
+
+const socialFeedbackSchema = z.object({
+  createSocialAccount: z.boolean(),
+  provider: z.string(),
+  id: z.string(),
+});
 
 router.get("/google", async (ctx, next) => {
   await passport.authenticate("google", {
@@ -38,11 +45,11 @@ router.get(
     })(ctx, next);
   },
   async (ctx) => {
-    const feedback = ctx.state.user as any as { createSocialAccount: boolean; provider: string; id: string };
-    if (feedback.createSocialAccount) {
-      const { provider, id } = feedback;
+    const feedback = socialFeedbackSchema.safeParse(ctx.state.user);
+    if (feedback.success && feedback.data.createSocialAccount) {
+      const { provider, id } = feedback.data;
 
-      ctx.state.user = null;
+      ctx.state.user = undefined;
 
       const body = {
         createSocialAccount: true,
@@ -57,7 +64,7 @@ router.get(
     } else {
       await sendAuthInfo(ctx);
     }
-  }
+  },
 );
 
 export default router;

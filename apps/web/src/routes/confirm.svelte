@@ -7,7 +7,9 @@
 
   export async function load(input: LoadInput) {
     if (typeof window === "undefined") {
-      // Bug in node 20+, handle client-side
+      // WORKAROUND (see apps/web/WORKAROUNDS.md): our pinned SvelteKit's SSR
+      // `fetch` shim breaks on Node 20+ for this POST, so we skip it during SSR
+      // and let the client-side `load` perform the confirmation instead.
       return {
         status: 200,
         body: {},

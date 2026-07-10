@@ -1,15 +1,17 @@
-import assert from "assert";
-import cluster from "cluster";
+import assert from "node:assert";
+import cluster from "node:cluster";
 import decache from "decache";
-import GameInfo from "../models/gameinfo";
-import { Engine } from "../types/engine";
+import { colls } from "../config/db.ts";
+import type { Engine } from "../types/engine.ts";
 
-const engines = {};
+const engines: Record<string, Engine> = {};
 
 async function requirePath(name: string, version: number) {
-  const entryPoint = (await GameInfo.findById({ game: name, version }, "engine.entryPoint", { lean: true })).engine
-    .entryPoint;
-  return `../../games/node_modules/${name}_${version}/${entryPoint}`;
+  const info = await colls.gameInfos.findOne(
+    { _id: { game: name, version } },
+    { projection: { "engine.entryPoint": 1 } },
+  );
+  return `../../games/node_modules/${name}_${version}/${info.engine.entryPoint}`;
 }
 
 export async function getEngine(name: string, version: number): Promise<Engine> {
@@ -17,6 +19,7 @@ export async function getEngine(name: string, version: number): Promise<Engine> 
 
   if (!engines[key]) {
     const path = await requirePath(name, version);
+    // @ts-ignore decache types don't match ESM default import
     decache(path);
     engines[key] = await import(path);
   }
@@ -27,12 +30,10 @@ export async function getEngine(name: string, version: number): Promise<Engine> 
 }
 
 export function refreshEngine(name: string, version: number) {
-  console.log("refreshing engine", name, version, cluster.isMaster);
+  console.log("refreshing engine", name, version, cluster.isPrimary);
   delete engines[`${name}_${version}`];
 
-  // Clear whole cache, because a module's depencies may need to be reloaded,
-  // as well as all its files
-  if (cluster.isMaster) {
+  if (cluster.isPrimary) {
     for (const worker of Object.values(cluster.workers)) {
       worker.send({ type: "refreshEngine", name, version });
     }
@@ -40,7 +41,7 @@ export function refreshEngine(name: string, version: number) {
 }
 
 if (cluster.isWorker) {
-  process.on("message", (msg) => {
+  process.on("message", (msg: { type?: string; name?: string; version?: number }) => {
     console.log("received message from master", msg);
     if (msg.type === "refreshEngine") {
       refreshEngine(msg.name, msg.version);

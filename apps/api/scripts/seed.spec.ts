@@ -1,8 +1,11 @@
-import mongoose from "mongoose";
-import { seed } from "./seed";
+import { before, describe, it } from "node:test";
+import { db } from "../app/config/db.ts";
+import { seed } from "./seed.ts";
 
 describe("Seed", () => {
-  before(() => mongoose.connection.db.dropDatabase());
+  before(async () => {
+    await db().dropDatabase();
+  });
 
   it("should seed with no problems", async () => {
     await seed();

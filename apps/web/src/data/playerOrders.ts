@@ -1,4 +1,4 @@
-import type { PlayerOrder } from "@bgs/types";
+import type { PlayerOrder } from "@bgs/models";
 
 export const playerOrders = [
   { name: "random", label: "Random player order" },

@@ -1,16 +1,13 @@
-/* eslint-disable */
-
-import { GameDocument } from "./models/game";
-import { GameInfoDocument } from "./models/gameinfo";
-import { UserDocument } from "./models/user";
+import type { GameDoc, GameInfoDoc, UserDoc } from "@bgs/models";
+import type { WithId } from "mongodb";
 
 declare global {
   namespace Application {
     export interface DefaultState {
-      user?: UserDocument;
-      game?: GameDocument;
-      foundUser?: UserDocument;
-      foundBoardgame?: GameInfoDocument;
+      user?: WithId<UserDoc>;
+      game?: GameDoc;
+      foundUser?: WithId<UserDoc>;
+      foundBoardgame?: GameInfoDoc;
       ip: string;
     }
   }

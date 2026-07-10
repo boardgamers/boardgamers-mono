@@ -1,21 +1,27 @@
 {
   "name": "@bgs/utils",
-  "scripts": {
-    "test": "mocha -r ts-node/register *.spec.ts"
-  },
-  "dependencies": {
-    "lodash": "^4.17.21"
-  },
+  "type": "module",
   "main": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./array": "./array.ts",
+    "./object": "./object.ts",
+    "./remove-falsy": "./remove-falsy.ts",
+    "./time": "./time.ts",
+    "./log": "./log.ts"
+  },
+  "scripts": {
+    "test": "node --test *.spec.ts",
+    "lint": "oxlint --fix",
+    "lint-check": "oxlint",
+    "fmt": "oxfmt",
+    "fmt-check": "oxfmt --check",
+    "tsc": "tsgo --noEmit"
+  },
   "devDependencies": {
-    "@types/chai": "^4.2.22",
-    "@types/lodash": "^4.14.176",
-    "@types/luxon": "^2.0.4",
-    "@types/mocha": "^9.0.0",
-    "chai": "^4.3.4",
-    "luxon": "^2.0.2",
-    "mocha": "^9.1.1",
-    "ts-node": "^10.2.1",
-    "typescript": "^4.4.2"
+    "@typescript/native-preview": "7.0.0-dev.20260307.1",
+    "oxfmt": "^0.36.0",
+    "oxlint": "^1.51.0",
+    "oxlint-tsgolint": "^0.16.0"
   }
 }

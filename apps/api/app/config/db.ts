@@ -1,49 +1,123 @@
-import cluster from "cluster";
-import locks from "mongo-locks";
-import mongoose from "mongoose";
-import { migrate } from "../models/migrations";
-import env from "./env";
+import cluster from "node:cluster";
+import { type Collection, type Db, MongoClient } from "mongodb";
+import {
+  type ApiErrorDoc,
+  API_ERRORS_COLLECTION,
+  type ChatMessageDoc,
+  CHAT_MESSAGES_COLLECTION,
+  type GameDoc,
+  GAMES_COLLECTION,
+  type GameInfoDoc,
+  GAME_INFOS_COLLECTION,
+  type GameNotificationDoc,
+  GAME_NOTIFICATIONS_COLLECTION,
+  type GamePreferencesDoc,
+  GAME_PREFERENCES_COLLECTION,
+  type ImageDoc,
+  IMAGES_COLLECTION,
+  type JwtRefreshTokenDoc,
+  JWT_REFRESH_TOKENS_COLLECTION,
+  type LogDoc,
+  LOGS_COLLECTION,
+  type PageDoc,
+  PAGES_COLLECTION,
+  type RoomMetaDataDoc,
+  ROOM_METADATA_COLLECTION,
+  type SettingsDoc,
+  SETTINGS_COLLECTION,
+  type UserDoc,
+  USERS_COLLECTION,
+  ensureCollections,
+  withAutoUpdatedAt,
+  ensureIndexes,
+  ensureValidation,
+} from "@bgs/models";
+import locks from "./locks.ts";
+import { migrate } from "../models/migrations/index.ts";
+import env from "./env.ts";
 
-mongoose.Promise = global.Promise; // native promises
+let client: MongoClient;
+let _db: Db;
 
-let dbInit = false;
+export function db(): Db {
+  return _db;
+}
+
+// Populated by `initColls()` once the DB connection is open. Consumers see the
+// non-nullable types so they don't have to guard every access; calling any
+// collection before `initDb()` resolves is a programmer error.
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion
+export const colls = {} as {
+  apiErrors: Collection<ApiErrorDoc>;
+  chatMessages: Collection<ChatMessageDoc>;
+  games: Collection<GameDoc>;
+  gameInfos: Collection<GameInfoDoc>;
+  gameNotifications: Collection<GameNotificationDoc>;
+  gamePreferences: Collection<GamePreferencesDoc>;
+  images: Collection<ImageDoc>;
+  jwtRefreshTokens: Collection<JwtRefreshTokenDoc>;
+  logs: Collection<LogDoc>;
+  pages: Collection<PageDoc>;
+  roomMetaData: Collection<RoomMetaDataDoc>;
+  settings: Collection<SettingsDoc>;
+  users: Collection<UserDoc>;
+};
+
+function initColls(database: Db) {
+  // withAutoUpdatedAt wraps the collections whose schema carries `updatedAt`.
+  Object.assign(colls, {
+    apiErrors: withAutoUpdatedAt(database.collection<ApiErrorDoc>(API_ERRORS_COLLECTION)),
+    chatMessages: database.collection<ChatMessageDoc>(CHAT_MESSAGES_COLLECTION),
+    games: withAutoUpdatedAt(database.collection<GameDoc>(GAMES_COLLECTION)),
+    gameInfos: database.collection<GameInfoDoc>(GAME_INFOS_COLLECTION),
+    gameNotifications: withAutoUpdatedAt(database.collection<GameNotificationDoc>(GAME_NOTIFICATIONS_COLLECTION)),
+    gamePreferences: database.collection<GamePreferencesDoc>(GAME_PREFERENCES_COLLECTION),
+    images: withAutoUpdatedAt(database.collection<ImageDoc>(IMAGES_COLLECTION)),
+    jwtRefreshTokens: withAutoUpdatedAt(database.collection<JwtRefreshTokenDoc>(JWT_REFRESH_TOKENS_COLLECTION)),
+    logs: database.collection<LogDoc>(LOGS_COLLECTION),
+    pages: database.collection<PageDoc>(PAGES_COLLECTION),
+    roomMetaData: database.collection<RoomMetaDataDoc>(ROOM_METADATA_COLLECTION),
+    settings: database.collection<SettingsDoc>(SETTINGS_COLLECTION),
+    users: withAutoUpdatedAt(database.collection<UserDoc>(USERS_COLLECTION)),
+  });
+}
 
 export default async function initDb(url = env.database.bgs.url, runMigrations = true) {
-  if (dbInit) {
+  if (_db) {
     console.log("DB already initialized");
     return;
   }
 
-  dbInit = true;
+  client = new MongoClient(url, { directConnection: true });
+  await client.connect();
+  _db = client.db(env.database.bgs.name);
+  console.log("successfully connected to database");
 
-  const connect = () =>
-    mongoose
-      .connect(url, { dbName: env.database.bgs.name, directConnection: true })
-      .then(() => console.log("successfully connected to database"));
-  await connect();
+  initColls(_db);
+  locks.init(_db.collection("locks"));
 
-  locks.init(mongoose.connection);
+  await ensureCollections(_db);
+  await ensureIndexes(_db);
+  await ensureValidation(_db);
 
-  if (cluster.isMaster && runMigrations) {
-    let free = () => {};
+  if (cluster.isPrimary && runMigrations) {
     try {
-      free = await locks.lock("migration");
+      await using _lock = await locks.lock("migration");
       await migrate();
     } catch (err) {
       console.error(err);
-    } finally {
-      free();
     }
   }
 
-  mongoose.connection.on("error", (err) => {
+  if (cluster.isPrimary && !env.isProduction && (await colls.users.estimatedDocumentCount()) === 0) {
+    console.log("\n⚠️  No users found in the database. Run `pnpm seed` to populate it with dev data.\n");
+  }
+
+  client.on("error", (err) => {
     console.error("db error", err);
   });
+}
 
-  if (!env.script) {
-    mongoose.connection.on("disconnected", () => {
-      console.log("attempt to reconnect to database");
-      setTimeout(() => connect().catch(console.error), 5000);
-    });
-  }
+export async function closeDb() {
+  await client?.close();
 }

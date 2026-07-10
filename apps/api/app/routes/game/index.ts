@@ -1,31 +1,52 @@
+import { omit } from "@bgs/utils/object";
 import { timerDuration } from "@bgs/utils/time";
-import assert from "assert";
+import assert from "node:assert";
 import { addDays } from "date-fns";
 import createError from "http-errors";
-import { Context } from "koa";
+import type { Context } from "koa";
 import Router from "koa-router";
-import { omit } from "lodash";
-import locks from "mongo-locks";
-import {
-  ChatMessage,
-  Game,
-  GameInfo,
-  GameNotification,
-  GamePreferences,
-  RoomMetaData,
-  RoomMetaDataDocument,
-  User,
-} from "../../models";
-import { notifyGameStart } from "../../services/game";
-import { isAdmin, isConfirmed, loggedIn } from "../utils";
-import listings from "./listings";
+import { z } from "zod";
+import { playerOrderSchema, type GameDoc, type RoomMetaDataDoc } from "@bgs/models";
+import { ObjectId } from "mongodb";
+import { colls } from "../../config/db.ts";
+import locks from "../../config/locks.ts";
+import { zObjectId } from "../../utils/zod.ts";
+import { notifyGameStart } from "../../services/game.ts";
+import { isAdmin, isConfirmed, loggedIn } from "../utils.ts";
+import listings from "./listings.ts";
+
+function withoutData(game: GameDoc): Omit<GameDoc, "data"> {
+  const { data: _data, ...rest } = game;
+  return rest;
+}
+
+const gameIdPattern = /^[A-Za-z0-9-]+$/;
+
+const newGameSchema = z.object({
+  game: z.object({
+    game: z.string(),
+    version: z.number().int(),
+  }),
+  gameId: z.string().regex(gameIdPattern, "Wrong format for game id"),
+  players: z.number().int().positive(),
+  expansions: z.array(z.string()).optional(),
+  timePerGame: z.number().positive("Wrong amount of time per game"),
+  timePerMove: z.number().positive("Wrong amount of time per move"),
+  timerStart: z.number().optional(),
+  timerEnd: z.number().optional(),
+  minimumKarma: z.number().int().nonnegative().optional().nullable(),
+  scheduledStart: z.number().optional(),
+  seed: z.string().regex(gameIdPattern).optional(),
+  options: z.record(z.string(), z.union([z.string(), z.boolean()])).optional(),
+});
 
 const router = new Router<Application.DefaultState, Context>();
 
 router.use("/status", listings.routes(), listings.allowedMethods());
 
 router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
-  const body = ctx.request.body;
+  const user = ctx.state.user!;
+  const body = newGameSchema.parse(ctx.request.body);
   const {
     game: gameInfoId,
     gameId,
@@ -40,7 +61,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
   } = body;
   const options: Record<string, string | boolean> = {};
 
-  const gameInfo = await GameInfo.findOne({ _id: gameInfoId });
+  const gameInfo = await colls.gameInfos.findOne({ _id: gameInfoId });
 
   if (!gameInfo) {
     ctx.status = 404;
@@ -49,9 +70,9 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 
   if (
     !gameInfo.meta.public &&
-    !(await GamePreferences.findOne({
+    !(await colls.gamePreferences.findOne({
       game: gameInfoId.game,
-      user: ctx.state.user.id,
+      user: user._id,
       "access.maxVersion": { $gte: gameInfoId.version },
     }))
   ) {
@@ -61,8 +82,12 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 
   if (gameInfo.meta.needOwnership) {
     assert(
-      await GamePreferences.findOne({ game: gameInfoId.game, user: ctx.state.user.id, "access.ownership": true }),
-      "You need to own the game in order to host a new game. Check your account settings."
+      await colls.gamePreferences.findOne({
+        game: gameInfoId.game,
+        user: user._id,
+        "access.ownership": true,
+      }),
+      "You need to own the game in order to host a new game. Check your account settings.",
     );
   }
 
@@ -83,7 +108,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
     throw createError(400, "Wrong number of players");
   }
 
-  if (await Game.findById(gameId)) {
+  if (await colls.games.findOne({ _id: gameId })) {
     throw createError(400, `A game with the id '${gameId}' already exists`);
   }
 
@@ -99,9 +124,9 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
     if (["join", "unlisted"].includes(key)) {
       assert(typeof val === "boolean", "Invalid value for option: " + key);
     } else if (key === "playerOrder") {
-      // Mongoose will throw if playerOrder is invalid
+      assert(playerOrderSchema.safeParse(val).success, "Invalid value for option: " + key);
     } else {
-      const item = gameInfo.options.find((opt) => opt.name === key);
+      const item = (gameInfo.options ?? []).find((opt) => opt.name === key);
       if (!item) {
         continue;
       }
@@ -111,7 +136,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
       } else if (item.type === "select") {
         assert(
           typeof val === "string" && item.items?.some((it) => it.name === val),
-          "Invalid value for option: " + key
+          "Invalid value for option: " + key,
         );
       } else {
         continue;
@@ -121,40 +146,19 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
     options[key] = val;
   }
 
-  const game = new Game();
-
-  game.creator = ctx.state.user._id;
-  game.game = {
-    name: gameInfo._id.game,
-    version: gameInfo._id.version,
-    expansions: (expansions ?? []).filter((exp: string) => gameInfo.expansions.some((exp2) => exp2.name === exp)),
-
-    options: omit(options, "join", "playerOrder", "unlisted"),
+  const now = new Date();
+  const timing: GameDoc["options"]["timing"] = {
+    timePerMove,
+    timePerGame,
+    timer: { start: 0, end: 24 * 3600 - 1 },
   };
-  game.options.setup.seed = seed;
-  game.options.setup.nbPlayers = players;
-  game.options.setup.playerOrder = (options.playerOrder ?? "random") as "random" | "host" | "join";
-  game.options.meta.unlisted = options.unlisted as boolean;
-  game.options.timing.timePerMove = timePerMove;
-  game.options.timing.timePerGame = timePerGame;
-
   if (scheduledStart) {
     assert(scheduledStart > Date.now(), "The scheduled start must not be in the past");
     assert(
       scheduledStart < Date.now() + 10 * 24 * 3600 * 1000,
-      "The scheduled start must not be more than 10 days in the future"
+      "The scheduled start must not be more than 10 days in the future",
     );
-
-    game.options.timing.scheduledStart = new Date(scheduledStart);
-  }
-
-  if (minimumKarma !== undefined && minimumKarma !== null) {
-    assert(+minimumKarma === minimumKarma && Math.floor(minimumKarma) === minimumKarma && minimumKarma >= 0);
-    assert(
-      minimumKarma + 5 <= ctx.state.user.account.karma,
-      "You can't create a game with that high of a karma restriction"
-    );
-    game.options.meta.minimumKarma = minimumKarma;
+    timing.scheduledStart = new Date(scheduledStart);
   }
 
   if (
@@ -166,59 +170,99 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
   ) {
     assert(
       timerDuration({ start: timerStart, end: timerEnd }) >= 3 * 3600,
-      "You need at least have a 3 hour window of play time"
+      "You need at least have a 3 hour window of play time",
     );
-
-    game.options.timing.timer.start = timerStart;
-    game.options.timing.timer.end = timerEnd;
+    timing.timer = { start: timerStart, end: timerEnd };
   }
 
-  game._id = gameId;
-
-  if (options.join) {
-    game.players.push({
-      _id: ctx.state.user._id,
-      remainingTime: game.options.timing.timePerGame,
-      dropped: false,
-      score: 0,
-      name: ctx.state.user.account.username,
-      quit: false,
-    });
-  } else {
-    // assert(false, "You need special authorization to create games without joining them!");
+  const meta: GameDoc["options"]["meta"] = {
+    unlisted: !!options.unlisted,
+  };
+  if (minimumKarma !== undefined && minimumKarma !== null) {
+    assert(+minimumKarma === minimumKarma && Math.floor(minimumKarma) === minimumKarma && minimumKarma >= 0);
+    assert(
+      minimumKarma + 5 <= user.account.karma,
+      "You can't create a game with that high of a karma restriction",
+    );
+    meta.minimumKarma = minimumKarma;
   }
 
-  await game.save();
+  const gameExpansions = gameInfo.expansions ?? [];
+  const game: GameDoc = {
+    _id: gameId,
+    creator: user._id,
+    players:
+      options.join === true
+        ? [
+            {
+              _id: user._id,
+              remainingTime: timePerGame,
+              dropped: false,
+              score: 0,
+              name: user.account.username,
+              quit: false,
+            },
+          ]
+        : [],
+    currentPlayers: [],
+    data: {},
+    context: { round: 0 },
+    options: {
+      setup: {
+        seed,
+        nbPlayers: players,
+        playerOrder: playerOrderSchema.parse(options.playerOrder ?? "random"),
+      },
+      timing,
+      meta,
+    },
+    game: {
+      name: gameInfo._id.game,
+      version: gameInfo._id.version,
+      expansions: (expansions ?? []).filter((exp: string) => gameExpansions.some((exp2) => exp2.name === exp)),
+      options: omit(options, "join", "playerOrder", "unlisted"),
+    },
+    status: "open",
+    ready: false,
+    cancelled: false,
+    createdAt: now,
+    updatedAt: now,
+    lastMove: now,
+  };
+
+  await colls.games.insertOne(game);
 
   ctx.status = 200;
 });
 
 router.param("gameId", async (gameId, ctx, next) => {
-  ctx.state.game = await Game.findById(gameId);
+  const game = await colls.games.findOne({ _id: gameId });
 
-  if (!ctx.state.game) {
+  if (!game) {
     throw createError(404, "Game not found: " + gameId);
   }
 
+  ctx.state.game = game;
   await next();
 });
 
 // Metadata about the game
 router.get("/:gameId", (ctx) => {
-  ctx.body = omit(ctx.state.game.toJSON(), "data");
+  ctx.body = withoutData(ctx.state.game!);
 });
 
 router.get("/:gameId/players", async (ctx) => {
+  const game = ctx.state.game!;
   const ret = [];
-  const ids = [...ctx.state.game.players.map((pl) => pl._id), ctx.state.game.creator];
-  const users = await User.find({ _id: { $in: ids } })
-    .select("account.username")
-    .lean(true);
-  const gamePrefs = await GamePreferences.find({
-    game: ctx.state.game.game.name,
-    user: { $in: users.map((user) => user._id) },
-  }).lean(true);
-  for (const user of users) {
+  const ids = [...game.players.map((pl) => pl._id), game.creator];
+  const userDocs = await colls.users.find({ _id: { $in: ids } }, { projection: { "account.username": 1 } }).toArray();
+  const gamePrefs = await colls.gamePreferences
+    .find({
+      game: game.game.name,
+      user: { $in: userDocs.map((user) => user._id) },
+    })
+    .toArray();
+  for (const user of userDocs) {
     const gamePref = gamePrefs.find((pref) => pref.user.equals(user._id));
     // @fixme: Remove 'id' when fully moved to svelte frontend
     ret.push({ id: user._id, _id: user._id, name: user.account.username, elo: gamePref?.elo?.value ?? 0 });
@@ -227,51 +271,56 @@ router.get("/:gameId/players", async (ctx) => {
 });
 
 router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
+  const user = ctx.state.user!;
+  const game = ctx.state.game!;
   assert(
-    ctx.state.user?.authority === "admin" ||
-      (ctx.state.user && ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id))),
-    "You must be a player of the game to chat!"
+    user.authority === "admin" || game.players.some((pl) => pl._id.equals(user._id)),
+    "You must be a player of the game to chat!",
   );
-  assert(ctx.request.body.type === "text" || ctx.request.body.type === "emoji");
+  const body = z
+    .object({
+      type: z.enum(["text", "emoji"]),
+      data: z.object({ text: z.string().min(1, "Empty chat message") }),
+    })
+    .parse(ctx.request.body);
 
-  const text = ctx.request.body?.data?.text?.trim();
-  assert(text, "Empty chat message");
-
-  const doc = new ChatMessage({
-    room: ctx.state.game._id,
+  await colls.chatMessages.insertOne({
+    _id: new ObjectId(),
+    room: game._id,
     author: {
-      _id: ctx.state.user._id,
-      name: ctx.state.user.account.username,
+      _id: user._id,
+      name: user.account.username,
     },
     data: {
-      text: ctx.request.body.data.text,
+      text: body.data.text,
     },
-    type: ctx.request.body.type,
+    type: body.type,
   });
-  await doc.save();
   ctx.status = 200;
 });
 
 router.post("/:gameId/invite", loggedIn, async (ctx) => {
+  const user = ctx.state.user!;
   assert(
-    ctx.state.user._id.equals(ctx.state.game.creator),
-    "You must be the creator of the game to invite other players"
+    user._id.equals(ctx.state.game!.creator),
+    "You must be the creator of the game to invite other players",
   );
-  // assert(ctx.state.game.options.timing.scheduledStart, "The game must have a scheduled start");
+  const { userId } = z.object({ userId: zObjectId() }).parse(ctx.request.body);
 
-  const { userId } = ctx.request.body;
-
-  const free = await locks.lock("game", ctx.params.gameId);
-  try {
-    const game = await Game.findOne({
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
+    const game = await colls.games.findOne({
       _id: ctx.params.gameId,
       status: "open",
     });
 
+    assert(game, "Game not found");
     assert(game.players.length < game.options.setup.nbPlayers, "Too many people have joined the game");
     assert(!game.players.some((pl) => pl._id.equals(userId)), "That user is already in the player list");
 
-    const userName = (await User.findById(userId).select("account.username")).account.username;
+    const userDoc = await colls.users.findOne({ _id: userId }, { projection: { "account.username": 1 } });
+    assert(userDoc, "User not found");
+    const userName = userDoc.account.username;
 
     game.players.push({
       _id: userId,
@@ -283,38 +332,45 @@ router.post("/:gameId/invite", loggedIn, async (ctx) => {
       pending: true,
     });
 
+    game.currentPlayers = game.currentPlayers ?? [];
     game.currentPlayers.push({ _id: userId, timerStart: new Date(), deadline: game.options.timing.scheduledStart });
 
-    await game.save();
-  } finally {
-    free().catch(console.error);
+    await colls.games.replaceOne({ _id: game._id }, game);
   }
 
-  ctx.body = omit(ctx.state.game, "data");
+  ctx.body = withoutData(ctx.state.game!);
 });
 
 router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
+  const user = ctx.state.user!;
+  const initialGame = ctx.state.game!;
   // Do basic checks before creating the lock
-  assert(ctx.state.game.status === "open");
-  const karma = ctx.state.user.account.karma;
+  assert(initialGame.status === "open");
+  const karma = user.account.karma;
 
-  if (ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id) && pl.pending)) {
+  if (initialGame.players.some((pl) => pl._id.equals(user._id) && pl.pending)) {
     // The player is pending, so was invited by the host, he can bypass restrictions
   } else {
     assert(
-      ctx.state.game.options.meta.minimumKarma === undefined || karma >= ctx.state.game.options.meta.minimumKarma,
-      "You do not have enough karma to join this game"
+      initialGame.options.meta?.minimumKarma === undefined || karma >= initialGame.options.meta.minimumKarma,
+      "You do not have enough karma to join this game",
     );
 
     if (karma < 50) {
-      const games = await Game.findWithPlayer(ctx.state.user._id).where("status").ne("ended").limit(2).count();
-      assert(games < 2, "You can't join more than two games at the same time when your karma is less than 50");
+      const activeGames = await colls.games
+        .find({ "players._id": user._id, status: { $ne: "ended" } })
+        .limit(2)
+        .toArray();
+      assert(
+        activeGames.length < 2,
+        "You can't join more than two games at the same time when your karma is less than 50",
+      );
     }
   }
 
-  const free = await locks.lock("game", ctx.params.gameId);
-  try {
-    const game = await Game.findOne({
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
+    const game = await colls.games.findOne({
       _id: ctx.params.gameId,
       status: "open",
     });
@@ -324,21 +380,21 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
       return;
     }
 
-    const existingPlayer = game.players.find((pl) => pl._id.equals(ctx.state.user._id));
+    const existingPlayer = game.players.find((pl) => pl._id.equals(user._id));
     if (existingPlayer?.pending) {
       existingPlayer.pending = false;
-      game.currentPlayers = game.currentPlayers.filter((pl) => !pl._id.equals(existingPlayer._id));
+      game.currentPlayers = (game.currentPlayers ?? []).filter((pl) => !pl._id.equals(existingPlayer._id));
     } else {
       assert(!existingPlayer, "You already joined the game");
       assert(game.players.length < game.options.setup.nbPlayers, "Too many people have joined the game");
 
       game.players.push({
-        _id: ctx.state.user._id,
+        _id: user._id,
         remainingTime: game.options.timing.timePerGame,
         quit: false,
         dropped: false,
         score: 0,
-        name: ctx.state.user.account.username,
+        name: user.account.username,
       });
     }
 
@@ -350,62 +406,60 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
       }
     }
 
-    await game.save();
+    await colls.games.replaceOne({ _id: game._id }, game);
 
     ctx.state.game = game;
 
     if (game.ready && !game.options.timing.scheduledStart) {
       await notifyGameStart(game);
     }
-  } finally {
-    free().catch(console.error);
   }
-  ctx.body = omit(ctx.state.game, "data");
+  ctx.body = withoutData(ctx.state.game);
 });
 
 router.post("/:gameId/unjoin", loggedIn, async (ctx) => {
-  const free = await locks.lock("game", ctx.params.gameId);
-  try {
-    const game = await Game.findOne({ _id: ctx.params.gameId, status: "open" });
+  const user = ctx.state.user!;
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
+    const game = await colls.games.findOne({ _id: ctx.params.gameId, status: "open" });
 
     if (!game) {
       ctx.status = 404;
       return;
     }
 
-    const index = game.players.findIndex((pl) => pl._id.equals(ctx.state.user._id));
+    const index = game.players.findIndex((pl) => pl._id.equals(user._id));
     assert(index >= 0, "You're not part of that game");
     assert(!game.ready, "You can't unjoin a game that's ready to start");
 
-    game.players = game.players.filter((pl) => !pl._id.equals(ctx.state.user._id));
+    game.players = game.players.filter((pl) => !pl._id.equals(user._id));
     // In case host needed to choose options after all players joined, and player unjoined before
     // he could chose the options, he now has to wait again
-    game.currentPlayers = game.currentPlayers.filter(
-      (pl) => !pl._id.equals(ctx.state.user._id) && !pl._id.equals(game.creator)
+    game.currentPlayers = (game.currentPlayers ?? []).filter(
+      (pl) => !pl._id.equals(user._id) && !pl._id.equals(game.creator),
     );
 
-    if (/* ctx.state.user._id.equals(game.creator) && */ game.players.length === 0) {
+    if (/* user._id.equals(game.creator) && */ game.players.length === 0) {
       // Remove game if its own creator leaves, and there's no one else
-      await game.remove();
+      await colls.games.deleteOne({ _id: game._id });
     } else {
-      await game.save();
+      await colls.games.replaceOne({ _id: game._id }, game);
     }
 
     ctx.state.game = game;
-  } finally {
-    free().catch(console.error);
   }
-  ctx.body = omit(ctx.state.game, "data");
+  ctx.body = withoutData(ctx.state.game);
 });
 
 router.post("/:gameId/start", loggedIn, async (ctx) => {
-  const free = await locks.lock("game", ctx.params.gameId);
-  try {
-    const game = await Game.findOne({
+  const user = ctx.state.user!;
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
+    const game = await colls.games.findOne({
       _id: ctx.params.gameId,
       status: "open",
       ready: false,
-      creator: ctx.state.user._id,
+      creator: user._id,
     });
 
     if (!game) {
@@ -415,173 +469,195 @@ router.post("/:gameId/start", loggedIn, async (ctx) => {
 
     assert(
       game.players.length === game.options.setup.nbPlayers,
-      "You can only start the game when all players have joined"
+      "You can only start the game when all players have joined",
     );
 
-    const { playerOrder } = ctx.request.body;
+    const { playerOrder } = z.object({ playerOrder: z.array(z.string()).optional() }).parse(ctx.request.body);
 
     if (playerOrder) {
-      game.players = [...game.players].sort(
-        (p1, p2) => playerOrder.indexOf(p1._id.toString()) - playerOrder.indexOf(p2._id.toString())
+      game.players = [...game.players].toSorted(
+        (p1, p2) => playerOrder.indexOf(p1._id.toString()) - playerOrder.indexOf(p2._id.toString()),
       );
     }
     game.ready = true;
 
-    await game.save();
+    await colls.games.replaceOne({ _id: game._id }, game);
 
     if (!game.options.timing.scheduledStart) {
       await notifyGameStart(game);
     }
 
     ctx.state.game = game;
-  } finally {
-    free().catch(console.error);
   }
-  ctx.body = omit(ctx.state.game, "data");
+  ctx.body = withoutData(ctx.state.game);
 });
 
 router.post("/:gameId/cancel", loggedIn, async (ctx) => {
+  const user = ctx.state.user!;
+  const stateGame = ctx.state.game!;
   assert(
-    ctx.state.user && ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id)),
-    "You must be a player of the game to vote!"
+    stateGame.players.some((pl) => pl._id.equals(user._id)),
+    "You must be a player of the game to vote!",
   );
 
-  const free = await locks.lock("game-cancel", ctx.params.gameId);
-
-  try {
-    const game = await Game.findOne({ _id: ctx.params.gameId });
+  {
+    await using _lock = await locks.lock("game-cancel", ctx.params.gameId);
+    const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
     assert(game, createError(404));
     assert(game.status === "active", "The game is not ongoing");
 
-    const player = game.players.find((pl) => pl._id.equals(ctx.state.user._id));
-
+    const player = game.players.find((pl) => pl._id.equals(user._id));
+    assert(player, "You must be a player of the game to vote!");
     assert(!player.voteCancel, "You already voted to cancel the game");
 
     player.voteCancel = true;
-    await ChatMessage.create({
+    await colls.chatMessages.insertOne({
+      _id: new ObjectId(),
       room: game._id,
       type: "system",
       data: { text: `${player.name} voted to cancel this game` },
     });
 
     if (game.players.every((pl) => pl.voteCancel || pl.dropped)) {
-      await ChatMessage.create({ room: game._id, type: "system", data: { text: `Game cancelled` } });
+      await colls.chatMessages.insertOne({
+        _id: new ObjectId(),
+        room: game._id,
+        type: "system",
+        data: { text: `Game cancelled` },
+      });
       game.status = "ended";
       game.cancelled = true;
-      game.currentPlayers = null;
+      game.currentPlayers = [];
     }
 
-    await game.save();
+    await colls.games.replaceOne({ _id: game._id }, game);
 
     if (game.status === "ended") {
       // Possible concurrency issue if game is cancelled at the exact same time as being finished
-      await GameNotification.create({ kind: "gameEnded", game: game._id });
+      const now2 = new Date();
+      await colls.gameNotifications.insertOne({ kind: "gameEnded", game: game._id, processed: false, createdAt: now2, updatedAt: now2 });
     }
-  } finally {
-    free().catch(console.error);
   }
 
   ctx.status = 200;
 });
 
 router.post("/:gameId/quit", loggedIn, async (ctx) => {
+  const user = ctx.state.user!;
+  const stateGame = ctx.state.game!;
   assert(
-    ctx.state.user && ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id)),
-    "You must be a player of the game to quit!"
+    stateGame.players.some((pl) => pl._id.equals(user._id)),
+    "You must be a player of the game to quit!",
   );
 
-  const free = await locks.lock("game-cancel", ctx.params.gameId);
+  {
+    await using _lock = await locks.lock("game-cancel", ctx.params.gameId);
+    const game = await colls.games.findOne<Pick<GameDoc, "_id" | "players" | "status">>(
+      { _id: ctx.params.gameId },
+      { projection: { players: 1, status: 1 } },
+    );
 
-  try {
-    const game = await Game.findOne({ _id: ctx.params.gameId }).select("players status").lean(true);
-
+    assert(game, "Game not found");
     assert(game.status === "active", "The game is not ongoing");
 
-    const player = game.players.find((pl) => pl._id.equals(ctx.state.user._id));
-
+    const player = game.players.find((pl) => pl._id.equals(user._id));
+    assert(player, "You must be a player of the game to quit!");
     assert(!player.quit && !player.dropped, "You already quit the game");
 
-    await GameNotification.create({ kind: "playerQuit", user: ctx.state.user._id, game: game._id });
-  } finally {
-    free().catch(console.error);
+    const quitNow = new Date();
+    await colls.gameNotifications.insertOne({
+      kind: "playerQuit",
+      user: user._id,
+      game: game._id,
+      processed: false,
+      createdAt: quitNow,
+      updatedAt: quitNow,
+    });
   }
 
   ctx.status = 200;
 });
 
 router.post("/:gameId/drop/:userId", loggedIn, async (ctx) => {
+  const user = ctx.state.user!;
+  const stateGame = ctx.state.game!;
   assert(
-    ctx.state.user && ctx.state.game.players.some((pl) => pl._id.equals(ctx.state.user._id)),
-    "You must be a player of the game!"
+    stateGame.players.some((pl) => pl._id.equals(user._id)),
+    "You must be a player of the game!",
   );
   const targetId = ctx.params.userId;
   assert(
-    targetId && ctx.state.game.players.some((pl) => pl._id.equals(targetId), "The target must be a player of the game!")
+    targetId && stateGame.players.some((pl) => pl._id.equals(targetId)),
+    "The target must be a player of the game!",
   );
 
-  const free = await locks.lock("game-cancel", ctx.params.gameId);
+  {
+    await using _lock = await locks.lock("game-cancel", ctx.params.gameId);
+    const game = await colls.games.findOne<Pick<GameDoc, "_id" | "currentPlayers" | "players" | "status">>(
+      { _id: ctx.params.gameId },
+      { projection: { currentPlayers: 1, players: 1, status: 1 } },
+    );
 
-  try {
-    const game = await Game.findOne({ _id: ctx.params.gameId }).select("currentPlayers players status").lean(true);
-
+    assert(game, "Game not found");
     assert(game.status === "active", "The game is not ongoing");
 
     const player = game.players.find((pl) => pl._id.equals(targetId));
-
+    assert(player, "The target must be a player of the game!");
     assert(!player.quit && !player.dropped, "That player already quit the game");
 
-    const currentPlayer = game.currentPlayers.find((pl) => pl._id.equals(targetId));
+    const currentPlayer = (game.currentPlayers ?? []).find((pl) => pl._id.equals(targetId));
 
     assert(currentPlayer, "It's not that player's turn to play");
-    assert(currentPlayer.deadline < new Date(), "The player's time is not elapsed");
+    assert(currentPlayer.deadline && currentPlayer.deadline < new Date(), "The player's time is not elapsed");
 
-    await GameNotification.create({
+    const dropNow = new Date();
+    await colls.gameNotifications.insertOne({
       kind: "dropPlayer",
-      user: targetId,
-      game: game,
+      user: player._id,
+      game: game._id,
+      processed: false,
+      createdAt: dropNow,
+      updatedAt: dropNow,
       meta: {
-        dropper: ctx.state.user._id,
+        dropper: user._id,
         deadline: currentPlayer.deadline,
         timerStart: currentPlayer.timerStart,
         remainingTime: player.remainingTime,
       },
     });
-  } finally {
-    free().catch(console.error);
   }
 
   ctx.status = 200;
 });
 
 router.post("/:roomId/notes", loggedIn, async (ctx) => {
-  await RoomMetaData.findOneAndUpdate(
+  const user = ctx.state.user!;
+  const { notes } = z.object({ notes: z.string() }).parse(ctx.request.body);
+  await colls.roomMetaData.updateOne(
     {
       room: ctx.params.roomId,
-      user: ctx.state.user._id,
+      user: user._id,
     },
-    {
-      notes: ctx.request.body.notes,
-    },
-    {
-      runValidators: true,
-      upsert: true,
-    }
+    { $set: { notes } },
+    { upsert: true },
   );
   ctx.status = 200;
 });
 
 router.get("/:roomId/notes", loggedIn, async (ctx) => {
-  const metaData = await RoomMetaData.findOne({ room: ctx.params.roomId, user: ctx.state.user._id }).lean(true);
+  const user = ctx.state.user!;
+  const metaData = await colls.roomMetaData.findOne({ room: ctx.params.roomId, user: user._id });
 
   ctx.body = metaData?.notes ?? "";
 });
 
 router.get("/:roomId/chat/lastRead", loggedIn, async (ctx) => {
-  const metaData: RoomMetaDataDocument = await RoomMetaData.findOne({
+  const user = ctx.state.user!;
+  const metaData: RoomMetaDataDoc | null = await colls.roomMetaData.findOne({
     room: ctx.params.roomId,
-    user: ctx.state.user._id,
-  }).lean(true);
+    user: user._id,
+  });
 
   if (!metaData || !metaData.lastChatMessageViewed) {
     ctx.body = 0;
@@ -591,16 +667,18 @@ router.get("/:roomId/chat/lastRead", loggedIn, async (ctx) => {
 });
 
 router.post("/:roomId/chat/lastRead", loggedIn, async (ctx) => {
-  await RoomMetaData.findOneAndUpdate(
-    { room: ctx.params.roomId, user: ctx.state.user._id },
-    { lastChatMessageViewed: new Date(ctx.request.body.lastRead) },
-    { upsert: true }
+  const user = ctx.state.user!;
+  const { lastRead } = z.object({ lastRead: z.union([z.string(), z.number()]) }).parse(ctx.request.body);
+  await colls.roomMetaData.updateOne(
+    { room: ctx.params.roomId, user: user._id },
+    { $set: { lastChatMessageViewed: new Date(lastRead) } },
+    { upsert: true },
   );
   ctx.status = 200;
 });
 
 router.delete("/:gameId", isAdmin, async (ctx) => {
-  await ctx.state.game.remove();
+  await colls.games.deleteOne({ _id: ctx.state.game!._id });
   ctx.status = 200;
 });
 

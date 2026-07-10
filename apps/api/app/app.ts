@@ -1,23 +1,33 @@
-import { AssertionError } from "assert";
-import type { Server } from "http";
+import { AssertionError } from "node:assert";
+import type { Server } from "node:http";
 import createError from "http-errors";
+import { z, ZodError } from "zod";
 import jwt from "jsonwebtoken";
+import { ObjectId } from "mongodb";
 /* Koa stuff */
 import Koa from "koa";
 import bodyParser from "koa-bodyparser";
 import compression from "koa-compress";
-import cookie from "koa-cookie";
+import _cookie from "koa-cookie";
+// Handle both CJS default-as-namespace and ESM-default imports of koa-cookie.
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion
+const cookie = (_cookie as unknown as { default?: typeof _cookie }).default ?? _cookie;
 import morgan from "koa-morgan";
 import passport from "koa-passport";
-import env from "./config/env";
+import { logRequest } from "@bgs/utils/log";
+import env from "./config/env.ts";
 /* Configure passport */
-import "./config/passport";
-import { ApiError, User, UserDocument } from "./models";
+import "./config/passport.ts";
+import type { UserDoc } from "@bgs/models";
+import type { WithId } from "mongodb";
+import { colls } from "./config/db.ts";
+import { accessTokenPayloadSchema } from "./models/jwtrefreshtokens.ts";
+import { notifyLogin, notifyLastIp } from "./models/user.ts";
 /* Local stuff */
-import router from "./routes";
+import router from "./routes/index.ts";
 
 async function listen(port = env.listen.port.api) {
-  const app = new Koa<Koa.DefaultState & { user: UserDocument }>();
+  const app = new Koa<Application.DefaultState>();
 
   /* Configuration */
   app.keys = [env.sessionSecret];
@@ -26,6 +36,23 @@ async function listen(port = env.listen.port.api) {
   if (!env.silent) {
     app.use(morgan("dev"));
   }
+  // Structured JSON request log (one line per request, including silent 4xx).
+  app.use(async (ctx, next) => {
+    const start = Date.now();
+    try {
+      await next();
+    } finally {
+      const user = ctx.state.user as { _id?: { toString(): string } } | undefined;
+      logRequest("api", {
+        method: ctx.request.method,
+        path: ctx.request.path,
+        status: ctx.status,
+        durationMs: Date.now() - start,
+        ip: ctx.ip,
+        userId: user?._id?.toString(),
+      });
+    }
+  });
   app.proxy = true;
   app.use(compression());
   app.use(bodyParser());
@@ -35,12 +62,13 @@ async function listen(port = env.listen.port.api) {
   app.use(passport.initialize());
 
   // JWT auth
+  const tokenQuerySchema = z.object({ token: z.string().optional() });
   app.use(async (ctx, next) => {
     const processToken = async (token: string) => {
-      const decoded = jwt.verify(token, env.jwt.keys.public) as { userId: string; scopes: string[] };
+      const decoded = accessTokenPayloadSchema.parse(jwt.verify(token, env.jwt.keys.public));
 
-      if (decoded && decoded.scopes.includes("all")) {
-        ctx.state.user = await User.findById(decoded.userId);
+      if (decoded.scopes.includes("all")) {
+        ctx.state.user = (await colls.users.findOne({ _id: new ObjectId(decoded.userId) })) ?? undefined;
       }
     };
 
@@ -48,8 +76,11 @@ async function listen(port = env.listen.port.api) {
       const token = ctx.get("Authorization").slice("Bearer ".length);
 
       await processToken(token);
-    } else if (ctx.query.token) {
-      await processToken(ctx.query.token);
+    } else {
+      const { token } = tokenQuerySchema.parse(ctx.query);
+      if (token) {
+        await processToken(token);
+      }
     }
 
     await next();
@@ -62,35 +93,38 @@ async function listen(port = env.listen.port.api) {
       if (!env.silent) {
         console.error("Caught err", err);
       }
+      const error = err instanceof Error ? err : new Error(String(err));
       if (err instanceof createError.HttpError) {
         ctx.status = err.statusCode;
         ctx.body = { message: err.message };
-      } else if (err.name === "ValidationError") {
-        const keys = Object.keys(err.errors);
-        ctx.status = 422;
-        ctx.body = { message: err.errors[keys[0]].message };
+      } else if (err instanceof ZodError) {
+        ctx.status = 400;
+        ctx.body = { message: z.prettifyError(err) };
       } else if (err instanceof AssertionError) {
         ctx.status = 422;
         ctx.body = { message: err.message };
       } else {
         ctx.status = 500;
-        ctx.body = { message: "Internal error: " + err.message, stack: err.stack };
+        ctx.body = { message: "Internal error: " + error.message, stack: error.stack };
       }
 
       try {
-        if (ctx.request.body?.password) {
-          ctx.request.body.password = "*******";
+        const body: unknown = ctx.request.body;
+        if (body && typeof body === "object" && "password" in body && body.password) {
+          // Redact the password before logging the request body.
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+          (body as Record<string, unknown>).password = "*******";
         }
-        await ApiError.create({
+        await colls.apiErrors.insertOne({
           request: {
             url: ctx.request.originalUrl,
             method: ctx.request.method,
             body: JSON.stringify(ctx.request.body),
           },
           error: {
-            name: err.name,
-            stack: err.stack,
-            message: err.message,
+            name: error.name,
+            stack: error.stack ? error.stack.split("\n") : [],
+            message: error.message,
           },
           user: ctx.state.user?._id,
           meta: {
@@ -100,9 +134,9 @@ async function listen(port = env.listen.port.api) {
         if (process.env.NODE_ENV !== "production" && !env.silent) {
           console.error(err);
         }
-      } catch (_err) {
+      } catch (innerErr) {
         if (!env.silent) {
-          console.error(_err);
+          console.error(innerErr);
         }
       }
     }
@@ -117,9 +151,9 @@ async function listen(port = env.listen.port.api) {
 
     if (user) {
       if (!oldUser) {
-        await user.notifyLogin(ctx.ip);
+        await notifyLogin(user, ctx.ip);
       } else {
-        await user.notifyLastIp(ctx.ip);
+        await notifyLastIp(user, ctx.ip);
       }
     }
   });
@@ -128,7 +162,7 @@ async function listen(port = env.listen.port.api) {
     await next();
 
     if (ctx.state.user) {
-      const user: UserDocument = ctx.state.user;
+      const user: WithId<UserDoc> = ctx.state.user;
 
       // Token for forum SSO
       ctx.cookies.set(
@@ -140,9 +174,9 @@ async function listen(port = env.listen.port.api) {
             email: user.account.email,
           },
           env.jwt.keys.private,
-          { expiresIn: "1h", algorithm: env.jwt.algorithm }
+          { expiresIn: "1h", algorithm: env.jwt.algorithm },
         ),
-        { httpOnly: true, sameSite: true, domain: env.domain }
+        { httpOnly: true, sameSite: true, domain: env.isProduction ? env.domain : undefined },
       );
     } else if (ctx.cookies.get("token")) {
       // Remove cookie if logged out
@@ -153,7 +187,7 @@ async function listen(port = env.listen.port.api) {
   app.use(router.routes());
   app.use(router.allowedMethods());
 
-  let server: Server;
+  let server!: Server;
 
   await new Promise<void>((resolve, reject) => {
     console.log("listening...");
@@ -161,7 +195,9 @@ async function listen(port = env.listen.port.api) {
     app.once("error", (err) => reject(err));
   });
 
-  console.log("app started on port", port, "and host", env.listen.host);
+  const addr = server.address();
+  const actualPort = addr && typeof addr === "object" ? addr.port : port;
+  console.log("app started on port", actualPort, "and host", env.listen.host);
 
   return server;
 }

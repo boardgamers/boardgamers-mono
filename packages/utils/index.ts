@@ -1,7 +1,10 @@
-export * from "./join-and";
-export * from "./remove-falsy";
-export * from "./time";
+export * from "./array.ts";
+export * from "./object.ts";
+export * from "./remove-falsy.ts";
+export * from "./time.ts";
 
-export function isPromise(p: any): p is Promise<any> {
-  return typeof p === "object" && "then" in p && typeof p.then === "function";
+export function isPromise(p: unknown): p is Promise<unknown> {
+  return (
+    typeof p === "object" && p !== null && "then" in p && typeof (p as Record<string, unknown>).then === "function"
+  );
 }

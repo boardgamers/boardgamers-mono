@@ -15,7 +15,7 @@
 </script>
 
 <script lang="ts">
-  import type { Page as IPage } from "@bgs/types";
+  import type { Page as IPage } from "@bgs/models";
   import Page from "@/components/Page.svelte";
   import { useLoad } from "@/composition/useLoad";
   import { useRest } from "@/composition/useRest";

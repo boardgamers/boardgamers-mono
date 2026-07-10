@@ -1,15 +1,29 @@
-import assert from "assert";
+import assert from "node:assert";
 import createError from "http-errors";
 import jwt from "jsonwebtoken";
 import passport from "koa-passport";
+// @ts-ignore - passport types
 import type { Strategy } from "passport";
 import { Strategy as DiscordStrategy } from "passport-discord";
 import { Strategy as FacebookStrategy } from "passport-facebook";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as LocalStrategy } from "passport-local";
-import validator from "validator";
-import { User, UserDocument } from "../models";
-import env from "./env";
+import { z } from "zod";
+import type { UserDoc } from "@bgs/models";
+import type { WithId } from "mongodb";
+import { colls } from "./db.ts";
+import {
+  findByEmail,
+  findByUsername,
+  generateConfirmKey,
+  generateHash,
+  makeDefaultUser,
+  sendConfirmationEmail,
+  validPassword,
+  validateResetKey,
+  resetPassword,
+} from "../models/user.ts";
+import env from "./env.ts";
 
 // =========================================================================
 // LOCAL SIGNUP ============================================================
@@ -30,11 +44,11 @@ passport.use(
       try {
         // find a user whose email is the same as the forms email
         // we are checking to see if the user trying to login already exists
-        if (!validator.isEmail(email)) {
+        if (!z.string().email().safeParse(email).success) {
           throw createError(422, "Wrong email format");
         }
 
-        if (password.length < env.minPasswordLength) {
+        if (password.length < Number(env.minPasswordLength)) {
           throw createError(422, "Password is too short");
         }
 
@@ -43,7 +57,7 @@ passport.use(
         }
 
         // check to see if there's already a user with that email
-        if (await User.findByEmail(email)) {
+        if (await findByEmail(email)) {
           throw createError(409, "Email is already taken");
         }
 
@@ -53,35 +67,37 @@ passport.use(
           throw createError(422, "Specify a username");
         }
 
-        if (await User.findByUsername(username)) {
+        if (await findByUsername(username)) {
           throw createError(422, `Username ${username} is taken`);
         }
 
         // if there is no user with that email
         // create the user
-        const newUser = new User();
+        const slug = username.toLowerCase().replace(/\s+/g, "-");
+        const confirmKey = generateConfirmKey();
+        const newUserDoc: UserDoc = makeDefaultUser({
+          username,
+          email: email.toLowerCase().trim(),
+          slug,
+          password: await generateHash(password),
+          confirmKey,
+          confirmed: false,
+          newsletter: req.body.newsletter === true || req.body.newsletter === "true",
+        });
 
-        // set the user's local credentials
-        newUser.account.email = email;
-        newUser.account.username = username;
-        newUser.account.termsAndConditions = new Date();
-        newUser.account.password = await newUser.generateHash(password);
-        newUser.settings.mailing.newsletter = req.body.newsletter === true || req.body.newsletter === "true";
-        newUser.generateConfirmKey();
-
-        // save the user
-        await newUser.save();
+        const result = await colls.users.insertOne(newUserDoc);
+        const newUser: WithId<UserDoc> = { ...newUserDoc, _id: result.insertedId };
 
         if (!newUser.security.confirmed) {
-          await newUser.sendConfirmationEmail();
+          await sendConfirmationEmail(newUser);
         }
 
         return done(null, newUser);
       } catch (err) {
         return done(err);
       }
-    }
-  )
+    },
+  ),
 );
 
 passport.use(
@@ -105,36 +121,41 @@ passport.use(
           throw createError(422, "Specify a username");
         }
 
-        if (await User.findByUsername(username)) {
+        if (await findByUsername(username)) {
           throw createError(422, `Username ${username} is taken`);
         }
 
-        const decoded = jwt.verify(token, env.jwt.keys.public) as {
-          id: string;
-          provider: string;
-          createSocialAccount: true;
-        };
-
-        assert(decoded.createSocialAccount, "Malformed JWT payload");
-        assert(["google", "facebook", "discord"].includes(decoded.provider), "Uknown social provider");
+        const decoded = z
+          .object({
+            id: z.string(),
+            provider: z.enum(["google", "facebook", "discord"]),
+            createSocialAccount: z.literal(true),
+          })
+          .parse(jwt.verify(token, env.jwt.keys.public));
 
         // create the user
-        const newUser = new User();
+        const slug = username.toLowerCase().replace(/\s+/g, "-");
+        const social = { [decoded.provider]: decoded.id };
+        const newUserDoc: UserDoc = makeDefaultUser({
+          username,
+          email: "",
+          slug,
+          password: "",
+          confirmKey: "",
+          confirmed: true,
+          newsletter: false,
+          social,
+        });
 
-        newUser.account.username = username;
-        newUser.account.social[decoded.provider] = decoded.id;
-        newUser.account.termsAndConditions = new Date();
-        newUser.security.confirmed = true;
-
-        // save the user
-        await newUser.save();
+        const result = await colls.users.insertOne(newUserDoc);
+        const newUser: WithId<UserDoc> = { ...newUserDoc, _id: result.insertedId };
 
         return done(null, newUser);
       } catch (err) {
         return done(err);
       }
-    }
-  )
+    },
+  ),
 );
 
 passport.use(
@@ -151,28 +172,28 @@ passport.use(
         // find a user whose email is the same as the forms email
         // we are checking to see if the user trying to login already exists
 
-        if (password.length < env.minPasswordLength) {
+        if (password.length < Number(env.minPasswordLength)) {
           throw createError(422, "Password too short");
         }
 
-        const user = await User.findByEmail(email);
+        const user = await findByEmail(email);
 
         // check to see if theres already a user with that email
         if (!user) {
           throw createError(404, "No user with this email");
         }
 
-        user.validateResetKey(req.body.resetKey);
+        validateResetKey(user, req.body.resetKey);
 
         // set the user's local credentials
-        await user.resetPassword(password);
+        await resetPassword(user, password);
 
         return done(null, user);
       } catch (err) {
         return done(err);
       }
-    }
-  )
+    },
+  ),
 );
 
 // =========================================================================
@@ -191,25 +212,33 @@ passport.use(
     },
     async (email, password, done) => {
       try {
-        const user = await User.findByEmail(email);
+        const user = await findByEmail(email);
         // if no user is found, return the message
         if (!user) {
           throw createError(404, `${email} isn't registered`);
         }
 
         // if the user is found but the password is wrong
-        if (!(await user.validPassword(password))) {
+        if (!(await validPassword(user, password))) {
           throw createError(401, "Oops! Wrong password");
         }
         done(null, user);
       } catch (err) {
         done(err);
       }
-    }
-  )
+    },
+  ),
 );
 
-function makeSocialStrategy<T extends Strategy>(provider: string, SocialStrategy: new (...args: unknown[]) => T) {
+type SocialProvider = keyof typeof env.social;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SocialStrategyCtor<T extends Strategy> = new (options: any, verify: any) => T;
+
+function makeSocialStrategy<T extends Strategy>(
+  provider: SocialProvider,
+  SocialStrategy: SocialStrategyCtor<T>,
+) {
   passport.use(
     provider,
     new SocialStrategy(
@@ -219,23 +248,31 @@ function makeSocialStrategy<T extends Strategy>(provider: string, SocialStrategy
         passReqToCallback: true,
         callbackURL: `https://${env.site}/auth/${provider}/callback`,
       },
-      async function (req, token, tokenSecret, profile, done) {
+      async function (
+        req: { user?: WithId<UserDoc> },
+        _token: string,
+        _tokenSecret: string,
+        profile: { id: string },
+        done: (err: unknown, user?: unknown) => void,
+      ) {
         try {
-          const currentUser: UserDocument = req.user;
-          const existingUser = await User.findOne({ [`account.social.${provider}`]: profile.id });
+          const currentUser = req.user;
+          const existingUser = await colls.users.findOne({ [`account.social.${provider}`]: profile.id });
 
           if (currentUser) {
-            if (existingUser && existingUser._id === currentUser._id) {
+            if (existingUser && existingUser._id.equals(currentUser._id)) {
               done(null, existingUser);
               return;
             }
-            assert(!currentUser.account.social[provider], `You already have a ${provider} account connected`);
+            assert(!currentUser.account.social?.[provider], `You already have a ${provider} account connected`);
             assert(!existingUser, `Another user is already connected to that ${provider} account`);
 
-            currentUser.account.social[provider] = profile.id;
-
-            await currentUser.save();
-            done(null, currentUser);
+            await colls.users.updateOne(
+              { _id: currentUser._id },
+              { $set: { [`account.social.${provider}`]: profile.id } },
+            );
+            const updatedUser = await colls.users.findOne({ _id: currentUser._id });
+            done(null, updatedUser);
           } else {
             if (existingUser) {
               done(null, existingUser);
@@ -247,8 +284,8 @@ function makeSocialStrategy<T extends Strategy>(provider: string, SocialStrategy
         } catch (err) {
           done(err);
         }
-      }
-    )
+      },
+    ),
   );
 }
 

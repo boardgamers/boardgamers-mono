@@ -1,6 +1,8 @@
 import createError from "http-errors";
-import { Context, Next } from "koa";
+import type { Context, Next } from "koa";
 import NodeCache from "node-cache";
+import { z } from "zod";
+import { isUserAdmin } from "../models/index.ts";
 
 export async function loggedIn(ctx: Context, next: Next) {
   if (!ctx.state.user) {
@@ -27,19 +29,26 @@ export async function loggedOut(ctx: Context, next: Next) {
 }
 
 export async function isAdmin(ctx: Context, next: Next) {
-  if (!ctx.state.user?.isAdmin()) {
+  if (!ctx.state.user || !isUserAdmin(ctx.state.user)) {
     throw createError(403, "You need to be admin");
   }
 
   await next();
 }
 
+const paginationQuerySchema = z.object({
+  count: z.coerce.number().int().positive().optional(),
+  skip: z.coerce.number().int().nonnegative().optional(),
+});
+
 export function queryCount(ctx: Context, max = 100) {
-  return Math.max(Math.min(+ctx.query.count || 20, max), 1);
+  const { count } = paginationQuerySchema.parse(ctx.query);
+  return Math.min(count ?? 20, max);
 }
 
 export function skipCount(ctx: Context) {
-  return +ctx.query.skip || 0;
+  const { skip } = paginationQuerySchema.parse(ctx.query);
+  return skip ?? 0;
 }
 
 const internalCache = new NodeCache({ stdTTL: 10 });

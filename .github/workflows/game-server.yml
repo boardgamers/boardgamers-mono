@@ -21,12 +21,11 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '16'
+          node-version: '24'
       - run: corepack enable
       - run: pnpm install --filter {./}...
       - run: pnpm run lint-check
-      - run: pnpm install --filter "@bgs/models"
       - run: pnpm run tsc

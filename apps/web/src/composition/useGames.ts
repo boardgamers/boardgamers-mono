@@ -1,4 +1,4 @@
-import type { GameStatus, IGame } from "@bgs/types";
+import type { GameStatus, IGame } from "@bgs/models";
 import { get as $ } from "svelte/store";
 import { defineStore } from "./defineStore";
 import { useAccount } from "./useAccount";

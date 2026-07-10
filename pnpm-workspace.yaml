@@ -4,6 +4,5 @@ packages:
   - "apps/admin"
   - "apps/web"
   - "apps/game-server"
-  - "packages/types"
   - "packages/models"
   - "packages/utils"

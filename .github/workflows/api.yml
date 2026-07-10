@@ -21,20 +21,27 @@ jobs:
   lint_and_test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '16'
+          node-version: '24'
 
       - name: Start MongoDB
-        uses: supercharge/mongodb-github-action@1.3.0
+        uses: supercharge/mongodb-github-action@1.12.0
         with:
-          mongodb-version: 4.4
+          mongodb-version: 8.0
+          mongodb-replica-set: rs0
 
       - run: corepack enable
       - run: pnpm install --filter {./}...
       - run: pnpm run lint-check
-      - run: pnpm install --filter "@bgs/models"
-      - run: pnpm install --filter "@bgs/utils"
       - run: pnpm run tsc
       - run: pnpm run test
+
+      - name: Check new migrations will run when merged
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          pnpm run check-migrations

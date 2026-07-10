@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PlayerInfo } from "@bgs/types";
+  import type { PlayerInfoFront } from "@bgs/models";
   import { classnames, handleError } from "@/utils";
   import { useAccount } from "@/composition/useAccount";
   import { useGameInfo } from "@/composition/useGameInfo";
@@ -8,7 +8,7 @@
   const { account } = useAccount();
   const { loadGameInfo, gameInfo, gameInfos } = useGameInfo();
 
-  export let player: PlayerInfo;
+  export let player: PlayerInfoFront;
   export let showVp = true;
   export let game: string;
 

@@ -4,7 +4,7 @@
 
   export type GameContext = {
     game: Writable<IGame>;
-    players: Writable<PlayerInfo[]>;
+    players: Writable<PlayerInfoFront[]>;
     gameInfo: Writable<GameInfo>;
     replayData: Writable<{ start: number; end: number; current: number } | null>;
     emitter: EventEmitter;
@@ -36,7 +36,7 @@
 
 <script lang="ts">
   import { GameSidebar, OpenGame, StartedGame, ChatRoom } from "@/components";
-  import type { IGame, PlayerInfo, GameInfo } from "@bgs/types";
+  import type { IGame, PlayerInfoFront, GameInfo } from "@bgs/models";
   import { onDestroy, setContext } from "svelte";
   import { writable } from "svelte/store";
   import EventEmitter from "eventemitter3";
@@ -51,7 +51,7 @@
   const { room: currentRoom } = useCurrentRoom();
 
   export let game: IGame;
-  export let players: PlayerInfo[];
+  export let players: PlayerInfoFront[];
   export let gameInfo: GameInfo;
 
   $: gameId = game._id;
@@ -60,7 +60,7 @@
 
   const context = {
     game: writable<IGame | null>(null),
-    players: writable<PlayerInfo[]>([]),
+    players: writable<PlayerInfoFront[]>([]),
     gameInfo: writable<GameInfo | null>(null),
     replayData: writable<{ start: number; end: number; current: number } | null>(null),
     emitter: new EventEmitter(),

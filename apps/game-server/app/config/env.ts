@@ -1,6 +1,6 @@
-import fs from "fs";
-import os from "os";
-import path from "path";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 let dbName = process.env.dbName ?? "bgs";
 
@@ -24,7 +24,9 @@ export default {
   },
   listen: {
     port: +process.env.port || 50803,
-    host: process.env.listenHost ?? "localhost",
+    // Bind on IPv4 by default (Node 18+ resolves "localhost" to ::1, but vite's dev
+    // proxy and svelte-kit SSR resolve to 127.0.0.1 first → ECONNREFUSED in dev).
+    host: process.env.listenHost ?? "127.0.0.1",
   },
   database: {
     bgs: {
@@ -33,7 +35,7 @@ export default {
     },
   },
   isProduction: process.env.NODE_ENV === "production",
-  threads: process.env.threads || os.cpus().length,
+  threads: +(process.env.threads || os.cpus().length),
   seedEncryptionKey: process.env.seedEncryptionKey || "hashing key for seed",
   cron: process.env.cron || process.env.chron || false,
 };

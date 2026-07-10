@@ -36,7 +36,7 @@
 <script lang="ts">
   import { confirm, handleError } from "@/utils";
   import marked from "marked";
-  import type { GameInfo } from "@bgs/types";
+  import type { GameInfo } from "@bgs/models";
   import { Card, Row, Col } from "@/modules/cdk";
   import { UserGameSettings, GameList, BoardgameElo, SEO } from "@/components";
   import { useAccount } from "@/composition/useAccount";

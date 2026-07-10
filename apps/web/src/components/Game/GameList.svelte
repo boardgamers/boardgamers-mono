@@ -1,6 +1,6 @@
 <script lang="ts">
   import { timerTime, defer, duration, niceDate, shortDuration } from "@/utils";
-  import type { IGame } from "@bgs/types";
+  import type { IGame } from "@bgs/models";
   import { createWatcher } from "@/utils/watch";
   import clockHistory from "@iconify/icons-bi/clock-history.js";
   import { Badge, Icon, Pagination, Loading } from "@/modules/cdk";

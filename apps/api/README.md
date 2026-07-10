@@ -19,6 +19,12 @@ pnpm seed
 
 This will create three users, with emails `admin@test.com`, `user@test.com` and `user2@test.com`, and password `password`.
 
+Seeding is non-destructive: collections that already contain data are left untouched (the `settings` collection only gains any missing docs, e.g. the announcement). To wipe each seeded collection and reinsert the fixtures, pass `--drop`:
+
+```
+pnpm seed --drop
+```
+
 ## 🔧 Environment
 
 Most of the configurable environment variables are shown in `app/config/env.ts`. You just need to create a `.env` file at the root of the project with the changed environement variables.

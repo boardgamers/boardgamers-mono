@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Page as IPage } from "@bgs/types";
+  import type { Page as IPage } from "@bgs/models";
   import marked from "marked";
 
   export let pageContent: Partial<IPage>;

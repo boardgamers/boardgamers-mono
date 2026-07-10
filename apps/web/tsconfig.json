@@ -8,7 +8,11 @@
     /**
 			svelte-preprocess cannot figure out whether you have a value or a type, so tell TypeScript
 			to enforce using \`import type\` instead of \`import\` for Types.
+			(\`importsNotUsedAsValues\` is deprecated as of TS 5.0 and removed in 5.5 — the replacement
+			is \`verbatimModuleSyntax\`, but svelte-preprocess 4.x hardcodes this option, so we pin TS
+			to ~5.4 and silence the deprecation here.)
 			*/
+    "ignoreDeprecations": "5.0",
     "importsNotUsedAsValues": "error",
     "isolatedModules": true,
     "resolveJsonModule": true,

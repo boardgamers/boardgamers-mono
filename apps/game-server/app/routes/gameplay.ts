@@ -1,55 +1,47 @@
-import assert from "assert";
+import { keyBy } from "@bgs/utils/array";
+import { omit, pick } from "@bgs/utils/object";
+import assert from "node:assert";
 import Router from "koa-router";
-import { keyBy, omit, pick } from "lodash";
-import locks from "mongo-locks";
-import Game from "../models/game";
-import GameInfo from "../models/gameinfo";
-import { batchReplay } from "../services/batch";
-import { getEngine } from "../services/engines";
-import { afterMove } from "../services/game";
-import { isAdmin, loggedIn } from "./utils";
+import { z } from "zod";
+import { colls } from "../config/db.ts";
+import locks from "../config/locks.ts";
+import { batchReplay } from "../services/batch.ts";
+import { getEngine } from "../services/engines.ts";
+import { afterMove } from "../services/game.ts";
+import { isAdmin, loggedIn } from "./utils.ts";
 
 const router = new Router();
 
 router.post("/batch/replay", isAdmin, async (ctx) => {
-  const free = await locks.lock("batch-replay");
-  const interval = setInterval(() => locks.refresh("batch-replay"));
-
-  try {
-    const gameIds: string[] = ctx.request.body.gameIds;
+  {
+    await using _lock = await locks.lock("batch-replay");
+    const { gameIds } = z.object({ gameIds: z.array(z.string()) }).parse(ctx.request.body);
 
     ctx.body = await batchReplay({ _id: { $in: gameIds } });
-  } finally {
-    clearInterval(interval);
-    free().catch(console.error);
   }
 });
 
 router.post("/:gameId/edit-data", isAdmin, async (ctx) => {
-  const free = await locks.lock("game", ctx.params.gameId);
-
-  try {
-    const game = await Game.findById(ctx.params.gameId);
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
+    const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
     if (!game) {
       ctx.status = 404;
       return;
     }
 
-    game.data = ctx.request.body.json;
-    await game.save();
+    const { json } = z.object({ json: z.unknown() }).parse(ctx.request.body);
+    await colls.games.updateOne({ _id: ctx.params.gameId }, { $set: { data: json } });
 
     ctx.status = 200;
-  } finally {
-    free().catch(console.error);
   }
 });
 
 router.post("/:gameId/replay", isAdmin, async (ctx) => {
-  const free = await locks.lock("game", ctx.params.gameId);
-
-  try {
-    const game = await Game.findById(ctx.params.gameId);
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
+    const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
     if (!game) {
       ctx.status = 404;
@@ -58,9 +50,11 @@ router.post("/:gameId/replay", isAdmin, async (ctx) => {
 
     const engine = await getEngine(game.game.name, game.game.version);
 
+    // oxlint-disable-next-line typescript/unbound-method -- existence check, not a call
     assert(engine.replay, "The engine of this game does not support replaying");
 
-    const gameData = await engine.replay(game.data, { to: ctx.request.body.to });
+    const { to } = z.object({ to: z.number().optional() }).parse(ctx.request.body);
+    const gameData = await engine.replay(game.data, { to });
 
     const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 
@@ -70,15 +64,13 @@ router.post("/:gameId/replay", isAdmin, async (ctx) => {
     } else {
       ctx.status = 500;
     }
-  } finally {
-    free().catch(console.error);
   }
 });
 
 router.post("/:gameId/move", loggedIn, async (ctx) => {
-  const free = await locks.lock("game", ctx.params.gameId);
-  try {
-    const game = await Game.findById(ctx.params.gameId);
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
+    const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
     if (!game) {
       ctx.status = 404;
@@ -87,7 +79,7 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 
     assert(
       game.currentPlayers?.some((pl) => pl._id.equals(ctx.state.user.id)),
-      "It's not your turn to play."
+      "It's not your turn to play.",
     );
 
     const engine = await getEngine(game.game.name, game.game.version);
@@ -99,16 +91,17 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 
     const initialLogIndex = engine.logLength(gameData);
 
-    gameData = await engine.move(gameData, ctx.request.body.move, playerIndex);
+    const { move } = z.object({ move: z.unknown() }).parse(ctx.request.body);
+    gameData = await engine.move(gameData, move, playerIndex);
 
     const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 
     if (toSave) {
-      // For fast games, we add time back every move, not just every time the current player changes
       if (game.options.timing.timePerMove <= 15 * 60) {
         game.players[playerIndex].remainingTime = Math.min(
           game.options.timing.timePerGame,
-          (game.players[playerIndex].remainingTime ?? game.options.timing.timePerGame) + game.options.timing.timePerMove
+          (game.players[playerIndex].remainingTime ?? game.options.timing.timePerGame) +
+            game.options.timing.timePerMove,
         );
       }
       await afterMove(engine, game, toSave);
@@ -121,13 +114,11 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
         data: engine.logSlice(gameData, { start: initialLogIndex, player: playerIndex }),
       },
     };
-  } finally {
-    free().catch(console.error);
   }
 });
 
 router.post("/:gameId/settings", loggedIn, async (ctx) => {
-  const game = await Game.findById(ctx.params.gameId);
+  const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
   if (!game) {
     ctx.status = 404;
@@ -139,23 +130,22 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
   assert(playerIndex !== -1, "You're not part of this game");
   assert(game.status === "active", "You can only set settings on active games");
 
-  const gameInfo = await GameInfo.findById({ game: game.game.name, version: game.game.version })
-    .select("settings")
-    .lean(true);
-  const settings = keyBy(gameInfo.settings, "name");
+  const gameInfo = await colls.gameInfos.findOne(
+    { _id: { game: game.game.name, version: game.game.version } },
+    { projection: { settings: 1 } },
+  );
+  const settingsMap = keyBy(gameInfo.settings, (s) => s.name);
 
-  // Make sure that the setting is well-formed
-  // could throw a BadRequestException instead
-  const filteredSettings = pick(ctx.request.body, Object.keys(settings));
+  const filteredSettings = pick(z.record(z.string(), z.unknown()).parse(ctx.request.body), Object.keys(settingsMap));
   for (const [key, setting] of Object.entries(filteredSettings)) {
-    switch (settings[key].type) {
+    switch (settingsMap[key].type) {
       case "checkbox":
         if (typeof setting !== "boolean") {
           delete filteredSettings[key];
         }
         break;
       case "select":
-        if (!settings[key].items.some((item) => item.name === setting)) {
+        if (!settingsMap[key].items.some((item) => item.name === setting)) {
           delete filteredSettings[key];
         }
         break;
@@ -166,35 +156,31 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
 
   const engine = await getEngine(game.game.name, game.game.version);
 
+  // oxlint-disable-next-line typescript/unbound-method -- existence check, not a call
   assert(engine.setPlayerSettings, "This game does not support custom settings");
 
-  const free = await locks.lock("game", ctx.params.gameId);
-  try {
-    const game = await Game.findById(ctx.params.gameId);
+  {
+    await using _lock = await locks.lock("game", ctx.params.gameId);
+    const freshGame = await colls.games.findOne({ _id: ctx.params.gameId });
 
-    let gameData = game.data;
+    let gameData = freshGame.data;
 
     gameData = engine.setPlayerSettings(gameData, playerIndex, filteredSettings);
 
     const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 
     if (toSave) {
-      game.data = toSave;
-      game.markModified("data");
+      await colls.games.updateOne({ _id: ctx.params.gameId }, { $set: { data: JSON.parse(JSON.stringify(toSave)) } });
     }
-
-    await game.save();
 
     ctx.body = {
       settings: toSave ? engine.playerSettings(toSave, playerIndex) : null,
     };
-  } finally {
-    free().catch(console.error);
   }
 });
 
 router.get("/:gameId/settings", loggedIn, async (ctx) => {
-  const game = await Game.findById(ctx.params.gameId);
+  const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
   if (!game) {
     ctx.status = 404;
@@ -208,6 +194,7 @@ router.get("/:gameId/settings", loggedIn, async (ctx) => {
 
   const engine = await getEngine(game.game.name, game.game.version);
 
+  // oxlint-disable-next-line typescript/unbound-method -- existence check, not a call
   assert(engine.playerSettings, "This game does not support custom settings");
 
   ctx.body = engine.playerSettings(game.data, playerIndex);
@@ -217,7 +204,7 @@ router.get("/:gameId/log", async (ctx) => {
   const start = ctx.query.start ? +ctx.query.start : undefined;
   const end = ctx.query.end ? +ctx.query.end : undefined;
 
-  const game = await Game.findById(ctx.params.gameId);
+  const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
   if (!game) {
     ctx.status = 404;
@@ -226,7 +213,7 @@ router.get("/:gameId/log", async (ctx) => {
 
   const engine = await getEngine(game.game.name, game.game.version);
 
-  const playerId = ctx.state.user.id;
+  const playerId = ctx.state.user?.id;
   const playerIndex = game.players.findIndex((pl) => pl._id.equals(playerId));
 
   ctx.body = {
@@ -237,7 +224,7 @@ router.get("/:gameId/log", async (ctx) => {
 });
 
 router.get("/:gameId/length", async (ctx) => {
-  const game = await Game.findById(ctx.params.gameId);
+  const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
   if (!game) {
     ctx.status = 404;
@@ -250,7 +237,7 @@ router.get("/:gameId/length", async (ctx) => {
 });
 
 router.get("/:gameId", async (ctx) => {
-  const game = await Game.findById(ctx.params.gameId);
+  const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
   if (!ctx.state.user?.isAdmin && ctx.query.admin === "true") {
     ctx.status = 403;
@@ -267,20 +254,19 @@ router.get("/:gameId", async (ctx) => {
     const index = game.players.findIndex((pl) => pl._id.equals(ctx.state.user?.id));
 
     ctx.body = {
-      ...game.toJSON(),
+      ...game,
       data:
         engine.stripSecret && ctx.query.admin !== "true"
           ? engine.stripSecret(game.data, index === -1 ? undefined : index)
           : game.data,
     };
   } else {
-    // Separate data from game, because mongoose removes empty objects
-    ctx.body = { ...game.toJSON(), data: game.data };
+    ctx.body = game;
   }
 });
 
 router.get("/:gameId/data", async (ctx) => {
-  const game = await Game.findById(ctx.params.gameId);
+  const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
   if (!game) {
     ctx.status = 404;
@@ -293,7 +279,6 @@ router.get("/:gameId/data", async (ctx) => {
 
     ctx.body = engine.stripSecret ? engine.stripSecret(game.data, index === -1 ? undefined : index) : game.data;
   } else {
-    // Separate data from game, because mongoose removes empty objects
     ctx.body = game.data;
   }
 });

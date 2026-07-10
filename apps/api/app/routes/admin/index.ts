@@ -1,24 +1,34 @@
 import checkDiskSpace from "check-disk-space";
-import fs from "fs";
+import fs from "node:fs";
 import createError from "http-errors";
-import { Context } from "koa";
+import type { Context } from "koa";
 import Router from "koa-router";
-import path from "path";
-import { env } from "../../config";
-import { Game, GameNotification, Log, Settings, SettingsKey, User } from "../../models";
-import { sendAuthInfo } from "../account";
-import { isAdmin } from "../utils";
-import gameInfo from "./gameinfo";
-import page from "./pages";
-import users from "./users";
+import path from "node:path";
+import { env } from "../../config/index.ts";
+import { colls } from "../../config/db.ts";
+import {
+  findByEmail,
+  findByUsername,
+  recalculateKarma,
+  sendConfirmationEmail,
+  SettingsKey,
+} from "../../models/index.ts";
+import { sendAuthInfo } from "../account/index.ts";
+import { z } from "zod";
+import { isAdmin } from "../utils.ts";
+import gameInfo from "./gameinfo.ts";
+import loki from "./loki.ts";
+import page from "./pages.ts";
+import usersRouter from "./users.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
 router.use(isAdmin);
 
 router.use("/gameinfo", gameInfo.routes(), gameInfo.allowedMethods());
+router.use("/loki", loki.routes(), loki.allowedMethods());
 router.use("/page", page.routes(), page.allowedMethods());
-router.use("/users", users.routes(), users.allowedMethods());
+router.use("/users", usersRouter.routes(), usersRouter.allowedMethods());
 
 router.get("/backup/games", async (ctx) => {
   ctx.set({ "Content-Type": "application/gzip", "Content-Disposition": 'attachment; filename="games.bson.gz"' });
@@ -26,29 +36,86 @@ router.get("/backup/games", async (ctx) => {
 });
 
 router.get("/serverinfo", async (ctx) => {
+  // Same 60s heuristic the ws layer uses for player status dots:
+  // lastOnline = user marked themselves online; lastActive = ws connection alive (pong).
+  const activityCutoff = new Date(Date.now() - 60 * 1000);
+
+  const [
+    disk,
+    nbUsers,
+    onlineUsers,
+    connectedUsers,
+    gamesByStatus,
+    queueByKind,
+    recentUsers,
+    recentGames,
+    announcement,
+  ] = await Promise.all([
+    checkDiskSpace(process.cwd()),
+    colls.users.countDocuments({}),
+    colls.users.countDocuments({ "security.lastOnline": { $gt: activityCutoff } }),
+    colls.users.countDocuments({ "security.lastActive": { $gt: activityCutoff } }),
+    colls.games
+      .aggregate<{ _id: string; count: number }>([{ $group: { _id: "$status", count: { $sum: 1 } } }])
+      .toArray(),
+    colls.gameNotifications
+      .aggregate<{ _id: string; count: number }>([
+        { $match: { processed: false } },
+        { $group: { _id: "$kind", count: { $sum: 1 } } },
+      ])
+      .toArray(),
+    colls.users
+      .find({}, { projection: { _id: 1, "account.username": 1, createdAt: 1 } })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .toArray(),
+    colls.games
+      .find({}, { projection: { _id: 1, "game.name": 1, status: 1, lastMove: 1, createdAt: 1 } })
+      .sort({ lastMove: -1 })
+      .limit(5)
+      .toArray(),
+    colls.settings.findOne({ _id: SettingsKey.Announcement }),
+  ]);
+
+  const games: Record<string, number> = {};
+  for (const g of gamesByStatus) {
+    games[g._id] = g.count;
+  }
+
+  const queue: Record<string, number> = {};
+  for (const q of queueByKind) {
+    queue[q._id] = q.count;
+  }
+
   ctx.body = {
-    disk: await checkDiskSpace(process.cwd()),
-    nbUsers: await User.count({}),
-    announcement: (await Settings.findById(SettingsKey.Announcement))?.value,
+    disk,
+    nbUsers,
+    onlineUsers,
+    connectedUsers,
+    games,
+    queue,
+    recentUsers,
+    recentGames,
+    announcement: announcement?.value,
     cron: env.cron,
   };
 });
 
 router.post("/resend-confirmation", async (ctx) => {
-  const { email } = ctx.request.body;
-  const user = await User.findByEmail(email);
+  const { email } = z.object({ email: z.string().email() }).parse(ctx.request.body);
+  const user = await findByEmail(email);
 
   if (!user) {
     throw createError(404, "User not found: " + email);
   }
 
-  await user.sendConfirmationEmail();
+  await sendConfirmationEmail(user);
   ctx.status = 200;
 });
 
 router.post("/login-as", async (ctx) => {
-  const { username } = ctx.request.body;
-  const user = await User.findByUsername(username);
+  const { username } = z.object({ username: z.string() }).parse(ctx.request.body);
+  const user = await findByUsername(username);
 
   if (!user) {
     throw createError(404, "User not found: " + username);
@@ -60,30 +127,30 @@ router.post("/login-as", async (ctx) => {
 });
 
 router.post("/compute-karma", async (ctx) => {
-  const { username } = ctx.request.body;
-  const user = await User.findByUsername(username);
+  const { username } = z.object({ username: z.string() }).parse(ctx.request.body);
+  const user = await findByUsername(username);
 
   if (!user) {
     throw createError(404, "User not found: " + username);
   }
 
-  await user.recalculateKarma();
-  await user.save();
+  await recalculateKarma(user);
+  await colls.users.replaceOne({ _id: user._id }, user);
 
   ctx.status = 200;
 });
 
 router.post("/compute-all-karma", async (ctx) => {
-  for (const user of await User.find()) {
-    await user.recalculateKarma(new Date("2020-05-10"));
-    await user.save();
+  for (const user of await colls.users.find().toArray()) {
+    await recalculateKarma(user, new Date("2020-05-10"));
+    await colls.users.replaceOne({ _id: user._id }, user);
   }
 
   ctx.status = 200;
 });
 
 router.post("/load-games", async (ctx) => {
-  const dirPath = ctx.request.body?.path;
+  const { path: dirPath } = z.object({ path: z.string() }).parse(ctx.request.body);
 
   for (const file of fs.readdirSync(dirPath)) {
     if (!file.endsWith("json")) {
@@ -92,84 +159,99 @@ router.post("/load-games", async (ctx) => {
     const gameId = file.replace(/\.json$/, "");
     const json = JSON.parse(fs.readFileSync(path.join(dirPath, file)).toString("utf-8"));
 
-    const game = await Game.findById(gameId);
-
-    for (const key of Object.keys(json)) {
-      game[key] = json[key];
+    const game = await colls.games.findOne({ _id: gameId });
+    if (!game) {
+      continue;
     }
 
-    await game.save();
+    Object.assign(game, json);
+
+    await colls.games.replaceOne({ _id: gameId }, game);
   }
 });
 
 router.post("/announcement", async (ctx) => {
-  await Settings.updateOne(
+  const { announcement } = z.object({ announcement: z.string().optional() }).parse(ctx.request.body);
+  await colls.settings.updateOne(
     { _id: SettingsKey.Announcement },
-    { $set: { value: ctx.request.body?.announcement } },
-    { upsert: true }
+    { $set: { value: announcement } },
+    { upsert: true },
   );
   ctx.status = 200;
 });
 
 router.post("/recreate-notifications", async (ctx) => {
-  const notifications = await Game.aggregate([
-    {
-      $match: {
-        status: "ended",
-        updatedAt: {
-          $gt: new Date(Date.now() - 24 * 3600 * 1000 * 10),
+  const notifications = await colls.games
+    .aggregate([
+      {
+        $match: {
+          status: "ended",
+          updatedAt: {
+            $gt: new Date(Date.now() - 24 * 3600 * 1000 * 10),
+          },
         },
       },
-    },
-    { $project: { _id: 1 } },
-    {
-      $lookup: {
-        from: Log.collection.name,
-        localField: "_id",
-        foreignField: "data.game",
-        as: "log",
+      { $project: { _id: 1 } },
+      {
+        $lookup: {
+          from: "logs",
+          localField: "_id",
+          foreignField: "data.game",
+          as: "log",
+        },
       },
-    },
-    {
-      $match: {
-        log: {
-          $not: {
-            $elemMatch: {
-              kind: "processGameEnded",
+      {
+        $match: {
+          log: {
+            $not: {
+              $elemMatch: {
+                kind: "processGameEnded",
+              },
             },
           },
         },
       },
-    },
-    {
-      $lookup: {
-        from: GameNotification.collection.name,
-        localField: "_id",
-        foreignField: "game",
-        as: "notification",
+      {
+        $lookup: {
+          from: "gamenotifications",
+          localField: "_id",
+          foreignField: "game",
+          as: "notification",
+        },
       },
-    },
-    {
-      $match: {
-        game: {
-          $not: {
-            $elemMatch: {
-              kind: "gameEnded",
+      {
+        $match: {
+          notification: {
+            $not: {
+              $elemMatch: {
+                kind: "gameEnded",
+              },
             },
           },
         },
       },
-    },
-    {
-      $project: {
-        _id: 0,
-        game: "$_id",
-        kind: "gameEnded",
+      {
+        $project: {
+          _id: 0,
+          game: "$_id",
+          kind: "gameEnded",
+        },
       },
-    },
-  ]);
+    ])
+    .toArray();
 
-  await GameNotification.insertMany(notifications);
+  if (notifications.length > 0) {
+    const adminNow = new Date();
+    await colls.gameNotifications.insertMany(
+      notifications.map((n) => ({
+        game: n.game,
+        kind: n.kind,
+        processed: false,
+        createdAt: adminNow,
+        updatedAt: adminNow,
+      })),
+    );
+  }
   ctx.status = 200;
   ctx.body = notifications;
 });

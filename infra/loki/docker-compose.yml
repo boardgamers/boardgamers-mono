@@ -1,0 +1,51 @@
+version: "3.8"
+
+# Loki logging stack for boardgamers.space
+# Grafana (3030)  — dashboards at http://coyo:3030  (admin/admin, change on first login)
+# Loki   (3100)  — log storage, internal only
+# Promtail (9080) — tails PM2 logs, internal only
+#
+# Deploy:  docker compose -f infra/loki/docker-compose.yml up -d
+
+services:
+  loki:
+    image: docker.io/grafana/loki:3.0.0
+    container_name: bgs-loki
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+
+  promtail:
+    image: docker.io/grafana/promtail:3.0.0
+    container_name: bgs-promtail
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9080:9080"
+    volumes:
+      - ./promtail-config.yaml:/etc/promtail/config.yaml
+      - /home/bgs/.pm2/logs:/logs:ro
+    command: -config.file=/etc/promtail/config.yaml
+
+  grafana:
+    image: docker.io/grafana/grafana:11.0.0
+    container_name: bgs-grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3030:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=bgs-grafana-2024
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - loki
+
+volumes:
+  loki-data:
+  grafana-data:

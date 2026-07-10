@@ -1,27 +1,41 @@
+// `${"script"}` literals are intentional to avoid having raw `</script>` tokens
+// in this file's source — historical caution for tooling that might inline the
+// HTML strings into an HTML context.
+// oxlint-disable typescript/no-unnecessary-template-expression
 /* Koa stuff */
-import { ViewerInfo } from "@bgs/types";
-import { AssertionError } from "assert";
-import type { Server } from "http";
+import type { ViewerInfo } from "@bgs/models";
+import { AssertionError } from "node:assert";
+import type { Server } from "node:http";
 import createError from "http-errors";
+import { z, ZodError } from "zod";
 import Koa from "koa";
 import compression from "koa-compress";
 import morgan from "koa-morgan";
+import { logRequest } from "@bgs/utils/log";
 /* Local stuff */
 import Router from "koa-router";
 /* Configure passport */
-import env from "./config/env";
-import { GameInfo } from "./models";
+import env from "./config/env.ts";
+import { colls } from "./config/db.ts";
 
 const router = new Router();
 
+const iframeQuerySchema = z.object({ src: z.string().optional() });
+const gameIframeQuerySchema = z.object({
+  alternate: z.string().optional(),
+  customViewerUrl: z.string().optional(),
+});
+
 router.get("/iframe", (ctx) => {
-  ctx.body = ctx.query.src;
+  const { src } = iframeQuerySchema.parse(ctx.query);
+  ctx.body = src;
 });
 
 router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
-  const gameInfo = await GameInfo.findById({ game: ctx.params.game_name, version: +ctx.params.game_version }).lean(
-    true
-  );
+  const { alternate, customViewerUrl } = gameIframeQuerySchema.parse(ctx.query);
+  const gameInfo = await colls.gameInfos.findOne({
+    _id: { game: ctx.params.game_name, version: +ctx.params.game_version },
+  });
 
   if (!gameInfo) {
     console.log("Game info not found");
@@ -30,13 +44,15 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
   }
 
   const viewer: ViewerInfo =
-    gameInfo?.viewer?.alternate?.url && ctx.query.alternate === "1" ? gameInfo?.viewer.alternate : gameInfo.viewer;
-  const viewerUrl = ctx.query.customViewerUrl || viewer.url;
+    gameInfo?.viewer?.alternate?.url && alternate === "1" ? gameInfo?.viewer.alternate : gameInfo.viewer;
+  const viewerUrl = customViewerUrl || viewer.url;
 
-  const stylesheets = viewer.dependencies.stylesheets
+  const stylesheets = (viewer.dependencies?.stylesheets ?? [])
     .map((dep) => `<link type='text/css' rel='stylesheet' href='${dep}'></link>`)
     .join("\n");
-  const scripts = viewer.dependencies.scripts.map((dep) => `<${"script"} src='${dep}'></${"script"}>`).join("\n");
+  const scripts = (viewer.dependencies?.scripts ?? [])
+    .map((dep) => `<${"script"} src='${dep}'></${"script"}>`)
+    .join("\n");
   const viewerScript = `<${"script"} src='${viewerUrl}' type='text/javascript'></${"script"}>`;
 
   const template =
@@ -174,6 +190,20 @@ async function listen(port = env.listen.port.resources) {
   if (!env.silent) {
     app.use(morgan("dev"));
   }
+  app.use(async (ctx, next) => {
+    const start = Date.now();
+    try {
+      await next();
+    } finally {
+      logRequest("resources", {
+        method: ctx.request.method,
+        path: ctx.request.path,
+        status: ctx.status,
+        durationMs: Date.now() - start,
+        ip: ctx.ip,
+      });
+    }
+  });
   app.proxy = true;
   app.use(compression());
 
@@ -187,10 +217,9 @@ async function listen(port = env.listen.port.resources) {
       if (err instanceof createError.HttpError) {
         ctx.status = err.statusCode;
         ctx.body = { message: err.message };
-      } else if (err.name === "ValidationError") {
-        const keys = Object.keys(err.errors);
-        ctx.status = 422;
-        ctx.body = { message: err.errors[keys[0]].message };
+      } else if (err instanceof ZodError) {
+        ctx.status = 400;
+        ctx.body = { message: z.prettifyError(err) };
       } else if (err instanceof AssertionError) {
         ctx.status = 422;
         ctx.body = { message: err.message };
@@ -204,7 +233,7 @@ async function listen(port = env.listen.port.resources) {
   app.use(router.routes());
   app.use(router.allowedMethods());
 
-  let server: Server;
+  let server!: Server;
   const promise = new Promise<void>((resolve, reject) => {
     server = app.listen(port, env.listen.host, () => resolve());
     app.once("error", (err) => reject(err));

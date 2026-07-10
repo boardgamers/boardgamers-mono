@@ -1,5 +1,5 @@
 import Router from "koa-router";
-import gameplay from "./gameplay";
+import gameplay from "./gameplay.ts";
 
 const router = new Router();
 

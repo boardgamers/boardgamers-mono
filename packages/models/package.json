@@ -1,9 +1,29 @@
 {
   "name": "@bgs/models",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./*": "./*.ts"
+  },
+  "scripts": {
+    "lint": "oxlint --fix",
+    "lint-check": "oxlint",
+    "fmt": "oxfmt",
+    "fmt-check": "oxfmt --check",
+    "tsc": "tsgo --noEmit"
+  },
   "dependencies": {
-    "@bgs/types": "workspace:*"
+    "type-fest": "^5.4.4",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@typescript/native-preview": "7.0.0-dev.20260307.1",
+    "oxfmt": "^0.36.0",
+    "oxlint": "^1.51.0",
+    "oxlint-tsgolint": "^0.16.0"
   },
   "peerDependencies": {
-    "mongoose": "^6.0.2"
+    "mongodb": ">=6"
   }
 }

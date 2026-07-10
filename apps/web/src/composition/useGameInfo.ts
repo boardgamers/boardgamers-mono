@@ -1,5 +1,5 @@
 import type { RemoveReadable } from "@/utils";
-import type { GameInfo } from "@bgs/types";
+import type { GameInfo } from "@bgs/models";
 import { sortBy, uniqBy } from "lodash";
 import { get as $, writable } from "svelte/store";
 import type { SetOptional, ValueOf } from "type-fest";
@@ -76,11 +76,17 @@ export const useGameInfo = defineStore(() => {
     loading.set(
       id,
       get<GameInfo>(`/boardgame/${game}/info/${version}`).then(
-        (game) => {
+        (info) => {
           loading.delete(id);
 
+          // The endpoint returns an empty body (no doc) for an unknown version.
+          // Don't store it — leave the gameInfo absent so callers can handle it.
+          if (!info?._id) {
+            return;
+          }
+
           // Two assignments in case version === latest, the ids would be different
-          $(gameInfos)[id] = $(gameInfos)[gameInfoKey(game._id.game, game._id.version)] = game;
+          $(gameInfos)[id] = $(gameInfos)[gameInfoKey(info._id.game, info._id.version)] = info;
           gameInfos.update((val) => ({ ...val }));
         },
         (err) => {

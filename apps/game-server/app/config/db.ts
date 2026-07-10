@@ -1,23 +1,44 @@
-import locks from "mongo-locks";
-import mongoose from "mongoose";
-import env from "./env";
+import { type Db, MongoClient } from "mongodb";
+import {
+  type ApiErrorDoc,
+  API_ERRORS_COLLECTION,
+  type ChatMessageDoc,
+  CHAT_MESSAGES_COLLECTION,
+  type GameDoc,
+  GAMES_COLLECTION,
+  type GameInfoDoc,
+  GAME_INFOS_COLLECTION,
+  type GameNotificationDoc,
+  GAME_NOTIFICATIONS_COLLECTION,
+  ensureCollections,
+  withAutoUpdatedAt,
+  ensureIndexes,
+  ensureValidation,
+} from "@bgs/models";
+import env from "./env.ts";
+import locks from "./locks.ts";
 
-const connect = () =>
-  mongoose
-    .connect(env.database.bgs.url, { dbName: env.database.bgs.name, directConnection: true })
-    .then(() => console.log("successfully connected to database"));
+const client = new MongoClient(env.database.bgs.url, { directConnection: true });
+const _db = client.db(env.database.bgs.name);
+console.log("successfully connected to database");
 
-connect().catch((err) => {
-  console.error(err);
-});
+export function db(): Db {
+  return _db;
+}
 
-mongoose.connection.on("error", (err) => {
-  console.error(err);
-});
+// withAutoUpdatedAt wraps the collections whose schema carries `updatedAt`.
+export const colls = {
+  apiErrors: withAutoUpdatedAt(_db.collection<ApiErrorDoc>(API_ERRORS_COLLECTION)),
+  chatMessages: _db.collection<ChatMessageDoc>(CHAT_MESSAGES_COLLECTION),
+  games: withAutoUpdatedAt(_db.collection<GameDoc>(GAMES_COLLECTION)),
+  gameInfos: _db.collection<GameInfoDoc>(GAME_INFOS_COLLECTION),
+  gameNotifications: withAutoUpdatedAt(_db.collection<GameNotificationDoc>(GAME_NOTIFICATIONS_COLLECTION)),
+};
 
-mongoose.connection.on("disconnected", () => {
-  console.log("attempt to reconnect to database");
-  setTimeout(() => connect().catch(console.error), 5000);
-});
+await client.connect();
 
-locks.init(mongoose.connection);
+locks.init(_db.collection("locks"));
+
+await ensureCollections(_db);
+await ensureIndexes(_db);
+await ensureValidation(_db);

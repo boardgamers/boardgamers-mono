@@ -60,7 +60,7 @@ export function deadline(remainingSeconds: number, activeTimer?: { start: number
 
   let remainingMs = remainingSeconds * 1000;
 
-  while (1) {
+  while (true) {
     const endDate = progressToUTCSeconds(date, activeTimer.end);
 
     remainingMs -= endDate.getTime() - date.getTime();

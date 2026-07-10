@@ -1,5 +1,5 @@
 import createError from "http-errors";
-import { Context, Next } from "koa";
+import type { Context, Next } from "koa";
 
 export async function loggedIn(ctx: Context, next: Next) {
   if (!ctx.state.user) {

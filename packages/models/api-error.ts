@@ -1,33 +1,34 @@
-import { ApiError } from "@bgs/types";
-import { Document, Model, Schema, Types } from "mongoose";
+import { z } from "zod";
+import type { Jsonify } from "type-fest";
+import type { IndexDescription } from "mongodb";
+import { zObjectId, zDate } from "./helpers.ts";
 
-export interface ApiErrorDocument extends Document, ApiError<Types.ObjectId> {}
+export const apiErrorSchema = z.object({
+  _id: zObjectId().optional(),
+  error: z.object({
+    name: z.string(),
+    message: z.string(),
+    stack: z.array(z.string()),
+  }),
+  request: z.object({
+    url: z.string(),
+    method: z.string(),
+    body: z.string(),
+  }),
+  meta: z.unknown(),
+  user: zObjectId().optional(),
+  createdAt: zDate().optional(),
+  updatedAt: zDate().optional(),
+});
 
-const repr = {
-  error: {
-    name: String,
-    message: String,
-    stack: [String],
-  },
-  user: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
-  },
-  request: {
-    url: String,
-    method: String,
-    body: String,
-  },
-  meta: {},
-};
+export type ApiErrorDoc = z.output<typeof apiErrorSchema>;
+export type ApiErrorFront = Jsonify<ApiErrorDoc>;
 
-export default function makeSchema<U extends Model<ApiErrorDocument> = Model<ApiErrorDocument>>() {
-  const schema = new Schema<ApiErrorDocument, U>(repr, {
-    timestamps: true,
-    capped: { size: 10 * 1024 * 1024, max: 10 * 1000 },
-  });
+export const API_ERRORS_COLLECTION = "apierrors";
 
-  schema.index({ user: 1, createdAt: -1 });
+export const apiErrorsCollectionOptions = { size: 10 * 1000 * 1000, max: 10000 };
 
-  return schema;
-}
+export const apiErrorIndexes: IndexDescription[] = [
+  // api + game-server: admin error listing per user
+  { key: { user: 1, createdAt: -1 } },
+];

@@ -1,16 +1,28 @@
 {
   "license": "AGPL-3.0",
-  "packageManager": "pnpm@6.14.1",
+  "packageManager": "pnpm@9.15.9",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
-    "prettier": "prettier --plugin-search-dir=. --write .",
-    "prettier-check": "prettier --plugin-search-dir=. --check ."
+    "prettier": "prettier --write .",
+    "prettier-check": "prettier --check ."
   },
   "devDependencies": {
-    "prettier": "^2.4.1",
-    "prettier-plugin-organize-imports": "^2.3.3",
-    "prettier-plugin-sort-json": "^0.0.2",
-    "prettier-plugin-svelte": "^2.4.0",
+    "@typescript/native-preview": "7.0.0-dev.20260307.1",
+    "prettier": "^3.5.3",
+    "prettier-plugin-organize-imports": "^4.1.0",
+    "prettier-plugin-sort-json": "^4.1.1",
+    "prettier-plugin-svelte": "^3.5.0",
     "svelte": "^3.42.6",
-    "typescript": "^4.4.3"
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3"
+  },
+  "_pnpmOverridesNote": "Pin is-generator-function to 1.1.0: 1.1.1+ depends on generator-function@2.x whose exports field (experimental ESM 'module.exports' named export) trips tsx's CJS/ESM interop, breaking require('generator-function') from koa. Upstream: https://github.com/inspect-js/is-generator-function/issues/46 (tsx bug acknowledged, PR #47 not yet merged).",
+  "pnpm": {
+    "overrides": {
+      "is-generator-function": "1.1.0"
+    }
   }
 }
