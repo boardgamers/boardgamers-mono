@@ -1,11 +1,9 @@
 <script lang="ts">
   import { BoardgameElo, SEO } from "@/components";
-  import type { LoadEloRankingsResult } from "@/composition/useEloRankings";
-  import { useGameInfo } from "@/composition/useGameInfo";
+  import type { LoadEloRankingsResult } from "@/lib/elo-rankings.svelte";
+  import { gameInfo } from "@/lib/game-info.svelte";
   import { Col, Row } from "@/modules/cdk";
   import { gameLabel } from "@/utils/game-label";
-
-  const { gameInfo } = useGameInfo();
 
   let { data }: { data: { rankings: LoadEloRankingsResult; boardgameId: string; currentPage: number; skip: number } } =
     $props();

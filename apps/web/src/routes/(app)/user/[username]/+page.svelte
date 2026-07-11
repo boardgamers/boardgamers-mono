@@ -2,11 +2,9 @@
   import type { IUser } from "@bgs/models";
   import { UserGames, UserElo, SEO, UserAvatar } from "@/components";
   import { Row, Col, Container, Card } from "@/modules/cdk";
-  import { useAccount } from "@/composition/useAccount";
+  import { account } from "@/lib/account.svelte";
   import { dateFromObjectId } from "@/utils";
   import { page } from "$app/stores";
-
-  const { account } = useAccount();
 
   let { data }: { data: { user: IUser } } = $props();
   let username = $derived(data.user.account.username);

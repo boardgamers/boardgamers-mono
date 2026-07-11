@@ -5,14 +5,10 @@
   import clockHistory from "@iconify/icons-bi/clock-history.js";
   import { Badge, Icon, Pagination, Loading } from "@/modules/cdk";
   import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
-  import { useLogoClicks } from "@/composition/useLogoClicks";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { LoadGamesResult, useGames } from "@/composition/useGames";
+  import { logoClicks } from "@/lib/stores.svelte";
+  import { gameInfo } from "@/lib/game-info.svelte";
+  import { loadGames, type LoadGamesResult } from "@/lib/games.svelte";
   import { isPromise } from "@bgs/utils";
-
-  const { logoClicks } = useLogoClicks();
-  const { gameInfo } = useGameInfo();
-  const { loadGames } = useGames();
 
   export let title = "Games";
   export let perPage = 10;

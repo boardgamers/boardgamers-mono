@@ -17,15 +17,11 @@
   import gearFill from "@iconify/icons-bi/gear-fill.js";
   import power from "@iconify/icons-bi/power.js";
   import { handleError } from "@/utils";
-  import { useAccount } from "@/composition/useAccount";
-  import { useLogoClicks } from "@/composition/useLogoClicks";
-  import { useActiveGames } from "@/composition/useActiveGames";
+  import { account as user, login, logout } from "@/lib/account.svelte";
+  import { logoClick } from "@/lib/stores.svelte";
+  import { activeGames } from "@/lib/stores.svelte";
   import { browser } from "$app/environment";
   import UserAvatar from "../User/UserAvatar.svelte";
-
-  const { account: user, login, logout } = useAccount();
-  const { logoClick } = useLogoClicks();
-  const { activeGames } = useActiveGames();
 
   let email = "";
   let password = "";

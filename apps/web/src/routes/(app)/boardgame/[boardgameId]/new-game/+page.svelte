@@ -8,20 +8,16 @@
   import { fade } from "svelte/transition";
   import type { PlayerOrder } from "@bgs/models";
   import { playerOrders } from "@/data/playerOrders";
-  import { useAccount } from "@/composition/useAccount";
-  import { useLoggedIn } from "@/composition/useLoggedIn";
-  import { useRest } from "@/composition/useRest";
-  import { useGameInfo } from "@/composition/useGameInfo";
+  import { account } from "@/lib/account.svelte";
+  import { useLoggedIn } from "@/lib/auth-guards.svelte";
+  import { post } from "@/lib/api";
+  import { gameInfo } from "@/lib/game-info.svelte";
   import { page } from "$app/stores";
   import { SEO } from "@/components";
   import removeMarkdown from "remove-markdown";
   import { gameLabel } from "@/utils/game-label";
 
   useLoggedIn();
-
-  const { account } = useAccount();
-  const { post } = useRest();
-  const { gameInfo } = useGameInfo();
 
   $: boardgameId = $page.params.boardgameId; // Can be undefined during page navigation out
   $: info = gameInfo(boardgameId, "latest");

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { SEO } from "@/components";
-  import { useLoggedOut } from "@/composition/useLoggedOut";
+  import { useLoggedOut } from "@/lib/auth-guards.svelte";
   import { post } from "@/lib/api";
   import { handleError, handleInfo } from "@/utils";
 

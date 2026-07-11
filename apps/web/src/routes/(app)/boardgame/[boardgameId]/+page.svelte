@@ -4,17 +4,13 @@
   import type { GameInfo } from "@bgs/models";
   import { Card, Row, Col } from "@/modules/cdk";
   import { UserGameSettings, GameList, BoardgameElo, SEO } from "@/components";
-  import { useAccount } from "@/composition/useAccount";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useGamePreferences } from "@/composition/useGamePreferences";
+  import { account } from "@/lib/account.svelte";
+  import { gameInfo, loadGameInfo, gameInfos } from "@/lib/game-info.svelte";
+  import { gamePreferences, loadGamePreferences } from "@/lib/game-preferences.svelte";
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
-  import type { LoadEloRankingsResult } from "@/composition/useEloRankings";
+  import type { LoadEloRankingsResult } from "@/lib/elo-rankings.svelte";
   import { gameLabel } from "@/utils/game-label";
-
-  const { account } = useAccount();
-  const { gameInfo, loadGameInfo, gameInfos } = useGameInfo();
-  const { gamePreferences, loadGamePreferences } = useGamePreferences();
 
   let { data }: { data: { rankings: LoadEloRankingsResult } } = $props();
 

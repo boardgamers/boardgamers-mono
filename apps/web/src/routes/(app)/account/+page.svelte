@@ -2,22 +2,16 @@
   import { handleError, confirm, niceDate, duration, createWatcher } from "@/utils";
   import { Card, Button, Col, Container, FormGroup, Input, InputGroup, Row, Checkbox } from "@/modules/cdk";
   import { upperFirst, debounce } from "lodash";
-  import { useAccount } from "@/composition/useAccount";
+  import { account } from "@/lib/account.svelte";
   import { post, apiFetch } from "@/lib/api";
   import type { IUser } from "@bgs/models";
   import { browser } from "$app/environment";
-  import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
-  import { useLoggedIn } from "@/composition/useLoggedIn";
+  import { developerSettings } from "@/lib/stores.svelte";
+  import { useLoggedIn } from "@/lib/auth-guards.svelte";
   import UserAvatar from "@/components/User/UserAvatar.svelte";
-  import { useLogoClicks } from "@/composition/useLogoClicks";
-  import { useImageCache } from "@/composition/useImageCache";
+  import { logoClick, imageCache } from "@/lib/stores.svelte";
 
   useLoggedIn();
-
-  const { logoClick } = useLogoClicks();
-  const { developerSettings } = useDeveloperSettings();
-  const { account } = useAccount();
-  const { imageCache } = useImageCache();
 
   let email = $account!.account.email;
   let editingEmail = false;

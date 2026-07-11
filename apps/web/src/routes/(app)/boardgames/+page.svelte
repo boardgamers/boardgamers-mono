@@ -3,19 +3,15 @@
   import { goto } from "$app/navigation";
   import { createWatcher } from "@/utils";
   import marked from "marked";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useGamePreferences } from "@/composition/useGamePreferences";
-  import { useAccount } from "@/composition/useAccount";
+  import { latestGameInfos } from "@/lib/game-info.svelte";
+  import { gamePreferences, loadAllGamePreferences } from "@/lib/game-preferences.svelte";
+  import { account } from "@/lib/account.svelte";
   import { SEO } from "@/components";
-
-  const { latestGameInfos } = useGameInfo();
-  const { gamePreferences, loadAllGamePreferences } = useGamePreferences();
-  const { accountId } = useAccount();
 
   let info = latestGameInfos();
 
   const watcher = createWatcher(loadAllGamePreferences);
-  $: (watcher(), [$accountId]);
+  $: (watcher(), [$account?._id]);
 </script>
 
 <SEO title="Game selection" />

@@ -1,13 +1,10 @@
 <script lang="ts">
   import { page } from "$app/stores";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useLogoClicks } from "@/composition/useLogoClicks";
+  import { loadGameInfos, gameInfos, latestGameInfos } from "@/lib/game-info.svelte";
+  import { logoClick } from "@/lib/stores.svelte";
   import { ListGroup } from "@/modules/cdk";
   import { handleError } from "@/utils";
   import type { GameInfo } from "@bgs/models";
-
-  const { loadGameInfos, gameInfos, latestGameInfos } = useGameInfo();
-  const { logoClick } = useLogoClicks();
 
   loadGameInfos().catch(handleError);
 

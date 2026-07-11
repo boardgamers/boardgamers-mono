@@ -2,8 +2,7 @@
   import { fade } from "svelte/transition";
   import { GameList, SEO } from "@/components";
   import { Col, Container, Nav, NavItem, NavLink } from "@/modules/cdk";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import type { LoadGamesResult } from "@/composition/useGames";
+  import type { LoadGamesResult } from "@/lib/games.svelte";
 
   let { data }: { data: { featured: LoadGamesResult; lobby: LoadGamesResult; boardgameId: string | undefined } } = $props();
 

@@ -1,12 +1,10 @@
 <script lang="ts">
-  import { useAccount } from "@/composition/useAccount";
-  import { useActiveGames } from "@/composition/useActiveGames";
   import { SEO, GameListSidebar } from "@/components";
   import marked from "marked";
   import { Col, Row } from "@/modules/cdk";
   import GameList from "@/components/Game/GameList.svelte";
-  const { activeGames } = useActiveGames();
-  const { account } = useAccount();
+  import { activeGames } from "@/lib/stores.svelte";
+  import { account } from "@/lib/account.svelte";
   let { data } = $props();
   let announcement = $derived(data.announcement);
 </script>

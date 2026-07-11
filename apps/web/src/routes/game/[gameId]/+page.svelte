@@ -4,11 +4,7 @@
   import { onDestroy, setContext } from "svelte";
   import { writable } from "svelte/store";
   import EventEmitter from "eventemitter3";
-  import { useCurrentGame } from "@/composition/useCurrentGame";
-  import { useCurrentRoom } from "@/composition/useCurrentRoom";
-
-  const { currentGameId } = useCurrentGame();
-  const { room: currentRoom } = useCurrentRoom();
+  import { currentGameId, room as currentRoom } from "@/lib/stores.svelte";
 
   let { data } = $props();
   let game: IGame = $derived(data.game);

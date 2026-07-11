@@ -1,13 +1,12 @@
 <script lang="ts">
   import { Button, FormGroup, Label } from "@/modules/cdk";
   import { handleError } from "@/utils";
-  import { useLoggedOut } from "@/composition/useLoggedOut";
+  import { useLoggedOut } from "@/lib/auth-guards.svelte";
   import { redirectLoggedOut } from "@/utils/redirect";
   import { SEO } from "@/components";
+  import { login } from "@/lib/account.svelte";
 
   useLoggedOut();
-
-  const { login } = useAccount();
 
   let email = "";
   let password = "";

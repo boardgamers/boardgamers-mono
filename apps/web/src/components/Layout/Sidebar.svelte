@@ -1,9 +1,7 @@
 <script lang="ts">
-  import { useSidebarOpen } from "@/composition/useSidebarOpen";
+  import { sidebarOpen } from "@/lib/stores.svelte";
   import { Button, Icon } from "@/modules/cdk";
   import gear from "@iconify/icons-bi/gear.js";
-
-  const { sidebarOpen } = useSidebarOpen();
 </script>
 
 <div class="sidebar-container" class:open={$sidebarOpen}>

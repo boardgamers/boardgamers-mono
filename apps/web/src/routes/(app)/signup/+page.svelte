@@ -1,17 +1,14 @@
 <script lang="ts">
   import { page } from "$app/stores";
   import { SEO } from "@/components";
-  import { AuthData, useAccount } from "@/composition/useAccount";
-  import { useLoggedOut } from "@/composition/useLoggedOut";
-  import { useRest } from "@/composition/useRest";
+  import { setAuthData, type AuthData } from "@/lib/auth.svelte";
+  import { useLoggedOut } from "@/lib/auth-guards.svelte";
+  import { post } from "@/lib/api";
   import Checkbox from "@/modules/cdk/Checkbox.svelte";
   import { handleError } from "@/utils";
   import { upperFirst } from "lodash";
 
   useLoggedOut();
-
-  const { post } = useRest();
-  const { setAuthData } = useAccount();
 
   let email = $page.url.searchParams.get("user") ?? "";
   let isSocial = $page.url.searchParams.get("createSocialAccount");

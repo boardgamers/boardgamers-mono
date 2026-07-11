@@ -4,26 +4,17 @@
   import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import { createWatcher, handleError } from "@/utils";
   import { getContext, onDestroy, onMount } from "svelte";
-  import { useGame } from "@/composition/useGame";
-  import { useRest } from "@/composition/useRest";
-  import { useGamePreferences } from "@/composition/useGamePreferences";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useAccount } from "@/composition/useAccount";
-  import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
-  import { useCurrentGame } from "@/composition/useCurrentGame";
+  import { loadGame } from "@/lib/game.svelte";
+  import { get, post } from "@/lib/api";
+  import { addDefaults, updatePreference, gamePreferences } from "@/lib/game-preferences.svelte";
+  import { gameInfoKey } from "@/lib/game-info.svelte";
+  import { account as user } from "@/lib/account.svelte";
+  import { devGameSettings, developerSettings, lastGameUpdate } from "@/lib/stores.svelte";
   import { browser } from "$app/environment";
   import SEO from "../SEO.svelte";
   import { gameLabel } from "@/utils/game-label";
   import { minBy, sortBy } from "lodash";
   import { goto } from "$app/navigation";
-
-  const { loadGame } = useGame();
-  const { account: user } = useAccount();
-  const { get, post } = useRest();
-  const { addDefaults, updatePreference, gamePreferences } = useGamePreferences();
-  const { gameInfoKey } = useGameInfo();
-  const { lastGameUpdate } = useCurrentGame();
-  const { devGameSettings, developerSettings } = useDeveloperSettings();
 
   const { game, replayData, gameInfo, emitter, log }: GameContext = getContext("game");
   let stateSent = false;

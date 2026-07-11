@@ -3,13 +3,13 @@ import { page } from "$app/stores";
 import { skipOnce } from "@/utils";
 import { redirectLoggedIn, redirectLoggedOut } from "@/utils/redirect";
 import { onMount } from "svelte";
-import { get as $ } from "svelte/store";
+import { get as getStore } from "svelte/store";
 import { account } from "./stores.svelte";
 
 export function useLoggedIn(): void {
-  onMount(() => account.subscribe(skipOnce((val) => !val && goto(redirectLoggedIn($(page).url)))));
+  onMount(() => account.subscribe(skipOnce((val) => !val && goto(redirectLoggedIn(getStore(page).url)))));
 }
 
 export function useLoggedOut(): void {
-  onMount(() => account.subscribe(skipOnce((val) => val && goto(redirectLoggedOut($(page).url)))));
+  onMount(() => account.subscribe(skipOnce((val) => val && goto(redirectLoggedOut(getStore(page).url)))));
 }

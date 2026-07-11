@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { useGameInfo } from "@/composition/useGameInfo";
   import GameListSidebar from "@/components/Layout/GameListSidebar.svelte";
   let { children } = $props();
 </script>

@@ -29,10 +29,10 @@
   import { getContext } from "svelte";
   import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import { playerOrderText } from "@/data/playerOrders";
-  import { useAccount } from "@/composition/useAccount";
-  import { useCurrentGame } from "@/composition/useCurrentGame";
-  import { useRest } from "@/composition/useRest";
-  import { useGame } from "@/composition/useGame";
+  import { account as user } from "@/lib/account.svelte";
+  import { lastGameUpdate } from "@/lib/stores.svelte";
+  import { get, post } from "@/lib/api";
+  import { loadGame, loadGamePlayers } from "@/lib/game.svelte";
   import { goto } from "$app/navigation";
   import { redirectLoggedIn } from "@/utils/redirect";
   import { page } from "$app/stores";
@@ -41,12 +41,6 @@
   import { gameLabel } from "@/utils/game-label";
   import type { IUser } from "@bgs/models";
   import { debounce, map } from "lodash";
-
-  const { post, get } = useRest();
-
-  const { account: user } = useAccount();
-  const { lastGameUpdate } = useCurrentGame();
-  const { loadGame, loadGamePlayers } = useGame();
 
   const { game, players, gameInfo }: GameContext = getContext("game");
   $: timer = $game.options.timing.timer;

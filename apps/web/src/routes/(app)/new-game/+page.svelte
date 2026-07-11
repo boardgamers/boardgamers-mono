@@ -3,20 +3,16 @@
   import { confirm, createWatcher } from "@/utils";
   import marked from "marked";
   import { goto } from "$app/navigation";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useGamePreferences } from "@/composition/useGamePreferences";
-  import { useAccount } from "@/composition/useAccount";
+  import { latestGameInfos } from "@/lib/game-info.svelte";
+  import { gamePreferences, loadAllGamePreferences } from "@/lib/game-preferences.svelte";
+  import { account } from "@/lib/account.svelte";
   import type { IterableElement } from "type-fest";
   import { SEO } from "@/components";
-
-  const { latestGameInfos } = useGameInfo();
-  const { gamePreferences, loadAllGamePreferences } = useGamePreferences();
-  const { accountId } = useAccount();
 
   let info = latestGameInfos();
 
   const watcher = createWatcher(loadAllGamePreferences);
-  $: (watcher(), [$accountId]);
+  $: (watcher(), [$account?._id]);
 
   const onClick = async (gameInfo: IterableElement<typeof info>) => {
     if (gameInfo.meta.needOwnership && !$gamePreferences[gameInfo._id.game]?.access?.ownership) {

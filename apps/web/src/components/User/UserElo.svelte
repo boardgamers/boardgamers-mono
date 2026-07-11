@@ -4,7 +4,7 @@
   import { handleError, pluralize } from "@/utils";
   import type { GamePreferences } from "@bgs/models";
   import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
-  import { Icon } from "@cdk";
+  import { Icon } from "@/modules/cdk";
 
   export let userId: string;
 

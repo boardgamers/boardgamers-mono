@@ -11,19 +11,11 @@
   import { GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings } from "./GameSidebar";
   import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
-  import { useRest } from "@/composition/useRest";
-  import { useAccount } from "@/composition/useAccount";
-  import { useCurrentGame } from "@/composition/useCurrentGame";
-  import { useActiveGames } from "@/composition/useActiveGames";
-  import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
+  import { post } from "@/lib/api";
+  import { account } from "@/lib/account.svelte";
+  import { playerStatus, addActiveGame, removeActiveGame, devGameSettings } from "@/lib/stores.svelte";
 
   const { game, players, gameInfo }: GameContext = getContext("game");
-  const { post } = useRest();
-
-  const { account } = useAccount();
-  const { playerStatus } = useCurrentGame();
-  const { addActiveGame, removeActiveGame } = useActiveGames();
-  const { devGameSettings } = useDeveloperSettings();
 
   let secondsCounter = 0;
 

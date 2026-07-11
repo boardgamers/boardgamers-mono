@@ -9,7 +9,7 @@
   import PreferencesChooser from "./PreferencesChooser.svelte";
   import { post } from "@/lib/api";
   import { gameInfoKey } from "@/lib/game-info.svelte";
-  import { developerSettings, devGameSettings } from "@/composition/useDeveloperSettings";
+  import { developerSettings, devGameSettings } from "@/lib/stores.svelte";
   import { gamePreferences, loadGamePreferences } from "@/lib/game-preferences.svelte";
 
   export let title = "";

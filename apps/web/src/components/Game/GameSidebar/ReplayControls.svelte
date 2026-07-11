@@ -77,12 +77,12 @@
       <span
         class="mx-1 px-1 text-center"
         style="
-        text-overflow: ellipsis; 
-        display: inline-flex; 
-        align-items: center; 
-        overflow: hidden; 
-        white-space: nowrap; 
-        background-color: var(--bs-secondary); 
+        text-overflow: ellipsis;
+        display: inline-flex;
+        align-items: center;
+        overflow: hidden;
+        white-space: nowrap;
+        background-color: var(--bs-secondary);
         border-radius: 0.2em;
         pointer-events: all
       "

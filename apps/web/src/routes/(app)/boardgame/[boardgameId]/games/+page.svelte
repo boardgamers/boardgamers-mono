@@ -3,8 +3,8 @@
   import { fade } from "svelte/transition";
   import { GameList, SEO } from "@/components";
   import { Col, Container, Nav, NavItem, NavLink } from "@/modules/cdk";
-  import type { LoadGamesResult } from "@/composition/useGames";
-  import { useGameInfo } from "@/composition/useGameInfo";
+  import type { LoadGamesResult } from "@/lib/games.svelte";
+  import { gameInfo } from "@/lib/game-info.svelte";
 
   let {
     data,
@@ -18,8 +18,6 @@
   } = $props();
 
   let firstTab = $state(data.firstTab);
-
-  const { gameInfo } = useGameInfo();
 
   let animating = $state(false);
   let featuredCount = $derived(data.featured?.games ?? []);
