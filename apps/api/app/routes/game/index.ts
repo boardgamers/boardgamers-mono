@@ -36,7 +36,7 @@ const newGameSchema = z.object({
   timerEnd: z.number().optional(),
   minimumKarma: z.number().int().nonnegative().optional().nullable(),
   scheduledStart: z.number().optional(),
-  seed: z.string().regex(gameIdPattern).optional(),
+  seed: z.string().regex(gameIdPattern).or(z.literal("")).optional(),
   options: z.record(z.string(), z.union([z.string(), z.boolean()])).optional(),
 });
 
@@ -180,10 +180,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
   };
   if (minimumKarma !== undefined && minimumKarma !== null) {
     assert(+minimumKarma === minimumKarma && Math.floor(minimumKarma) === minimumKarma && minimumKarma >= 0);
-    assert(
-      minimumKarma + 5 <= user.account.karma,
-      "You can't create a game with that high of a karma restriction",
-    );
+    assert(minimumKarma + 5 <= user.account.karma, "You can't create a game with that high of a karma restriction");
     meta.minimumKarma = minimumKarma;
   }
 
@@ -301,10 +298,7 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
 
 router.post("/:gameId/invite", loggedIn, async (ctx) => {
   const user = ctx.state.user!;
-  assert(
-    user._id.equals(ctx.state.game!.creator),
-    "You must be the creator of the game to invite other players",
-  );
+  assert(user._id.equals(ctx.state.game!.creator), "You must be the creator of the game to invite other players");
   const { userId } = z.object({ userId: zObjectId() }).parse(ctx.request.body);
 
   {
@@ -536,7 +530,13 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
     if (game.status === "ended") {
       // Possible concurrency issue if game is cancelled at the exact same time as being finished
       const now2 = new Date();
-      await colls.gameNotifications.insertOne({ kind: "gameEnded", game: game._id, processed: false, createdAt: now2, updatedAt: now2 });
+      await colls.gameNotifications.insertOne({
+        kind: "gameEnded",
+        game: game._id,
+        processed: false,
+        createdAt: now2,
+        updatedAt: now2,
+      });
     }
   }
 
