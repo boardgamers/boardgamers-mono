@@ -29,13 +29,13 @@
 {#if $gameInfo?.viewer?.replayable}
   <div class="mt-75">
     {#if !$replayData}
-      <Button color="accent" size="sm" on:click={startReplay}>Replay</Button>
+      <Button color="accent" size="sm" onclick={startReplay}>Replay</Button>
     {:else}
       <div class="d-flex align-items-center">
-        <Button size="sm" class="me-1" on:click={() => replayTo($replayData.start)}>
+        <Button size="sm" class="me-1" onclick={() => replayTo($replayData.start)}>
           <Icon icon={skipBackwardFill} style="margin-bottom: 0.25em" />
         </Button>
-        <Button size="sm" class="mx-1" on:click={() => replayTo(Math.max($replayData.start, $replayData.current - 1))}>
+        <Button size="sm" class="mx-1" onclick={() => replayTo(Math.max($replayData.start, $replayData.current - 1))}>
           <Icon icon={skipStartFill} style="margin-bottom: 0.25em" />
         </Button>
         <span
@@ -44,13 +44,13 @@
         >
           {$replayData.current} / {$replayData.end}
         </span>
-        <Button size="sm" class="mx-1" on:click={() => replayTo(Math.min($replayData.end, $replayData.current + 1))}>
+        <Button size="sm" class="mx-1" onclick={() => replayTo(Math.min($replayData.end, $replayData.current + 1))}>
           <Icon icon={skipEndFill} style="margin-bottom: 0.25em" />
         </Button>
-        <Button size="sm" class="mx-1" on:click={() => replayTo($replayData.end)}>
+        <Button size="sm" class="mx-1" onclick={() => replayTo($replayData.end)}>
           <Icon icon={skipForwardFill} style="margin-bottom: 0.25em" />
         </Button>
-        <Button size="sm" class="ms-1" on:click={endReplay}>
+        <Button size="sm" class="ms-1" onclick={endReplay}>
           <Icon icon={stopFill} style="margin-bottom: 0.25em; color: orange" />
         </Button>
       </div>
@@ -63,13 +63,13 @@
       style="position: fixed; bottom: 0; left: 0; right: calc(var(--fab-right) + 8em); pointer-events: none"
       class="d-flex pb-3 text-light"
     >
-      <Button size="sm" class="me-1 ms-auto" on:click={() => replayTo($replayData.start)} style="pointer-events: all">
+      <Button size="sm" class="me-1 ms-auto" onclick={() => replayTo($replayData.start)} style="pointer-events: all">
         <Icon icon={skipBackwardFill} style="margin-bottom: 0.25em" />
       </Button>
       <Button
         size="sm"
         class="mx-1"
-        on:click={() => replayTo(Math.max($replayData.start, $replayData.current - 1))}
+        onclick={() => replayTo(Math.max($replayData.start, $replayData.current - 1))}
         style="pointer-events: all"
       >
         <Icon icon={skipStartFill} style="margin-bottom: 0.25em" />
@@ -92,15 +92,15 @@
       <Button
         size="sm"
         class="mx-1"
-        on:click={() => replayTo(Math.min($replayData.end, $replayData.current + 1))}
+        onclick={() => replayTo(Math.min($replayData.end, $replayData.current + 1))}
         style="pointer-events: all"
       >
         <Icon icon={skipEndFill} style="margin-bottom: 0.25em" />
       </Button>
-      <Button size="sm" class="mx-1" on:click={() => replayTo($replayData.end)} style="pointer-events: all">
+      <Button size="sm" class="mx-1" onclick={() => replayTo($replayData.end)} style="pointer-events: all">
         <Icon icon={skipForwardFill} style="margin-bottom: 0.25em" />
       </Button>
-      <Button size="sm" class="ms-1 me-auto" on:click={endReplay} style="pointer-events: all">
+      <Button size="sm" class="ms-1 me-auto" onclick={endReplay} style="pointer-events: all">
         <Icon icon={stopFill} style="margin-bottom: 0.25em; color: orange" />
       </Button>
     </div>

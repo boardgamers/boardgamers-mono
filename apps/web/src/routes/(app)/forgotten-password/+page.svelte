@@ -5,7 +5,7 @@
   import { handleError, handleInfo } from "@/utils";
 
   useLoggedOut();
-  let email = "";
+  let email = $state("");
   function handleSubmit() {
     post("/account/forget", { email }).then(() => handleInfo("An email was sent to reset your password"), handleError);
   }
@@ -14,7 +14,7 @@
 <SEO title="Forgotten password" />
 <div class="goldfish container">
   <h1>Forgotten password</h1>
-  <form method="post" accept-charset="UTF-8" role="form" on:submit|preventDefault={handleSubmit}>
+  <form method="post" accept-charset="UTF-8" role="form" onsubmit={(e) => { e.preventDefault(); handleSubmit(e); }}>
     <div class="form-group">
       <label for="email">Email</label>
       <input type="email" class="form-control" id="email" placeholder="Email address" bind:value={email} required />

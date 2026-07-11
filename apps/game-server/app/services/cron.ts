@@ -1,4 +1,3 @@
-import cluster from "node:cluster";
 import { colls } from "../config/db.ts";
 import env from "../config/env.ts";
 import { delay } from "../utils/delay.ts";
@@ -67,12 +66,10 @@ async function processDrops() {
   }
 }
 
-if (cluster.isPrimary) {
-  void installGames();
+void installGames();
 
-  if (env.cron) {
-    void startGames();
-    void processQuits();
-    void processDrops();
-  }
+if (env.cron) {
+  void startGames();
+  void processQuits();
+  void processDrops();
 }

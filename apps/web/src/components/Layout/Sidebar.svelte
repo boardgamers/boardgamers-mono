@@ -10,7 +10,7 @@
   </aside>
   <Button
     color="secondary"
-    on:click={() => ($sidebarOpen = !$sidebarOpen)}
+    onclick={() => ($sidebarOpen = !$sidebarOpen)}
     class={"rounded-circle b-avatar sidebar-fab" + (false ? " chatOpen" : "")}
   >
     <Icon icon={gear} class="absolute-center" style="width: 1.5rem; height: 1.5rem" />

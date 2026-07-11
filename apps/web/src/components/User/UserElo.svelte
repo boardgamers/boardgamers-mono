@@ -6,16 +6,19 @@
   import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
   import { Icon } from "@/modules/cdk";
 
-  export let userId: string;
+  let { userId }: { userId: string } = $props();
 
-  let gamePreferences: GamePreferencesFront[] = [];
+  let gamePreferences: GamePreferencesFront[] = $state([]);
 
   const onUserIdChanged = () =>
     get<GamePreferencesFront[]>(`/user/${userId}/games/elo`)
       .then((prefs) => (gamePreferences = prefs))
       .catch(handleError);
 
-  $: (onUserIdChanged(), [userId]);
+  $effect(() => {
+    userId;
+    onUserIdChanged();
+  });
 
   async function gameName(game: string): Promise<string> {
     const info = gameInfo(game, "latest");

@@ -8,8 +8,8 @@
 
   useLoggedOut();
 
-  let email = "";
-  let password = "";
+  let email = $state("");
+  let password = $state("");
 
   function handleLogin() {
     login(email, password).catch(handleError);
@@ -18,7 +18,7 @@
 
 <SEO title="Login" />
 
-<form on:submit|preventDefault={handleLogin}>
+<form onsubmit={(e) => { e.preventDefault(); handleLogin(e); }}>
   <FormGroup>
     <Label for="email">Email</Label>
     <input

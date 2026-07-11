@@ -9,10 +9,10 @@
     return post<AuthData>("/account/reset", params).then(setAuthData);
   }
 
-  let email = $page.url.searchParams.get("email") ?? $page.url.searchParams.get("user") ?? "";
-  let key = $page.url.searchParams.get("key")!;
-  let password = "";
-  let passwordConfirm = "";
+  let email = $state($page.url.searchParams.get("email") ?? $page.url.searchParams.get("user") ?? "");
+  let key = $state($page.url.searchParams.get("key")!);
+  let password = $state("");
+  let passwordConfirm = $state("");
 
   function handleSubmit() {
     if (password !== passwordConfirm) {
@@ -26,7 +26,7 @@
 <SEO title="Reset password" />
 <div class="goldfish container">
   <h1>Reset password</h1>
-  <form method="post" accept-charset="UTF-8" role="form" class="clearfix" on:submit|preventDefault={handleSubmit}>
+  <form method="post" accept-charset="UTF-8" role="form" class="clearfix" onsubmit={(e) => { e.preventDefault(); handleSubmit(e); }}>
     <div class="form-group">
       <label for="email">Email</label>
       <input

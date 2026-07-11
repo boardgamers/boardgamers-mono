@@ -10,15 +10,15 @@
 
   useLoggedOut();
 
-  let email = $page.url.searchParams.get("user") ?? "";
+  let email = $state($page.url.searchParams.get("user") ?? "");
   let isSocial = $page.url.searchParams.get("createSocialAccount");
   let provider = $page.url.searchParams.get("provider")!;
 
-  let password = "";
-  let passwordConfirm = "";
-  let username = "";
-  let newsletter = false;
-  let tc = false;
+  let password = $state("");
+  let passwordConfirm = $state("");
+  let username = $state("");
+  let newsletter = $state(false);
+  let tc = $state(false);
 
   async function register(params: {
     email: string;
@@ -59,7 +59,7 @@
 
 <div class="signup container">
   <h1>Create an account</h1>
-  <form method="post" on:submit|preventDefault={handleSubmit}>
+  <form method="post" onsubmit={(e) => { e.preventDefault(); handleSubmit(e); }}>
     <div class="form-group">
       <label for="signup-username">Username</label>
       <input

@@ -4,15 +4,15 @@
   import { get, post } from "@/lib/api";
   import { account } from "@/lib/stores.svelte";
 
-  let showNotes = browser ? localStorage.getItem("show-notes") !== "false" : true;
+  let showNotes = $state(browser ? localStorage.getItem("show-notes") !== "false" : true);
 
-  let notes = "";
-  let lastReceivedNotes: string | null = null;
-  let notesLoaded = false;
+  let notes = $state("");
+  let lastReceivedNotes = $state<string | null>(null);
+  let notesLoaded = $state(false);
   let textArea: HTMLTextAreaElement;
 
-  let userId: string | undefined;
-  export let gameId: string;
+  let userId = $derived($account?._id);
+  let { gameId }: { gameId: string } = $props();
 
   async function loadNotes() {
     if (userId) {
@@ -38,8 +38,11 @@
     { leading: false, trailing: true }
   );
 
-  $: userId = $account?._id;
-  $: (loadNotes(), [userId, gameId]);
+  $effect(() => {
+    userId;
+    gameId;
+    loadNotes();
+  });
 
   function updateTextareaSize() {
     if (!textArea) {
@@ -57,7 +60,10 @@
       (<a
         href={showNotes ? "#hideNotes" : "#showNotes"}
         style="font-weight: unset !important"
-        on:click|preventDefault={toggleNotes}>{showNotes ? "hide" : "show"}</a
+        onclick={(e) => {
+          e.preventDefault();
+          toggleNotes(e);
+        }}>{showNotes ? "hide" : "show"}</a
       >)
     </div>
   </div>
@@ -66,7 +72,7 @@
     class={"mt-2 form-control" + (!showNotes ? " d-none" : "")}
     bind:value={notes}
     bind:this={textArea}
-    on:input={() => {
+    oninput={() => {
       updateNotesDebounce();
       updateTextareaSize();
     }}
@@ -75,5 +81,5 @@
     placeholder="You can make plans here..."
     disabled={!$account || !notesLoaded}
     style="overflow: hidden; resize: none"
-  />
+  ></textarea>
 </div>

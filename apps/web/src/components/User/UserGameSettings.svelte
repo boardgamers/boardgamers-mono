@@ -12,16 +12,27 @@
   import { developerSettings, devGameSettings } from "@/lib/stores.svelte";
   import { gamePreferences, loadGamePreferences } from "@/lib/game-preferences.svelte";
 
-  export let title = "";
-  export let game: GameInfoFront;
-  let className = "";
-  export { className as class };
+  let {
+    title = "",
+    game,
+    class: className = "",
+  }: {
+    title?: string;
+    game: GameInfoFront;
+    class?: string;
+  } = $props();
 
-  $: loadGamePreferences(game._id.game);
+  $effect(() => {
+    loadGamePreferences(game._id.game);
+  });
 
-  $: prefs = $gamePreferences[game._id.game];
+  let prefs = $derived($gamePreferences[game._id.game]);
 
-  $: ownership = prefs?.access?.ownership ?? false;
+  let ownership = $state(prefs?.access?.ownership ?? false);
+
+  $effect(() => {
+    ownership = prefs?.access?.ownership ?? false;
+  });
 
   async function postOwnership(event: Event) {
     const newVal = (event.target! as HTMLInputElement).checked;
@@ -46,10 +57,10 @@
     }
   }
 
-  $: classes = classnames(className, "border-secondary");
-  $: key = gameInfoKey(game._id.game, game._id.version);
+  let classes = $derived(classnames(className, "border-secondary"));
+  let key = $derived(gameInfoKey(game._id.game, game._id.version));
 
-  let customViewerUrl = $devGameSettings[gameInfoKey(game._id.game, game._id.version)]?.viewerUrl;
+  let customViewerUrl = $state($devGameSettings[gameInfoKey(game._id.game, game._id.version)]?.viewerUrl);
 
   function updateDevSettings() {
     set($devGameSettings, `${key}.viewerUrl`, customViewerUrl);
@@ -60,15 +71,21 @@
     $devGameSettings[key]?.viewerUrl;
   }
 
-  $: (updateDevSettings(), [customViewerUrl]);
-  $: (updateViewerUrl(), [key]);
+  $effect(() => {
+    customViewerUrl;
+    updateDevSettings();
+  });
+  $effect(() => {
+    key;
+    updateViewerUrl();
+  });
 </script>
 
 <Card class={classes} header={title || game.label}>
   <CardText class="h-100 d-flex" style="flex-direction: column">
     <Loading loading={!prefs}>
       <div style="flex-grow: 1">
-        <Checkbox checked={ownership} on:change={postOwnership}>I own this game</Checkbox>
+        <Checkbox checked={ownership} onchange={postOwnership}>I own this game</Checkbox>
         {#if game.preferences?.length > 0}
           <hr />
           <PreferencesChooser {game} />

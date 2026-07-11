@@ -7,8 +7,8 @@
 
   const { log }: GameContext = getContext("game");
 
-  let showLog = browser && !!localStorage.getItem("show-log");
-  let logElement: HTMLDivElement;
+  let showLog = $state(browser && !!localStorage.getItem("show-log"));
+  let logElement = $state<HTMLDivElement>();
 
   // Scroll to top of log
   function onLogChanged() {
@@ -19,7 +19,11 @@
     });
   }
 
-  $: (onLogChanged(), [$log, showLog]);
+  $effect(() => {
+    $log;
+    showLog;
+    onLogChanged();
+  });
 
   function toggleShowLog() {
     showLog = !showLog;
@@ -39,7 +43,10 @@
         (<a
           href={showLog ? "#hideLog" : "#showLog"}
           style="font-weight: unset !important"
-          on:click|preventDefault={toggleShowLog}>{showLog ? "hide" : "show"}</a
+          onclick={(e) => {
+            e.preventDefault();
+            toggleShowLog(e);
+          }}>{showLog ? "hide" : "show"}</a
         >)
       </div>
     </div>

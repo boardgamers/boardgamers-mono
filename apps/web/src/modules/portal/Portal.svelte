@@ -1,4 +1,4 @@
-<script context="module">
+<script module>
   import { tick } from "svelte";
 
   /**
@@ -47,14 +47,18 @@
   }
 </script>
 
-<script>
-  /**
-   * DOM Element or CSS Selector
-   * @type { HTMLElement|string}
-   */
-  export let target = "body";
+<script lang="ts">
+  import type { Snippet } from "svelte";
+
+  let {
+    target = "body",
+    children,
+  }: {
+    target?: HTMLElement | string;
+    children?: Snippet;
+  } = $props();
 </script>
 
 <div use:portal={target} hidden>
-  <slot />
+  {@render children?.()}
 </div>

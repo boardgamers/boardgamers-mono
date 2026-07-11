@@ -4,18 +4,27 @@
   import { createWatcher, handleError, pluralize } from "@/utils";
   import UserAvatar from "./User/UserAvatar.svelte";
 
-  export let boardgameId: string;
-  export let top = false;
-  export let perPage = 5;
-  export let baseUrl: string | undefined = undefined;
-  export let initial: { rankings: EloRanking[]; total: number } | void = undefined;
-  export let currentPage = 0;
+  let {
+    boardgameId,
+    top = false,
+    perPage = 5,
+    baseUrl = undefined,
+    initial = undefined,
+    currentPage = $bindable(0),
+  }: {
+    boardgameId: string;
+    top?: boolean;
+    perPage?: number;
+    baseUrl?: string | undefined;
+    initial?: { rankings: EloRanking[]; total: number } | void;
+    currentPage?: number;
+  } = $props();
 
-  let count = initial?.total ?? 0;
-  let boardgameElo: EloRanking[] = initial?.rankings ?? [];
-  let loading = !initial;
+  let count = $state(initial?.total ?? 0);
+  let boardgameElo = $state<EloRanking[]>(initial?.rankings ?? []);
+  let loading = $state(!initial);
 
-  $: title = top ? "Top ranked players" : "Elo";
+  let title = $derived(top ? "Top ranked players" : "Elo");
 
   async function load(refresh: boolean) {
     try {
@@ -37,17 +46,23 @@
 
   const reload = createWatcher(() => load(true), { immediate: !initial });
 
-  $: (reload(), [boardgameId]);
+  $effect(() => {
+    boardgameId;
+    reload();
+  });
 
   const onPageChange = createWatcher(() => !baseUrl && load(false));
 
-  $: {
+  $effect(() => {
     if (baseUrl && initial) {
       boardgameElo = initial.rankings;
     }
-  }
+  });
 
-  $: (onPageChange(), [currentPage]);
+  $effect(() => {
+    currentPage;
+    onPageChange();
+  });
 </script>
 
 <div>

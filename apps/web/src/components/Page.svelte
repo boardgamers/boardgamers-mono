@@ -2,7 +2,7 @@
   import type { PageFront } from "@bgs/models";
   import marked from "marked";
 
-  export let pageContent: Partial<PageFront>;
+  let { pageContent }: { pageContent: Partial<PageFront> } = $props();
 </script>
 
 <svelte:head>

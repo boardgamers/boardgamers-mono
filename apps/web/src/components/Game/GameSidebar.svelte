@@ -17,7 +17,7 @@
 
   const { game, players, gameInfo }: GameContext = getContext("game");
 
-  let secondsCounter = 0;
+  let secondsCounter = $state(0);
 
   const interval = setInterval(() => {
     if (browser && !document.hidden) {
@@ -26,11 +26,11 @@
   }, 1000);
   onDestroy(() => clearInterval(interval));
 
-  let requestedDrop: Record<string, boolean> = {};
+  let requestedDrop = $state<Record<string, boolean>>({});
 
-  $: userId = $account?._id;
-  $: playerUser = $game?.players.find((pl) => pl._id === userId);
-  $: gameId = $game?._id;
+  let userId = $derived($account?._id);
+  let playerUser = $derived($game?.players.find((pl) => pl._id === userId));
+  let gameId = $derived($game?._id);
 
   function status(playerId: string) {
     return $playerStatus?.find((pl) => pl._id === playerId)?.status ?? "offline";
@@ -40,9 +40,9 @@
     return $players.find((pl) => pl._id === playerId)?.elo ?? 0;
   }
 
-  $: alwaysActive = $game?.options.timing.timer?.start === $game?.options.timing.timer?.end;
+  let alwaysActive = $derived($game?.options.timing.timer?.start === $game?.options.timing.timer?.end);
 
-  $: currentPlayersById = keyBy($game?.currentPlayers ?? [], "_id");
+  let currentPlayersById = $derived(keyBy($game?.currentPlayers ?? [], "_id"));
 
   function isCurrentPlayer(id: string) {
     return $game?.status !== "ended" && !!currentPlayersById[id];
@@ -58,9 +58,13 @@
     }
   };
 
-  $: (onGameChanged(), [userId, $game]);
+  $effect(() => {
+    userId;
+    $game;
+    onGameChanged();
+  });
 
-  let remainingTimes: Record<string, number> = {};
+  let remainingTimes = $state<Record<string, number>>({});
 
   function updateRemainingTimes() {
     const ret: Record<string, number> = {};
@@ -71,7 +75,11 @@
     remainingTimes = ret;
   }
 
-  $: (updateRemainingTimes(), [secondsCounter]);
+  $effect(() => {
+    secondsCounter;
+    $game;
+    updateRemainingTimes();
+  });
 
   function remainingTime(player: PlayerInfoFront) {
     const currentPlayer = currentPlayersById[player._id];
@@ -103,7 +111,7 @@
   }
 </script>
 
-<div id="floating-controls" />
+<div id="floating-controls"></div>
 <Portal target="#sidebar">
   <h3 class="mt-75">Players</h3>
   {#each $game.players as player}
@@ -152,12 +160,12 @@
         color="warning"
         size="sm"
         disabled={playerUser.dropped || playerUser.voteCancel || playerUser.quit}
-        on:click={voteCancel}
+        onclick={voteCancel}
       >
         Vote to cancel
       </Button>
       {#if $game.players.some((pl) => !!pl.dropped)}
-        <Button size="sm" class="ms-2" disabled={playerUser.dropped || playerUser.quit} on:click={quit}>Quit</Button>
+        <Button size="sm" class="ms-2" disabled={playerUser.dropped || playerUser.quit} onclick={quit}>Quit</Button>
       {/if}
       {#each $game.players as player}
         {#if remainingTime(player) <= 0 && isCurrentPlayer(player._id) && !player.dropped && !player.quit}
@@ -166,7 +174,7 @@
             class="ms-2"
             color="danger"
             disabled={requestedDrop[player._id]}
-            on:click={() => requestDrop(player._id)}
+            onclick={() => requestDrop(player._id)}
           >
             Drop {player.name}
           </Button>
@@ -212,9 +220,9 @@
       {/each}
     </div>
   {/if}
-  <div class="my-3" />
+  <div class="my-3"></div>
   {#if $devGameSettings}
-    <a target="_blank" rel="external" href="/api/gameplay/{$game._id}">Download JSON</a>
+    <a target="_blank" rel="external" href={`/api/gameplay/${$game._id}`}>Download JSON</a>
   {/if}
 </Portal>
 

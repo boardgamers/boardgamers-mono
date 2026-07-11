@@ -1,24 +1,27 @@
-import cluster from "node:cluster";
 import env from "./app/config/env.ts";
-import { installProcessHandlers, logEvent } from "@bgs/utils/log";
-
-installProcessHandlers("game-server");
 
 async function main() {
-  // In production, run a process for each CPU
-  if (cluster.isPrimary && env.isProduction && env.threads > 1) {
-    for (let i = 0; i < env.threads; i++) {
-      cluster.fork();
+  let isPrimary = true;
+  const isMultiThread = env.isProduction && env.threads > 1;
+
+  // Only import node:cluster when we actually need to fork workers.
+  // The cluster module's IPC conflicts with `node --watch`, causing EPIPE.
+  if (isMultiThread) {
+    const cluster = await import("node:cluster");
+    isPrimary = cluster.isPrimary;
+    if (cluster.isPrimary) {
+      for (let i = 0; i < env.threads; i++) {
+        cluster.fork();
+      }
     }
-    cluster.on("exit", (worker, code, signal) => {
-      logEvent("warn", "workerExited", { source: "game-server", workerId: worker.id, code, signal });
-      cluster.fork();
-    });
-  } else {
+  }
+
+  // Start the app unless we're the primary in multi-thread production mode
+  if (!isMultiThread || !isPrimary) {
     await import("./app/app.ts");
   }
 
-  if (cluster.isPrimary) {
+  if (isPrimary) {
     await import("./app/services/cron.ts");
   }
 }

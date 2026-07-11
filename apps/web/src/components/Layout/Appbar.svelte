@@ -23,13 +23,9 @@
   import { browser } from "$app/environment";
   import UserAvatar from "../User/UserAvatar.svelte";
 
-  let email = "";
-  let password = "";
-  let className = "";
-  let admin: boolean;
-  let hasGames: boolean;
-
-  export { className as class };
+  let { class: className = "", ...rest } = $props();
+  let email = $state("");
+  let password = $state("");
 
   const handleSubmit = (event: Event) => {
     event.preventDefault();
@@ -41,14 +37,14 @@
     logout().catch(handleError);
   };
 
-  $: admin = $user?.authority === "admin";
+  let admin = $derived($user?.authority === "admin");
   // todo use load() function of svelte kit instead
   // $: adminLink =
   //   location.hostname === "localhost"
   //     ? "http://localhost:8613"
   //     : `${location.protocol}//admin.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`;
   const adminLink = "https://admin.boardgamers.space";
-  $: hasGames = $activeGames.length > 0;
+  let hasGames = $derived($activeGames.length > 0);
 
   const onHasGamesChanged = () => {
     if (hasGames) {
@@ -63,11 +59,14 @@
     }
   };
 
-  $: (browser && onHasGamesChanged(), [hasGames]);
+  $effect(() => {
+    hasGames;
+    if (browser) onHasGamesChanged();
+  });
 </script>
 
 <Navbar color="primary" class={className} dark expand>
-  <a href="/" on:click={logoClick} data-sveltekit-preload-data="hover" class="navbar-brand">BGS</a>
+  <a href="/" onclick={logoClick} data-sveltekit-preload-data="hover" class="navbar-brand">BGS</a>
 
   {#if $user}
     <a
@@ -107,7 +106,7 @@
                 <Button href="/api/account/auth/facebook" rel="external" class="facebook">Facebook</Button>
               </div>
               or
-              <Form class="mt-3" on:submit={handleSubmit}>
+              <Form class="mt-3" onsubmit={handleSubmit}>
                 <FormGroup>
                   <Label hidden for="email">Email</Label>
                   <Input id="email" type="email" required bind:value={email} autofocus />
@@ -141,7 +140,7 @@
         <UserAvatar username={$user.account.username} userId={$user._id} size="2rem" />
         <span class="d-none d-sm-inline">{$user.account.username}</span>
       </NavLink>
-      <NavLink on:click={logOut} class="d-flex" style="align-items: center; gap: 0.5em">
+      <NavLink onclick={logOut} class="d-flex" style="align-items: center; gap: 0.5em">
         <Icon icon={power} inline={true} class="big" />
         <span class="d-none d-sm-inline">Log out</span>
       </NavLink>

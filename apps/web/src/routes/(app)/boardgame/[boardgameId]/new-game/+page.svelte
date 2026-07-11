@@ -6,6 +6,7 @@
   import { goto } from "$app/navigation";
   import { adjectives, nouns } from "@/data";
   import { fade } from "svelte/transition";
+  import { untrack } from "svelte";
   import type { PlayerOrder } from "@bgs/models";
   import { playerOrders } from "@/data/playerOrders";
   import { account } from "@/lib/account.svelte";
@@ -19,29 +20,29 @@
 
   useLoggedIn();
 
-  $: boardgameId = $page.params.boardgameId; // Can be undefined during page navigation out
-  $: info = gameInfo(boardgameId, "latest");
+  let boardgameId = $derived($page.params.boardgameId); // Can be undefined during page navigation out
+  let info = $derived(gameInfo(boardgameId, "latest"));
 
-  let gameId = randomId();
-  let seed = "";
-  let numPlayers = 2;
+  let gameId = $state(randomId());
+  let seed = $state("");
+  let numPlayers = $state(2);
 
-  let options = ["join"];
-  let playerOrder: PlayerOrder = "random";
-  let selects: Record<string, string> = {};
-  let expansions: string[] = [];
+  let options = $state(["join"]);
+  let playerOrder = $state<PlayerOrder>("random");
+  let selects = $state<Record<string, string>>({});
+  let expansions = $state<string[]>([]);
 
-  let timePerMove = 2 * 3600;
-  let timePerGame = 3 * 24 * 3600;
-  let submitting = false;
-  let timerEnd = "22:00";
-  let timerStart = "09:00";
+  let timePerMove = $state(2 * 3600);
+  let timePerGame = $state(3 * 24 * 3600);
+  let submitting = $state(false);
+  let timerEnd = $state("22:00");
+  let timerStart = $state("09:00");
 
-  let scheduledDay = null as string | null;
-  let scheduledTime = "";
+  let scheduledDay = $state(null as string | null);
+  let scheduledTime = $state("");
 
-  let enableKarma = false;
-  let minimumKarma = Math.min(75, $account!.account.karma - 5);
+  let enableKarma = $state(false);
+  let minimumKarma = $state(Math.min(75, $account!.account.karma - 5));
 
   function createGame() {
     submitting = true;
@@ -94,7 +95,12 @@
       .finally(() => (submitting = false));
   }
 
-  $: gameId = gameId.trim().replace(/ /g, "-");
+  $effect(() => {
+    const sanitized = gameId.trim().replace(/ /g, "-");
+    if (sanitized !== gameId) {
+      gameId = sanitized;
+    }
+  });
 
   const updateSelects = async () => {
     // Load default values for multiple choice options
@@ -122,7 +128,9 @@
     selects = newVal;
   };
 
-  $: info && updateSelects();
+  $effect(() => {
+    info && untrack(() => updateSelects());
+  });
 
   function randomId() {
     return (
@@ -140,7 +148,7 @@
 
   <Container>
     <h1 class="mb-4">{info.label}</h1>
-    <form on:submit|preventDefault={createGame}>
+    <form onsubmit={(e) => { e.preventDefault(); createGame(e); }}>
       <div class="row">
         <div class="col-md-6">
           <h2>Description</h2>

@@ -43,8 +43,8 @@
   import { debounce, map } from "lodash";
 
   const { game, players, gameInfo }: GameContext = getContext("game");
-  $: timer = $game.options.timing.timer;
-  $: gameId = $game._id;
+  let timer = $derived($game.options.timing.timer);
+  let gameId = $derived($game._id);
 
   const shortPlayTime = () => {
     if (timer?.start !== timer?.end) {
@@ -89,13 +89,16 @@
     post(`/game/${gameId}/join`).catch(handleError);
   };
 
-  let playerOrder: number[];
+  let playerOrder = $state<number[]>([]);
 
   function refreshPlayerOrder() {
     playerOrder = $game.players.map((_, i) => i);
   }
 
-  $: (refreshPlayerOrder(), [$game]);
+  $effect(() => {
+    $game;
+    refreshPlayerOrder();
+  });
 
   const moveUp = (playerId: number) => {
     const index = playerOrder.indexOf(playerId);
@@ -119,16 +122,16 @@
     }
   };
 
-  $: canStart = $game.options.setup.nbPlayers === $game.players.length && !$game.ready && $user?._id === $game.creator;
+  let canStart = $derived($game.options.setup.nbPlayers === $game.players.length && !$game.ready && $user?._id === $game.creator);
 
   const start = () => {
     post(`/game/${gameId}/start`, { playerOrder: playerOrder.map((x) => $game.players[x]._id) }).catch(handleError);
   };
 
-  let isOpen = false;
+  let isOpen = $state(false);
 
-  let foundUsers: UserFront[] = [];
-  let query = "";
+  let foundUsers = $state<UserFront[]>([]);
+  let query = $state("");
 
   const invite = defer(async (userId: string, isName = false) => {
     if (isName) {
@@ -150,7 +153,10 @@
     { leading: false }
   );
 
-  $: (watcher(), query);
+  $effect(() => {
+    query;
+    watcher();
+  });
 
   const updateGameWatcher = createWatcher(async () => {
     if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
@@ -164,7 +170,10 @@
   });
 
   // Autorefresh when another player joins
-  $: (updateGameWatcher(), $lastGameUpdate);
+  $effect(() => {
+    $lastGameUpdate;
+    updateGameWatcher();
+  });
 </script>
 
 <SEO
@@ -174,8 +183,7 @@
   )} per player, with an additional {duration($game.options.timing.timePerMove)} per move.
 {$game.game.expansions?.length > 0 &&
     `
-      Expansions: ${$game.game.expansions.join(',')}
-`}
+      Expansions: ${$game.game.expansions.join(',')}\n`}
 {$gameInfo.options
     .filter((x) => !!($game.game.options || {})[x.name])
     .map((pref) =>
@@ -187,7 +195,7 @@
     )
     .filter(Boolean)
     .map((str) => `- ${removeMarkdown(str)}`)
-    .join('\n')}"
+    .join('\\n')}"
 />
 
 <div class="container pb-3">
@@ -304,12 +312,12 @@
               <Input
                 id="invite"
                 bind:value={query}
-                on:keydown={(e) => e.key === "Enter" && invite(e.target.value, true)}
+                onkeydown={(e) => e.key === "Enter" && invite(e.target.value, true)}
               />
             </DropdownToggle>
             <DropdownMenu>
               {#each foundUsers as result}
-                <DropdownItem on:click={() => invite(result._id)}>{result.account.username}</DropdownItem>
+                <DropdownItem onclick={() => invite(result._id)}>{result.account.username}</DropdownItem>
               {/each}
             </DropdownMenu>
           </Dropdown>
@@ -322,11 +330,11 @@
           {#each playerOrder as playerIndex}
             <div>
               - {$game.players[playerIndex].name}
-              <span on:click={() => moveUp(playerIndex)} role="button"><Icon icon={arrowUp} inline={true} /></span>
-              <span on:click={() => moveDown(playerIndex)} role="button"><Icon icon={arrowDown} inline={true} /></span>
+              <span onclick={() => moveUp(playerIndex)} role="button"><Icon icon={arrowUp} inline={true} /></span>
+              <span onclick={() => moveDown(playerIndex)} role="button"><Icon icon={arrowDown} inline={true} /></span>
             </div>
           {/each}
-          <Button color="primary" on:click={start} class="mt-4">Start the game!</Button>
+          <Button color="primary" onclick={start} class="mt-4">Start the game!</Button>
         {/if}
       {:else if $game.players.some((p) => p.pending)}
         <p>Waiting on some players to accept the invitation.</p>
@@ -341,13 +349,13 @@
   {#if !canStart}
     {#if $game.players.some((pl) => pl._id === $user?._id)}
       {#if $game.players.find((pl) => pl._id === $user._id).pending}
-        <Button color="accent" on:click={join}>Accept invitation</Button>
-        <Button color="secondary" on:click={leave}>Refuse invitation</Button>
+        <Button color="accent" onclick={join}>Accept invitation</Button>
+        <Button color="secondary" onclick={leave}>Refuse invitation</Button>
       {:else}
-        <Button color="warning" on:click={leave}>Leave</Button>
+        <Button color="warning" onclick={leave}>Leave</Button>
       {/if}
     {:else}
-      <Button color="accent" on:click={join}>Join!</Button>
+      <Button color="accent" onclick={join}>Join!</Button>
     {/if}
   {/if}
 </div>

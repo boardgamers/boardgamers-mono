@@ -4,25 +4,39 @@
   import { imageCache } from "@/lib/stores.svelte";
   import { getAccessToken } from "@/lib/api";
 
-  export let userId: string | null = null;
-  export let username: string;
-  export let art = "pixel-art";
+  let {
+    userId = null,
+    username,
+    art = "pixel-art",
+    size = "4rem",
+    onclick,
+    onerror,
+    onload,
+    ...rest
+  }: {
+    userId?: string | null;
+    username: string;
+    art?: string;
+    size?: string;
+    onclick?: (e: MouseEvent) => void;
+    onerror?: (e: Event) => void;
+    onload?: (e: Event) => void;
+    [key: string]: any;
+  } = $props();
 
-  export let size = "4rem";
-
-  let src: string;
-  let token: string;
+  let token = $state<string>();
 
   if (browser) {
     getAccessToken("/api/account/avatar").then((res) => (token = res?.code!));
   }
 
-  $: src =
+  let src = $derived(
     userId === "me"
       ? `/api/account/avatar?d=${$imageCache}&token=${encodeURIComponent(token)}`
       : userId
         ? `/api/user/${userId}/avatar?d=${$imageCache}`
-        : `https://avatars.dicebear.com/api/${art}/${username}.svg?r=0`;
+        : `https://avatars.dicebear.com/api/${art}/${username}.svg?r=0`
+  );
 </script>
 
 <img
@@ -33,10 +47,10 @@
   alt={`${username}'s avatar`}
   title={username}
   class="user-avatar"
-  {...$$restProps}
-  on:click
-  on:error
-  on:load
+  {...rest}
+  {onclick}
+  {onerror}
+  {onload}
 />
 
 <style>

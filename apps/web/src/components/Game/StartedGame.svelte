@@ -17,7 +17,7 @@
   import { goto } from "$app/navigation";
 
   const { game, replayData, gameInfo, emitter, log }: GameContext = getContext("game");
-  let stateSent = false;
+  let stateSent = $state(false);
 
   const host = browser ? window.location.host : "";
   const resourcesLink =
@@ -27,10 +27,13 @@
       ? `/resources`
       : `//resources.${host.slice(host.indexOf(".") + 1)}`;
 
-  let gameIframe: HTMLIFrameElement;
+  let gameIframe = $state<HTMLIFrameElement>();
 
-  let src = "";
-  let prefs: GamePreferencesFront;
+  let src = $state("");
+
+  let gameName = $derived($game?.game?.name);
+  let gameId = $derived($game?._id);
+  let prefs = $derived<GamePreferencesFront>(addDefaults($gamePreferences[gameName], $gameInfo));
 
   function postUser() {
     const index = $game.players.findIndex((pl) => pl._id === $user?._id);
@@ -46,11 +49,15 @@
     gameIframe?.contentWindow?.postMessage(message, "*");
   }
 
-  $: gameName = $game?.game?.name;
-  $: (postUser(), [$user]);
-  $: prefs = addDefaults($gamePreferences[gameName], $gameInfo);
-  $: (postPreferences(), [prefs]);
-  $: gameId = $game?._id;
+  $effect(() => {
+    $user;
+    postUser();
+  });
+
+  $effect(() => {
+    prefs;
+    postPreferences();
+  });
 
   const updateSrc = () => {
     if ($gameInfo) {
@@ -63,11 +70,20 @@
       }&customViewerUrl=${customUrl}`;
     }
   };
-  $: (updateSrc(), [$gameInfo, prefs]);
+
+  $effect(() => {
+    $gameInfo;
+    prefs;
+    updateSrc();
+  });
 
   const onSrcChanged = () => (stateSent = false);
 
-  $: (onSrcChanged(), [src, gameId]);
+  $effect(() => {
+    src;
+    gameId;
+    onSrcChanged();
+  });
 
   const onGameUpdated = createWatcher(() => {
     if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
@@ -75,7 +91,10 @@
     }
   });
 
-  $: (onGameUpdated(), [$lastGameUpdate]);
+  $effect(() => {
+    $lastGameUpdate;
+    onGameUpdated();
+  });
 
   function postGamedata() {
     gameIframe?.contentWindow?.postMessage({ type: "state", state: $game.data }, "*");
@@ -178,10 +197,10 @@
     gameIframe?.contentWindow?.postMessage({ type: "askReady" }, "*");
   });
 
-  let description: string;
-  let title: string;
+  let description = $state<string>();
+  let title = $state<string>();
 
-  $: {
+  $effect(() => {
     if ($game.status === "active") {
       title = `${gameId} - ${gameLabel($gameInfo.label)} game`;
       description = `Round ${$game.context?.round ?? 0}
@@ -196,12 +215,12 @@ ${$game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
         .map((player) => `${player.ranking}° ${player.name} (${player.score}pts)`)
         .join("\n");
     }
-  }
+  });
 </script>
 
 <SEO {title} {description} />
 
-<svelte:window on:message={handleGameMessage} />
+<svelte:window onmessage={handleGameMessage} />
 
 <Loading loading={!stateSent} />
 

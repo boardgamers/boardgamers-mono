@@ -4,9 +4,9 @@
   import { GameList } from "../Game";
   import { page } from "$app/stores";
 
-  export let userId: string;
+  let { userId }: { userId: string } = $props();
 
-  $: filter = $page.url.searchParams.get("games") ?? "started";
+  let filter = $derived($page.url.searchParams.get("games") ?? "started");
 
   const generateAlternative = (page: Page) => {
     const query = new URLSearchParams(page.url.searchParams);
@@ -16,7 +16,7 @@
     return query.toString();
   };
 
-  $: alternativeRoute = "?" + generateAlternative($page);
+  let alternativeRoute = $derived("?" + generateAlternative($page));
 </script>
 
 <Card class="mt-4 border-secondary" header="Games">

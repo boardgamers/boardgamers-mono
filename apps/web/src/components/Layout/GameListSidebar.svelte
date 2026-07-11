@@ -8,9 +8,12 @@
 
   loadGameInfos().catch(handleError);
 
-  let games: GameInfoFront[];
-  $: ((games = latestGameInfos() as GameInfoFront[]), [$gameInfos]);
-  $: boardgameId = $page!.params.boardgameId;
+  let games = $state<GameInfoFront[]>([]);
+  $effect(() => {
+    $gameInfos;
+    games = latestGameInfos() as GameInfoFront[];
+  });
+  let boardgameId = $derived($page!.params.boardgameId);
 
   function gameRoute(gameId: string) {
     if (!boardgameId) {
@@ -44,7 +47,7 @@
         href={gameRoute(game._id.game)}
         class:active={boardgameId === game._id.game}
         data-sveltekit-preload-data="hover"
-        on:click={handleClick}
+        onclick={handleClick}
         style="font-weight: 600"
       >
         {game.label}

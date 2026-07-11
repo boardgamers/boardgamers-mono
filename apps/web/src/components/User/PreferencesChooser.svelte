@@ -6,22 +6,23 @@
   import { gamePreferences, addDefaults, updatePreference, loadGamePreferences } from "@/lib/game-preferences.svelte";
   import { account } from "@/lib/stores.svelte";
 
-  let gameInfo: GameInfoFront;
-  export { gameInfo as game };
+  let { game: gameInfo }: { game: GameInfoFront } = $props();
 
-  $: boardgameId = gameInfo._id.game;
-  $: boardgameVersion = gameInfo._id.version;
+  let boardgameId = $derived(gameInfo._id.game);
+  let boardgameVersion = $derived(gameInfo._id.version);
 
-  $: preferences = addDefaults($gamePreferences[boardgameId], gameInfo)?.preferences || {};
+  let preferences = $derived(addDefaults($gamePreferences[boardgameId], gameInfo)?.preferences || {});
 
-  let shownCategories: Record<string, boolean> = {};
+  let shownCategories: Record<string, boolean> = $state({});
 
-  const preferenceItems = gameInfo?.viewer?.alternate?.url
-    ? [
-        { name: "alternateUI", label: "Use alternate UI", type: "checkbox", items: null, category: null },
-        ...gameInfo.preferences,
-      ]
-    : gameInfo.preferences;
+  const preferenceItems = $derived(
+    gameInfo?.viewer?.alternate?.url
+      ? [
+          { name: "alternateUI", label: "Use alternate UI", type: "checkbox", items: null, category: null },
+          ...gameInfo.preferences,
+        ]
+      : gameInfo.preferences
+  );
 
   const handleChange = (key: string, val: Primitive) => {
     updatePreference(boardgameId, boardgameVersion, key, val).catch(handleError);
@@ -29,19 +30,22 @@
 
   const loadPrefs = createWatcher(() => loadGamePreferences(boardgameId));
 
-  $: (loadPrefs(), [$account?._id]);
+  $effect(() => {
+    $account?._id;
+    loadPrefs();
+  });
 </script>
 
 {#each preferenceItems.filter((item) => item.type === "checkbox" && item.category == null) as item}
-  <PreferenceInput {item} value={preferences[item.name]} on:change={(event) => handleChange(item.name, event.detail)} />
+  <PreferenceInput {item} value={preferences[item.name]} onchange={(val) => handleChange(item.name, val)} />
 {/each}
 {#each preferenceItems.filter((item) => item.type === "select" && item.category == null) as item}
-  <PreferenceInput {item} value={preferences[item.name]} on:change={(event) => handleChange(item.name, event.detail)} />
+  <PreferenceInput {item} value={preferences[item.name]} onchange={(val) => handleChange(item.name, val)} />
 {/each}
 {#each preferenceItems.filter((item) => item.type === "category") as category}
   <a
     href={`#${category.name}`}
-    on:click|preventDefault={() => (shownCategories[category.name] = !shownCategories[category.name])}
+    onclick={(e) => { e.preventDefault(); shownCategories[category.name] = !shownCategories[category.name]; }}
     >{category.label}</a
   >
   {#if shownCategories[category.name]}
@@ -50,7 +54,7 @@
         <PreferenceInput
           {item}
           value={preferences[item.name]}
-          on:change={(event) => handleChange(item.name, event.detail)}
+          onchange={(val) => handleChange(item.name, val)}
         />
       {/each}
     </div>

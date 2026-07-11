@@ -2,9 +2,9 @@
   import { GameSidebar, OpenGame, StartedGame, ChatRoom } from "@/components";
   import type { GameFront, PlayerInfoFront, GameInfoFront } from "@bgs/models";
   import { onDestroy, setContext } from "svelte";
-  import { writable } from "svelte/store";
   import EventEmitter from "eventemitter3";
   import { currentGameId, room as currentRoom } from "@/lib/stores.svelte";
+  import type { GameContext } from "./game-context";
 
   let { data } = $props();
   let game: GameFront = $derived(data.game);
@@ -17,21 +17,22 @@
     currentRoom.set(gameId);
   });
 
-  const context = {
-    game: writable<GameFront | null>(null),
-    players: writable<PlayerInfoFront[]>([]),
-    gameInfo: writable<GameInfoFront | null>(null),
-    replayData: writable<{ start: number; end: number; current: number } | null>(null),
+  // $state works across components via context — children read/write the same reactive object.
+  const context: GameContext = $state({
+    game: null as GameFront | null,
+    players: [] as PlayerInfoFront[],
+    gameInfo: null as GameInfoFront | null,
+    replayData: null as { start: number; end: number; current: number } | null,
     emitter: new EventEmitter(),
-    log: writable<string[]>([]),
-  };
+    log: [] as string[],
+  });
 
-  setContext("game", context);
+  setContext<GameContext>("game", context);
 
   $effect(() => {
-    context.game.set(game);
-    context.players.set(players);
-    context.gameInfo.set(gameInfo);
+    context.game = game;
+    context.players = players;
+    context.gameInfo = gameInfo;
   });
 
   onDestroy(() => {

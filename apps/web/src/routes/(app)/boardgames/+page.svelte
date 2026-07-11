@@ -11,7 +11,10 @@
   let info = latestGameInfos();
 
   const watcher = createWatcher(loadAllGamePreferences);
-  $: (watcher(), [$account?._id]);
+  $effect(() => {
+    $account?._id;
+    watcher();
+  });
 </script>
 
 <SEO title="Game selection" />
@@ -24,7 +27,7 @@
         <Card
           header={game.label}
           class="border-secondary h-100"
-          on:click={() => goto(`/boardgame/${game._id.game}`)}
+          onclick={() => goto(`/boardgame/${game._id.game}`)}
           role="button"
         >
           <CardText>

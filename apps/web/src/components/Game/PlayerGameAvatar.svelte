@@ -5,28 +5,37 @@
   import { loadGameInfo, gameInfo, gameInfos } from "@/lib/game-info.svelte";
   import { browser } from "$app/environment";
 
-  export let player: PlayerInfoFront;
-  export let showVp = true;
-  export let game: string;
+  let {
+    player,
+    showVp = true,
+    game,
+    status = "",
+    class: className = "",
+    userId,
+    isCurrent,
+  }: {
+    player: PlayerInfoFront;
+    showVp?: boolean;
+    game: string;
+    status?: string;
+    class?: string;
+    userId?: string | undefined;
+    isCurrent?: boolean | undefined;
+  } = $props();
 
-  export let status = "";
-  let className = "";
-  export { className as class };
+  $effect(() => {
+    browser && game && !gameInfo(game) && loadGameInfo(game).catch(handleError);
+  });
 
-  export let userId: string | undefined;
-  export let isCurrent: boolean | undefined;
+  let highlightedPlayerId = $derived(userId ?? $account?._id);
 
-  $: browser && game && !gameInfo(game) && loadGameInfo(game).catch(handleError);
-
-  let style: string;
-
-  $: highlightedPlayerId = userId ?? $account?._id;
-  $: ((style = `background-image: url('${
-    player.faction && gameInfo(game)?.factions?.avatars
-      ? `/images/factions/icons/${player.faction}.svg`
-      : `/api/user/${player._id}/avatar?d=${$account?.account.avatar}`
-  }')`),
-    [$gameInfos]);
+  let style = $derived(
+    `background-image: url('${
+      player.faction && gameInfo(game)?.factions?.avatars
+        ? `/images/factions/icons/${player.faction}.svg`
+        : `/api/user/${player._id}/avatar?d=${$account?.account.avatar}`
+    }')`
+  );
 </script>
 
 <div

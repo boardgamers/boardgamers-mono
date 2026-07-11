@@ -10,20 +10,32 @@
   import { loadGames, type LoadGamesResult } from "@/lib/games.svelte";
   import { isPromise } from "@bgs/utils";
 
-  export let title = "Games";
-  export let perPage = 10;
-  export let topRecords = false;
-  export let sample = false;
-  export let gameStatus: GameFront["status"];
-  export let boardgameId: string | undefined = undefined;
-  export let userId: string | undefined | null = undefined;
-  export let minDuration: number | undefined = undefined;
-  export let maxDuration: number | undefined = undefined;
+  let {
+    title = "Games",
+    perPage = 10,
+    topRecords = false,
+    sample = false,
+    gameStatus,
+    boardgameId = undefined,
+    userId = undefined,
+    minDuration = undefined,
+    maxDuration = undefined,
+  }: {
+    title?: string;
+    perPage?: number;
+    topRecords?: boolean;
+    sample?: boolean;
+    gameStatus: GameFront["status"];
+    boardgameId?: string | undefined;
+    userId?: string | undefined | null;
+    minDuration?: number | undefined;
+    maxDuration?: number | undefined;
+  } = $props();
 
-  let loadingGames = true;
-  let count = 0;
-  let currentPage = 0;
-  let games: GameFront[] = [];
+  let loadingGames = $state(true);
+  let count = $state(0);
+  let currentPage = $state(0);
+  let games = $state<GameFront[]>([]);
 
   const load = defer(
     (refresh: boolean) => {
@@ -87,8 +99,17 @@
 
   const onCurrentPageChanged = createWatcher(() => load(false));
 
-  $: (load(true), [userId, boardgameId, $logoClicks]);
-  $: (onCurrentPageChanged(), [currentPage]);
+  $effect(() => {
+    userId;
+    boardgameId;
+    $logoClicks;
+    load(true);
+  });
+
+  $effect(() => {
+    currentPage;
+    onCurrentPageChanged();
+  });
 </script>
 
 <Loading loading={loadingGames}>

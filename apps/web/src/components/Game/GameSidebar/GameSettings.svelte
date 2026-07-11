@@ -8,12 +8,12 @@
   import { post, get } from "@/lib/api";
 
   const { game, gameInfo }: GameContext = getContext("game");
-  let settings: Record<string, unknown> | null = null;
+  let settings = $state<Record<string, unknown> | null>(null);
 
-  $: userId = $account?._id;
-  $: playerUser = $game?.players.find((pl) => pl._id === userId);
-  $: gameStatus = $game?.status;
-  $: gameId = $game?._id;
+  let userId = $derived($account?._id);
+  let playerUser = $derived($game?.players.find((pl) => pl._id === userId));
+  let gameStatus = $derived($game?.status);
+  let gameId = $derived($game?._id);
 
   async function loadSettings() {
     if (gameStatus !== "active" || !playerUser || !$gameInfo) {
@@ -27,7 +27,12 @@
     }
   }
 
-  $: (loadSettings(), [gameStatus, userId, $gameInfo]);
+  $effect(() => {
+    gameStatus;
+    userId;
+    $gameInfo;
+    loadSettings();
+  });
 
   async function postSettings() {
     if (!$account) {
@@ -49,13 +54,13 @@
     {#each $gameInfo.settings as setting}
       {#if !setting.faction || setting.faction === playerUser.faction}
         {#if setting.type === "checkbox"}
-          <Checkbox bind:checked={settings[setting.name]} on:change={postSettings}>
+          <Checkbox bind:checked={settings[setting.name]} onchange={postSettings}>
             {setting.label}
           </Checkbox>
         {:else if setting.type === "select"}
           <FormGroup class="d-flex align-items-center mt-2">
             <Label class="nowrap me-2 mb-0">{@html oneLineMarked(setting.label)}</Label>
-            <Input type="select" bind:value={settings[setting.name]} on:change={postSettings} bsSize="sm">
+            <Input type="select" bind:value={settings[setting.name]} onchange={postSettings} bsSize="sm">
               {#each setting.items as item}
                 <option value={item.name}>{item.label}</option>
               {/each}
