@@ -1,8 +1,7 @@
-import type { RemoveReadable } from "@/utils";
 import type { GameInfoFront } from "@bgs/models";
 import { sortBy, uniqBy } from "lodash";
 import { get as getStore, writable } from "svelte/store";
-import type { SetOptional, ValueOf } from "type-fest";
+import type { SetOptional } from "type-fest";
 import { get } from "./api";
 
 export const gameInfos = writable<Record<string, SetOptional<GameInfoFront, "viewer">>>({});
@@ -18,7 +17,7 @@ export function gameInfo(name: string, version: number | "latest" = "latest") {
   return getStore(gameInfos)[gameInfoKey(name, version)];
 }
 
-export function latestGameInfos(): ValueOf<RemoveReadable<typeof gameInfos>>[] {
+export function latestGameInfos(): SetOptional<GameInfoFront, "viewer">[] {
   return Object.keys(getStore(gameInfos))
     .filter((key) => key.endsWith("/latest"))
     .map((key) => getStore(gameInfos)[key]);

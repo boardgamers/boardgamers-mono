@@ -1,5 +1,4 @@
 import { browser } from "$app/environment";
-import type { RemoveReadable } from "@/utils";
 import type { GameInfoFront, GamePreferencesFront } from "@bgs/models";
 import { isEmpty, set } from "lodash";
 import { get as getStore, writable } from "svelte/store";
@@ -94,7 +93,7 @@ export async function loadAllGamePreferences(force = false): Promise<void> {
     (prefs) => {
       lastUpdate = Date.now();
 
-      const data: RemoveReadable<typeof gamePreferences> = {};
+      const data: Record<string, GamePreferencesFront> = {};
 
       for (const pref of prefs) {
         data[pref.game] = augment(pref);

@@ -5,7 +5,7 @@ import { initTokens } from "@/lib/auth.svelte";
 import { initWebsocket } from "@/lib/websocket.svelte";
 import { setApiContext } from "@/lib/api";
 import { initNProgress } from "@/lib/nprogress.svelte";
-import "@/lib/theme.svelte";
+import "@/lib/theme";
 
 export const load: LayoutLoad = async ({ data, fetch }) => {
   initTokens();

@@ -1,4 +1,3 @@
-import { browser } from "$app/environment";
 import { clearTokens, getAccessToken, getRefreshToken, setAccessToken, type Token } from "./auth.svelte";
 
 const BASE = "/api";
@@ -41,11 +40,6 @@ let context: ApiContext = { fetch: globalThis.fetch };
 /** Set the API context for the current render cycle (called from +layout). */
 export function setApiContext(ctx: ApiContext | ((prev: ApiContext) => ApiContext)) {
   context = typeof ctx === "function" ? ctx(context) : ctx;
-}
-
-/** Get the current API context (for use in components / websocket). */
-export function getApiContext(): ApiContext {
-  return context;
 }
 
 async function getAccessTokenFor(url: string): Promise<Token | null> {
@@ -119,8 +113,6 @@ export async function apiFetch(url: string, options: RequestInit): Promise<Respo
     },
   });
 }
-
-export { getAccessTokenFor as getAccessToken };
 
 // The websocket layer needs raw token access
 export { getRefreshToken as getRefreshTokenRaw, clearTokens };

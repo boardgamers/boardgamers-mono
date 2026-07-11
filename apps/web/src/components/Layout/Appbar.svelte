@@ -24,7 +24,7 @@
   import { logoClick } from "@/lib/stores.svelte";
   import { activeGames } from "@/lib/stores.svelte";
   import { browser } from "$app/environment";
-  import { currentTheme, cycleTheme, type Theme } from "@/lib/theme.svelte";
+  import { currentTheme, cycleTheme, type Theme } from "@/lib/theme";
   import UserAvatar from "../User/UserAvatar.svelte";
 
   const themeIcon: Record<Theme, any> = {

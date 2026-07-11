@@ -12,7 +12,7 @@ export const load: PageLoad = async ({ url }) => {
   if (refreshTokenParam) {
     setRefreshToken(JSON.parse(refreshTokenParam));
 
-    await loadAccount(true);
+    await loadAccount();
   }
 
   if ($(account)) {

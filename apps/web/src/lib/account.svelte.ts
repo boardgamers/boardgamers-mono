@@ -1,11 +1,12 @@
-import { browser } from "$app/environment";
 import type { UserFront } from "@bgs/models";
 import { handleError } from "@/utils";
 import { account } from "./stores.svelte";
 import { setAuthData, clearTokens, type AuthData } from "./auth.svelte";
 import { post } from "./api";
 
-export async function loadAccount(force = false) {
+export { account };
+
+export async function loadAccount() {
   try {
     const user = await post<UserFront | null>("/account").catch((err) => {
       if (err.status !== 401 && err.status !== 404) handleError(err);
@@ -20,7 +21,10 @@ export async function loadAccount(force = false) {
 }
 
 export function login(email: string, password: string) {
-  return post<AuthData>("/account/login", { email, password }).then(setAuthData);
+  return post<AuthData>("/account/login", { email, password }).then((data) => {
+    setAuthData(data);
+    account.set(data.user);
+  });
 }
 
 export async function logout() {
@@ -30,4 +34,3 @@ export async function logout() {
 }
 
 export { setAuthData, type AuthData } from "./auth.svelte";
-export * from "./stores.svelte";

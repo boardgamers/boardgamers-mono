@@ -54,10 +54,6 @@ export function setAccessToken(scope: string, token: Token): void {
   accessTokens[scope] = token;
 }
 
-export function setAccessTokens(tokens: Record<string, Token>): void {
-  for (const [key, val] of Object.entries(tokens)) accessTokens[key] = val;
-}
-
 export function clearTokens(): void {
   refreshToken = null;
   for (const key of Object.keys(accessTokens)) delete accessTokens[key];
@@ -83,9 +79,4 @@ function scheduleExpiry(token: Token) {
 export function setAuthData(data: AuthData) {
   setRefreshToken(data.refreshToken);
   setAccessToken("all", data.accessToken);
-}
-
-/** Full auth response including the user object. */
-export function setFullAuthData(data: AuthData) {
-  setAuthData(data);
 }
