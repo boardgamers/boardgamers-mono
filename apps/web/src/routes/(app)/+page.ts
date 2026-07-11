@@ -1,12 +1,13 @@
 import type { PageLoad } from "./$types";
 import { get as $ } from "svelte/store";
-import { get } from "@/lib/api";
+import { get, setApiContext } from "@/lib/api";
 import { account } from "@/lib/stores.svelte";
 import { activeGames } from "@/lib/active-games.svelte";
 import { loadGames } from "@/lib/games.svelte";
 import { loadGameInfos } from "@/lib/game-info.svelte";
 
-export const load: PageLoad = async () => {
+export const load: PageLoad = async ({ fetch }) => {
+  setApiContext((prev) => ({ ...prev, fetch }));
   const firstGames = loadGames({
     gameStatus: "active",
     count: 5,

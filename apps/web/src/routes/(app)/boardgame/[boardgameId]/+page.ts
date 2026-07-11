@@ -3,8 +3,10 @@ import type { PageLoad } from "./$types";
 import { account } from "@/lib/stores.svelte";
 import { loadGames } from "@/lib/games.svelte";
 import { loadEloRankings } from "@/lib/elo-rankings.svelte";
+import { setApiContext } from "@/lib/api";
 
-export const load: PageLoad = async ({ params }) => {
+export const load: PageLoad = async ({ params, fetch }) => {
+  setApiContext((prev) => ({ ...prev, fetch }));
   const boardgameId = params.boardgameId;
   const userId = $(account)?._id;
 

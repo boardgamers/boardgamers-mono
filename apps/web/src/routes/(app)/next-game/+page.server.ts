@@ -1,11 +1,10 @@
 import { redirect } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
-import { get } from "@/lib/api";
-import { activeGames } from "@/lib/stores.svelte";
+import { get, setApiContext } from "@/lib/api";
 import { redirectLoggedIn } from "@/utils/redirect";
-import { get as $ } from "svelte/store";
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals, url, fetch }) => {
+  setApiContext({ fetch, ip: locals.ip });
   // Fetch account + active games server-side
   if (!locals.refreshToken) {
     throw redirect(302, redirectLoggedIn(url));

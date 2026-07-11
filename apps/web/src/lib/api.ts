@@ -39,8 +39,8 @@ export interface ApiContext {
 let context: ApiContext = { fetch: globalThis.fetch };
 
 /** Set the API context for the current render cycle (called from +layout). */
-export function setApiContext(ctx: ApiContext) {
-  context = ctx;
+export function setApiContext(ctx: ApiContext | ((prev: ApiContext) => ApiContext)) {
+  context = typeof ctx === "function" ? ctx(context) : ctx;
 }
 
 /** Get the current API context (for use in components / websocket). */

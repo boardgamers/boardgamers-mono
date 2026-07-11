@@ -8,11 +8,11 @@ packages:
   - "packages/utils"
 
 allowBuilds:
-  "@parcel/watcher": set this to true or false
-  core-js: set this to true or false
-  esbuild: set this to true or false
-  highlight.js: set this to true or false
-  vuepress: set this to true or false
+  "@parcel/watcher": true
+  core-js: true
+  esbuild: true
+  highlight.js: true
+  vuepress: true
 
 # Centralized dependency versions — all packages reference these via "catalog:"
 # in their package.json. Upgrading a dependency here upgrades it everywhere.

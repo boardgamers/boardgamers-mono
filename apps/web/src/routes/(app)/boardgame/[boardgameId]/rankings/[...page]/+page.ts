@@ -1,7 +1,9 @@
 import type { PageLoad } from "./$types";
 import { loadEloRankings } from "@/lib/elo-rankings.svelte";
+import { setApiContext } from "@/lib/api";
 
-export const load: PageLoad = async ({ params }) => {
+export const load: PageLoad = async ({ params, fetch }) => {
+  setApiContext((prev) => ({ ...prev, fetch }));
   const boardgameId = params.boardgameId;
   const currentPage = +params.page || 1;
   const skip = (currentPage - 1) * 15;
