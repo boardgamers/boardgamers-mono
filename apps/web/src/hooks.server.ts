@@ -30,7 +30,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     let response;
     try {
-      response = await resolve(event);
+      response = await resolve(event, {
+        filterSerializedResponseHeaders: (name) => name === "content-type",
+      });
     } catch (err) {
       logEvent("error", "ssr", {
         source: "web",
