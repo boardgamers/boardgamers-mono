@@ -28,11 +28,11 @@
 </script>
 
 {#if context.gameInfo?.viewer?.replayable}
-  <div class="mt-75">
+  <div class="mt-3">
     {#if !context.replayData}
       <Button color="accent" size="sm" onclick={startReplay}>Replay</Button>
     {:else}
-      <div class="d-flex align-items-center">
+      <div class="flex items-center">
         <Button size="sm" class="me-1" onclick={() => replayTo(context.replayData!.start)}>
           <Icon icon={skipBackwardFill} style="margin-bottom: 0.25em" />
         </Button>
@@ -70,7 +70,7 @@
   <Portal target="#floating-controls">
     <div
       style="position: fixed; bottom: 0; left: 0; right: calc(var(--fab-right) + 8em); pointer-events: none"
-      class="d-flex pb-3 text-light"
+      class="flex pb-3 text-white"
     >
       <Button
         size="sm"
@@ -96,7 +96,7 @@
         align-items: center;
         overflow: hidden;
         white-space: nowrap;
-        background-color: var(--bs-secondary);
+        background-color: rgb(229, 231, 235);
         border-radius: 0.2em;
         pointer-events: all
       "

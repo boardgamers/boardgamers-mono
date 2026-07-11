@@ -28,7 +28,7 @@
     }
   });
 
-  let classes = $derived(classnames(className, "form-check"));
+  let classes = $derived(classnames("flex items-center gap-2", className));
 
   const id = "check-" + Math.random().toString().slice(2, 9);
 
@@ -51,7 +51,7 @@
 <div class={classes}>
   <input
     type="checkbox"
-    class="form-check-input"
+    class="h-4 w-4 rounded border-gray-300"
     {id}
     bind:checked
     {value}
@@ -59,5 +59,5 @@
     onblur={onblur}
     {...rest}
   />
-  <label class="form-check-label" for={id} style="cursor: pointer">{@render children?.()}</label>
+  <label class="text-sm cursor-pointer" for={id}>{@render children?.()}</label>
 </div>

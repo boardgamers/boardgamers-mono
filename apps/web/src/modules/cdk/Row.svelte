@@ -11,7 +11,7 @@
     [key: string]: any;
   } = $props();
 
-  let classes = $derived(classnames("row", className));
+  let classes = $derived(classnames("flex flex-row", className));
 </script>
 
 <div class={classes} {...rest}>{@render children?.()}</div>

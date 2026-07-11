@@ -113,19 +113,19 @@
 </script>
 
 <Loading loading={loadingGames}>
-  <h3 class="card-title">
+  <h3 class="font-semibold">
     {title}
     {#if !topRecords && !sample}
-      <span class="small">({count})</span>
+      <span class="text-xs">({count})</span>
     {/if}
   </h3>
   <div>
     {#if games.length > 0}
-      <ul class="list-group text-start game-list">
+      <ul class="divide-y divide-gray-200 text-start dark:divide-gray-700 game-list">
         {#each games as game}
           <a
             href={`/game/${game._id}`}
-            class="list-group-item list-group-item-action pe-1 ps-0"
+            class="flex cursor-pointer items-center px-4 py-2 pe-1 ps-0 hover:bg-gray-50 dark:hover:bg-gray-800 game-item"
             class:active-game={game.status === "active"}
             class:current-turn={game.currentPlayers?.some((pl) => pl._id === userId)}
           >
@@ -136,7 +136,7 @@
             <div class="me-auto" style="line-height: 1.1">
               <div>
                 {#if game.status === "active"}
-                  <Badge color="contrast" class="small text-light">R{game.context?.round ?? 0}</Badge>
+                  <Badge color="contrast" class="text-xs text-white">R{game.context?.round ?? 0}</Badge>
                 {/if}
                 <span class="game-name">
                   {game._id}
@@ -168,7 +168,7 @@
             </div>
 
             {#if game.status !== "open"}
-              <div class="factions g-0 row">
+              <div class="factions flex flex-row">
                 {#each game.players as player}
                   <PlayerGameAvatar
                     game={game.game.name}
@@ -181,7 +181,7 @@
               </div>
             {:else}
               <div class="me-3" style="line-height: 1.1;">
-                <div class="text-end">{game.players.length} / {game.options.setup.nbPlayers}</div>
+                <div class="text-right">{game.players.length} / {game.options.setup.nbPlayers}</div>
                 <small>
                   {shortDuration(Math.floor((Date.now() - new Date(game.createdAt).getTime()) / 1000))} ago</small
                 >
@@ -199,39 +199,31 @@
   </div>
 </Loading>
 
-<style lang="postcss">
-  .list-group.game-list {
-    .list-group-item {
-      display: flex;
-      align-items: center;
+<style>
+  .game-list .game-item {
+    display: flex;
+    align-items: center;
+  }
 
-      &.current-turn {
-        background: lightgreen;
+  .game-list .game-item.current-turn {
+    background: lightgreen;
+  }
 
-        &:hover,
-        &:focus {
-          filter: brightness(95%);
-        }
+  .game-list .game-item.current-turn:hover,
+  .game-list .game-item.current-turn:focus {
+    filter: brightness(95%);
+  }
 
-        &:active {
-          filter: brightness(90%);
-        }
-      }
+  .game-list .game-item.current-turn:active {
+    filter: brightness(90%);
+  }
 
-      &.active-game {
-        .factions {
-          /* On mobile, if multiple lines, I want items to be aligned to the right */
-          justify-content: flex-end;
-        }
-      }
+  /* On mobile, if multiple lines, I want items to be aligned to the right */
+  .game-list .game-item.active-game .factions {
+    justify-content: flex-end;
+  }
 
-      .game-kind {
-        font-size: 1.8em;
-      }
-
-      .game-name {
-        /* font-weight: 600; */
-      }
-    }
+  .game-list .game-item .game-kind {
+    font-size: 1.8em;
   }
 </style>

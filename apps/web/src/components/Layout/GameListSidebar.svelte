@@ -2,7 +2,6 @@
   import { page } from "$app/stores";
   import { loadGameInfos, gameInfos, latestGameInfos } from "@/lib/game-info.svelte";
   import { logoClick } from "@/lib/stores.svelte";
-  import { ListGroup } from "@/modules/cdk";
   import { handleError } from "@/utils";
   import type { GameInfoFront } from "@bgs/models";
 
@@ -39,19 +38,19 @@
   }
 </script>
 
-<ListGroup flush class="d-none d-lg-block ms-n3" style="width: 250px">
+<ul class="hidden w-[250px] -ml-4 divide-y divide-gray-200 dark:divide-gray-700 lg:block">
   {#key boardgameId}
     {#each games as game}
       <a
-        class="list-group-item-action list-group-item"
+        class="block px-4 py-2 font-semibold no-underline text-inherit hover:bg-gray-100 dark:hover:bg-gray-800"
         href={gameRoute(game._id.game)}
-        class:active={boardgameId === game._id.game}
+        class:bg-primary={boardgameId === game._id.game}
+        class:text-white={boardgameId === game._id.game}
         data-sveltekit-preload-data="hover"
         onclick={handleClick}
-        style="font-weight: 600"
       >
         {game.label}
       </a>
     {/each}
   {/key}
-</ListGroup>
+</ul>

@@ -58,6 +58,7 @@
   }
 
   let classes = $derived(classnames(className, "border-secondary"));
+
   let key = $derived(gameInfoKey(game._id.game, game._id.version));
 
   let customViewerUrl = $state("");
@@ -82,7 +83,7 @@
 </script>
 
 <Card class={classes} header={title || game.label}>
-  <CardText class="h-100 d-flex" style="flex-direction: column">
+  <CardText class="h-full flex" style="flex-direction: column">
     <Loading loading={!prefs}>
       <div style="flex-grow: 1">
         <Checkbox checked={ownership} onchange={postOwnership}>I own this game</Checkbox>

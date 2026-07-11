@@ -53,8 +53,8 @@
   }
 </script>
 
-<div class="mt-75">
-  <div class="d-flex align-items-baseline">
+<div class="mt-3">
+  <div class="flex items-baseline">
     <h3 class="mb-0">Notes</h3>
     <div class="ms-2" style="font-size: smaller">
       (<a
@@ -69,7 +69,8 @@
   </div>
 
   <textarea
-    class={"mt-2 form-control" + (!showNotes ? " d-none" : "")}
+    class={"mt-2 w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800" +
+      (!showNotes ? " hidden" : "")}
     bind:value={notes}
     bind:this={textArea}
     oninput={() => {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { handleError, confirm, niceDate, duration, createWatcher } from "@/utils";
-  import { Card, Button, Col, Container, FormGroup, Input, InputGroup, Row, Checkbox } from "@/modules/cdk";
+  import { Card, Button, FormGroup, Input, InputGroup, Checkbox } from "@/modules/cdk";
   import { upperFirst, debounce } from "lodash";
   import { account } from "@/lib/account.svelte";
   import { post, apiFetch } from "@/lib/api";
@@ -149,15 +149,15 @@
   <title>Account</title>
 </svelte:head>
 
-<Container>
-  <Row>
-    <Col>
+<div class="container mx-auto px-4">
+  <div class="grid grid-cols-2">
+    <div>
       <h1>{$account.account.username}</h1>
-    </Col>
-    <Col class="text-end">
-      <a class="btn btn-primary" href="/user/{$account.account.username}" role="button">Profile</a>
-    </Col>
-  </Row>
+    </div>
+    <div class="text-right">
+      <Button color="primary" href={`/user/${$account.account.username}`}>Profile</Button>
+    </div>
+  </div>
 
   <Card class="mt-4 border-accent" header="User Settings">
     {#if !editingAvatar}
@@ -169,9 +169,9 @@
         username={$account.account.username}
       />
     {:else}
-      <input type="file" bind:this={fileUpload} onchange={uploadAvatar} accept="image/*" class="d-none" />
+      <input type="file" bind:this={fileUpload} onchange={uploadAvatar} accept="image/*" class="hidden" />
       <a href="#upload" style="width: 100%" role="button" onclick={(e) => { e.preventDefault(); fileUpload.click(); }}>Upload</a>
-      <div style="display: contents" class:d-none={customAvatarError}>
+      <div style="display: contents" class:hidden={customAvatarError}>
         <UserAvatar
           userId="me"
           username="Custom avatar"
@@ -219,22 +219,22 @@
           <Button outline color="success" onclick={saveEmail}>Save</Button>
         {/if}
       </InputGroup>
-      <small>{$account.security.confirmed ? "Your email is confirmed." : "Your email is not confirmed."}</small>
+      <span class="text-xs">{$account.security.confirmed ? "Your email is confirmed." : "Your email is not confirmed."}</span>
     </FormGroup>
     <p>
       Connect with
 
       {#each ["google", "discord", "facebook"] as social}
-        <a
-          class={`btn btn-secondary mx-1 ${social}`}
-          class:disabled={!!($account.account.social && $account.account.social[social])}
+        <Button
+          color="secondary"
+          class={`mx-1 ${social}`}
+          disabled={!!($account.account.social && $account.account.social[social])}
           href={`/api/account/auth/${social}`}
           aria-disabled={!!($account.account.social && $account.account.social[social])}
-          role="button"
           rel="external"
         >
           {upperFirst(social)}
-        </a>
+        </Button>
       {/each}
     </p>
     {#if !$account.account.termsAndConditions}
@@ -249,15 +249,15 @@
     {/if}
     <hr />
     <Checkbox bind:checked={newsletter} onchange={updateAccount}>Get newsletter, up to six emails per year.</Checkbox>
-    <div class="form-row align-items-center">
-      <div class="col-auto">
+    <div class="flex flex-row items-center gap-3">
+      <div class="flex-shrink-0">
         <Checkbox bind:checked={gameNotification} onchange={updateAccount}>
           Receive an email when it's your turn after a delay of
         </Checkbox>
       </div>
-      <div class="col-auto">
+      <div class="flex-shrink-0">
         <select
-          class="form-control form-control-sm"
+          class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
           bind:value={gameNotificationDelay}
           onblur={() => {
             gameNotification = true;
@@ -281,4 +281,4 @@
     </Checkbox>
     <Checkbox bind:checked={notifications}>Notification on this device when it's your turn</Checkbox>
   </Card>
-</Container>
+</div>

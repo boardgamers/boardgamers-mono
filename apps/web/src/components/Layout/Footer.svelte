@@ -1,31 +1,25 @@
-<footer class="footer">
-  <div class="container">
-    <div class="row">
-      <div class="col-auto">
-        <a href="https://forum.boardgamers.space" class="text-muted">Forum</a>
-      </div>
-      <div class="col-auto">
-        <a href="mailto:contact@boardgamers.space" class="text-muted">Contact</a>
-      </div>
-      <div class="col-auto">
-        <a data-sveltekit-preload-data="hover" href="/page/source" class="text-muted">Source</a>
-      </div>
-      <div class="col-auto">
-        <a data-sveltekit-preload-data="hover" href="/page/privacy-policy" class="text-muted">Privacy policy</a>
-      </div>
-      <div class="col-auto">
-        <a data-sveltekit-preload-data="hover" href="/page/credits" class="text-muted">Credits</a>
-      </div>
+<footer
+  class="mt-[var(--footer-margin)] flex min-h-[var(--footer-height)] w-full items-center bg-gray-100 dark:bg-gray-900"
+>
+  <div class="container mx-auto px-4">
+    <div class="flex flex-row flex-wrap gap-3">
+      <a href="https://forum.boardgamers.space" class="text-gray-500 dark:text-gray-400">Forum</a>
+      <a href="mailto:contact@boardgamers.space" class="text-gray-500 dark:text-gray-400">Contact</a>
+      <a
+        data-sveltekit-preload-data="hover"
+        href="/page/source"
+        class="text-gray-500 dark:text-gray-400"
+      >Source</a>
+      <a
+        data-sveltekit-preload-data="hover"
+        href="/page/privacy-policy"
+        class="text-gray-500 dark:text-gray-400"
+      >Privacy policy</a>
+      <a
+        data-sveltekit-preload-data="hover"
+        href="/page/credits"
+        class="text-gray-500 dark:text-gray-400"
+      >Credits</a>
     </div>
   </div>
 </footer>
-
-<style>
-  .footer {
-    margin-top: var(--footer-margin);
-    width: 100%;
-    min-height: var(--footer-height); /* Set the fixed height of the footer here */
-    line-height: var(--footer-height); /* Vertically center the text there */
-    background-color: #f5f5f5;
-  }
-</style>

@@ -50,7 +50,7 @@
   {/if}
 </div>
 
-<style lang="postcss">
+<style>
   .player-avatar {
     height: 2rem;
     width: 2rem;
@@ -63,40 +63,38 @@
     align-items: center;
     justify-content: space-around;
     font-weight: bold;
+  }
 
-    &.currentTurn {
-      .vp {
-        background-color: var(--accent);
-      }
-    }
+  .player-avatar.currentTurn .vp {
+    background-color: var(--accent);
+  }
 
-    .vp {
-      position: absolute;
-      right: -5px;
-      bottom: -5px;
-      font-size: 0.7rem;
-      border-radius: 5px;
-      color: white;
-      background-color: #838383;
-      width: 20px;
-      font-weight: normal;
-      text-align: center;
+  .player-avatar .vp {
+    position: absolute;
+    right: -5px;
+    bottom: -5px;
+    font-size: 0.7rem;
+    border-radius: 5px;
+    color: white;
+    background-color: #838383;
+    width: 20px;
+    font-weight: normal;
+    text-align: center;
+  }
 
-      &.online {
-        background-color: #25ee25;
-      }
+  .player-avatar .vp.online {
+    background-color: #25ee25;
+  }
 
-      &.away {
-        background-color: orange;
-      }
-    }
+  .player-avatar .vp.away {
+    background-color: orange;
+  }
 
-    &.current {
-      border: 2px solid #333;
+  .player-avatar.current {
+    border: 2px solid #333;
+  }
 
-      .vp {
-        background-color: #6673bc;
-      }
-    }
+  .player-avatar.current .vp {
+    background-color: #6673bc;
   }
 </style>

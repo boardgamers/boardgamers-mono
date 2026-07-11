@@ -50,6 +50,7 @@
   >
   {#if shownCategories[category.name]}
     <div class="ms-2 mt-2">
+
       {#each preferenceItems.filter((item) => item.category === category.name) as item}
         <PreferenceInput
           {item}

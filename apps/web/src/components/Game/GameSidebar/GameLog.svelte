@@ -36,8 +36,8 @@
 </script>
 
 {#if log.length > 0}
-  <div class="mt-75 thin-scrollbar">
-    <div class="d-flex align-items-baseline">
+  <div class="mt-3 thin-scrollbar">
+    <div class="flex items-baseline">
       <h3 class="mb-0">Log</h3>
       <div class="ms-2" style="font-size: smaller">
         (<a
@@ -74,5 +74,9 @@
     border: 1px solid rgb(51, 51, 51);
     border-radius: 8px;
     padding-right: 12px;
+  }
+
+  .dark .log {
+    border-color: rgb(75, 85, 99);
   }
 </style>

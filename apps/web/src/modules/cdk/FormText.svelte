@@ -11,7 +11,7 @@
     [key: string]: any;
   } = $props();
 
-  let classes = $derived(classnames("form-text", className));
+  let classes = $derived(classnames("text-xs text-gray-500 dark:text-gray-400", className));
 </script>
 
 <small class={classes} {...rest}>{@render children?.()}</small>

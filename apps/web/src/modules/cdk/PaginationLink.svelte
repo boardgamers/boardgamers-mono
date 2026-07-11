@@ -25,9 +25,14 @@
     [key: string]: any;
   } = $props();
 
-  let classes = $derived(classnames("page-link", className));
+  let classes = $derived(
+    classnames(
+      "inline-flex items-center justify-center min-w-[2rem] h-8 px-2 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-gray-700",
+      className
+    )
+  );
 
-  // Bootstrap pagination uses these glyphs for first/prev/next/last.
+  // Pagination uses these glyphs for first/prev/next/last.
   let defaultContent = $derived(
     first ? "«" : previous ? "‹" : next ? "›" : last ? "»" : undefined
   );

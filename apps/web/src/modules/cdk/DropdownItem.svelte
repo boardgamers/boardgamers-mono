@@ -17,7 +17,13 @@
     [key: string]: any;
   } = $props();
 
-  let classes = $derived(classnames("dropdown-item", disabled ? "disabled" : "", className));
+  let classes = $derived(
+    classnames(
+      "block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer",
+      disabled ? "opacity-50 pointer-events-none" : "",
+      className
+    )
+  );
 
   function handleClick(e: MouseEvent) {
     if (disabled) {

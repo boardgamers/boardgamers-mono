@@ -17,7 +17,12 @@
   const dropdown = getContext<{ isOpen: boolean; toggle: () => void }>("sveltestrap-dropdown");
 
   let classes = $derived(
-    classnames("dropdown-menu", dropdown?.isOpen ? "show" : "", right ? "dropdown-menu-end" : "", className)
+    classnames(
+      "absolute mt-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50 min-w-[200px]",
+      right ? "left-0" : "right-0",
+      dropdown?.isOpen ? "block" : "hidden",
+      className
+    )
   );
 </script>
 

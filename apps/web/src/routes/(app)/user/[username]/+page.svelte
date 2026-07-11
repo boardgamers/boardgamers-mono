@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { UserFront } from "@bgs/models";
   import { UserGames, UserElo, SEO, UserAvatar } from "@/components";
-  import { Row, Col, Container, Card } from "@/modules/cdk";
+  import { Button, Card } from "@/modules/cdk";
   import { account } from "@/lib/account.svelte";
   import { dateFromObjectId } from "@/utils";
   import { page } from "$app/stores";
@@ -20,9 +20,9 @@
   image={`${$page.url.origin}/api/user/${data.user._id}/avatar`}
 />
 
-<Container>
-  <div class="user-layout">
-    <div class="user-info">
+<div class="container mx-auto px-4">
+  <div class="flex flex-col gap-2 md:flex-row">
+    <div class="md:mr-2 md:w-64 md:min-w-64">
       <UserAvatar
         username={data.user.account.username}
         --avatar-border="1px solid gray"
@@ -39,40 +39,23 @@
           📝 {data.user.account.bio}
         </p>{/if}
       {#if data.user && $account?._id === data.user._id}
-        <a class="btn btn-primary" href="/account" role="button">Settings</a>
+        <Button color="primary" href="/account">Settings</Button>
       {/if}
     </div>
-    <div style="flex-grow: 3">
+    <div class="grow-[3]">
       <UserGames userId={data.user._id} />
 
-      <Card class="border-secondary mt-4" header="Statistics">
-        <Row>
-          <Col lg={6} class="mb-3">
+      <Card class="border-gray-300 mt-4 dark:border-gray-600" header="Statistics">
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div class="mb-3">
             <UserElo userId={data.user._id} />
-          </Col>
-          <Col>
-            <h3 class="card-title">Tournaments</h3>
+          </div>
+          <div>
+            <h3 class="text-lg font-semibold">Tournaments</h3>
             <p>No Tournament info available</p>
-          </Col>
-        </Row>
+          </div>
+        </div>
       </Card>
     </div>
   </div>
-</Container>
-
-<style lang="postcss">
-  @media (min-width: 768px) {
-    .user-info {
-      width: 256px;
-      min-width: 256px;
-      margin-right: 0.5rem;
-    }
-  }
-  .user-layout {
-    display: flex;
-
-    @media (max-width: 767.98px) {
-      flex-direction: column;
-    }
-  }
-</style>
+</div>

@@ -25,8 +25,8 @@
     {item.label}
   </Checkbox>
 {:else if item.type === "select"}
-  <FormGroup class="d-flex align-items-center mt-2">
-    <Label class="nowrap me-2 mb-0">{@html oneLineMarked(item.label)}</Label>
+  <FormGroup class="flex items-center mt-2">
+    <Label class="whitespace-nowrap me-2 mb-0">{@html oneLineMarked(item.label)}</Label>
     <Input type="select" {value} onchange={(event) => handleChange(event.target.value)} bsSize="sm">
       {#each item.items as option}
         <option value={option.name}>{option.label}</option>

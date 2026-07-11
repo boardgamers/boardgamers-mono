@@ -39,12 +39,14 @@
 
 {#if gamePreferences.some((pref) => pref.elo)}
   <div>
-    <h3 class="card-title">
-      Elo <a href="/page/elo"><Icon icon={infoCircleFill} class="text-secondary small" inline={true} /></a>
+    <h3 class="font-semibold">
+      Elo <a href="/page/elo"
+        ><Icon icon={infoCircleFill} class="text-gray-500 text-xs dark:text-gray-400" inline={true} /></a
+      >
     </h3>
-    <ul class="list-group text-start">
+    <ul class="divide-y divide-gray-200 text-start dark:divide-gray-700">
       {#each gamePreferences.filter((pref) => !!pref.elo) as gamePref}
-        <div class="list-group-item list-group-item-action py-2">
+        <div class="cursor-pointer px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800">
           <span>
             {#await gameName(gamePref.game) then name}
               {name} - <b>{gamePref.elo.value}</b> in

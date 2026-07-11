@@ -11,7 +11,7 @@
     [key: string]: any;
   } = $props();
 
-  let classes = $derived(classnames("modal-body", className));
+  let classes = $derived(classnames("p-4", className));
 </script>
 
 <div class={classes} {...rest}>{@render children?.()}</div>

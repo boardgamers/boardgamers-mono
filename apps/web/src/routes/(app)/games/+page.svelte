@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fade } from "svelte/transition";
   import { GameList, SEO } from "@/components";
-  import { Col, Container, Nav, NavItem, NavLink } from "@/modules/cdk";
+  import { Nav, NavItem, NavLink } from "@/modules/cdk";
   import type { LoadGamesResult } from "@/lib/games.svelte";
 
   let { data }: { data: { featured: LoadGamesResult; lobby: LoadGamesResult; boardgameId: string | undefined } } = $props();
@@ -15,7 +15,7 @@
 
 <SEO title="All games" description={`${featuredCount} ongoing games and ${lobbyCount} open games.`} />
 
-<Container>
+<div class="container mx-auto px-4">
   <Nav pills>
     <h1 class="me-3">Games</h1>
     <NavItem><NavLink href="#" onclick={() => (firstTab = true)} active={firstTab}>Active</NavLink></NavItem>
@@ -24,30 +24,30 @@
 
   {#if firstTab}
     <div
-      class="mt-2 row"
+      class="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2"
       transition:fade
       onoutroend={() => (animating = false)}
       onoutrostart={() => (animating = true)}
-      class:d-none={animating}
+      class:hidden={animating}
     >
-      <Col md="6" class="mb-2">
+      <div class="mb-2">
         <GameList gameStatus="open" title="Lobby" boardgameId={data.boardgameId} />
-      </Col>
-      <Col md="6" class="mb-2">
+      </div>
+      <div class="mb-2">
         <GameList gameStatus="active" title="Ongoing" boardgameId={data.boardgameId} />
-      </Col>
+      </div>
     </div>
   {:else}
     <div
-      class="mt-2 row"
+      class="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2"
       transition:fade
       onoutroend={() => (animating = false)}
       onoutrostart={() => (animating = true)}
-      class:d-none={animating}
+      class:hidden={animating}
     >
-      <Col md="6" class="mb-2">
+      <div class="mb-2">
         <GameList gameStatus="ended" title="Finished" boardgameId={data.boardgameId} />
-      </Col>
+      </div>
     </div>
   {/if}
-</Container>
+</div>

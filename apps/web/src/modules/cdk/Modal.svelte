@@ -192,14 +192,20 @@
     _mouseDownElement = e.target;
   }
 
-  const dialogBaseClass = "modal-dialog";
+  const sizeClass: Record<string, string> = {
+    sm: "max-w-sm",
+    lg: "max-w-2xl",
+    xl: "max-w-4xl",
+  };
 
   let classes = $derived(
-    classnames(dialogBaseClass, className, {
-      [`modal-${size}`]: size,
-      [`${dialogBaseClass}-centered`]: centered,
-      [`${dialogBaseClass}-scrollable`]: scrollable,
-    })
+    classnames(
+      "bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full mx-4",
+      size ? sizeClass[size] ?? "max-w-lg" : "max-w-lg",
+      centered ? "m-auto" : "mt-auto mb-auto",
+      scrollable ? "overflow-hidden" : "",
+      className
+    )
   );
 </script>
 
@@ -209,7 +215,7 @@
       <div
         transition:transitionType={transitionOptions}
         ariaLabelledby={labelledBy}
-        class={classnames("modal", "show", modalClassName)}
+        class={classnames("fixed inset-0 z-50 flex items-center justify-center p-4", modalClassName)}
         role="dialog"
         tabindex="-1"
         style="display: block;"
@@ -220,7 +226,7 @@
         onmousedown={handleBackdropMouseDown}
       >
         <div class={classes} role="document" bind:this={_dialog}>
-          <div class={classnames("modal-content", contentClassName)}>
+          <div class={classnames("flex flex-col", contentClassName)}>
             {@render external?.()}
             {@render children?.()}
           </div>
@@ -229,7 +235,7 @@
       {#if backdrop}
         <div
           transition:fadeTransition={{ duration: fade && backdropDuration }}
-          class={classnames("modal-backdrop", "show", backdropClassName)}
+          class={classnames("fixed inset-0 bg-black/50", backdropClassName)}
         ></div>
       {/if}
     {/if}

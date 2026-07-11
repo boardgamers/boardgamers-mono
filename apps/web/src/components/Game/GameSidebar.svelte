@@ -114,9 +114,9 @@
 <div id="floating-controls"></div>
 <Portal target="#sidebar">
   {#if game && gameInfo}
-    <h3 class="mt-75">Players</h3>
+    <h3 class="mt-3">Players</h3>
     {#each game.players as player}
-      <div class={"mb-1 d-flex align-items-center player-row"} class:active={isCurrentPlayer(player._id)}>
+      <div class={"mb-1 flex items-center player-row"} class:active={isCurrentPlayer(player._id)}>
         <PlayerGameAvatar game={game.game.name} {userId} {player} status={status(player._id)} class="me-2" />
 
         <div>
@@ -136,7 +136,7 @@
         </div>
       </div>
     {/each}
-    <div class="mt-75">
+    <div class="mt-3">
       <Icon icon={clockHistory} inline={true} class="me-1" />
       {alwaysActive
         ? "24h"
@@ -144,19 +144,19 @@
       / {duration(game.options.timing.timePerGame)} + {duration(game.options.timing.timePerMove)}
     </div>
     {#if game.status === "ended"}
-      <div class="mt-75">
+      <div class="mt-3">
         <b> Game ended! </b>
       </div>
     {/if}
     {#key game.currentPlayers}
       {#if userId && isCurrentPlayer(userId)}
-        <div class="mt-75">
+        <div class="mt-3">
           <b class="your-turn">Your turn!</b>
         </div>
       {/if}
     {/key}
     {#if playerUser && game.status !== "ended"}
-      <div class="mt-75">
+      <div class="mt-3">
         <Button
           color="warning"
           size="sm"
@@ -191,7 +191,7 @@
     <GameNotes {gameId} />
 
     {#if game.game.expansions?.length > 0}
-      <div class="mt-75">
+      <div class="mt-3">
         <h3>Expansions</h3>
         {#each game.game.expansions as expansion}
           <Badge color="accent" class="me-1">
@@ -206,7 +206,7 @@
     <ReplayControls />
 
     {#if gameInfo.options.some((x) => !!game.game.options?.[x.name])}
-      <div class="mt-75">
+      <div class="mt-3">
         <h3>Setup options</h3>
         {#each gameInfo.options.filter((x) => !!game.game.options[x.name]) as pref}
           <Badge color="secondary" class="me-1">
@@ -228,34 +228,32 @@
   {/if}
 </Portal>
 
-<style lang="postcss" global>
+<style global>
   .your-turn {
     color: #25ee25;
   }
 
-  #sidebar {
-    .player-row.active .player-name {
-      color: #25ee25 !important;
-    }
-    .player-name {
-      &.dropped {
-        text-decoration: line-through;
-      }
-    }
-    .player-avatar {
-      width: 1.8em;
-      height: 1.8em;
+  #sidebar .player-row.active .player-name {
+    color: #25ee25 !important;
+  }
 
-      &.active {
-        box-shadow: 0 0 3px #25ee25;
-      }
+  #sidebar .player-name.dropped {
+    text-decoration: line-through;
+  }
 
-      .vp {
-        z-index: 100;
-        width: 18px;
-        border-radius: 5px;
-        font-size: 0.6em;
-      }
-    }
+  #sidebar .player-avatar {
+    width: 1.8em;
+    height: 1.8em;
+  }
+
+  #sidebar .player-avatar.active {
+    box-shadow: 0 0 3px #25ee25;
+  }
+
+  #sidebar .player-avatar .vp {
+    z-index: 100;
+    width: 18px;
+    border-radius: 5px;
+    font-size: 0.6em;
   }
 </style>

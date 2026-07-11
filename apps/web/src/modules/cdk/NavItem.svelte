@@ -11,7 +11,7 @@
     [key: string]: any;
   } = $props();
 
-  let classes = $derived(classnames("nav-item", className));
+  let classes = $derived(classnames("flex items-center", className));
 </script>
 
 <li class={classes} {...rest}>{@render children?.()}</li>

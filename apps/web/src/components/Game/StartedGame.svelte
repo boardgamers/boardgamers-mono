@@ -238,7 +238,7 @@ ${context.game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}
     id="game-iframe"
     title="Game UX"
     sandbox="allow-scripts allow-same-origin allow-orientation-lock"
-    class:d-none={!stateSent}
+    class:hidden={!stateSent}
     class:fullScreen={context.gameInfo?.viewer?.fullScreen}
     {src}
   ></iframe>

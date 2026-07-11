@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from "$app/stores";
   import { SEO } from "@/components";
+  import { Button } from "@/modules/cdk";
   import { setAuthData, type AuthData } from "@/lib/auth.svelte";
   import { post } from "@/lib/api";
   import { handleError, handleInfo } from "@/utils";
@@ -24,14 +25,18 @@
 </script>
 
 <SEO title="Reset password" />
-<div class="goldfish container">
+<div class="container mx-auto px-4">
   <h1>Reset password</h1>
-  <form method="post" accept-charset="UTF-8" class="clearfix" onsubmit={(e) => { e.preventDefault(); handleSubmit(e); }}>
-    <div class="form-group">
+  <form
+    method="post"
+    accept-charset="UTF-8"
+    onsubmit={(e) => { e.preventDefault(); handleSubmit(e); }}
+  >
+    <div class="mb-3">
       <label for="email">Email</label>
       <input
         type="email"
-        class="form-control"
+        class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
         id="email"
         placeholder="Email address"
         bind:value={email}
@@ -39,23 +44,23 @@
         required
       />
     </div>
-    <div class="form-row">
-      <div class="form-group col-md-6">
+    <div class="flex flex-row gap-3">
+      <div class="mb-3 flex-1">
         <label for="signup-password">Password</label>
         <input
           type="password"
-          class="form-control"
+          class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
           id="signup-password"
           placeholder="Password"
           bind:value={password}
           required
         />
       </div>
-      <div class="form-group col-md-6">
-        <label for="signup-password-confirm">Confirm <span class="d-md-none">password</span></label>
+      <div class="mb-3 flex-1">
+        <label for="signup-password-confirm">Confirm <span class="md:hidden">password</span></label>
         <input
           type="password"
-          class="form-control"
+          class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
           id="signup-password-confirm"
           bind:value={passwordConfirm}
           placeholder="Password"
@@ -63,6 +68,6 @@
         />
       </div>
     </div>
-    <button type="submit" class="btn btn-primary pull-right mt-3">Reset</button>
+    <Button type="submit" color="primary" class="mt-3 ml-auto">Reset</Button>
   </form>
 </div>

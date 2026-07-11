@@ -1,3 +1,4 @@
+import tailwindcss from "@tailwindcss/vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
 
@@ -6,7 +7,7 @@ const gameplayBackend = process.env.VITE_backend ?? "http://127.0.0.1:50803";
 const resourcesBackend = (process.env.VITE_backend ?? "http://127.0.0.1:50804").replace("www.", "resources.");
 
 export default defineConfig({
-  plugins: [sveltekit()],
+  plugins: [tailwindcss(), sveltekit()],
   server: {
     port: 8612,
     proxy: {

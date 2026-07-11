@@ -24,7 +24,7 @@
     <input
       bind:value={email}
       type="email"
-      class="form-control"
+      class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
       id="email"
       name="email"
       placeholder="Email address"
@@ -35,18 +35,18 @@
     <Label for="password">Password</Label>
     <input
       type="password"
-      class="form-control"
+      class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
       id="password"
       name="password"
       placeholder="Password"
       bind:value={password}
       required
     />
-    <div class="text-end mt-1">
-      <a href="/forgotten-password"><small>Forgotten password ?</small></a>
+    <div class="mt-1 text-right">
+      <a href="/forgotten-password"><span class="text-xs">Forgotten password ?</span></a>
     </div>
   </FormGroup>
-  <Button type="submit" color="primary" class="pull-right">Login</Button>
+  <Button type="submit" color="primary" class="ml-auto">Login</Button>
 </form>
 
 <hr />

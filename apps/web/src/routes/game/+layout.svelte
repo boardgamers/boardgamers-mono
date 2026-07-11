@@ -1,6 +1,5 @@
 <script lang="ts">
-  import "bootstrap/dist/css/bootstrap.min.css";
-  import "../../style.css";
+  import "../../app.css";
 
   import { Appbar, Sidebar } from "@/components";
   import { activeGames } from "@/lib/stores.svelte";
@@ -8,7 +7,7 @@
 
   initNProgress();
 
-  let { data, children } = $props();
+  let { children } = $props();
 </script>
 
 <svelte:head>
@@ -20,39 +19,14 @@
   />
 </svelte:head>
 
-<div id="app">
-  <div id="app-layout">
-    <div style="flex-grow: 1; display: flex; flex-direction: column">
+<div class="flex min-h-screen flex-col">
+  <div class="flex flex-1 flex-row">
+    <div class="flex flex-1 flex-col">
       <Appbar class="mb-3" />
-      <main class="container-fluid p-relative mb-auto">
+      <main class="container mx-auto flex-1 px-4">
         {@render children()}
       </main>
     </div>
     <Sidebar />
   </div>
 </div>
-
-<style>
-  :global(html) {
-    min-height: 100%;
-    height: 100%;
-  }
-
-  :global(body) {
-    margin: 0;
-    min-height: 100%;
-    height: 100%;
-  }
-
-  #app {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-
-  #app-layout {
-    height: 100%;
-    display: flex;
-    flex-direction: row;
-  }
-</style>

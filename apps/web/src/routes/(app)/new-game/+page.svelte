@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, CardText, Col } from "@/modules/cdk";
+  import { Card, CardText } from "@/modules/cdk";
   import { confirm, createWatcher } from "@/utils";
   import marked from "marked";
   import { goto } from "$app/navigation";
@@ -31,19 +31,20 @@
 
 <SEO title="Choose which game to play" description="Play a boardgame of your choice online with other people!" />
 
-<div class="container">
+<div class="container mx-auto px-4">
   <h1 class="mb-4">Choose which game to play</h1>
-  <div class="row row-cols-1 row-cols-md-3 g-4 game-choice">
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
     {#each info as game}
-      <Col role="button">
-        <Card header={game.label} class="border-secondary h-100" onclick={() => onClick(game)}>
+      <div role="button">
+        <Card header={game.label} class="border-gray-300 h-full dark:border-gray-600" onclick={() => onClick(game)}>
           <CardText>
             {@html marked(game.description)}
           </CardText>
           {#snippet footer()}
             <span
               class:text-accent={$gamePreferences[game._id.game]?.access?.ownership}
-              class:text-secondary={!$gamePreferences[game._id.game]?.access?.ownership}
+              class:text-gray-500={!$gamePreferences[game._id.game]?.access?.ownership}
+              class:dark:text-gray-400={!$gamePreferences[game._id.game]?.access?.ownership}
             >
               {#if $gamePreferences[game._id.game]?.access?.ownership}
                 You own this game
@@ -53,7 +54,7 @@
             </span>
           {/snippet}
         </Card>
-      </Col>
+      </div>
     {/each}
   </div>
 </div>

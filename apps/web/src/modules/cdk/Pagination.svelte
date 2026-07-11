@@ -24,10 +24,16 @@
   // Should always be odd-numbered
   const pageItems = 5;
 
+  const alignClass: Record<string, string> = {
+    right: "justify-end",
+    center: "justify-center",
+    left: "justify-start",
+  };
+
   let classes = $derived(
     classnames(
-      "pagination",
-      align ? ["d-flex", `justify-content-${{ right: "end", center: "center", left: "start" }[align]}`] : "",
+      "flex items-center gap-1",
+      align ? alignClass[align] : "",
       className
     )
   );

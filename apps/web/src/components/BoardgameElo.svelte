@@ -71,9 +71,12 @@
 <div>
   <h3>{title}</h3>
   <Loading {loading}>
-    <ul class="list-group text-start">
+    <ul class="divide-y divide-gray-200 text-left dark:divide-gray-700">
       {#each boardgameElo as bgElo, pos}
-        <a href={`/user/${bgElo.user.name}#elo`} class="list-group-item list-group-item-action">
+        <a
+          href={`/user/${bgElo.user.name}#elo`}
+          class="flex items-center px-4 py-2 no-underline text-inherit hover:bg-gray-100 dark:hover:bg-gray-800"
+        >
           <UserAvatar username={bgElo.user.name} userId={bgElo.user._id} size="2rem" />
           <span class="ms-2">
             <b>{pos + 1 + currentPage * perPage}</b> - {bgElo.user.name} -

@@ -2,7 +2,7 @@
   import { handleError, oneLineMarked, duration } from "@/utils";
   import marked from "marked";
   import { fromPairs, upperFirst } from "lodash";
-  import { Button, Col, Input, Checkbox, Row, Container } from "@/modules/cdk";
+  import { Button, Input, Checkbox } from "@/modules/cdk";
   import { goto } from "$app/navigation";
   import { adjectives, nouns } from "@/data";
   import { fade } from "svelte/transition";
@@ -150,24 +150,24 @@
 {#if info}
   <SEO title={`Create a ${gameLabel(info.label)} game`} description={removeMarkdown(info.description)} />
 
-  <Container>
+  <div class="container mx-auto px-4">
     <h1 class="mb-4">{info.label}</h1>
     <form onsubmit={(e) => { e.preventDefault(); createGame(e); }}>
-      <div class="row">
-        <div class="col-md-6">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
           <h2>Description</h2>
           {@html marked(info.description)}
         </div>
 
-        <div class="col-md-6">
+        <div>
           <h2>Rules</h2>
           {@html marked(info.rules)}
         </div>
       </div>
 
       <h2>Settings</h2>
-      <div class="row">
-        <div class="form-group col-md-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div class="mb-3">
           <label for="players">Number of players</label>
           <Input type="select" bind:value={numPlayers}>
             {#each info.players as option}
@@ -176,10 +176,10 @@
           </Input>
         </div>
 
-        <div class="form-group col-md-4">
+        <div class="mb-3">
           <label for="gameId">Game Id</label>
           <input
-            class="form-control"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
             id="gameId"
             type="text"
             maxlength="25"
@@ -189,13 +189,13 @@
             aria-label="Game ID"
             required
           />
-          <small class="form-text text-muted">Use only alphanumeric characters and hyphens.</small>
+          <small class="text-xs text-gray-500 dark:text-gray-400">Use only alphanumeric characters and hyphens.</small>
         </div>
 
-        <div class="form-group col-md-4">
+        <div class="mb-3">
           <label for="seed">Custom Seed</label>
           <input
-            class="form-control"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
             id="seed"
             type="text"
             maxlength="25"
@@ -204,15 +204,15 @@
             placeholder="Random seed"
             aria-label="Random seed"
           />
-          <small class="form-text text-muted">Games sharing the same seed will have configuration.</small>
+          <small class="text-xs text-gray-500 dark:text-gray-400">Games sharing the same seed will have configuration.</small>
         </div>
       </div>
 
-      <Row class="mb-3">
-        <Col sm="3" class="d-flex align-items-center">
+      <div class="mb-3 grid grid-cols-1 gap-4 sm:grid-cols-12">
+        <div class="flex items-center sm:col-span-3">
           <Checkbox bind:checked={enableKarma}>Karma restriction</Checkbox>
-        </Col>
-        <Col sm="9">
+        </div>
+        <div class="sm:col-span-9">
           <Input
             type="number"
             disabled={!enableKarma}
@@ -220,8 +220,8 @@
             bind:value={minimumKarma}
             max={$account.account.karma - 5}
           />
-        </Col>
-      </Row>
+        </div>
+      </div>
 
       {#if info.expansions.length > 0}
         <div class="mb-3">
@@ -236,10 +236,10 @@
 
       <h3>Timing</h3>
 
-      <Row>
-        <div class="form-group col-md-6">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div class="mb-3">
           <label for="timePerGame">Time per player per game</label>
-          <select bind:value={timePerGame} id="timePerGame" class="form-control">
+          <select bind:value={timePerGame} id="timePerGame" class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800">
             {#each [60, 180, 300, 600, 1800, 3600, 6 * 3600, 24 * 3600, 3 * 24 * 3600, 10 * 24 * 3600] as x}
               <option value={x}>
                 {duration(x)}
@@ -248,9 +248,9 @@
           </select>
         </div>
 
-        <div class="form-group col-md-6">
+        <div class="mb-3">
           <label for="timePerMove">Additional time per move</label>
-          <select bind:value={timePerMove} id="timePerMove" class="form-control">
+          <select bind:value={timePerMove} id="timePerMove" class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800">
             {#each [5, 10, 30, 60, 5 * 60, 15 * 60, 3600, 2 * 3600, 6 * 3600, 24 * 3600] as x}
               <option value={x}>
                 {duration(x)}
@@ -259,30 +259,30 @@
           </select>
         </div>
 
-        <div class="form-group col-md-6">
+        <div class="mb-3">
           <label for="scheduledDate">Scheduled start (day)</label>
-          <input type="date" class="form-control" bind:value={scheduledDay} placeholder="Scheduled day" />
-          <small class="form-text text-muted">Game will start that day or be cancelled.</small>
+          <input type="date" class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800" bind:value={scheduledDay} placeholder="Scheduled day" />
+          <small class="text-xs text-gray-500 dark:text-gray-400">Game will start that day or be cancelled.</small>
         </div>
 
-        <div class="form-group col-md-6">
+        <div class="mb-3">
           <label for="scheduledTime">Scheduled start (time)</label>
-          <input type="time" class="form-control" bind:value={scheduledTime} placeholder="Scheduled time" />
-          <small class="form-text text-muted">Game will start at that time or be cancelled.</small>
+          <input type="time" class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800" bind:value={scheduledTime} placeholder="Scheduled time" />
+          <small class="text-xs text-gray-500 dark:text-gray-400">Game will start at that time or be cancelled.</small>
         </div>
 
-        <div class="form-group col-md-6">
+        <div class="mb-3">
           <label for="timerStart">Timer begins at</label>
-          <input type="time" class="form-control" bind:value={timerStart} placeholder="Timer start" />
-          <small class="form-text text-muted">Timer will start / resume at this time of the day.</small>
+          <input type="time" class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800" bind:value={timerStart} placeholder="Timer start" />
+          <small class="text-xs text-gray-500 dark:text-gray-400">Timer will start / resume at this time of the day.</small>
         </div>
 
-        <div class="form-group col-md-6">
+        <div class="mb-3">
           <label for="timerEnd">Timer stops at</label>
-          <input type="time" class="form-control" bind:value={timerEnd} placeholder="Timer pause" />
-          <small class="form-text text-muted">Timer will pause at this time of the day.</small>
+          <input type="time" class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800" bind:value={timerEnd} placeholder="Timer pause" />
+          <small class="text-xs text-gray-500 dark:text-gray-400">Timer will pause at this time of the day.</small>
         </div>
-      </Row>
+      </div>
 
       {#if !scheduledDay || !scheduledTime}
         <p class="mt-2" transition:fade>
@@ -302,7 +302,7 @@
         <Checkbox bind:group={options} value={option.name}>{@html oneLineMarked(option.label)}</Checkbox>
       {/each}
 
-      <div class="form-group mt-2">
+      <div class="mb-3 mt-2">
         <label for="playerOrder">Player order</label>
         <Input type="select" bind:value={playerOrder} id="playerOrder" required>
           {#each playerOrders as item}
@@ -312,7 +312,7 @@
       </div>
 
       {#each info.options.filter((opt) => opt.type === "select") as select}
-        <div class="form-group mt-2">
+        <div class="mb-3 mt-2">
           <label for={select.name}>{@html oneLineMarked(select.label)}</label>
           <Input type="select" bind:value={selects[select.name]} id={select.name} required>
             {#each select.items || [] as item}
@@ -322,7 +322,7 @@
         </div>
       {/each}
 
-      <Button class="mt-3 float-right" type="submit" color="primary" disabled={submitting}>New game</Button>
+      <Button class="mt-3 ml-auto" type="submit" color="primary" disabled={submitting}>New game</Button>
     </form>
-  </Container>
+  </div>
 {/if}

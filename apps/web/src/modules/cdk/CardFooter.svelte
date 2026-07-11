@@ -11,7 +11,9 @@
     [key: string]: any;
   } = $props();
 
-  let classes = $derived(classnames("card-footer", className));
+  let classes = $derived(
+    classnames("px-4 py-3 border-t border-gray-200 dark:border-gray-700 text-center", className)
+  );
 </script>
 
 <div class={classes} {...rest}>{@render children?.()}</div>

@@ -2,7 +2,7 @@
   import { confirm, handleError } from "@/utils";
   import marked from "marked";
   import type { GameInfoFront } from "@bgs/models";
-  import { Card, Row, Col } from "@/modules/cdk";
+  import { Button, Card } from "@/modules/cdk";
   import { UserGameSettings, GameList, BoardgameElo, SEO } from "@/components";
   import { account } from "@/lib/account.svelte";
   import { gameInfo, loadGameInfo, gameInfos } from "@/lib/game-info.svelte";
@@ -53,12 +53,12 @@
   description={`Play ${gameLabel(boardgame.label)} online with other people!`}
 />
 
-<div class="home container">
+<div class="container mx-auto px-4">
   <h1>{boardgame.label}</h1>
 
-  <div class="row row-cols-1 row-cols-md-2 g-4">
-    <Col>
-      <Card class="border-secondary h-100" header={rules ? "Rules" : "Description"}>
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div>
+      <Card class="border-gray-300 h-full dark:border-gray-600" header={rules ? "Rules" : "Description"}>
         {@html marked(rules ? boardgame.rules : boardgame.description)}
         {#snippet footer()}
           <a href={rules ? "#description" : "#rules"} onclick={(e) => { e.preventDefault(); rules = !rules; }}>
@@ -66,14 +66,14 @@
           </a>
         {/snippet}
       </Card>
-    </Col>
-    <Col>
-      <UserGameSettings title="Settings" game={boardgame} class="h-100" />
-    </Col>
+    </div>
+    <div>
+      <UserGameSettings title="Settings" game={boardgame} class="h-full" />
+    </div>
   </div>
 
-  <Row>
-    <Col lg={6} class="mt-3">
+  <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div class="mt-3">
       <GameList
         {boardgameId}
         gameStatus="active"
@@ -82,27 +82,27 @@
         topRecords
         title={$account?._id ? "My games" : "Featured games"}
       />
-    </Col>
-    <Col lg={6} class="mt-3">
+    </div>
+    <div class="mt-3">
       <GameList sample perPage={5} {boardgameId} gameStatus="open" title="Lobby" />
-    </Col>
-  </Row>
-
-  <div class="text-center mt-3">
-    <a class="btn btn-accent" href={`/boardgame/${boardgameId}/games`} role="button">All games</a>
-    <button class="btn btn-primary mx-3" href="/new-game" onclick={newGame}>New Game</button>
-    <a class="btn btn-accent" href={`/boardgame/${boardgameId}/rankings`} role="button">Rankings</a>
+    </div>
   </div>
 
-  <Row>
-    <Col lg={6} class="mt-3">
+  <div class="mt-3 text-center">
+    <Button color="accent" href={`/boardgame/${boardgameId}/games`}>All games</Button>
+    <Button color="primary" class="mx-3" onclick={newGame}>New Game</Button>
+    <Button color="accent" href={`/boardgame/${boardgameId}/rankings`}>Rankings</Button>
+  </div>
+
+  <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+    <div class="mt-3">
       <GameList gameStatus="active" {boardgameId} topRecords perPage={5} title="Featured games" />
       <!-- <h3>Tournaments</h3>
       <p> No Tournament info available </p> -->
-    </Col>
-    <Col lg={6} class="mt-3">
+    </div>
+    <div class="mt-3">
       <!-- Todo: show rank of current player if possible with mongodb in an optimized way in the list -->
       <BoardgameElo initial={data.rankings} {boardgameId} top perPage={6} />
-    </Col>
-  </Row>
+    </div>
+  </div>
 </div>

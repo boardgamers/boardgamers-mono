@@ -45,9 +45,8 @@
 
   let classes = $derived(
     classnames(
-      group ? "btn-group" : "dropdown",
-      nav ? "nav-item dropdown" : "",
-      open ? "show" : "",
+      group ? "inline-flex" : "relative",
+      nav ? "flex items-center" : "",
       className
     )
   );

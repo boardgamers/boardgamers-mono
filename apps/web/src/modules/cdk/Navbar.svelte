@@ -23,19 +23,22 @@
     [key: string]: any;
   } = $props();
 
-  let expandClass = $derived(
-    expand === true ? "navbar-expand" : expand ? `navbar-expand-${expand}` : ""
-  );
+  const bgClass: Record<string, string> = {
+    primary: "bg-primary text-white",
+    accent: "bg-accent text-white",
+    contrast: "bg-contrast text-white",
+    light: "bg-gray-100 text-gray-800",
+    dark: "bg-gray-800 text-white",
+  };
 
   let classes = $derived(
     classnames(
-      "navbar",
-      dark ? "navbar-dark" : "",
-      light ? "navbar-light" : "",
-      color ? `bg-${color}` : "",
-      expandClass,
-      fixed ? `fixed-${fixed}` : "",
-      sticky ? `sticky-${sticky}` : "",
+      "flex items-center justify-between px-4 py-2",
+      color ? bgClass[color] ?? "" : "",
+      dark && !color ? "bg-gray-800 text-white" : "",
+      light && !color ? "bg-gray-100 text-gray-800" : "",
+      fixed === "top" ? "fixed top-0 inset-x-0" : fixed === "bottom" ? "fixed bottom-0 inset-x-0" : "",
+      sticky === "top" ? "sticky top-0" : "",
       className
     )
   );

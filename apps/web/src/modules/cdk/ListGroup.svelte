@@ -17,9 +17,9 @@
 
   let classes = $derived(
     classnames(
-      "list-group",
-      flush ? "list-group-flush" : "",
-      horizontal ? "list-group-horizontal" : "",
+      "divide-y divide-gray-200 dark:divide-gray-700",
+      horizontal ? "flex flex-row divide-x divide-y-0 divide-gray-200 dark:divide-gray-700" : "",
+      flush ? "my-0" : "",
       className
     )
   );

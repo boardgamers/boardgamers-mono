@@ -2,7 +2,6 @@
   import { BoardgameElo, SEO } from "@/components";
   import type { LoadEloRankingsResult } from "@/lib/elo-rankings.svelte";
   import { gameInfo } from "@/lib/game-info.svelte";
-  import { Col, Row } from "@/modules/cdk";
   import { gameLabel } from "@/utils/game-label";
 
   let { data }: { data: { rankings: LoadEloRankingsResult; boardgameId: string; currentPage: number; skip: number } } =
@@ -16,10 +15,10 @@
     .join("\n")}
 />
 
-<div class="container">
+<div class="container mx-auto px-4">
   <h1>Rankings</h1>
-  <Row>
-    <Col md={6}>
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div>
       <BoardgameElo
         boardgameId={data.boardgameId}
         initial={data.rankings}
@@ -27,12 +26,12 @@
         currentPage={data.currentPage - 1}
         baseUrl={`/boardgame/${data.boardgameId}/rankings`}
       />
-    </Col>
+    </div>
     <!--
     <b-col md="6">
       <h3>Tournaments</h3>
       <p>No Tournament ranking available</p>
     </b-col>
 -->
-  </Row>
+  </div>
 </div>

@@ -15,7 +15,9 @@
     [key: string]: any;
   } = $props();
 
-  let classes = $derived(classnames("form-label", hidden ? "visually-hidden" : "", className));
+  let classes = $derived(
+    classnames("block text-sm font-medium mb-1", hidden ? "sr-only" : "", className)
+  );
 </script>
 
 <label for={forAttr} class={classes} {...rest}>{@render children?.()}</label>

@@ -66,13 +66,18 @@
 </script>
 
 <Navbar color="primary" class={className} dark expand>
-  <a href="/" onclick={logoClick} data-sveltekit-preload-data="hover" class="navbar-brand">BGS</a>
+  <a
+    href="/"
+    onclick={logoClick}
+    data-sveltekit-preload-data="hover"
+    class="me-2 text-xl font-bold text-white no-underline hover:text-white"
+  >BGS</a>
 
   {#if $user}
     <a
-      class="btn btn-sm me-3"
-      class:btn-success={hasGames}
-      class:btn-secondary={!hasGames}
+      class={`me-3 rounded-full px-2 py-0.5 text-sm font-semibold text-white ${
+        hasGames ? "bg-green-600" : "bg-gray-500"
+      }`}
       href="/next-game"
       title="Jump to next active game"
       id="active-game-count"
@@ -93,99 +98,59 @@
   <Nav class="ms-auto" navbar>
     {#if !$user}
       <!-- todo: hide on mobile -->
-      <span class="navbar-text">Have an account?</span>
+      <span class="text-white">Have an account?</span>
       <Dropdown nav inNavbar>
         <DropdownToggle nav caret>Login</DropdownToggle>
-        <DropdownMenu right class="login-dp">
-          <div class="row">
-            <div class="col-md-12">
-              Log in with
-              <div class="social-buttons">
-                <Button href="/api/account/auth/google" rel="external" class="google">Google</Button>
-                <Button href="/api/account/auth/discord" rel="external" class="discord">Discord</Button>
-                <Button href="/api/account/auth/facebook" rel="external" class="facebook">Facebook</Button>
-              </div>
-              or
-              <Form class="mt-3" onsubmit={handleSubmit}>
-                <FormGroup>
-                  <Label hidden for="email">Email</Label>
-                  <Input id="email" type="email" required bind:value={email} autofocus />
-                </FormGroup>
-                <FormGroup>
-                  <Label hidden for="password">Password</Label>
-                  <Input id="password" type="password" bind:value={password} required />
-                  <FormText class="mt-2 pt-2">
-                    <a href="/forgotten-password">Forgotten password ?</a>
-                  </FormText>
-                </FormGroup>
-                <FormGroup>
-                  <Button type="submit" color="primary" block>Log in</Button>
-                </FormGroup>
-              </Form>
+        <DropdownMenu right class="min-w-[250px] p-3.5 pb-0">
+          <div>
+            Log in with
+            <div class="mt-3 mb-1 flex flex-wrap justify-around">
+              <Button href="/api/account/auth/google" rel="external" class="google w-[46%] mb-2">Google</Button>
+              <Button href="/api/account/auth/discord" rel="external" class="discord w-[46%] mb-2">Discord</Button>
+              <Button href="/api/account/auth/facebook" rel="external" class="facebook w-[46%] mb-2">Facebook</Button>
             </div>
-            <div class="bottom text-center bg-red-300">
-              New ? <a href="/signup"><b>Join us</b></a>
-            </div>
+            or
+            <Form class="mt-3" onsubmit={handleSubmit}>
+              <FormGroup>
+                <Label hidden for="email">Email</Label>
+                <Input id="email" type="email" required bind:value={email} autofocus />
+              </FormGroup>
+              <FormGroup>
+                <Label hidden for="password">Password</Label>
+                <Input id="password" type="password" bind:value={password} required />
+                <FormText class="mt-2 pt-2">
+                  <a href="/forgotten-password">Forgotten password ?</a>
+                </FormText>
+              </FormGroup>
+              <FormGroup>
+                <Button type="submit" color="primary" block>Log in</Button>
+              </FormGroup>
+            </Form>
+          </div>
+          <div class="mt-3 border-t border-gray-200 p-3.5 text-center dark:border-gray-700">
+            New ? <a href="/signup"><b>Join us</b></a>
           </div>
         </DropdownMenu>
       </Dropdown>
     {:else}
       {#if admin}
-        <NavLink href={adminLink} class="d-flex" style="align-items: center; gap: 0.5em">
-          <Icon icon={gearFill} inline={true} class="big" />
-          <span class="d-none d-sm-inline">Admin</span>
+        <NavLink href={adminLink} class="flex items-center gap-2">
+          <Icon icon={gearFill} inline={true} class="text-lg" />
+          <span class="hidden sm:inline">Admin</span>
         </NavLink>
       {/if}
-      <NavLink href={`/user/${$user.account.username}`} data-sveltekit-preload-data="hover" class="appbar-user-link">
+      <NavLink
+        href={`/user/${$user.account.username}`}
+        data-sveltekit-preload-data="hover"
+        class="flex items-center gap-2 py-0"
+      >
         <UserAvatar username={$user.account.username} userId={$user._id} size="2rem" />
-        <span class="d-none d-sm-inline">{$user.account.username}</span>
+        <span class="hidden sm:inline">{$user.account.username}</span>
       </NavLink>
-      <NavLink onclick={logOut} class="d-flex" style="align-items: center; gap: 0.5em">
-        <Icon icon={power} inline={true} class="big" />
-        <span class="d-none d-sm-inline">Log out</span>
+      <NavLink onclick={logOut} class="flex items-center gap-2">
+        <Icon icon={power} inline={true} class="text-lg" />
+        <span class="hidden sm:inline">Log out</span>
       </NavLink>
     {/if}
   </Nav>
 </Navbar>
-
-<style lang="postcss" global>
-  .appbar-user-link {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    display: flex !important;
-    gap: 0.5rem;
-    align-items: center;
-  }
-  .login-dp {
-    min-width: 250px !important;
-    padding: 14px 14px 0 !important;
-    margin-top: 8px !important;
-    overflow: hidden;
-    right: 0;
-    background-color: rgba(255, 255, 255, 0.8);
-
-    .bottom {
-      border-top: 1px solid #ddd;
-      clear: both;
-      padding: 14px;
-    }
-
-    .social-buttons {
-      display: flex;
-      justify-content: space-around;
-      flex-wrap: wrap;
-      margin-top: 12px;
-      margin-bottom: 4px;
-
-      a {
-        width: 46%;
-        margin-bottom: 8px;
-      }
-    }
-  }
-
-  #active-game-count {
-    border-radius: 50%;
-    padding: 0.1rem 0.5rem;
-  }
-</style>

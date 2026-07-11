@@ -5,23 +5,23 @@
 </script>
 
 <div class="sidebar-container" class:open={$sidebarOpen}>
-  <aside class="px-3 pb-3 sidebar thin-scrollbar text-light">
+  <aside class="px-3 pb-3 sidebar thin-scrollbar text-white">
     <div id="sidebar"></div>
   </aside>
   <Button
     color="secondary"
     onclick={() => ($sidebarOpen = !$sidebarOpen)}
-    class={"rounded-circle b-avatar sidebar-fab" + (false ? " chatOpen" : "")}
+    class={"rounded-full sidebar-fab" + (false ? " chatOpen" : "")}
   >
     <Icon icon={gear} class="absolute-center" style="width: 1.5rem; height: 1.5rem" />
   </Button>
 </div>
 
-<style lang="postcss" global>
+<style global>
   /* Position:sticky does not work well on safari, 04/07/2020
-// So we use two elements: .sidebar-container for adjusting the layout (would be great if sticky)
-// , and .sidebar is fixed (instead of just being normal position) for content
-// Both have the same animation */
+     So we use two elements: .sidebar-container for adjusting the layout (would be great if sticky),
+     and .sidebar is fixed (instead of just being normal position) for content.
+     Both have the same animation. */
 
   .sidebar,
   .sidebar-container.open {
@@ -40,7 +40,6 @@
 
   .sidebar-container {
     transition: all 0.3s ease;
-
     min-width: 0;
     width: 0;
   }
@@ -49,11 +48,11 @@
     .sidebar-container.open {
       width: 0;
       min-width: 0;
+    }
 
-      .sidebar {
-        opacity: 1;
-        pointer-events: auto;
-      }
+    .sidebar-container.open .sidebar {
+      opacity: 1;
+      pointer-events: auto;
     }
 
     .sidebar {
@@ -73,38 +72,35 @@
     right: var(--fab-right);
     width: var(--fab-width);
     height: var(--fab-width);
+  }
 
-    .bi {
-      font-size: 24px;
-      margin-left: -2px;
-    }
+  .sidebar-fab .bi {
+    font-size: 24px;
+    margin-left: -2px;
   }
 
   .thin-scrollbar {
     scrollbar-width: thin;
+  }
 
-    ::-webkit-scrollbar-track,
-    &::-webkit-scrollbar-track {
-      box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
-      border-radius: 20px;
-      background-color: #f5f5f522;
-      overflow-x: auto;
-    }
+  .thin-scrollbar::-webkit-scrollbar-track {
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+    border-radius: 20px;
+    background-color: #f5f5f522;
+    overflow-x: auto;
+  }
 
-    ::-webkit-scrollbar,
-    &::-webkit-scrollbar {
-      width: 5px;
-      height: 5px;
-      background-color: #f5f5f522;
-      overflow-x: auto;
-    }
+  .thin-scrollbar::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+    background-color: #f5f5f522;
+    overflow-x: auto;
+  }
 
-    ::-webkit-scrollbar-thumb,
-    &::-webkit-scrollbar-thumb {
-      border-radius: 10px;
-      box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
-      background-color: #3c8dbc;
-      overflow-x: auto;
-    }
+  .thin-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 10px;
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+    background-color: #3c8dbc;
+    overflow-x: auto;
   }
 </style>

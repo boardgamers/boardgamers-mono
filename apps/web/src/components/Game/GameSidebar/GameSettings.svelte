@@ -43,11 +43,11 @@
 </script>
 
 {#if game && gameInfo?.settings?.length > 0 && game.status === "active" && settings && playerUser}
-  <div class="mt-75">
+  <div class="mt-3">
     <h3>
       Settings
       <a href={`/page/${game.game.name}/settings`}>
-        <Icon icon={infoCircleFill} class="small" />
+        <Icon icon={infoCircleFill} class="text-xs" />
       </a>
     </h3>
     <!-- Code very similar to PreferencesChooser -->
@@ -58,8 +58,8 @@
             {setting.label}
           </Checkbox>
         {:else if setting.type === "select"}
-          <FormGroup class="d-flex align-items-center mt-2">
-            <Label class="nowrap me-2 mb-0">{@html oneLineMarked(setting.label)}</Label>
+          <FormGroup class="flex items-center mt-2">
+            <Label class="whitespace-nowrap me-2 mb-0">{@html oneLineMarked(setting.label)}</Label>
             <Input type="select" bind:value={settings[setting.name]} onchange={postSettings} bsSize="sm">
               {#each setting.items as item}
                 <option value={item.name}>{item.label}</option>

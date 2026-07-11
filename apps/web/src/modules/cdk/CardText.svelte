@@ -13,7 +13,7 @@
     [key: string]: any;
   } = $props();
 
-  let classes = $derived(classnames(className, "card-text"));
+  let classes = $derived(classnames("text-sm text-gray-600 dark:text-gray-300", className));
 </script>
 
 <div class={classes} {...rest}>

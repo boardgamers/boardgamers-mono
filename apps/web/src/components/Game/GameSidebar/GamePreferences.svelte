@@ -13,11 +13,11 @@
 </script>
 
 {#if showPreferences && gameInfo}
-  <div class="mt-75">
+  <div class="mt-3">
     <h3>
       Preferences
       <a href={`/page/${gameInfo._id.game}/preferences`}>
-        <Icon icon={infoCircleFill} class="small" />
+        <Icon icon={infoCircleFill} class="text-xs" />
       </a>
     </h3>
     <PreferencesChooser {gameInfo} />

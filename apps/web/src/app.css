@@ -1,0 +1,77 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Tailwind v4 preflight resets buttons to cursor:default; restore pointer behavior. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* Theme tokens — mapped from the old CSS custom properties */
+@theme {
+  --color-primary: #14508f;
+  --color-primary-light: #1e6bb8;
+  --color-accent: #508f16;
+  --color-accent-light: #6bb822;
+  --color-contrast: #8f1650;
+  --color-social-google: #d74a38;
+  --color-social-facebook: #3a63bf;
+  --color-social-discord: #7289da;
+
+  --font-sans:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Base styles */
+@layer base {
+  html {
+    min-height: 100%;
+  }
+
+  body {
+    min-height: 100%;
+    margin: 0;
+    @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+  }
+
+  a {
+    @apply text-primary hover:text-primary-light;
+  }
+
+  h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  h4 {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+}
+
+/* Utility classes that don't map to Tailwind defaults */
+@utility no-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+@utility absolute-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}

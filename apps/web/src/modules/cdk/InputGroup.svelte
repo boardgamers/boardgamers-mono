@@ -13,8 +13,13 @@
     [key: string]: any;
   } = $props();
 
+  const sizeClass: Record<string, string> = {
+    sm: "text-xs",
+    lg: "text-base",
+  };
+
   let classes = $derived(
-    classnames("input-group", size ? `input-group-${size}` : "", className)
+    classnames("flex items-stretch", size ? sizeClass[size] : "", className)
   );
 </script>
 

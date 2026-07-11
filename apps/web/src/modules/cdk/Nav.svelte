@@ -21,10 +21,10 @@
 
   let classes = $derived(
     classnames(
-      navbar ? "navbar-nav" : "nav",
-      pills ? "nav-pills" : "",
-      tabs ? "nav-tabs" : "",
-      vertical ? "flex-column" : "",
+      "flex",
+      navbar ? "items-center gap-2" : pills || tabs ? "gap-2" : "flex-col gap-1",
+      vertical ? "flex-col" : "",
+      tabs ? "border-b border-gray-200 dark:border-gray-700" : "",
       className
     )
   );

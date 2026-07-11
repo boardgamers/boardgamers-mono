@@ -208,18 +208,18 @@
     .join('\\n')}"
 />
 
-<div class="container pb-3">
+<div class="container mx-auto px-4 pb-3">
   <h1 class="mb-3">{context.gameInfo?.label} – Open Game</h1>
 
-  <div class="row">
-    <div class="col-md-6">
+  <div class="grid grid-cols-1 md:grid-cols-2">
+    <div>
       <h2>Description</h2>
       <div>
         {@html marked(context.gameInfo?.description)}
       </div>
     </div>
 
-    <div class="col-md-6">
+    <div>
       <h2>Rules</h2>
       <div>
         {@html marked(context.gameInfo?.rules)}
@@ -236,7 +236,7 @@
     </a>
 
     <br />
-    <small class="text-muted">
+    <small class="text-gray-500 dark:text-gray-400">
       {#if typeof context.game?.options.meta?.minimumKarma === "number"}
         <span title="Minimum karma to join the game">
           ☯️ {context.game.options.meta.minimumKarma}
@@ -306,7 +306,7 @@
               {context.players.find((pl) => pl._id === player._id)?.name}
             </a>
             - {context.players.find((pl) => pl._id === player._id)?.elo} elo {#if player.pending}<span
-                class="text-muted"
+                class="text-gray-500 dark:text-gray-400"
               >
                 (invited)
               </span>{/if}
@@ -320,7 +320,7 @@
         <FormGroup>
           <label for="invite">Invite player</label>
           <Dropdown isOpen={Boolean(isOpen && foundUsers.length)} toggle={() => (isOpen = !isOpen)}>
-            <DropdownToggle tag="div" class="d-inline-block">
+            <DropdownToggle tag="div" class="inline-block">
               <Input
                 id="invite"
                 bind:value={query}
@@ -342,8 +342,19 @@
           {#each playerOrder as playerIndex}
             <div>
               - {context.game.players[playerIndex].name}
-              <span onclick={() => moveUp(playerIndex)} role="button" tabindex="0" onkeydown={(e) => e.key === "Enter" && moveUp(playerIndex)}><Icon icon={arrowUp} inline={true} /></span>
-              <span onclick={() => moveDown(playerIndex)} role="button" tabindex="0" onkeydown={(e) => e.key === "Enter" && moveDown(playerIndex)}><Icon icon={arrowDown} inline={true} /></span>
+              <span
+                onclick={() => moveUp(playerIndex)}
+                role="button"
+                tabindex="0"
+                onkeydown={(e) => e.key === "Enter" && moveUp(playerIndex)}><Icon icon={arrowUp} inline={true} /></span
+              >
+              <span
+                onclick={() => moveDown(playerIndex)}
+                role="button"
+                tabindex="0"
+                onkeydown={(e) => e.key === "Enter" && moveDown(playerIndex)}
+                ><Icon icon={arrowDown} inline={true} /></span
+              >
             </div>
           {/each}
           <Button color="primary" onclick={start} class="mt-4">Start the game!</Button>

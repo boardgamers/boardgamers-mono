@@ -45,12 +45,20 @@
     [key: string]: any;
   } = $props();
 
-  let sizeClass = $derived(
-    bsSize === "sm" ? "form-control-sm" : bsSize === "lg" ? "form-control-lg" : ""
-  );
+  const base =
+    "w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 disabled:opacity-50";
+
+  const sizeClass: Record<string, string> = {
+    sm: "px-2 py-1 text-xs",
+    lg: "px-4 py-3 text-base",
+  };
 
   let inputClass = $derived(
-    classnames(plaintext ? "form-control-plaintext" : "form-control", sizeClass, className)
+    classnames(
+      plaintext ? "bg-transparent border-transparent" : base,
+      bsSize ? sizeClass[bsSize] : "",
+      className
+    )
   );
 </script>
 

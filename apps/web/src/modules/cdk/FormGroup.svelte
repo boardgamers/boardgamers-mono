@@ -11,7 +11,7 @@
     [key: string]: any;
   } = $props();
 
-  let classes = $derived(classnames("form-group", className));
+  let classes = $derived(classnames("mb-3", className));
 </script>
 
 <div class={classes} {...rest}>{@render children?.()}</div>

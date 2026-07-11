@@ -20,7 +20,12 @@
   } = $props();
 
   let classes = $derived(
-    classnames("nav-link", active ? "active" : "", disabled ? "disabled" : "", className)
+    classnames(
+      "px-3 py-2 rounded-md hover:bg-white/10",
+      active ? "bg-primary text-white" : "",
+      disabled ? "opacity-50 pointer-events-none" : "",
+      className
+    )
   );
 </script>
 

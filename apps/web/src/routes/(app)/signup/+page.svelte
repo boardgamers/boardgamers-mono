@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from "$app/stores";
   import { SEO } from "@/components";
+  import { Button } from "@/modules/cdk";
   import { setAuthData, type AuthData } from "@/lib/auth.svelte";
   import { useLoggedOut } from "@/lib/auth-guards.svelte";
   import { post } from "@/lib/api";
@@ -57,14 +58,14 @@
 
 <SEO title="Create an account" />
 
-<div class="signup container">
+<div class="container mx-auto px-4">
   <h1>Create an account</h1>
   <form method="post" onsubmit={(e) => { e.preventDefault(); handleSubmit(e); }}>
-    <div class="form-group">
+    <div class="mb-3">
       <label for="signup-username">Username</label>
       <input
         type="text"
-        class="form-control"
+        class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
         id="signup-username"
         name="username"
         placeholder="Username"
@@ -73,18 +74,18 @@
         required
       />
       {#if isSocial}
-        <small id="usernameHelp" class="form-text text-muted">
+        <small id="usernameHelp" class="text-xs text-gray-500 dark:text-gray-400">
           You are signing up with <b class={`text-${provider}`}> {upperFirst(provider)}</b>. You still need to decide on
           a username to use on the site.
         </small>
       {/if}
     </div>
     {#if !isSocial}
-      <div class="form-group">
+      <div class="mb-3">
         <label for="signup-email">Email address</label>
         <input
           type="email"
-          class="form-control"
+          class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
           id="signup-email"
           name="email"
           placeholder="Email"
@@ -92,16 +93,16 @@
           bind:value={email}
           required
         />
-        <small id="emailHelp" class="form-text text-muted">
+        <small id="emailHelp" class="text-xs text-gray-500 dark:text-gray-400">
           We will never share your email without <b>explicit</b> consent.
         </small>
       </div>
-      <div class="form-row">
-        <div class="form-group col-md-6">
+      <div class="flex flex-row gap-3">
+        <div class="mb-3 flex-1">
           <label for="signup-password">Password</label>
           <input
             type="password"
-            class="form-control"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
             id="signup-password"
             name="password"
             placeholder="Password"
@@ -109,11 +110,11 @@
             required
           />
         </div>
-        <div class="form-group col-md-6">
-          <label for="signup-password-confirm">Confirm <span class="d-md-none">password</span></label>
+        <div class="mb-3 flex-1">
+          <label for="signup-password-confirm">Confirm <span class="md:hidden">password</span></label>
           <input
             type="password"
-            class="form-control"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
             id="signup-password-confirm"
             name="password-confirm"
             placeholder="Password"
@@ -129,7 +130,7 @@
       I have read and agree to the <a href="/page/terms-and-conditions" target="_blank">Terms and Conditions</a>.
     </Checkbox>
 
-    <button id="signup-button" class="btn btn-primary pull-right mt-3" type="submit">Register</button>
+    <Button id="signup-button" class="mt-3 ml-auto" type="submit" color="primary">Register</Button>
   </form>
 
   <hr />
