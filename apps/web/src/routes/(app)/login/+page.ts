@@ -1,9 +1,9 @@
 import { redirect } from "@sveltejs/kit";
 import type { PageLoad } from "./$types";
-import { get as $ } from "svelte/store";
 import { account, loadAccount } from "@/lib/account.svelte";
 import { setRefreshToken } from "@/lib/auth.svelte";
 import { redirectLoggedOut } from "@/utils/redirect";
+import { get as $ } from "svelte/store";
 
 export const ssr = false; // for refresh token query param
 

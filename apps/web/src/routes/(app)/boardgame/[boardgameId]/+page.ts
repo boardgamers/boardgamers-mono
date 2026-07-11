@@ -1,14 +1,13 @@
-import { get as $ } from "svelte/store";
 import type { PageLoad } from "./$types";
-import { account } from "@/lib/stores.svelte";
 import { loadGames } from "@/lib/games.svelte";
 import { loadEloRankings } from "@/lib/elo-rankings.svelte";
 import { setApiContext } from "@/lib/api";
 
-export const load: PageLoad = async ({ params, fetch }) => {
+export const load: PageLoad = async ({ params, fetch, parent }) => {
   setApiContext((prev) => ({ ...prev, fetch }));
+  const { user } = await parent();
   const boardgameId = params.boardgameId;
-  const userId = $(account)?._id;
+  const userId = user?._id;
 
   const featuredGames = loadGames({
     gameStatus: "active",
