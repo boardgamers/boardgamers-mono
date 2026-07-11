@@ -1,6 +1,6 @@
 <script lang="ts">
   import { timerTime, defer, duration, niceDate, shortDuration } from "@/utils";
-  import type { IGame } from "@bgs/models";
+  import type { GameFront } from "@bgs/models";
   import { createWatcher } from "@/utils/watch";
   import clockHistory from "@iconify/icons-bi/clock-history.js";
   import { Badge, Icon, Pagination, Loading } from "@/modules/cdk";
@@ -14,7 +14,7 @@
   export let perPage = 10;
   export let topRecords = false;
   export let sample = false;
-  export let gameStatus: IGame["status"];
+  export let gameStatus: GameFront["status"];
   export let boardgameId: string | undefined = undefined;
   export let userId: string | undefined | null = undefined;
   export let minDuration: number | undefined = undefined;
@@ -23,7 +23,7 @@
   let loadingGames = true;
   let count = 0;
   let currentPage = 0;
-  let games: IGame[] = [];
+  let games: GameFront[] = [];
 
   const load = defer(
     (refresh: boolean) => {
@@ -59,7 +59,7 @@
     () => (loadingGames = false)
   );
 
-  function playerEloChange(game: IGame) {
+  function playerEloChange(game: GameFront) {
     const pl = game.players.find((pl) => pl._id === userId);
 
     if (!pl || !pl.elo) {
@@ -71,7 +71,7 @@
     return elo === 0 && delta === 0 ? "" : (delta >= 0 ? "( +" : "( -") + Math.abs(delta) + " elo )";
   }
 
-  function playTime(game: IGame) {
+  function playTime(game: GameFront) {
     if (game.options.timing.timer?.start !== game.options.timing.timer?.end) {
       return `${timerTime(game.options.timing.timer?.start)}-${timerTime(game.options.timing.timer?.end)}`;
     } else {

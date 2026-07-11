@@ -1,6 +1,6 @@
 <script lang="ts">
   import { set } from "lodash";
-  import type { GameInfo } from "@bgs/models";
+  import type { GameInfoFront } from "@bgs/models";
   import { handleError, confirm, classnames } from "@/utils";
   import Card from "@/modules/cdk/Card.svelte";
   import { CardText, FormGroup, Input } from "@/modules/cdk";
@@ -13,7 +13,7 @@
   import { gamePreferences, loadGamePreferences } from "@/lib/game-preferences.svelte";
 
   export let title = "";
-  export let game: GameInfo;
+  export let game: GameInfoFront;
   let className = "";
   export { className as class };
 

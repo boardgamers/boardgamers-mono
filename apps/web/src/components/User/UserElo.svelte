@@ -2,16 +2,16 @@
   import { gameInfo, loadGameInfo } from "@/lib/game-info.svelte";
   import { get } from "@/lib/api";
   import { handleError, pluralize } from "@/utils";
-  import type { GamePreferences } from "@bgs/models";
+  import type { GamePreferencesFront } from "@bgs/models";
   import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
   import { Icon } from "@/modules/cdk";
 
   export let userId: string;
 
-  let gamePreferences: GamePreferences[] = [];
+  let gamePreferences: GamePreferencesFront[] = [];
 
   const onUserIdChanged = () =>
-    get<GamePreferences[]>(`/user/${userId}/games/elo`)
+    get<GamePreferencesFront[]>(`/user/${userId}/games/elo`)
       .then((prefs) => (gamePreferences = prefs))
       .catch(handleError);
 

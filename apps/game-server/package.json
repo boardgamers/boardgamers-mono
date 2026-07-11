@@ -7,14 +7,14 @@
   "main": "server.ts",
   "scripts": {
     "batch-replay": "node --env-file-if-exists=.env --env-file-if-exists=.env.${NODE_ENV} scripts/batch-replay.ts",
-    "dev": "tsx watch --env-file-if-exists=.env --env-file-if-exists=.env.${NODE_ENV} server.ts",
+    "dev": "node --watch --env-file-if-exists=.env --env-file-if-exists=.env.${NODE_ENV} server.ts",
     "fmt": "oxfmt",
     "fmt-check": "oxfmt --check",
     "lint": "oxlint --fix",
     "lint-check": "oxlint",
     "start": "node --env-file-if-exists=.env --env-file-if-exists=.env.${NODE_ENV} server.ts",
     "test": "node --test 'app/**/*.spec.ts'",
-    "tsc": "tsgo --noEmit"
+    "tsc": "tsc --noEmit"
   },
   "dependencies": {
     "@bgs/models": "workspace:*",
@@ -41,8 +41,8 @@
     "@types/koa-compress": "^2.0.9",
     "@types/koa-morgan": "^1.0.4",
     "@types/koa-router": "^7.4.0",
-    "@types/node": "^24.0.0",
-    "@typescript/native-preview": "7.0.0-dev.20260307.1",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
     "oxfmt": "^0.36.0",
     "oxlint": "^1.51.0",
     "oxlint-tsgolint": "^0.16.0"

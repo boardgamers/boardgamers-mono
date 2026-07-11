@@ -2,10 +2,10 @@ import { error } from "@sveltejs/kit";
 import type { PageLoad } from "./$types";
 import { get } from "@/lib/api";
 import { loadGames } from "@/lib/games.svelte";
-import type { IUser } from "@bgs/models";
+import type { UserFront } from "@bgs/models";
 
 export const load: PageLoad = async ({ params }) => {
-  const user = await get<IUser>(`/user/infoByName/${encodeURIComponent(params.username)}`);
+  const user = await get<UserFront>(`/user/infoByName/${encodeURIComponent(params.username)}`);
 
   if (!user) {
     throw error(404, "User not found");

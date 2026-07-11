@@ -1,7 +1,7 @@
 <script lang="ts">
   import { confirm, handleError } from "@/utils";
   import marked from "marked";
-  import type { GameInfo } from "@bgs/models";
+  import type { GameInfoFront } from "@bgs/models";
   import { Card, Row, Col } from "@/modules/cdk";
   import { UserGameSettings, GameList, BoardgameElo, SEO } from "@/components";
   import { account } from "@/lib/account.svelte";
@@ -18,7 +18,7 @@
   let boardgame = $derived.by(() => {
     // track the gameInfos store so this re-evaluates after loadGameInfo resolves
     $gameInfos;
-    return gameInfo(boardgameId, "latest") as GameInfo;
+    return gameInfo(boardgameId, "latest") as GameInfoFront;
   });
   let hasOwnership = $derived($gamePreferences[boardgameId]?.access?.ownership);
   let needOwnership = $derived(boardgame?.meta?.needOwnership);

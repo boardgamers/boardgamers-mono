@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { GamePreferences } from "@bgs/models";
+  import type { GamePreferencesFront } from "@bgs/models";
   import { Loading } from "@/modules/cdk";
   import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import { createWatcher, handleError } from "@/utils";
@@ -30,7 +30,7 @@
   let gameIframe: HTMLIFrameElement;
 
   let src = "";
-  let prefs: GamePreferences;
+  let prefs: GamePreferencesFront;
 
   function postUser() {
     const index = $game.players.findIndex((pl) => pl._id === $user?._id);

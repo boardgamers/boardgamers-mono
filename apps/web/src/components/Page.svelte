@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { Page as IPage } from "@bgs/models";
+  import type { PageFront } from "@bgs/models";
   import marked from "marked";
 
-  export let pageContent: Partial<IPage>;
+  export let pageContent: Partial<PageFront>;
 </script>
 
 <svelte:head>

@@ -2,7 +2,7 @@
   import { createEventDispatcher } from "svelte";
   import { FormGroup, Input, Label } from "@/modules/cdk";
   import Checkbox from "@/modules/cdk/Checkbox.svelte";
-  import type { GameInfoOption } from "@bgs/types";
+  import type { GameInfoOption } from "@bgs/models";
   import { oneLineMarked } from "@/utils";
 
   const dispatch = createEventDispatcher<{ change: string | boolean }>();

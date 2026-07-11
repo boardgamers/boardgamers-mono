@@ -39,7 +39,7 @@
   import SEO from "../SEO.svelte";
   import removeMarkdown from "remove-markdown";
   import { gameLabel } from "@/utils/game-label";
-  import type { IUser } from "@bgs/models";
+  import type { UserFront } from "@bgs/models";
   import { debounce, map } from "lodash";
 
   const { game, players, gameInfo }: GameContext = getContext("game");
@@ -127,12 +127,12 @@
 
   let isOpen = false;
 
-  let foundUsers: IUser[] = [];
+  let foundUsers: UserFront[] = [];
   let query = "";
 
   const invite = defer(async (userId: string, isName = false) => {
     if (isName) {
-      const user = await get<IUser>(`/user/infoByName/${encodeURIComponent(userId)}`);
+      const user = await get<UserFront>(`/user/infoByName/${encodeURIComponent(userId)}`);
       userId = user._id;
     }
     post(`/game/${gameId}/invite`, { userId });
@@ -141,7 +141,7 @@
   const watcher = debounce(
     async () => {
       if (query) {
-        foundUsers = (await get<IUser[]>("/user/search", { name: query.trim() }).catch(handleError)) || [];
+        foundUsers = (await get<UserFront[]>("/user/search", { name: query.trim() }).catch(handleError)) || [];
       } else {
         foundUsers = [];
       }

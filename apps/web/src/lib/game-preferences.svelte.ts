@@ -1,15 +1,15 @@
 import { browser } from "$app/environment";
 import type { RemoveReadable } from "@/utils";
-import type { GameInfo, GamePreferences } from "@bgs/models";
+import type { GameInfoFront, GamePreferencesFront } from "@bgs/models";
 import { isEmpty, set } from "lodash";
 import { get as getStore, writable } from "svelte/store";
 import type { Primitive } from "type-fest";
 import { account } from "./stores.svelte";
 import { get, post } from "./api";
 
-export const gamePreferences = writable<Record<string, GamePreferences>>({});
+export const gamePreferences = writable<Record<string, GamePreferencesFront>>({});
 
-export function addDefaults(prefs: GamePreferences, gameinfo: GameInfo) {
+export function addDefaults(prefs: GamePreferencesFront, gameinfo: GameInfoFront) {
   if (!gameinfo?.preferences || !prefs?.preferences) {
     return prefs;
   }
@@ -36,7 +36,7 @@ export async function updatePreference(gameName: string, version: number, key: s
   }
 }
 
-const augment = (data: GamePreferences) => {
+const augment = (data: GamePreferencesFront) => {
   if (!data.access) {
     data.access = { ownership: false };
   }
@@ -61,8 +61,8 @@ export async function loadGamePreferences(game: string): Promise<void> {
     Promise.resolve()
       .then(async () => {
         const data = getStore(account)
-          ? await get<GamePreferences>(`/account/games/${game}/settings`)
-          : ({ game } as GamePreferences);
+          ? await get<GamePreferencesFront>(`/account/games/${game}/settings`)
+          : ({ game } as GamePreferencesFront);
 
         gamePreferences.set({ ...getStore(gamePreferences), [game]: augment(data) });
         loading.delete(game);
@@ -90,7 +90,7 @@ export async function loadAllGamePreferences(force = false): Promise<void> {
     return;
   }
 
-  return (allPromise = get<GamePreferences[]>("/account/games/settings").then(
+  return (allPromise = get<GamePreferencesFront[]>("/account/games/settings").then(
     (prefs) => {
       lastUpdate = Date.now();
 

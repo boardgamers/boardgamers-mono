@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
   let user;
   try {
-    user = await get<import("@bgs/models").IUser>("/account");
+    user = await get<import("@bgs/models").UserFront>("/account");
   } catch {
     throw redirect(302, redirectLoggedIn(url));
   }

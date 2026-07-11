@@ -1,0 +1,78 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "$lib": [
+        "../src/lib"
+      ],
+      "$lib/*": [
+        "../src/lib/*"
+      ],
+      "@": [
+        "../src"
+      ],
+      "@/*": [
+        "../src/*"
+      ],
+      "@cdk": [
+        "../src/modules/cdk"
+      ],
+      "@cdk/*": [
+        "../src/modules/cdk/*"
+      ],
+      "$app/types": [
+        "./types/index.d.ts"
+      ]
+    },
+    "rootDirs": [
+      "..",
+      "../.svelte-kit/types",
+      "./tsx"
+    ],
+    "verbatimModuleSyntax": false,
+    "isolatedModules": true,
+    "lib": [
+      "esnext",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "moduleResolution": "bundler",
+    "module": "esnext",
+    "noEmit": true,
+    "target": "esnext",
+    "allowJs": true,
+    "checkJs": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "allowImportingTsExtensions": true,
+    "jsx": "preserve",
+    "jsxImportSource": "svelte",
+    "incremental": false
+  },
+  "files": [
+    "../src/app.d.ts",
+    "/workspace/boardgamers-mono/node_modules/.pnpm/svelte2tsx@0.7.57_svelte@5.56.4_@typescript-eslint+types@8.56.1__typescript@7.0.2/node_modules/svelte2tsx/svelte-shims-v4.d.ts",
+    "/workspace/boardgamers-mono/node_modules/.pnpm/svelte2tsx@0.7.57_svelte@5.56.4_@typescript-eslint+types@8.56.1__typescript@7.0.2/node_modules/svelte2tsx/svelte-jsx-v4.d.ts"
+  ],
+  "include": [
+    "../.svelte-kit/ambient.d.ts",
+    "../.svelte-kit/non-ambient.d.ts",
+    "../.svelte-kit/types/**/$types.d.ts",
+    "../src/**/*.ts",
+    "../src/**/*.d.ts",
+    "./tsx/**/*.svelte.tsx"
+  ],
+  "exclude": [
+    "../node_modules/**",
+    "../node_modules/**",
+    "../src/service-worker.js",
+    "../src/service-worker/**/*.js",
+    "../src/service-worker.ts",
+    "../src/service-worker/**/*.ts",
+    "../src/service-worker.d.ts",
+    "../src/service-worker/**/*.d.ts"
+  ]
+}

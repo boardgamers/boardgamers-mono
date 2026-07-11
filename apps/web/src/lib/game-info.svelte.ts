@@ -1,11 +1,11 @@
 import type { RemoveReadable } from "@/utils";
-import type { GameInfo } from "@bgs/models";
+import type { GameInfoFront } from "@bgs/models";
 import { sortBy, uniqBy } from "lodash";
 import { get as getStore, writable } from "svelte/store";
 import type { SetOptional, ValueOf } from "type-fest";
 import { get } from "./api";
 
-export const gameInfos = writable<Record<string, SetOptional<GameInfo, "viewer">>>({});
+export const gameInfos = writable<Record<string, SetOptional<GameInfoFront, "viewer">>>({});
 
 let promise: Promise<void> | null = null;
 let lastLoad = 0;
@@ -34,7 +34,7 @@ export async function loadGameInfos(): Promise<void> {
     return;
   }
 
-  return (promise = get<Array<Omit<GameInfo, "viewer">>>("/boardgame/info").then(
+  return (promise = get<Array<Omit<GameInfoFront, "viewer">>>("/boardgame/info").then(
     (games) => {
       promise = null;
       lastLoad = Date.now();
@@ -74,7 +74,7 @@ export async function loadGameInfo(game: string, version: number | "latest" = "l
 
   loading.set(
     id,
-    get<GameInfo>(`/boardgame/${game}/info/${version}`).then(
+    get<GameInfoFront>(`/boardgame/${game}/info/${version}`).then(
       (info) => {
         loading.delete(id);
 

@@ -4,7 +4,7 @@
   import { upperFirst, debounce } from "lodash";
   import { account } from "@/lib/account.svelte";
   import { post, apiFetch } from "@/lib/api";
-  import type { IUser } from "@bgs/models";
+  import type { UserFront } from "@bgs/models";
   import { browser } from "$app/environment";
   import { developerSettings } from "@/lib/stores.svelte";
   import { useLoggedIn } from "@/lib/auth-guards.svelte";
@@ -64,7 +64,7 @@
   }
 
   const selectArt = (art: string) =>
-    post<IUser>("/account", {
+    post<UserFront>("/account", {
       account: {
         avatar: art,
       },
@@ -74,7 +74,7 @@
 
   const updateAccount = debounce(
     () => {
-      post<IUser>("/account", {
+      post<UserFront>("/account", {
         settings: {
           mailing: {
             newsletter,
@@ -94,7 +94,7 @@
   );
 
   const updateBio = (bio: string) =>
-    post<IUser>("/account", {
+    post<UserFront>("/account", {
       account: {
         bio,
       },

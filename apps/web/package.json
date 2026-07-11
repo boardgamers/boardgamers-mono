@@ -7,8 +7,7 @@
     "dev": "vite dev --port 8612",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "check": "svelte-kit sync && svelte-fast-check -p ./tsconfig.json",
     "lint": "prettier --ignore-path .gitignore --check . && eslint --ignore-path .gitignore .",
     "format": "prettier --ignore-path .gitignore --write .",
     "test": "vitest run"
@@ -29,6 +28,7 @@
     "type-fest": "^2.1.0"
   },
   "devDependencies": {
+    "@alasano/svelte-fast-check": "0.4.6-fork.2",
     "@bgs/models": "workspace:*",
     "@sveltejs/adapter-node": "^5.5.7",
     "@sveltejs/kit": "^2.69.2",
@@ -45,16 +45,15 @@
     "eslint": "^9.27.0",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-svelte": "^3.9.1",
-    "vitest": "^3.1.4",
     "postcss": "^8.2.6",
     "postcss-load-config": "^3.1.0",
     "postcss-nested": "^5.0.3",
     "prettier": "^3.5.3",
     "prettier-plugin-svelte": "^3.5.0",
-    "svelte-check": "^4.7.2",
     "tslib": "^2.3.1",
-    "typescript": "~5.9.3",
-    "vite": "^6.3.5"
+    "typescript": "catalog:",
+    "vite": "^6.3.5",
+    "vitest": "^3.1.4"
   },
   "lint-staged": {
     "*.ts": "prettier --write",

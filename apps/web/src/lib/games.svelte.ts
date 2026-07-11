@@ -1,4 +1,4 @@
-import type { GameStatus, IGame } from "@bgs/models";
+import type { GameStatus, GameFront } from "@bgs/models";
 import { get as getStore } from "svelte/store";
 import { account } from "./stores.svelte";
 import { gameInfo, loadGameInfo } from "./game-info.svelte";
@@ -18,7 +18,7 @@ export type LoadGamesParams = {
 };
 
 export type LoadGamesResult = {
-  games: IGame[];
+  games: GameFront[];
   total: number;
 };
 
@@ -58,7 +58,7 @@ export function loadGames({
   }
 
   return Promise.all([
-    get<IGame[]>(`/game/status/${gameStatus}`, queryParams),
+    get<GameFront[]>(`/game/status/${gameStatus}`, queryParams),
     fetchCount ? get<number>(`/game/status/${gameStatus}/count`, queryParams) : 0,
   ]).then(async ([games, total]) => {
     const missingGameInfos = games.map((game) => game.game.name).filter((boardgameId) => !gameInfo(boardgameId));

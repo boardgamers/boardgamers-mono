@@ -1,12 +1,12 @@
 import { browser } from "$app/environment";
-import type { ChatMessage, IUser } from "@bgs/models";
+import type { ChatMessageFront, UserFront } from "@bgs/models";
 import { writable } from "svelte/store";
 
 // --- Account (client-side cache, seeded from $page.data.user) ---
 
-export const account = writable<IUser | null>(null);
+export const account = writable<UserFront | null>(null);
 
-export function setAccount(user: IUser | null) {
+export function setAccount(user: UserFront | null) {
   account.set(user);
 }
 
@@ -44,7 +44,7 @@ if (browser) {
 // --- Current room / chat (websocket-maintained) ---
 
 export const room = writable<string | null>(null);
-export const chatMessages = writable<ChatMessage[]>([]);
+export const chatMessages = writable<ChatMessageFront[]>([]);
 
 if (browser) {
   currentGameId.subscribe((val) => room.set(val));

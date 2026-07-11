@@ -19,7 +19,7 @@ declare global {
     }
 
     interface PageData {
-      user?: import("@bgs/models").IUser | null;
+      user?: import("@bgs/models").UserFront | null;
       activeGames?: string[];
     }
 

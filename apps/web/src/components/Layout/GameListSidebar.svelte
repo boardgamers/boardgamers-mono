@@ -4,12 +4,12 @@
   import { logoClick } from "@/lib/stores.svelte";
   import { ListGroup } from "@/modules/cdk";
   import { handleError } from "@/utils";
-  import type { GameInfo } from "@bgs/models";
+  import type { GameInfoFront } from "@bgs/models";
 
   loadGameInfos().catch(handleError);
 
-  let games: GameInfo[];
-  $: ((games = latestGameInfos() as GameInfo[]), [$gameInfos]);
+  let games: GameInfoFront[];
+  $: ((games = latestGameInfos() as GameInfoFront[]), [$gameInfos]);
   $: boardgameId = $page!.params.boardgameId;
 
   function gameRoute(gameId: string) {

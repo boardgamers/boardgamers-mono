@@ -1,12 +1,12 @@
 <script lang="ts">
-  import type { IUser } from "@bgs/models";
+  import type { UserFront } from "@bgs/models";
   import { UserGames, UserElo, SEO, UserAvatar } from "@/components";
   import { Row, Col, Container, Card } from "@/modules/cdk";
   import { account } from "@/lib/account.svelte";
   import { dateFromObjectId } from "@/utils";
   import { page } from "$app/stores";
 
-  let { data }: { data: { user: IUser } } = $props();
+  let { data }: { data: { user: UserFront } } = $props();
   let username = $derived(data.user.account.username);
   let joinDate = $derived(data.user && dateFromObjectId(data.user._id));
 </script>

@@ -6,3 +6,24 @@ packages:
   - "apps/game-server"
   - "packages/models"
   - "packages/utils"
+
+allowBuilds:
+  "@parcel/watcher": set this to true or false
+  core-js: set this to true or false
+  esbuild: set this to true or false
+  highlight.js: set this to true or false
+  vuepress: set this to true or false
+
+# Centralized dependency versions — all packages reference these via "catalog:"
+# in their package.json. Upgrading a dependency here upgrades it everywhere.
+catalog:
+  typescript: "7.0.2"
+  "@types/node": "^24.0.0"
+  type-fest: "^5.4.4"
+
+# pnpm 11 moved settings from package.json "pnpm" field to here.
+# Pin is-generator-function to 1.1.0: 1.1.1+ depends on generator-function@2.x
+# whose exports field trips tsx's CJS/ESM interop, breaking koa's
+# require('generator-function'). Upstream: inspect-js/is-generator-function#46
+overrides:
+  is-generator-function: "1.1.0"

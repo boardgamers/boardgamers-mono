@@ -1,12 +1,12 @@
 <script lang="ts">
   import { createWatcher, handleError } from "@/utils";
   import PreferenceInput from "./PreferenceInput.svelte";
-  import type { GameInfo } from "@bgs/models";
+  import type { GameInfoFront } from "@bgs/models";
   import type { Primitive } from "type-fest";
   import { gamePreferences, addDefaults, updatePreference, loadGamePreferences } from "@/lib/game-preferences.svelte";
   import { account } from "@/lib/stores.svelte";
 
-  let gameInfo: GameInfo;
+  let gameInfo: GameInfoFront;
   export { gameInfo as game };
 
   $: boardgameId = gameInfo._id.game;

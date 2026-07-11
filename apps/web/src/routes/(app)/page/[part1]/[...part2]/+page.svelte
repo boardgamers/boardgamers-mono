@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { Page as IPage } from "@bgs/models";
+  import type { PageFront } from "@bgs/models";
   import Page from "@/components/Page.svelte";
   import { SEO } from "@/components";
   import removeMarkdown from "remove-markdown";
 
-  let { data }: { data: { pageContent: Partial<IPage> } } = $props();
+  let { data }: { data: { pageContent: Partial<PageFront> } } = $props();
 </script>
 
 <SEO

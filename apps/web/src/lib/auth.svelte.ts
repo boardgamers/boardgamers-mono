@@ -4,7 +4,7 @@ import { extractCookie } from "@/utils/extract-cookie";
 export type Token = { code: string; expiresAt: number };
 
 export type AuthData = {
-  user: import("@bgs/models").IUser;
+  user: import("@bgs/models").UserFront;
   accessToken: Token;
   refreshToken: Token;
 };
