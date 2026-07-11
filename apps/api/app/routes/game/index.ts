@@ -96,14 +96,6 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
   assert(timePerMove && !isNaN(timePerMove), "Wrong amount of time per move");
   assert(timePerGame && !isNaN(timePerGame), "Wrong amount of time per game");
 
-  if (!/^[A-z0-9-]+$/.test(gameId)) {
-    throw createError(400, "Wrong format for game id");
-  }
-
-  if (!/^[A-z0-9-]+$/.test(seed)) {
-    throw createError(400, "Wrong format for game seed");
-  }
-
   if (!gameInfo.players.includes(players)) {
     throw createError(400, "Wrong number of players");
   }
