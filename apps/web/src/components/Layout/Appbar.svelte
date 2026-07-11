@@ -144,7 +144,6 @@
         data-sveltekit-preload-data="hover"
         class="flex items-center gap-2 py-0"
       >
-        <UserAvatar username={$user.account.username} userId={$user._id} size="2rem" />
         <span class="hidden sm:inline">{$user.account.username}</span>
       </NavLink>
       <NavLink onclick={logOut} class="flex items-center gap-2">

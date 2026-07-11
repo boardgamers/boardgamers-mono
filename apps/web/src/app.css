@@ -63,6 +63,15 @@
   }
 }
 
+/* Layout custom properties used by Sidebar/GameSidebar */
+:root {
+  --sidebar-width: 320px;
+  --fab-bottom: 15px;
+  --fab-right: 25px;
+  --fab-width: 45px;
+  --navbar-height: 56px;
+}
+
 /* Utility classes that don't map to Tailwind defaults */
 @utility no-link {
   text-decoration: none;

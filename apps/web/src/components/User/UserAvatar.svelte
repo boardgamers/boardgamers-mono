@@ -1,9 +1,4 @@
 <script lang="ts">
-  import { browser } from "$app/environment";
-
-  import { imageCache } from "@/lib/stores.svelte";
-  import { getAccessToken } from "@/lib/api";
-
   let {
     userId = null,
     username,
@@ -24,18 +19,12 @@
     [key: string]: any;
   } = $props();
 
-  let token = $state<string>();
-
-  if (browser) {
-    getAccessToken("/api/account/avatar").then((res) => (token = res?.code!));
-  }
-
+  // Single URL for all avatars. The backend handles:
+  //  - uploaded avatars (with ETag for conditional requests → 304 if unchanged)
+  //  - dicebear generated avatars (cached for 24h, deterministic by username+style)
+  // No cache busters, no tokens, no updatedAt — the browser handles caching.
   let src = $derived(
-    userId === "me"
-      ? `/api/account/avatar?d=${$imageCache}&token=${encodeURIComponent(token)}`
-      : userId
-        ? `/api/user/${userId}/avatar?d=${$imageCache}`
-        : `https://avatars.dicebear.com/api/${art}/${username}.svg?r=0`
+    userId ? `/api/user/${userId}/avatar` : `https://avatars.dicebear.com/api/${art}/${username}.svg?r=0`
   );
 </script>
 
@@ -43,14 +32,14 @@
   {src}
   srcset="{src}&size=256 256w, {src}&size=128 128w, {src}&size=64 64w"
   sizes={size}
-  style="height: {size}; width: ${size}"
+  style="height: {size}; width: {size}"
   alt={`${username}'s avatar`}
   title={username}
   class="user-avatar"
-  {...rest}
   {onclick}
   {onerror}
   {onload}
+  {...rest}
 />
 
 <style>

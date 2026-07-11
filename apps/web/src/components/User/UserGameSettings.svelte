@@ -1,5 +1,6 @@
 <script lang="ts">
   import { set } from "lodash";
+  import { untrack } from "svelte";
   import type { GameInfoFront } from "@bgs/models";
   import { handleError, confirm, classnames } from "@/utils";
   import Card from "@/modules/cdk/Card.svelte";
@@ -57,25 +58,25 @@
     }
   }
 
-  let classes = $derived(classnames(className, "border-secondary"));
+  let classes = $derived(classnames(className, "border-gray-300 dark:border-gray-600"));
 
   let key = $derived(gameInfoKey(game._id.game, game._id.version));
 
   let customViewerUrl = $state("");
 
-  function updateDevSettings() {
+  // One-way sync: seed customViewerUrl from devGameSettings when key changes.
+  // Uses untrack to avoid re-triggering the save effect below.
+  $effect(() => {
+    key;
+    customViewerUrl = untrack(() => $devGameSettings[key]?.viewerUrl ?? "");
+  });
+
+  // Save: when user types in the input, persist to devGameSettings.
+  // untrack prevents the devGameSettings write from re-triggering this effect.
+  function onViewerUrlInput() {
     set($devGameSettings, `${key}.viewerUrl`, customViewerUrl);
     $devGameSettings = { ...$devGameSettings };
   }
-
-  $effect(() => {
-    customViewerUrl = $devGameSettings[key]?.viewerUrl ?? "";
-  });
-
-  $effect(() => {
-    customViewerUrl;
-    updateDevSettings();
-  });
 </script>
 
 <Card class={classes} header={title || game.label}>
@@ -92,7 +93,7 @@
         <hr />
         <FormGroup>
           <label for="viewerUrl">Custom Viewer URL ({key})</label>
-          <Input type="text" placeholder="Viewer URL" bind:value={customViewerUrl} />
+          <Input type="text" placeholder="Viewer URL" bind:value={customViewerUrl} onchange={onViewerUrlInput} />
         </FormGroup>
       {/if}
     </Loading>

@@ -6,10 +6,11 @@
   import { post, apiFetch } from "@/lib/api";
   import type { UserFront } from "@bgs/models";
   import { browser } from "$app/environment";
+  import { invalidateAll } from "$app/navigation";
   import { developerSettings } from "@/lib/stores.svelte";
   import { useLoggedIn } from "@/lib/auth-guards.svelte";
   import UserAvatar from "@/components/User/UserAvatar.svelte";
-  import { logoClick, imageCache } from "@/lib/stores.svelte";
+  import { logoClick } from "@/lib/stores.svelte";
 
   useLoggedIn();
 
@@ -22,6 +23,7 @@
   let gameNotificationDelay = $state($account!.settings?.mailing?.game?.delay ?? 30 * 60);
   let tc = $state(false);
   let editingAvatar = $state(false);
+  let avatarReload = $state(0);
   let fileUpload = $state<HTMLInputElement>();
 
   let bio = $derived($account?.account.bio ?? "");
@@ -69,8 +71,8 @@
         avatar: art,
       },
     })
-      .then((r) => account.set(r), handleError)
-      .finally(() => (((editingAvatar = false), imageCache.set(Date.now())), logoClick()));
+      .then((r) => { account.set(r); avatarReload++; }, handleError)
+      .finally(() => { editingAvatar = false; logoClick(); });
 
   const updateAccount = debounce(
     () => {
@@ -134,9 +136,10 @@
       handleError("Error during upload (" + resp.status + ")");
       return;
     }
-    imageCache.set(Date.now());
     editingAvatar = false;
     customAvatarError = false;
+    avatarReload++;
+    await invalidateAll();
   }
 
   $effect(() => {
@@ -161,19 +164,21 @@
 
   <Card class="mt-4 border-accent" header="User Settings">
     {#if !editingAvatar}
-      <UserAvatar
-        --avatar-border="1px solid gray"
-        role="button"
-        onclick={() => (editingAvatar = true)}
-        userId={$account._id}
-        username={$account.account.username}
-      />
+      {#key avatarReload}
+        <UserAvatar
+          --avatar-border="1px solid gray"
+          role="button"
+          onclick={() => (editingAvatar = true)}
+          userId={$account._id}
+          username={$account.account.username}
+        />
+      {/key}
     {:else}
       <input type="file" bind:this={fileUpload} onchange={uploadAvatar} accept="image/*" class="hidden" />
       <a href="#upload" style="width: 100%" role="button" onclick={(e) => { e.preventDefault(); fileUpload.click(); }}>Upload</a>
       <div style="display: contents" class:hidden={customAvatarError}>
         <UserAvatar
-          userId="me"
+          userId={$account._id}
           username="Custom avatar"
           role="button"
           onerror={() => (customAvatarError = true)}

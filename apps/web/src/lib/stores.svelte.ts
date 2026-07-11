@@ -65,9 +65,7 @@ if (browser) {
   });
 }
 
-// --- Image cache buster, logo clicks, developer settings (minor UI state) ---
-
-export const imageCache = writable<number>(Date.now());
+// --- Logo clicks, developer settings (minor UI state) ---
 
 export const logoClicks = writable<number>(0);
 export function logoClick(): void {
