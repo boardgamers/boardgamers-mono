@@ -31,7 +31,7 @@ export function makeDefaultUser(params: {
       password: params.password,
       karma: defaultKarma,
       termsAndConditions: now,
-      social: { google: "", facebook: "", discord: "", ...params.social },
+      social: params.social,
       avatar: "avataaars",
       bio: "",
     },

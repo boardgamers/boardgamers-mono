@@ -3,6 +3,7 @@ import type { Server } from "node:http";
 import { listen } from "../app.ts";
 import initDb, { closeDb, db } from "./db.ts";
 import env from "./env.ts";
+import { ensureIndexes } from "@bgs/models";
 
 assert.strictEqual(process.env.NODE_ENV, "test");
 
@@ -23,6 +24,12 @@ export async function setup() {
 
   const collections = await db().listCollections().toArray();
   await Promise.all(collections.map((c) => db().dropCollection(c.name)));
+
+  // Dropping the collections above also drops the indexes that initDb created via
+  // ensureIndexes. Re-create them so the test DB enforces the same unique constraints
+  // (e.g. account.social.*, account.username, account.email) as production — otherwise
+  // duplicate-key bugs sail through the suite undetected.
+  await ensureIndexes(db());
 
   env.listen.port.api = 0;
   // Bind explicitly to 127.0.0.1 so the address the tests fetch (also 127.0.0.1

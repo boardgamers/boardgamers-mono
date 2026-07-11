@@ -71,6 +71,10 @@
       delete dataObj.scheduledStart;
     }
 
+    if (!seed) {
+      delete dataObj.seed;
+    }
+
     if (!enableKarma || !dataObj.minimumKarma) {
       delete dataObj.minimumKarma;
     }

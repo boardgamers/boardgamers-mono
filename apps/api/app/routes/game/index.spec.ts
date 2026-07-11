@@ -89,6 +89,31 @@ describe("Game API", () => {
     assert.strictEqual(res.ok, true);
   });
 
+  it("should create a game when seed is an empty string and fall back to the gameId", async () => {
+    // The web client always sends `seed: ""` when the Custom Seed box is untouched.
+    // That must pass the schema (regression for the zod migration) and flow into the
+    // existing `body.seed || gameId` fallback rather than 400ing.
+    const res = await api(
+      "POST",
+      "/api/game/new-game",
+      {
+        gameId: "test-seed",
+        game: { game: "test", version: 1 },
+        timePerMove: 5000,
+        timePerGame: 5000,
+        players: 2,
+        options: { join: true },
+        seed: "",
+      },
+      authHeaders,
+    );
+
+    assert.strictEqual(res.ok, true);
+    const game = await colls.games.findOne({ _id: "test-seed" });
+    assert.ok(game, "Game should be created");
+    assert.strictEqual(game.options.setup.seed, "test-seed", "Empty seed should fall back to the gameId");
+  });
+
   it("should not be able to create a game with the wrong number of players", async () => {
     const res = await api(
       "POST",
