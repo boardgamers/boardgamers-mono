@@ -34,7 +34,9 @@
       </Col>
     {/if}
   </Row>
-  <a slot="footer" href={alternativeRoute}>
-    {filter === "started" ? "Open games" : "Started games"}
-  </a>
+  {#snippet footer()}
+    <a href={alternativeRoute}>
+      {filter === "started" ? "Open games" : "Started games"}
+    </a>
+  {/snippet}
 </Card>

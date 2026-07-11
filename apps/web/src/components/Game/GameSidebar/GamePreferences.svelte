@@ -8,18 +8,18 @@
   const { gameInfo } = getContext("game") as GameContext;
 
   let showPreferences = $derived(
-    !!$gameInfo?.viewer?.alternate?.url || $gameInfo?.preferences?.some((item) => item.type !== "hidden") > 0
+    !!gameInfo?.viewer?.alternate?.url || (gameInfo?.preferences?.some((item) => item.type !== "hidden") ?? false)
   );
 </script>
 
-{#if showPreferences}
+{#if showPreferences && gameInfo}
   <div class="mt-75">
     <h3>
       Preferences
-      <a href={`/page/${$gameInfo._id.game}/preferences`}>
+      <a href={`/page/${gameInfo._id.game}/preferences`}>
         <Icon icon={infoCircleFill} class="small" />
       </a>
     </h3>
-    <PreferencesChooser game={$gameInfo} />
+    <PreferencesChooser {gameInfo} />
   </div>
 {/if}

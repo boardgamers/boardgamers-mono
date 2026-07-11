@@ -20,7 +20,7 @@
   }
 
   $effect(() => {
-    $log;
+    log;
     showLog;
     onLogChanged();
   });
@@ -35,7 +35,7 @@
   }
 </script>
 
-{#if $log.length > 0}
+{#if log.length > 0}
   <div class="mt-75 thin-scrollbar">
     <div class="d-flex align-items-baseline">
       <h3 class="mb-0">Log</h3>
@@ -52,7 +52,7 @@
     </div>
     {#if showLog}
       <div class="log mt-2" bind:this={logElement}>
-        {#each $log as item}
+        {#each log as item}
           <div>
             {@html logToHtml(item)}
           </div>

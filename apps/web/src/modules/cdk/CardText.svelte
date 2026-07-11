@@ -1,12 +1,15 @@
 <!-- card-text rendered as a div instead of a p -->
 <script lang="ts">
   import { classnames } from "@/utils";
+  import type { Snippet } from "svelte";
 
   let {
     class: className = "",
+    children,
     ...rest
   }: {
     class?: string;
+    children?: Snippet;
     [key: string]: any;
   } = $props();
 
@@ -14,5 +17,5 @@
 </script>
 
 <div class={classes} {...rest}>
-  <slot />
+  {@render children?.()}
 </div>

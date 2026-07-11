@@ -60,9 +60,11 @@
     <Col>
       <Card class="border-secondary h-100" header={rules ? "Rules" : "Description"}>
         {@html marked(rules ? boardgame.rules : boardgame.description)}
-        <a slot="footer" href={rules ? "#description" : "#rules"} on:click|preventDefault={() => (rules = !rules)}>
-          {rules ? "See description" : "See rules"}
-        </a>
+        {#snippet footer()}
+          <a href={rules ? "#description" : "#rules"} onclick={(e) => { e.preventDefault(); rules = !rules; }}>
+            {rules ? "See description" : "See rules"}
+          </a>
+        {/snippet}
       </Card>
     </Col>
     <Col>
@@ -88,7 +90,7 @@
 
   <div class="text-center mt-3">
     <a class="btn btn-accent" href={`/boardgame/${boardgameId}/games`} role="button">All games</a>
-    <button class="btn btn-primary mx-3" href="/new-game" on:click={newGame}>New Game</button>
+    <button class="btn btn-primary mx-3" href="/new-game" onclick={newGame}>New Game</button>
     <a class="btn btn-accent" href={`/boardgame/${boardgameId}/rankings`} role="button">Rankings</a>
   </div>
 

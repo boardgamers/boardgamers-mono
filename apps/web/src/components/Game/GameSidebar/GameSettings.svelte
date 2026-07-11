@@ -11,16 +11,16 @@
   let settings = $state<Record<string, unknown> | null>(null);
 
   let userId = $derived($account?._id);
-  let playerUser = $derived($game?.players.find((pl) => pl._id === userId));
-  let gameStatus = $derived($game?.status);
-  let gameId = $derived($game?._id);
+  let playerUser = $derived(game?.players.find((pl) => pl._id === userId));
+  let gameStatus = $derived(game?.status);
+  let gameId = $derived(game?._id);
 
   async function loadSettings() {
-    if (gameStatus !== "active" || !playerUser || !$gameInfo) {
+    if (gameStatus !== "active" || !playerUser || !gameInfo) {
       settings = null;
       return;
     }
-    if ($gameInfo.settings?.length > 0) {
+    if (gameInfo.settings?.length > 0) {
       settings = (await get<typeof settings>(`/gameplay/${gameId}/settings`).catch(handleError)) ?? null;
     } else {
       settings = null;
@@ -30,7 +30,7 @@
   $effect(() => {
     gameStatus;
     userId;
-    $gameInfo;
+    gameInfo;
     loadSettings();
   });
 
@@ -42,16 +42,16 @@
   }
 </script>
 
-{#if $gameInfo?.settings?.length > 0 && $game.status === "active" && settings && playerUser}
+{#if game && gameInfo?.settings?.length > 0 && game.status === "active" && settings && playerUser}
   <div class="mt-75">
     <h3>
       Settings
-      <a href={`/page/${$game.game.name}/settings`}>
+      <a href={`/page/${game.game.name}/settings`}>
         <Icon icon={infoCircleFill} class="small" />
       </a>
     </h3>
     <!-- Code very similar to PreferencesChooser -->
-    {#each $gameInfo.settings as setting}
+    {#each gameInfo.settings as setting}
       {#if !setting.faction || setting.faction === playerUser.faction}
         {#if setting.type === "checkbox"}
           <Checkbox bind:checked={settings[setting.name]} onchange={postSettings}>

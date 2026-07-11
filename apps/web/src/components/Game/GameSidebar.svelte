@@ -29,23 +29,23 @@
   let requestedDrop = $state<Record<string, boolean>>({});
 
   let userId = $derived($account?._id);
-  let playerUser = $derived($game?.players.find((pl) => pl._id === userId));
-  let gameId = $derived($game?._id);
+  let playerUser = $derived(game?.players.find((pl) => pl._id === userId));
+  let gameId = $derived(game?._id);
 
   function status(playerId: string) {
     return $playerStatus?.find((pl) => pl._id === playerId)?.status ?? "offline";
   }
 
   function playerElo(playerId: string) {
-    return $players.find((pl) => pl._id === playerId)?.elo ?? 0;
+    return players.find((pl) => pl._id === playerId)?.elo ?? 0;
   }
 
-  let alwaysActive = $derived($game?.options.timing.timer?.start === $game?.options.timing.timer?.end);
+  let alwaysActive = $derived(game?.options.timing.timer?.start === game?.options.timing.timer?.end);
 
-  let currentPlayersById = $derived(keyBy($game?.currentPlayers ?? [], "_id"));
+  let currentPlayersById = $derived(keyBy(game?.currentPlayers ?? [], "_id"));
 
   function isCurrentPlayer(id: string) {
-    return $game?.status !== "ended" && !!currentPlayersById[id];
+    return game?.status !== "ended" && !!currentPlayersById[id];
   }
 
   const onGameChanged = () => {
@@ -60,7 +60,7 @@
 
   $effect(() => {
     userId;
-    $game;
+    game;
     onGameChanged();
   });
 
@@ -68,7 +68,7 @@
 
   function updateRemainingTimes() {
     const ret: Record<string, number> = {};
-    for (const player of $game.players) {
+    for (const player of game.players) {
       ret[player._id] = remainingTime(player);
     }
 
@@ -77,14 +77,14 @@
 
   $effect(() => {
     secondsCounter;
-    $game;
+    game;
     updateRemainingTimes();
   });
 
   function remainingTime(player: PlayerInfoFront) {
     const currentPlayer = currentPlayersById[player._id];
     if (currentPlayer) {
-      const spent = elapsedSeconds(new Date(currentPlayer.timerStart as any), $game.options.timing.timer);
+      const spent = elapsedSeconds(new Date(currentPlayer.timerStart as any), game.options.timing.timer);
       // Trick to update every second
       return Math.max(player.remainingTime - spent, 0) + (secondsCounter % 1);
     }
@@ -113,116 +113,118 @@
 
 <div id="floating-controls"></div>
 <Portal target="#sidebar">
-  <h3 class="mt-75">Players</h3>
-  {#each $game.players as player}
-    <div class={"mb-1 d-flex align-items-center player-row"} class:active={isCurrentPlayer(player._id)}>
-      <PlayerGameAvatar game={$game.game.name} {userId} {player} status={status(player._id)} class="me-2" />
+  {#if game && gameInfo}
+    <h3 class="mt-75">Players</h3>
+    {#each game.players as player}
+      <div class={"mb-1 d-flex align-items-center player-row"} class:active={isCurrentPlayer(player._id)}>
+        <PlayerGameAvatar game={game.game.name} {userId} {player} status={status(player._id)} class="me-2" />
 
-      <div>
-        <a href={`/user/${player.name}`} class="player-name" class:dropped={player.dropped}>
-          {player.name}
-        </a>
-        <sup class="ms-1">
-          {#if player.elo}
-            {player.elo.initial} {player.elo.delta >= 0 ? "+" : "-"} {Math.abs(player.elo.delta)} elo
-          {:else}
-            {playerElo(player._id)} elo
+        <div>
+          <a href={`/user/${player.name}`} class="player-name" class:dropped={player.dropped}>
+            {player.name}
+          </a>
+          <sup class="ms-1">
+            {#if player.elo}
+              {player.elo.initial} {player.elo.delta >= 0 ? "+" : "-"} {Math.abs(player.elo.delta)} elo
+            {:else}
+              {playerElo(player._id)} elo
+            {/if}
+          </sup>
+          {#if game.status === "active"}
+            <span class="ms-1"> - {shortDuration(remainingTimes[player._id])}</span>
           {/if}
-        </sup>
-        {#if $game.status === "active"}
-          <span class="ms-1"> - {shortDuration(remainingTimes[player._id])}</span>
-        {/if}
+        </div>
       </div>
-    </div>
-  {/each}
-  <div class="mt-75">
-    <Icon icon={clockHistory} inline={true} class="me-1" />
-    {alwaysActive
-      ? "24h"
-      : `${timerTime($game.options.timing.timer.start)}-${timerTime($game.options.timing.timer.end)}`}
-    / {duration($game.options.timing.timePerGame)} + {duration($game.options.timing.timePerMove)}
-  </div>
-  {#if $game.status === "ended"}
+    {/each}
     <div class="mt-75">
-      <b> Game ended! </b>
+      <Icon icon={clockHistory} inline={true} class="me-1" />
+      {alwaysActive
+        ? "24h"
+        : `${timerTime(game.options.timing.timer.start)}-${timerTime(game.options.timing.timer.end)}`}
+      / {duration(game.options.timing.timePerGame)} + {duration(game.options.timing.timePerMove)}
     </div>
-  {/if}
-  {#key $game.currentPlayers}
-    {#if userId && isCurrentPlayer(userId)}
+    {#if game.status === "ended"}
       <div class="mt-75">
-        <b class="your-turn">Your turn!</b>
+        <b> Game ended! </b>
       </div>
     {/if}
-  {/key}
-  {#if playerUser && $game.status !== "ended"}
-    <div class="mt-75">
-      <Button
-        color="warning"
-        size="sm"
-        disabled={playerUser.dropped || playerUser.voteCancel || playerUser.quit}
-        onclick={voteCancel}
-      >
-        Vote to cancel
-      </Button>
-      {#if $game.players.some((pl) => !!pl.dropped)}
-        <Button size="sm" class="ms-2" disabled={playerUser.dropped || playerUser.quit} onclick={quit}>Quit</Button>
+    {#key game.currentPlayers}
+      {#if userId && isCurrentPlayer(userId)}
+        <div class="mt-75">
+          <b class="your-turn">Your turn!</b>
+        </div>
       {/if}
-      {#each $game.players as player}
-        {#if remainingTime(player) <= 0 && isCurrentPlayer(player._id) && !player.dropped && !player.quit}
-          <Button
-            size="sm"
-            class="ms-2"
-            color="danger"
-            disabled={requestedDrop[player._id]}
-            onclick={() => requestDrop(player._id)}
-          >
-            Drop {player.name}
-          </Button>
+    {/key}
+    {#if playerUser && game.status !== "ended"}
+      <div class="mt-75">
+        <Button
+          color="warning"
+          size="sm"
+          disabled={playerUser.dropped || playerUser.voteCancel || playerUser.quit}
+          onclick={voteCancel}
+        >
+          Vote to cancel
+        </Button>
+        {#if game.players.some((pl) => !!pl.dropped)}
+          <Button size="sm" class="ms-2" disabled={playerUser.dropped || playerUser.quit} onclick={quit}>Quit</Button>
         {/if}
-      {/each}
-    </div>
-  {/if}
-
-  <GameSettings />
-
-  <GamePreferences />
-
-  <GameNotes {gameId} />
-
-  {#if $game.game.expansions?.length > 0}
-    <div class="mt-75">
-      <h3>Expansions</h3>
-      {#each $game.game.expansions as expansion}
-        <Badge color="accent" class="me-1">
-          {@html oneLineMarked($gameInfo.expansions.find((xp) => xp.name === expansion)?.label ?? "")}
-        </Badge>
-      {/each}
-    </div>
-  {/if}
-
-  <GameLog />
-
-  <ReplayControls />
-
-  {#if $gameInfo.options.some((x) => !!$game.game.options?.[x.name])}
-    <div class="mt-75">
-      <h3>Setup options</h3>
-      {#each $gameInfo.options.filter((x) => !!$game.game.options[x.name]) as pref}
-        <Badge color="secondary" class="me-1">
-          {#if pref.type === "checkbox"}
-            {@html oneLineMarked(pref.label)}
-          {:else if pref.type === "select" && pref.items && pref.items.some((x) => x.name === $game.game.options[pref.name])}
-            {@html oneLineMarked(
-              pref.label + ": " + pref.items.find((x) => x.name === $game.game.options[pref.name])?.label
-            )}
+        {#each game.players as player}
+          {#if remainingTime(player) <= 0 && isCurrentPlayer(player._id) && !player.dropped && !player.quit}
+            <Button
+              size="sm"
+              class="ms-2"
+              color="danger"
+              disabled={requestedDrop[player._id]}
+              onclick={() => requestDrop(player._id)}
+            >
+              Drop {player.name}
+            </Button>
           {/if}
-        </Badge>
-      {/each}
-    </div>
-  {/if}
-  <div class="my-3"></div>
-  {#if $devGameSettings}
-    <a target="_blank" rel="external" href={`/api/gameplay/${$game._id}`}>Download JSON</a>
+        {/each}
+      </div>
+    {/if}
+
+    <GameSettings />
+
+    <GamePreferences />
+
+    <GameNotes {gameId} />
+
+    {#if game.game.expansions?.length > 0}
+      <div class="mt-75">
+        <h3>Expansions</h3>
+        {#each game.game.expansions as expansion}
+          <Badge color="accent" class="me-1">
+            {@html oneLineMarked(gameInfo.expansions.find((xp) => xp.name === expansion)?.label ?? "")}
+          </Badge>
+        {/each}
+      </div>
+    {/if}
+
+    <GameLog />
+
+    <ReplayControls />
+
+    {#if gameInfo.options.some((x) => !!game.game.options?.[x.name])}
+      <div class="mt-75">
+        <h3>Setup options</h3>
+        {#each gameInfo.options.filter((x) => !!game.game.options[x.name]) as pref}
+          <Badge color="secondary" class="me-1">
+            {#if pref.type === "checkbox"}
+              {@html oneLineMarked(pref.label)}
+            {:else if pref.type === "select" && pref.items && pref.items.some((x) => x.name === game.game.options[pref.name])}
+              {@html oneLineMarked(
+                pref.label + ": " + pref.items.find((x) => x.name === game.game.options[pref.name])?.label
+              )}
+            {/if}
+          </Badge>
+        {/each}
+      </div>
+    {/if}
+    <div class="my-3"></div>
+    {#if $devGameSettings}
+      <a target="_blank" rel="external" href={`/api/gameplay/${game._id}`}>Download JSON</a>
+    {/if}
   {/if}
 </Portal>
 

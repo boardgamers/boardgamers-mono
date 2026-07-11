@@ -12,10 +12,8 @@
 </script>
 
 {#if $route && $route.component}
-  <svelte:component
-    this={$route.layout && n === 0 ? $route.layout : $route.component}
-    {...$route.props ? $route.props($route) : $route.params}
-  />
+  {@const Component = $route.layout && n === 0 ? $route.layout : $route.component}
+  <Component {...($route.props ? $route.props($route) : $route.params)} />
 {:else}
   <div>{@render children?.()}</div>
 {/if}

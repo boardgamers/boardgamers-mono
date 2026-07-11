@@ -8,6 +8,7 @@
     class: className = "",
     onchange,
     onblur,
+    children,
     ...rest
   }: {
     checked?: boolean;
@@ -16,6 +17,7 @@
     class?: string;
     onchange?: (e: Event) => void;
     onblur?: (e: Event) => void;
+    children?: import("svelte").Snippet;
     [key: string]: any;
   } = $props();
 
@@ -57,5 +59,5 @@
     onblur={onblur}
     {...rest}
   />
-  <label class="form-check-label" for={id} style="cursor: pointer"><slot /></label>
+  <label class="form-check-label" for={id} style="cursor: pointer">{@render children?.()}</label>
 </div>

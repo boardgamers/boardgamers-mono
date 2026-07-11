@@ -1,15 +1,20 @@
 <script lang="ts">
   import { classnames } from "@/utils";
+  import type { Snippet } from "svelte";
 
   let {
     header = "",
     class: className = "",
     onclick,
+    footer,
+    children,
     ...rest
   }: {
     header?: string;
     class?: string;
     onclick?: (e: MouseEvent) => void;
+    footer?: Snippet;
+    children?: Snippet;
     [key: string]: any;
   } = $props();
 
@@ -21,11 +26,11 @@
     <div class="card-header">{header}</div>
   {/if}
   <div class="card-body">
-    <slot />
+    {@render children?.()}
   </div>
-  {#if $$slots?.footer}
+  {#if footer}
     <div class="card-footer">
-      <slot name="footer" />
+      {@render footer?.()}
     </div>
   {/if}
 </div>

@@ -16,14 +16,13 @@
   import { minBy, sortBy } from "lodash";
   import { goto } from "$app/navigation";
 
-  const { game, replayData, gameInfo, emitter, log }: GameContext = getContext("game");
+  const context: GameContext = getContext("game");
+  const { emitter } = context;
   let stateSent = $state(false);
 
   const host = browser ? window.location.host : "";
   const resourcesLink =
-    host.startsWith("localhost") ||
-    host.endsWith("gitpod.io") ||
-    host.endsWith("boardgamers.space")
+    host.startsWith("localhost") || host.endsWith("gitpod.io") || host.endsWith("boardgamers.space")
       ? `/resources`
       : `//resources.${host.slice(host.indexOf(".") + 1)}`;
 
@@ -31,12 +30,12 @@
 
   let src = $state("");
 
-  let gameName = $derived($game?.game?.name);
-  let gameId = $derived($game?._id);
-  let prefs = $derived<GamePreferencesFront>(addDefaults($gamePreferences[gameName], $gameInfo));
+  let gameName = $derived(context.game?.game?.name);
+  let gameId = $derived(context.game?._id);
+  let prefs = $derived<GamePreferencesFront>(addDefaults($gamePreferences[gameName], context.gameInfo));
 
   function postUser() {
-    const index = $game.players.findIndex((pl) => pl._id === $user?._id);
+    const index = context.game?.players.findIndex((pl) => pl._id === $user?._id);
     const message = { type: "player", player: { index: index !== -1 ? index : undefined } };
     gameIframe?.contentWindow?.postMessage(message, "*");
   }
@@ -44,7 +43,7 @@
   function postAvatars() {
     const message = {
       type: "avatars",
-      avatars: $game.players.map((pl) => `${window.location.origin}/api/user/${pl._id}/avatar`),
+      avatars: context.game?.players.map((pl) => `${window.location.origin}/api/user/${pl._id}/avatar`) ?? [],
     };
     gameIframe?.contentWindow?.postMessage(message, "*");
   }
@@ -60,19 +59,21 @@
   });
 
   const updateSrc = () => {
-    if ($gameInfo) {
+    if (context.gameInfo) {
       const customUrl = $developerSettings
-        ? encodeURIComponent($devGameSettings[gameInfoKey($gameInfo._id.game, $gameInfo._id.version)]?.viewerUrl ?? "")
+        ? encodeURIComponent(
+            $devGameSettings[gameInfoKey(context.gameInfo._id.game, context.gameInfo._id.version)]?.viewerUrl ?? ""
+          )
         : "";
 
-      src = `${resourcesLink}/game/${gameName}/${$gameInfo._id.version}/iframe?alternate=${
+      src = `${resourcesLink}/game/${gameName}/${context.gameInfo._id.version}/iframe?alternate=${
         prefs?.preferences?.alternateUI ? 1 : 0
       }&customViewerUrl=${customUrl}`;
     }
   };
 
   $effect(() => {
-    $gameInfo;
+    context.gameInfo;
     prefs;
     updateSrc();
   });
@@ -86,7 +87,7 @@
   });
 
   const onGameUpdated = createWatcher(() => {
-    if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
+    if (context.game && $lastGameUpdate > new Date(context.game.updatedAt)) {
       postUpdatePresent();
     }
   });
@@ -97,7 +98,7 @@
   });
 
   function postGamedata() {
-    gameIframe?.contentWindow?.postMessage({ type: "state", state: $game.data }, "*");
+    gameIframe?.contentWindow?.postMessage({ type: "state", state: context.game?.data }, "*");
   }
 
   function postUpdatePresent() {
@@ -126,7 +127,7 @@
 
   emitter.on("replay:end", () => {
     gameIframe?.contentWindow?.postMessage({ type: "replay:end" }, "*");
-    $replayData = null;
+    context.replayData = null;
   });
 
   onDestroy(() => {
@@ -158,25 +159,30 @@
       } else if (event.data.type === "displayReady") {
         stateSent = true;
       } else if (event.data.type === "fetchState") {
-        await loadGame($game._id).then((g) => {
-          if (g._id === $game?._id) {
-            $game = g;
+        await loadGame(context.game?._id).then((g) => {
+          if (g._id === context.game?._id) {
+            context.game = g;
             postGamedata();
           }
         });
       } else if (event.data.type === "fetchLog") {
-        const logData = await get<LogObject>(`/gameplay/${$game._id}/log`, { params: event.data.data }).then(
+        const logData = await get<LogObject>(`/gameplay/${context.game?._id}/log`, { params: event.data.data }).then(
           (r) => r.data
         );
         postGameLog(logData);
       } else if (event.data.type === "addLog") {
-        $log = [...$log, ...event.data.data];
+        context.log = [...context.log, ...event.data.data];
       } else if (event.data.type === "replaceLog") {
-        $log = event.data.data;
+        context.log = event.data.data;
       } else if (event.data.type === "replay:info") {
-        $replayData = event.data.data;
+        context.replayData = event.data.data;
       } else if (event.data.type === "updatePreference") {
-        updatePreference($game.game.name, $game.game.version, event.data.data.name, event.data.data.value);
+        updatePreference(
+          context.game?.game.name,
+          context.game?.game.version,
+          event.data.data.name,
+          event.data.data.value
+        );
       }
     } catch (err) {
       handleError(err);
@@ -186,8 +192,8 @@
   async function addMove(move: string) {
     const { game: newGame, log } = await post(`/gameplay/${gameId}/move`, { move });
 
-    if (newGame._id === gameId && !(newGame.updatedAt < $game?.updatedAt)) {
-      $game = newGame;
+    if (newGame._id === gameId && !(newGame.updatedAt < context.game?.updatedAt)) {
+      context.game = newGame;
       postGameLog(log);
     }
   }
@@ -201,17 +207,17 @@
   let title = $state<string>();
 
   $effect(() => {
-    if ($game.status === "active") {
-      title = `${gameId} - ${gameLabel($gameInfo.label)} game`;
-      description = `Round ${$game.context?.round ?? 0}
+    if (context.game?.status === "active") {
+      title = `${gameId} - ${gameLabel(context.gameInfo?.label)} game`;
+      description = `Round ${context.game.context?.round ?? 0}
 
-${$game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
-    } else if ($game.cancelled) {
-      title = `Cancelled - ${gameLabel($gameInfo.label)} game`;
-    } else {
-      const victor = minBy($game.players, "ranking")!;
-      title = `${victor.name}'s victory! - ${gameLabel($gameInfo.label)} game`;
-      description = sortBy($game.players, "ranking")
+${context.game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
+    } else if (context.game?.cancelled) {
+      title = `Cancelled - ${gameLabel(context.gameInfo?.label)} game`;
+    } else if (context.game) {
+      const victor = minBy(context.game.players, "ranking")!;
+      title = `${victor.name}'s victory! - ${gameLabel(context.gameInfo?.label)} game`;
+      description = sortBy(context.game.players, "ranking")
         .map((player) => `${player.ranking}° ${player.name} (${player.score}pts)`)
         .join("\n");
     }
@@ -233,7 +239,7 @@ ${$game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
     title="Game UX"
     sandbox="allow-scripts allow-same-origin allow-orientation-lock"
     class:d-none={!stateSent}
-    class:fullScreen={$gameInfo.viewer?.fullScreen}
+    class:fullScreen={context.gameInfo?.viewer?.fullScreen}
     {src}
   />
 {/key}

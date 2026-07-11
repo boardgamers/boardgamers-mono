@@ -40,17 +40,18 @@
           <CardText>
             {@html marked(game.description)}
           </CardText>
-          <span
-            slot="footer"
-            class:text-accent={$gamePreferences[game._id.game]?.access?.ownership}
-            class:text-secondary={!$gamePreferences[game._id.game]?.access?.ownership}
-          >
-            {#if $gamePreferences[game._id.game]?.access?.ownership}
-              You own this game
-            {:else}
-              You do not own this game
-            {/if}
-          </span>
+          {#snippet footer()}
+            <span
+              class:text-accent={$gamePreferences[game._id.game]?.access?.ownership}
+              class:text-secondary={!$gamePreferences[game._id.game]?.access?.ownership}
+            >
+              {#if $gamePreferences[game._id.game]?.access?.ownership}
+                You own this game
+              {:else}
+                You do not own this game
+              {/if}
+            </span>
+          {/snippet}
         </Card>
       </Col>
     {/each}
