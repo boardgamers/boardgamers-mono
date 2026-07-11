@@ -16,12 +16,27 @@
   } from "@/modules/cdk";
   import gearFill from "@iconify/icons-bi/gear-fill.js";
   import power from "@iconify/icons-bi/power.js";
+  import sunFill from "@iconify/icons-bi/sun-fill.js";
+  import moonFill from "@iconify/icons-bi/moon-fill.js";
+  import circleHalf from "@iconify/icons-bi/circle-half.js";
   import { handleError } from "@/utils";
   import { account as user, login, logout } from "@/lib/account.svelte";
   import { logoClick } from "@/lib/stores.svelte";
   import { activeGames } from "@/lib/stores.svelte";
   import { browser } from "$app/environment";
+  import { currentTheme, cycleTheme, type Theme } from "@/lib/theme.svelte";
   import UserAvatar from "../User/UserAvatar.svelte";
+
+  const themeIcon: Record<Theme, any> = {
+    light: sunFill,
+    dark: moonFill,
+    system: circleHalf,
+  };
+  const themeLabel: Record<Theme, string> = {
+    light: "Light",
+    dark: "Dark",
+    system: "System",
+  };
 
   let { class: className = "", ...rest } = $props();
   let email = $state("");
@@ -96,6 +111,15 @@
   </audio>
 
   <Nav class="ms-auto" navbar>
+    <button
+      onclick={cycleTheme}
+      title={`Theme: ${themeLabel[$currentTheme]}`}
+      class="me-2 flex items-center gap-1 rounded-md px-2 py-1 text-white hover:bg-white/10"
+    >
+      <Icon icon={themeIcon[$currentTheme]} inline={true} class="text-lg" />
+      <span class="hidden sm:inline">{themeLabel[$currentTheme]}</span>
+    </button>
+
     {#if !$user}
       <!-- todo: hide on mobile -->
       <span class="text-white">Have an account?</span>

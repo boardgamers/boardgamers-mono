@@ -1,4 +1,5 @@
 import { browser } from "$app/environment";
+import { writable, type Writable } from "svelte/store";
 
 export type Theme = "light" | "dark" | "system";
 
@@ -17,26 +18,29 @@ function applyTheme(theme: Theme) {
   document.documentElement.classList.toggle("dark", isDark);
 }
 
-let currentTheme: Theme = getStoredTheme();
+// Use a store so components can subscribe with $currentTheme
+export const currentTheme: Writable<Theme> = writable(getStoredTheme());
 
 // Apply on init
-applyTheme(currentTheme);
+applyTheme(getStoredTheme());
+
+// Keep the DOM in sync whenever the store changes
+currentTheme.subscribe((theme) => {
+  applyTheme(theme);
+});
 
 // Listen for system preference changes when in "system" mode
 if (browser) {
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-    if (currentTheme === "system") {
+    let theme: Theme;
+    currentTheme.subscribe((t) => (theme = t))();
+    if (theme === "system") {
       applyTheme("system");
     }
   });
 }
 
-export function getTheme(): Theme {
-  return currentTheme;
-}
-
 export function setTheme(theme: Theme) {
-  currentTheme = theme;
   if (browser) {
     if (theme === "system") {
       localStorage.removeItem("theme");
@@ -44,9 +48,13 @@ export function setTheme(theme: Theme) {
       localStorage.setItem("theme", theme);
     }
   }
-  applyTheme(theme);
+  currentTheme.set(theme);
 }
 
-export function isDark(): boolean {
-  return currentTheme === "dark" || (currentTheme === "system" && getSystemPreference());
+export function cycleTheme() {
+  let current: Theme;
+  currentTheme.subscribe((t) => (current = t))();
+  const order: Theme[] = ["system", "light", "dark"];
+  const next = order[(order.indexOf(current) + 1) % order.length];
+  setTheme(next);
 }
