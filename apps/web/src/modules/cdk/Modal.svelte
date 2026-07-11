@@ -67,8 +67,8 @@
   let hasOpened = $state(false);
   let _isMounted = $state(false);
   let _triggeringElement = $state();
-  let _lastIsOpen = $state(isOpen);
-  let _lastHasOpened = $state(hasOpened);
+  let _lastIsOpen = $state(false);
+  let _lastHasOpened = $state(false);
   let _dialog = $state();
   let _mouseDownElement = $state();
   let _removeEscListener = $state();
@@ -211,10 +211,12 @@
         ariaLabelledby={labelledBy}
         class={classnames("modal", "show", modalClassName)}
         role="dialog"
+        tabindex="-1"
         style="display: block;"
         onintroend={onModalOpened}
         onoutroend={onModalClosed}
         onclick={handleBackdropClick}
+        onkeydown={(e) => e.key === "Escape" && toggle?.(e)}
         onmousedown={handleBackdropMouseDown}
       >
         <div class={classes} role="document" bind:this={_dialog}>

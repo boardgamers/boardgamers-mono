@@ -28,7 +28,7 @@
 
   let prefs = $derived($gamePreferences[game._id.game]);
 
-  let ownership = $state(prefs?.access?.ownership ?? false);
+  let ownership = $state(false);
 
   $effect(() => {
     ownership = prefs?.access?.ownership ?? false;
@@ -60,16 +60,16 @@
   let classes = $derived(classnames(className, "border-secondary"));
   let key = $derived(gameInfoKey(game._id.game, game._id.version));
 
-  let customViewerUrl = $state($devGameSettings[gameInfoKey(game._id.game, game._id.version)]?.viewerUrl);
+  let customViewerUrl = $state("");
 
   function updateDevSettings() {
     set($devGameSettings, `${key}.viewerUrl`, customViewerUrl);
     $devGameSettings = { ...$devGameSettings };
   }
 
-  function updateViewerUrl() {
-    $devGameSettings[key]?.viewerUrl;
-  }
+  $effect(() => {
+    customViewerUrl = $devGameSettings[key]?.viewerUrl ?? "";
+  });
 
   $effect(() => {
     customViewerUrl;

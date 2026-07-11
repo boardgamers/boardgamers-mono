@@ -17,7 +17,9 @@
     };
   } = $props();
 
-  let firstTab = $state(data.firstTab);
+  import { untrack } from "svelte";
+  // One-shot init from SSR data — firstTab is a user-toggled local state
+  let firstTab = $state(untrack(() => data.firstTab));
 
   let animating = $state(false);
   let featuredCount = $derived(data.featured?.games ?? []);

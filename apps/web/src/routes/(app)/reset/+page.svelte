@@ -26,7 +26,7 @@
 <SEO title="Reset password" />
 <div class="goldfish container">
   <h1>Reset password</h1>
-  <form method="post" accept-charset="UTF-8" role="form" class="clearfix" onsubmit={(e) => { e.preventDefault(); handleSubmit(e); }}>
+  <form method="post" accept-charset="UTF-8" class="clearfix" onsubmit={(e) => { e.preventDefault(); handleSubmit(e); }}>
     <div class="form-group">
       <label for="email">Email</label>
       <input

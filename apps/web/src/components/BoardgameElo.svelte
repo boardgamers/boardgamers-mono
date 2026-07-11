@@ -2,6 +2,7 @@
   import { loadEloRankings, type EloRanking } from "@/lib/elo-rankings.svelte";
   import { Loading, Pagination } from "@/modules/cdk";
   import { createWatcher, handleError, pluralize } from "@/utils";
+  import { untrack } from "svelte";
   import UserAvatar from "./User/UserAvatar.svelte";
 
   let {
@@ -20,9 +21,10 @@
     currentPage?: number;
   } = $props();
 
-  let count = $state(initial?.total ?? 0);
-  let boardgameElo = $state<EloRanking[]>(initial?.rankings ?? []);
-  let loading = $state(!initial);
+  // Seed from SSR data once — `initial` is a one-shot prop that never changes after mount.
+  let count = $state(untrack(() => initial?.total ?? 0));
+  let boardgameElo = $state<EloRanking[]>(untrack(() => initial?.rankings ?? []));
+  let loading = $state(untrack(() => !initial));
 
   let title = $derived(top ? "Top ranked players" : "Elo");
 
@@ -44,7 +46,8 @@
     }
   }
 
-  const reload = createWatcher(() => load(true), { immediate: !initial });
+  const hasInitial = untrack(() => initial !== undefined);
+  const reload = createWatcher(() => load(true), { immediate: !hasInitial });
 
   $effect(() => {
     boardgameId;

@@ -19,6 +19,6 @@
 <div class={classes} {...rest}>
   {@render children?.()}
   {#if toggle}
-    <button type="button" class="btn-close" aria-label="Close" onclick={toggle} />
+    <button type="button" class="btn-close" aria-label="Close" onclick={toggle}></button>
   {/if}
 </div>

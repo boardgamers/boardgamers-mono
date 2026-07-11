@@ -241,7 +241,7 @@ ${context.game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}
     class:d-none={!stateSent}
     class:fullScreen={context.gameInfo?.viewer?.fullScreen}
     {src}
-  />
+  ></iframe>
 {/key}
 
 <style>

@@ -342,8 +342,8 @@
           {#each playerOrder as playerIndex}
             <div>
               - {context.game.players[playerIndex].name}
-              <span onclick={() => moveUp(playerIndex)} role="button"><Icon icon={arrowUp} inline={true} /></span>
-              <span onclick={() => moveDown(playerIndex)} role="button"><Icon icon={arrowDown} inline={true} /></span>
+              <span onclick={() => moveUp(playerIndex)} role="button" tabindex="0" onkeydown={(e) => e.key === "Enter" && moveUp(playerIndex)}><Icon icon={arrowUp} inline={true} /></span>
+              <span onclick={() => moveDown(playerIndex)} role="button" tabindex="0" onkeydown={(e) => e.key === "Enter" && moveDown(playerIndex)}><Icon icon={arrowDown} inline={true} /></span>
             </div>
           {/each}
           <Button color="primary" onclick={start} class="mt-4">Start the game!</Button>

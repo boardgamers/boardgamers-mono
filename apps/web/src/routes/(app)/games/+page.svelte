@@ -9,8 +9,8 @@
   let firstTab = $state(true);
   let animating = $state(false);
 
-  let featuredCount = data.featured;
-  let lobbyCount = data.lobby;
+  let featuredCount = $derived(data.featured);
+  let lobbyCount = $derived(data.lobby);
 </script>
 
 <SEO title="All games" description={`${featuredCount} ongoing games and ${lobbyCount} open games.`} />

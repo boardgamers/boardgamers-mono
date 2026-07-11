@@ -40,17 +40,16 @@
 </script>
 
 {#if nav}
-  <a
-    href="#"
+  <button
+    type="button"
     class={classes}
-    role="button"
     aria-haspopup="true"
     aria-expanded={dropdown?.isOpen}
     onclick={handleClick}
     {...rest}
   >
     {@render children?.()}
-  </a>
+  </button>
 {:else if tag === "div"}
   <div class={classes} onclick={handleClick} {...rest}>
     {@render children?.()}

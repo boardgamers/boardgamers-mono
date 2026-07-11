@@ -14,7 +14,7 @@
 <SEO title="Forgotten password" />
 <div class="goldfish container">
   <h1>Forgotten password</h1>
-  <form method="post" accept-charset="UTF-8" role="form" onsubmit={(e) => { e.preventDefault(); handleSubmit(e); }}>
+  <form method="post" accept-charset="UTF-8" onsubmit={(e) => { e.preventDefault(); handleSubmit(e); }}>
     <div class="form-group">
       <label for="email">Email</label>
       <input type="email" class="form-control" id="email" placeholder="Email address" bind:value={email} required />
