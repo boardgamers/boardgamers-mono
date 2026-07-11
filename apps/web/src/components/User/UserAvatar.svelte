@@ -30,7 +30,7 @@
 
 <img
   {src}
-  srcset="{src}&size=256 256w, {src}&size=128 128w, {src}&size=64 64w"
+  srcset="{src}?size=256 256w, {src}?size=128 128w, {src}?size=64 64w"
   sizes={size}
   style="height: {size}; width: {size}"
   alt={`${username}'s avatar`}
