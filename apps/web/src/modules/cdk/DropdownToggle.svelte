@@ -47,7 +47,7 @@
       nav
         ? "px-3 py-2 rounded-md hover:bg-white/10 cursor-pointer"
         : classnames(btnBase, color ? (solid[color] ?? solid.secondary) : solid.secondary),
-      caret ? "after:content-[''] after:ml-1 after:border-t-4 after:border-r-4 after:border-b-0 after:border-l-0 after:border-current after:inline-block" : "",
+      caret ? "after:content-['▾'] after:ml-1 after:text-xs" : "",
       className
     )
   );
