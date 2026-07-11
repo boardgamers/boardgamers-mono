@@ -20,7 +20,7 @@ function withoutData(game: GameDoc): Omit<GameDoc, "data"> {
   return rest;
 }
 
-const gameIdPattern = /^[A-Za-z0-9-]+$/;
+const gameIdPattern = /^[A-Za-z0-9_-]+$/;
 
 const newGameSchema = z.object({
   game: z.object({
