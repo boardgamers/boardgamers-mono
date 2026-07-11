@@ -38,6 +38,9 @@
     success: "bg-green-600 text-white hover:bg-green-700",
     warning: "bg-yellow-500 text-white hover:bg-yellow-600",
     danger: "bg-red-600 text-white hover:bg-red-700",
+    google: "bg-social-google text-white hover:opacity-90",
+    discord: "bg-social-discord text-white hover:opacity-90",
+    facebook: "bg-social-facebook text-white hover:opacity-90",
   };
 
   const outlineClasses: Record<string, string> = {

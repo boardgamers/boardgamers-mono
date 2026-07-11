@@ -24,7 +24,7 @@
         live games? Join the
         <a href="https://discord.gg/EgqK3rD">discord</a>!
       </p>
-      <div class="mx-auto block w-fit rounded-md border border-accent px-3 pb-3">
+      <div class="mx-auto mt-6 block w-fit rounded-md border border-accent px-3 pb-3">
         <div class="py-1 text-center text-base font-normal">{data.announcement?.title}</div>
         <div class="text-left announcement-content">
           {@html marked(data.announcement?.content || "")}

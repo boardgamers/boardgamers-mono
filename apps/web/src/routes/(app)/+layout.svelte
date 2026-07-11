@@ -21,7 +21,7 @@
 
 <div class="flex min-h-screen flex-col">
   <Appbar class="mb-3" />
-  <main class="container mx-auto flex-1 px-4">
+  <main class="flex-1">
     {@render children()}
   </main>
   <Footer />

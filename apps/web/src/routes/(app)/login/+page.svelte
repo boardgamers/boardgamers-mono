@@ -18,6 +18,7 @@
 
 <SEO title="Login" />
 
+<div class="container mx-auto px-4">
 <form onsubmit={(e) => { e.preventDefault(); handleLogin(e); }}>
   <FormGroup>
     <Label for="email">Email</Label>
@@ -52,3 +53,4 @@
 <hr />
 
 <p>Need an account ? <a href="/signup">Register</a></p>
+</div>

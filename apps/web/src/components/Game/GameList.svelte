@@ -121,7 +121,7 @@
   </h3>
   <div>
     {#if games.length > 0}
-      <ul class="divide-y divide-gray-200 text-start dark:divide-gray-700 game-list">
+      <ul class="divide-y divide-gray-200 rounded-lg border border-gray-200 text-start dark:divide-gray-700 dark:border-gray-700 game-list">
         {#each games as game}
           <a
             href={`/game/${game._id}`}
@@ -147,9 +147,9 @@
                   </sup>
                 {/if}
               </div>
-              <small>
+              <small class="flex items-center gap-1 whitespace-nowrap text-xs">
                 {#if game.status !== "ended"}
-                  <Icon icon={clockHistory} inline={true} />
+                  <Icon icon={clockHistory} inline={true} class="text-[0.8em]" />
                   {playTime(game)}
                   {duration(game.options.timing.timePerGame)} + {duration(game.options.timing.timePerMove)}
                   {#if game.options.timing.scheduledStart}

@@ -18,8 +18,8 @@
 
   let classes = $derived(
     classnames(
-      "absolute mt-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50 min-w-[200px]",
-      right ? "left-0" : "right-0",
+      "absolute top-full mt-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-[100] min-w-[200px]",
+      right ? "right-0" : "left-0",
       dropdown?.isOpen ? "block" : "hidden",
       className
     )

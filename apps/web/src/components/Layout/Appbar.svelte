@@ -101,13 +101,13 @@
       <span class="text-white">Have an account?</span>
       <Dropdown nav inNavbar>
         <DropdownToggle nav caret>Login</DropdownToggle>
-        <DropdownMenu right class="min-w-[250px] p-3.5 pb-0">
+        <DropdownMenu right class="mt-4 min-w-[250px] p-3.5 pb-0">
           <div>
             Log in with
             <div class="mt-3 mb-1 flex flex-wrap justify-around">
-              <Button href="/api/account/auth/google" rel="external" class="google w-[46%] mb-2">Google</Button>
-              <Button href="/api/account/auth/discord" rel="external" class="discord w-[46%] mb-2">Discord</Button>
-              <Button href="/api/account/auth/facebook" rel="external" class="facebook w-[46%] mb-2">Facebook</Button>
+              <Button color="google" href="/api/account/auth/google" rel="external" class="w-[46%] mb-2">Google</Button>
+              <Button color="discord" href="/api/account/auth/discord" rel="external" class="w-[46%] mb-2">Discord</Button>
+              <Button color="facebook" href="/api/account/auth/facebook" rel="external" class="w-[46%] mb-2">Facebook</Button>
             </div>
             or
             <Form class="mt-3" onsubmit={handleSubmit}>
