@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { EloRanking, useEloRankings } from "@/composition/useEloRankings";
+  import { loadEloRankings, type EloRanking } from "@/lib/elo-rankings.svelte";
   import { Loading, Pagination } from "@/modules/cdk";
   import { createWatcher, handleError, pluralize } from "@/utils";
   import UserAvatar from "./User/UserAvatar.svelte";
@@ -14,8 +14,6 @@
   let count = initial?.total ?? 0;
   let boardgameElo: EloRanking[] = initial?.rankings ?? [];
   let loading = !initial;
-
-  const { loadEloRankings } = useEloRankings();
 
   $: title = top ? "Top ranked players" : "Elo";
 

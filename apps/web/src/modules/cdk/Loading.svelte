@@ -1,7 +1,11 @@
 <script lang="ts">
-  import { Spinner } from "@cdk";
+  import Spinner from "./Spinner.svelte";
 
-  export let loading: boolean;
+  let {
+    loading = false,
+  }: {
+    loading?: boolean;
+  } = $props();
 </script>
 
 {#if loading}

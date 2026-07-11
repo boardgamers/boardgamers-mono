@@ -1,22 +1,39 @@
 <script lang="ts">
   import { classnames } from "@/utils";
 
-  export let value: string = "";
-  export let checked: boolean = false;
-  export let group: string[] | null = null;
+  let {
+    checked = $bindable(false),
+    group = $bindable(null),
+    value = "",
+    class: className = "",
+    onchange,
+    onblur,
+    ...rest
+  }: {
+    checked?: boolean;
+    group?: string[] | null;
+    value?: string;
+    class?: string;
+    onchange?: (e: Event) => void;
+    onblur?: (e: Event) => void;
+    [key: string]: any;
+  } = $props();
 
-  if (value && group?.includes(value)) {
-    checked = true;
-  }
+  // If this checkbox's value is part of the group, mark it checked.
+  $effect(() => {
+    if (value && group?.includes(value)) {
+      checked = true;
+    }
+  });
 
-  let className = "";
-  export { className as class };
+  let classes = $derived(classnames(className, "form-check"));
 
   const id = "check-" + Math.random().toString().slice(2, 9);
 
-  $: classes = classnames(className, "form-check");
+  function handleChange(e: Event) {
+    const target = e.target as HTMLInputElement;
+    checked = target.checked;
 
-  const onValueChanged = () => {
     if (group && value) {
       if (checked && !group.includes(value)) {
         group = [...group, value];
@@ -24,12 +41,21 @@
         group = group.filter((x) => x !== value);
       }
     }
-  };
 
-  $: (onValueChanged(), [checked]);
+    onchange?.(e);
+  }
 </script>
 
 <div class={classes}>
-  <input type="checkbox" class="form-check-input" {id} bind:checked on:change on:blur {value} />
+  <input
+    type="checkbox"
+    class="form-check-input"
+    {id}
+    bind:checked
+    {value}
+    onchange={handleChange}
+    onblur={onblur}
+    {...rest}
+  />
   <label class="form-check-label" for={id} style="cursor: pointer"><slot /></label>
 </div>

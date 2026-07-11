@@ -27,7 +27,7 @@
     Icon,
   } from "@/modules/cdk";
   import { getContext } from "svelte";
-  import type { GameContext } from "@/routes/game/[gameId].svelte";
+  import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import { playerOrderText } from "@/data/playerOrders";
   import { useAccount } from "@/composition/useAccount";
   import { useCurrentGame } from "@/composition/useCurrentGame";

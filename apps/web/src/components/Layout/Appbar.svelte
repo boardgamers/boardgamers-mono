@@ -20,7 +20,7 @@
   import { useAccount } from "@/composition/useAccount";
   import { useLogoClicks } from "@/composition/useLogoClicks";
   import { useActiveGames } from "@/composition/useActiveGames";
-  import { browser } from "$app/env";
+  import { browser } from "$app/environment";
   import UserAvatar from "../User/UserAvatar.svelte";
 
   const { account: user, login, logout } = useAccount();
@@ -71,7 +71,7 @@
 </script>
 
 <Navbar color="primary" class={className} dark expand>
-  <a href="/" on:click={logoClick} sveltekit:prefetch class="navbar-brand">BGS</a>
+  <a href="/" on:click={logoClick} data-sveltekit-preload-data="hover" class="navbar-brand">BGS</a>
 
   {#if $user}
     <a
@@ -86,7 +86,7 @@
     </a>
   {/if}
 
-  <a href="/boardgames" title="Boardgames list" sveltekit:prefetch>
+  <a href="/boardgames" title="Boardgames list" data-sveltekit-preload-data="hover">
     <img src="/images/icons/dice.svg" height="28" width="28" alt="Boardgames list" />
   </a>
 
@@ -141,7 +141,7 @@
           <span class="d-none d-sm-inline">Admin</span>
         </NavLink>
       {/if}
-      <NavLink href={`/user/${$user.account.username}`} sveltekit:prefetch class="appbar-user-link">
+      <NavLink href={`/user/${$user.account.username}`} data-sveltekit-preload-data="hover" class="appbar-user-link">
         <UserAvatar username={$user.account.username} userId={$user._id} size="2rem" />
         <span class="d-none d-sm-inline">{$user.account.username}</span>
       </NavLink>

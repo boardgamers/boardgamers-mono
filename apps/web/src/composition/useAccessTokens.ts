@@ -1,7 +1,6 @@
+export { setAccessToken, getAccessToken, clearTokens } from "@/lib/auth.svelte";
 import { writable } from "svelte/store";
-import { defineStore } from "./defineStore";
-import type { Token } from "./useRefreshToken";
+import type { Token } from "@/lib/auth.svelte";
 
-export const useAccessTokens = defineStore(() => {
-  return writable<Record<string, Token>>({});
-});
+// This is now just a client-side cache, no longer per-session.
+export const accessTokens = writable<Record<string, Token>>({});

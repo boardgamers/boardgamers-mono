@@ -1,11 +1,8 @@
 <script lang="ts">
-  import { browser } from "$app/env";
+  import { browser } from "$app/environment";
   import { debounce } from "lodash";
-  import { useRest } from "@/composition/useRest";
-  import { useAccount } from "@/composition/useAccount";
-
-  const { get, post } = useRest();
-  const { account } = useAccount();
+  import { get, post } from "@/lib/api";
+  import { account } from "@/lib/stores.svelte";
 
   let showNotes = browser ? localStorage.getItem("show-notes") !== "false" : true;
 

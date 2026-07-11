@@ -46,7 +46,7 @@
         class="list-group-item-action list-group-item"
         href={gameRoute(game._id.game)}
         class:active={boardgameId === game._id.game}
-        sveltekit:prefetch
+        data-sveltekit-preload-data="hover"
         on:click={handleClick}
         style="font-weight: 600"
       >

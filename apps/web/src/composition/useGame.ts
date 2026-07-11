@@ -1,17 +1,7 @@
-import type { IGame, PlayerInfoFront } from "@bgs/models";
-import { defineStore } from "./defineStore";
-import { useRest } from "./useRest";
+export { loadGame, loadGamePlayers } from "@/lib/game.svelte";
 
-export const useGame = defineStore(() => {
-  const { get } = useRest();
+import { loadGame, loadGamePlayers } from "@/lib/game.svelte";
 
-  function loadGame(gameId: string) {
-    return get<IGame>(`/gameplay/${gameId}`);
-  }
-
-  function loadGamePlayers(gameId: string): Promise<PlayerInfoFront[]> {
-    return get(`/game/${gameId}/players`);
-  }
-
+export function useGame() {
   return { loadGame, loadGamePlayers };
-});
+}

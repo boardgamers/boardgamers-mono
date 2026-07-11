@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { browser } from "$app/env";
+  import { browser } from "$app/environment";
   import { keyBy } from "lodash";
   import { elapsedSeconds } from "@bgs/utils";
   import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
@@ -9,7 +9,7 @@
   import { Button, Icon, Badge } from "@/modules/cdk";
   import { getContext, onDestroy } from "svelte";
   import { GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings } from "./GameSidebar";
-  import type { GameContext } from "@/routes/game/[gameId].svelte";
+  import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
   import { useRest } from "@/composition/useRest";
   import { useAccount } from "@/composition/useAccount";

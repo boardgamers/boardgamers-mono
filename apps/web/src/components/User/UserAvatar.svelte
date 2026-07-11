@@ -1,11 +1,8 @@
 <script lang="ts">
-  import { browser } from "$app/env";
+  import { browser } from "$app/environment";
 
-  import { useImageCache } from "@/composition/useImageCache";
-  import { useRest } from "@/composition/useRest";
-
-  const { getAccessToken } = useRest();
-  const { imageCache } = useImageCache();
+  import { imageCache } from "@/lib/stores.svelte";
+  import { getAccessToken } from "@/lib/api";
 
   export let userId: string | null = null;
   export let username: string;

@@ -1,29 +1,40 @@
 <script lang="ts">
   import { classnames } from "@/utils";
-  import { Pagination, PaginationItem, PaginationLink } from "sveltestrap";
+  import PaginationItem from "./PaginationItem.svelte";
+  import PaginationLink from "./PaginationLink.svelte";
 
-  export let align: "right" | "left" | "center" | undefined = undefined;
-  export let title = "Pagination";
-  export let count: number;
-  export let perPage: number;
-  export let currentPage = 0;
-  export let baseUrl: string | undefined = undefined;
-  let className = "";
-  export { className as class };
-  let classes: string;
+  let {
+    align = undefined,
+    title = "Pagination",
+    count = 0,
+    perPage = 10,
+    currentPage = $bindable(0),
+    baseUrl = undefined,
+    class: className = "",
+  }: {
+    align?: "right" | "left" | "center";
+    title?: string;
+    count?: number;
+    perPage?: number;
+    currentPage?: number;
+    baseUrl?: string;
+    class?: string;
+  } = $props();
 
   // Should always be odd-numbered
   const pageItems = 5;
 
-  $: classes = classnames(
-    align ? ["d-flex", `justify-content-${{ right: "end", center: "center", left: "start" }[align]}`] : "",
-    className
+  let classes = $derived(
+    classnames(
+      "pagination",
+      align ? ["d-flex", `justify-content-${{ right: "end", center: "center", left: "start" }[align]}`] : "",
+      className
+    )
   );
 
-  let totalPages: number;
-  $: totalPages = Math.max(1, Math.ceil(count / perPage));
+  let totalPages = $derived(Math.max(1, Math.ceil(count / perPage)));
 
-  function pageFor(position: number) {
+  function pageFor(position: number): number | string {
     const pos = Math.min(
       Math.max(position, currentPage + (position - (pageItems - 1) / 2)),
       totalPages + position - pageItems
@@ -41,12 +52,12 @@
   }
 </script>
 
-<Pagination arialabel={title} class={classes}>
+<ul class={classes} aria-label={title}>
   <PaginationItem disabled={currentPage === 0}>
     <PaginationLink
       first
       href={baseUrl ? `${baseUrl}/1` : "#first"}
-      on:click={(e) => {
+      onclick={(e) => {
         e.preventDefault();
         currentPage = 0;
       }}
@@ -56,7 +67,7 @@
     <PaginationLink
       previous
       href={baseUrl ? `${baseUrl}/${currentPage}` : "#previous"}
-      on:click={(e) => {
+      onclick={(e) => {
         e.preventDefault();
         currentPage -= 1;
       }}
@@ -64,10 +75,13 @@
   </PaginationItem>
   {#each Array(pageItems) as _, position (pageFor(position) + "_" + position)}
     {#if !(pageFor(position) < 0)}
-      <PaginationItem disabled={typeof pageFor(position) !== "number"} active={pageFor(position) === currentPage}>
+      <PaginationItem
+        disabled={typeof pageFor(position) !== "number"}
+        active={pageFor(position) === currentPage}
+      >
         <PaginationLink
           href={baseUrl ? `${baseUrl}/${+pageFor(position) + 1}` : "#"}
-          on:click={!baseUrl
+          onclick={!baseUrl
             ? (e) => {
                 e.preventDefault();
                 currentPage = +pageFor(position);
@@ -84,7 +98,7 @@
     <PaginationLink
       next
       href={baseUrl ? `${baseUrl}/${currentPage + 2}` : "#next"}
-      on:click={(e) => {
+      onclick={(e) => {
         e.preventDefault();
         currentPage += 1;
       }}
@@ -94,10 +108,10 @@
     <PaginationLink
       last
       href={baseUrl ? `${baseUrl}/${totalPages}` : "#last"}
-      on:click={(e) => {
+      onclick={(e) => {
         e.preventDefault();
         currentPage = totalPages - 1;
       }}
     />
   </PaginationItem>
-</Pagination>
+</ul>

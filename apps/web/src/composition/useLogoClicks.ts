@@ -1,10 +1,12 @@
+import { logoClick } from "@/lib/stores.svelte";
 import { writable } from "svelte/store";
-import { defineStore } from "./defineStore";
 
-export const useLogoClicks = defineStore(() => {
-  const logoClicks = writable(0);
+// Backward compat: old code used useLogoClicks().logoClicks as a store.
+export const logoClicks = writable(0);
+
+export function useLogoClicks() {
   return {
     logoClicks,
-    logoClick: () => logoClicks.update((val) => val + 1),
+    logoClick,
   };
-});
+}

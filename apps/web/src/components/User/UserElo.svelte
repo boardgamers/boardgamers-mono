@@ -1,15 +1,12 @@
 <script lang="ts">
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useRest } from "@/composition/useRest";
+  import { gameInfo, loadGameInfo } from "@/lib/game-info.svelte";
+  import { get } from "@/lib/api";
   import { handleError, pluralize } from "@/utils";
   import type { GamePreferences } from "@bgs/models";
   import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
   import { Icon } from "@cdk";
 
   export let userId: string;
-
-  const { get } = useRest();
-  const { gameInfo, loadGameInfo } = useGameInfo();
 
   let gamePreferences: GamePreferences[] = [];
 

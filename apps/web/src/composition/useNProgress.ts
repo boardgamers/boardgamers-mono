@@ -1,26 +1,25 @@
-import { browser } from "$app/env";
+import { browser } from "$app/environment";
 import { getStores } from "$app/stores";
-import { defineStore } from "./defineStore";
 
-export const useNProgress = defineStore(async () => {
-  if (!browser) {
-    return;
-  }
+export function initNProgress() {
+  if (!browser) return;
 
   const { navigating } = getStores();
 
-  const NProgress = await import("nprogress");
+  import("nprogress").then((NProgress) => {
+    NProgress.configure({ minimum: 0.16 });
 
-  NProgress.configure({
-    // Full list: https://github.com/rstacruz/nprogress#configuration
-    minimum: 0.16,
+    navigating.subscribe((val) => {
+      if (val) {
+        NProgress.start();
+      } else {
+        NProgress.done();
+      }
+    });
   });
+}
 
-  navigating.subscribe((val) => {
-    if (val) {
-      NProgress.start();
-    } else {
-      NProgress.done();
-    }
-  });
-});
+// Backward compat: old code called useNProgress() which was a defineStore that ran once.
+export function useNProgress() {
+  initNProgress();
+}

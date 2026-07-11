@@ -3,11 +3,8 @@
   import PreferenceInput from "./PreferenceInput.svelte";
   import type { GameInfo } from "@bgs/models";
   import type { Primitive } from "type-fest";
-  import { useGamePreferences } from "@/composition/useGamePreferences";
-  import { useAccount } from "@/composition/useAccount";
-
-  const { gamePreferences, addDefaults, updatePreference, loadGamePreferences } = useGamePreferences();
-  const { accountId } = useAccount();
+  import { gamePreferences, addDefaults, updatePreference, loadGamePreferences } from "@/lib/game-preferences.svelte";
+  import { account } from "@/lib/stores.svelte";
 
   let gameInfo: GameInfo;
   export { gameInfo as game };
@@ -32,7 +29,7 @@
 
   const loadPrefs = createWatcher(() => loadGamePreferences(boardgameId));
 
-  $: (loadPrefs(), [$accountId]);
+  $: (loadPrefs(), [$account?._id]);
 </script>
 
 {#each preferenceItems.filter((item) => item.type === "checkbox" && item.category == null) as item}

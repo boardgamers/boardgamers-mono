@@ -1,12 +1,9 @@
 <script lang="ts">
   import type { PlayerInfoFront } from "@bgs/models";
   import { classnames, handleError } from "@/utils";
-  import { useAccount } from "@/composition/useAccount";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { browser } from "$app/env";
-
-  const { account } = useAccount();
-  const { loadGameInfo, gameInfo, gameInfos } = useGameInfo();
+  import { account } from "@/lib/stores.svelte";
+  import { loadGameInfo, gameInfo, gameInfos } from "@/lib/game-info.svelte";
+  import { browser } from "$app/environment";
 
   export let player: PlayerInfoFront;
   export let showVp = true;

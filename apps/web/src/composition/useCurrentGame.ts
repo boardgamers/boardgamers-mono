@@ -1,18 +1,7 @@
-import { browser } from "$app/env";
-import { writable } from "svelte/store";
-import { defineStore } from "./defineStore";
+export { currentGameId, lastGameUpdate, playerStatus } from "@/lib/stores.svelte";
 
-export const useCurrentGame = defineStore(() => {
-  const currentGameId = writable<string | null>(null);
-  const lastGameUpdate = writable<Date>(new Date(0));
-  const playerStatus = writable<Array<{ _id: string; status: "online" | "offline" | "away" }>>([]);
+import { currentGameId, lastGameUpdate, playerStatus } from "@/lib/stores.svelte";
 
-  if (browser) {
-    currentGameId.subscribe(() => {
-      lastGameUpdate.set(new Date(0));
-      playerStatus.set([]);
-    });
-  }
-
+export function useCurrentGame() {
   return { currentGameId, lastGameUpdate, playerStatus };
-});
+}

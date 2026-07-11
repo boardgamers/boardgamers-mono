@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { GamePreferences } from "@bgs/models";
   import { Loading } from "@/modules/cdk";
-  import type { GameContext } from "@/routes/game/[gameId].svelte";
+  import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import { createWatcher, handleError } from "@/utils";
   import { getContext, onDestroy, onMount } from "svelte";
   import { useGame } from "@/composition/useGame";
@@ -11,13 +11,12 @@
   import { useAccount } from "@/composition/useAccount";
   import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
   import { useCurrentGame } from "@/composition/useCurrentGame";
-  import { useSession } from "@/composition/useSession";
+  import { browser } from "$app/environment";
   import SEO from "../SEO.svelte";
   import { gameLabel } from "@/utils/game-label";
   import { minBy, sortBy } from "lodash";
   import { goto } from "$app/navigation";
 
-  const { session } = useSession();
   const { loadGame } = useGame();
   const { account: user } = useAccount();
   const { get, post } = useRest();
@@ -29,12 +28,13 @@
   const { game, replayData, gameInfo, emitter, log }: GameContext = getContext("game");
   let stateSent = false;
 
+  const host = browser ? window.location.host : "";
   const resourcesLink =
-    session.host.startsWith("localhost") ||
-    session.host.endsWith("gitpod.io") ||
-    session.host.endsWith("boardgamers.space")
+    host.startsWith("localhost") ||
+    host.endsWith("gitpod.io") ||
+    host.endsWith("boardgamers.space")
       ? `/resources`
-      : `//resources.${session.host.slice(session.host.indexOf(".") + 1)}`;
+      : `//resources.${host.slice(host.indexOf(".") + 1)}`;
 
   let gameIframe: HTMLIFrameElement;
 

@@ -1,20 +1,11 @@
 <script lang="ts">
   import chat from "@iconify/icons-bi/chat.js";
-  import { useAccount } from "@/composition/useAccount";
-  import { useCurrentGame } from "@/composition/useCurrentGame";
-  import { useCurrentRoom } from "@/composition/useCurrentRoom";
-  import { useRest } from "@/composition/useRest";
-  import { useSidebarOpen } from "@/composition/useSidebarOpen";
+  import { account, currentGameId, sidebarOpen, chatMessages } from "@/lib/stores.svelte";
+  import { get, post } from "@/lib/api";
   import { Modal, ModalHeader, Icon, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
   import { dateFromObjectId, dateTime, handleError } from "@/utils";
   import { fly } from "svelte/transition";
   import UserAvatar from "./User/UserAvatar.svelte";
-
-  const { get, post } = useRest();
-  const { account } = useAccount();
-  const { currentGameId } = useCurrentGame();
-  const { sidebarOpen } = useSidebarOpen();
-  const { chatMessages } = useCurrentRoom();
 
   let isOpen = false;
   let toggle = () => {
@@ -40,7 +31,7 @@
     }).catch(handleError);
   };
 
-  let messagesContainer: ModalBody;
+  let messagesContainer: HTMLDivElement;
 
   function onMessagesChanged() {
     setTimeout(() => {

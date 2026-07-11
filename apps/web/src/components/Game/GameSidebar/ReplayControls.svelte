@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Button, Icon } from "@/modules/cdk";
-  import type { GameContext } from "@/pages/Game.svelte";
+  import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import skipBackwardFill from "@iconify/icons-bi/skip-backward-fill.js";
   import skipForwardFill from "@iconify/icons-bi/skip-forward-fill.js";
   import skipStartFill from "@iconify/icons-bi/skip-start-fill.js";
@@ -8,10 +8,9 @@
   import stopFill from "@iconify/icons-bi/stop-fill.js";
 
   import { getContext } from "svelte";
-  import { useSidebarOpen } from "@/composition/useSidebarOpen";
+  import { sidebarOpen } from "@/lib/stores.svelte";
   import Portal from "@/modules/portal/Portal.svelte";
 
-  const { sidebarOpen } = useSidebarOpen();
   const { gameInfo, replayData, emitter } = getContext("game") as GameContext;
 
   function startReplay() {

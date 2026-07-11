@@ -1,13 +1,18 @@
-<!-- Same as sveltestrap but with div instead of p -->
+<!-- card-text rendered as a div instead of a p -->
 <script lang="ts">
   import { classnames } from "@/utils";
 
-  let className = "";
-  export { className as class };
+  let {
+    class: className = "",
+    ...rest
+  }: {
+    class?: string;
+    [key: string]: any;
+  } = $props();
 
-  $: classes = classnames(className, "card-text");
+  let classes = $derived(classnames(className, "card-text"));
 </script>
 
-<div {...$$restProps} class={classes}>
+<div class={classes} {...rest}>
   <slot />
 </div>

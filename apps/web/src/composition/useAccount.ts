@@ -1,75 +1,35 @@
-import { browser } from "$app/env";
-import { handleError, skipOnce } from "@/utils";
-import type { IUser } from "@bgs/models";
-import { derived, writable } from "svelte/store";
-import { defineStore } from "./defineStore";
-import { useAccessTokens } from "./useAccessTokens";
-import { useRefreshToken } from "./useRefreshToken";
-import { useRest } from "./useRest";
+export {
+  account,
+  setAccount,
+  activeGames,
+  addActiveGame,
+  removeActiveGame,
+  currentGameId,
+  lastGameUpdate,
+  playerStatus,
+  room,
+  chatMessages,
+  sidebarOpen,
+  imageCache,
+  logoClick,
+  developerSettings,
+} from "@/lib/stores.svelte";
+export { loadAccount, login, logout, setAuthData, type AuthData } from "@/lib/account.svelte";
 
-export type AuthData = {
-  user: IUser;
-  accessToken: { code: string; expiresAt: number };
-  refreshToken: { code: string; expiresAt: number };
-};
+import { account } from "@/lib/stores.svelte";
+import { loadAccount, login, logout, setAuthData } from "@/lib/account.svelte";
+import { derived } from "svelte/store";
 
-export const useAccount = defineStore(() => {
-  const { get, setAccessToken, post } = useRest();
+const accountId = derived(account, ($account) => $account?._id || null);
 
-  let loaded = false;
-
-  const loadAccount = async (force = false) => {
-    if (loaded && !force) {
-      return;
-    }
-    return get<IUser | null>("/account").then(
-      (val) => {
-        loaded = true;
-        account.set(val);
-      },
-      (err) => (err.status !== 401 && err.status !== 404 ? handleError(err) : void 0)
-    );
-  };
-
-  const account = writable<IUser | null>(null);
-  const accountId = derived(account, ($account) => $account?._id || null);
-
-  const { refreshToken } = useRefreshToken();
-  const accessTokens = useAccessTokens();
-
-  if (browser) {
-    account.subscribe(
-      skipOnce<[IUser | null]>((newVal) => {
-        if (!newVal) {
-          refreshToken.set(null);
-          accessTokens.set({});
-        }
-      })
-    );
-  }
-
-  function setAuthData(data: AuthData) {
-    account.set(data.user);
-    refreshToken.set(data.refreshToken);
-    setAccessToken(data.accessToken);
-  }
-
-  function login(email: string, password: string) {
-    return post<AuthData>("/account/login", { email, password }).then(setAuthData);
-  }
-
-  async function logout() {
-    await post("/account/signout");
-
-    account.set(null);
-  }
-
+// Backward compat: components still call useAccount() to get the store handles
+export function useAccount() {
   return {
-    loadAccount,
     account,
     accountId,
     setAuthData,
     login,
     logout,
+    loadAccount,
   };
-});
+}

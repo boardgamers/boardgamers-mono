@@ -1,19 +1,7 @@
-import { browser } from "$app/env";
-import type { ChatMessage } from "@bgs/models";
-import { writable } from "svelte/store";
-import { defineStore } from "./defineStore";
-import { useCurrentGame } from "./useCurrentGame";
+export { room, chatMessages } from "@/lib/stores.svelte";
 
-export const useCurrentRoom = defineStore(() => {
-  const room = writable<string | null>(null);
-  const chatMessages = writable<ChatMessage[]>([]);
+import { room, chatMessages } from "@/lib/stores.svelte";
 
-  if (browser) {
-    const { currentGameId } = useCurrentGame();
-
-    currentGameId.subscribe((val) => room.set(val));
-    room.subscribe(() => chatMessages.set([]));
-  }
-
+export function useCurrentRoom() {
   return { room, chatMessages };
-});
+}

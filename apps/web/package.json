@@ -4,11 +4,11 @@
   "type": "module",
   "scripts": {
     "start": "node build/index.js",
-    "dev": "svelte-kit dev",
-    "build": "svelte-kit build",
-    "preview": "svelte-kit preview",
-    "check": "svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-check --tsconfig ./tsconfig.json --watch",
+    "dev": "vite dev --port 8612",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "lint": "prettier --ignore-path .gitignore --check . && eslint --ignore-path .gitignore .",
     "format": "prettier --ignore-path .gitignore --write .",
     "test": "vitest run"
@@ -16,7 +16,7 @@
   "dependencies": {
     "@bgs/utils": "workspace:*",
     "@iconify/icons-bi": "^1.1.12",
-    "@iconify/svelte": "^2.1.0",
+    "@iconify/svelte": "^5.2.2",
     "awesome-notifications": "^3.1.1",
     "bootstrap": "^5.1.0",
     "dompurify": "^2.3.1",
@@ -25,14 +25,14 @@
     "marked": "^3.0.2",
     "nprogress": "^0.2.0",
     "remove-markdown": "^0.3.0",
-    "svelte": "^3.44.1",
-    "sveltestrap": "^5.6.2",
+    "svelte": "^5.56.4",
     "type-fest": "^2.1.0"
   },
   "devDependencies": {
     "@bgs/models": "workspace:*",
-    "@sveltejs/adapter-node": "1.0.0-next.58",
-    "@sveltejs/kit": "1.0.0-next.216",
+    "@sveltejs/adapter-node": "^5.5.7",
+    "@sveltejs/kit": "^2.69.2",
+    "@sveltejs/vite-plugin-svelte": "^6.2.1",
     "@types/cookie": "^0.4.1",
     "@types/dompurify": "^2.2.1",
     "@types/lodash": "^4.14.168",
@@ -40,7 +40,6 @@
     "@types/nprogress": "^0.2.0",
     "@types/remove-markdown": "^0.3.1",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
-    "@sveltejs/vite-plugin-svelte": "1.0.0-next.49",
     "@typescript-eslint/parser": "^8.32.1",
     "dotenv": "^8.2.0",
     "eslint": "^9.27.0",
@@ -52,11 +51,10 @@
     "postcss-nested": "^5.0.3",
     "prettier": "^3.5.3",
     "prettier-plugin-svelte": "^3.5.0",
-    "svelte": "^3.34.0",
-    "svelte-check": "^2.2.6",
-    "svelte-preprocess": "^4.9.4",
+    "svelte-check": "^4.7.2",
     "tslib": "^2.3.1",
-    "typescript": "~5.4.5"
+    "typescript": "~5.9.3",
+    "vite": "^6.3.5"
   },
   "lint-staged": {
     "*.ts": "prettier --write",

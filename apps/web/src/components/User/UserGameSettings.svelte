@@ -7,15 +7,10 @@
   import Checkbox from "@/modules/cdk/Checkbox.svelte";
   import Loading from "@/modules/cdk/Loading.svelte";
   import PreferencesChooser from "./PreferencesChooser.svelte";
-  import { useRest } from "@/composition/useRest";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
-  import { useGamePreferences } from "@/composition/useGamePreferences";
-
-  const { post } = useRest();
-  const { gameInfoKey } = useGameInfo();
-  const { developerSettings, devGameSettings } = useDeveloperSettings();
-  const { gamePreferences, loadGamePreferences } = useGamePreferences();
+  import { post } from "@/lib/api";
+  import { gameInfoKey } from "@/lib/game-info.svelte";
+  import { developerSettings, devGameSettings } from "@/composition/useDeveloperSettings";
+  import { gamePreferences, loadGamePreferences } from "@/lib/game-preferences.svelte";
 
   export let title = "";
   export let game: GameInfo;

@@ -1,10 +1,7 @@
-import { writable } from "svelte/store";
-import { defineStore } from "./defineStore";
+export { imageCache } from "@/lib/stores.svelte";
 
-export const useImageCache = defineStore(() => {
-  const imageCache = writable(Date.now());
+import { imageCache } from "@/lib/stores.svelte";
 
-  return {
-    imageCache,
-  };
-});
+export function useImageCache() {
+  return { imageCache };
+}

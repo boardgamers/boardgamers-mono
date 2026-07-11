@@ -1,14 +1,11 @@
 <script lang="ts">
   import { Icon, Checkbox, Label, Input, FormGroup } from "@/modules/cdk";
   import { handleError, oneLineMarked } from "@/utils";
-  import type { GameContext } from "@/pages/Game.svelte";
+  import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
   import { getContext } from "svelte";
-  import { useAccount } from "@/composition/useAccount";
-  import { useRest } from "@/composition/useRest";
-
-  const { account } = useAccount();
-  const { post, get } = useRest();
+  import { account } from "@/lib/stores.svelte";
+  import { post, get } from "@/lib/api";
 
   const { game, gameInfo }: GameContext = getContext("game");
   let settings: Record<string, unknown> | null = null;

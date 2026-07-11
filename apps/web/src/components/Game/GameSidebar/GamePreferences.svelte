@@ -1,7 +1,7 @@
 <script lang="ts">
   import PreferencesChooser from "@/components/User/PreferencesChooser.svelte";
   import { Icon } from "@/modules/cdk";
-  import type { GameContext } from "@/pages/Game.svelte";
+  import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import { getContext } from "svelte";
   import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
 

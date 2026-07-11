@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { browser } from "$app/env";
-  import type { GameContext } from "@/pages/Game.svelte";
+  import { browser } from "$app/environment";
+  import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import { oneLineMarked } from "@/utils";
   import DOMPurify from "dompurify";
   import { getContext } from "svelte";

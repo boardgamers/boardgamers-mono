@@ -1,23 +1,31 @@
 <script lang="ts">
-  import { Card, CardHeader, CardBody, CardFooter } from "sveltestrap";
+  import { classnames } from "@/utils";
 
-  export let header = "";
+  let {
+    header = "",
+    class: className = "",
+    onclick,
+    ...rest
+  }: {
+    header?: string;
+    class?: string;
+    onclick?: (e: MouseEvent) => void;
+    [key: string]: any;
+  } = $props();
+
+  let classes = $derived(classnames("card", className));
 </script>
 
-<Card {...$$props} on:click>
-  {#if header || $$slots.header}
-    <CardHeader>
-      <slot name="header">
-        {header}
-      </slot>
-    </CardHeader>
+<div class={classes} {onclick} {...rest}>
+  {#if header}
+    <div class="card-header">{header}</div>
   {/if}
-  <CardBody>
+  <div class="card-body">
     <slot />
-  </CardBody>
-  {#if $$slots.footer}
-    <CardFooter>
+  </div>
+  {#if $$slots?.footer}
+    <div class="card-footer">
       <slot name="footer" />
-    </CardFooter>
+    </div>
   {/if}
-</Card>
+</div>
