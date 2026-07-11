@@ -76,10 +76,6 @@
     customViewerUrl;
     updateDevSettings();
   });
-  $effect(() => {
-    key;
-    updateViewerUrl();
-  });
 </script>
 
 <Card class={classes} header={title || game.label}>
