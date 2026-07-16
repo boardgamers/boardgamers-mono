@@ -13,7 +13,7 @@
 
 {#if showPreferences && gameInfo}
   <div class="mt-3">
-    <h3>
+    <h3 class="flex items-center gap-1">
       Preferences
       <a href={`/page/${gameInfo._id.game}/preferences`}>
         <IconInfoCircleFill class="text-xs" />

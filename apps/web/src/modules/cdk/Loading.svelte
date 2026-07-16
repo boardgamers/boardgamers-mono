@@ -12,7 +12,7 @@
 </script>
 
 {#if loading}
-  <div class="text-center"><Spinner color="secondary" /></div>
+  <div class="flex min-h-[50vh] items-center justify-center"><Spinner color="secondary" /></div>
 {:else}
   {@render children?.()}
 {/if}

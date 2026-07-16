@@ -4,7 +4,6 @@
   import { elapsedSeconds } from "@bgs/utils";
   import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
   import type { PlayerInfoFront } from "@bgs/models";
-  import Portal from "@/modules/portal";
   import { Button, Badge } from "@/modules/cdk";
   import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
   import { getContext, onDestroy } from "svelte";
@@ -104,9 +103,8 @@
 </script>
 
 <div id="floating-controls"></div>
-<Portal target="#sidebar">
-  {#if game && gameInfo}
-    <h3 class="mt-3">Players</h3>
+{#if game && gameInfo}
+  <h3 class="mt-3">Players</h3>
     {#each game.players as player}
       <div class={"mb-1 flex items-center player-row"} class:active={isCurrentPlayer(player._id)}>
         <PlayerGameAvatar game={game.game.name} {userId} {player} status={status(player._id)} class="me-2" />
@@ -200,52 +198,23 @@
     {#if gameInfo.options.some((x) => !!game.game.options?.[x.name])}
       <div class="mt-3">
         <h3>Setup options</h3>
-        {#each gameInfo.options.filter((x) => !!game.game.options[x.name]) as pref}
-          <Badge color="secondary" class="me-1">
-            {#if pref.type === "checkbox"}
-              {@html oneLineMarked(pref.label)}
-            {:else if pref.type === "select" && pref.items && pref.items.some((x) => x.name === game.game.options[pref.name])}
-              {@html oneLineMarked(
-                pref.label + ": " + pref.items.find((x) => x.name === game.game.options[pref.name])?.label
-              )}
-            {/if}
-          </Badge>
-        {/each}
+        <div class="flex flex-wrap gap-1">
+          {#each gameInfo.options.filter((x) => !!game.game.options[x.name]) as pref}
+            <Badge color="secondary">
+              {#if pref.type === "checkbox"}
+                {@html oneLineMarked(pref.label)}
+              {:else if pref.type === "select" && pref.items && pref.items.some((x) => x.name === game.game.options[pref.name])}
+                {@html oneLineMarked(
+                  pref.label + ": " + pref.items.find((x) => x.name === game.game.options[pref.name])?.label
+                )}
+              {/if}
+            </Badge>
+          {/each}
+        </div>
       </div>
     {/if}
-    <div class="my-3"></div>
-    {#if $devGameSettings}
-      <a target="_blank" rel="external" href={`/api/gameplay/${game._id}`}>Download JSON</a>
-    {/if}
+  <div class="my-3"></div>
+  {#if $devGameSettings}
+    <a target="_blank" rel="external" href={`/api/gameplay/${game._id}`}>Download JSON</a>
   {/if}
-</Portal>
-
-<style global>
-  .your-turn {
-    color: #25ee25;
-  }
-
-  #sidebar .player-row.active .player-name {
-    color: #25ee25 !important;
-  }
-
-  #sidebar .player-name.dropped {
-    text-decoration: line-through;
-  }
-
-  #sidebar .player-avatar {
-    width: 1.8em;
-    height: 1.8em;
-  }
-
-  #sidebar .player-avatar.active {
-    box-shadow: 0 0 3px #25ee25;
-  }
-
-  #sidebar .player-avatar .vp {
-    z-index: 100;
-    width: 18px;
-    border-radius: 5px;
-    font-size: 0.6em;
-  }
-</style>
+{/if}

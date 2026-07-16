@@ -69,7 +69,8 @@
     <div class="ms-2" style="font-size: smaller">
       (<a
         href={showNotes ? "#hideNotes" : "#showNotes"}
-        style="font-weight: unset !important"
+        class="no-underline"
+        style="font-weight: unset"
         onclick={(e) => {
           e.preventDefault();
           toggleNotes(e);
