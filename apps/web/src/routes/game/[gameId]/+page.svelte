@@ -18,10 +18,11 @@
   });
 
   // $state works across components via context — children read/write the same reactive object.
+  // Initialize synchronously from SSR data so child components render on first pass.
   const context: GameContext = $state({
-    game: null as GameFront | null,
-    players: [] as PlayerInfoFront[],
-    gameInfo: null as GameInfoFront | null,
+    game: data.game,
+    players: data.players,
+    gameInfo: data.gameInfo,
     replayData: null as { start: number; end: number; current: number } | null,
     emitter: new EventEmitter(),
     log: [] as string[],
@@ -29,6 +30,7 @@
 
   setContext<GameContext>("game", context);
 
+  // Keep context in sync when data changes (e.g. navigation to a different game)
   $effect(() => {
     context.game = game;
     context.players = players;

@@ -3,8 +3,10 @@ import type { PageLoad } from "./$types";
 import { loadGame, loadGamePlayers } from "@/lib/game.svelte";
 import { gameInfo, loadGameInfo } from "@/lib/game-info.svelte";
 import { loadGamePreferences } from "@/lib/game-preferences.svelte";
+import { setApiContext } from "@/lib/api";
 
-export const load: PageLoad = async ({ params }) => {
+export const load: PageLoad = async ({ params, fetch }) => {
+  setApiContext((prev) => ({ ...prev, fetch }));
   const gameId = params.gameId;
 
   let game, players;

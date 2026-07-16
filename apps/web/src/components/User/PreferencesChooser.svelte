@@ -19,9 +19,9 @@
     gameInfo?.viewer?.alternate?.url
       ? [
           { name: "alternateUI", label: "Use alternate UI", type: "checkbox", items: null, category: null },
-          ...gameInfo.preferences,
+          ...(gameInfo.preferences ?? []),
         ]
-      : gameInfo.preferences,
+      : (gameInfo?.preferences ?? []),
   );
 
   const handleChange = (key: string, val: Primitive) => {
