@@ -61,7 +61,7 @@
     }
   }
 
-  let classes = $derived(classnames(className, "border-gray-300 dark:border-gray-600"));
+  let classes = $derived(classnames(className, "border-gray-400 dark:border-gray-600"));
 
   let key = $derived(gameInfoKey(game._id.game, game._id.version));
 

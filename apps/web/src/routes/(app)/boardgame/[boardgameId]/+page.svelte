@@ -58,7 +58,7 @@
 
   <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
     <div>
-      <Card class="border-gray-300 h-full dark:border-gray-600" header={rules ? "Rules" : "Description"}>
+      <Card class="border-gray-400 h-full dark:border-gray-600" header={rules ? "Rules" : "Description"}>
         {@html marked(rules ? boardgame.rules : boardgame.description)}
         {#snippet footer()}
           <a href={rules ? "#description" : "#rules"} onclick={(e) => { e.preventDefault(); rules = !rules; }}>
