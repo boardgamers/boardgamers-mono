@@ -54,7 +54,7 @@
 />
 
 <div class="container mx-auto px-4">
-  <h1>{boardgame.label}</h1>
+  <h1 class="mb-4">{boardgame.label}</h1>
 
   <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
     <div>
