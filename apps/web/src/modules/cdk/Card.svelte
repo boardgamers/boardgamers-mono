@@ -1,23 +1,38 @@
 <script lang="ts">
-  import { Card, CardHeader, CardBody, CardFooter } from "sveltestrap";
+  import { classnames } from "@/utils";
+  import type { Snippet } from "svelte";
 
-  export let header = "";
+  let {
+    header = "",
+    class: className = "",
+    onclick,
+    footer,
+    children,
+    ...rest
+  }: {
+    header?: string;
+    class?: string;
+    onclick?: (e: MouseEvent) => void;
+    footer?: Snippet;
+    children?: Snippet;
+    [key: string]: any;
+  } = $props();
+
+  let classes = $derived(
+    classnames("flex flex-col rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800", className)
+  );
 </script>
 
-<Card {...$$props} on:click>
-  {#if header || $$slots.header}
-    <CardHeader>
-      <slot name="header">
-        {header}
-      </slot>
-    </CardHeader>
+<div class={classes} {onclick} {...rest}>
+  {#if header}
+    <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 font-semibold text-center">{header}</div>
   {/if}
-  <CardBody>
-    <slot />
-  </CardBody>
-  {#if $$slots.footer}
-    <CardFooter>
-      <slot name="footer" />
-    </CardFooter>
+  <div class="grow p-4">
+    {@render children?.()}
+  </div>
+  {#if footer}
+    <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-700 text-center">
+      {@render footer?.()}
+    </div>
   {/if}
-</Card>
+</div>

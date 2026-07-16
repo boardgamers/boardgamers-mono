@@ -1,21 +1,18 @@
 <script lang="ts">
-  import { browser } from "$app/env";
+  import { browser } from "$app/environment";
   import { debounce } from "lodash";
-  import { useRest } from "@/composition/useRest";
-  import { useAccount } from "@/composition/useAccount";
+  import { get, post } from "@/lib/api";
+  import { account } from "@/lib/stores.svelte";
 
-  const { get, post } = useRest();
-  const { account } = useAccount();
+  let showNotes = $state(browser ? localStorage.getItem("show-notes") !== "false" : true);
 
-  let showNotes = browser ? localStorage.getItem("show-notes") !== "false" : true;
-
-  let notes = "";
-  let lastReceivedNotes: string | null = null;
-  let notesLoaded = false;
+  let notes = $state("");
+  let lastReceivedNotes = $state<string | null>(null);
+  let notesLoaded = $state(false);
   let textArea: HTMLTextAreaElement;
 
-  let userId: string | undefined;
-  export let gameId: string;
+  let userId = $derived($account?._id);
+  let { gameId }: { gameId: string } = $props();
 
   async function loadNotes() {
     if (userId) {
@@ -41,8 +38,21 @@
     { leading: false, trailing: true }
   );
 
-  $: userId = $account?._id;
-  $: (loadNotes(), [userId, gameId]);
+  // Initial load: run synchronously during component init so SSR has data.
+  loadNotes();
+
+  let firstRun = true;
+
+  $effect(() => {
+    userId;
+    gameId;
+    // Skip the first run — initial load already happened synchronously above.
+    if (firstRun) {
+      firstRun = false;
+      return;
+    }
+    loadNotes();
+  });
 
   function updateTextareaSize() {
     if (!textArea) {
@@ -53,23 +63,28 @@
   }
 </script>
 
-<div class="mt-75">
-  <div class="d-flex align-items-baseline">
+<div class="mt-3">
+  <div class="flex items-baseline">
     <h3 class="mb-0">Notes</h3>
     <div class="ms-2" style="font-size: smaller">
       (<a
         href={showNotes ? "#hideNotes" : "#showNotes"}
-        style="font-weight: unset !important"
-        on:click|preventDefault={toggleNotes}>{showNotes ? "hide" : "show"}</a
+        class="no-underline"
+        style="font-weight: unset"
+        onclick={(e) => {
+          e.preventDefault();
+          toggleNotes(e);
+        }}>{showNotes ? "hide" : "show"}</a
       >)
     </div>
   </div>
 
   <textarea
-    class={"mt-2 form-control" + (!showNotes ? " d-none" : "")}
+    class={"mt-2 w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800" +
+      (!showNotes ? " hidden" : "")}
     bind:value={notes}
     bind:this={textArea}
-    on:input={() => {
+    oninput={() => {
       updateNotesDebounce();
       updateTextareaSize();
     }}
@@ -78,5 +93,5 @@
     placeholder="You can make plans here..."
     disabled={!$account || !notesLoaded}
     style="overflow: hidden; resize: none"
-  />
+  ></textarea>
 </div>

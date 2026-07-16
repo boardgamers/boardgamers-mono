@@ -1,44 +1,77 @@
 <script lang="ts">
   import { classnames, browserEvent } from "@/utils";
-  import { onDestroy, onMount, afterUpdate } from "svelte";
+  import { onDestroy, onMount } from "svelte";
+  import type { Snippet } from "svelte";
   import { fade as fadeTransition } from "svelte/transition";
 
   function noop() {}
 
-  let className = "";
-  export { className as class };
-  export let isOpen = false;
-  export let autoFocus = true;
-  export let centered = false;
-  export let backdropDuration = 0;
-  export let scrollable = false;
-  export let size = "";
-  export let toggle: () => void;
-  export let labelledBy = "";
-  export let backdrop = true;
-  export let onEnter = undefined;
-  export let onExit = undefined;
-  export let onOpened = noop;
-  export let onClosed = noop;
-  export let wrapClassName = "";
-  export let modalClassName = "";
-  export let backdropClassName = "";
-  export let contentClassName = "";
-  export let fade = true;
-  export let zIndex = 1050;
-  export let unmountOnClose = true;
-  export let returnFocusAfterClose = true;
-  export let transitionType = fadeTransition;
-  export let transitionOptions = {};
+  let {
+    class: className = "",
+    isOpen = false,
+    autoFocus = true,
+    centered = false,
+    backdropDuration = 0,
+    scrollable = false,
+    size = "",
+    toggle = undefined,
+    labelledBy = "",
+    backdrop = true,
+    onEnter = undefined,
+    onExit = undefined,
+    onOpened = noop,
+    onClosed = noop,
+    wrapClassName = "",
+    modalClassName = "",
+    backdropClassName = "",
+    contentClassName = "",
+    fade = true,
+    zIndex = 1050,
+    unmountOnClose = true,
+    returnFocusAfterClose = true,
+    transitionType = fadeTransition,
+    transitionOptions = {},
+    external,
+    children,
+    ...rest
+  }: {
+    class?: string;
+    isOpen?: boolean;
+    autoFocus?: boolean;
+    centered?: boolean;
+    backdropDuration?: number;
+    scrollable?: boolean;
+    size?: string;
+    toggle?: (e?: any) => void;
+    labelledBy?: string;
+    backdrop?: boolean;
+    onEnter?: () => void;
+    onExit?: () => void;
+    onOpened?: () => void;
+    onClosed?: () => void;
+    wrapClassName?: string;
+    modalClassName?: string;
+    backdropClassName?: string;
+    contentClassName?: string;
+    fade?: boolean;
+    zIndex?: number;
+    unmountOnClose?: boolean;
+    returnFocusAfterClose?: boolean;
+    transitionType?: any;
+    transitionOptions?: Record<string, any>;
+    external?: Snippet;
+    children?: Snippet;
+    [key: string]: any;
+  } = $props();
 
-  let hasOpened = false;
-  let _isMounted = false;
-  let _triggeringElement;
-  let _lastIsOpen = isOpen;
-  let _lastHasOpened = hasOpened;
-  let _dialog;
-  let _mouseDownElement;
-  let _removeEscListener;
+  let hasOpened = $state(false);
+  let _isMounted = $state(false);
+  let _triggeringElement = $state();
+  let _lastIsOpen = $state(false);
+  let _lastHasOpened = $state(false);
+  let _dialog = $state();
+  let _mouseDownElement = $state();
+  let _removeEscListener = $state();
 
   onMount(() => {
     if (isOpen) {
@@ -66,7 +99,7 @@
     }
   });
 
-  afterUpdate(() => {
+  $effect(() => {
     if (isOpen && !_lastIsOpen) {
       init();
       hasOpened = true;
@@ -159,41 +192,51 @@
     _mouseDownElement = e.target;
   }
 
-  const dialogBaseClass = "modal-dialog";
+  const sizeClass: Record<string, string> = {
+    sm: "max-w-sm",
+    lg: "max-w-2xl",
+    xl: "max-w-4xl",
+  };
 
-  $: classes = classnames(dialogBaseClass, className, {
-    [`modal-${size}`]: size,
-    [`${dialogBaseClass}-centered`]: centered,
-    [`${dialogBaseClass}-scrollable`]: scrollable,
-  });
+  let classes = $derived(
+    classnames(
+      "bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full mx-4",
+      size ? sizeClass[size] ?? "max-w-lg" : "max-w-lg",
+      centered ? "m-auto" : "mt-auto mb-auto",
+      scrollable ? "overflow-hidden" : "",
+      className
+    )
+  );
 </script>
 
 {#if _isMounted}
-  <div {...$$restProps} class={wrapClassName} tabindex="-1" style="position: relative; z-index: {zIndex}">
+  <div {...rest} class={wrapClassName} tabindex="-1" style="position: relative; z-index: {zIndex}">
     {#if isOpen}
       <div
         transition:transitionType={transitionOptions}
         ariaLabelledby={labelledBy}
-        class={classnames("modal", "show", modalClassName)}
+        class={classnames("fixed inset-0 z-50 flex items-center justify-center p-4", modalClassName)}
         role="dialog"
+        tabindex="-1"
         style="display: block;"
-        on:introend={onModalOpened}
-        on:outroend={onModalClosed}
-        on:click={handleBackdropClick}
-        on:mousedown={handleBackdropMouseDown}
+        onintroend={onModalOpened}
+        onoutroend={onModalClosed}
+        onclick={handleBackdropClick}
+        onkeydown={(e) => e.key === "Escape" && toggle?.(e)}
+        onmousedown={handleBackdropMouseDown}
       >
         <div class={classes} role="document" bind:this={_dialog}>
-          <div class={classnames("modal-content", contentClassName)}>
-            <slot name="external" />
-            <slot />
+          <div class={classnames("flex flex-col", contentClassName)}>
+            {@render external?.()}
+            {@render children?.()}
           </div>
         </div>
       </div>
       {#if backdrop}
         <div
           transition:fadeTransition={{ duration: fade && backdropDuration }}
-          class={classnames("modal-backdrop", "show", backdropClassName)}
-        />
+          class={classnames("fixed inset-0 bg-black/50", backdropClassName)}
+        ></div>
       {/if}
     {/if}
   </div>

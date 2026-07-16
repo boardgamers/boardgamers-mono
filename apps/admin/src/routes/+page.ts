@@ -1,17 +1,8 @@
 import { api, ApiError } from "$lib/api.ts";
+import type { UserFront, GameFront, Announcement } from "@bgs/models";
 
-interface RecentUser {
-	_id: string;
-	account: { username: string };
-	createdAt: string;
-}
-interface RecentGame {
-	_id: string;
-	game: { name: string };
-	status: string;
-	lastMove: string;
-	createdAt: string;
-}
+type RecentUser = Pick<UserFront, "_id" | "account" | "createdAt">;
+type RecentGame = Pick<GameFront, "_id" | "game" | "status" | "lastMove" | "createdAt">;
 export interface ServerInfo {
 	disk: { free: number; size: number };
 	nbUsers: number;
@@ -22,7 +13,7 @@ export interface ServerInfo {
 	queue: Record<string, number>;
 	recentUsers: RecentUser[];
 	recentGames: RecentGame[];
-	announcement: { title: string; content: string };
+	announcement: Announcement;
 	cron: boolean;
 }
 interface LokiInstantResult {

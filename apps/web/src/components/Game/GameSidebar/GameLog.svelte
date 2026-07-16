@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { browser } from "$app/env";
-  import type { GameContext } from "@/pages/Game.svelte";
+  import { browser } from "$app/environment";
+  import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import { oneLineMarked } from "@/utils";
   import DOMPurify from "dompurify";
   import { getContext } from "svelte";
 
   const { log }: GameContext = getContext("game");
 
-  let showLog = browser && !!localStorage.getItem("show-log");
-  let logElement: HTMLDivElement;
+  let showLog = $state(browser && !!localStorage.getItem("show-log"));
+  let logElement = $state<HTMLDivElement>();
 
   // Scroll to top of log
   function onLogChanged() {
@@ -19,7 +19,11 @@
     });
   }
 
-  $: (onLogChanged(), [$log, showLog]);
+  $effect(() => {
+    log;
+    showLog;
+    onLogChanged();
+  });
 
   function toggleShowLog() {
     showLog = !showLog;
@@ -31,21 +35,24 @@
   }
 </script>
 
-{#if $log.length > 0}
-  <div class="mt-75 thin-scrollbar">
-    <div class="d-flex align-items-baseline">
+{#if log.length > 0}
+  <div class="mt-3 thin-scrollbar">
+    <div class="flex items-baseline">
       <h3 class="mb-0">Log</h3>
       <div class="ms-2" style="font-size: smaller">
         (<a
           href={showLog ? "#hideLog" : "#showLog"}
           style="font-weight: unset !important"
-          on:click|preventDefault={toggleShowLog}>{showLog ? "hide" : "show"}</a
+          onclick={(e) => {
+            e.preventDefault();
+            toggleShowLog(e);
+          }}>{showLog ? "hide" : "show"}</a
         >)
       </div>
     </div>
     {#if showLog}
       <div class="log mt-2" bind:this={logElement}>
-        {#each $log as item}
+        {#each log as item}
           <div>
             {@html logToHtml(item)}
           </div>
@@ -67,5 +74,9 @@
     border: 1px solid rgb(51, 51, 51);
     border-radius: 8px;
     padding-right: 12px;
+  }
+
+  .dark .log {
+    border-color: rgb(75, 85, 99);
   }
 </style>

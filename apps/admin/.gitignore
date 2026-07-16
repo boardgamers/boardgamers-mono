@@ -4,3 +4,4 @@ dist
 dist-new
 dist-old
 node_modules
+.fast-check

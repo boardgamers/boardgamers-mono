@@ -16,11 +16,11 @@
     "lint-check": "oxlint",
     "fmt": "oxfmt",
     "fmt-check": "oxfmt --check",
-    "tsc": "tsgo --noEmit"
+    "tsc": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "@typescript/native-preview": "7.0.0-dev.20260307.1",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
     "oxfmt": "^0.36.0",
     "oxlint": "^1.51.0",
     "oxlint-tsgolint": "^0.16.0"

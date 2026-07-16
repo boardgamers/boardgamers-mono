@@ -1,24 +1,24 @@
 <script lang="ts">
   import PreferencesChooser from "@/components/User/PreferencesChooser.svelte";
-  import { Icon } from "@/modules/cdk";
-  import type { GameContext } from "@/pages/Game.svelte";
+  import IconInfoCircleFill from "@/components/icons/IconInfoCircleFill.svelte";
+  import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import { getContext } from "svelte";
-  import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
 
   const { gameInfo } = getContext("game") as GameContext;
 
-  $: showPreferences =
-    !!$gameInfo?.viewer?.alternate?.url || $gameInfo?.preferences?.some((item) => item.type !== "hidden") > 0;
+  let showPreferences = $derived(
+    !!gameInfo?.viewer?.alternate?.url || (gameInfo?.preferences?.some((item) => item.type !== "hidden") ?? false)
+  );
 </script>
 
-{#if showPreferences}
-  <div class="mt-75">
-    <h3>
+{#if showPreferences && gameInfo}
+  <div class="mt-3">
+    <h3 class="flex items-center gap-1">
       Preferences
-      <a href={`/page/${$gameInfo._id.game}/preferences`}>
-        <Icon icon={infoCircleFill} class="small" />
+      <a href={`/page/${gameInfo._id.game}/preferences`}>
+        <IconInfoCircleFill class="text-xs" />
       </a>
     </h3>
-    <PreferencesChooser game={$gameInfo} />
+    <PreferencesChooser {gameInfo} />
   </div>
 {/if}

@@ -1,19 +1,20 @@
 <script lang="ts">
   import { page } from "$app/stores";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useLogoClicks } from "@/composition/useLogoClicks";
-  import { ListGroup } from "@/modules/cdk";
+  import { loadGameInfos, gameInfos, latestGameInfos } from "@/lib/game-info.svelte";
+  import { logoClick } from "@/lib/stores.svelte";
   import { handleError } from "@/utils";
-  import type { GameInfo } from "@bgs/models";
-
-  const { loadGameInfos, gameInfos, latestGameInfos } = useGameInfo();
-  const { logoClick } = useLogoClicks();
+  import type { GameInfoFront } from "@bgs/models";
 
   loadGameInfos().catch(handleError);
 
-  let games: GameInfo[];
-  $: ((games = latestGameInfos() as GameInfo[]), [$gameInfos]);
-  $: boardgameId = $page!.params.boardgameId;
+  // Read synchronously for SSR — the +layout.ts load function already called
+  // `await loadGameInfos()` which populated the store before this component renders.
+  let games = $state<GameInfoFront[]>(latestGameInfos() as GameInfoFront[]);
+  $effect(() => {
+    $gameInfos;
+    games = latestGameInfos() as GameInfoFront[];
+  });
+  let boardgameId = $derived($page!.params.boardgameId);
 
   function gameRoute(gameId: string) {
     if (!boardgameId) {
@@ -39,19 +40,19 @@
   }
 </script>
 
-<ListGroup flush class="d-none d-lg-block ms-n3" style="width: 250px">
+<ul class="hidden w-[250px] -ml-4 divide-y divide-gray-200 dark:divide-gray-700 lg:block">
   {#key boardgameId}
     {#each games as game}
       <a
-        class="list-group-item-action list-group-item"
+        class="block px-4 py-2 font-semibold no-underline text-inherit hover:bg-gray-100 dark:hover:bg-gray-800"
         href={gameRoute(game._id.game)}
-        class:active={boardgameId === game._id.game}
-        sveltekit:prefetch
-        on:click={handleClick}
-        style="font-weight: 600"
+        class:bg-primary={boardgameId === game._id.game}
+        class:text-white={boardgameId === game._id.game}
+        data-sveltekit-preload-data="hover"
+        onclick={handleClick}
       >
         {game.label}
       </a>
     {/each}
   {/key}
-</ListGroup>
+</ul>

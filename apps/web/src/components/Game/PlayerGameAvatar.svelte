@@ -1,35 +1,41 @@
 <script lang="ts">
   import type { PlayerInfoFront } from "@bgs/models";
   import { classnames, handleError } from "@/utils";
-  import { useAccount } from "@/composition/useAccount";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { browser } from "$app/env";
+  import { account } from "@/lib/stores.svelte";
+  import { loadGameInfo, gameInfo, gameInfos } from "@/lib/game-info.svelte";
+  import { browser } from "$app/environment";
 
-  const { account } = useAccount();
-  const { loadGameInfo, gameInfo, gameInfos } = useGameInfo();
+  let {
+    player,
+    showVp = true,
+    game,
+    status = "",
+    class: className = "",
+    userId,
+    isCurrent,
+  }: {
+    player: PlayerInfoFront;
+    showVp?: boolean;
+    game: string;
+    status?: string;
+    class?: string;
+    userId?: string | undefined;
+    isCurrent?: boolean | undefined;
+  } = $props();
 
-  export let player: PlayerInfoFront;
-  export let showVp = true;
-  export let game: string;
+  $effect(() => {
+    browser && game && !gameInfo(game) && loadGameInfo(game).catch(handleError);
+  });
 
-  export let status = "";
-  let className = "";
-  export { className as class };
+  let highlightedPlayerId = $derived(userId ?? $account?._id);
 
-  export let userId: string | undefined;
-  export let isCurrent: boolean | undefined;
-
-  $: browser && game && !gameInfo(game) && loadGameInfo(game).catch(handleError);
-
-  let style: string;
-
-  $: highlightedPlayerId = userId ?? $account?._id;
-  $: ((style = `background-image: url('${
-    player.faction && gameInfo(game)?.factions?.avatars
-      ? `/images/factions/icons/${player.faction}.svg`
-      : `/api/user/${player._id}/avatar?d=${$account?.account.avatar}`
-  }')`),
-    [$gameInfos]);
+  let style = $derived(
+    `background-image: url('${
+      player.faction && gameInfo(game)?.factions?.avatars
+        ? `/images/factions/icons/${player.faction}.svg`
+        : `/api/user/${player._id}/avatar?d=${$account?.account.avatar}`
+    }')`
+  );
 </script>
 
 <div
@@ -44,7 +50,7 @@
   {/if}
 </div>
 
-<style lang="postcss">
+<style>
   .player-avatar {
     height: 2rem;
     width: 2rem;
@@ -57,40 +63,38 @@
     align-items: center;
     justify-content: space-around;
     font-weight: bold;
+  }
 
-    &.currentTurn {
-      .vp {
-        background-color: var(--accent);
-      }
-    }
+  .player-avatar.currentTurn .vp {
+    background-color: var(--accent);
+  }
 
-    .vp {
-      position: absolute;
-      right: -5px;
-      bottom: -5px;
-      font-size: 0.7rem;
-      border-radius: 5px;
-      color: white;
-      background-color: #838383;
-      width: 20px;
-      font-weight: normal;
-      text-align: center;
+  .player-avatar .vp {
+    position: absolute;
+    right: -5px;
+    bottom: -5px;
+    font-size: 0.7rem;
+    border-radius: 5px;
+    color: white;
+    background-color: #838383;
+    width: 20px;
+    font-weight: normal;
+    text-align: center;
+  }
 
-      &.online {
-        background-color: #25ee25;
-      }
+  .player-avatar .vp.online {
+    background-color: #25ee25;
+  }
 
-      &.away {
-        background-color: orange;
-      }
-    }
+  .player-avatar .vp.away {
+    background-color: orange;
+  }
 
-    &.current {
-      border: 2px solid #333;
+  .player-avatar.current {
+    border: 2px solid #333;
+  }
 
-      .vp {
-        background-color: #6673bc;
-      }
-    }
+  .player-avatar.current .vp {
+    background-color: #6673bc;
   }
 </style>

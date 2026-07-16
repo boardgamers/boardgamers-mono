@@ -1,50 +1,55 @@
 <script lang="ts">
-  import { browser } from "$app/env";
+  let {
+    userId = null,
+    username,
+    art = "pixel-art",
+    size = "4rem",
+    onclick,
+    onerror,
+    onload,
+    ...rest
+  }: {
+    userId?: string | null;
+    username: string;
+    art?: string;
+    size?: string;
+    onclick?: (e: MouseEvent) => void;
+    onerror?: (e: Event) => void;
+    onload?: (e: Event) => void;
+    [key: string]: any;
+  } = $props();
 
-  import { useImageCache } from "@/composition/useImageCache";
-  import { useRest } from "@/composition/useRest";
-
-  const { getAccessToken } = useRest();
-  const { imageCache } = useImageCache();
-
-  export let userId: string | null = null;
-  export let username: string;
-  export let art = "pixel-art";
-
-  export let size = "4rem";
-
-  let src: string;
-  let token: string;
-
-  if (browser) {
-    getAccessToken("/api/account/avatar").then((res) => (token = res?.code!));
-  }
-
-  $: src =
-    userId === "me"
-      ? `/api/account/avatar?d=${$imageCache}&token=${encodeURIComponent(token)}`
-      : userId
-        ? `/api/user/${userId}/avatar?d=${$imageCache}`
-        : `https://avatars.dicebear.com/api/${art}/${username}.svg?r=0`;
+  // Single URL for all avatars. The backend handles:
+  //  - uploaded avatars (with ETag for conditional requests → 304 if unchanged)
+  //  - dicebear generated avatars (cached for 24h, deterministic by username+style)
+  // No cache busters, no tokens, no updatedAt — the browser handles caching.
+  let src = $derived(
+    userId ? `/api/user/${userId}/avatar` : `https://avatars.dicebear.com/api/${art}/${username}.svg?r=0`
+  );
 </script>
 
 <img
   {src}
-  srcset="{src}&size=256 256w, {src}&size=128 128w, {src}&size=64 64w"
+  srcset="{src}?size=256 256w, {src}?size=128 128w, {src}?size=64 64w"
   sizes={size}
-  style="height: {size}; width: ${size}"
+  style="height: {size}; width: {size}"
   alt={`${username}'s avatar`}
   title={username}
   class="user-avatar"
-  {...$$restProps}
-  on:click
-  on:error
-  on:load
+  {onclick}
+  {onerror}
+  {onload}
+  {...rest}
 />
 
 <style>
   .user-avatar {
     border-radius: 50%;
     border: var(--avatar-border);
+    background-color: rgb(229 231 235); /* gray-200 */
+  }
+
+  .dark .user-avatar {
+    background-color: rgb(31 41 55); /* gray-800 */
   }
 </style>

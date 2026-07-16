@@ -1,4 +1,5 @@
 import { api, ApiError } from "$lib/api.ts";
+import type { ApiErrorFront } from "@bgs/models";
 
 interface LokiInstantResult {
 	status: string;
@@ -15,13 +16,7 @@ interface LokiRangeResult {
 	};
 }
 
-export interface ApiErrorEntry {
-	_id: string;
-	error: { name: string; message: string };
-	request: { method: string; url: string; status?: number; id?: string };
-	user?: string | null;
-	createdAt?: string;
-}
+export type ApiErrorEntry = ApiErrorFront;
 
 export interface DbErrorsResult {
 	errors: ApiErrorEntry[];

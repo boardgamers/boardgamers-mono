@@ -1,36 +1,48 @@
 <script lang="ts">
-  import { Icon, Checkbox, Label, Input, FormGroup } from "@/modules/cdk";
+  import { Checkbox, Label, Input, FormGroup } from "@/modules/cdk";
+  import IconInfoCircleFill from "@/components/icons/IconInfoCircleFill.svelte";
   import { handleError, oneLineMarked } from "@/utils";
-  import type { GameContext } from "@/pages/Game.svelte";
-  import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
+  import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import { getContext } from "svelte";
-  import { useAccount } from "@/composition/useAccount";
-  import { useRest } from "@/composition/useRest";
-
-  const { account } = useAccount();
-  const { post, get } = useRest();
+  import { account } from "@/lib/stores.svelte";
+  import { post, get } from "@/lib/api";
 
   const { game, gameInfo }: GameContext = getContext("game");
-  let settings: Record<string, unknown> | null = null;
+  let settings = $state<Record<string, unknown> | null>(null);
 
-  $: userId = $account?._id;
-  $: playerUser = $game?.players.find((pl) => pl._id === userId);
-  $: gameStatus = $game?.status;
-  $: gameId = $game?._id;
+  let userId = $derived($account?._id);
+  let playerUser = $derived(game?.players.find((pl) => pl._id === userId));
+  let gameStatus = $derived(game?.status);
+  let gameId = $derived(game?._id);
 
   async function loadSettings() {
-    if (gameStatus !== "active" || !playerUser || !$gameInfo) {
+    if (gameStatus !== "active" || !playerUser || !gameInfo) {
       settings = null;
       return;
     }
-    if ($gameInfo.settings?.length > 0) {
+    if (gameInfo.settings?.length > 0) {
       settings = (await get<typeof settings>(`/gameplay/${gameId}/settings`).catch(handleError)) ?? null;
     } else {
       settings = null;
     }
   }
 
-  $: (loadSettings(), [gameStatus, userId, $gameInfo]);
+  // Initial load: run synchronously during component init so SSR has data.
+  loadSettings();
+
+  let firstRun = true;
+
+  $effect(() => {
+    gameStatus;
+    userId;
+    gameInfo;
+    // Skip the first run — initial load already happened synchronously above.
+    if (firstRun) {
+      firstRun = false;
+      return;
+    }
+    loadSettings();
+  });
 
   async function postSettings() {
     if (!$account) {
@@ -40,25 +52,25 @@
   }
 </script>
 
-{#if $gameInfo?.settings?.length > 0 && $game.status === "active" && settings && playerUser}
-  <div class="mt-75">
+{#if game && gameInfo?.settings?.length > 0 && game.status === "active" && settings && playerUser}
+  <div class="mt-3">
     <h3>
       Settings
-      <a href={`/page/${$game.game.name}/settings`}>
-        <Icon icon={infoCircleFill} class="small" />
+      <a href={`/page/${game.game.name}/settings`}>
+        <IconInfoCircleFill class="text-xs" />
       </a>
     </h3>
     <!-- Code very similar to PreferencesChooser -->
-    {#each $gameInfo.settings as setting}
+    {#each gameInfo.settings as setting}
       {#if !setting.faction || setting.faction === playerUser.faction}
         {#if setting.type === "checkbox"}
-          <Checkbox bind:checked={settings[setting.name]} on:change={postSettings}>
+          <Checkbox bind:checked={settings[setting.name]} onchange={postSettings}>
             {setting.label}
           </Checkbox>
         {:else if setting.type === "select"}
-          <FormGroup class="d-flex align-items-center mt-2">
-            <Label class="nowrap me-2 mb-0">{@html oneLineMarked(setting.label)}</Label>
-            <Input type="select" bind:value={settings[setting.name]} on:change={postSettings} bsSize="sm">
+          <FormGroup class="flex items-center mt-2">
+            <Label class="whitespace-nowrap me-2 mb-0">{@html oneLineMarked(setting.label)}</Label>
+            <Input type="select" bind:value={settings[setting.name]} onchange={postSettings} bsSize="sm">
               {#each setting.items as item}
                 <option value={item.name}>{item.label}</option>
               {/each}

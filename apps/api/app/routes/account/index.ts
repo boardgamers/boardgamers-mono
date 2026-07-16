@@ -31,21 +31,6 @@ router.get("/", loggedIn, (ctx) => {
   ctx.body = ctx.state.user;
 });
 
-router.get("/avatar", loggedIn, async (ctx) => {
-  const item = await colls.images.findOne(
-    { ref: ctx.state.user!._id, refType: "User", key: "avatar" },
-    { projection: { "images.256x256": 1 } },
-  );
-  if (!item) {
-    return;
-  }
-
-  const img = item.images["256x256"];
-  ctx.set("Content-Type", img.mime);
-  ctx.set("Cache-Control", "no-cache");
-  ctx.body = img.raw;
-});
-
 router.get("/active-games", async (ctx) => {
   if (!ctx.state.user?._id) {
     ctx.body = [];

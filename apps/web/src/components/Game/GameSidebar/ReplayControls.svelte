@@ -1,18 +1,18 @@
 <script lang="ts">
-  import { Button, Icon } from "@/modules/cdk";
-  import type { GameContext } from "@/pages/Game.svelte";
-  import skipBackwardFill from "@iconify/icons-bi/skip-backward-fill.js";
-  import skipForwardFill from "@iconify/icons-bi/skip-forward-fill.js";
-  import skipStartFill from "@iconify/icons-bi/skip-start-fill.js";
-  import skipEndFill from "@iconify/icons-bi/skip-end-fill.js";
-  import stopFill from "@iconify/icons-bi/stop-fill.js";
+  import { Button } from "@/modules/cdk";
+  import IconSkipBackwardFill from "@/components/icons/IconSkipBackwardFill.svelte";
+  import IconSkipForwardFill from "@/components/icons/IconSkipForwardFill.svelte";
+  import IconSkipStartFill from "@/components/icons/IconSkipStartFill.svelte";
+  import IconSkipEndFill from "@/components/icons/IconSkipEndFill.svelte";
+  import IconStopFill from "@/components/icons/IconStopFill.svelte";
+  import type { GameContext } from "@/routes/game/[gameId]/game-context";
 
   import { getContext } from "svelte";
-  import { useSidebarOpen } from "@/composition/useSidebarOpen";
+  import { sidebarOpen } from "@/lib/stores.svelte";
   import Portal from "@/modules/portal/Portal.svelte";
 
-  const { sidebarOpen } = useSidebarOpen();
-  const { gameInfo, replayData, emitter } = getContext("game") as GameContext;
+  const context = getContext("game") as GameContext;
+  const { emitter } = context;
 
   function startReplay() {
     emitter.emit("replay:start");
@@ -27,82 +27,95 @@
   }
 </script>
 
-{#if $gameInfo?.viewer?.replayable}
-  <div class="mt-75">
-    {#if !$replayData}
-      <Button color="accent" size="sm" on:click={startReplay}>Replay</Button>
+{#if context.gameInfo?.viewer?.replayable}
+  <div class="mt-3">
+    {#if !context.replayData}
+      <Button color="accent" size="sm" onclick={startReplay}>Replay</Button>
     {:else}
-      <div class="d-flex align-items-center">
-        <Button size="sm" class="me-1" on:click={() => replayTo($replayData.start)}>
-          <Icon icon={skipBackwardFill} style="margin-bottom: 0.25em" />
+      <div class="flex items-center">
+        <Button size="sm" class="me-1" onclick={() => replayTo(context.replayData!.start)}>
+          <IconSkipBackwardFill style="margin-bottom: 0.25em" />
         </Button>
-        <Button size="sm" class="mx-1" on:click={() => replayTo(Math.max($replayData.start, $replayData.current - 1))}>
-          <Icon icon={skipStartFill} style="margin-bottom: 0.25em" />
+        <Button
+          size="sm"
+          class="mx-1"
+          onclick={() => replayTo(Math.max(context.replayData!.start, context.replayData!.current - 1))}
+        >
+          <IconSkipStartFill style="margin-bottom: 0.25em" />
         </Button>
         <span
           class="mx-1 text-center"
           style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap; flex-grow: 1"
         >
-          {$replayData.current} / {$replayData.end}
+          {context.replayData!.current} / {context.replayData!.end}
         </span>
-        <Button size="sm" class="mx-1" on:click={() => replayTo(Math.min($replayData.end, $replayData.current + 1))}>
-          <Icon icon={skipEndFill} style="margin-bottom: 0.25em" />
+        <Button
+          size="sm"
+          class="mx-1"
+          onclick={() => replayTo(Math.min(context.replayData!.end, context.replayData!.current + 1))}
+        >
+          <IconSkipEndFill style="margin-bottom: 0.25em" />
         </Button>
-        <Button size="sm" class="mx-1" on:click={() => replayTo($replayData.end)}>
-          <Icon icon={skipForwardFill} style="margin-bottom: 0.25em" />
+        <Button size="sm" class="mx-1" onclick={() => replayTo(context.replayData!.end)}>
+          <IconSkipForwardFill style="margin-bottom: 0.25em" />
         </Button>
-        <Button size="sm" class="ms-1" on:click={endReplay}>
-          <Icon icon={stopFill} style="margin-bottom: 0.25em; color: orange" />
+        <Button size="sm" class="ms-1" onclick={endReplay}>
+          <IconStopFill style="margin-bottom: 0.25em; color: orange" />
         </Button>
       </div>
     {/if}
   </div>
 {/if}
-{#if $replayData && !$sidebarOpen}
+{#if context.replayData && !$sidebarOpen}
   <Portal target="#floating-controls">
     <div
       style="position: fixed; bottom: 0; left: 0; right: calc(var(--fab-right) + 8em); pointer-events: none"
-      class="d-flex pb-3 text-light"
+      class="flex pb-3 text-white"
     >
-      <Button size="sm" class="me-1 ms-auto" on:click={() => replayTo($replayData.start)} style="pointer-events: all">
-        <Icon icon={skipBackwardFill} style="margin-bottom: 0.25em" />
+      <Button
+        size="sm"
+        class="me-1 ms-auto"
+        onclick={() => replayTo(context.replayData!.start)}
+        style="pointer-events: all"
+      >
+        <IconSkipBackwardFill style="margin-bottom: 0.25em" />
       </Button>
       <Button
         size="sm"
         class="mx-1"
-        on:click={() => replayTo(Math.max($replayData.start, $replayData.current - 1))}
+        onclick={() => replayTo(Math.max(context.replayData!.start, context.replayData!.current - 1))}
         style="pointer-events: all"
       >
-        <Icon icon={skipStartFill} style="margin-bottom: 0.25em" />
+        <IconSkipStartFill style="margin-bottom: 0.25em" />
       </Button>
       <span
         class="mx-1 px-1 text-center"
         style="
-        text-overflow: ellipsis; 
-        display: inline-flex; 
-        align-items: center; 
-        overflow: hidden; 
-        white-space: nowrap; 
-        background-color: var(--bs-secondary); 
+        text-overflow: ellipsis;
+        display: inline-flex;
+        align-items: center;
+        overflow: hidden;
+        white-space: nowrap;
+        background-color: rgb(229, 231, 235);
         border-radius: 0.2em;
         pointer-events: all
       "
       >
-        {$replayData.current} / {$replayData.end}
+        {context.replayData!.current} / {context.replayData!.end}
       </span>
       <Button
         size="sm"
         class="mx-1"
-        on:click={() => replayTo(Math.min($replayData.end, $replayData.current + 1))}
+        onclick={() => replayTo(Math.min(context.replayData!.end, context.replayData!.current + 1))}
         style="pointer-events: all"
       >
-        <Icon icon={skipEndFill} style="margin-bottom: 0.25em" />
+        <IconSkipEndFill style="margin-bottom: 0.25em" />
       </Button>
-      <Button size="sm" class="mx-1" on:click={() => replayTo($replayData.end)} style="pointer-events: all">
-        <Icon icon={skipForwardFill} style="margin-bottom: 0.25em" />
+      <Button size="sm" class="mx-1" onclick={() => replayTo(context.replayData!.end)} style="pointer-events: all">
+        <IconSkipForwardFill style="margin-bottom: 0.25em" />
       </Button>
-      <Button size="sm" class="ms-1 me-auto" on:click={endReplay} style="pointer-events: all">
-        <Icon icon={stopFill} style="margin-bottom: 0.25em; color: orange" />
+      <Button size="sm" class="ms-1 me-auto" onclick={endReplay} style="pointer-events: all">
+        <IconStopFill style="margin-bottom: 0.25em; color: orange" />
       </Button>
     </div>
   </Portal>

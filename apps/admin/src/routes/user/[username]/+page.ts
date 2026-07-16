@@ -1,36 +1,14 @@
 import { api } from "$lib/api.ts";
+import type { UserFront, GameFront, ApiErrorFront } from "@bgs/models";
 
-export interface RecentGame {
-	_id: string;
-	game: { name: string };
-	status: string;
-	lastMove: string;
-	createdAt: string;
-}
+export type RecentGame = Pick<GameFront, "_id" | "game" | "status" | "lastMove" | "createdAt">;
 
-export interface UserInfo {
-	_id: string;
-	account: { username: string; email: string; karma: number };
-	security?: {
-		lastIp?: string;
-		confirmed?: boolean;
-		lastLogin?: { ip: string; date: string };
-		lastActive?: string;
-		lastOnline?: string;
-	};
-	authority?: string;
-	createdAt: string;
+export type UserInfo = Pick<UserFront, "_id" | "account" | "security" | "authority" | "createdAt"> & {
 	games?: Record<string, number>;
 	recentGames?: RecentGame[];
-}
+};
 
-export interface ApiErrorItem {
-	_id: string;
-	error: { name: string; message: string };
-	request: { url: string; method: string };
-	createdAt: string;
-	[key: string]: unknown;
-}
+export type ApiErrorItem = ApiErrorFront;
 
 export async function load({ params }: { params: { username: string } }): Promise<{
 	user: UserInfo | null;

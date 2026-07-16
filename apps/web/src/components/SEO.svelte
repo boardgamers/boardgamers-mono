@@ -1,8 +1,9 @@
 <script lang="ts">
-  export let title: string = "Boardgamers";
-  export let description: string =
-    "Play Gaia Project, 6nimmt, Powergrid and Container online. All games and the platform are open source!";
-  export let image: string | undefined = undefined;
+  let {
+    title = "Boardgamers",
+    description = "Play Gaia Project, 6nimmt, Powergrid and Container online. All games and the platform are open source!",
+    image = undefined,
+  }: { title?: string; description?: string; image?: string | undefined } = $props();
 </script>
 
 <svelte:head>

@@ -1,4 +1,5 @@
 import assert from "node:assert";
+import { createHash } from "node:crypto";
 import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
@@ -70,20 +71,35 @@ router.get("/:userId/avatar", async (ctx) => {
         key: "avatar",
         [`images.${format}`]: { $exists: true },
       },
-      { projection: { [`images.${format}`]: 1 } },
+      { projection: { [`images.${format}`]: 1, updatedAt: 1 } },
     );
     if (!item) {
       return;
     }
 
     const imageData = item.images[format];
+    const buf = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from((imageData.raw as Binary).buffer);
+
+    // ETag from content hash — browser revalidates with If-None-Match → 304 if unchanged.
+    const etag = `"${createHash("sha256").update(buf).digest("hex").slice(0, 16)}"`;
+    ctx.set("ETag", etag);
+    ctx.set("Cache-Control", "no-cache");
+
+    if (ctx.request.headers["if-none-match"] === etag) {
+      ctx.status = 304;
+      return;
+    }
+
     ctx.set("Content-Type", imageData.mime);
-    // The driver returns binary fields as BSON Binary, which Koa doesn't treat
-    // as a buffer and base64-encodes as JSON. Hand it a Node Buffer instead.
-    ctx.body = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from((imageData.raw as Binary).buffer);
+    ctx.body = buf;
     return;
   }
 
+  // DiceBear avatars are deterministic (seeded by username + style).
+  // Cache aggressively — the SVG only changes if the user picks a new style,
+  // which updates account.avatar, and the URL stays the same so the browser
+  // will serve the cached version. That's acceptable: style changes are rare,
+  // and a hard refresh or cache clear will pick it up.
   const response = await fetch(
     `https://api.dicebear.com/9.x/${encodeURIComponent(account.avatar ?? "avataaars")}/svg?seed=${encodeURIComponent(
       account.username,
@@ -93,8 +109,7 @@ router.get("/:userId/avatar", async (ctx) => {
   assert(response.ok, "Error when loading image");
 
   ctx.set("Content-Type", "image/svg+xml");
-  // Buffer the SVG: Koa only streams Node streams, so handing it fetch()'s WHATWG
-  // ReadableStream falls through to JSON.stringify and serializes as `{}`.
+  ctx.set("Cache-Control", "public, max-age=86400");
   ctx.body = Buffer.from(await response.arrayBuffer());
 });
 

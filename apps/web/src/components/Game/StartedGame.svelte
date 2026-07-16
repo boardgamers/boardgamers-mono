@@ -1,93 +1,90 @@
 <script lang="ts">
-  import type { GamePreferences } from "@bgs/models";
+  import type { GamePreferencesFront } from "@bgs/models";
   import { Loading } from "@/modules/cdk";
-  import type { GameContext } from "@/routes/game/[gameId].svelte";
+  import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import { createWatcher, handleError } from "@/utils";
   import { getContext, onDestroy, onMount } from "svelte";
-  import { useGame } from "@/composition/useGame";
-  import { useRest } from "@/composition/useRest";
-  import { useGamePreferences } from "@/composition/useGamePreferences";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { useAccount } from "@/composition/useAccount";
-  import { useDeveloperSettings } from "@/composition/useDeveloperSettings";
-  import { useCurrentGame } from "@/composition/useCurrentGame";
-  import { useSession } from "@/composition/useSession";
+  import { loadGame } from "@/lib/game.svelte";
+  import { get, post } from "@/lib/api";
+  import { addDefaults, updatePreference, gamePreferences } from "@/lib/game-preferences.svelte";
+  import { gameInfoKey } from "@/lib/game-info.svelte";
+  import { account as user } from "@/lib/account.svelte";
+  import { devGameSettings, developerSettings, lastGameUpdate } from "@/lib/stores.svelte";
+  import { browser } from "$app/environment";
   import SEO from "../SEO.svelte";
   import { gameLabel } from "@/utils/game-label";
   import { minBy, sortBy } from "lodash";
   import { goto } from "$app/navigation";
 
-  const { session } = useSession();
-  const { loadGame } = useGame();
-  const { account: user } = useAccount();
-  const { get, post } = useRest();
-  const { addDefaults, updatePreference, gamePreferences } = useGamePreferences();
-  const { gameInfoKey } = useGameInfo();
-  const { lastGameUpdate } = useCurrentGame();
-  const { devGameSettings, developerSettings } = useDeveloperSettings();
+  const context: GameContext = getContext("game");
+  const { emitter } = context;
+  let stateSent = $state(false);
 
-  const { game, replayData, gameInfo, emitter, log }: GameContext = getContext("game");
-  let stateSent = false;
-
+  const host = browser ? window.location.host : "";
   const resourcesLink =
-    session.host.startsWith("localhost") ||
-    session.host.endsWith("gitpod.io") ||
-    session.host.endsWith("boardgamers.space")
+    host.startsWith("localhost") || host.endsWith("gitpod.io") || host.endsWith("boardgamers.space")
       ? `/resources`
-      : `//resources.${session.host.slice(session.host.indexOf(".") + 1)}`;
+      : `//resources.${host.slice(host.indexOf(".") + 1)}`;
 
-  let gameIframe: HTMLIFrameElement;
+  let gameIframe = $state<HTMLIFrameElement>();
 
-  let src = "";
-  let prefs: GamePreferences;
+  let gameName = $derived(context.game?.game?.name);
+  let gameId = $derived(context.game?._id);
+  let prefs = $derived<GamePreferencesFront>(addDefaults($gamePreferences[gameName], context.gameInfo));
+
+  let src = $derived.by(() => {
+    if (!context.gameInfo) return "";
+    const customUrl = $developerSettings
+      ? encodeURIComponent(
+          $devGameSettings[gameInfoKey(context.gameInfo._id.game, context.gameInfo._id.version)]?.viewerUrl ?? ""
+        )
+      : "";
+    return `${resourcesLink}/game/${gameName}/${context.gameInfo._id.version}/iframe?alternate=${
+      prefs?.preferences?.alternateUI ? 1 : 0
+    }&customViewerUrl=${customUrl}`;
+  });
 
   function postUser() {
-    const index = $game.players.findIndex((pl) => pl._id === $user?._id);
+    const index = context.game?.players.findIndex((pl) => pl._id === $user?._id);
     const message = { type: "player", player: { index: index !== -1 ? index : undefined } };
     gameIframe?.contentWindow?.postMessage(message, "*");
   }
 
   function postAvatars() {
-    const message = {
-      type: "avatars",
-      avatars: $game.players.map((pl) => `${window.location.origin}/api/user/${pl._id}/avatar`),
-    };
-    gameIframe?.contentWindow?.postMessage(message, "*");
+    const avatars = context.game?.players.map((pl) => `${window.location.origin}/api/user/${pl._id}/avatar`) ?? [];
+    gameIframe?.contentWindow?.postMessage({ type: "avatars", avatars: JSON.parse(JSON.stringify(avatars)) }, "*");
   }
 
-  $: gameName = $game?.game?.name;
-  $: (postUser(), [$user]);
-  $: prefs = addDefaults($gamePreferences[gameName], $gameInfo);
-  $: (postPreferences(), [prefs]);
-  $: gameId = $game?._id;
+  $effect(() => {
+    $user;
+    postUser();
+  });
 
-  const updateSrc = () => {
-    if ($gameInfo) {
-      const customUrl = $developerSettings
-        ? encodeURIComponent($devGameSettings[gameInfoKey($gameInfo._id.game, $gameInfo._id.version)]?.viewerUrl ?? "")
-        : "";
+  $effect(() => {
+    prefs;
+    postPreferences();
+  });
 
-      src = `${resourcesLink}/game/${gameName}/${$gameInfo._id.version}/iframe?alternate=${
-        prefs?.preferences?.alternateUI ? 1 : 0
-      }&customViewerUrl=${customUrl}`;
-    }
-  };
-  $: (updateSrc(), [$gameInfo, prefs]);
-
-  const onSrcChanged = () => (stateSent = false);
-
-  $: (onSrcChanged(), [src, gameId]);
+  // Reset state when src or gameId changes
+  $effect(() => {
+    src;
+    gameId;
+    stateSent = false;
+  });
 
   const onGameUpdated = createWatcher(() => {
-    if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
+    if (context.game && $lastGameUpdate > new Date(context.game.updatedAt)) {
       postUpdatePresent();
     }
   });
 
-  $: (onGameUpdated(), [$lastGameUpdate]);
+  $effect(() => {
+    $lastGameUpdate;
+    onGameUpdated();
+  });
 
   function postGamedata() {
-    gameIframe?.contentWindow?.postMessage({ type: "state", state: $game.data }, "*");
+    gameIframe?.contentWindow?.postMessage({ type: "state", state: JSON.parse(JSON.stringify(context.game?.data)) }, "*");
   }
 
   function postUpdatePresent() {
@@ -102,7 +99,7 @@
 
   function postPreferences() {
     if (gameIframe && prefs) {
-      gameIframe.contentWindow?.postMessage({ type: "preferences", preferences: prefs.preferences }, "*");
+      gameIframe.contentWindow?.postMessage({ type: "preferences", preferences: JSON.parse(JSON.stringify(prefs.preferences)) }, "*");
     }
   }
 
@@ -116,7 +113,7 @@
 
   emitter.on("replay:end", () => {
     gameIframe?.contentWindow?.postMessage({ type: "replay:end" }, "*");
-    $replayData = null;
+    context.replayData = null;
   });
 
   onDestroy(() => {
@@ -148,25 +145,30 @@
       } else if (event.data.type === "displayReady") {
         stateSent = true;
       } else if (event.data.type === "fetchState") {
-        await loadGame($game._id).then((g) => {
-          if (g._id === $game?._id) {
-            $game = g;
+        await loadGame(context.game?._id).then((g) => {
+          if (g._id === context.game?._id) {
+            context.game = g;
             postGamedata();
           }
         });
       } else if (event.data.type === "fetchLog") {
-        const logData = await get<LogObject>(`/gameplay/${$game._id}/log`, { params: event.data.data }).then(
+        const logData = await get<LogObject>(`/gameplay/${context.game?._id}/log`, { params: event.data.data }).then(
           (r) => r.data
         );
         postGameLog(logData);
       } else if (event.data.type === "addLog") {
-        $log = [...$log, ...event.data.data];
+        context.log = [...context.log, ...event.data.data];
       } else if (event.data.type === "replaceLog") {
-        $log = event.data.data;
+        context.log = event.data.data;
       } else if (event.data.type === "replay:info") {
-        $replayData = event.data.data;
+        context.replayData = event.data.data;
       } else if (event.data.type === "updatePreference") {
-        updatePreference($game.game.name, $game.game.version, event.data.data.name, event.data.data.value);
+        updatePreference(
+          context.game?.game.name,
+          context.game?.game.version,
+          event.data.data.name,
+          event.data.data.value
+        );
       }
     } catch (err) {
       handleError(err);
@@ -176,8 +178,8 @@
   async function addMove(move: string) {
     const { game: newGame, log } = await post(`/gameplay/${gameId}/move`, { move });
 
-    if (newGame._id === gameId && !(newGame.updatedAt < $game?.updatedAt)) {
-      $game = newGame;
+    if (newGame._id === gameId && !(newGame.updatedAt < context.game?.updatedAt)) {
+      context.game = newGame;
       postGameLog(log);
     }
   }
@@ -187,30 +189,35 @@
     gameIframe?.contentWindow?.postMessage({ type: "askReady" }, "*");
   });
 
-  let description: string;
-  let title: string;
+  let title = $derived.by(() => {
+    if (context.game?.status === "active") {
+      return `${gameId} - ${gameLabel(context.gameInfo?.label)} game`;
+    } else if (context.game?.cancelled) {
+      return `Cancelled - ${gameLabel(context.gameInfo?.label)} game`;
+    } else if (context.game) {
+      const victor = minBy(context.game.players, "ranking")!;
+      return `${victor.name}'s victory! - ${gameLabel(context.gameInfo?.label)} game`;
+    }
+    return undefined;
+  });
 
-  $: {
-    if ($game.status === "active") {
-      title = `${gameId} - ${gameLabel($gameInfo.label)} game`;
-      description = `Round ${$game.context?.round ?? 0}
+  let description = $derived.by(() => {
+    if (context.game?.status === "active") {
+      return `Round ${context.game.context?.round ?? 0}
 
-${$game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
-    } else if ($game.cancelled) {
-      title = `Cancelled - ${gameLabel($gameInfo.label)} game`;
-    } else {
-      const victor = minBy($game.players, "ranking")!;
-      title = `${victor.name}'s victory! - ${gameLabel($gameInfo.label)} game`;
-      description = sortBy($game.players, "ranking")
+${context.game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
+    } else if (context.game && !context.game?.cancelled) {
+      return sortBy(context.game.players, "ranking")
         .map((player) => `${player.ranking}° ${player.name} (${player.score}pts)`)
         .join("\n");
     }
-  }
+    return undefined;
+  });
 </script>
 
 <SEO {title} {description} />
 
-<svelte:window on:message={handleGameMessage} />
+<svelte:window onmessage={handleGameMessage} />
 
 <Loading loading={!stateSent} />
 
@@ -222,10 +229,10 @@ ${$game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
     id="game-iframe"
     title="Game UX"
     sandbox="allow-scripts allow-same-origin allow-orientation-lock"
-    class:d-none={!stateSent}
-    class:fullScreen={$gameInfo.viewer?.fullScreen}
+    class:hidden={!stateSent}
+    class:fullScreen={context.gameInfo?.viewer?.fullScreen}
     {src}
-  />
+  ></iframe>
 {/key}
 
 <style>

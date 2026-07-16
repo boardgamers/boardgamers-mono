@@ -1,33 +1,41 @@
 <script lang="ts">
   import { timerTime, defer, duration, niceDate, shortDuration } from "@/utils";
-  import type { IGame } from "@bgs/models";
+  import type { GameFront } from "@bgs/models";
   import { createWatcher } from "@/utils/watch";
-  import clockHistory from "@iconify/icons-bi/clock-history.js";
-  import { Badge, Icon, Pagination, Loading } from "@/modules/cdk";
+  import { Badge, Pagination, Loading } from "@/modules/cdk";
+  import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
   import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
-  import { useLogoClicks } from "@/composition/useLogoClicks";
-  import { useGameInfo } from "@/composition/useGameInfo";
-  import { LoadGamesResult, useGames } from "@/composition/useGames";
+  import { logoClicks } from "@/lib/stores.svelte";
+  import { gameInfo } from "@/lib/game-info.svelte";
+  import { loadGames, type LoadGamesResult } from "@/lib/games.svelte";
   import { isPromise } from "@bgs/utils";
 
-  const { logoClicks } = useLogoClicks();
-  const { gameInfo } = useGameInfo();
-  const { loadGames } = useGames();
+  let {
+    title = "Games",
+    perPage = 10,
+    topRecords = false,
+    sample = false,
+    gameStatus,
+    boardgameId = undefined,
+    userId = undefined,
+    minDuration = undefined,
+    maxDuration = undefined,
+  }: {
+    title?: string;
+    perPage?: number;
+    topRecords?: boolean;
+    sample?: boolean;
+    gameStatus: GameFront["status"];
+    boardgameId?: string | undefined;
+    userId?: string | undefined | null;
+    minDuration?: number | undefined;
+    maxDuration?: number | undefined;
+  } = $props();
 
-  export let title = "Games";
-  export let perPage = 10;
-  export let topRecords = false;
-  export let sample = false;
-  export let gameStatus: IGame["status"];
-  export let boardgameId: string | undefined = undefined;
-  export let userId: string | undefined | null = undefined;
-  export let minDuration: number | undefined = undefined;
-  export let maxDuration: number | undefined = undefined;
-
-  let loadingGames = true;
-  let count = 0;
-  let currentPage = 0;
-  let games: IGame[] = [];
+  let loadingGames = $state(true);
+  let count = $state(0);
+  let currentPage = $state(0);
+  let games = $state<GameFront[]>([]);
 
   const load = defer(
     (refresh: boolean) => {
@@ -63,7 +71,10 @@
     () => (loadingGames = false)
   );
 
-  function playerEloChange(game: IGame) {
+  // Initial load: run synchronously during component init so SSR has data.
+  load(true);
+
+  function playerEloChange(game: GameFront) {
     const pl = game.players.find((pl) => pl._id === userId);
 
     if (!pl || !pl.elo) {
@@ -75,7 +86,7 @@
     return elo === 0 && delta === 0 ? "" : (delta >= 0 ? "( +" : "( -") + Math.abs(delta) + " elo )";
   }
 
-  function playTime(game: IGame) {
+  function playTime(game: GameFront) {
     if (game.options.timing.timer?.start !== game.options.timing.timer?.end) {
       return `${timerTime(game.options.timing.timer?.start)}-${timerTime(game.options.timing.timer?.end)}`;
     } else {
@@ -91,24 +102,41 @@
 
   const onCurrentPageChanged = createWatcher(() => load(false));
 
-  $: (load(true), [userId, boardgameId, $logoClicks]);
-  $: (onCurrentPageChanged(), [currentPage]);
+  let firstRun = true;
+
+  $effect(() => {
+    userId;
+    boardgameId;
+    $logoClicks;
+    // Skip the first run — initial load already happened synchronously above.
+    if (firstRun) {
+      firstRun = false;
+      return;
+    }
+    load(true);
+  });
+
+
+  $effect(() => {
+    currentPage;
+    onCurrentPageChanged();
+  });
 </script>
 
 <Loading loading={loadingGames}>
-  <h3 class="card-title">
+  <h3 class="font-semibold">
     {title}
     {#if !topRecords && !sample}
-      <span class="small">({count})</span>
+      <span class="text-xs">({count})</span>
     {/if}
   </h3>
   <div>
     {#if games.length > 0}
-      <ul class="list-group text-start game-list">
+      <ul class="divide-y divide-accent/80 rounded-lg border border-accent/80 bg-white text-start dark:divide-accent/60 dark:border-accent/60 dark:bg-gray-900 game-list">
         {#each games as game}
           <a
             href={`/game/${game._id}`}
-            class="list-group-item list-group-item-action pe-1 ps-0"
+            class="no-link flex cursor-pointer items-center px-4 py-2 pe-1 ps-0 hover:bg-gray-50 dark:hover:bg-gray-800 game-item"
             class:active-game={game.status === "active"}
             class:current-turn={game.currentPlayers?.some((pl) => pl._id === userId)}
           >
@@ -119,7 +147,7 @@
             <div class="me-auto" style="line-height: 1.1">
               <div>
                 {#if game.status === "active"}
-                  <Badge color="contrast" class="small text-light">R{game.context?.round ?? 0}</Badge>
+                  <Badge color="contrast" class="text-xs text-white">R{game.context?.round ?? 0}</Badge>
                 {/if}
                 <span class="game-name">
                   {game._id}
@@ -130,9 +158,9 @@
                   </sup>
                 {/if}
               </div>
-              <small>
+              <small class="flex items-center gap-1 whitespace-nowrap text-xs">
                 {#if game.status !== "ended"}
-                  <Icon icon={clockHistory} inline={true} />
+                  <IconClockHistory class="text-[0.8em]" />
                   {playTime(game)}
                   {duration(game.options.timing.timePerGame)} + {duration(game.options.timing.timePerMove)}
                   {#if game.options.timing.scheduledStart}
@@ -151,7 +179,7 @@
             </div>
 
             {#if game.status !== "open"}
-              <div class="factions g-0 row">
+              <div class="factions flex flex-row">
                 {#each game.players as player}
                   <PlayerGameAvatar
                     game={game.game.name}
@@ -164,7 +192,7 @@
               </div>
             {:else}
               <div class="me-3" style="line-height: 1.1;">
-                <div class="text-end">{game.players.length} / {game.options.setup.nbPlayers}</div>
+                <div class="text-right">{game.players.length} / {game.options.setup.nbPlayers}</div>
                 <small>
                   {shortDuration(Math.floor((Date.now() - new Date(game.createdAt).getTime()) / 1000))} ago</small
                 >
@@ -182,39 +210,31 @@
   </div>
 </Loading>
 
-<style lang="postcss">
-  .list-group.game-list {
-    .list-group-item {
-      display: flex;
-      align-items: center;
+<style>
+  .game-list .game-item {
+    display: flex;
+    align-items: center;
+  }
 
-      &.current-turn {
-        background: lightgreen;
+  .game-list .game-item.current-turn {
+    background: lightgreen;
+  }
 
-        &:hover,
-        &:focus {
-          filter: brightness(95%);
-        }
+  .game-list .game-item.current-turn:hover,
+  .game-list .game-item.current-turn:focus {
+    filter: brightness(95%);
+  }
 
-        &:active {
-          filter: brightness(90%);
-        }
-      }
+  .game-list .game-item.current-turn:active {
+    filter: brightness(90%);
+  }
 
-      &.active-game {
-        .factions {
-          /* On mobile, if multiple lines, I want items to be aligned to the right */
-          justify-content: flex-end;
-        }
-      }
+  /* On mobile, if multiple lines, I want items to be aligned to the right */
+  .game-list .game-item.active-game .factions {
+    justify-content: flex-end;
+  }
 
-      .game-kind {
-        font-size: 1.8em;
-      }
-
-      .game-name {
-        /* font-weight: 600; */
-      }
-    }
+  .game-list .game-item .game-kind {
+    font-size: 1.8em;
   }
 </style>
