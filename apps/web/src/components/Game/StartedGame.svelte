@@ -41,11 +41,8 @@
   }
 
   function postAvatars() {
-    const message = {
-      type: "avatars",
-      avatars: context.game?.players.map((pl) => `${window.location.origin}/api/user/${pl._id}/avatar`) ?? [],
-    };
-    gameIframe?.contentWindow?.postMessage(message, "*");
+    const avatars = context.game?.players.map((pl) => `${window.location.origin}/api/user/${pl._id}/avatar`) ?? [];
+    gameIframe?.contentWindow?.postMessage({ type: "avatars", avatars: JSON.parse(JSON.stringify(avatars)) }, "*");
   }
 
   $effect(() => {
@@ -98,7 +95,7 @@
   });
 
   function postGamedata() {
-    gameIframe?.contentWindow?.postMessage({ type: "state", state: context.game?.data }, "*");
+    gameIframe?.contentWindow?.postMessage({ type: "state", state: JSON.parse(JSON.stringify(context.game?.data)) }, "*");
   }
 
   function postUpdatePresent() {
@@ -113,7 +110,7 @@
 
   function postPreferences() {
     if (gameIframe && prefs) {
-      gameIframe.contentWindow?.postMessage({ type: "preferences", preferences: prefs.preferences }, "*");
+      gameIframe.contentWindow?.postMessage({ type: "preferences", preferences: JSON.parse(JSON.stringify(prefs.preferences)) }, "*");
     }
   }
 

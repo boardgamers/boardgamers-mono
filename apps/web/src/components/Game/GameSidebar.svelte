@@ -67,6 +67,7 @@
   let remainingTimes = $state<Record<string, number>>({});
 
   function updateRemainingTimes() {
+    if (!game) return;
     const ret: Record<string, number> = {};
     for (const player of game.players) {
       ret[player._id] = remainingTime(player);
