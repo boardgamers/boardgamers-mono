@@ -11,9 +11,6 @@
     createWatcher,
     defer,
   } from "@/utils";
-  import clockHistory from "@iconify/icons-bi/clock-history.js";
-  import arrowDown from "@iconify/icons-bi/arrow-down.js";
-  import arrowUp from "@iconify/icons-bi/arrow-up.js";
   import marked from "marked";
   import {
     Badge,
@@ -24,8 +21,10 @@
     DropdownToggle,
     FormGroup,
     Input,
-    Icon,
   } from "@/modules/cdk";
+  import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
+  import IconArrowDown from "@/components/icons/IconArrowDown.svelte";
+  import IconArrowUp from "@/components/icons/IconArrowUp.svelte";
   import { getContext } from "svelte";
   import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import { playerOrderText } from "@/data/playerOrders";
@@ -246,7 +245,7 @@
       {#if context.game?.options.setup.seed}
         <span title="Game seed"> 🌱 {context.game.options.setup.seed}</span>
       {/if}
-      <span class="ps-1" title="Timezone"> <Icon icon={clockHistory} inline={true} /> {shortPlayTime()}</span>
+      <span class="ps-1" title="Timezone"> <IconClockHistory /> {shortPlayTime()}</span>
     </small>
   </p>
 
@@ -346,14 +345,13 @@
                 onclick={() => moveUp(playerIndex)}
                 role="button"
                 tabindex="0"
-                onkeydown={(e) => e.key === "Enter" && moveUp(playerIndex)}><Icon icon={arrowUp} inline={true} /></span
+                onkeydown={(e) => e.key === "Enter" && moveUp(playerIndex)}><IconArrowUp /></span
               >
               <span
                 onclick={() => moveDown(playerIndex)}
                 role="button"
                 tabindex="0"
-                onkeydown={(e) => e.key === "Enter" && moveDown(playerIndex)}
-                ><Icon icon={arrowDown} inline={true} /></span
+                onkeydown={(e) => e.key === "Enter" && moveDown(playerIndex)}><IconArrowDown /></span
               >
             </div>
           {/each}

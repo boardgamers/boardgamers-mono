@@ -9,14 +9,6 @@ export const load: PageLoad = async ({ params, fetch, parent }) => {
   const boardgameId = params.boardgameId;
   const userId = user?._id;
 
-  const featuredGames = loadGames({
-    gameStatus: "active",
-    count: 5,
-    boardgameId,
-    fetchCount: false,
-    store: true,
-  });
-
   const myGames = loadGames({
     gameStatus: "active",
     count: 5,
@@ -26,11 +18,17 @@ export const load: PageLoad = async ({ params, fetch, parent }) => {
     store: true,
   });
 
+  // Featured games (no userId filter) — only needed when logged in, since when
+  // logged out the myGames query already has no userId and hits the same cache key.
+  const featuredGames = userId
+    ? loadGames({ gameStatus: "active", count: 5, boardgameId, fetchCount: false, store: true })
+    : undefined;
+
   const lobbyGames = loadGames({ sample: true, gameStatus: "open", boardgameId, count: 5, store: true });
 
   const [_1, _2, _3, rankings] = await Promise.all([
-    featuredGames,
     myGames,
+    featuredGames,
     lobbyGames,
     loadEloRankings({ boardgameId, count: 6, fetchCount: false }),
   ]);

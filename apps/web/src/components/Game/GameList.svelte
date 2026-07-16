@@ -2,8 +2,8 @@
   import { timerTime, defer, duration, niceDate, shortDuration } from "@/utils";
   import type { GameFront } from "@bgs/models";
   import { createWatcher } from "@/utils/watch";
-  import clockHistory from "@iconify/icons-bi/clock-history.js";
-  import { Badge, Icon, Pagination, Loading } from "@/modules/cdk";
+  import { Badge, Pagination, Loading } from "@/modules/cdk";
+  import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
   import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
   import { logoClicks } from "@/lib/stores.svelte";
   import { gameInfo } from "@/lib/game-info.svelte";
@@ -71,6 +71,9 @@
     () => (loadingGames = false)
   );
 
+  // Initial load: run synchronously during component init so SSR has data.
+  load(true);
+
   function playerEloChange(game: GameFront) {
     const pl = game.players.find((pl) => pl._id === userId);
 
@@ -99,12 +102,20 @@
 
   const onCurrentPageChanged = createWatcher(() => load(false));
 
+  let firstRun = true;
+
   $effect(() => {
     userId;
     boardgameId;
     $logoClicks;
+    // Skip the first run — initial load already happened synchronously above.
+    if (firstRun) {
+      firstRun = false;
+      return;
+    }
     load(true);
   });
+
 
   $effect(() => {
     currentPage;
@@ -121,11 +132,11 @@
   </h3>
   <div>
     {#if games.length > 0}
-      <ul class="divide-y divide-gray-200 rounded-lg border border-gray-200 text-start dark:divide-gray-700 dark:border-gray-700 game-list">
+      <ul class="divide-y divide-accent/80 rounded-lg border border-accent/80 bg-white text-start dark:divide-accent/60 dark:border-accent/60 dark:bg-gray-900 game-list">
         {#each games as game}
           <a
             href={`/game/${game._id}`}
-            class="flex cursor-pointer items-center px-4 py-2 pe-1 ps-0 hover:bg-gray-50 dark:hover:bg-gray-800 game-item"
+            class="no-link flex cursor-pointer items-center px-4 py-2 pe-1 ps-0 hover:bg-gray-50 dark:hover:bg-gray-800 game-item"
             class:active-game={game.status === "active"}
             class:current-turn={game.currentPlayers?.some((pl) => pl._id === userId)}
           >
@@ -149,7 +160,7 @@
               </div>
               <small class="flex items-center gap-1 whitespace-nowrap text-xs">
                 {#if game.status !== "ended"}
-                  <Icon icon={clockHistory} inline={true} class="text-[0.8em]" />
+                  <IconClockHistory class="text-[0.8em]" />
                   {playTime(game)}
                   {duration(game.options.timing.timePerGame)} + {duration(game.options.timing.timePerMove)}
                   {#if game.options.timing.scheduledStart}

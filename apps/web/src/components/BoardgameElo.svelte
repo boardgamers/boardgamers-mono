@@ -71,7 +71,7 @@
 <div>
   <h3>{title}</h3>
   <Loading {loading}>
-    <ul class="divide-y divide-gray-200 text-left dark:divide-gray-700">
+    <ul class="divide-y divide-accent/80 rounded-lg border border-accent/80 bg-white text-left dark:divide-accent/60 dark:border-accent/60 dark:bg-gray-900">
       {#each boardgameElo as bgElo, pos}
         <a
           href={`/user/${bgElo.user.name}#elo`}

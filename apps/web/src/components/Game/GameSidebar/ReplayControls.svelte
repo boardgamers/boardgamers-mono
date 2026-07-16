@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { Button, Icon } from "@/modules/cdk";
+  import { Button } from "@/modules/cdk";
+  import IconSkipBackwardFill from "@/components/icons/IconSkipBackwardFill.svelte";
+  import IconSkipForwardFill from "@/components/icons/IconSkipForwardFill.svelte";
+  import IconSkipStartFill from "@/components/icons/IconSkipStartFill.svelte";
+  import IconSkipEndFill from "@/components/icons/IconSkipEndFill.svelte";
+  import IconStopFill from "@/components/icons/IconStopFill.svelte";
   import type { GameContext } from "@/routes/game/[gameId]/game-context";
-  import skipBackwardFill from "@iconify/icons-bi/skip-backward-fill.js";
-  import skipForwardFill from "@iconify/icons-bi/skip-forward-fill.js";
-  import skipStartFill from "@iconify/icons-bi/skip-start-fill.js";
-  import skipEndFill from "@iconify/icons-bi/skip-end-fill.js";
-  import stopFill from "@iconify/icons-bi/stop-fill.js";
 
   import { getContext } from "svelte";
   import { sidebarOpen } from "@/lib/stores.svelte";
@@ -34,14 +34,14 @@
     {:else}
       <div class="flex items-center">
         <Button size="sm" class="me-1" onclick={() => replayTo(context.replayData!.start)}>
-          <Icon icon={skipBackwardFill} style="margin-bottom: 0.25em" />
+          <IconSkipBackwardFill style="margin-bottom: 0.25em" />
         </Button>
         <Button
           size="sm"
           class="mx-1"
           onclick={() => replayTo(Math.max(context.replayData!.start, context.replayData!.current - 1))}
         >
-          <Icon icon={skipStartFill} style="margin-bottom: 0.25em" />
+          <IconSkipStartFill style="margin-bottom: 0.25em" />
         </Button>
         <span
           class="mx-1 text-center"
@@ -54,13 +54,13 @@
           class="mx-1"
           onclick={() => replayTo(Math.min(context.replayData!.end, context.replayData!.current + 1))}
         >
-          <Icon icon={skipEndFill} style="margin-bottom: 0.25em" />
+          <IconSkipEndFill style="margin-bottom: 0.25em" />
         </Button>
         <Button size="sm" class="mx-1" onclick={() => replayTo(context.replayData!.end)}>
-          <Icon icon={skipForwardFill} style="margin-bottom: 0.25em" />
+          <IconSkipForwardFill style="margin-bottom: 0.25em" />
         </Button>
         <Button size="sm" class="ms-1" onclick={endReplay}>
-          <Icon icon={stopFill} style="margin-bottom: 0.25em; color: orange" />
+          <IconStopFill style="margin-bottom: 0.25em; color: orange" />
         </Button>
       </div>
     {/if}
@@ -78,7 +78,7 @@
         onclick={() => replayTo(context.replayData!.start)}
         style="pointer-events: all"
       >
-        <Icon icon={skipBackwardFill} style="margin-bottom: 0.25em" />
+        <IconSkipBackwardFill style="margin-bottom: 0.25em" />
       </Button>
       <Button
         size="sm"
@@ -86,7 +86,7 @@
         onclick={() => replayTo(Math.max(context.replayData!.start, context.replayData!.current - 1))}
         style="pointer-events: all"
       >
-        <Icon icon={skipStartFill} style="margin-bottom: 0.25em" />
+        <IconSkipStartFill style="margin-bottom: 0.25em" />
       </Button>
       <span
         class="mx-1 px-1 text-center"
@@ -109,13 +109,13 @@
         onclick={() => replayTo(Math.min(context.replayData!.end, context.replayData!.current + 1))}
         style="pointer-events: all"
       >
-        <Icon icon={skipEndFill} style="margin-bottom: 0.25em" />
+        <IconSkipEndFill style="margin-bottom: 0.25em" />
       </Button>
       <Button size="sm" class="mx-1" onclick={() => replayTo(context.replayData!.end)} style="pointer-events: all">
-        <Icon icon={skipForwardFill} style="margin-bottom: 0.25em" />
+        <IconSkipForwardFill style="margin-bottom: 0.25em" />
       </Button>
       <Button size="sm" class="ms-1 me-auto" onclick={endReplay} style="pointer-events: all">
-        <Icon icon={stopFill} style="margin-bottom: 0.25em; color: orange" />
+        <IconStopFill style="margin-bottom: 0.25em; color: orange" />
       </Button>
     </div>
   </Portal>

@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { Icon, Checkbox, Label, Input, FormGroup } from "@/modules/cdk";
+  import { Checkbox, Label, Input, FormGroup } from "@/modules/cdk";
+  import IconInfoCircleFill from "@/components/icons/IconInfoCircleFill.svelte";
   import { handleError, oneLineMarked } from "@/utils";
   import type { GameContext } from "@/routes/game/[gameId]/game-context";
-  import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
   import { getContext } from "svelte";
   import { account } from "@/lib/stores.svelte";
   import { post, get } from "@/lib/api";
@@ -47,7 +47,7 @@
     <h3>
       Settings
       <a href={`/page/${game.game.name}/settings`}>
-        <Icon icon={infoCircleFill} class="text-xs" />
+        <IconInfoCircleFill class="text-xs" />
       </a>
     </h3>
     <!-- Code very similar to PreferencesChooser -->

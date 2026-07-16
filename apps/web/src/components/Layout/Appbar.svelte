@@ -12,13 +12,12 @@
     Label,
     FormText,
     NavLink,
-    Icon,
   } from "@/modules/cdk";
-  import gearFill from "@iconify/icons-bi/gear-fill.js";
-  import power from "@iconify/icons-bi/power.js";
-  import sunFill from "@iconify/icons-bi/sun-fill.js";
-  import moonFill from "@iconify/icons-bi/moon-fill.js";
-  import circleHalf from "@iconify/icons-bi/circle-half.js";
+  import IconGearFill from "@/components/icons/IconGearFill.svelte";
+  import IconPower from "@/components/icons/IconPower.svelte";
+  import IconSunFill from "@/components/icons/IconSunFill.svelte";
+  import IconMoonFill from "@/components/icons/IconMoonFill.svelte";
+  import IconCircleHalf from "@/components/icons/IconCircleHalf.svelte";
   import { handleError } from "@/utils";
   import { account as user, login, logout } from "@/lib/account.svelte";
   import { logoClick } from "@/lib/stores.svelte";
@@ -27,11 +26,6 @@
   import { currentTheme, cycleTheme, type Theme } from "@/lib/theme";
   import UserAvatar from "../User/UserAvatar.svelte";
 
-  const themeIcon: Record<Theme, any> = {
-    light: sunFill,
-    dark: moonFill,
-    system: circleHalf,
-  };
   const themeLabel: Record<Theme, string> = {
     light: "Light",
     dark: "Dark",
@@ -116,7 +110,13 @@
       title={`Theme: ${themeLabel[$currentTheme]}`}
       class="me-2 flex items-center gap-1 rounded-md px-2 py-1 text-white hover:bg-white/10"
     >
-      <Icon icon={themeIcon[$currentTheme]} inline={true} class="text-lg" />
+      {#if $currentTheme === "light"}
+        <IconSunFill size="1.25rem" />
+      {:else if $currentTheme === "dark"}
+        <IconMoonFill size="1.25rem" />
+      {:else}
+        <IconCircleHalf size="1.25rem" />
+      {/if}
       <span class="hidden sm:inline">{themeLabel[$currentTheme]}</span>
     </button>
 
@@ -159,7 +159,7 @@
     {:else}
       {#if admin}
         <NavLink href={adminLink} class="flex items-center gap-2">
-          <Icon icon={gearFill} inline={true} class="text-lg" />
+          <IconGearFill size="1.25rem" />
           <span class="hidden sm:inline">Admin</span>
         </NavLink>
       {/if}
@@ -170,8 +170,8 @@
       >
         <span class="hidden sm:inline">{$user.account.username}</span>
       </NavLink>
-      <NavLink onclick={logOut} class="flex items-center gap-2">
-        <Icon icon={power} inline={true} class="text-lg" />
+      <NavLink onclick={logOut} class="flex items gap-2">
+        <IconPower size="1.25rem" />
         <span class="hidden sm:inline">Log out</span>
       </NavLink>
     {/if}

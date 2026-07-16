@@ -33,5 +33,3 @@ export { default as PaginationItem } from "./PaginationItem.svelte";
 export { default as PaginationLink } from "./PaginationLink.svelte";
 export { default as Row } from "./Row.svelte";
 export { default as Spinner } from "./Spinner.svelte";
-
-export { default as Icon } from "@iconify/svelte";

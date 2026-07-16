@@ -7,7 +7,9 @@
 
   loadGameInfos().catch(handleError);
 
-  let games = $state<GameInfoFront[]>([]);
+  // Read synchronously for SSR — the +layout.ts load function already called
+  // `await loadGameInfos()` which populated the store before this component renders.
+  let games = $state<GameInfoFront[]>(latestGameInfos() as GameInfoFront[]);
   $effect(() => {
     $gameInfos;
     games = latestGameInfos() as GameInfoFront[];

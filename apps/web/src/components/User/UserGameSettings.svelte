@@ -80,17 +80,22 @@
 </script>
 
 <Card class={classes} header={title || game.label}>
-  <CardText class="h-full flex" style="flex-direction: column">
+  <CardText class="h-full flex flex-col" >
     <Loading loading={!prefs}>
-      <div style="flex-grow: 1">
-        <Checkbox checked={ownership} onchange={postOwnership}>I own this game</Checkbox>
+      <div class="grow space-y-3">
+        <div class="flex items-center gap-2 rounded-lg bg-accent/10 p-3 dark:bg-accent/20">
+          <Checkbox checked={ownership} onchange={postOwnership} class="text-base font-semibold" />
+          <span class="text-base font-semibold">I own this game</span>
+        </div>
         {#if game.preferences?.length > 0}
-          <hr />
-          <PreferencesChooser {game} />
+          <hr class="border-gray-200 dark:border-gray-700" />
+          <div class="space-y-2">
+            <PreferencesChooser {game} />
+          </div>
         {/if}
       </div>
       {#if $developerSettings}
-        <hr />
+        <hr class="mt-3 border-gray-200 dark:border-gray-700" />
         <FormGroup>
           <label for="viewerUrl">Custom Viewer URL ({key})</label>
           <Input type="text" placeholder="Viewer URL" bind:value={customViewerUrl} onchange={onViewerUrlInput} />

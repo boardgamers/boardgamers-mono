@@ -356,12 +356,6 @@ importers:
       '@bgs/utils':
         specifier: workspace:*
         version: link:../../packages/utils
-      '@iconify/icons-bi':
-        specifier: ^1.1.12
-        version: 1.2.19
-      '@iconify/svelte':
-        specifier: ^5.2.2
-        version: 5.2.2(svelte@5.56.4(@typescript-eslint/types@8.56.1))
       awesome-notifications:
         specifier: ^3.1.1
         version: 3.1.3
@@ -1427,17 +1421,6 @@ packages:
   '@humanwhocodes/retry@0.4.3':
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
-
-  '@iconify/icons-bi@1.2.19':
-    resolution: {integrity: sha512-P3enKEBR83a4fcK6vOsSueYpldYS3OdtSSto58bYU0sWThlxl+YXcmXY6Pu0ORKuMHK/hQagpwXPb+hT4vaO2g==}
-
-  '@iconify/svelte@5.2.2':
-    resolution: {integrity: sha512-XMXxD3nzH7yB68C3K4sNwzrJ1TBscODR0ZqCeNf0KGuEMCTSuCo0jHNDZ0o0iRXTylO41NSz/DWam/4atLG1yw==}
-    peerDependencies:
-      svelte: '>5.0.0'
-
-  '@iconify/types@2.0.0':
-    resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
 
   '@jimp/bmp@0.16.13':
     resolution: {integrity: sha512-9edAxu7N2FX7vzkdl5Jo1BbACfycUtBQX+XBMcHA2bk62P8R0otgkHg798frgAk/WxQIzwxqOH6wMiCwrlAzdQ==}
@@ -9630,17 +9613,6 @@ snapshots:
   '@humanwhocodes/module-importer@1.0.1': {}
 
   '@humanwhocodes/retry@0.4.3': {}
-
-  '@iconify/icons-bi@1.2.19':
-    dependencies:
-      '@iconify/types': 2.0.0
-
-  '@iconify/svelte@5.2.2(svelte@5.56.4(@typescript-eslint/types@8.56.1))':
-    dependencies:
-      '@iconify/types': 2.0.0
-      svelte: 5.56.4(@typescript-eslint/types@8.56.1)
-
-  '@iconify/types@2.0.0': {}
 
   '@jimp/bmp@0.16.13(@jimp/custom@0.16.13)':
     dependencies:

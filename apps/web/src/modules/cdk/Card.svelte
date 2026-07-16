@@ -19,7 +19,7 @@
   } = $props();
 
   let classes = $derived(
-    classnames("rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800", className)
+    classnames("flex flex-col rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800", className)
   );
 </script>
 
@@ -27,7 +27,7 @@
   {#if header}
     <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 font-semibold text-center">{header}</div>
   {/if}
-  <div class="p-4">
+  <div class="grow p-4">
     {@render children?.()}
   </div>
   {#if footer}

@@ -3,7 +3,7 @@
   let { children } = $props();
 </script>
 
-<div class="d-flex">
+<div class="flex flex-row gap-4">
   <GameListSidebar />
   {@render children()}
 </div>

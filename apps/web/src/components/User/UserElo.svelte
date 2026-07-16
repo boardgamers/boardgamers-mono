@@ -3,8 +3,7 @@
   import { get } from "@/lib/api";
   import { handleError, pluralize } from "@/utils";
   import type { GamePreferencesFront } from "@bgs/models";
-  import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
-  import { Icon } from "@/modules/cdk";
+  import IconInfoCircleFill from "@/components/icons/IconInfoCircleFill.svelte";
 
   let { userId }: { userId: string } = $props();
 
@@ -41,7 +40,7 @@
   <div>
     <h3 class="font-semibold">
       Elo <a href="/page/elo"
-        ><Icon icon={infoCircleFill} class="text-gray-500 text-xs dark:text-gray-400" inline={true} /></a
+        ><IconInfoCircleFill class="text-gray-500 text-xs dark:text-gray-400" /></a
       >
     </h3>
     <ul class="divide-y divide-gray-200 text-start dark:divide-gray-700">

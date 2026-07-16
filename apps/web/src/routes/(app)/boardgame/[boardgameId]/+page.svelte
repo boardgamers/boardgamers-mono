@@ -89,9 +89,9 @@
   </div>
 
   <div class="mt-3 text-center">
-    <Button color="accent" href={`/boardgame/${boardgameId}/games`}>All games</Button>
-    <Button color="primary" class="mx-3" onclick={newGame}>New Game</Button>
-    <Button color="accent" href={`/boardgame/${boardgameId}/rankings`}>Rankings</Button>
+    <Button color="accent" href={`/boardgame/${boardgameId}/games`} class="text-base">All games</Button>
+    <Button color="primary" class="mx-3 text-base" onclick={newGame}>New Game</Button>
+    <Button color="accent" href={`/boardgame/${boardgameId}/rankings`} class="text-base">Rankings</Button>
   </div>
 
   <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">

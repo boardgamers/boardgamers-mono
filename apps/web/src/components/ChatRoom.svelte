@@ -1,8 +1,8 @@
 <script lang="ts">
-  import chat from "@iconify/icons-bi/chat.js";
   import { account, currentGameId, sidebarOpen, chatMessages } from "@/lib/stores.svelte";
   import { get, post } from "@/lib/api";
-  import { Modal, ModalHeader, Icon, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
+  import { Modal, ModalHeader, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
+  import IconChat from "@/components/icons/IconChat.svelte";
   import { dateFromObjectId, dateTime, handleError } from "@/utils";
   import { fly } from "svelte/transition";
   import UserAvatar from "./User/UserAvatar.svelte";
@@ -98,7 +98,7 @@
   class={"chat-modal" + ($sidebarOpen ? " sidebar-open" : "")}
 >
   <ModalHeader {toggle}
-    ><Icon icon={chat} height="1.5rem" style="vertical-align: -0.25rem" /> {$currentGameId}</ModalHeader
+    ><IconChat style="height: 1.5rem; vertical-align: -0.25rem" /> {$currentGameId}</ModalHeader
   >
   <div class="chat-messages" bind:this={messagesContainer}>
     {#each $chatMessages as message}
@@ -144,7 +144,7 @@
   onclick={toggle}
   class={"rounded-full b-avatar sidebar-fab chat-button" + ($sidebarOpen ? " sidebar-open" : "")}
 >
-  <Icon icon={chat} style="height: 1.5rem; width: 1.5rem;" class="absolute-center" />
+  <IconChat style="height: 1.5rem; width: 1.5rem;" class="absolute-center" />
   {#if unreadMessages}
     <Badge pill color="danger">{unreadMessages}</Badge>
   {/if}

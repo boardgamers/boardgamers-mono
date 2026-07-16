@@ -1,7 +1,7 @@
 <script lang="ts">
   import { sidebarOpen } from "@/lib/stores.svelte";
-  import { Button, Icon } from "@/modules/cdk";
-  import gear from "@iconify/icons-bi/gear.js";
+  import { Button } from "@/modules/cdk";
+  import IconGear from "@/components/icons/IconGear.svelte";
 </script>
 
 <div class="sidebar-container" class:open={$sidebarOpen}>
@@ -13,7 +13,7 @@
     onclick={() => ($sidebarOpen = !$sidebarOpen)}
     class={"rounded-full sidebar-fab" + (false ? " chatOpen" : "")}
   >
-    <Icon icon={gear} class="absolute-center" style="width: 1.5rem; height: 1.5rem" />
+    <IconGear class="absolute-center" style="width: 1.5rem; height: 1.5rem" />
   </Button>
 </div>
 
