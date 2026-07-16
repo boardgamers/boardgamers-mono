@@ -132,6 +132,13 @@
     selects = newVal;
   };
 
+  // Initial load: run synchronously during component init so SSR has data.
+  // Guarded by `info` since updateSelects reads info.options. untrack avoids
+  // re-triggering on the writes updateSelects makes to other $state.
+  if (info) {
+    untrack(() => updateSelects());
+  }
+
   $effect(() => {
     info && untrack(() => updateSelects());
   });

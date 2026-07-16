@@ -27,10 +27,20 @@
     }
   }
 
+  // Initial load: run synchronously during component init so SSR has data.
+  loadSettings();
+
+  let firstRun = true;
+
   $effect(() => {
     gameStatus;
     userId;
     gameInfo;
+    // Skip the first run — initial load already happened synchronously above.
+    if (firstRun) {
+      firstRun = false;
+      return;
+    }
     loadSettings();
   });
 

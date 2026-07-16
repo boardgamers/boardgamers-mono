@@ -88,7 +88,7 @@
     post(`/game/${gameId}/join`).catch(handleError);
   };
 
-  let playerOrder = $state<number[]>([]);
+  let playerOrder = $state<number[]>(context.game?.players.map((_, i) => i) ?? []);
 
   function refreshPlayerOrder() {
     if (context.game) {

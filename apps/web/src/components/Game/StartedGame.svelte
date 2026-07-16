@@ -28,11 +28,21 @@
 
   let gameIframe = $state<HTMLIFrameElement>();
 
-  let src = $state("");
-
   let gameName = $derived(context.game?.game?.name);
   let gameId = $derived(context.game?._id);
   let prefs = $derived<GamePreferencesFront>(addDefaults($gamePreferences[gameName], context.gameInfo));
+
+  let src = $derived.by(() => {
+    if (!context.gameInfo) return "";
+    const customUrl = $developerSettings
+      ? encodeURIComponent(
+          $devGameSettings[gameInfoKey(context.gameInfo._id.game, context.gameInfo._id.version)]?.viewerUrl ?? ""
+        )
+      : "";
+    return `${resourcesLink}/game/${gameName}/${context.gameInfo._id.version}/iframe?alternate=${
+      prefs?.preferences?.alternateUI ? 1 : 0
+    }&customViewerUrl=${customUrl}`;
+  });
 
   function postUser() {
     const index = context.game?.players.findIndex((pl) => pl._id === $user?._id);
@@ -55,32 +65,11 @@
     postPreferences();
   });
 
-  const updateSrc = () => {
-    if (context.gameInfo) {
-      const customUrl = $developerSettings
-        ? encodeURIComponent(
-            $devGameSettings[gameInfoKey(context.gameInfo._id.game, context.gameInfo._id.version)]?.viewerUrl ?? ""
-          )
-        : "";
-
-      src = `${resourcesLink}/game/${gameName}/${context.gameInfo._id.version}/iframe?alternate=${
-        prefs?.preferences?.alternateUI ? 1 : 0
-      }&customViewerUrl=${customUrl}`;
-    }
-  };
-
-  $effect(() => {
-    context.gameInfo;
-    prefs;
-    updateSrc();
-  });
-
-  const onSrcChanged = () => (stateSent = false);
-
+  // Reset state when src or gameId changes
   $effect(() => {
     src;
     gameId;
-    onSrcChanged();
+    stateSent = false;
   });
 
   const onGameUpdated = createWatcher(() => {
@@ -200,24 +189,29 @@
     gameIframe?.contentWindow?.postMessage({ type: "askReady" }, "*");
   });
 
-  let description = $state<string>();
-  let title = $state<string>();
-
-  $effect(() => {
+  let title = $derived.by(() => {
     if (context.game?.status === "active") {
-      title = `${gameId} - ${gameLabel(context.gameInfo?.label)} game`;
-      description = `Round ${context.game.context?.round ?? 0}
-
-${context.game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
+      return `${gameId} - ${gameLabel(context.gameInfo?.label)} game`;
     } else if (context.game?.cancelled) {
-      title = `Cancelled - ${gameLabel(context.gameInfo?.label)} game`;
+      return `Cancelled - ${gameLabel(context.gameInfo?.label)} game`;
     } else if (context.game) {
       const victor = minBy(context.game.players, "ranking")!;
-      title = `${victor.name}'s victory! - ${gameLabel(context.gameInfo?.label)} game`;
-      description = sortBy(context.game.players, "ranking")
+      return `${victor.name}'s victory! - ${gameLabel(context.gameInfo?.label)} game`;
+    }
+    return undefined;
+  });
+
+  let description = $derived.by(() => {
+    if (context.game?.status === "active") {
+      return `Round ${context.game.context?.round ?? 0}
+
+${context.game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
+    } else if (context.game && !context.game?.cancelled) {
+      return sortBy(context.game.players, "ranking")
         .map((player) => `${player.ranking}° ${player.name} (${player.score}pts)`)
         .join("\n");
     }
+    return undefined;
   });
 </script>
 

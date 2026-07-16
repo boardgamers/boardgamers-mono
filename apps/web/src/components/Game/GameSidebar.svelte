@@ -64,22 +64,13 @@
     onGameChanged();
   });
 
-  let remainingTimes = $state<Record<string, number>>({});
-
-  function updateRemainingTimes() {
-    if (!game) return;
+  let remainingTimes = $derived.by(() => {
+    if (!game) return {};
     const ret: Record<string, number> = {};
     for (const player of game.players) {
       ret[player._id] = remainingTime(player);
     }
-
-    remainingTimes = ret;
-  }
-
-  $effect(() => {
-    secondsCounter;
-    game;
-    updateRemainingTimes();
+    return ret;
   });
 
   function remainingTime(player: PlayerInfoFront) {
