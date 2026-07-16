@@ -1,6 +1,7 @@
 <script lang="ts">
   import { set } from "lodash";
   import { untrack } from "svelte";
+  import { get as getStore } from "svelte/store";
   import type { GameInfoFront } from "@bgs/models";
   import { handleError, confirm, classnames } from "@/utils";
   import Card from "@/modules/cdk/Card.svelte";
@@ -29,7 +30,9 @@
 
   let prefs = $derived($gamePreferences[game._id.game]);
 
-  let ownership = $state(false);
+  // Seed synchronously from the store for SSR — the +layout.ts load function
+  // already called `await loadGamePreferences()` which populated the store.
+  let ownership = $state(untrack(() => getStore(gamePreferences)[game._id.game]?.access?.ownership ?? false));
 
   $effect(() => {
     ownership = prefs?.access?.ownership ?? false;

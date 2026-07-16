@@ -1,11 +1,12 @@
 import { error } from "@sveltejs/kit";
 import type { PageLoad } from "./$types";
 import { get, setApiContext } from "@/lib/api";
-import { loadGames } from "@/lib/games.svelte";
+import { loadGames, clearGamesCache } from "@/lib/games.svelte";
 import type { UserFront } from "@bgs/models";
 
 export const load: PageLoad = async ({ params, fetch }) => {
   setApiContext((prev) => ({ ...prev, fetch }));
+  clearGamesCache();
   const user = await get<UserFront>(`/user/infoByName/${encodeURIComponent(params.username)}`);
 
   if (!user) {

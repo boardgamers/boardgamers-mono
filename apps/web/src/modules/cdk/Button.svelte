@@ -28,7 +28,7 @@
   } = $props();
 
   const base =
-    "inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none";
+    "inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium no-underline transition-colors disabled:opacity-50 disabled:pointer-events-none";
 
   const solid: Record<string, string> = {
     primary: "bg-primary text-white hover:bg-primary-light",

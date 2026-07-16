@@ -24,6 +24,12 @@ export type LoadGamesResult = {
 
 const gamesCache = new Map<string, LoadGamesResult>();
 
+/** Clear cached game results. Called from +page.ts load functions to prevent
+ *  stale data from a previous navigation being served on the new page. */
+export function clearGamesCache() {
+  gamesCache.clear();
+}
+
 export function loadGames({
   count = 10,
   skip = 0,
@@ -50,11 +56,7 @@ export function loadGames({
   const key = JSON.stringify({ ...queryParams, gameStatus, fetchCount });
 
   if (!store && gamesCache.has(key)) {
-    try {
-      return gamesCache.get(key)!;
-    } finally {
-      gamesCache.delete(key);
-    }
+    return gamesCache.get(key)!;
   }
 
   return Promise.all([

@@ -46,5 +46,10 @@
   .user-avatar {
     border-radius: 50%;
     border: var(--avatar-border);
+    background-color: rgb(229 231 235); /* gray-200 */
+  }
+
+  .dark .user-avatar {
+    background-color: rgb(31 41 55); /* gray-800 */
   }
 </style>

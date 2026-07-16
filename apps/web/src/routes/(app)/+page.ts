@@ -1,10 +1,11 @@
 import type { PageLoad } from "./$types";
 import { get, setApiContext } from "@/lib/api";
-import { loadGames } from "@/lib/games.svelte";
+import { loadGames, clearGamesCache } from "@/lib/games.svelte";
 import { loadGameInfos } from "@/lib/game-info.svelte";
 
 export const load: PageLoad = async ({ fetch, parent }) => {
   setApiContext((prev) => ({ ...prev, fetch }));
+  clearGamesCache();
   const { user, activeGames } = await parent();
 
   const firstGames = loadGames({
