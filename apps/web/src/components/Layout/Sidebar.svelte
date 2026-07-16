@@ -19,6 +19,6 @@
     onclick={() => ($sidebarOpen = !$sidebarOpen)}
     class={"!rounded-full sidebar-fab" + (false ? " chatOpen" : "")}
   >
-    <IconGear style="width: 1.5rem; height: 1.5rem" />
+    <IconGear size="1.5rem" />
   </Button>
 </div>

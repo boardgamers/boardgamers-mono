@@ -143,9 +143,15 @@
   right: var(--fab-right);
   width: var(--fab-width);
   height: var(--fab-width);
+  padding: 0 !important;
   display: flex !important;
   align-items: center;
   justify-content: center;
+}
+
+.sidebar-fab svg {
+  max-width: none;
+  flex-shrink: 0;
 }
 
 .thin-scrollbar {

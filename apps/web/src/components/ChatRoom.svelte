@@ -144,7 +144,7 @@
   onclick={toggle}
   class={"!rounded-full sidebar-fab chat-button" + ($sidebarOpen ? " sidebar-open" : "")}
 >
-  <IconChat style="height: 1.5rem; width: 1.5rem;" />
+  <IconChat size="1.5rem" />
   {#if unreadMessages}
     <Badge pill color="danger">{unreadMessages}</Badge>
   {/if}
