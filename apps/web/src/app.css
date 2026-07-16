@@ -203,11 +203,14 @@
 
 #sidebar a {
   color: white;
+}
+
+#sidebar .player-name {
   text-decoration: none;
 }
 
-#sidebar .badge a {
-  margin-right: 0.25em;
+#sidebar .badge {
+  display: inline;
 }
 
 #sidebar .player-avatar {

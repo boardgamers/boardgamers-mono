@@ -126,12 +126,14 @@
         </div>
       </div>
     {/each}
-    <div class="mt-3">
+    <div class="mt-3 flex items-center">
       <IconClockHistory class="me-1" />
-      {alwaysActive
-        ? "24h"
-        : `${timerTime(game.options.timing.timer.start)}-${timerTime(game.options.timing.timer.end)}`}
-      / {duration(game.options.timing.timePerGame)} + {duration(game.options.timing.timePerMove)}
+      <span>
+        {alwaysActive
+          ? "24h"
+          : `${timerTime(game.options.timing.timer.start)}-${timerTime(game.options.timing.timer.end)}`}
+        / {duration(game.options.timing.timePerGame)} + {duration(game.options.timing.timePerMove)}
+      </span>
     </div>
     {#if game.status === "ended"}
       <div class="mt-3">

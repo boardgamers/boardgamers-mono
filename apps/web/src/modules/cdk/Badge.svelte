@@ -15,7 +15,7 @@
     [key: string]: any;
   } = $props();
 
-  const base = "inline-flex items-center rounded px-2 py-0.5 text-xs font-medium";
+  const base = "badge inline-flex items-center rounded px-2 py-0.5 text-xs font-medium";
 
   const colorClasses: Record<string, string> = {
     primary: "bg-primary text-white",
