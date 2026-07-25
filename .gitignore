@@ -4,3 +4,4 @@ node_modules
 dist
 pnpm-debug.log*
 .pnpm-store
+.fast-check
