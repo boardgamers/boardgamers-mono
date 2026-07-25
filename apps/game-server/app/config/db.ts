@@ -31,7 +31,7 @@ export const colls = {
   apiErrors: withAutoUpdatedAt(_db.collection<ApiErrorDoc>(API_ERRORS_COLLECTION)),
   chatMessages: _db.collection<ChatMessageDoc>(CHAT_MESSAGES_COLLECTION),
   games: withAutoUpdatedAt(_db.collection<GameDoc>(GAMES_COLLECTION)),
-  gameInfos: _db.collection<GameInfoDoc>(GAME_INFOS_COLLECTION),
+  gameInfos: withAutoUpdatedAt(_db.collection<GameInfoDoc>(GAME_INFOS_COLLECTION)),
   gameNotifications: withAutoUpdatedAt(_db.collection<GameNotificationDoc>(GAME_NOTIFICATIONS_COLLECTION)),
 };
 

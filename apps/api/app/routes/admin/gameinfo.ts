@@ -17,7 +17,7 @@ router.get("/", async (ctx) => {
 async function upsert(ctx: Context) {
   const game = await colls.gameInfos.findOneAndUpdate(
     { _id: { game: ctx.params.game, version: +ctx.params.version } },
-    { $set: omit(z.record(z.string(), z.unknown()).parse(ctx.request.body), "_id") },
+    { $set: omit(z.record(z.string(), z.unknown()).parse(ctx.request.body), "_id", "createdAt", "updatedAt") },
     { upsert: true, returnDocument: "after" },
   );
   ctx.body = game;

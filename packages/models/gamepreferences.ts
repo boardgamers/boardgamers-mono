@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { Jsonify } from "type-fest";
 import type { IndexDescription } from "mongodb";
-import { zObjectId } from "./helpers.ts";
+import { zDate, zObjectId } from "./helpers.ts";
 
 export const gamePreferencesSchema = z.object({
   _id: zObjectId().optional(),
@@ -11,16 +11,20 @@ export const gamePreferencesSchema = z.object({
     .record(z.string(), z.unknown())
     .and(z.object({ alternateUI: z.boolean().optional() }))
     .optional(),
-  access: z.object({
-    ownership: z.boolean().optional(),
-    maxVersion: z.number().optional(),
-  }).optional(),
+  access: z
+    .object({
+      ownership: z.boolean().optional(),
+      maxVersion: z.number().optional(),
+    })
+    .optional(),
   elo: z
     .object({
       value: z.number(),
       games: z.number(),
     })
     .optional(),
+  createdAt: zDate().optional(),
+  updatedAt: zDate().optional(),
 });
 
 export type GamePreferencesDoc = z.output<typeof gamePreferencesSchema>;
