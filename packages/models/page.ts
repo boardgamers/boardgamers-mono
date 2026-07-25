@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Jsonify } from "type-fest";
+import { zDate } from "./helpers.ts";
 
 export const pageSchema = z.object({
   _id: z.object({
@@ -8,6 +9,8 @@ export const pageSchema = z.object({
   }),
   title: z.string(),
   content: z.string(),
+  createdAt: zDate().optional(),
+  updatedAt: zDate().optional(),
 });
 
 export type PageDoc = z.output<typeof pageSchema>;

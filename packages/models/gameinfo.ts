@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Jsonify } from "type-fest";
+import { zDate } from "./helpers.ts";
 
 export const viewerInfoSchema = z.object({
   url: z.string(),
@@ -63,6 +64,8 @@ export const gameInfoSchema = z.object({
     public: z.boolean(),
     needOwnership: z.boolean().optional(),
   }),
+  createdAt: zDate().optional(),
+  updatedAt: zDate().optional(),
 });
 
 export type GameInfoDoc = z.output<typeof gameInfoSchema>;

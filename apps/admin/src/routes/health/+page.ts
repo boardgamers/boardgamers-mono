@@ -103,13 +103,13 @@ export async function load(): Promise<{ health: HealthData }> {
 				count: Math.round(Number(r.value[1])),
 			})),
 			slowEndpoints: (slow.value.data.result ?? []).map((r) => ({
-						route: r.metric.route ?? r.metric.path ?? "?",
-						value: Math.round(Number(r.value[1])),
-					})),
-					errorEndpoints: (errors.value.data.result ?? []).map((r) => ({
-						route: r.metric.route ?? r.metric.path ?? "?",
-						value: Math.round(Number(r.value[1])),
-					})),
+				route: r.metric.route ?? r.metric.path ?? "?",
+				value: Math.round(Number(r.value[1])),
+			})),
+			errorEndpoints: (errors.value.data.result ?? []).map((r) => ({
+				route: r.metric.route ?? r.metric.path ?? "?",
+				value: Math.round(Number(r.value[1])),
+			})),
 			recentErrors: (logs.value.data.result ?? []).flatMap((stream) =>
 				(stream.values ?? []).map(([ts, line]) => {
 					let parsed: Record<string, unknown> = {};
@@ -125,14 +125,14 @@ export async function load(): Promise<{ health: HealthData }> {
 						level: (parsed.level as string) ?? stream.metric.level ?? "?",
 						status: parsed.status != null ? String(parsed.status) : undefined,
 						path: (parsed.path as string) ?? undefined,
-											route: (parsed.route as string) ?? undefined,
-											ip: (parsed.ip as string) ?? undefined,
+						route: (parsed.route as string) ?? undefined,
+						ip: (parsed.ip as string) ?? undefined,
 						requestId: (parsed.requestId as string) ?? undefined,
 					};
 				}),
 			),
 			dbErrors: dbErrorsResult.errors,
-					dbErrorsTotal: dbErrorsResult.total,
-				},
-				};
-			}
+			dbErrorsTotal: dbErrorsResult.total,
+		},
+	};
+}
