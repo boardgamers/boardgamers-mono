@@ -188,9 +188,8 @@
   color: #25ee25;
 }
 
-#sidebar .player-name {
+#sidebar a {
   color: white;
-  text-decoration: none;
 }
 
 #sidebar .player-row.active .player-name {
@@ -201,16 +200,10 @@
   text-decoration: line-through;
 }
 
-#sidebar a {
-  color: white;
-}
-
-#sidebar .player-name {
-  text-decoration: none;
-}
-
 #sidebar .badge {
   display: inline;
+  background-color: rgb(108, 117, 125);
+  color: white;
 }
 
 #sidebar .player-avatar {
