@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
+	import { trim } from "$lib/actions.ts";
 	import { goto, invalidateAll } from "$app/navigation";
 	import type { UserInfo, ApiErrorItem, RecentGame } from "./+page.ts";
 
@@ -17,20 +18,23 @@
 		errors = data.errors;
 	});
 
+	// gameName is trimmed on paste/blur by the use:trim action.
 	async function grantAccess() {
-		if (!gameName.trim() || !user) return;
+		const game = gameName;
+		if (!game || !user) return;
 		try {
-			await api.post(`/admin/users/${user._id}/access/grant`, { type: "game", game: gameName, version: "latest" });
-			toast.success(`Access granted to ${gameName}`);
+			await api.post(`/admin/users/${user._id}/access/grant`, { type: "game", game, version: "latest" });
+			toast.success(`Access granted to ${game}`);
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed");
 		}
 	}
 
 	async function changeElo() {
-		if (!gameName.trim() || !user) return;
+		const game = gameName;
+		if (!game || !user) return;
 		try {
-			await api.post(`/admin/users/${user._id}/elo/${gameName}`, { value: elo });
+			await api.post(`/admin/users/${user._id}/elo/${encodeURIComponent(game)}`, { value: elo });
 			toast.success("Elo changed");
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed");
@@ -251,6 +255,7 @@
 					<label class="block text-xs font-medium text-gray-500 mb-1">Boardgame name</label>
 					<input
 						bind:value={gameName}
+						use:trim
 						class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 					/>
 				</div>
