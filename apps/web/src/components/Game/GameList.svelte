@@ -220,9 +220,19 @@
     background: lightgreen;
   }
 
+  /* Dark mode: keep the "your turn" signal but with a dark-mode-appropriate tint. */
+  :global(.dark) .game-list .game-item.current-turn {
+    background: rgb(34 84 24 / 0.55); /* dark green tint, readable with light text */
+  }
+
   .game-list .game-item.current-turn:hover,
   .game-list .game-item.current-turn:focus {
     filter: brightness(95%);
+  }
+
+  :global(.dark) .game-list .game-item.current-turn:hover,
+  :global(.dark) .game-list .game-item.current-turn:focus {
+    filter: brightness(115%);
   }
 
   .game-list .game-item.current-turn:active {
