@@ -20,7 +20,8 @@ export const load: LayoutLoad = async ({ data, fetch }) => {
   }
 
   if (browser) {
-    // Seed stores from the initial SSR data
+    // Seed stores from the initial SSR data (client only — a module-level
+    // store mutated during SSR would leak across concurrent requests).
     setAccount(data?.user ?? null);
     if (data?.activeGames) {
       activeGames.set(data.activeGames);

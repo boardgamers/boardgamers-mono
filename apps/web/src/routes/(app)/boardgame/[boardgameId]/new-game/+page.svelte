@@ -20,6 +20,10 @@
 
   useLoggedIn();
 
+  let { data } = $props();
+  // Client uses the store (seeded by the layout); SSR falls back to layout data.
+  let karma = $derived(($account ?? data.user)?.account.karma ?? 80);
+
   let boardgameId = $derived($page.params.boardgameId); // Can be undefined during page navigation out
   let info = $derived(gameInfo(boardgameId, "latest"));
 
@@ -42,7 +46,7 @@
   let scheduledTime = $state("");
 
   let enableKarma = $state(false);
-  let minimumKarma = $state(Math.min(75, $account!.account.karma - 5));
+  let minimumKarma = $state(Math.min(75, karma - 5));
 
   function createGame() {
     submitting = true;
@@ -225,7 +229,7 @@
             disabled={!enableKarma}
             placeholder="Minimum karma to join the game"
             bind:value={minimumKarma}
-            max={$account.account.karma - 5}
+            max={karma - 5}
           />
         </div>
       </div>
