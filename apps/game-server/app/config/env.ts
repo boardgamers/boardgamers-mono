@@ -28,7 +28,7 @@ export default {
   },
   database: {
     bgs: {
-      url: process.env.dbUrl || "mongodb://localhost:27017/admin",
+      url: process.env.dbUrl || "mongodb://localhost:27517/admin",
       name: dbName,
     },
   },

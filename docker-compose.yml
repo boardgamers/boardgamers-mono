@@ -9,12 +9,12 @@ services:
     mem_limit: "5g"
     mem_reservation: "3g"
     healthcheck:
-      test: test $$(mongosh --quiet --eval 'try {rs.status().ok} catch(e) {rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:${LOCAL_MONGO_PORT:-27017}"}]}).ok}') -eq 1
+      test: test $$(mongosh --quiet --eval 'try {rs.status().ok} catch(e) {rs.initiate({_id:"rs0",members:[{_id:0,host:"127.0.0.1:${LOCAL_MONGO_PORT:-27517}"}]}).ok}') -eq 1
       interval: 5s
     volumes:
       - mongo-data:/data/db
     ports:
-      - 27017:27017
+      - ${LOCAL_MONGO_PORT:-27517}:27017
   # minio:
   #   image: quay.io/minio/minio:latest
   #   environment:
