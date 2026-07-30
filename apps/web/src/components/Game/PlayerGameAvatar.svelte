@@ -66,7 +66,7 @@
   }
 
   .player-avatar.currentTurn .vp {
-    background-color: var(--accent);
+    background-color: var(--color-accent, #508f16);
   }
 
   .player-avatar .vp {

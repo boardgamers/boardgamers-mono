@@ -4,6 +4,7 @@
     username,
     art = "pixel-art",
     size = "4rem",
+    class: className = "",
     onclick,
     onerror,
     onload,
@@ -13,6 +14,7 @@
     username: string;
     art?: string;
     size?: string;
+    class?: string;
     onclick?: (e: MouseEvent) => void;
     onerror?: (e: Event) => void;
     onload?: (e: Event) => void;
@@ -35,21 +37,23 @@
   style="height: {size}; width: {size}"
   alt={`${username}'s avatar`}
   title={username}
-  class="user-avatar"
+  {...rest}
+  class={["user-avatar", className].filter(Boolean).join(" ")}
   {onclick}
   {onerror}
   {onload}
-  {...rest}
 />
 
 <style>
   .user-avatar {
     border-radius: 50%;
-    border: var(--avatar-border);
+    border: var(--avatar-border, 1px solid rgb(156 163 175)); /* gray-400 default */
     background-color: rgb(229 231 235); /* gray-200 */
+    object-fit: cover; /* crop square uploads into the circle */
   }
 
   .dark .user-avatar {
     background-color: rgb(31 41 55); /* gray-800 */
+    border: var(--avatar-border, 1px solid rgb(75 85 99)); /* gray-600 default */
   }
 </style>

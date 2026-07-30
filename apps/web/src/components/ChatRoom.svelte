@@ -3,7 +3,7 @@
   import { get, post } from "@/lib/api";
   import { Modal, ModalHeader, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
   import IconChat from "@/components/icons/IconChat.svelte";
-  import { dateFromObjectId, dateTime, handleError } from "@/utils";
+  import { dateFromObjectId, handleError } from "@/utils";
   import { fly } from "svelte/transition";
   import UserAvatar from "./User/UserAvatar.svelte";
 
@@ -87,53 +87,77 @@
   let unreadMessages = $derived(
     $chatMessages.filter((msg) => msg.type !== "system" && dateFromObjectId(msg._id).getTime() > lastRead).length
   );
+
+  // Close on Escape while the chat is open.
+  $effect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && (isOpen = false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
+
+  // Friendly locale timestamp, e.g. "Jul 23, 12:22 AM".
+  function chatTime(objectId: string): string {
+    return dateFromObjectId(objectId).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
 </script>
 
 <Modal
   {isOpen}
   {toggle}
-  backdrop={false}
+  backdrop
+  backdropClassName="!bg-transparent"
   transitionType={fly}
   transitionOptions={{ y: -300 }}
   class={"chat-modal" + ($sidebarOpen ? " sidebar-open" : "")}
 >
-  <ModalHeader {toggle}
-    ><IconChat style="height: 1.5rem; vertical-align: -0.25rem" /> {$currentGameId}</ModalHeader
-  >
-  <div class="chat-messages" bind:this={messagesContainer}>
+  <ModalHeader {toggle} class="gap-2">
+    <IconChat size="1.25rem" class="shrink-0 text-gray-400" />
+    <span class="truncate font-semibold">{$currentGameId}</span>
+  </ModalHeader>
+  <div class="chat-messages thin-scrollbar" bind:this={messagesContainer}>
     {#each $chatMessages as message}
-      <div class="message-container" class:sent={message.author?._id === userId}>
-        {#if message.author}
-          <UserAvatar userId={message.author._id} username={message.author.name} size="3rem" />
-        {/if}
-        <div
-          class="message"
-          class:system={message.type === "system"}
-          title={"Sent at " + dateTime(dateFromObjectId(message._id))}
-        >
+      {#if message.type === "system"}
+        <div class="my-3 text-center text-xs text-gray-400 italic" title={chatTime(message._id)}>
           {message.data.text}
-          {#if !message.author}
-            <p class="message-meta">
-              {dateTime(dateFromObjectId(message._id))}
-            </p>
-          {/if}
+          <span class="ml-1 not-italic opacity-60">· {chatTime(message._id)}</span>
         </div>
-        <span class="mx-4"></span>
-      </div>
+      {:else}
+        {@const sent = message.author?._id === userId}
+        <div class="mb-3 flex items-end gap-2 {sent ? 'flex-row-reverse' : ''}">
+          {#if message.author}
+            <a href={`/user/${message.author.name}`} title={message.author.name} class="shrink-0" tabindex="-1">
+              <UserAvatar userId={message.author._id} username={message.author.name} size="2.5rem" />
+            </a>
+          {/if}
+          <div
+            class="max-w-[75%] rounded-2xl px-3 py-2 text-sm leading-snug whitespace-pre-wrap {sent
+              ? 'rounded-br-md bg-blue-500 text-white'
+              : 'rounded-bl-md bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100'}"
+            title={"Sent at " + chatTime(message._id)}
+          >
+            {message.data.text}
+          </div>
+        </div>
+      {/if}
     {/each}
-    <span style="height: 0">&nbsp;</span>
   </div>
-  <ModalFooter>
+  <ModalFooter class="p-3">
     <form
       onsubmit={(e) => {
         e.preventDefault();
         sendMessage(e);
       }}
-      style="width: 100%"
+      class="w-full"
     >
       <InputGroup>
-        <Input type="text" bind:value={currentMessage} />
-        <Button type="submit" color="secondary" outline>Send</Button>
+        <Input type="text" bind:value={currentMessage} placeholder="Type a message…" />
+        <Button type="submit" color="primary">Send</Button>
       </InputGroup>
     </form>
   </ModalFooter>
