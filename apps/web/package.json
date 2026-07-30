@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node build/index.js",
-    "dev": "vite dev --port 8612",
+    "dev": "vite dev --port 8612 --host",
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-fast-check -p ./tsconfig.json",

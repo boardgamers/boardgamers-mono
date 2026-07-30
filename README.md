@@ -43,11 +43,21 @@ You can follow the instructions in [api-node](./apps/api/README.md) and [game-se
 # start mongodb backend
 docker compose up -d
 
-
 pnpm --filter api dev
 # launch in another terminal
 pnpm --filter game-server dev
 ```
+
+### Everything at once
+
+From the repo root, this runs the api, game-server and webapp in parallel:
+
+```bash
+docker compose up -d # mongodb
+pnpm dev
+```
+
+Add `pnpm dev:admin` for the admin panel.
 
 ## Contributing
 
