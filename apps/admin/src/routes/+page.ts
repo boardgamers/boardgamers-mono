@@ -48,9 +48,7 @@ async function computeHealthStatus(): Promise<HealthStatus> {
 		}));
 		const total = counts.reduce((a, b) => a + b.count, 0);
 		// Exclude 401s (routine auth checks) — they're not real errors.
-	const errors = counts
-		.filter((s) => Number(s.status) >= 400 && s.status !== "401")
-		.reduce((a, b) => a + b.count, 0);
+		const errors = counts.filter((s) => Number(s.status) >= 400 && s.status !== "401").reduce((a, b) => a + b.count, 0);
 		return {
 			total,
 			errors,

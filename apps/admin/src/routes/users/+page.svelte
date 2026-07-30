@@ -138,9 +138,7 @@
 	}
 
 	const maxCount = $derived(Math.max(1, ...(stats?.newUsersByDay ?? []).map((d) => d.count)));
-	const confirmedPct = $derived(
-		stats ? Math.round((stats.confirmedUsers / Math.max(stats.totalUsers, 1)) * 100) : 0,
-	);
+	const confirmedPct = $derived(stats ? Math.round((stats.confirmedUsers / Math.max(stats.totalUsers, 1)) * 100) : 0);
 
 	loadAdmins();
 	loadStats();
@@ -163,10 +161,7 @@
 			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
 				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Online</div>
 				<div class="text-2xl font-bold mt-1 flex items-center gap-2">
-					<span
-						class="inline-block w-2.5 h-2.5 rounded-full {stats.onlineUsers > 0
-							? 'bg-green-500'
-							: 'bg-gray-400'}"
+					<span class="inline-block w-2.5 h-2.5 rounded-full {stats.onlineUsers > 0 ? 'bg-green-500' : 'bg-gray-400'}"
 					></span>
 					{stats.onlineUsers}
 				</div>
@@ -232,7 +227,7 @@
 			<input
 				bind:value={query}
 				oninput={search}
-				onkeydown={onkeydown}
+				{onkeydown}
 				placeholder="Search by username or email..."
 				class="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 				autocomplete="off"
@@ -273,12 +268,7 @@
 							</div>
 							<div class="text-xs text-gray-500 truncate">{user.account.email}</div>
 						</div>
-						<svg
-							class="w-4 h-4 text-gray-400 flex-shrink-0"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-						>
+						<svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
 						</svg>
 					</button>
@@ -327,7 +317,9 @@
 										? 'bg-green-500'
 										: 'bg-gray-400'}"
 								></span>
-								<span class="truncate">seen {timeAgo(admin.security?.lastActive ?? admin.security?.lastLogin?.date)}</span>
+								<span class="truncate"
+									>seen {timeAgo(admin.security?.lastActive ?? admin.security?.lastLogin?.date)}</span
+								>
 								{#if admin.games.total > 0}
 									<span class="text-gray-400">· {admin.games.total} games</span>
 								{/if}
@@ -350,9 +342,7 @@
 
 	<!-- Promote from search results -->
 	{#if results.length > 0 && query.length >= 2}
-		<div
-			class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden"
-		>
+		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
 			<div class="px-5 py-3 border-b border-gray-200 dark:border-gray-800">
 				<h3 class="text-sm font-semibold">Search Results — Promote to Admin</h3>
 			</div>

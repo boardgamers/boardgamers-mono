@@ -2,6 +2,7 @@
 	import type { GameInfoFront } from "@bgs/models";
 	import MarkdownEditor from "./MarkdownEditor.svelte";
 	import { toast } from "$lib/toast.svelte.ts";
+	import { trim } from "$lib/actions.ts";
 	import { fetchLatestVersion, parseNpmUrl, setNpmVersion } from "$lib/npm.ts";
 
 	export type GameInfoData = Partial<Pick<GameInfoFront, "_id">> & Omit<GameInfoFront, "_id">;
@@ -251,6 +252,7 @@
 					<label class={labelClass}>Game ID</label>
 					<input
 						value={value._id?.game ?? ""}
+						use:trim
 						oninput={(e) => {
 							value._id = { game: e.currentTarget.value, version: value._id?.version ?? 1 };
 						}}
@@ -405,6 +407,7 @@
 				<label class={labelClass}>Package name</label>
 				<input
 					value={value.engine?.package.name ?? ""}
+					use:trim
 					oninput={(e) => {
 						value.engine = { ...value.engine!, package: { ...value.engine!.package, name: e.currentTarget.value } };
 					}}
@@ -433,6 +436,7 @@
 				</div>
 				<input
 					value={value.engine?.package.version ?? ""}
+					use:trim
 					oninput={(e) => {
 						value.engine = { ...value.engine!, package: { ...value.engine!.package, version: e.currentTarget.value } };
 					}}
@@ -443,6 +447,7 @@
 				<label class={labelClass}>Entry point</label>
 				<input
 					value={value.engine?.entryPoint ?? ""}
+					use:trim
 					oninput={(e) => {
 						value.engine = { ...value.engine!, entryPoint: e.currentTarget.value };
 					}}

@@ -1,27 +1,34 @@
 import assert from "node:assert";
 import cluster from "node:cluster";
-import decache from "decache";
 import { colls } from "../config/db.ts";
 import type { Engine } from "../types/engine.ts";
 
 const engines: Record<string, Engine> = {};
 
+/** npm-alias key an engine package is installed under in `games/`. Unique per
+ * package name+version (see installer.ts) so a new engine version always gets a
+ * brand-new install path — which is what actually busts the ESM module cache. */
+export function engineKey(game: string, version: number, pkg: { name: string; version: string }): string {
+  const name = pkg.name.replace(/^@/, "").replace(/[/@]/g, "-");
+  const version_ = pkg.version.replace(/[^0-9A-Za-z.-]/g, "-");
+  return `${game}_${version}_${name}_${version_}`;
+}
+
 async function requirePath(name: string, version: number) {
-  const info = await colls.gameInfos.findOne(
-    { _id: { game: name, version } },
-    { projection: { "engine.entryPoint": 1 } },
-  );
-  return `../../games/node_modules/${name}_${version}/${info.engine.entryPoint}`;
+  const info = await colls.gameInfos.findOne({ _id: { game: name, version } }, { projection: { engine: 1 } });
+  assert(info?.engine?.package && info.engine.entryPoint, `No engine registered for ${name} v${version}`);
+  return `../../games/node_modules/${engineKey(name, version, info.engine.package)}/${info.engine.entryPoint}`;
 }
 
 export async function getEngine(name: string, version: number): Promise<Engine> {
   const key = `${name}_${version}`;
 
   if (!engines[key]) {
-    const path = await requirePath(name, version);
-    // @ts-ignore decache types don't match ESM default import
-    decache(path);
-    engines[key] = await import(path);
+    // NOTE: we can't `decache` the previous module here — that only clears the
+    // CommonJS require.cache, but engines are loaded via dynamic `import()`
+    // (ESM), whose cache decache never touches. Because the import path embeds
+    // the package version, a bumped engine resolves to a new, uncached path.
+    engines[key] = await import(await requirePath(name, version));
   }
 
   assert(engines[key], "Game server hasn't loaded the engine for this game yet");

@@ -45,6 +45,26 @@ describe("withAutoUpdatedAt", () => {
     assert.ok((await updatedAt())! > old);
   });
 
+  it("stamps createdAt on upsert-insert but not on a plain update", async () => {
+    const id = "auto-updated-at-upsert";
+    await colls.games.updateOne({ _id: id }, { $set: { ready: true } }, { upsert: true });
+    const inserted = await colls.games.findOne({ _id: id }, { projection: { createdAt: 1, updatedAt: 1 } });
+    assert.ok(inserted?.createdAt instanceof Date);
+    assert.ok(inserted?.updatedAt instanceof Date);
+
+    await colls.games.updateOne({ _id: gameId }, { $set: { ready: true } });
+    const updated = await colls.games.findOne({ _id: gameId }, { projection: { createdAt: 1 } });
+    assert.ok(updated && updated.createdAt === undefined);
+  });
+
+  it("leaves an explicit createdAt alone", async () => {
+    const id = "auto-updated-at-createdat";
+    const explicit = new Date("2021-06-15");
+    await colls.games.updateOne({ _id: id }, { $set: { ready: true, createdAt: explicit } }, { upsert: true });
+    const doc = await colls.games.findOne({ _id: id }, { projection: { createdAt: 1 } });
+    assert.deepEqual(doc?.createdAt, explicit);
+  });
+
   it("leaves an explicit updatedAt alone", async () => {
     await resetTimestamp();
     const explicit = new Date("2021-06-15");
@@ -53,9 +73,13 @@ describe("withAutoUpdatedAt", () => {
   });
 
   it("does not touch unwrapped collections", async () => {
-    await colls.settings.updateOne({ _id: "auto-updated-at-test" }, { $set: { value: 1 } }, { upsert: true });
-    const doc = await colls.settings.findOne({ _id: "auto-updated-at-test" });
-    assert.ok(doc && !("updatedAt" in doc));
+    await colls.chatMessages.insertOne({
+      room: "auto-updated-at-test",
+      data: { text: "hello" },
+      type: "text",
+    });
+    const doc = await colls.chatMessages.findOne({ room: "auto-updated-at-test" });
+    assert.ok(doc && !("updatedAt" in doc) && !("createdAt" in doc));
   });
 
   after(() => db().dropDatabase());

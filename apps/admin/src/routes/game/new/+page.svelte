@@ -42,15 +42,22 @@
 	});
 
 	async function save(data: GameInfoData) {
-		if (!data._id?.game) {
+		// The Game ID input already trims on paste/blur (use:trim), so data._id is clean.
+		const game = data._id?.game;
+		const version = data._id?.version;
+		if (!game) {
 			toast.error("Game ID is required");
 			return;
 		}
+		if (!version) {
+			toast.error("Version is required");
+			return;
+		}
 		try {
-			await api.post(`/admin/gameinfo/${data._id.game}/${data._id.version}`, data);
+			await api.post(`/admin/gameinfo/${encodeURIComponent(game)}/${version}`, data);
 			toast.success("Game created");
 			await loadGames();
-			goto(`/game/${data._id.game}/${data._id.version}`);
+			goto(`/game/${encodeURIComponent(game)}/${version}`);
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed to create");
 		}

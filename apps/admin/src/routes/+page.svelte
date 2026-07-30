@@ -3,6 +3,7 @@
 	import { page } from "$app/state";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
+	import { trim } from "$lib/actions.ts";
 	import { filesize, gameEmoji } from "$lib/utils.ts";
 	import { tokens } from "$lib/auth.svelte.ts";
 	import type { GameInfoFront } from "@bgs/models";
@@ -52,12 +53,14 @@
 		}
 	}
 
+	// gameId is trimmed on paste/blur by the use:trim action; we only URL-encode it here.
 	async function loadGame() {
-		if (!gameId.trim()) return;
+		const id = encodeURIComponent(gameId);
+		if (!id) return;
 		try {
 			const [data, length] = await Promise.all([
-				api.get(`/gameplay/${gameId}?admin=true`),
-				api.get<number>(`/gameplay/${gameId}/length`),
+				api.get(`/gameplay/${id}?admin=true`),
+				api.get<number>(`/gameplay/${id}/length`),
 			]);
 			gameData = data;
 			gameLength = length;
@@ -71,9 +74,10 @@
 	}
 
 	async function deleteGame() {
-		if (!confirm(`Delete game ${gameId}?`)) return;
+		const id = encodeURIComponent(gameId);
+		if (!id || !confirm(`Delete game ${gameId}?`)) return;
 		try {
-			await api.del(`/game/${gameId}`);
+			await api.del(`/game/${id}`);
 			toast.success("Game deleted");
 			gameData = null;
 		} catch (err) {
@@ -82,8 +86,10 @@
 	}
 
 	async function replayGame() {
+		const id = encodeURIComponent(gameId);
+		if (!id) return;
 		try {
-			await api.post(`/gameplay/${gameId}/replay`, { to: replayTo });
+			await api.post(`/gameplay/${id}/replay`, { to: replayTo });
 			toast.success("Replay started");
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Replay failed");
@@ -95,9 +101,11 @@
 			toast.error("Body is empty");
 			return;
 		}
+		const id = encodeURIComponent(gameId);
+		if (!id) return;
 		try {
 			const parsed = JSON.parse(editJson);
-			await api.post(`/gameplay/${gameId}/edit-data`, { json: parsed });
+			await api.post(`/gameplay/${id}/edit-data`, { json: parsed });
 			toast.success("Game data updated. If the current player changed, don't forget to replay it.");
 			showJsonEditor = false;
 		} catch (err) {
@@ -349,6 +357,7 @@
 				<label class="block text-xs font-medium text-gray-500 mb-1">Game ID</label>
 				<input
 					bind:value={gameId}
+					use:trim
 					class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 					onkeydown={(e) => e.key === "Enter" && loadGame()}
 				/>

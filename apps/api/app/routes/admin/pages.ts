@@ -20,7 +20,7 @@ router.get("/:name/:lang", async (ctx) => {
 async function upsert(ctx: Context) {
   const page = await colls.pages.findOneAndUpdate(
     { _id: { name: ctx.params.name, lang: ctx.params.lang } },
-    { $set: omit(z.record(z.string(), z.unknown()).parse(ctx.request.body), "_id") },
+    { $set: omit(z.record(z.string(), z.unknown()).parse(ctx.request.body), "_id", "createdAt", "updatedAt") },
     { upsert: true, returnDocument: "after" },
   );
   ctx.body = page;
