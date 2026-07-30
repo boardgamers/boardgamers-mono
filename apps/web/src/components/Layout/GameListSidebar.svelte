@@ -40,7 +40,7 @@
   }
 </script>
 
-<ul class="hidden w-[250px] -ml-4 divide-y divide-gray-200 dark:divide-gray-700 lg:block">
+<ul class="hidden w-[250px] shrink-0 divide-y divide-gray-200 dark:divide-gray-700 lg:block">
   {#key boardgameId}
     {#each games as game}
       <a
