@@ -19,6 +19,6 @@
         <IconInfoCircleFill class="text-xs" />
       </a>
     </h3>
-    <PreferencesChooser {gameInfo} />
+    <PreferencesChooser game={gameInfo} />
   </div>
 {/if}

@@ -199,7 +199,7 @@
 
     {#if gameInfo.options.some((x) => !!game.game.options?.[x.name])}
       <div class="mt-3">
-        <h3>Setup options</h3>
+        <h3 class="mb-1">Setup options</h3>
         <div class="flex flex-wrap gap-1">
           {#each gameInfo.options.filter((x) => !!game.game.options[x.name]) as pref}
             <Badge color="secondary">
