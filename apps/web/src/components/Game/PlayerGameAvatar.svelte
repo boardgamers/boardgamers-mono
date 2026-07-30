@@ -94,6 +94,10 @@
     border: 2px solid #333;
   }
 
+  :global(.dark) .player-avatar.current {
+    border-color: rgb(229 231 235); /* gray-200 — visible on dark bg */
+  }
+
   .player-avatar.current .vp {
     background-color: #6673bc;
   }

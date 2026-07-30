@@ -124,7 +124,7 @@
 </script>
 
 <Loading loading={loadingGames}>
-  <h3 class="font-semibold">
+  <h3 class="mb-2 font-semibold">
     {title}
     {#if !topRecords && !sample}
       <span class="text-xs">({count})</span>

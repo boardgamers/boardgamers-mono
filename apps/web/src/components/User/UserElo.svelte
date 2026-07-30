@@ -38,14 +38,14 @@
 
 {#if gamePreferences.some((pref) => pref.elo)}
   <div>
-    <h3 class="flex items-center gap-1 font-semibold">
+    <h3 class="mb-2 flex items-center gap-1 font-semibold">
       Elo <a href="/page/elo"
         ><IconInfoCircleFill class="text-gray-500 text-xs dark:text-gray-400" /></a
       >
     </h3>
-    <ul class="divide-y divide-gray-200 text-start dark:divide-gray-700">
+    <ul class="divide-y divide-accent/60 rounded-lg border border-accent text-start">
       {#each gamePreferences.filter((pref) => !!pref.elo) as gamePref}
-        <div class="cursor-pointer px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800">
+        <div class="cursor-pointer px-4 py-2 hover:bg-accent/5">
           <span>
             {#await gameName(gamePref.game) then name}
               {name} - <b>{gamePref.elo.value}</b> in

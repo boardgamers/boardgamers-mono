@@ -20,7 +20,7 @@
 </script>
 
 <Card class="mt-4 border-secondary" header="Games">
-  <Row>
+  <Row class="gap-4">
     {#if filter === "started"}
       <Col lg={6}>
         <GameList gameStatus="active" perPage={5} {userId} title="Active games" />
