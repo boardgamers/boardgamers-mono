@@ -28,9 +28,10 @@
         --avatar-border="1px solid gray"
         userId={data.user._id}
         size="8rem"
+        class="mb-3"
       />
-      <h1>{username}</h1>
-      <div>
+      <h1 class="mb-2">{username}</h1>
+      <div class="mb-2">
         ☯️ <a href="/page/karma" title="karma">{data.user.account.karma}</a> karma <br />
         🎉 Joined us in {joinDate.toLocaleString("en", { month: "long" })}
         {joinDate.toLocaleString("default", { year: "numeric" })}!
@@ -39,7 +40,7 @@
           📝 {data.user.account.bio}
         </p>{/if}
       {#if data.user && $account?._id === data.user._id}
-        <Button color="primary" href="/account">Settings</Button>
+        <Button color="primary" href="/account" class="mt-2">Settings</Button>
       {/if}
     </div>
     <div class="grow-[3]">

@@ -19,8 +19,28 @@
   };
 
   let classes = $derived(
-    classnames("flex items-stretch", size ? sizeClass[size] : "", className)
+    classnames("input-group flex items-stretch", size ? sizeClass[size] : "", className)
   );
 </script>
 
 <div class={classes} {...rest}>{@render children?.()}</div>
+
+<style>
+  /* Merge adjacent controls into one inset unit (input + button, etc.) */
+  .input-group > :global(:not(:first-child)) {
+    margin-left: -1px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+  .input-group > :global(:not(:last-child)) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .input-group > :global(input),
+  .input-group > :global(select),
+  .input-group > :global(textarea) {
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+  }
+</style>

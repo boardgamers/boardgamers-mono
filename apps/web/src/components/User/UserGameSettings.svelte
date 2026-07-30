@@ -93,7 +93,7 @@
         {#if game.preferences?.length > 0}
           <hr class="border-gray-200 dark:border-gray-700" />
           <div class="space-y-2">
-            <PreferencesChooser {game} />
+            <PreferencesChooser {game} framed />
           </div>
         {/if}
       </div>
