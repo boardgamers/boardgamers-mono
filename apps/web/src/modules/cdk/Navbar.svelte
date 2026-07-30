@@ -24,7 +24,7 @@
   } = $props();
 
   const bgClass: Record<string, string> = {
-    primary: "bg-primary text-white",
+    primary: "bg-primary text-white dark:bg-primary-dark",
     accent: "bg-accent text-white",
     contrast: "bg-contrast text-white",
     light: "bg-gray-100 text-gray-800",

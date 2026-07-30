@@ -36,6 +36,7 @@
           {#snippet footer()}
             <span
               class:text-accent={$gamePreferences[game._id.game]?.access?.ownership}
+              class:dark:text-accent-lighter={$gamePreferences[game._id.game]?.access?.ownership}
               class:text-gray-500={!$gamePreferences[game._id.game]?.access?.ownership}
               class:dark:text-gray-400={!$gamePreferences[game._id.game]?.access?.ownership}
             >

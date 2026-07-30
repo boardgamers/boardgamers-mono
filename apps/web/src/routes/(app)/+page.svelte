@@ -17,15 +17,15 @@
   <div class="container mx-auto px-4">
     <div class="flex flex-col py-2 text-lg font-light">
       <p class="text-center">
-        Play <b><a class="no-link text-accent" href="/boardgame/gaia-project">Gaia Project</a></b>,
-        <b><a class="no-link text-accent" href="/boardgame/powergrid">Powergrid</a></b>,
-        <b><a class="no-link text-accent" href="/boardgame/take6">6nimmt</a></b>
-        and <b><a class="no-link text-accent" href="/boardgame/container">Container</a></b> online<br />Want to set up
+        Play <b><a class="no-link text-accent dark:text-accent-lighter" href="/boardgame/gaia-project">Gaia Project</a></b>,
+        <b><a class="no-link text-accent dark:text-accent-lighter" href="/boardgame/powergrid">Powergrid</a></b>,
+        <b><a class="no-link text-accent dark:text-accent-lighter" href="/boardgame/take6">6nimmt</a></b>
+        and <b><a class="no-link text-accent dark:text-accent-lighter" href="/boardgame/container">Container</a></b> online<br />Want to set up
         live games? Join the
         <a href="https://discord.gg/EgqK3rD">discord</a>!
       </p>
-      <div class="mx-auto mt-6 block w-fit rounded-md border border-accent px-3 pb-3">
-        <div class="py-1 text-center text-base font-normal">{data.announcement?.title}</div>
+      <div class="mx-auto mt-6 block w-fit rounded-md border border-accent dark:border-accent-light px-3 pb-3">
+        <div class="py-1 text-center text-base font-normal dark:text-gray-300">{data.announcement?.title}</div>
         <div class="text-left announcement-content">
           {@html marked(data.announcement?.content || "")}
         </div>

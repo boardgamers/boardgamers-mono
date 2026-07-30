@@ -15,8 +15,11 @@
 @theme {
   --color-primary: #14508f;
   --color-primary-light: #1e6bb8;
+  --color-primary-lighter: #5b9bd5;
+  --color-primary-dark: #0d3a68;
   --color-accent: #508f16;
   --color-accent-light: #6bb822;
+  --color-accent-lighter: #8fd44a;
   --color-contrast: #8f1650;
   --color-social-google: #d74a38;
   --color-social-facebook: #3a63bf;
@@ -39,7 +42,7 @@
   }
 
   a {
-    @apply text-primary underline hover:text-primary-light;
+    @apply text-primary underline hover:text-primary-light dark:text-primary-lighter dark:hover:text-primary-light;
   }
 
   /* Links inside list items / cards should inherit text color, not show link color */
