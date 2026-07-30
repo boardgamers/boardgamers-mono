@@ -45,3 +45,13 @@
 </script>
 
 <nav class={classes} {...rest}>{@render children?.()}</nav>
+
+<style>
+  /* Links in a colored navbar should read as light, not the global link color. */
+  nav :global(a) {
+    color: rgb(255 255 255 / 0.85);
+  }
+  nav :global(a:hover) {
+    color: #fff;
+  }
+</style>
