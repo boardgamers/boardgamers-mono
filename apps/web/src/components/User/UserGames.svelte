@@ -2,11 +2,11 @@
   import type { Page } from "@sveltejs/kit";
   import { Card, Col, Row } from "@/modules/cdk";
   import { GameList } from "../Game";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
 
   let { userId }: { userId: string } = $props();
 
-  let filter = $derived($page.url.searchParams.get("games") ?? "started");
+  let filter = $derived(page.url.searchParams.get("games") ?? "started");
 
   const generateAlternative = (page: Page) => {
     const query = new URLSearchParams(page.url.searchParams);
@@ -16,7 +16,7 @@
     return query.toString();
   };
 
-  let alternativeRoute = $derived("?" + generateAlternative($page));
+  let alternativeRoute = $derived("?" + generateAlternative(page));
 </script>
 
 <Card class="mt-4 border-secondary" header="Games">

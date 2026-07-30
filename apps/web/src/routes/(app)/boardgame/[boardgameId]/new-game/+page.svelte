@@ -10,21 +10,21 @@
   import type { PlayerOrder } from "@bgs/models";
   import { playerOrders } from "@/data/playerOrders";
   import { account } from "@/lib/account.svelte";
+  import type { UserFront } from "@bgs/models";
   import { useLoggedIn } from "@/lib/auth-guards.svelte";
   import { post } from "@/lib/api";
   import { gameInfo } from "@/lib/game-info.svelte";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { SEO } from "@/components";
   import removeMarkdown from "remove-markdown";
   import { gameLabel } from "@/utils/game-label";
 
   useLoggedIn();
 
-  let { data } = $props();
-  // Client uses the store (seeded by the layout); SSR falls back to layout data.
-  let karma = $derived(($account ?? data.user)?.account.karma ?? 80);
+  // Client prefers the account store; SSR falls back to page.data.user.
+  let karma = $derived((($account ?? page.data.user) as UserFront | null)?.account.karma ?? 80);
 
-  let boardgameId = $derived($page.params.boardgameId); // Can be undefined during page navigation out
+  let boardgameId = $derived(page.params.boardgameId); // Can be undefined during page navigation out
   let info = $derived(gameInfo(boardgameId, "latest"));
 
   let gameId = $state(randomId());

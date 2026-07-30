@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { loadGameInfos, gameInfos, latestGameInfos } from "@/lib/game-info.svelte";
   import { logoClick } from "@/lib/stores.svelte";
   import { handleError } from "@/utils";
@@ -14,22 +14,22 @@
     $gameInfos;
     games = latestGameInfos() as GameInfoFront[];
   });
-  let boardgameId = $derived($page!.params.boardgameId);
+  let boardgameId = $derived(page!.params.boardgameId);
 
   function gameRoute(gameId: string) {
     if (!boardgameId) {
-      return `/boardgame/${gameId}${$page.url.pathname}`;
+      return `/boardgame/${gameId}${page.url.pathname}`;
     }
 
     if (gameId === boardgameId) {
-      if ($page.url.pathname === "/boardgame/" + gameId) {
+      if (page.url.pathname === "/boardgame/" + gameId) {
         return "/refresh-games";
       } else {
         return "/boardgame/" + gameId;
       }
     }
 
-    return $page.url.pathname.replace(`/boardgame/${boardgameId}`, `/boardgame/${gameId}`) + $page.url.search;
+    return page.url.pathname.replace(`/boardgame/${boardgameId}`, `/boardgame/${gameId}`) + page.url.search;
   }
 
   function handleClick(event: MouseEvent & { currentTarget: HTMLAnchorElement }) {

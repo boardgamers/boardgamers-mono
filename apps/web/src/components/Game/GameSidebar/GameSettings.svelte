@@ -7,7 +7,9 @@
   import { account } from "@/lib/stores.svelte";
   import { post, get } from "@/lib/api";
 
-  const { game, gameInfo }: GameContext = getContext("game");
+  const context: GameContext = getContext("game");
+  let game = $derived(context.game);
+  let gameInfo = $derived(context.gameInfo);
   let settings = $state<Record<string, unknown> | null>(null);
 
   let userId = $derived($account?._id);

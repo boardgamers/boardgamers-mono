@@ -4,7 +4,8 @@
   import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import { getContext } from "svelte";
 
-  const { gameInfo } = getContext("game") as GameContext;
+  const context = getContext("game") as GameContext;
+  let gameInfo = $derived(context.gameInfo);
 
   let showPreferences = $derived(
     !!gameInfo?.viewer?.alternate?.url || (gameInfo?.preferences?.some((item) => item.type !== "hidden") ?? false)
@@ -13,7 +14,7 @@
 
 {#if showPreferences && gameInfo}
   <div class="mt-3">
-    <h3 class="flex items-center gap-1">
+    <h3 class="mb-2 flex items-center gap-1">
       Preferences
       <a href={`/page/${gameInfo._id.game}/preferences`}>
         <IconInfoCircleFill class="text-xs" />

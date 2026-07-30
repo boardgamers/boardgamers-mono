@@ -7,6 +7,7 @@
   import type { UserFront } from "@bgs/models";
   import { browser } from "$app/environment";
   import { invalidateAll } from "$app/navigation";
+  import { page } from "$app/state";
   import { developerSettings } from "@/lib/stores.svelte";
   import { useLoggedIn } from "@/lib/auth-guards.svelte";
   import UserAvatar from "@/components/User/UserAvatar.svelte";
@@ -14,24 +15,22 @@
 
   useLoggedIn();
 
-  let { data } = $props();
+  // Client prefers the account store; SSR falls back to page.data.user.
+  let user = $derived(($account ?? page.data.user) as UserFront | null);
 
-  // Client uses the store (seeded by the layout); SSR falls back to layout data.
-  let acct = $derived(($account ?? data.user) as UserFront | null);
-
-  let email = $state(acct?.account.email ?? "");
+  let email = $state(user?.account.email ?? "");
   let editingEmail = $state(false);
   let notifications = $state(browser ? !!localStorage.getItem("notifications") : false);
-  let newsletter = $state(acct?.settings?.mailing?.newsletter ?? false);
-  let soundNotification = $state(acct?.settings?.game?.soundNotification ?? false);
-  let gameNotification = $state(acct?.settings?.mailing?.game?.activated ?? false);
-  let gameNotificationDelay = $state(acct?.settings?.mailing?.game?.delay ?? 30 * 60);
+  let newsletter = $state(user?.settings?.mailing?.newsletter ?? false);
+  let soundNotification = $state(user?.settings?.game?.soundNotification ?? false);
+  let gameNotification = $state(user?.settings?.mailing?.game?.activated ?? false);
+  let gameNotificationDelay = $state(user?.settings?.mailing?.game?.delay ?? 30 * 60);
   let tc = $state(false);
   let editingAvatar = $state(false);
   let avatarReload = $state(0);
   let fileUpload = $state<HTMLInputElement>();
 
-  let bio = $derived(acct?.account.bio ?? "");
+  let bio = $derived(user?.account.bio ?? "");
 
   const avatarStyles = [
     "adventurer",
@@ -157,14 +156,14 @@
   <title>Account</title>
 </svelte:head>
 
-{#if acct}
+{#if user}
 <div class="container mx-auto px-4">
   <div class="grid grid-cols-2">
     <div>
-      <h1>{acct.account.username}</h1>
+      <h1>{user.account.username}</h1>
     </div>
     <div class="text-right">
-      <Button color="primary" href={`/user/${acct.account.username}`}>Profile</Button>
+      <Button color="primary" href={`/user/${user.account.username}`}>Profile</Button>
     </div>
   </div>
 
@@ -175,8 +174,8 @@
           --avatar-border="1px solid gray"
           role="button"
           onclick={() => (editingAvatar = true)}
-          userId={acct._id}
-          username={acct.account.username}
+          userId={user._id}
+          username={user.account.username}
         />
       {/key}
     {:else}
@@ -184,7 +183,7 @@
       <a href="#upload" style="width: 100%" role="button" onclick={(e) => { e.preventDefault(); fileUpload.click(); }}>Upload</a>
       <div style="display: contents" class:hidden={customAvatarError}>
         <UserAvatar
-          userId={acct._id}
+          userId={user._id}
           username="Custom avatar"
           role="button"
           onerror={() => (customAvatarError = true)}
@@ -193,7 +192,7 @@
         />
       </div>
       {#each avatarStyles as art}
-        <UserAvatar {art} username={acct.account.username} role="button" onclick={() => selectArt(art)} />
+        <UserAvatar {art} username={user.account.username} role="button" onclick={() => selectArt(art)} />
       {/each}
     {/if}
     <FormGroup class="mt-2">
@@ -230,7 +229,7 @@
           <Button outline color="success" onclick={saveEmail}>Save</Button>
         {/if}
       </InputGroup>
-      <span class="text-xs">{acct.security.confirmed ? "Your email is confirmed." : "Your email is not confirmed."}</span>
+      <span class="text-xs">{user.security.confirmed ? "Your email is confirmed." : "Your email is not confirmed."}</span>
     </FormGroup>
     <p>
       Connect with
@@ -239,23 +238,23 @@
         <Button
           color="secondary"
           class={`mx-1 ${social}`}
-          disabled={!!(acct.account.social && acct.account.social[social])}
+          disabled={!!(user.account.social && user.account.social[social])}
           href={`/api/account/auth/${social}`}
-          aria-disabled={!!(acct.account.social && acct.account.social[social])}
+          aria-disabled={!!(user.account.social && user.account.social[social])}
           rel="external"
         >
           {upperFirst(social)}
         </Button>
       {/each}
     </p>
-    {#if !acct.account.termsAndConditions}
+    {#if !user.account.termsAndConditions}
       <Checkbox bind:checked={tc} onchange={acceptTC} class="mb-3">
         I agree to the <a href="/page/terms-and-conditions">Terms and Conditions</a> 📝
       </Checkbox>
     {:else}
       <p>
         I accepted the <a href="/page/terms-and-conditions">Terms and Conditions</a> on
-        {niceDate(acct.account.termsAndConditions)}.
+        {niceDate(user.account.termsAndConditions)}.
       </p>
     {/if}
     <hr />

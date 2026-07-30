@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { SEO } from "@/components";
   import { Button } from "@/modules/cdk";
   import { setAuthData, type AuthData } from "@/lib/auth.svelte";
@@ -10,8 +10,8 @@
     return post<AuthData>("/account/reset", params).then(setAuthData);
   }
 
-  let email = $state($page.url.searchParams.get("email") ?? $page.url.searchParams.get("user") ?? "");
-  let key = $state($page.url.searchParams.get("key")!);
+  let email = $state(page.url.searchParams.get("email") ?? page.url.searchParams.get("user") ?? "");
+  let key = $state(page.url.searchParams.get("key")!);
   let password = $state("");
   let passwordConfirm = $state("");
 

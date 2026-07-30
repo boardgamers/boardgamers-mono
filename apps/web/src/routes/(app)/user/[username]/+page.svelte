@@ -4,7 +4,7 @@
   import { Button, Card } from "@/modules/cdk";
   import { account } from "@/lib/account.svelte";
   import { dateFromObjectId } from "@/utils";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
 
   let { data }: { data: { user: UserFront } } = $props();
   let username = $derived(data.user.account.username);
@@ -17,7 +17,7 @@
     `${username} joined in ${dateFromObjectId(data.user._id).toLocaleString("en", {
       month: "long",
     })} ${dateFromObjectId(data.user._id).toLocaleString("en", { year: "numeric" })} and has ${data.user.account.karma} karma.`}
-  image={`${$page.url.origin}/api/user/${data.user._id}/avatar`}
+  image={`${page.url.origin}/api/user/${data.user._id}/avatar`}
 />
 
 <div class="container mx-auto px-4">

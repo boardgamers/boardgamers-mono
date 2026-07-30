@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { SEO } from "@/components";
   import { Button } from "@/modules/cdk";
   import { setAuthData, type AuthData } from "@/lib/auth.svelte";
@@ -11,9 +11,9 @@
 
   useLoggedOut();
 
-  let email = $state($page.url.searchParams.get("user") ?? "");
-  let isSocial = $page.url.searchParams.get("createSocialAccount");
-  let provider = $page.url.searchParams.get("provider")!;
+  let email = $state(page.url.searchParams.get("user") ?? "");
+  let isSocial = page.url.searchParams.get("createSocialAccount");
+  let provider = page.url.searchParams.get("provider")!;
 
   let password = $state("");
   let passwordConfirm = $state("");
@@ -42,7 +42,7 @@
     }
 
     if (isSocial) {
-      const jwt = $page.url.searchParams.get("jwt")!;
+      const jwt = page.url.searchParams.get("jwt")!;
 
       registerSocial({ username, termsAndConditions: tc, jwt }).catch(handleError);
     } else {

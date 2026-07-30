@@ -7,14 +7,17 @@
   import { account } from "@/lib/account.svelte";
   import { gameInfo, loadGameInfo, gameInfos } from "@/lib/game-info.svelte";
   import { gamePreferences, loadGamePreferences } from "@/lib/game-preferences.svelte";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import type { LoadEloRankingsResult } from "@/lib/elo-rankings.svelte";
   import { gameLabel } from "@/utils/game-label";
+  import type { UserFront } from "@bgs/models";
 
-  let { data }: { data: { rankings: LoadEloRankingsResult } } = $props();
+  let { data } = $props();
 
-  let boardgameId = $derived($page.params.boardgameId);
+  let boardgameId = $derived(page.params.boardgameId);
+  // Client prefers the account store; SSR falls back to page.data.user.
+  let user = $derived(($account ?? page.data.user) as UserFront | null);
   let boardgame = $derived.by(() => {
     // track the gameInfos store so this re-evaluates after loadGameInfo resolves
     $gameInfos;
@@ -32,7 +35,7 @@
 
   // re-run whenever the logged-in account or boardgame changes
   $effect(() => {
-    $account?._id;
+    user?._id;
     boardgameId;
     onUserChanged();
   });
@@ -77,10 +80,10 @@
       <GameList
         {boardgameId}
         gameStatus="active"
-        userId={$account?._id}
+        userId={user?._id}
         perPage={5}
         topRecords
-        title={$account?._id ? "My games" : "Featured games"}
+        title={user?._id ? "My games" : "Featured games"}
       />
     </div>
     <div class="mt-3">

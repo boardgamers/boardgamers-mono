@@ -2,14 +2,14 @@
   import { sidebarOpen } from "@/lib/stores.svelte";
   import { Button } from "@/modules/cdk";
   import IconGear from "@/components/icons/IconGear.svelte";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import GameSidebar from "@/components/Game/GameSidebar.svelte";
 </script>
 
 <div class="sidebar-container" class:open={$sidebarOpen}>
   <aside class="px-3 pb-3 sidebar thin-scrollbar text-white">
     <div id="sidebar">
-      {#if $page.data.game}
+      {#if page.data.game}
         <GameSidebar />
       {/if}
     </div>

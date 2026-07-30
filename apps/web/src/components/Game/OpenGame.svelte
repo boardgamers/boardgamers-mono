@@ -34,7 +34,7 @@
   import { loadGame, loadGamePlayers } from "@/lib/game.svelte";
   import { goto } from "$app/navigation";
   import { redirectLoggedIn } from "@/utils/redirect";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import SEO from "../SEO.svelte";
   import removeMarkdown from "remove-markdown";
   import { gameLabel } from "@/utils/game-label";
@@ -71,7 +71,7 @@
 
   const join = async () => {
     if (!$user) {
-      goto(redirectLoggedIn($page.url));
+      goto(redirectLoggedIn(page.url));
       return;
     }
 

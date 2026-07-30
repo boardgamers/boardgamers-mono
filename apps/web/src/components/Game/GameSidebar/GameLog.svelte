@@ -5,7 +5,8 @@
   import DOMPurify from "dompurify";
   import { getContext } from "svelte";
 
-  const { log }: GameContext = getContext("game");
+  const context: GameContext = getContext("game");
+  let log = $derived(context.log ?? []);
 
   let showLog = $state(browser && !!localStorage.getItem("show-log"));
   let logElement = $state<HTMLDivElement>();

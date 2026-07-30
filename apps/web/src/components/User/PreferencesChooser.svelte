@@ -43,10 +43,10 @@
   <PreferenceInput {item} value={preferences[item.name]} onchange={(val) => handleChange(item.name, val)} />
 {/each}
 {#each preferenceItems.filter((item) => item.type === "category") as category}
-  <div class="overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
+  <div class="overflow-hidden rounded-md {shownCategories[category.name] ? 'border border-gray-200 dark:border-gray-700' : ''}">
     <button
       type="button"
-      class="flex w-full items-center justify-between px-3 py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800"
+      class="flex w-full items-center justify-between py-1 text-base font-semibold underline decoration-dotted underline-offset-4 hover:text-primary dark:hover:text-primary-lighter"
       aria-expanded={shownCategories[category.name] ?? false}
       onclick={() => {
         shownCategories[category.name] = !shownCategories[category.name];

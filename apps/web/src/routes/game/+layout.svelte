@@ -4,7 +4,7 @@
   import { Appbar, Sidebar } from "@/components";
   import { activeGames } from "@/lib/stores.svelte";
   import { initNProgress } from "@/lib/nprogress.svelte";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { setContext, onDestroy } from "svelte";
   import EventEmitter from "eventemitter3";
   import type { GameFront, GameInfoFront, PlayerInfoFront } from "@bgs/models";
@@ -17,9 +17,9 @@
 
   // Game context is set at the layout level so both the page content (inside <main>)
   // and the Sidebar (sibling) can access it via getContext("game").
-  let game = $derived($page.data.game as GameFront | undefined);
-  let players = $derived($page.data.players as PlayerInfoFront[] | undefined);
-  let gameInfo = $derived($page.data.gameInfo as GameInfoFront | undefined);
+  let game = $derived(page.data.game as GameFront | undefined);
+  let players = $derived(page.data.players as PlayerInfoFront[] | undefined);
+  let gameInfo = $derived(page.data.gameInfo as GameInfoFront | undefined);
 
   let gameId = $derived(game?._id);
   $effect(() => {
@@ -30,9 +30,9 @@
   });
 
   const context: GameContext = $state({
-    game: ($page.data.game as GameFront) ?? null,
-    players: ($page.data.players as PlayerInfoFront[]) ?? [],
-    gameInfo: ($page.data.gameInfo as GameInfoFront) ?? null,
+    game: (page.data.game as GameFront) ?? null,
+    players: (page.data.players as PlayerInfoFront[]) ?? [],
+    gameInfo: (page.data.gameInfo as GameInfoFront) ?? null,
     replayData: null as { start: number; end: number; current: number } | null,
     emitter: new EventEmitter(),
     log: [] as string[],

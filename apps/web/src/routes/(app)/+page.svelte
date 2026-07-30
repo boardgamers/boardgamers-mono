@@ -3,10 +3,18 @@
   import { Button } from "@/modules/cdk";
   import marked from "marked";
   import GameList from "@/components/Game/GameList.svelte";
-  import { activeGames } from "@/lib/stores.svelte";
   import { account } from "@/lib/account.svelte";
+  import { activeGames } from "@/lib/stores.svelte";
+  import { page } from "$app/state";
+  import type { UserFront } from "@bgs/models";
+
   let { data } = $props();
   let announcement = $derived(data.announcement);
+
+  // Client prefers the stores (seeded by the layout); SSR falls back to page.data so
+  // the homepage doesn't flicker between "My games" and "Featured games".
+  let user = $derived(($account ?? page.data.user) as UserFront | null);
+  let myGames = $derived($activeGames.length > 0 ? $activeGames : ((page.data.activeGames as string[]) ?? []));
 </script>
 
 <SEO />
@@ -33,8 +41,8 @@
     </div>
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <div class="mt-3">
-        {#if $activeGames?.length}
-          <GameList gameStatus="active" userId={$account?._id} perPage={5} title="My games" />
+        {#if myGames.length > 0}
+          <GameList gameStatus="active" userId={user?._id} perPage={5} title="My games" />
         {:else}
           <GameList gameStatus="active" topRecords perPage={5} title="Featured games" />
         {/if}

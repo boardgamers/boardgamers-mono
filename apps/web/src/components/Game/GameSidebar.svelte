@@ -14,7 +14,10 @@
   import { account } from "@/lib/account.svelte";
   import { playerStatus, addActiveGame, removeActiveGame, devGameSettings } from "@/lib/stores.svelte";
 
-  const { game, players, gameInfo }: GameContext = getContext("game");
+  const context: GameContext = getContext("game");
+  let game = $derived(context.game);
+  let players = $derived(context.players);
+  let gameInfo = $derived(context.gameInfo);
 
   let secondsCounter = $state(0);
 
@@ -104,7 +107,7 @@
 
 <div id="floating-controls"></div>
 {#if game && gameInfo}
-  <h3 class="mt-3">Players</h3>
+  <h3 class="mt-3 mb-2">Players</h3>
     {#each game.players as player}
       <div class={"mb-1 flex items-center player-row"} class:active={isCurrentPlayer(player._id)}>
         <PlayerGameAvatar game={game.game.name} {userId} {player} status={status(player._id)} class="me-2" />

@@ -19,12 +19,14 @@
   import IconMoonFill from "@/components/icons/IconMoonFill.svelte";
   import IconCircleHalf from "@/components/icons/IconCircleHalf.svelte";
   import { handleError } from "@/utils";
-  import { account as user, login, logout } from "@/lib/account.svelte";
+  import { account, login, logout } from "@/lib/account.svelte";
   import { logoClick } from "@/lib/stores.svelte";
   import { activeGames } from "@/lib/stores.svelte";
   import { browser } from "$app/environment";
   import { currentTheme, cycleTheme, type Theme } from "@/lib/theme";
   import UserAvatar from "../User/UserAvatar.svelte";
+  import { page } from "$app/state";
+  import type { UserFront } from "@bgs/models";
 
   const themeLabel: Record<Theme, string> = {
     light: "Light",
@@ -36,6 +38,11 @@
   let email = $state("");
   let password = $state("");
 
+  // Client prefers the account store (seeded by the layout, live-updates on
+  // login/logout); SSR falls back to page.data.user so the navbar renders the
+  // user immediately without a post-SSR flicker.
+  let user = $derived(($account ?? page.data.user) as UserFront | null);
+
   const handleSubmit = (event: Event) => {
     event.preventDefault();
 
@@ -46,19 +53,21 @@
     logout().catch(handleError);
   };
 
-  let admin = $derived($user?.authority === "admin");
+  let admin = $derived(user?.authority === "admin");
+  // SSR fallback for active games so the count badge doesn't flicker after hydration.
+  let myActiveGames = $derived($activeGames.length > 0 ? $activeGames : ((page.data.activeGames as string[]) ?? []));
   // todo use load() function of svelte kit instead
   // $: adminLink =
   //   location.hostname === "localhost"
   //     ? "http://localhost:8613"
   //     : `${location.protocol}//admin.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`;
   const adminLink = "https://admin.boardgamers.space";
-  let hasGames = $derived($activeGames.length > 0);
+  let hasGames = $derived(myActiveGames.length > 0);
 
   const onHasGamesChanged = () => {
     if (hasGames) {
       if (document.hidden) {
-        if ($user?.settings?.game?.soundNotification) {
+        if (user?.settings?.game?.soundNotification) {
           (document.getElementById("sound-notification") as HTMLAudioElement).play();
         }
         if (localStorage.getItem("notifications")) {
@@ -82,7 +91,7 @@
     class="me-2 text-xl font-bold text-white no-underline hover:text-white"
   >BGS</a>
 
-  {#if $user}
+  {#if user}
     <a
       class={`me-3 rounded-full px-2 py-0.5 text-sm font-semibold text-white ${
         hasGames ? "bg-green-600" : "bg-gray-500"
@@ -91,7 +100,7 @@
       title="Jump to next active game"
       id="active-game-count"
     >
-      {$activeGames.length}
+      {myActiveGames.length}
     </a>
   {/if}
 
@@ -120,7 +129,7 @@
       <span class="hidden sm:inline">{themeLabel[$currentTheme]}</span>
     </button>
 
-    {#if !$user}
+    {#if !user}
       <!-- todo: hide on mobile -->
       <span class="text-white">Have an account?</span>
       <Dropdown nav inNavbar>
@@ -164,11 +173,12 @@
         </NavLink>
       {/if}
       <NavLink
-        href={`/user/${$user.account.username}`}
+        href={`/user/${user.account.username}`}
         data-sveltekit-preload-data="hover"
         class="flex items-center gap-2 py-0"
       >
-        <span class="hidden sm:inline">{$user.account.username}</span>
+        <UserAvatar username={user.account.username} userId={user._id} size="2rem" />
+        <span class="hidden sm:inline">{user.account.username}</span>
       </NavLink>
       <NavLink onclick={logOut} class="flex items gap-2">
         <IconPower size="1.25rem" />
