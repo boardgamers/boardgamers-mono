@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { handleError, confirm, niceDate, duration, createWatcher } from "@/utils";
+  import { handleError, handleInfo, handleSuccess, confirm, niceDate, duration, createWatcher } from "@/utils";
   import { Card, Button, FormGroup, Input, InputGroup, Checkbox } from "@/modules/cdk";
   import { upperFirst, debounce } from "lodash";
   import { account } from "@/lib/account.svelte";
@@ -288,6 +288,23 @@
     </div>
     <hr />
     <Checkbox bind:checked={$developerSettings}>🔧 Enable developper settings on this device</Checkbox>
+    {#if $developerSettings}
+      <div class="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-dashed border-gray-300 p-3 dark:border-gray-600">
+        <span class="text-sm text-gray-500 dark:text-gray-400">Test notifications:</span>
+        <Button size="sm" color="primary" outline onclick={() => handleInfo("ℹ️ This is an info notification.")}>Info</Button>
+        <Button size="sm" color="accent" outline onclick={() => handleSuccess("✅ This is a success notification.")}>Success</Button>
+        <Button size="sm" color="danger" outline onclick={() => handleError("🚨 This is an error notification.")}>Error</Button>
+        <Button
+          size="sm"
+          color="secondary"
+          outline
+          onclick={async () => {
+            const ok = await confirm("This is a test confirmation dialog. Proceed?");
+            handleInfo(ok ? "You clicked OK ✅" : "You clicked Cancel ❌");
+          }}
+        >Confirm</Button>
+      </div>
+    {/if}
   </Card>
   <Card class="mt-4 border-accent" header="Game Settings">
     <div class="space-y-2">
