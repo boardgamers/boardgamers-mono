@@ -5,7 +5,15 @@ import "awesome-notifications/dist/style.css";
 let notifier: any | undefined;
 
 if (browser) {
-  import("awesome-notifications").then((AWN) => (notifier = new AWN.default({ icons: { enabled: false } })));
+  import("awesome-notifications").then((mod) => {
+    // UMD module: Vite wraps it so `mod.default` is the UMD export, whose own
+    // `.default` is the AWN class. Walk down to the first actual constructor.
+    let AWN: any = mod;
+    while (typeof AWN !== "function" && AWN?.default) {
+      AWN = AWN.default;
+    }
+    notifier = new AWN({ icons: { enabled: false } });
+  });
 }
 
 export function handleError(err: Error | string | unknown): void {

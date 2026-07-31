@@ -47,7 +47,7 @@
         "You need to have game ownership to host a new game. You can set game ownership in your account settings."
       );
     } else {
-      goto(`/new-game/${boardgameId}`);
+      goto(`/boardgame/${boardgameId}/new-game`);
     }
   }
 </script>
