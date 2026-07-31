@@ -58,7 +58,19 @@ router.post("/", loggedIn, async (ctx) => {
 
   const updateFields: Record<string, unknown> = {};
   if (body.settings != null) {
-    updateFields.settings = body.settings;
+    // Merge leaf-by-leaf via dot-notation so a partial update (e.g. just
+    // home.forgottenGames) doesn't clobber sibling settings or sub-keys.
+    const flatten = (obj: Record<string, unknown>, prefix: string) => {
+      for (const [key, value] of Object.entries(obj)) {
+        const path = prefix ? `${prefix}.${key}` : key;
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          flatten(value as Record<string, unknown>, path);
+        } else {
+          updateFields[`settings.${path}`] = value;
+        }
+      }
+    };
+    flatten(body.settings as Record<string, unknown>, "");
   }
   if (body.account?.avatar != null) {
     updateFields["account.avatar"] = body.account.avatar;

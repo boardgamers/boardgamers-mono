@@ -13,7 +13,7 @@
   import { gameLabel } from "@/utils/game-label";
   import type { UserFront } from "@bgs/models";
 
-  let { data }: { data: { rankings: LoadEloRankingsResult } } = $props();
+  let { data }: { data: { rankings: LoadEloRankingsResult; myGamesStatus?: "active" | "ended" } } = $props();
 
   // The route guarantees the `boardgameId` param is present.
   let boardgameId = $derived(page.params.boardgameId!);
@@ -80,7 +80,7 @@
     <div class="mt-3">
       <GameList
         {boardgameId}
-        gameStatus="active"
+        gameStatus={user?._id ? (data.myGamesStatus ?? "active") : "active"}
         userId={user?._id}
         perPage={5}
         topRecords

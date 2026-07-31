@@ -3,7 +3,7 @@ import type { LayoutLoad } from "./$types";
 import { activeGames, setAccount, sidebarOpen } from "@/lib/stores.svelte";
 import { initTokens } from "@/lib/auth.svelte";
 import { initWebsocket } from "@/lib/websocket.svelte";
-import { setApiContext } from "@/lib/api";
+import { setApiContext, get } from "@/lib/api";
 import { initNProgress } from "@/lib/nprogress.svelte";
 import "@/lib/theme";
 
@@ -31,9 +31,22 @@ export const load: LayoutLoad = async ({ data, fetch }) => {
     initNProgress();
   }
 
+  // Boardgames the player has played, ordered by recency — used by the sidebar's
+  // "My games" pinned group. Fetched here (not in the component) so SSR renders the
+  // pinned list immediately instead of popping it in after hydration.
+  let myBoardgames: string[] = [];
+  if (data?.user?._id) {
+    myBoardgames = await get<{ boardgame: string; lastActivity: string }[]>("/game/my-boardgames", {
+      user: data.user._id,
+    })
+      .then((rows) => rows.map((r) => r.boardgame))
+      .catch(() => []);
+  }
+
   // Pass through the layout data so child pages can access it via `await parent()`
   return {
     user: data?.user ?? null,
     activeGames: data?.activeGames ?? [],
+    myBoardgames,
   };
 };

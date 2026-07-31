@@ -99,6 +99,34 @@ async function gameConditions<T>(
   }) as Record<string, unknown>;
 }
 
+const myBoardgamesQuerySchema = z.object({
+  user: zObjectId(),
+});
+
+/**
+ * Boardgames a player has played (open/active/ended), each with the timestamp of
+ * their most recent activity, ordered by recency. Powers the sidebar's
+ * "your games first" ordering in a single request.
+ */
+export async function myBoardgames(ctx: Context) {
+  const { user } = myBoardgamesQuerySchema.parse(ctx.query);
+
+  const results = await colls.games
+    .aggregate<{ _id: string; lastActivity: Date }>([
+      { $match: { "players._id": user } },
+      {
+        $group: {
+          _id: "$game.name",
+          lastActivity: { $max: { $ifNull: ["$lastMove", "$updatedAt"] } },
+        },
+      },
+      { $sort: { lastActivity: -1 } },
+    ])
+    .toArray();
+
+  ctx.body = results.map((r) => ({ boardgame: r._id, lastActivity: r.lastActivity }));
+}
+
 router.get("/:status/count", async (ctx) => {
   const { status } = listingsParamsSchema.parse(ctx.params);
   const query = listingsQuerySchema.parse(ctx.query);

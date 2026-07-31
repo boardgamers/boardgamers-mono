@@ -13,7 +13,7 @@ import locks from "../../config/locks.ts";
 import { zObjectId } from "../../utils/zod.ts";
 import { notifyGameStart } from "../../services/game.ts";
 import { isAdmin, isConfirmed, loggedIn } from "../utils.ts";
-import listings from "./listings.ts";
+import listings, { myBoardgames } from "./listings.ts";
 
 function withoutData(game: GameDoc): Omit<GameDoc, "data"> {
   const { data: _data, ...rest } = game;
@@ -41,6 +41,8 @@ const newGameSchema = z.object({
 });
 
 const router = new Router<Application.DefaultState, Context>();
+
+router.get("/my-boardgames", myBoardgames);
 
 router.use("/status", listings.routes(), listings.allowedMethods());
 
@@ -221,6 +223,12 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 
   await colls.games.insertOne(game);
 
+  // Creating a game re-pins its boardgame in the "My games" sidebar group.
+  await colls.users.updateOne(
+    { _id: ctx.state.user!._id },
+    { $pull: { "settings.home.forgottenGames": game.game.name } },
+  );
+
   ctx.status = 200;
 });
 
@@ -393,6 +401,12 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
     }
 
     await colls.games.replaceOne({ _id: game._id }, game);
+
+    // Joining a game re-pins its boardgame in the "My games" sidebar group.
+    await colls.users.updateOne(
+      { _id: user._id },
+      { $pull: { "settings.home.forgottenGames": game.game.name } },
+    );
 
     ctx.state.game = game;
 

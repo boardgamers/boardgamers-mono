@@ -154,6 +154,14 @@
               <div class="flex items-center">
                 {#if game.status === "active"}
                   <Badge color="contrast" class="me-2 text-xs text-white">R{game.context?.round ?? 0}</Badge>
+                {:else if game.status === "open"}
+                  <span class="me-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/60 dark:text-blue-200">
+                    open · {game.players.length}/{game.options.setup.nbPlayers}
+                  </span>
+                {:else if game.status === "ended"}
+                  <span class="me-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                    finished
+                  </span>
                 {/if}
                 <span class="game-name truncate">
                   {game._id}

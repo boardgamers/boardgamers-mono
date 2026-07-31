@@ -13,7 +13,7 @@ export const load: PageLoad = async ({ params, fetch, parent }) => {
   const boardgameId = params.boardgameId;
   const userId = user?._id;
 
-  const myGames = loadGames({
+  const myActiveGames = loadGames({
     gameStatus: "active",
     count: 5,
     boardgameId,
@@ -26,12 +26,29 @@ export const load: PageLoad = async ({ params, fetch, parent }) => {
 
   const lobbyGames = loadGames({ sample: true, gameStatus: "open", boardgameId, count: 5, store: true });
 
-  const [_1, _2, _3, rankings] = await Promise.all([
-    myGames,
+  const [active, _2, _3, rankings] = await Promise.all([
+    myActiveGames,
     featuredGames,
     lobbyGames,
     loadEloRankings({ boardgameId, count: 6, fetchCount: false }),
   ]);
 
-  return { rankings };
+  // If the player has no active games of this boardgame, fall back to their finished
+  // games for "My games" (so the section isn't empty when they've only completed games).
+  let myGamesFallback: "active" | "ended" = "active";
+  if (userId && active.games.length === 0) {
+    const ended = await loadGames({
+      gameStatus: "ended",
+      count: 5,
+      boardgameId,
+      userId,
+      fetchCount: false,
+      store: true,
+    });
+    if (ended.games.length > 0) {
+      myGamesFallback = "ended";
+    }
+  }
+
+  return { rankings, myGamesStatus: myGamesFallback };
 };

@@ -39,6 +39,9 @@ export const userSchema = z.object({
     home: z
       .object({
         showMyGames: z.boolean().optional(),
+        // Boardgames the player chose to hide from the "My games" sidebar group.
+        // Cleared per-game when the player joins or creates a game of that boardgame.
+        forgottenGames: z.array(z.string()).optional(),
       })
       .optional(),
   }).optional(),
