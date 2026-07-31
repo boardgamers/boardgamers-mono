@@ -129,7 +129,24 @@
   width: 0;
 }
 
+/* Scrim behind the mobile sidebar overlay — tap to close. Only relevant on
+   small screens where the sidebar is an overlay; hidden on desktop. */
+.sidebar-scrim {
+  display: none;
+}
+
 @media screen and (max-width: 600px) {
+  .sidebar-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background: rgb(0 0 0 / 0.4);
+    border: 0;
+    padding: 0;
+    cursor: default;
+  }
+
   .sidebar-container.open {
     width: 0;
     min-width: 0;
@@ -148,6 +165,7 @@
     opacity: 0;
     pointer-events: none;
     transition: all 0.3s ease;
+    z-index: 20; /* above the scrim */
   }
 }
 

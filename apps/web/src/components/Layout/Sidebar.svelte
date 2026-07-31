@@ -7,6 +7,14 @@
 </script>
 
 <div class="sidebar-container" class:open={$sidebarOpen}>
+  {#if $sidebarOpen}
+    <button
+      type="button"
+      class="sidebar-scrim"
+      aria-label="Close sidebar"
+      onclick={() => ($sidebarOpen = false)}
+    ></button>
+  {/if}
   <aside class="px-3 pb-3 sidebar thin-scrollbar text-white">
     <div id="sidebar">
       {#if page.data.game}

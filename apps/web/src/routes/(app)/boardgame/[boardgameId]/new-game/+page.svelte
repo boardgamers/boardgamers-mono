@@ -219,7 +219,7 @@
         </div>
       </div>
 
-      <div class="mb-3 grid grid-cols-1 gap-4 sm:grid-cols-12">
+      <div class="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-12 sm:gap-4">
         <div class="flex items-center sm:col-span-3">
           <Checkbox bind:checked={enableKarma}>Karma restriction</Checkbox>
         </div>
