@@ -99,7 +99,7 @@
 
   {#if user}
     <a
-      class={`me-3 rounded-full px-2 py-0.5 text-sm font-semibold text-white ${
+      class={`me-3 rounded-full px-2 py-0.5 text-sm font-semibold text-white no-underline hover:text-white ${
         hasGames ? "bg-green-600" : "bg-gray-500"
       }`}
       href="/next-game"
