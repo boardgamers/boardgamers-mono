@@ -107,7 +107,7 @@
 
 <div id="floating-controls"></div>
 {#if game && gameInfo}
-  <h3 class="mt-3 mb-2">Players</h3>
+  <h3 class="mt-3">Players</h3>
     {#each game.players as player}
       <div class={"mb-1 flex items-center player-row"} class:active={isCurrentPlayer(player._id)}>
         <PlayerGameAvatar game={game.game.name} {userId} {player} status={status(player._id)} class="me-2" />

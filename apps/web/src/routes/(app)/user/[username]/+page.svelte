@@ -52,7 +52,7 @@
             <UserElo userId={data.user._id} />
           </div>
           <div>
-            <h3 class="mb-2 text-lg font-semibold">Tournaments</h3>
+            <h3 class="text-lg font-semibold">Tournaments</h3>
             <p>No Tournament info available</p>
           </div>
         </div>

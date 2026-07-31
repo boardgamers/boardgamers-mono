@@ -38,7 +38,7 @@
 
 {#if gamePreferences.some((pref) => pref.elo)}
   <div>
-    <h3 class="mb-2 flex items-center gap-1 font-semibold">
+    <h3 class="flex items-center gap-1 font-semibold">
       Elo <a href="/page/elo"
         ><IconInfoCircleFill class="text-gray-500 text-xs dark:text-gray-400" /></a
       >

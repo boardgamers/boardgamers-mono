@@ -124,7 +124,7 @@
 </script>
 
 <Loading loading={loadingGames}>
-  <h3 class="mb-2 font-semibold">
+  <h3 class="font-semibold">
     {title}
     {#if !topRecords && !sample}
       <span class="text-xs">({count})</span>
@@ -144,12 +144,12 @@
               {gameIcon(game.game.name)}
             </span>
 
-            <div class="me-auto" style="line-height: 1.1">
-              <div>
+            <div class="me-auto min-w-0" style="line-height: 1.1">
+              <div class="flex items-center">
                 {#if game.status === "active"}
                   <Badge color="contrast" class="text-xs text-white">R{game.context?.round ?? 0}</Badge>
                 {/if}
-                <span class="game-name">
+                <span class="game-name truncate">
                   {game._id}
                 </span>
                 {#if playerEloChange(game)}
@@ -179,7 +179,7 @@
             </div>
 
             {#if game.status !== "open"}
-              <div class="factions flex flex-row">
+              <div class="factions flex shrink-0 flex-row">
                 {#each game.players as player}
                   <PlayerGameAvatar
                     game={game.game.name}

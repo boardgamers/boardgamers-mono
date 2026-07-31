@@ -25,3 +25,10 @@
 </script>
 
 <li class={classes} {...rest}>{@render children?.()}</li>
+
+<style>
+  /* Active page: the inner link must be light against the primary background. */
+  li.bg-primary :global(a) {
+    color: #fff !important;
+  }
+</style>

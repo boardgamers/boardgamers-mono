@@ -256,7 +256,7 @@
         {niceDate(user.account.termsAndConditions)}.
       </p>
     {/if}
-    <hr class="my-3 border-gray-200 dark:border-gray-700" />
+    <hr />
     <div class="space-y-2">
       <Checkbox bind:checked={newsletter} onchange={updateAccount}>Get newsletter, up to six emails per year.</Checkbox>
       <div class="flex flex-row items-center gap-3">
@@ -283,7 +283,7 @@
       </div>
       </div>
     </div>
-    <hr class="my-3 border-gray-200 dark:border-gray-700" />
+    <hr />
     <Checkbox bind:checked={$developerSettings}>🔧 Enable developper settings on this device</Checkbox>
   </Card>
   <Card class="mt-4 border-accent" header="Game Settings">
