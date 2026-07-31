@@ -1,3 +1,7 @@
+// Run via `pnpm test` (the package.json script), NOT bare `node --test`. The script
+// imports app/config/test-hooks.ts, which connects to the *-test database and starts
+// the API server. Running this file directly leaves `colls` uninitialized →
+// "Cannot read properties of undefined (reading 'insertOne')".
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { ObjectId } from "mongodb";
