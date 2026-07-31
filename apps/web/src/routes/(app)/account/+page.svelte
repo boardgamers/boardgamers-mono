@@ -8,6 +8,7 @@
   import { browser } from "$app/environment";
   import { invalidateAll } from "$app/navigation";
   import { page } from "$app/state";
+  import { untrack } from "svelte";
   import { developerSettings } from "@/lib/stores.svelte";
   import { useLoggedIn } from "@/lib/auth-guards.svelte";
   import UserAvatar from "@/components/User/UserAvatar.svelte";
@@ -18,13 +19,15 @@
   // Client prefers the account store; SSR falls back to page.data.user.
   let user = $derived(($account ?? page.data.user) as UserFront | null);
 
-  let email = $state(user?.account.email ?? "");
+  // Editable form fields: seeded from `user` once, then mutated locally.
+  // untrack() marks the one-time capture as intentional (not a reactive-read bug).
+  let email = $state(untrack(() => user?.account.email ?? ""));
   let editingEmail = $state(false);
   let notifications = $state(browser ? !!localStorage.getItem("notifications") : false);
-  let newsletter = $state(user?.settings?.mailing?.newsletter ?? false);
-  let soundNotification = $state(user?.settings?.game?.soundNotification ?? false);
-  let gameNotification = $state(user?.settings?.mailing?.game?.activated ?? false);
-  let gameNotificationDelay = $state(user?.settings?.mailing?.game?.delay ?? 30 * 60);
+  let newsletter = $state(untrack(() => user?.settings?.mailing?.newsletter ?? false));
+  let soundNotification = $state(untrack(() => user?.settings?.game?.soundNotification ?? false));
+  let gameNotification = $state(untrack(() => user?.settings?.mailing?.game?.activated ?? false));
+  let gameNotificationDelay = $state(untrack(() => user?.settings?.mailing?.game?.delay ?? 30 * 60));
   let tc = $state(false);
   let editingAvatar = $state(false);
   let avatarReload = $state(0);

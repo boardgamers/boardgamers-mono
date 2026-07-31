@@ -77,7 +77,7 @@
     padding-right: 12px;
   }
 
-  .dark .log {
+  :global(.dark) .log {
     border-color: rgb(75, 85, 99);
   }
 </style>

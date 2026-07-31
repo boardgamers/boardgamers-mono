@@ -52,7 +52,8 @@
     object-fit: cover; /* crop square uploads into the circle */
   }
 
-  .dark .user-avatar {
+  /* :global(.dark) ancestor — kept in the scoped block so specificity matches .user-avatar. */
+  :global(.dark) .user-avatar {
     background-color: rgb(31 41 55); /* gray-800 */
     border: var(--avatar-border, 1px solid rgb(75 85 99)); /* gray-600 default */
   }

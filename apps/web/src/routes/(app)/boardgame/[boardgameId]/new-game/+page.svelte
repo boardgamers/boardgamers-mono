@@ -46,7 +46,8 @@
   let scheduledTime = $state("");
 
   let enableKarma = $state(false);
-  let minimumKarma = $state(Math.min(75, karma - 5));
+  // Editable field seeded once from karma; untrack marks the one-time capture as intentional.
+  let minimumKarma = $state(untrack(() => Math.min(75, karma - 5)));
 
   function createGame() {
     submitting = true;
@@ -141,9 +142,9 @@
   };
 
   // Initial load: run synchronously during component init so SSR has data.
-  // Guarded by `info` since updateSelects reads info.options. untrack avoids
-  // re-triggering on the writes updateSelects makes to other $state.
-  if (info) {
+  // Guarded by `info` since updateSelects reads info.options. untrack marks the
+  // one-time SSR read + avoids re-triggering on writes to other $state.
+  if (untrack(() => info)) {
     untrack(() => updateSelects());
   }
 

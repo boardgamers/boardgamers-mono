@@ -211,6 +211,9 @@
   overflow-x: auto;
 }
 
+/* Dark-mode variants of component-scoped styles live in their components as
+   `:global(.dark) .foo` (kept scoped for specificity). */
+
 /* ---------- Game sidebar content ---------- */
 /* These target #sidebar which is a Portal target — the content is rendered in a
    hidden div during SSR then moved by the portal action on the client. Svelte's CSS
