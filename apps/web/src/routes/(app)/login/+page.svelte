@@ -47,10 +47,12 @@
       <a href="/forgotten-password"><span class="text-xs">Forgotten password ?</span></a>
     </div>
   </FormGroup>
-  <Button type="submit" color="primary" class="ml-auto">Login</Button>
+  <div class="mt-3">
+    <Button type="submit" color="primary" class="ml-auto">Login</Button>
+  </div>
 </form>
 
 <hr />
 
-<p>Need an account ? <a href="/signup">Register</a></p>
+<p class="mt-3">Need an account ? <a href="/signup">Register</a></p>
 </div>

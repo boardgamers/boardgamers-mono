@@ -31,9 +31,13 @@
         required
       />
     </div>
-    <Button type="submit" color="primary" class="mt-3 ml-auto">Reset</Button>
+    <div class="mt-3">
+      <Button type="submit" color="primary" class="ml-auto">Reset</Button>
+    </div>
   </form>
   <hr />
-  <p>Need an account? <a href="/signup">Register</a></p>
-  <p>Or go back <a href="/">home</a>.</p>
+  <div class="mt-3 space-y-1">
+    <p>Need an account? <a href="/signup">Register</a></p>
+    <p>Or go back <a href="/">home</a>.</p>
+  </div>
 </div>

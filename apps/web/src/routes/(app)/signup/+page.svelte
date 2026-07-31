@@ -123,7 +123,9 @@
           />
         </div>
       </div>
-      <Checkbox bind:checked={newsletter}>Get newsletter, up to six emails per year.</Checkbox>
+      <div class="mt-2">
+        <Checkbox bind:checked={newsletter}>Get newsletter, up to six emails per year.</Checkbox>
+      </div>
     {/if}
 
     <div class="mt-3 space-y-2">
