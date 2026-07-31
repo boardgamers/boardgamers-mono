@@ -38,7 +38,7 @@
       <div role="button">
         <Card header={game.label} class="border-gray-300 h-full dark:border-gray-600" onclick={() => onClick(game)}>
           <CardText>
-            {@html marked(game.description)}
+            {@html marked(game.description ?? "")}
           </CardText>
           {#snippet footer()}
             <span

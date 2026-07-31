@@ -128,7 +128,7 @@
 
   let customAvatarError = $state(false);
 
-  async function uploadAvatar(event: InputEvent) {
+  async function uploadAvatar(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
 
     if (!file) {
@@ -180,7 +180,7 @@
       {/key}
     {:else}
       <input type="file" bind:this={fileUpload} onchange={uploadAvatar} accept="image/*" class="hidden" />
-      <a href="#upload" style="width: 100%" role="button" onclick={(e) => { e.preventDefault(); fileUpload.click(); }}>Upload</a>
+      <a href="#upload" style="width: 100%" role="button" onclick={(e) => { e.preventDefault(); fileUpload?.click(); }}>Upload</a>
       <div style="display: contents" class:hidden={customAvatarError}>
         <UserAvatar
           userId={user._id}
@@ -202,7 +202,7 @@
         id="bio"
         placeholder="Something about yourself..."
         value={bio}
-        onchange={(event) => updateBio(event.target.value)}
+        onchange={(event) => updateBio((event.target as HTMLTextAreaElement).value)}
       />
     </FormGroup>
     <FormGroup class="mt-2">
@@ -234,7 +234,7 @@
     <p class="mb-3 flex flex-wrap items-center gap-2">
       Connect with
 
-      {#each ["google", "discord", "facebook"] as social}
+      {#each ["google", "discord", "facebook"] as const as social}
         <Button
           color={social}
           disabled={!!(user.account.social && user.account.social[social])}

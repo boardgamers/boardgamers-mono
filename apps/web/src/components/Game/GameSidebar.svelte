@@ -4,6 +4,7 @@
   import { elapsedSeconds } from "@bgs/utils";
   import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
   import type { PlayerInfoFront } from "@bgs/models";
+  import type { JsonObject, JsonValue } from "type-fest";
   import { Button, Badge } from "@/modules/cdk";
   import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
   import { getContext, onDestroy } from "svelte";
@@ -50,8 +51,11 @@
     return game?.status !== "ended" && !!currentPlayersById[id];
   }
 
+  /** Game-specific options, keyed by option name. */
+  const gameOptions = (): JsonObject => (game?.game.options ?? {}) as JsonObject;
+
   const onGameChanged = () => {
-    if (userId) {
+    if (userId && gameId) {
       if (isCurrentPlayer(userId)) {
         addActiveGame(gameId);
       } else {
@@ -78,11 +82,11 @@
   function remainingTime(player: PlayerInfoFront) {
     const currentPlayer = currentPlayersById[player._id];
     if (currentPlayer) {
-      const spent = elapsedSeconds(new Date(currentPlayer.timerStart as any), game.options.timing.timer);
+      const spent = elapsedSeconds(new Date(currentPlayer.timerStart as any), game?.options.timing.timer);
       // Trick to update every second
-      return Math.max(player.remainingTime - spent, 0) + (secondsCounter % 1);
+      return Math.max((player.remainingTime ?? 0) - spent, 0) + (secondsCounter % 1);
     }
-    return Math.max(player.remainingTime, 0);
+    return Math.max(player.remainingTime ?? 0, 0);
   }
 
   async function voteCancel() {
@@ -118,7 +122,7 @@
           </a>
           <sup class="ms-1">
             {#if player.elo}
-              {player.elo.initial} {player.elo.delta >= 0 ? "+" : "-"} {Math.abs(player.elo.delta)} elo
+              {player.elo.initial} {(player.elo.delta ?? 0) >= 0 ? "+" : "-"} {Math.abs(player.elo.delta ?? 0)} elo
             {:else}
               {playerElo(player._id)} elo
             {/if}
@@ -134,8 +138,8 @@
       <span>
         {alwaysActive
           ? "24h"
-          : `${timerTime(game.options.timing.timer.start)}-${timerTime(game.options.timing.timer.end)}`}
-        / {duration(game.options.timing.timePerGame)} + {duration(game.options.timing.timePerMove)}
+          : `${timerTime(game.options.timing.timer?.start ?? 0)}-${timerTime(game.options.timing.timer?.end ?? 0)}`}
+        / {duration(game.options.timing.timePerGame ?? 0)} + {duration(game.options.timing.timePerMove ?? 0)}
       </span>
     </div>
     {#if game.status === "ended"}
@@ -183,14 +187,14 @@
 
     <GamePreferences />
 
-    <GameNotes {gameId} />
+    <GameNotes gameId={gameId ?? ""} />
 
-    {#if game.game.expansions?.length > 0}
+    {#if (game.game.expansions?.length ?? 0) > 0}
       <div class="mt-3">
         <h3>Expansions</h3>
         {#each game.game.expansions as expansion}
           <Badge color="accent" class="me-1">
-            {@html oneLineMarked(gameInfo.expansions.find((xp) => xp.name === expansion)?.label ?? "")}
+            {@html oneLineMarked(gameInfo.expansions?.find((xp) => xp.name === expansion)?.label ?? "")}
           </Badge>
         {/each}
       </div>
@@ -200,17 +204,17 @@
 
     <ReplayControls />
 
-    {#if gameInfo.options.some((x) => !!game.game.options?.[x.name])}
+    {#if (gameInfo.options ?? []).some((x) => !!gameOptions()[x.name])}
       <div class="mt-3">
         <h3 class="mb-1">Setup options</h3>
         <div class="flex flex-wrap gap-1">
-          {#each gameInfo.options.filter((x) => !!game.game.options[x.name]) as pref}
+          {#each (gameInfo.options ?? []).filter((x) => !!gameOptions()[x.name]) as pref}
             <Badge color="secondary">
               {#if pref.type === "checkbox"}
                 {@html oneLineMarked(pref.label)}
-              {:else if pref.type === "select" && pref.items && pref.items.some((x) => x.name === game.game.options[pref.name])}
+              {:else if pref.type === "select" && pref.items && pref.items.some((x) => x.name === gameOptions()[pref.name] as JsonValue)}
                 {@html oneLineMarked(
-                  pref.label + ": " + pref.items.find((x) => x.name === game.game.options[pref.name])?.label
+                  pref.label + ": " + pref.items.find((x) => x.name === gameOptions()[pref.name] as JsonValue)?.label
                 )}
               {/if}
             </Badge>

@@ -31,7 +31,7 @@
           role="button"
         >
           <CardText>
-            {@html marked(game.description)}
+            {@html marked(game.description ?? "")}
           </CardText>
           {#snippet footer()}
             <span

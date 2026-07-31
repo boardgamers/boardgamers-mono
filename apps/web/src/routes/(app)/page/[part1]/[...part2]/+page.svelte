@@ -9,7 +9,7 @@
 
 <SEO
   title={data.pageContent.title}
-  description={removeMarkdown(`${data.pageContent.content}`.match(/((\s*\S+){0,40})([\s\S]*)/)[1]) + "..."}
+  description={removeMarkdown(`${data.pageContent.content}`.match(/((\s*\S+){0,40})([\s\S]*)/)?.[1] ?? "") + "..."}
 />
 
 <Page pageContent={data.pageContent} />

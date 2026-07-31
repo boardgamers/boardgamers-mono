@@ -39,15 +39,20 @@
   import removeMarkdown from "remove-markdown";
   import { gameLabel } from "@/utils/game-label";
   import type { UserFront } from "@bgs/models";
-  import { debounce, map } from "lodash";
+  import type { JsonObject, JsonValue } from "type-fest";
+  import { debounce } from "lodash";
 
   const context = getContext("game") as GameContext;
   let timer = $derived(context.game?.options.timing.timer);
   let gameId = $derived(context.game?._id);
 
+  /** Game-specific options, keyed by option name. */
+  const gameOptions = (game: { game: { options?: unknown } } | null | undefined): JsonObject =>
+    ((game?.game.options ?? {}) as JsonObject);
+
   const shortPlayTime = () => {
     if (timer?.start !== timer?.end) {
-      return `${timerTime(timer?.start)}-${timerTime(timer?.end)}`;
+      return `${timerTime(timer?.start ?? 0)}-${timerTime(timer?.end ?? 0)}`;
     } else {
       return "24h";
     }
@@ -55,8 +60,8 @@
 
   const playTime = () => {
     if (timer?.start !== undefined) {
-      return `active between ${timerTime(timer?.start)} and ${timerTime(
-        timer?.end
+      return `active between ${timerTime(timer.start)} and ${timerTime(
+        timer.end
       )}, in your local time (${localTimezone()})`;
     } else {
       return "always active";
@@ -75,7 +80,7 @@
       return;
     }
 
-    if (context.game && context.game.options.timing.timePerGame <= 24 * 3600) {
+    if (context.game && (context.game.options.timing.timePerGame ?? Infinity) <= 24 * 3600) {
       if (
         !(await confirm(
           "This game has a short duration. You need to keep yourself available in order to play the game until the end."
@@ -145,7 +150,7 @@
   const invite = defer(async (userId: string, isName = false) => {
     if (isName) {
       const user = await get<UserFront>(`/user/infoByName/${encodeURIComponent(userId)}`);
-      userId = user._id;
+      userId = user._id ?? "";
     }
     post(`/game/${gameId}/invite`, { userId });
   });
@@ -168,7 +173,7 @@
   });
 
   const updateGameWatcher = createWatcher(async () => {
-    if (context.game && $lastGameUpdate > new Date(context.game.updatedAt)) {
+    if (context.game && gameId && $lastGameUpdate > new Date(context.game.updatedAt ?? 0)) {
       const [g, p] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
 
       if (context.game && gameId === g._id) {
@@ -186,20 +191,20 @@
 </script>
 
 <SEO
-  title="{gameId} - {gameLabel(context.gameInfo?.label)} game"
+  title="{gameId} - {gameLabel(context.gameInfo?.label ?? '')} game"
   description="{context.game?.players.length} / {context.game?.options.setup.nbPlayers} players. Timer of {duration(
-    context.game?.options.timing.timePerGame
-  )} per player, with an additional {duration(context.game?.options.timing.timePerMove)} per move.
-{context.game?.game.expansions?.length > 0 &&
+    context.game?.options.timing.timePerGame ?? 0
+  )} per player, with an additional {duration(context.game?.options.timing.timePerMove ?? 0)} per move.
+{(context.game?.game.expansions?.length ?? 0) > 0 &&
     `
       Expansions: ${context.game?.game.expansions.join(',')}\\n`}
-{context.gameInfo?.options
-    .filter((x) => !!(context.game?.game.options || {})[x.name])
+{(context.gameInfo?.options ?? [])
+    .filter((x) => !!gameOptions(context.game)[x.name])
     .map((pref) =>
       pref.type === 'checkbox'
         ? pref.label
         : pref.type === 'select' && pref.items
-          ? pref.label + ': ' + pref.items.find((x) => x.name === context.game?.game.options[pref.name])?.label
+          ? pref.label + ': ' + pref.items.find((x) => x.name === gameOptions(context.game)[pref.name])?.label
           : ''
     )
     .filter(Boolean)
@@ -214,14 +219,14 @@
     <div>
       <h2>Description</h2>
       <div>
-        {@html marked(context.gameInfo?.description)}
+        {@html marked(context.gameInfo?.description ?? "")}
       </div>
     </div>
 
     <div>
       <h2>Rules</h2>
       <div>
-        {@html marked(context.gameInfo?.rules)}
+        {@html marked(context.gameInfo?.rules ?? "")}
       </div>
     </div>
   </div>
@@ -261,17 +266,17 @@
   <h3>Timer</h3>
 
   <div>
-    {duration(context.game?.options.timing.timePerGame)} per player, with an additional
-    {duration(context.game?.options.timing.timePerMove)} per move
+    {duration(context.game?.options.timing.timePerGame ?? 0)} per player, with an additional
+    {duration(context.game?.options.timing.timePerMove ?? 0)} per move
   </div>
   <div>Timer {playTime()}</div>
 
-  {#if context.game?.game.expansions?.length > 0}
+  {#if (context.game?.game.expansions?.length ?? 0) > 0}
     <div class="mt-3">
       <h3>Expansions</h3>
-      {#each context.game.game.expansions as expansion}
+      {#each context.game!.game.expansions as expansion}
         <Badge color="info"
-          >{@html oneLineMarked(context.gameInfo?.expansions.find((xp) => xp.name === expansion)?.label ?? "")}</Badge
+          >{@html oneLineMarked(context.gameInfo?.expansions?.find((xp) => xp.name === expansion)?.label ?? "")}</Badge
         >
       {/each}
     </div>
@@ -280,14 +285,14 @@
   <div class="mt-3">
     <h3>Setup options</h3>
 
-    <Badge color="secondary" class="me-1">{playerOrderText(context.game?.options.setup.playerOrder)}</Badge>
-    {#each context.gameInfo?.options.filter((x) => !!(context.game?.game.options || {})[x.name]) as pref}
+    <Badge color="secondary" class="me-1">{playerOrderText(context.game?.options.setup.playerOrder ?? "random")}</Badge>
+    {#each (context.gameInfo?.options ?? []).filter((x) => !!gameOptions(context.game)[x.name]) as pref}
       <Badge color="secondary" class="me-1">
         {#if pref.type === "checkbox"}
           {@html oneLineMarked(pref.label)}
-        {:else if pref.type === "select" && pref.items && pref.items.some((x) => x.name === context.game?.game.options[pref.name])}
+        {:else if pref.type === "select" && pref.items && pref.items.some((x) => x.name === gameOptions(context.game)[pref.name] as JsonValue)}
           {@html oneLineMarked(
-            pref.label + ": " + pref.items.find((x) => x.name === context.game?.game.options[pref.name])?.label
+            pref.label + ": " + pref.items.find((x) => x.name === gameOptions(context.game)[pref.name] as JsonValue)?.label
           )}
         {/if}
       </Badge>
@@ -323,7 +328,7 @@
               <Input
                 id="invite"
                 bind:value={query}
-                onkeydown={(e) => e.key === "Enter" && invite(e.target.value, true)}
+                onkeydown={(e) => e.key === "Enter" && invite((e.target as HTMLInputElement).value, true)}
               />
             </DropdownToggle>
             <DropdownMenu>
@@ -369,7 +374,7 @@
 
   {#if !canStart && context.game}
     {#if context.game.players.some((pl) => pl._id === $user?._id)}
-      {#if context.game.players.find((pl) => pl._id === $user._id).pending}
+      {#if context.game.players.find((pl) => pl._id === $user?._id)?.pending}
         <Button color="accent" onclick={join}>Accept invitation</Button>
         <Button color="secondary" onclick={leave}>Refuse invitation</Button>
       {:else}

@@ -13,9 +13,10 @@
   import { gameLabel } from "@/utils/game-label";
   import type { UserFront } from "@bgs/models";
 
-  let { data } = $props();
+  let { data }: { data: { rankings: LoadEloRankingsResult } } = $props();
 
-  let boardgameId = $derived(page.params.boardgameId);
+  // The route guarantees the `boardgameId` param is present.
+  let boardgameId = $derived(page.params.boardgameId!);
   // Client prefers the account store; SSR falls back to page.data.user.
   let user = $derived(($account ?? page.data.user) as UserFront | null);
   let boardgame = $derived.by(() => {
@@ -62,7 +63,7 @@
   <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
     <div>
       <Card class="border-gray-400 h-full dark:border-gray-600" header={rules ? "Rules" : "Description"}>
-        {@html marked(rules ? boardgame.rules : boardgame.description)}
+        {@html marked((rules ? boardgame.rules : boardgame.description) ?? "")}
         {#snippet footer()}
           <a href={rules ? "#description" : "#rules"} onclick={(e) => { e.preventDefault(); rules = !rules; }}>
             {rules ? "See description" : "See rules"}

@@ -60,6 +60,10 @@
       return;
     }
 
+    if (!lastMessage._id) {
+      return;
+    }
+
     const lastMessageTime = dateFromObjectId(lastMessage._id).getTime();
 
     if (lastMessageTime <= lastRead) {
@@ -85,7 +89,8 @@
     loadLastRead();
   });
   let unreadMessages = $derived(
-    $chatMessages.filter((msg) => msg.type !== "system" && dateFromObjectId(msg._id).getTime() > lastRead).length
+    $chatMessages.filter((msg) => msg.type !== "system" && !!msg._id && dateFromObjectId(msg._id).getTime() > lastRead)
+      .length
   );
 
   // Close on Escape while the chat is open.
@@ -97,7 +102,10 @@
   });
 
   // Friendly locale timestamp, e.g. "Jul 23, 12:22 AM".
-  function chatTime(objectId: string): string {
+  function chatTime(objectId: string | undefined): string {
+    if (!objectId) {
+      return "";
+    }
     return dateFromObjectId(objectId).toLocaleString(undefined, {
       month: "short",
       day: "numeric",
@@ -151,7 +159,7 @@
     <form
       onsubmit={(e) => {
         e.preventDefault();
-        sendMessage(e);
+        sendMessage();
       }}
       class="w-full"
     >

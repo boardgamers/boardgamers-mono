@@ -73,7 +73,7 @@
         style="font-weight: unset"
         onclick={(e) => {
           e.preventDefault();
-          toggleNotes(e);
+          toggleNotes();
         }}>{showNotes ? "hide" : "show"}</a
       >)
     </div>
@@ -89,7 +89,6 @@
       updateTextareaSize();
     }}
     rows="3"
-    max-rows="8"
     placeholder="You can make plans here..."
     disabled={!$account || !notesLoaded}
     style="overflow: hidden; resize: none"

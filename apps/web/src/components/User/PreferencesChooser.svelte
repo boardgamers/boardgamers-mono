@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createWatcher, handleError } from "@/utils";
   import PreferenceInput from "./PreferenceInput.svelte";
-  import type { GameInfoFront } from "@bgs/models";
+  import type { GameInfoFront, GameInfoOption } from "@bgs/models";
   import type { Primitive } from "type-fest";
   import { gamePreferences, addDefaults, updatePreference, loadGamePreferences } from "@/lib/game-preferences.svelte";
   import { account } from "@/lib/stores.svelte";
@@ -18,7 +18,7 @@
   const preferenceItems = $derived(
     gameInfo?.viewer?.alternate?.url
       ? [
-          { name: "alternateUI", label: "Use alternate UI", type: "checkbox", items: null, category: null },
+          { name: "alternateUI", label: "Use alternate UI", type: "checkbox", items: null, category: null } as unknown as GameInfoOption,
           ...(gameInfo.preferences ?? []),
         ]
       : (gameInfo?.preferences ?? []),

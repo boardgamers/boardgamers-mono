@@ -46,7 +46,7 @@
           style="font-weight: unset !important"
           onclick={(e) => {
             e.preventDefault();
-            toggleShowLog(e);
+            toggleShowLog();
           }}>{showLog ? "hide" : "show"}</a
         >)
       </div>

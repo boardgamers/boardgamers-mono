@@ -8,7 +8,7 @@ export function initNProgress() {
     NProgress.configure({ minimum: 0.16 });
 
     $effect(() => {
-      if (navigating.current) {
+      if (navigating.to) {
         NProgress.start();
       } else {
         NProgress.done();

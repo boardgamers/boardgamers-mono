@@ -48,8 +48,8 @@
         <div class="cursor-pointer px-4 py-2 hover:bg-accent/5">
           <span>
             {#await gameName(gamePref.game) then name}
-              {name} - <b>{gamePref.elo.value}</b> in
-              {pluralize(gamePref.elo.games, "game")}
+              {name} - <b>{gamePref.elo!.value}</b> in
+              {pluralize(gamePref.elo!.games, "game")}
             {/await}
           </span>
         </div>

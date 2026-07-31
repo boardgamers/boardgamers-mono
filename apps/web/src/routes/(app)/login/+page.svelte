@@ -19,7 +19,7 @@
 <SEO title="Login" />
 
 <div class="container mx-auto px-4">
-<form onsubmit={(e) => { e.preventDefault(); handleLogin(e); }}>
+<form onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
   <FormGroup>
     <Label for="email">Email</Label>
     <input

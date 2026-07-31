@@ -8,16 +8,18 @@
 
   let { data }: { data: { user: UserFront } } = $props();
   let username = $derived(data.user.account.username);
-  let joinDate = $derived(data.user && dateFromObjectId(data.user._id));
+  // The load function 404s if the user doesn't exist, so `_id` is always set here.
+  let userId = $derived(data.user._id!);
+  let joinDate = $derived(dateFromObjectId(userId));
 </script>
 
 <SEO
   title={`${username}'s profile`}
   description={data.user.account.bio ||
-    `${username} joined in ${dateFromObjectId(data.user._id).toLocaleString("en", {
+    `${username} joined in ${dateFromObjectId(userId).toLocaleString("en", {
       month: "long",
-    })} ${dateFromObjectId(data.user._id).toLocaleString("en", { year: "numeric" })} and has ${data.user.account.karma} karma.`}
-  image={`${page.url.origin}/api/user/${data.user._id}/avatar`}
+    })} ${dateFromObjectId(userId).toLocaleString("en", { year: "numeric" })} and has ${data.user.account.karma} karma.`}
+  image={`${page.url.origin}/api/user/${userId}/avatar`}
 />
 
 <div class="container mx-auto px-4">
@@ -44,12 +46,12 @@
       {/if}
     </div>
     <div class="grow-[3]">
-      <UserGames userId={data.user._id} />
+      <UserGames {userId} />
 
       <Card class="border-gray-300 mt-4 dark:border-gray-600" header="Statistics">
         <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div class="mb-3">
-            <UserElo userId={data.user._id} />
+            <UserElo {userId} />
           </div>
           <div>
             <h3 class="text-lg font-semibold">Tournaments</h3>

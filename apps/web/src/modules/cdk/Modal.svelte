@@ -66,12 +66,12 @@
 
   let hasOpened = $state(false);
   let _isMounted = $state(false);
-  let _triggeringElement = $state();
+  let _triggeringElement = $state<Element | null>(null);
   let _lastIsOpen = $state(false);
   let _lastHasOpened = $state(false);
-  let _dialog = $state();
-  let _mouseDownElement = $state();
-  let _removeEscListener = $state();
+  let _dialog = $state<HTMLElement>();
+  let _mouseDownElement = $state<EventTarget | null>(null);
+  let _removeEscListener = $state<(() => void) | undefined>();
 
   onMount(() => {
     if (isOpen) {
@@ -114,8 +114,9 @@
   });
 
   function setFocus() {
-    if (_dialog && _dialog.parentNode && typeof _dialog.parentNode.focus === "function") {
-      _dialog.parentNode.focus();
+    const parent = _dialog?.parentNode as HTMLElement | null;
+    if (parent && typeof parent.focus === "function") {
+      parent.focus();
     }
   }
 
@@ -130,9 +131,10 @@
   }
 
   function manageFocusAfterClose() {
-    if (_triggeringElement) {
-      if (typeof _triggeringElement.focus === "function" && returnFocusAfterClose) {
-        _triggeringElement.focus();
+    const el = _triggeringElement as HTMLElement | null;
+    if (el) {
+      if (typeof el.focus === "function" && returnFocusAfterClose) {
+        el.focus();
       }
 
       _triggeringElement = null;
@@ -147,7 +149,7 @@
     manageFocusAfterClose();
   }
 
-  function handleBackdropClick(e) {
+  function handleBackdropClick(e: MouseEvent) {
     if (e.target === _mouseDownElement) {
       e.stopPropagation();
       if (!isOpen || !backdrop) {
@@ -162,9 +164,9 @@
   }
 
   function onModalOpened() {
-    _removeEscListener = browserEvent(document, "keydown", (event) => {
+    _removeEscListener = browserEvent(document, "keydown", (event: KeyboardEvent) => {
       if (event.key && event.key === "Escape") {
-        toggle(event);
+        toggle?.(event);
       }
     });
 
@@ -188,7 +190,7 @@
     _isMounted = false;
   }
 
-  function handleBackdropMouseDown(e) {
+  function handleBackdropMouseDown(e: MouseEvent) {
     _mouseDownElement = e.target;
   }
 
@@ -214,7 +216,7 @@
     {#if isOpen}
       <div
         transition:transitionType={transitionOptions}
-        ariaLabelledby={labelledBy}
+        aria-labelledby={labelledBy}
         class={classnames("fixed inset-0 z-50 flex items-center justify-center p-4", modalClassName)}
         role="dialog"
         tabindex="-1"
@@ -234,7 +236,7 @@
       </div>
       {#if backdrop}
         <div
-          transition:fadeTransition={{ duration: fade && backdropDuration }}
+          transition:fadeTransition={{ duration: fade ? backdropDuration : 0 }}
           class={classnames("fixed inset-0 bg-black/50", backdropClassName)}
         ></div>
       {/if}

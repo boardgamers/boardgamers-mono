@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { GamePreferencesFront } from "@bgs/models";
+  import type { GameFront, GamePreferencesFront } from "@bgs/models";
   import { Loading } from "@/modules/cdk";
   import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import { createWatcher, handleError } from "@/utils";
@@ -30,7 +30,11 @@
 
   let gameName = $derived(context.game?.game?.name);
   let gameId = $derived(context.game?._id);
-  let prefs = $derived<GamePreferencesFront>(addDefaults($gamePreferences[gameName], context.gameInfo));
+  // Note: `prefs` is intentionally left unannotated — an explicit GamePreferencesFront
+  // annotation/generic makes tsgo re-check the addDefaults call and drop the cast on
+  // the store index expression below (tsgo contextual-typing bug).
+  const storedPrefs: GamePreferencesFront = $derived($gamePreferences[gameName ?? ""] as GamePreferencesFront);
+  let prefs = $derived(addDefaults(storedPrefs, context.gameInfo!));
 
   let src = $derived.by(() => {
     if (!context.gameInfo) return "";
@@ -73,7 +77,7 @@
   });
 
   const onGameUpdated = createWatcher(() => {
-    if (context.game && $lastGameUpdate > new Date(context.game.updatedAt)) {
+    if (context.game && $lastGameUpdate > new Date(context.game.updatedAt!)) {
       postUpdatePresent();
     }
   });
@@ -132,6 +136,9 @@
         postAvatars();
         postGamedata();
       } else if (event.data.type === "gameHeight") {
+        if (!gameIframe) {
+          return;
+        }
         gameIframe.height = String(
           Math.max(
             +window.getComputedStyle(gameIframe, null).getPropertyValue("min-height").replace(/px/, ""),
@@ -145,7 +152,7 @@
       } else if (event.data.type === "displayReady") {
         stateSent = true;
       } else if (event.data.type === "fetchState") {
-        await loadGame(context.game?._id).then((g) => {
+        await loadGame(context.game?._id ?? "").then((g) => {
           if (g._id === context.game?._id) {
             context.game = g;
             postGamedata();
@@ -163,12 +170,14 @@
       } else if (event.data.type === "replay:info") {
         context.replayData = event.data.data;
       } else if (event.data.type === "updatePreference") {
-        updatePreference(
-          context.game?.game.name,
-          context.game?.game.version,
-          event.data.data.name,
-          event.data.data.value
-        );
+        if (context.game) {
+          updatePreference(
+            context.game.game.name,
+            context.game.game.version,
+            event.data.data.name,
+            event.data.data.value
+          );
+        }
       }
     } catch (err) {
       handleError(err);
@@ -176,9 +185,11 @@
   }
 
   async function addMove(move: string) {
-    const { game: newGame, log } = await post(`/gameplay/${gameId}/move`, { move });
+    const { game: newGame, log } = await post<{ game: GameFront; log: LogObject }>(`/gameplay/${gameId}/move`, {
+      move,
+    });
 
-    if (newGame._id === gameId && !(newGame.updatedAt < context.game?.updatedAt)) {
+    if (newGame._id === gameId && !(newGame.updatedAt! < context.game?.updatedAt!)) {
       context.game = newGame;
       postGameLog(log);
     }
@@ -191,12 +202,12 @@
 
   let title = $derived.by(() => {
     if (context.game?.status === "active") {
-      return `${gameId} - ${gameLabel(context.gameInfo?.label)} game`;
+      return `${gameId} - ${gameLabel(context.gameInfo?.label ?? "")} game`;
     } else if (context.game?.cancelled) {
-      return `Cancelled - ${gameLabel(context.gameInfo?.label)} game`;
+      return `Cancelled - ${gameLabel(context.gameInfo?.label ?? "")} game`;
     } else if (context.game) {
       const victor = minBy(context.game.players, "ranking")!;
-      return `${victor.name}'s victory! - ${gameLabel(context.gameInfo?.label)} game`;
+      return `${victor.name}'s victory! - ${gameLabel(context.gameInfo?.label ?? "")} game`;
     }
     return undefined;
   });
@@ -225,7 +236,7 @@ ${context.game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}
   <iframe
     bind:this={gameIframe}
     allow="cross-origin-isolated fullscreen"
-    credentialless
+    {...{ credentialless: true } as any}
     id="game-iframe"
     title="Game UX"
     sandbox="allow-scripts allow-same-origin allow-orientation-lock"

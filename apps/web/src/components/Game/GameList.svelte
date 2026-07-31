@@ -88,7 +88,7 @@
 
   function playTime(game: GameFront) {
     if (game.options.timing.timer?.start !== game.options.timing.timer?.end) {
-      return `${timerTime(game.options.timing.timer?.start)}-${timerTime(game.options.timing.timer?.end)}`;
+      return `${timerTime(game.options.timing.timer?.start ?? 0)}-${timerTime(game.options.timing.timer?.end ?? 0)}`;
     } else {
       return "24h";
     }
@@ -162,7 +162,7 @@
                 {#if game.status !== "ended"}
                   <IconClockHistory class="text-[0.8em]" />
                   {playTime(game)}
-                  {duration(game.options.timing.timePerGame)} + {duration(game.options.timing.timePerMove)}
+                  {duration(game.options.timing.timePerGame ?? 0)} + {duration(game.options.timing.timePerMove ?? 0)}
                   {#if game.options.timing.scheduledStart}
                     starts on {niceDate(game.options.timing.scheduledStart)} at
                     {new Date(game.options.timing.scheduledStart).getHours().toString().padStart(2, "0")}}h{new Date(
@@ -173,7 +173,7 @@
                       .padStart(2, "0")}
                   {/if}
                 {:else}
-                  {niceDate(game.lastMove)}
+                  {niceDate(game.lastMove ?? "")}
                 {/if}
               </small>
             </div>
@@ -184,7 +184,7 @@
                   <PlayerGameAvatar
                     game={game.game.name}
                     isCurrent={game.currentPlayers?.some((pl) => pl._id === player._id)}
-                    {userId}
+                    userId={userId ?? undefined}
                     {player}
                     class="me-1"
                   />
@@ -194,7 +194,7 @@
               <div class="me-3" style="line-height: 1.1;">
                 <div class="text-right">{game.players.length} / {game.options.setup.nbPlayers}</div>
                 <small>
-                  {shortDuration(Math.floor((Date.now() - new Date(game.createdAt).getTime()) / 1000))} ago</small
+                  {shortDuration(Math.floor((Date.now() - new Date(game.createdAt ?? "").getTime()) / 1000))} ago</small
                 >
               </div>
             {/if}

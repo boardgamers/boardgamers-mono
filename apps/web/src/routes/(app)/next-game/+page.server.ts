@@ -27,10 +27,7 @@ export const load: PageServerLoad = async ({ locals, url, fetch }) => {
     throw redirect(302, `/user/${user.account.username}#active`);
   }
 
-  // Note: input.params.gameId was always undefined in the old code (no [gameId] param on this route).
-  // This means currentIdx is always -1, so we always advance to the next game (index 0).
-  const currentIdx = games.indexOf(undefined as any);
-  const gameId = games[(currentIdx + 1) % games.length];
-
-  throw redirect(302, `/game/${gameId}`);
+  // This route has no [gameId] param, so there's no "current" game to advance from —
+  // always jump to the first active game.
+  throw redirect(302, `/game/${games[0]}`);
 };

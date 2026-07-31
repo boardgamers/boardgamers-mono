@@ -18,7 +18,7 @@
   <form
     method="post"
     accept-charset="UTF-8"
-    onsubmit={(e) => { e.preventDefault(); handleSubmit(e); }}
+    onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}
   >
     <div class="mb-3">
       <label for="email">Email</label>

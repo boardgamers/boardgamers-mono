@@ -32,7 +32,7 @@ currentTheme.subscribe((theme) => {
 // Listen for system preference changes when in "system" mode
 if (browser) {
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-    let theme: Theme;
+    let theme: Theme = "system";
     currentTheme.subscribe((t) => (theme = t))();
     if (theme === "system") {
       applyTheme("system");
@@ -52,7 +52,7 @@ export function setTheme(theme: Theme) {
 }
 
 export function cycleTheme() {
-  let current: Theme;
+  let current: Theme = "system";
   currentTheme.subscribe((t) => (current = t))();
   const order: Theme[] = ["system", "light", "dark"];
   const next = order[(order.indexOf(current) + 1) % order.length];

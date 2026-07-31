@@ -21,13 +21,13 @@
 </script>
 
 {#if item.type === "checkbox"}
-  <Checkbox checked={value} onchange={(event) => handleChange(event.target.checked)}>
+  <Checkbox checked={value} onchange={(event) => handleChange((event.target as HTMLInputElement).checked)}>
     {item.label}
   </Checkbox>
 {:else if item.type === "select"}
   <FormGroup class="flex items-center mt-2">
     <Label class="whitespace-nowrap me-2 mb-0">{@html oneLineMarked(item.label)}</Label>
-    <Input type="select" {value} onchange={(event) => handleChange(event.target.value)} bsSize="sm">
+    <Input type="select" {value} onchange={(event) => handleChange((event.target as HTMLSelectElement).value)} bsSize="sm">
       {#each item.items as option}
         <option value={option.name}>{option.label}</option>
       {/each}

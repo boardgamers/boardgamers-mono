@@ -1,15 +1,12 @@
-<script module>
+<script module lang="ts">
   import { tick } from "svelte";
 
   /**
    * Usage: <div use:portal={'css selector'}> or <div use:portal={document.body}>
-   *
-   * @param {HTMLElement} el
-   * @param {HTMLElement|string} target DOM Element or CSS Selector
    */
-  export function portal(el, target = "body") {
-    let targetEl;
-    async function update(newTarget) {
+  export function portal(el: HTMLElement, target: HTMLElement | string = "body") {
+    let targetEl: HTMLElement | null = null;
+    async function update(newTarget: HTMLElement | string) {
       target = newTarget;
       if (typeof target === "string") {
         targetEl = document.querySelector(target);

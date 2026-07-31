@@ -22,7 +22,7 @@
       settings = null;
       return;
     }
-    if (gameInfo.settings?.length > 0) {
+    if ((gameInfo.settings?.length ?? 0) > 0) {
       settings = (await get<typeof settings>(`/gameplay/${gameId}/settings`).catch(handleError)) ?? null;
     } else {
       settings = null;
@@ -54,7 +54,7 @@
   }
 </script>
 
-{#if game && gameInfo?.settings?.length > 0 && game.status === "active" && settings && playerUser}
+{#if game && gameInfo && (gameInfo.settings?.length ?? 0) > 0 && game.status === "active" && settings && playerUser}
   <div class="mt-3">
     <h3>
       Settings
@@ -63,10 +63,12 @@
       </a>
     </h3>
     <!-- Code very similar to PreferencesChooser -->
-    {#each gameInfo.settings as setting}
+    {#each gameInfo.settings ?? [] as setting}
       {#if !setting.faction || setting.faction === playerUser.faction}
         {#if setting.type === "checkbox"}
-          <Checkbox bind:checked={settings[setting.name]} onchange={postSettings}>
+          {@const settingName = setting.name}
+          {@const settingsObj = settings}
+          <Checkbox checked={(settingsObj[settingName] as boolean | undefined) ?? false} onchange={(e) => { settingsObj[settingName] = (e.target as HTMLInputElement).checked; postSettings(); }}>
             {setting.label}
           </Checkbox>
         {:else if setting.type === "select"}

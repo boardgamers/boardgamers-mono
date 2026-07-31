@@ -46,7 +46,7 @@
       totalPages + position - pageItems
     );
 
-    if (position === pageItems - 1 && pos + 1 < totalPages) {
+    if (position === pageItems - 1 && (pos as number) + 1 < totalPages) {
       return "…";
     }
 
@@ -80,7 +80,7 @@
     />
   </PaginationItem>
   {#each Array(pageItems) as _, position (pageFor(position) + "_" + position)}
-    {#if !(pageFor(position) < 0)}
+    {#if !((pageFor(position) as number) < 0)}
       <PaginationItem
         disabled={typeof pageFor(position) !== "number"}
         active={pageFor(position) === currentPage}

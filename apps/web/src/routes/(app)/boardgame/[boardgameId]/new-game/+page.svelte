@@ -25,7 +25,7 @@
   let karma = $derived((($account ?? page.data.user) as UserFront | null)?.account.karma ?? 80);
 
   let boardgameId = $derived(page.params.boardgameId); // Can be undefined during page navigation out
-  let info = $derived(gameInfo(boardgameId, "latest"));
+  let info = $derived(boardgameId ? gameInfo(boardgameId, "latest") : undefined);
 
   let gameId = $state(randomId());
   let seed = $state("");
@@ -54,14 +54,14 @@
     const dataObj = {
       game: {
         game: boardgameId,
-        version: info._id.version,
+        version: info?._id.version,
       },
       gameId,
       players: numPlayers,
       timePerMove,
       timePerGame,
       options: { ...fromPairs(options.map((key) => [key, true])), ...selects, playerOrder },
-      seed,
+      seed: seed as string | undefined,
       expansions,
       timerStart: undefined as number | undefined,
       timerEnd: undefined as number | undefined,
@@ -111,19 +111,23 @@
   });
 
   const updateSelects = async () => {
+    if (!info) {
+      return;
+    }
+
     // Load default values for multiple choice options
     const newVal: Record<string, string> = {};
 
-    for (const select of info.options.filter((option) => option.type === "select")) {
+    for (const select of (info.options ?? []).filter((option) => option.type === "select")) {
       if (select.items) {
         newVal[select.name] =
-          select.default && select.items.some((item) => item.name === select.default)
+          typeof select.default === "string" && select.items.some((item) => item.name === select.default)
             ? select.default
             : select.items[0].name;
       }
     }
 
-    for (const check of info.options.filter((option) => option.type === "checkbox")) {
+    for (const check of (info.options ?? []).filter((option) => option.type === "checkbox")) {
       if (check.default === true) {
         options.push(check.name);
       }
@@ -159,20 +163,20 @@
 </script>
 
 {#if info}
-  <SEO title={`Create a ${gameLabel(info.label)} game`} description={removeMarkdown(info.description)} />
+  <SEO title={`Create a ${gameLabel(info.label)} game`} description={removeMarkdown(info.description ?? "")} />
 
   <div class="container mx-auto px-4">
     <h1 class="mb-4">{info.label}</h1>
-    <form onsubmit={(e) => { e.preventDefault(); createGame(e); }}>
+    <form onsubmit={(e) => { e.preventDefault(); createGame(); }}>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <h2>Description</h2>
-          {@html marked(info.description)}
+          {@html marked(info.description ?? "")}
         </div>
 
         <div>
           <h2>Rules</h2>
-          {@html marked(info.rules)}
+          {@html marked(info.rules ?? "")}
         </div>
       </div>
 
@@ -234,10 +238,10 @@
         </div>
       </div>
 
-      {#if info.expansions.length > 0}
+      {#if (info.expansions ?? []).length > 0}
         <div class="mb-3">
           <h3>Expansions</h3>
-          {#each info.expansions as expansion}
+          {#each info.expansions ?? [] as expansion}
             <Checkbox bind:group={expansions} value={expansion.name}>
               {@html oneLineMarked(expansion.label)}
             </Checkbox>
@@ -309,7 +313,7 @@
 
       <Checkbox bind:group={options} value="unlisted">Unlisted</Checkbox>
       <Checkbox bind:group={options} value="join">Join this game</Checkbox>
-      {#each info.options.filter((opt) => opt.type === "checkbox") as option}
+      {#each (info.options ?? []).filter((opt) => opt.type === "checkbox") as option}
         <Checkbox bind:group={options} value={option.name}>{@html oneLineMarked(option.label)}</Checkbox>
       {/each}
 
@@ -322,7 +326,7 @@
         </Input>
       </div>
 
-      {#each info.options.filter((opt) => opt.type === "select") as select}
+      {#each (info.options ?? []).filter((opt) => opt.type === "select") as select}
         <div class="mb-3 mt-2">
           <label for={select.name}>{@html oneLineMarked(select.label)}</label>
           <Input type="select" bind:value={selects[select.name]} id={select.name} required>
