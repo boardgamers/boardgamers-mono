@@ -403,10 +403,7 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
     await colls.games.replaceOne({ _id: game._id }, game);
 
     // Joining a game re-pins its boardgame in the "My games" sidebar group.
-    await colls.users.updateOne(
-      { _id: user._id },
-      { $pull: { "settings.home.forgottenGames": game.game.name } },
-    );
+    await colls.users.updateOne({ _id: user._id }, { $pull: { "settings.home.forgottenGames": game.game.name } });
 
     ctx.state.game = game;
 
