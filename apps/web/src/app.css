@@ -179,6 +179,7 @@
   display: flex !important;
   align-items: center;
   justify-content: center;
+  z-index: 30; /* above the sidebar scrim (10) + sidebar (20) so it stays tappable to close */
 }
 
 .sidebar-fab svg {
@@ -213,6 +214,17 @@
 
 /* Dark-mode variants of component-scoped styles live in their components as
    `:global(.dark) .foo` (kept scoped for specificity). */
+
+/* ---------- Setup-option badges (game sidebar + open-game lobby) ---------- */
+/* Match the game-sidebar badge: inline (whitespace respected), bold, white text (including links). */
+.setup-badge {
+  display: inline;
+  font-weight: bold;
+}
+.setup-badge,
+.setup-badge a {
+  color: white !important;
+}
 
 /* ---------- Game sidebar content ---------- */
 /* These target #sidebar which is a Portal target — the content is rendered in a

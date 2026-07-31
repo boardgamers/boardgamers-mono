@@ -11,6 +11,7 @@
   import { GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings } from "./GameSidebar";
   import type { GameContext } from "@/routes/game/[gameId]/game-context";
   import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
+  import SetupOptionBadge from "./SetupOptionBadge.svelte";
   import { post } from "@/lib/api";
   import { account } from "@/lib/account.svelte";
   import { playerStatus, addActiveGame, removeActiveGame, devGameSettings } from "@/lib/stores.svelte";
@@ -209,15 +210,7 @@
         <h3 class="mb-1">Setup options</h3>
         <div class="flex flex-wrap gap-1">
           {#each (gameInfo.options ?? []).filter((x) => !!gameOptions()[x.name]) as pref}
-            <Badge color="secondary">
-              {#if pref.type === "checkbox"}
-                {@html oneLineMarked(pref.label)}
-              {:else if pref.type === "select" && pref.items && pref.items.some((x) => x.name === gameOptions()[pref.name] as JsonValue)}
-                {@html oneLineMarked(
-                  pref.label + ": " + pref.items.find((x) => x.name === gameOptions()[pref.name] as JsonValue)?.label
-                )}
-              {/if}
-            </Badge>
+            <SetupOptionBadge {pref} value={gameOptions()[pref.name]} />
           {/each}
         </div>
       </div>

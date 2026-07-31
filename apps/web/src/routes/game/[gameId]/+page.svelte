@@ -1,15 +1,20 @@
 <script lang="ts">
   import { OpenGame, StartedGame, ChatRoom, YourTurnBanner } from "@/components";
-  import type { GameFront, PlayerInfoFront, GameInfoFront } from "@bgs/models";
-  import { page } from "$app/state";
+  import type { GameFront } from "@bgs/models";
+  import { getContext } from "svelte";
+  import type { GameContext } from "./game-context";
 
-  let game = $derived((page.data.game as GameFront)!);
-  let gameId = $derived(game._id);
+  // Read the live game from the shared context (set by the layout), NOT page.data.game
+  // (a stale SSR snapshot). This lets the page auto-transition from the lobby (OpenGame)
+  // to the board (StartedGame) when the game starts, without a manual refresh.
+  const context = getContext("game") as GameContext;
+  let status = $derived(context.game?.status);
+  let gameId = $derived(context.game?._id ?? "");
 </script>
 
 <YourTurnBanner />
 
-{#if game.status === "open"}
+{#if status === "open"}
   <OpenGame />
 {:else}
   <StartedGame />

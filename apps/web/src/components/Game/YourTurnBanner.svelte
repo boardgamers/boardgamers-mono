@@ -16,8 +16,10 @@
 </script>
 
 {#if isMyTurn}
+  <!-- In-flow full-bleed bar sitting directly above the game board. The negative top
+       margin cancels the Appbar's mb-3 so the banner is flush under the navbar. -->
   <div
-    class="your-turn-banner sticky top-0 z-10 flex items-center justify-center gap-2 bg-green-600 px-4 py-2 text-center font-semibold text-white shadow-md"
+    class="your-turn-banner -mt-3 flex items-center justify-center gap-2 bg-green-600 px-4 py-2 text-center font-semibold text-white shadow-md"
     role="status"
   >
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="1em" height="1em" fill="currentColor" class="shrink-0">

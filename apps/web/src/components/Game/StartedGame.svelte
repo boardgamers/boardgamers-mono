@@ -10,7 +10,7 @@
   import { gameInfoKey } from "@/lib/game-info.svelte";
   import { account as user } from "@/lib/account.svelte";
   import { devGameSettings, developerSettings, lastGameUpdate } from "@/lib/stores.svelte";
-  import { browser } from "$app/environment";
+  import { page } from "$app/state";
   import SEO from "../SEO.svelte";
   import { gameLabel } from "@/utils/game-label";
   import { minBy, sortBy } from "lodash";
@@ -20,11 +20,16 @@
   const { emitter } = context;
   let stateSent = $state(false);
 
-  const host = browser ? window.location.host : "";
-  const resourcesLink =
+  // Resolve the resources URL from SvelteKit's page state (real host on both server
+  // and client). Previously this read window.location, which is empty during SSR and
+  // produced a broken "//resources./game/..." src — fine on client-side navigation
+  // but it left a direct page load stuck on the loading spinner forever.
+  const host = $derived(page.url.host);
+  const resourcesLink = $derived(
     host.startsWith("localhost") || host.endsWith("gitpod.io") || host.endsWith("boardgamers.space")
       ? `/resources`
-      : `//resources.${host.slice(host.indexOf(".") + 1)}`;
+      : `//resources.${host.slice(host.indexOf(".") + 1)}`
+  );
 
   let gameIframe = $state<HTMLIFrameElement>();
 
@@ -252,7 +257,6 @@ ${context.game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}
     width: calc(100% + 24px);
     margin-left: -12px;
     margin-right: -12px;
-    margin-top: -16px; /* calc(0 - var(--navbar-margin)) but doesn't seem to work */
     margin-bottom: -6px;
     min-height: calc(100vh - var(--navbar-height));
   }
