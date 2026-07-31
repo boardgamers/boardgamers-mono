@@ -12,6 +12,8 @@ import { z } from "zod";
 import { zIntQuery, zObjectId } from "../../utils/zod.ts";
 import { queryCount, skipCount } from "../utils.ts";
 
+const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const router = new Router<Application.DefaultState, Context>();
 
 const listingsParamsSchema = z.object({
@@ -25,6 +27,7 @@ const listingsQuerySchema = z.object({
   maxDuration: zIntQuery().optional(),
   minDuration: zIntQuery().optional(),
   sample: z.string().optional(),
+  search: z.string().optional(),
 });
 
 const filterAccessibleGames = async <T>(userId: T) => {
@@ -55,6 +58,7 @@ async function gameConditions<T>(
     maxKarma?: number;
     maxDuration?: number;
     minDuration?: number;
+    search?: string;
   },
 ) {
   const baseConditions = (() => {
@@ -89,6 +93,7 @@ async function gameConditions<T>(
       params.maxDuration && { "options.timing.timePerGame": { $lte: params.maxDuration } },
       params.boardgame && { "game.name": params.boardgame },
       params.userId && { "players._id": params.userId },
+      params.search && { _id: { $regex: escapeRegex(params.search), $options: "i" } },
       await filterAccessibleGames(params.requester),
     ]),
   }) as Record<string, unknown>;
@@ -104,6 +109,7 @@ router.get("/:status/count", async (ctx) => {
     maxKarma: query.maxKarma,
     maxDuration: query.maxDuration,
     minDuration: query.minDuration,
+    search: query.search,
   });
   ctx.body = await colls.games.countDocuments(conditions);
 });
@@ -120,6 +126,7 @@ router.get("/:status", async (ctx) => {
     maxKarma: query.maxKarma,
     maxDuration: query.maxDuration,
     minDuration: query.minDuration,
+    search: query.search,
   });
 
   if (query.sample) {

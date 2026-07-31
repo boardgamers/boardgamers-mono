@@ -15,6 +15,7 @@ export type LoadGamesParams = {
   gameStatus: GameStatus;
   fetchCount?: boolean;
   store?: boolean;
+  search?: string;
 };
 
 export type LoadGamesResult = {
@@ -41,6 +42,7 @@ export function loadGames({
   gameStatus,
   fetchCount = !sample,
   store = false,
+  search,
 }: LoadGamesParams) {
   const queryParams = {
     count,
@@ -51,6 +53,7 @@ export function loadGames({
     ...(gameStatus === "open" && !!getStore(account)?._id && { maxKarma: getStore(account)!.account.karma }),
     ...(minDuration && { minDuration }),
     ...(maxDuration && { maxDuration }),
+    ...(search && { search }),
   };
 
   const key = JSON.stringify({ ...queryParams, gameStatus, fetchCount });

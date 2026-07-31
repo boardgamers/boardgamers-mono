@@ -20,6 +20,7 @@
     userId = undefined,
     minDuration = undefined,
     maxDuration = undefined,
+    search = undefined,
   }: {
     title?: string;
     perPage?: number;
@@ -30,6 +31,7 @@
     userId?: string | undefined | null;
     minDuration?: number | undefined;
     maxDuration?: number | undefined;
+    search?: string | undefined;
   } = $props();
 
   let loadingGames = $state(true);
@@ -51,6 +53,7 @@
         count: perPage,
         skip: currentPage * perPage,
         fetchCount,
+        search,
       });
 
       const handleResult = (result: LoadGamesResult) => {
@@ -107,12 +110,15 @@
   $effect(() => {
     userId;
     boardgameId;
+    search;
     $logoClicks;
     // Skip the first run — initial load already happened synchronously above.
     if (firstRun) {
       firstRun = false;
       return;
     }
+    // Reset to the first page when the filter changes.
+    currentPage = 0;
     load(true);
   });
 
