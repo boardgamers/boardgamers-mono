@@ -17,6 +17,7 @@
   import { gameInfo } from "@/lib/game-info.svelte";
   import { page } from "$app/state";
   import { SEO } from "@/components";
+  import TimeRangeSlider from "@/components/Form/TimeRangeSlider.svelte";
   import removeMarkdown from "remove-markdown";
   import { gameLabel } from "@/utils/game-label";
 
@@ -57,6 +58,8 @@
   let submitting = $state(false);
   let timerEnd = $state("22:00");
   let timerStart = $state("09:00");
+  // Whether the daily overnight pause is active (mirrors timerStart !== timerEnd).
+  let pauseOvernight = $state(true);
 
   let scheduledDay = $state(null as string | null);
   let scheduledTime = $state("");
@@ -340,6 +343,23 @@
         </div>
       </div>
 
+      <!-- Subtle note about the daily timer window (lives in Advanced) -->
+      <p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
+        {#if pauseOvernight}
+          🌙 Clock runs {timerStart} – {timerEnd} daily, pauses overnight.
+        {:else}
+          ⏱️ Clock runs continuously (no overnight pause).
+        {/if}
+        <button
+          type="button"
+          class="underline decoration-dotted underline-offset-2 hover:text-primary dark:hover:text-primary-lighter"
+          onclick={() => {
+            showAdvanced = true;
+            setTimeout(() => document.getElementById("timerEnd")?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+          }}
+        >Edit</button>
+      </p>
+
       {#if !scheduledDay || !scheduledTime}
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400" transition:fade>
           The game is cancelled automatically if it doesn't start within {timePerGame <= 600
@@ -421,17 +441,28 @@
 
             <fieldset>
               <legend class="mb-2 font-medium">Daily timer window (optional)</legend>
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label for="timerStart">Timer resumes at</label>
-                  <input type="time" class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800" bind:value={timerStart} id="timerStart" />
-                </div>
-                <div>
-                  <label for="timerEnd">Timer pauses at</label>
-                  <input type="time" class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800" bind:value={timerEnd} id="timerEnd" />
-                </div>
+              <div class="mb-3">
+                <Checkbox
+                  checked={pauseOvernight}
+                  onchange={(e) => {
+                    pauseOvernight = (e.target as HTMLInputElement).checked;
+                    if (!pauseOvernight) {
+                      timerStart = timerEnd; // disables the daily pause
+                    } else {
+                      timerStart = "09:00";
+                      timerEnd = "22:00";
+                    }
+                  }}
+                >
+                  Pause everyone's clock overnight
+                </Checkbox>
               </div>
-              <small class="text-xs text-gray-500 dark:text-gray-400">Pause everyone's clock overnight.</small>
+
+              {#if pauseOvernight}
+                <div class="mt-2">
+                  <TimeRangeSlider bind:start={timerStart} bind:end={timerEnd} />
+                </div>
+              {/if}
             </fieldset>
           </div>
         {/if}
