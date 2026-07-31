@@ -99,8 +99,8 @@
 
   {#if user}
     <a
-      class={`me-3 rounded-full px-2 py-0.5 text-sm font-semibold text-white no-underline hover:text-white ${
-        hasGames ? "bg-green-600" : "bg-gray-500"
+      class={`me-3 flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-bold text-white no-underline transition hover:text-white ${
+        hasGames ? "bg-green-600 hover:bg-green-500" : "bg-gray-500 hover:bg-gray-400"
       }`}
       href="/next-game"
       title={hasGames
@@ -183,12 +183,16 @@
       <NavLink
         href={`/user/${user.account.username}`}
         data-sveltekit-preload-data="hover"
-        class="flex items-center gap-2 py-0"
+        class="flex items-center gap-2 rounded-md px-2 py-1 no-underline hover:bg-white/10 hover:text-white"
       >
-        <UserAvatar username={user.account.username} userId={user._id} size="2rem" />
+        <UserAvatar username={user.account.username} userId={user._id} size="1.75rem" />
         <span class="hidden sm:inline">{user.account.username}</span>
       </NavLink>
-      <NavLink onclick={logOut} class="flex items gap-2">
+      <NavLink
+        onclick={logOut}
+        title="Log out"
+        class="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-white/10 hover:text-white"
+      >
         <IconPower size="1.25rem" />
         <span class="hidden sm:inline">Log out</span>
       </NavLink>
