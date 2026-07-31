@@ -254,9 +254,7 @@ ${context.game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}
 <style>
   #game-iframe {
     border: 0;
-    width: calc(100% + 24px);
-    margin-left: -12px;
-    margin-right: -12px;
+    width: 100%;
     margin-bottom: -6px;
     min-height: calc(100vh - var(--navbar-height));
   }
