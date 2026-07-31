@@ -156,11 +156,7 @@
                   <Badge color="contrast" class="me-2 text-xs text-white">R{game.context?.round ?? 0}</Badge>
                 {:else if game.status === "open"}
                   <span class="me-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/60 dark:text-blue-200">
-                    open · {game.players.length}/{game.options.setup.nbPlayers}
-                  </span>
-                {:else if game.status === "ended"}
-                  <span class="me-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                    finished
+                    {game.players.length}/{game.options.setup.nbPlayers}
                   </span>
                 {/if}
                 <span class="game-name truncate">
@@ -178,7 +174,9 @@
                   game.options.timing.timePerMove ?? 0
                 )}`}
               >
-                {#if game.status !== "ended"}
+                {#if game.status === "ended"}
+                  <span class="text-gray-500 dark:text-gray-400">finished · {niceDate(game.lastMove ?? "")}</span>
+                {:else}
                   <IconClockHistory class="text-[0.8em]" />
                   {compactTiming(game)}
                   {#if game.options.timing.scheduledStart}
@@ -190,8 +188,6 @@
                       .toString()
                       .padStart(2, "0")}
                   {/if}
-                {:else}
-                  {niceDate(game.lastMove ?? "")}
                 {/if}
               </small>
             </div>
@@ -209,11 +205,10 @@
                 {/each}
               </div>
             {:else}
-              <div class="me-3" style="line-height: 1.1;">
-                <div class="text-right">{game.players.length} / {game.options.setup.nbPlayers}</div>
-                <small>
-                  {shortDuration(Math.floor((Date.now() - new Date(game.createdAt ?? "").getTime()) / 1000))} ago</small
-                >
+              <div class="me-3 text-right" style="line-height: 1.1;">
+                <small class="text-gray-500 dark:text-gray-400">
+                  {shortDuration(Math.floor((Date.now() - new Date(game.createdAt ?? "").getTime()) / 1000))} ago
+                </small>
               </div>
             {/if}
           </a>
