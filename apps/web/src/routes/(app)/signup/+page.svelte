@@ -126,15 +126,19 @@
       <Checkbox bind:checked={newsletter}>Get newsletter, up to six emails per year.</Checkbox>
     {/if}
 
-    <Checkbox bind:checked={tc}>
-      I have read and agree to the <a href="/page/terms-and-conditions" target="_blank">Terms and Conditions</a>.
-    </Checkbox>
+    <div class="mt-3 space-y-2">
+      <Checkbox bind:checked={tc}>
+        I have read and agree to the <a href="/page/terms-and-conditions" target="_blank">Terms and Conditions</a>.
+      </Checkbox>
 
-    <Button id="signup-button" class="mt-3 ml-auto" type="submit" color="primary">Register</Button>
+      <Button id="signup-button" class="ml-auto" type="submit" color="primary">Register</Button>
+    </div>
   </form>
 
   <hr />
 
-  <p>Already have an account? <a href="/login">Log in</a></p>
-  <p>Or head <a href="/">home</a>.</p>
+  <div class="mt-3 space-y-1">
+    <p>Already have an account? <a href="/login">Log in</a></p>
+    <p>Or head <a href="/">home</a>.</p>
+  </div>
 </div>

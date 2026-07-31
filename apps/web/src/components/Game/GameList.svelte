@@ -147,7 +147,7 @@
             <div class="me-auto min-w-0" style="line-height: 1.1">
               <div class="flex items-center">
                 {#if game.status === "active"}
-                  <Badge color="contrast" class="text-xs text-white">R{game.context?.round ?? 0}</Badge>
+                  <Badge color="contrast" class="me-2 text-xs text-white">R{game.context?.round ?? 0}</Badge>
                 {/if}
                 <span class="game-name truncate">
                   {game._id}
