@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { timerTime, defer, duration, niceDate, shortDuration } from "@/utils";
+  import { timerTime, defer, duration, niceDate, shortDuration, compactTiming } from "@/utils";
   import type { GameFront } from "@bgs/models";
   import { createWatcher } from "@/utils/watch";
   import { Badge, Pagination, Loading } from "@/modules/cdk";
@@ -158,11 +158,15 @@
                   </sup>
                 {/if}
               </div>
-              <small class="flex items-center gap-1 whitespace-nowrap text-xs">
+              <small
+                class="flex items-center gap-1 whitespace-nowrap text-xs"
+                title={`${playTime(game)} ${duration(game.options.timing.timePerGame ?? 0)} + ${duration(
+                  game.options.timing.timePerMove ?? 0
+                )}`}
+              >
                 {#if game.status !== "ended"}
                   <IconClockHistory class="text-[0.8em]" />
-                  {playTime(game)}
-                  {duration(game.options.timing.timePerGame ?? 0)} + {duration(game.options.timing.timePerMove ?? 0)}
+                  {compactTiming(game)}
                   {#if game.options.timing.scheduledStart}
                     starts on {niceDate(game.options.timing.scheduledStart)} at
                     {new Date(game.options.timing.scheduledStart).getHours().toString().padStart(2, "0")}}h{new Date(

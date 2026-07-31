@@ -103,7 +103,9 @@
         hasGames ? "bg-green-600" : "bg-gray-500"
       }`}
       href="/next-game"
-      title="Jump to next active game"
+      title={hasGames
+        ? `${myActiveGames.length} ${myActiveGames.length === 1 ? "game" : "games"} waiting for your move — click to jump to the next one`
+        : "No games waiting for your move"}
       id="active-game-count"
     >
       {myActiveGames.length}

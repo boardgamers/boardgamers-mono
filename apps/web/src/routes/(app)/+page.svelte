@@ -8,7 +8,7 @@
   import { page } from "$app/state";
   import type { UserFront } from "@bgs/models";
 
-  let { data } = $props();
+  let { data }: { data: { announcement?: { title: string; content: string } } } = $props();
   let announcement = $derived(data.announcement);
 
   // Client prefers the stores (seeded by the layout); SSR falls back to page.data so
@@ -43,6 +43,18 @@
       <div class="mt-3">
         {#if myGames.length > 0}
           <GameList gameStatus="active" userId={user?._id} perPage={5} title="My games" />
+        {:else if user}
+          <!-- Logged in but no games: guide them to start/join one instead of showing others' games. -->
+          <div class="flex h-full flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 p-8 text-center dark:border-gray-600">
+            <h3 class="mb-1 font-semibold">No games yet</h3>
+            <p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
+              You're not in any active games. Start one, or grab a seat in the lobby.
+            </p>
+            <div class="flex gap-3">
+              <Button color="primary" href="/new-game" data-sveltekit-preload-data="hover">New Game</Button>
+              <Button color="accent" href="/games" data-sveltekit-preload-data="hover">Browse lobby</Button>
+            </div>
+          </div>
         {:else}
           <GameList gameStatus="active" topRecords perPage={5} title="Featured games" />
         {/if}

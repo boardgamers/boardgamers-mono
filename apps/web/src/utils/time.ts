@@ -113,6 +113,27 @@ export function dateFromObjectId(objectId: string): Date {
   return new Date(parseInt(objectId.substring(0, 8), 16) * 1000);
 }
 
+/**
+ * Compact duration for dense UI (game rows): 30m, 2h, 3d. Uses the largest whole unit.
+ */
+export function compactDuration(seconds: number): string {
+  if (seconds < 3600) return `${Math.max(1, Math.round(seconds / 60))}m`;
+  if (seconds < 86400) return `${Math.round(seconds / 3600)}h`;
+  return `${Math.round(seconds / 86400)}d`;
+}
+
+/**
+ * Compact timing summary for a game, e.g. "3d+2h · 19:00–08:00" or "3d+2h · 24h".
+ */
+export function compactTiming(game: {
+  options: { timing: { timer?: { start: number; end: number }; timePerGame?: number; timePerMove?: number } };
+}): string {
+  const { timer, timePerGame, timePerMove } = game.options.timing;
+  const base = `${compactDuration(timePerGame ?? 0)}+${compactDuration(timePerMove ?? 0)}`;
+  const window = timer?.start !== timer?.end ? `${timerTime(timer?.start ?? 0)}–${timerTime(timer?.end ?? 0)}` : "24h";
+  return `${base} · ${window}`;
+}
+
 export function dateTime(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(
     2,
