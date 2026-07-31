@@ -56,12 +56,18 @@
   let admin = $derived(user?.authority === "admin");
   // SSR fallback for active games so the count badge doesn't flicker after hydration.
   let myActiveGames = $derived($activeGames.length > 0 ? $activeGames : ((page.data.activeGames as string[]) ?? []));
-  // todo use load() function of svelte kit instead
-  // $: adminLink =
-  //   location.hostname === "localhost"
-  //     ? "http://localhost:8613"
-  //     : `${location.protocol}//admin.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`;
-  const adminLink = "https://admin.boardgamers.space";
+
+  // Derive the admin panel URL from the current host: local dev → local admin port,
+  // production → admin.<root-domain> (handles www. and subdomains).
+  let adminLink = $derived.by(() => {
+    const { protocol, hostname } = page.url;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return `${protocol}//${hostname}:8613`;
+    }
+    const rootDomain = hostname.startsWith("www.") ? hostname.slice(4) : hostname;
+    return `${protocol}//admin.${rootDomain}`;
+  });
+
   let hasGames = $derived(myActiveGames.length > 0);
 
   const onHasGamesChanged = () => {

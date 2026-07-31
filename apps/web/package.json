@@ -7,7 +7,7 @@
     "dev": "vite dev --port 8612 --host",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "svelte-kit sync && svelte-fast-check -p ./tsconfig.json",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --tsgo",
     "lint": "prettier --ignore-path .gitignore --check . && eslint --ignore-path .gitignore .",
     "format": "prettier --ignore-path .gitignore --write .",
     "test": "vitest run"
@@ -25,7 +25,6 @@
     "type-fest": "^2.1.0"
   },
   "devDependencies": {
-    "@alasano/svelte-fast-check": "0.4.6-fork.2",
     "@bgs/models": "workspace:*",
     "@sveltejs/adapter-node": "^5.5.7",
     "@sveltejs/kit": "^2.70.2",
@@ -40,15 +39,17 @@
     "@types/remove-markdown": "^0.3.1",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "dotenv": "^8.2.0",
     "eslint": "^9.27.0",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-svelte": "^3.9.1",
     "prettier": "^3.5.3",
     "prettier-plugin-svelte": "^3.5.0",
+    "svelte-check": "4.7.4",
     "tailwindcss": "^4.2.1",
     "tslib": "^2.3.1",
-    "typescript": "catalog:",
+    "typescript": "~6.0.3",
     "vite": "^8.2.0",
     "vitest": "^3.1.4"
   },
