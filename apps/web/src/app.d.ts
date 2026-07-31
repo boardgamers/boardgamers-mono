@@ -1,4 +1,3 @@
-declare module "awesome-notifications";
 
 interface ImportMetaEnv {
   readonly VITE_MESSAGE: string;

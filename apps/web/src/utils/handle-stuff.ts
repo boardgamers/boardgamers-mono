@@ -1,20 +1,6 @@
 import { browser } from "$app/environment";
 import { isPromise } from "@bgs/utils";
-import "awesome-notifications/dist/style.css";
-
-let notifier: any | undefined;
-
-if (browser) {
-  import("awesome-notifications").then((mod) => {
-    // UMD module: Vite wraps it so `mod.default` is the UMD export, whose own
-    // `.default` is the AWN class. Walk down to the first actual constructor.
-    let AWN: any = mod;
-    while (typeof AWN !== "function" && AWN?.default) {
-      AWN = AWN.default;
-    }
-    notifier = new AWN({ icons: { enabled: false } });
-  });
-}
+import { notifier } from "@/lib/notifications.svelte";
 
 export function handleError(err: Error | string | unknown): void {
   if (!err || !browser) {
@@ -24,30 +10,24 @@ export function handleError(err: Error | string | unknown): void {
   console.error(err);
 
   if (typeof err === "string") {
-    notifier?.alert(err);
+    notifier.alert(err);
   } else if ("message" in (err as any)) {
-    notifier?.alert((err as any).message);
+    notifier.alert((err as any).message);
   } else {
-    notifier?.alert("Unknown error");
+    notifier.alert("Unknown error");
   }
 }
 
 export function handleInfo(info: string): void {
-  notifier?.info(info);
+  notifier.info(info);
 }
 
 export function handleSuccess(info: string): void {
-  notifier?.success(info);
+  notifier.success(info);
 }
 
 export function confirm(text: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    notifier?.confirm(
-      text,
-      () => resolve(true),
-      () => resolve(false)
-    );
-  });
+  return notifier.confirm(text);
 }
 
 /**
