@@ -10,13 +10,13 @@
 type Level = "info" | "warn" | "error";
 
 function levelForStatus(status: number): Level {
-  if (status >= 500) {
-    return "error";
-  }
-  if (status >= 400) {
-    return "warn";
-  }
-  return "info";
+	if (status >= 500) {
+		return "error";
+	}
+	if (status >= 400) {
+		return "warn";
+	}
+	return "info";
 }
 
 /**
@@ -24,24 +24,24 @@ function levelForStatus(status: number): Level {
  * can split streams); info/warn to stdout.
  */
 export function logEvent(level: Level, msg: string, fields: Record<string, unknown> = {}): void {
-  const line = JSON.stringify({ level, msg, ...fields, time: new Date().toISOString() });
-  if (level === "error") {
-    process.stderr.write(line + "\n");
-  } else {
-    process.stdout.write(line + "\n");
-  }
+	const line = JSON.stringify({ level, msg, ...fields, time: new Date().toISOString() });
+	if (level === "error") {
+		process.stderr.write(line + "\n");
+	} else {
+		process.stdout.write(line + "\n");
+	}
 }
 
 export interface RequestLogContext {
-  method: string;
-  path: string;
-  route?: string;
-  status: number;
-  durationMs: number;
-  ip?: string;
-  userId?: string;
-  requestId?: string;
-  error?: string;
+	method: string;
+	path: string;
+	route?: string;
+	status: number;
+	durationMs: number;
+	ip?: string;
+	userId?: string;
+	requestId?: string;
+	error?: string;
 }
 
 /**
@@ -53,28 +53,28 @@ export interface RequestLogContext {
  * most specific route. Falls back to the raw path for unmatched requests (404).
  */
 export function matchedRoute(ctx: { matched?: { path: string; methods: string[] }[]; path: string }): string {
-  const layer = ctx.matched?.find((l) => l.methods.length > 0);
-  return layer?.path ?? ctx.path;
+	const layer = ctx.matched?.find((l) => l.methods.length > 0);
+	return layer?.path ?? ctx.path;
 }
 
 /** Log a completed request — used by the Koa middleware in each app. */
 export function logRequest(label: string, ctx: RequestLogContext): void {
-  logEvent(levelForStatus(ctx.status), "request", { source: label, ...ctx });
+	logEvent(levelForStatus(ctx.status), "request", { source: label, ...ctx });
 }
 
 /** Install process-level sinks so unhandled rejections don't vanish. */
 export function installProcessHandlers(label: string): void {
-  process.on("unhandledRejection", (reason) => {
-    logEvent("error", "unhandledRejection", {
-      source: label,
-      error: reason instanceof Error ? reason.message : String(reason),
-      stack: reason instanceof Error ? reason.stack?.split("\n") : undefined,
-    });
-  });
-  process.on("uncaughtException", (err) => {
-    logEvent("error", "uncaughtException", { source: label, error: err.message, stack: err.stack?.split("\n") });
-    // Give the log line time to flush, then exit — a crashed process should not
-    // be kept alive serving broken state. In a cluster the primary will re-fork.
-    setTimeout(() => process.exit(1), 100);
-  });
+	process.on("unhandledRejection", (reason) => {
+		logEvent("error", "unhandledRejection", {
+			source: label,
+			error: reason instanceof Error ? reason.message : String(reason),
+			stack: reason instanceof Error ? reason.stack?.split("\n") : undefined,
+		});
+	});
+	process.on("uncaughtException", (err) => {
+		logEvent("error", "uncaughtException", { source: label, error: err.message, stack: err.stack?.split("\n") });
+		// Give the log line time to flush, then exit — a crashed process should not
+		// be kept alive serving broken state. In a cluster the primary will re-fork.
+		setTimeout(() => process.exit(1), 100);
+	});
 }

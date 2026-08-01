@@ -1,42 +1,42 @@
 <script lang="ts">
-  import type { Page } from "@sveltejs/kit";
-  import { Card, Col, Row } from "@/modules/cdk";
-  import { GameList } from "../Game";
-  import { page } from "$app/state";
+	import type { Page } from "@sveltejs/kit";
+	import { Card, Col, Row } from "@/modules/cdk";
+	import { GameList } from "../Game";
+	import { page } from "$app/state";
 
-  let { userId }: { userId: string } = $props();
+	let { userId }: { userId: string } = $props();
 
-  let filter = $derived(page.url.searchParams.get("games") ?? "started");
+	let filter = $derived(page.url.searchParams.get("games") ?? "started");
 
-  const generateAlternative = (page: Page) => {
-    const query = new URLSearchParams(page.url.searchParams);
+	const generateAlternative = (page: Page) => {
+		const query = new URLSearchParams(page.url.searchParams);
 
-    query.set("games", filter === "open" ? "started" : "open");
+		query.set("games", filter === "open" ? "started" : "open");
 
-    return query.toString();
-  };
+		return query.toString();
+	};
 
-  let alternativeRoute = $derived("?" + generateAlternative(page));
+	let alternativeRoute = $derived("?" + generateAlternative(page));
 </script>
 
 <Card class="mt-4 border-secondary" header="Games">
-  <Row class="gap-4">
-    {#if filter === "started"}
-      <Col lg={6}>
-        <GameList gameStatus="active" perPage={5} {userId} title="Active games" />
-      </Col>
-      <Col lg={6}>
-        <GameList gameStatus="ended" perPage={5} {userId} title="Finished games" />
-      </Col>
-    {:else}
-      <Col lg={6}>
-        <GameList gameStatus="open" perPage={5} {userId} title="Open games" />
-      </Col>
-    {/if}
-  </Row>
-  {#snippet footer()}
-    <a href={alternativeRoute}>
-      {filter === "started" ? "Open games" : "Started games"}
-    </a>
-  {/snippet}
+	<Row class="gap-4">
+		{#if filter === "started"}
+			<Col lg={6}>
+				<GameList gameStatus="active" perPage={5} {userId} title="Active games" />
+			</Col>
+			<Col lg={6}>
+				<GameList gameStatus="ended" perPage={5} {userId} title="Finished games" />
+			</Col>
+		{:else}
+			<Col lg={6}>
+				<GameList gameStatus="open" perPage={5} {userId} title="Open games" />
+			</Col>
+		{/if}
+	</Row>
+	{#snippet footer()}
+		<a href={alternativeRoute}>
+			{filter === "started" ? "Open games" : "Started games"}
+		</a>
+	{/snippet}
 </Card>

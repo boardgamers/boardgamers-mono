@@ -6,58 +6,58 @@ import { seed } from "../../scripts/seed.ts";
 import { latestAccessibleGames } from "./gameinfo.ts";
 
 function sortedEntries(map: Map<string, number>) {
-  return [...map.entries()].toSorted((a, b) => a[0].localeCompare(b[0]));
+	return [...map.entries()].toSorted((a, b) => a[0].localeCompare(b[0]));
 }
 
 describe("GameInfoService", () => {
-  describe("latestAccessibleGames", () => {
-    before(async () => {
-      await seed({ collections: ["GameInfo", "User", "GamePreferences"], drop: true });
-    });
+	describe("latestAccessibleGames", () => {
+		before(async () => {
+			await seed({ collections: ["GameInfo", "User", "GamePreferences"], drop: true });
+		});
 
-    it("should return all public games for undefined user", async () => {
-      let games = await latestAccessibleGames();
+		it("should return all public games for undefined user", async () => {
+			let games = await latestAccessibleGames();
 
-      assert.deepStrictEqual(sortedEntries(games), [
-        ["container", 1],
-        ["gaia-project", 1],
-        ["powergrid", 1],
-      ]);
+			assert.deepStrictEqual(sortedEntries(games), [
+				["container", 1],
+				["gaia-project", 1],
+				["powergrid", 1],
+			]);
 
-      await colls.gameInfos.updateOne({ _id: { game: "container", version: 1 } }, { $set: { "meta.public": false } });
+			await colls.gameInfos.updateOne({ _id: { game: "container", version: 1 } }, { $set: { "meta.public": false } });
 
-      games = await latestAccessibleGames();
+			games = await latestAccessibleGames();
 
-      assert.deepStrictEqual(sortedEntries(games), [
-        ["gaia-project", 1],
-        ["powergrid", 1],
-      ]);
-    });
+			assert.deepStrictEqual(sortedEntries(games), [
+				["gaia-project", 1],
+				["powergrid", 1],
+			]);
+		});
 
-    it("should return all available games for admin user", async () => {
-      const user = await findByUsername("admin");
-      assert.ok(user, "admin user should exist");
+		it("should return all available games for admin user", async () => {
+			const user = await findByUsername("admin");
+			assert.ok(user, "admin user should exist");
 
-      let games = await latestAccessibleGames(user._id);
+			let games = await latestAccessibleGames(user._id);
 
-      assert.deepStrictEqual(sortedEntries(games), [
-        ["gaia-project", 1],
-        ["powergrid", 1],
-      ]);
+			assert.deepStrictEqual(sortedEntries(games), [
+				["gaia-project", 1],
+				["powergrid", 1],
+			]);
 
-      await colls.gameInfos.updateOne({ _id: { game: "container", version: 1 } }, { $set: { "meta.public": false } });
-      await colls.gamePreferences.updateOne(
-        { user: user._id, game: "container" },
-        { $set: { "access.maxVersion": 1 } },
-      );
+			await colls.gameInfos.updateOne({ _id: { game: "container", version: 1 } }, { $set: { "meta.public": false } });
+			await colls.gamePreferences.updateOne(
+				{ user: user._id, game: "container" },
+				{ $set: { "access.maxVersion": 1 } },
+			);
 
-      games = await latestAccessibleGames(user._id);
+			games = await latestAccessibleGames(user._id);
 
-      assert.deepStrictEqual(sortedEntries(games), [
-        ["container", 1],
-        ["gaia-project", 1],
-        ["powergrid", 1],
-      ]);
-    });
-  });
+			assert.deepStrictEqual(sortedEntries(games), [
+				["container", 1],
+				["gaia-project", 1],
+				["powergrid", 1],
+			]);
+		});
+	});
 });

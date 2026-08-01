@@ -68,7 +68,7 @@
 						<a
 							{href}
 							class="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive(
-								href,
+								href
 							)
 								? 'bg-gray-100 dark:bg-gray-800 font-semibold'
 								: ''}"

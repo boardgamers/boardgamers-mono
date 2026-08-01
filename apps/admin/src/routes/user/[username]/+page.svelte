@@ -133,7 +133,7 @@
 
 	const totalGames = $derived(user?.games ? Object.values(user.games).reduce((a, b) => a + (b ?? 0), 0) : 0);
 	const isOnline = $derived(
-		user?.security?.lastOnline && Date.now() - new Date(user.security.lastOnline).getTime() < 60000,
+		user?.security?.lastOnline && Date.now() - new Date(user.security.lastOnline).getTime() < 60000
 	);
 </script>
 
@@ -356,7 +356,7 @@
 												class="text-xs font-mono whitespace-pre-wrap break-all max-h-80 overflow-y-auto">{JSON.stringify(
 													err,
 													null,
-													2,
+													2
 												).replaceAll("\\n", "\n")}</pre>
 										</td>
 									</tr>

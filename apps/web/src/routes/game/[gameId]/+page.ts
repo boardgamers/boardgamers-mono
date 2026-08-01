@@ -6,28 +6,28 @@ import { loadGamePreferences } from "@/lib/game-preferences.svelte";
 import { setApiContext } from "@/lib/api";
 
 export const load: PageLoad = async ({ params, fetch }) => {
-  setApiContext((prev) => ({ ...prev, fetch }));
-  const gameId = params.gameId;
+	setApiContext((prev) => ({ ...prev, fetch }));
+	const gameId = params.gameId;
 
-  let game, players;
-  try {
-    [game, players] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
-  } catch {
-    // loadGame rejects with Error("Not Found") (status 404) when the gameplay API returns 404.
-    throw error(404, "Game not found");
-  }
+	let game, players;
+	try {
+		[game, players] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
+	} catch {
+		// loadGame rejects with Error("Not Found") (status 404) when the gameplay API returns 404.
+		throw error(404, "Game not found");
+	}
 
-  // game.game can be absent on legacy/corrupt docs — Mongo validation is "warn"/"moderate",
-  // so the schema is not enforced on existing data. Guard before dereferencing.
-  if (!game?.game) {
-    throw error(404, "Game data is incomplete");
-  }
+	// game.game can be absent on legacy/corrupt docs — Mongo validation is "warn"/"moderate",
+	// so the schema is not enforced on existing data. Guard before dereferencing.
+	if (!game?.game) {
+		throw error(404, "Game data is incomplete");
+	}
 
-  await Promise.all([loadGameInfo(game.game.name, game.game.version), loadGamePreferences(game.game.name)]);
+	await Promise.all([loadGameInfo(game.game.name, game.game.version), loadGamePreferences(game.game.name)]);
 
-  return {
-    game,
-    players,
-    gameInfo: gameInfo(game.game.name, game.game.version),
-  };
+	return {
+		game,
+		players,
+		gameInfo: gameInfo(game.game.name, game.game.version),
+	};
 };

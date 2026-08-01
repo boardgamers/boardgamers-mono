@@ -4,31 +4,31 @@ import { setRefreshToken } from "@/lib/auth.svelte";
 import type { UserFront } from "@bgs/models";
 
 export const load: LayoutServerLoad = async ({ locals, fetch, cookies }) => {
-  // Set the API context for server-side fetches (IP forwarding, etc.)
-  setApiContext({ fetch, ip: locals.ip });
+	// Set the API context for server-side fetches (IP forwarding, etc.)
+	setApiContext({ fetch, ip: locals.ip });
 
-  // Seed the refresh token from the cookie
-  if (locals.refreshToken) {
-    setRefreshToken(locals.refreshToken);
-  }
+	// Seed the refresh token from the cookie
+	if (locals.refreshToken) {
+		setRefreshToken(locals.refreshToken);
+	}
 
-  let user: UserFront | null = null;
-  let activeGames: string[] = [];
+	let user: UserFront | null = null;
+	let activeGames: string[] = [];
 
-  if (locals.refreshToken) {
-    try {
-      user = await get<UserFront | null>("/account").catch(() => null);
-      if (user) {
-        activeGames = await get<string[]>("/account/active-games").catch(() => []);
-      }
-    } catch {
-      // Token invalid/expired — leave user as null
-    }
-  }
+	if (locals.refreshToken) {
+		try {
+			user = await get<UserFront | null>("/account").catch(() => null);
+			if (user) {
+				activeGames = await get<string[]>("/account/active-games").catch(() => []);
+			}
+		} catch {
+			// Token invalid/expired — leave user as null
+		}
+	}
 
-  return {
-    user,
-    activeGames,
-    sidebarOpen: locals.sidebarOpen,
-  };
+	return {
+		user,
+		activeGames,
+		sidebarOpen: locals.sidebarOpen,
+	};
 };

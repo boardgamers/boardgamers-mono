@@ -9,7 +9,7 @@
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-fast-check -p ./tsconfig.json",
 		"lint": "eslint .",
-		"format": "prettier --write ."
+		"format": "oxfmt . && prettier --write \"src/**/*.svelte\""
 	},
 	"dependencies": {
 		"marked": "^15.0.0"
@@ -25,6 +25,7 @@
 		"eslint": "^9.0.0",
 		"eslint-config-prettier": "^10.0.0",
 		"eslint-plugin-svelte": "^3.0.0",
+		"oxfmt": "catalog:",
 		"prettier": "catalog:",
 		"prettier-plugin-svelte": "catalog:",
 		"svelte": "^5.0.0",

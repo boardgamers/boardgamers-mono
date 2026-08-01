@@ -1,18 +1,18 @@
 <script lang="ts">
-  import Spinner from "./Spinner.svelte";
-  import type { Snippet } from "svelte";
+	import Spinner from "./Spinner.svelte";
+	import type { Snippet } from "svelte";
 
-  let {
-    loading = false,
-    children,
-  }: {
-    loading?: boolean;
-    children?: Snippet;
-  } = $props();
+	let {
+		loading = false,
+		children,
+	}: {
+		loading?: boolean;
+		children?: Snippet;
+	} = $props();
 </script>
 
 {#if loading}
-  <div class="flex min-h-[50vh] items-center justify-center"><Spinner color="secondary" /></div>
+	<div class="flex min-h-[50vh] items-center justify-center"><Spinner color="secondary" /></div>
 {:else}
-  {@render children?.()}
+	{@render children?.()}
 {/if}

@@ -1,5 +1,5 @@
 export function browserEvent(target: any, ...args: any[]) {
-  target.addEventListener(...args);
+	target.addEventListener(...args);
 
-  return () => target.removeEventListener(...args);
+	return () => target.removeEventListener(...args);
 }

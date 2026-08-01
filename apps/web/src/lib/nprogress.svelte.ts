@@ -7,21 +7,21 @@ import { navigating } from "$app/state";
 let started = false;
 
 export function initNProgress() {
-  if (!browser || started) return;
-  started = true;
+	if (!browser || started) return;
+	started = true;
 
-  import("nprogress").then((NProgress) => {
-    NProgress.configure({ minimum: 0.16 });
+	import("nprogress").then((NProgress) => {
+		NProgress.configure({ minimum: 0.16 });
 
-    $effect.root(() => {
-      $effect(() => {
-        if (navigating.to) {
-          NProgress.start();
-        } else {
-          NProgress.done();
-        }
-      });
-      return () => {};
-    });
-  });
+		$effect.root(() => {
+			$effect(() => {
+				if (navigating.to) {
+					NProgress.start();
+				} else {
+					NProgress.done();
+				}
+			});
+			return () => {};
+		});
+	});
 }

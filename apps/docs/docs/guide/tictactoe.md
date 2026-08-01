@@ -11,24 +11,24 @@ Here is our gamestate:
 ```ts
 type Player = 0 | 1;
 type Coord = {
-  x: 0 | 1 | 2;
-  y: 0 | 1 | 2;
+	x: 0 | 1 | 2;
+	y: 0 | 1 | 2;
 };
 
 type Board = [
-  [Player | null, Player | null, Player | null],
-  [Player | null, Player | null, Player | null],
-  [Player | null, Player | null, Player | null],
+	[Player | null, Player | null, Player | null],
+	[Player | null, Player | null, Player | null],
+	[Player | null, Player | null, Player | null],
 ];
 
 type GameState = {
-  winner?: Player;
-  board: Board;
-  // all moves played
-  moves: Array<{
-    player: Player;
-    coord: Coord;
-  }>;
+	winner?: Player;
+	board: Board;
+	// all moves played
+	moves: Array<{
+		player: Player;
+		coord: Coord;
+	}>;
 };
 ```
 
@@ -40,14 +40,14 @@ We create an empty board.
 
 ```ts
 export function init(): GameState {
-  return {
-    board: [
-      [null, null, null],
-      [null, null, null],
-      [null, null, null],
-    ],
-    moves: [],
-  };
+	return {
+		board: [
+			[null, null, null],
+			[null, null, null],
+			[null, null, null],
+		],
+		moves: [],
+	};
 }
 ```
 
@@ -61,10 +61,10 @@ The function could be as simple as this:
 
 ```ts
 export function move(state: GameState, coord: Coord, player: Player) {
-  state.board[coord.x][coord.y] = player;
-  state.moves.push({ player, coord });
+	state.board[coord.x][coord.y] = player;
+	state.moves.push({ player, coord });
 
-  return state;
+	return state;
 }
 ```
 
@@ -72,28 +72,28 @@ But we'll also add a check to see if the winner is decided here.
 
 ```ts
 function winner(board: Board): Player | undefined {
-  // Check rows
-  for (const row of board) {
-    if (row[0] !== null && row[1] === row[0] && row[2] === row[0]) {
-      return row[0];
-    }
-  }
+	// Check rows
+	for (const row of board) {
+		if (row[0] !== null && row[1] === row[0] && row[2] === row[0]) {
+			return row[0];
+		}
+	}
 
-  // Check columns
-  for (let i = 0; i < 3; i++) {
-    if (board[0][i] !== null && board[1][i] === board[0][i] && board[2][i] === board[0][i]) {
-      return board[0][i];
-    }
-  }
+	// Check columns
+	for (let i = 0; i < 3; i++) {
+		if (board[0][i] !== null && board[1][i] === board[0][i] && board[2][i] === board[0][i]) {
+			return board[0][i];
+		}
+	}
 
-  // Check diagonals
-  if (board[0][0] !== null && board[0][0] === board[1][1] && board[0][0] === board[2][2]) {
-    return board[0][0];
-  }
+	// Check diagonals
+	if (board[0][0] !== null && board[0][0] === board[1][1] && board[0][0] === board[2][2]) {
+		return board[0][0];
+	}
 
-  if (board[2][0] !== null && board[2][0] === board[1][1] && board[2][0] === board[0][2]) {
-    return board[2][0];
-  }
+	if (board[2][0] !== null && board[2][0] === board[1][1] && board[2][0] === board[0][2]) {
+		return board[2][0];
+	}
 }
 ```
 
@@ -101,12 +101,12 @@ Then we add that info in the `move` function:
 
 ```ts
 export function move(state: GameState, coord: Coord, player: Player) {
-  state.board[coord.x][coord.y] = player;
-  state.moves.push({ player, coord });
-  // Either it stays undefined or is set to the winner
-  state.winner = winner(state.board);
+	state.board[coord.x][coord.y] = player;
+	state.moves.push({ player, coord });
+	// Either it stays undefined or is set to the winner
+	state.winner = winner(state.board);
 
-  return state;
+	return state;
 }
 ```
 
@@ -119,12 +119,12 @@ The game can be ended two ways:
 
 ```ts
 export function ended(state: GameState) {
-  if (state.winner !== undefined) {
-    return true;
-  }
+	if (state.winner !== undefined) {
+		return true;
+	}
 
-  // The board is full
-  return state.moves.length === 9;
+	// The board is full
+	return state.moves.length === 9;
 }
 ```
 
@@ -134,7 +134,7 @@ Tic Tac Toe doesn't really have score or victory points. We'll just give 100 poi
 
 ```ts
 export function scores(state: GameState) {
-  return [state.winner === 0 ? 100 : 0, state.winner === 1 ? 100 : 0];
+	return [state.winner === 0 ? 100 : 0, state.winner === 1 ? 100 : 0];
 }
 ```
 
@@ -144,12 +144,12 @@ When a player drops, the other player automatically wins.
 
 ```ts
 function opponent(player: Player): Player {
-  return player === 0 ? 1 : 0;
+	return player === 0 ? 1 : 0;
 }
 
 export function dropPlayer(state: GameState, player: Player) {
-  state.winner = opponent(player);
-  return state;
+	state.winner = opponent(player);
+	return state;
 }
 ```
 
@@ -161,11 +161,11 @@ We reuse the `opponent` function defined in [dropPlayer](#dropplayer).
 
 ```ts
 export function currentPlayer(state: GameState): Player {
-  if (state.moves.length === 0) {
-    return 0;
-  }
+	if (state.moves.length === 0) {
+		return 0;
+	}
 
-  return opponent(state.moves[state.moves.length - 1].player);
+	return opponent(state.moves[state.moves.length - 1].player);
 }
 ```
 
@@ -185,7 +185,7 @@ As such the log length is the number of moves + 1 if there is no winner, and the
 
 ```ts
 export function logLength(state: GameState): number {
-  return 1 + state.moves.length + (state.winner !== undefined ? 1 : 0);
+	return 1 + state.moves.length + (state.winner !== undefined ? 1 : 0);
 }
 ```
 
@@ -195,35 +195,35 @@ And here we actually generate the log. The logic is described in [logLength](#lo
 
 ```ts
 type LogItem =
-  | {
-      kind: "event";
-      event: "start";
-    }
-  | {
-      kind: "event";
-      event: "end";
-      winner?: Player;
-    }
-  | {
-      kind: "move";
-      move: Coord;
-      player: Player;
-    };
+	| {
+			kind: "event";
+			event: "start";
+	  }
+	| {
+			kind: "event";
+			event: "end";
+			winner?: Player;
+	  }
+	| {
+			kind: "move";
+			move: Coord;
+			player: Player;
+	  };
 
 export function logSlice(state: GameState, options: { start: number; end?: number }): LogItem[] {
-  // Add the starting event
-  const log = [{ kind: "event", event: "start" }];
+	// Add the starting event
+	const log = [{ kind: "event", event: "start" }];
 
-  // Add the log items for the moves
-  log.push(...state.moves.map((move) => ({ kind: "move", move: move.coord, player: move.player })));
+	// Add the log items for the moves
+	log.push(...state.moves.map((move) => ({ kind: "move", move: move.coord, player: move.player })));
 
-  // Add the end event, with the winner, if the winner is decided
-  if (state.winner !== undefined || state.moves.length === 9) {
-    log.push({ kind: "event", event: "end", winner: state.winner });
-  }
+	// Add the end event, with the winner, if the winner is decided
+	if (state.winner !== undefined || state.moves.length === 9) {
+		log.push({ kind: "event", event: "end", winner: state.winner });
+	}
 
-  // Return the requested log items
-  return log.slice(options.start, options.end);
+	// Return the requested log items
+	return log.slice(options.start, options.end);
 }
 ```
 
@@ -289,16 +289,16 @@ import { Vue, Component, Watch, Prop } from "vue-property-decorator";
 
 @Component
 export default class App extends Vue {
-  // State received from the outside
-  @Prop()
-  state!: GameSate;
+	// State received from the outside
+	@Prop()
+	state!: GameSate;
 
-  /**
-   * Which player is in cell i/j, needed in the template code
-   */
-  cellPlayer(i: number, j: number): Player {
-    return this.state.board[i][j];
-  }
+	/**
+	 * Which player is in cell i/j, needed in the template code
+	 */
+	cellPlayer(i: number, j: number): Player {
+		return this.state.board[i][j];
+	}
 }
 </script>
 
@@ -322,25 +322,25 @@ import type { GameState, Player } from "tictactoe-engine";
 import { EventEmitter } from "events";
 
 function launch(selector: string) {
-  const props: { state: GameState; player?: Player } = { state: init() };
+	const props: { state: GameState; player?: Player } = { state: init() };
 
-  // Create the vue app and mount it where we are told
-  const vue = new Vue({
-    render: (h) => h(App, { props }, []),
-  }).$mount(selector);
+	// Create the vue app and mount it where we are told
+	const vue = new Vue({
+		render: (h) => h(App, { props }, []),
+	}).$mount(selector);
 
-  // Our App component
-  const app = vue.$children[0];
+	// Our App component
+	const app = vue.$children[0];
 
-  // Now we just need to modify `props` to reflect the changes on the App component
-  // First create what we will use to communicate with BGS
+	// Now we just need to modify `props` to reflect the changes on the App component
+	// First create what we will use to communicate with BGS
 
-  const emitter = new EventEmitter();
+	const emitter = new EventEmitter();
 
-  // Handle BGS API stuff
-  // ...
+	// Handle BGS API stuff
+	// ...
 
-  return emitter;
+	return emitter;
 }
 
 window.viewer = { launch };
@@ -503,13 +503,13 @@ emitter.emit("state", state);
 emitter.emit("player", { index: player });
 
 emitter.on("move", (move) => {
-  state = engineMove(state, move, player);
-  player = currentPlayer(state);
+	state = engineMove(state, move, player);
+	player = currentPlayer(state);
 
-  // Give updated player (we want to be able to play both sides)
-  // and give updated player / state
-  emitter.emit("state", state);
-  emitter.emit("player", { index: player });
+	// Give updated player (we want to be able to play both sides)
+	// and give updated player / state
+	emitter.emit("state", state);
+	emitter.emit("player", { index: player });
 });
 ```
 

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { Notifications } from "@/components";
+	import { Notifications } from "@/components";
 
-  let { children } = $props();
+	let { children } = $props();
 </script>
 
 {@render children()}

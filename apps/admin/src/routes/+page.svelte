@@ -41,7 +41,7 @@
 
 	// Map boardgame id → emoji, built from the sidebar's GameInfo labels.
 	const gameEmojiByName = $derived(
-		Object.fromEntries((page.data.games as GameInfoFront[]).map((g) => [g._id.game, gameEmoji(g.label)])),
+		Object.fromEntries((page.data.games as GameInfoFront[]).map((g) => [g._id.game, gameEmoji(g.label)]))
 	);
 
 	async function refresh() {

@@ -1,23 +1,20 @@
 {
-  "license": "AGPL-3.0",
-  "packageManager": "pnpm@11.11.0",
-  "type": "module",
-  "engines": {
-    "node": ">=24"
-  },
-  "scripts": {
-    "dev": "pnpm --filter @bgs/api --filter game --filter @bgs/web run --parallel dev",
-    "dev:admin": "pnpm --filter @bgs/admin run dev",
-    "prettier": "prettier --write .",
-    "prettier-check": "prettier --check ."
-  },
-  "devDependencies": {
-    "prettier": "catalog:",
-    "prettier-plugin-organize-imports": "^4.1.0",
-    "prettier-plugin-sort-json": "^4.1.1",
-    "prettier-plugin-svelte": "catalog:",
-    "svelte": "^3.42.6",
-    "typescript": "catalog:"
-  },
-  "_pnpmOverridesNote": "Overrides are now in pnpm-workspace.yaml (pnpm 11+ moved settings from package.json)."
+	"license": "AGPL-3.0",
+	"type": "module",
+	"scripts": {
+		"dev": "pnpm --filter @bgs/api --filter game --filter @bgs/web run --parallel dev",
+		"dev:admin": "pnpm --filter @bgs/admin run dev",
+		"fmt": "oxfmt .",
+		"fmt-check": "oxfmt --check ."
+	},
+	"devDependencies": {
+		"oxfmt": "catalog:",
+		"svelte": "^3.42.6",
+		"typescript": "catalog:"
+	},
+	"engines": {
+		"node": ">=24"
+	},
+	"packageManager": "pnpm@11.11.0",
+	"_pnpmOverridesNote": "Overrides are now in pnpm-workspace.yaml (pnpm 11+ moved settings from package.json)."
 }

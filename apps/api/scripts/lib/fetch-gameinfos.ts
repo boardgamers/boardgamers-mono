@@ -25,24 +25,24 @@ const listedGameInfosSchema = z.array(z.object({ _id: z.object({ game: z.string(
  * committed JSON fixtures.
  */
 export async function fetchGameInfos(): Promise<GameInfoDoc[]> {
-  const listRes = await fetch(`${SEED_SOURCE}/boardgame/info`);
-  if (!listRes.ok) {
-    throw new Error(`Failed to list boardgames: ${listRes.status} ${listRes.statusText}`);
-  }
+	const listRes = await fetch(`${SEED_SOURCE}/boardgame/info`);
+	if (!listRes.ok) {
+		throw new Error(`Failed to list boardgames: ${listRes.status} ${listRes.statusText}`);
+	}
 
-  const listed = listedGameInfosSchema.parse(await listRes.json());
-  const games = [...new Set(listed.map((info) => info._id.game))].sort();
+	const listed = listedGameInfosSchema.parse(await listRes.json());
+	const games = [...new Set(listed.map((info) => info._id.game))].sort();
 
-  const docs = await Promise.all(
-    games.map(async (game) => {
-      const res = await fetch(`${SEED_SOURCE}/boardgame/${encodeURIComponent(game)}/info/latest`);
-      if (!res.ok) {
-        throw new Error(`Failed to fetch latest info for ${game}: ${res.status} ${res.statusText}`);
-      }
-      // gameInfoSchema strips unknown keys, so server-only metadata is dropped.
-      return gameInfoSchema.parse(await res.json());
-    }),
-  );
+	const docs = await Promise.all(
+		games.map(async (game) => {
+			const res = await fetch(`${SEED_SOURCE}/boardgame/${encodeURIComponent(game)}/info/latest`);
+			if (!res.ok) {
+				throw new Error(`Failed to fetch latest info for ${game}: ${res.status} ${res.statusText}`);
+			}
+			// gameInfoSchema strips unknown keys, so server-only metadata is dropped.
+			return gameInfoSchema.parse(await res.json());
+		}),
+	);
 
-  return docs;
+	return docs;
 }

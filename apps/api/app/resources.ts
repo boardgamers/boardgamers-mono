@@ -22,42 +22,42 @@ const router = new Router();
 
 const iframeQuerySchema = z.object({ src: z.string().optional() });
 const gameIframeQuerySchema = z.object({
-  alternate: z.string().optional(),
-  customViewerUrl: z.string().optional(),
+	alternate: z.string().optional(),
+	customViewerUrl: z.string().optional(),
 });
 
 router.get("/iframe", (ctx) => {
-  const { src } = iframeQuerySchema.parse(ctx.query);
-  ctx.body = src;
+	const { src } = iframeQuerySchema.parse(ctx.query);
+	ctx.body = src;
 });
 
 router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
-  const { alternate, customViewerUrl } = gameIframeQuerySchema.parse(ctx.query);
-  const gameInfo = await colls.gameInfos.findOne({
-    _id: { game: ctx.params.game_name, version: +ctx.params.game_version },
-  });
+	const { alternate, customViewerUrl } = gameIframeQuerySchema.parse(ctx.query);
+	const gameInfo = await colls.gameInfos.findOne({
+		_id: { game: ctx.params.game_name, version: +ctx.params.game_version },
+	});
 
-  if (!gameInfo) {
-    console.log("Game info not found");
-    ctx.status = 404;
-    return;
-  }
+	if (!gameInfo) {
+		console.log("Game info not found");
+		ctx.status = 404;
+		return;
+	}
 
-  const viewer: ViewerInfo =
-    gameInfo?.viewer?.alternate?.url && alternate === "1" ? gameInfo?.viewer.alternate : gameInfo.viewer;
-  const viewerUrl = customViewerUrl || viewer.url;
+	const viewer: ViewerInfo =
+		gameInfo?.viewer?.alternate?.url && alternate === "1" ? gameInfo?.viewer.alternate : gameInfo.viewer;
+	const viewerUrl = customViewerUrl || viewer.url;
 
-  const stylesheets = (viewer.dependencies?.stylesheets ?? [])
-    .map((dep) => `<link type='text/css' rel='stylesheet' href='${dep}'></link>`)
-    .join("\n");
-  const scripts = (viewer.dependencies?.scripts ?? [])
-    .map((dep) => `<${"script"} src='${dep}'></${"script"}>`)
-    .join("\n");
-  const viewerScript = `<${"script"} src='${viewerUrl}' type='text/javascript'></${"script"}>`;
+	const stylesheets = (viewer.dependencies?.stylesheets ?? [])
+		.map((dep) => `<link type='text/css' rel='stylesheet' href='${dep}'></link>`)
+		.join("\n");
+	const scripts = (viewer.dependencies?.scripts ?? [])
+		.map((dep) => `<${"script"} src='${dep}'></${"script"}>`)
+		.join("\n");
+	const viewerScript = `<${"script"} src='${viewerUrl}' type='text/javascript'></${"script"}>`;
 
-  const template =
-    viewer.topLevelVariable === "clash"
-      ? `
+	const template =
+		viewer.topLevelVariable === "clash"
+			? `
     <head>
       <meta charset="UTF-8">
       ${stylesheets}
@@ -67,7 +67,7 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
       ${scripts}
       ${viewerScript}
     </body>`
-      : `
+			: `
     <head>
       <meta charset="UTF-8">
       ${scripts}
@@ -79,7 +79,7 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
       </div>
     </body>`;
 
-  ctx.body = `
+	ctx.body = `
       ${template}
       <${"script"} type='text/javascript'>
         const gameObj = window.${viewer.topLevelVariable}.launch('#app');
@@ -181,70 +181,70 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
 });
 
 async function listen(port = env.listen.port.resources) {
-  const app = new Koa();
+	const app = new Koa();
 
-  /* Configuration */
-  app.keys = [env.sessionSecret];
+	/* Configuration */
+	app.keys = [env.sessionSecret];
 
-  /* App stuff */
-  if (!env.silent) {
-    app.use(morgan("dev"));
-  }
-  app.use(async (ctx, next) => {
-    const start = Date.now();
-    try {
-      await next();
-    } finally {
-      logRequest("resources", {
-        method: ctx.request.method,
-        path: ctx.request.path,
-        route: matchedRoute(ctx),
-        status: ctx.status,
-        durationMs: Date.now() - start,
-        ip: ctx.ip,
-      });
-    }
-  });
-  app.proxy = true;
-  app.use(compression());
+	/* App stuff */
+	if (!env.silent) {
+		app.use(morgan("dev"));
+	}
+	app.use(async (ctx, next) => {
+		const start = Date.now();
+		try {
+			await next();
+		} finally {
+			logRequest("resources", {
+				method: ctx.request.method,
+				path: ctx.request.path,
+				route: matchedRoute(ctx),
+				status: ctx.status,
+				durationMs: Date.now() - start,
+				ip: ctx.ip,
+			});
+		}
+	});
+	app.proxy = true;
+	app.use(compression());
 
-  app.use(async (ctx, next) => {
-    try {
-      await next();
-    } catch (err) {
-      if (!env.silent) {
-        console.error(err);
-      }
-      if (err instanceof createError.HttpError) {
-        ctx.status = err.statusCode;
-        ctx.body = { message: err.message };
-      } else if (err instanceof ZodError) {
-        ctx.status = 400;
-        ctx.body = { message: z.prettifyError(err) };
-      } else if (err instanceof AssertionError) {
-        ctx.status = 422;
-        ctx.body = { message: err.message };
-      } else {
-        ctx.status = 500;
-        ctx.body = { message: "Internal error" };
-      }
-    }
-  });
+	app.use(async (ctx, next) => {
+		try {
+			await next();
+		} catch (err) {
+			if (!env.silent) {
+				console.error(err);
+			}
+			if (err instanceof createError.HttpError) {
+				ctx.status = err.statusCode;
+				ctx.body = { message: err.message };
+			} else if (err instanceof ZodError) {
+				ctx.status = 400;
+				ctx.body = { message: z.prettifyError(err) };
+			} else if (err instanceof AssertionError) {
+				ctx.status = 422;
+				ctx.body = { message: err.message };
+			} else {
+				ctx.status = 500;
+				ctx.body = { message: "Internal error" };
+			}
+		}
+	});
 
-  app.use(router.routes());
-  app.use(router.allowedMethods());
+	app.use(router.routes());
+	app.use(router.allowedMethods());
 
-  let server!: Server;
-  const promise = new Promise<void>((resolve, reject) => {
-    server = app.listen(port, env.listen.host, () => resolve());
-    app.once("error", (err) => reject(err));
-  });
+	let server!: Server;
+	const promise = new Promise<void>((resolve, reject) => {
+		server = app.listen(port, env.listen.host, () => resolve());
+		app.once("error", (err) => reject(err));
+	});
 
-  await promise;
+	await promise;
 
-  console.log("resources started on port", port);
+	console.log("resources started on port", port);
 
-  return server;
+	return server;
 }
 
 export { listen };

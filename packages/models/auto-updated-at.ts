@@ -24,45 +24,45 @@ import type { Collection, Document } from "mongodb";
  *   timestamps explicitly (some schemas require `createdAt` too).
  */
 export function withAutoUpdatedAt<T extends Document & { updatedAt?: Date }>(coll: Collection<T>): Collection<T> {
-  // oxlint-disable-next-line typescript/no-explicit-any -- generic passthrough of the driver's overloads
-  type AnyFn = (...args: any[]) => any;
+	// oxlint-disable-next-line typescript/no-explicit-any -- generic passthrough of the driver's overloads
+	type AnyFn = (...args: any[]) => any;
 
-  const touchesUpdatedAt = (update: Document): boolean =>
-    ["$set", "$unset", "$currentDate"].some((op) => update[op] && "updatedAt" in (update[op] as Document));
+	const touchesUpdatedAt = (update: Document): boolean =>
+		["$set", "$unset", "$currentDate"].some((op) => update[op] && "updatedAt" in (update[op] as Document));
 
-  const touchesCreatedAt = (update: Document): boolean =>
-    ["$set", "$setOnInsert"].some((op) => update[op] && "createdAt" in (update[op] as Document));
+	const touchesCreatedAt = (update: Document): boolean =>
+		["$set", "$setOnInsert"].some((op) => update[op] && "createdAt" in (update[op] as Document));
 
-  const withTimestamp = (update: Document | Document[]): Document | Document[] => {
-    if (Array.isArray(update)) {
-      return [...update, { $set: { updatedAt: "$$NOW" } }];
-    }
-    let out = touchesUpdatedAt(update)
-      ? update
-      : { ...update, $set: { ...(update.$set as Document), updatedAt: new Date() } };
-    if (!touchesCreatedAt(out)) {
-      out = { ...out, $setOnInsert: { ...(out.$setOnInsert as Document), createdAt: new Date() } };
-    }
-    return out;
-  };
+	const withTimestamp = (update: Document | Document[]): Document | Document[] => {
+		if (Array.isArray(update)) {
+			return [...update, { $set: { updatedAt: "$$NOW" } }];
+		}
+		let out = touchesUpdatedAt(update)
+			? update
+			: { ...update, $set: { ...(update.$set as Document), updatedAt: new Date() } };
+		if (!touchesCreatedAt(out)) {
+			out = { ...out, $setOnInsert: { ...(out.$setOnInsert as Document), createdAt: new Date() } };
+		}
+		return out;
+	};
 
-  return new Proxy(coll, {
-    get(target, prop, receiver) {
-      switch (prop) {
-        case "updateOne":
-        case "updateMany":
-        case "findOneAndUpdate":
-          return ((filter, update, ...rest) =>
-            (target[prop] as AnyFn)(filter, withTimestamp(update as Document | Document[]), ...rest)) as AnyFn;
-        case "replaceOne":
-        case "findOneAndReplace":
-          return ((filter, replacement, ...rest) =>
-            (target[prop] as AnyFn)(filter, { ...replacement, updatedAt: new Date() }, ...rest)) as AnyFn;
-        default: {
-          const value = Reflect.get(target, prop, receiver) as unknown;
-          return typeof value === "function" ? (value as AnyFn).bind(target) : value;
-        }
-      }
-    },
-  });
+	return new Proxy(coll, {
+		get(target, prop, receiver) {
+			switch (prop) {
+				case "updateOne":
+				case "updateMany":
+				case "findOneAndUpdate":
+					return ((filter, update, ...rest) =>
+						(target[prop] as AnyFn)(filter, withTimestamp(update as Document | Document[]), ...rest)) as AnyFn;
+				case "replaceOne":
+				case "findOneAndReplace":
+					return ((filter, replacement, ...rest) =>
+						(target[prop] as AnyFn)(filter, { ...replacement, updatedAt: new Date() }, ...rest)) as AnyFn;
+				default: {
+					const value = Reflect.get(target, prop, receiver) as unknown;
+					return typeof value === "function" ? (value as AnyFn).bind(target) : value;
+				}
+			}
+		},
+	});
 }

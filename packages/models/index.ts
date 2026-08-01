@@ -5,21 +5,21 @@ export { apiErrorSchema, API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollec
 // --- Chat Message ---
 export type { ChatMessageDoc, ChatMessageFront } from "./chatmessage.ts";
 export {
-  chatMessageSchema,
-  CHAT_MESSAGES_COLLECTION,
-  chatMessageIndexes,
-  chatMessagesCollectionOptions,
+	chatMessageSchema,
+	CHAT_MESSAGES_COLLECTION,
+	chatMessageIndexes,
+	chatMessagesCollectionOptions,
 } from "./chatmessage.ts";
 
 // --- Game ---
 export type { GameDoc, GameFront, PlayerInfo, PlayerInfoFront, GameStatus, PlayerOrder } from "./game.ts";
 export {
-  gameSchema,
-  playerInfoSchema,
-  gameStatusSchema,
-  playerOrderSchema,
-  GAMES_COLLECTION,
-  gameIndexes,
+	gameSchema,
+	playerInfoSchema,
+	gameStatusSchema,
+	playerOrderSchema,
+	GAMES_COLLECTION,
+	gameIndexes,
 } from "./game.ts";
 
 // --- Game Info ---
@@ -29,10 +29,10 @@ export { gameInfoSchema, viewerInfoSchema, gameInfoOptionSchema, GAME_INFOS_COLL
 // --- Game Notification ---
 export type { GameNotificationDoc, GameNotificationFront, NotificationKind } from "./gamenotification.ts";
 export {
-  gameNotificationSchema,
-  notificationKindSchema,
-  GAME_NOTIFICATIONS_COLLECTION,
-  gameNotificationIndexes,
+	gameNotificationSchema,
+	notificationKindSchema,
+	GAME_NOTIFICATIONS_COLLECTION,
+	gameNotificationIndexes,
 } from "./gamenotification.ts";
 
 // --- Game Preferences ---
