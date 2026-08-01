@@ -1,4 +1,3 @@
-
 interface ImportMetaEnv {
   readonly VITE_MESSAGE: string;
   readonly VITE_backend: string;
@@ -9,6 +8,9 @@ interface ImportMeta {
 }
 
 declare global {
+  // Injected by vite.config.ts (`define.__APP_RELEASE__`).
+  const __APP_RELEASE__: string;
+
   namespace App {
     interface Locals {
       ip: string;

@@ -1,6 +1,7 @@
 import { browser } from "$app/environment";
 import { isPromise } from "@bgs/utils";
 import { notifier } from "@/lib/notifications.svelte";
+import { reportError } from "@/lib/report-error.svelte";
 
 export function handleError(err: Error | string | unknown): void {
   if (!err || !browser) {
@@ -8,6 +9,7 @@ export function handleError(err: Error | string | unknown): void {
   }
 
   console.error(err);
+  reportError(err);
 
   if (typeof err === "string") {
     notifier.alert(err);

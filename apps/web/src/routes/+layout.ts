@@ -5,6 +5,7 @@ import { initTokens } from "@/lib/auth.svelte";
 import { initWebsocket } from "@/lib/websocket.svelte";
 import { setApiContext, get } from "@/lib/api";
 import { initNProgress } from "@/lib/nprogress.svelte";
+import { initErrorReporting } from "@/lib/report-error.svelte";
 import "@/lib/theme";
 
 export const load: LayoutLoad = async ({ data, fetch }) => {
@@ -29,6 +30,7 @@ export const load: LayoutLoad = async ({ data, fetch }) => {
 
     initWebsocket();
     initNProgress();
+    initErrorReporting();
   }
 
   // Boardgames the player has played, ordered by recency — used by the sidebar's

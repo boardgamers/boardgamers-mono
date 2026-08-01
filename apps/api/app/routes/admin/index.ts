@@ -53,6 +53,8 @@ router.get("/errors", async (ctx) => {
             "request.url": 1,
             "request.status": 1,
             "request.id": 1,
+            "meta.source": 1,
+            "meta.release": 1,
             user: 1,
             createdAt: 1,
           },
