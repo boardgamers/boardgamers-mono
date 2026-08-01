@@ -2,7 +2,7 @@ import createError from "http-errors";
 import type { GamePreferencesDoc } from "@bgs/models";
 import type { Context } from "koa";
 import Router from "koa-router";
-import type {PickDeep} from "type-fest";
+import type { PickDeep } from "type-fest";
 import { colls } from "../../config/db.ts";
 import { lastAccessibleVersion } from "../../services/gameinfo.ts";
 import { queryCount, skipCount } from "../utils.ts";
@@ -23,7 +23,7 @@ router.param("boardgame", async (boardgame, ctx, next) => {
     throw createError(404, "Boardgame not found");
   }
 
-	ctx.state.foundBoardgame = foundGame;
+  ctx.state.foundBoardgame = foundGame;
 
   await next();
 });

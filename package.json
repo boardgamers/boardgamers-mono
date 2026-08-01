@@ -12,10 +12,10 @@
     "prettier-check": "prettier --check ."
   },
   "devDependencies": {
-    "prettier": "^3.5.3",
+    "prettier": "catalog:",
     "prettier-plugin-organize-imports": "^4.1.0",
     "prettier-plugin-sort-json": "^4.1.1",
-    "prettier-plugin-svelte": "^3.5.0",
+    "prettier-plugin-svelte": "catalog:",
     "svelte": "^3.42.6",
     "typescript": "catalog:"
   },

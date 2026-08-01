@@ -20,6 +20,10 @@ catalog:
   typescript: "7.0.2"
   "@types/node": "^24.0.0"
   type-fest: "^5.4.4"
+  # Formatting: oxfmt for JS/TS, prettier (+ svelte plugin) for Svelte/YAML/MD.
+  oxfmt: "^0.36.0"
+  prettier: "^3.5.3"
+  prettier-plugin-svelte: "^3.5.0"
 
 minimumReleaseAgeExclude:
   - "@sveltejs/kit@2.70.2"

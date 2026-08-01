@@ -11,40 +11,44 @@ export const userSchema = z.object({
     password: z.string().optional(),
     karma: z.number(),
     termsAndConditions: zDate().optional(),
-    social: z.object({
-      google: z.string().optional(),
-      facebook: z.string().optional(),
-      discord: z.string().optional(),
-    }).optional(),
+    social: z
+      .object({
+        google: z.string().optional(),
+        facebook: z.string().optional(),
+        discord: z.string().optional(),
+      })
+      .optional(),
     avatar: z.string().optional(),
     bio: z.string().optional(),
   }),
-  settings: z.object({
-    mailing: z
-      .object({
-        newsletter: z.boolean().optional(),
-        game: z
-          .object({
-            delay: z.number().optional(),
-            activated: z.boolean().optional(),
-          })
-          .optional(),
-      })
-      .optional(),
-    game: z
-      .object({
-        soundNotification: z.boolean().optional(),
-      })
-      .optional(),
-    home: z
-      .object({
-        showMyGames: z.boolean().optional(),
-        // Boardgames the player chose to hide from the "My games" sidebar group.
-        // Cleared per-game when the player joins or creates a game of that boardgame.
-        forgottenGames: z.array(z.string()).optional(),
-      })
-      .optional(),
-  }).optional(),
+  settings: z
+    .object({
+      mailing: z
+        .object({
+          newsletter: z.boolean().optional(),
+          game: z
+            .object({
+              delay: z.number().optional(),
+              activated: z.boolean().optional(),
+            })
+            .optional(),
+        })
+        .optional(),
+      game: z
+        .object({
+          soundNotification: z.boolean().optional(),
+        })
+        .optional(),
+      home: z
+        .object({
+          showMyGames: z.boolean().optional(),
+          // Boardgames the player chose to hide from the "My games" sidebar group.
+          // Cleared per-game when the player joins or creates a game of that boardgame.
+          forgottenGames: z.array(z.string()).optional(),
+        })
+        .optional(),
+    })
+    .optional(),
   security: z.object({
     lastIp: z.string().optional(),
     lastLogin: z
@@ -62,14 +66,16 @@ export const userSchema = z.object({
         key: z.string().nullable(),
         issued: zDate(),
       })
-			.nullable()
+      .nullable()
       .optional(),
     slug: z.string().optional(),
   }),
-  meta: z.object({
-    nextGameNotification: zDate().optional(),
-    lastGameNotification: zDate().optional(),
-  }).optional(),
+  meta: z
+    .object({
+      nextGameNotification: zDate().optional(),
+      lastGameNotification: zDate().optional(),
+    })
+    .optional(),
   authority: z.string().optional(),
   createdAt: zDate(),
   updatedAt: zDate(),

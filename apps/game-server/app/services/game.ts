@@ -46,7 +46,10 @@ export async function startNextGame(): Promise<boolean> {
       const game = await colls.games.findOne({ _id: notification.game });
 
       if (!game || game.status !== "open" || game.players.length < game.options.setup.nbPlayers) {
-        await colls.gameNotifications.updateOne({ _id: notification._id }, { $set: { processed: true, updatedAt: new Date() } });
+        await colls.gameNotifications.updateOne(
+          { _id: notification._id },
+          { $set: { processed: true, updatedAt: new Date() } },
+        );
         return true;
       }
 
@@ -113,7 +116,10 @@ export async function startNextGame(): Promise<boolean> {
       );
       await Promise.all([
         ...promises,
-        colls.gameNotifications.updateOne({ _id: notification._id }, { $set: { processed: true, updatedAt: new Date() } }),
+        colls.gameNotifications.updateOne(
+          { _id: notification._id },
+          { $set: { processed: true, updatedAt: new Date() } },
+        ),
       ]);
 
       return true;
@@ -132,14 +138,20 @@ export async function processQuit(notification: GameNotificationDoc) {
       const game = await colls.games.findOne({ _id: notification.game });
 
       if (!game || game.status !== "active") {
-        await colls.gameNotifications.updateOne({ _id: notification._id }, { $set: { processed: true, updatedAt: new Date() } });
+        await colls.gameNotifications.updateOne(
+          { _id: notification._id },
+          { $set: { processed: true, updatedAt: new Date() } },
+        );
         return true;
       }
 
       const player = game.players.find((pl) => pl._id.equals(notification.user));
 
       if (!player || player.dropped || player.quit) {
-        await colls.gameNotifications.updateOne({ _id: notification._id }, { $set: { processed: true, updatedAt: new Date() } });
+        await colls.gameNotifications.updateOne(
+          { _id: notification._id },
+          { $set: { processed: true, updatedAt: new Date() } },
+        );
         return true;
       }
 
@@ -192,7 +204,10 @@ export async function processQuit(notification: GameNotificationDoc) {
             .catch(console.error);
         }
       }
-      await colls.gameNotifications.updateOne({ _id: notification._id }, { $set: { processed: true, updatedAt: new Date() } });
+      await colls.gameNotifications.updateOne(
+        { _id: notification._id },
+        { $set: { processed: true, updatedAt: new Date() } },
+      );
 
       return true;
     }

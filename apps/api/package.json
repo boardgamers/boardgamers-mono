@@ -64,17 +64,17 @@
     "@types/passport-local": "^1.0.33",
     "@types/semver": "^7.1.0",
     "@types/ws": "^8.18.1",
-    "typescript": "catalog:",
     "koa-cookie": "^1.0.0",
-    "oxfmt": "^0.36.0",
+    "oxfmt": "catalog:",
     "oxlint": "^1.51.0",
     "oxlint-tsgolint": "^0.16.0",
-    "type-fest": "catalog:"
+    "type-fest": "catalog:",
+    "typescript": "catalog:"
   },
-	"lint-staged": {
-		"*.ts": [
-			"oxfmt",
-			"oxlint --fix"
-		]
-	}
+  "lint-staged": {
+    "*.ts": [
+      "oxfmt",
+      "oxlint --fix"
+    ]
+  }
 }

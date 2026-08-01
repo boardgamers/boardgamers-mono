@@ -32,8 +32,7 @@ export const zNumberQuery = () =>
  * Parses a `ctx.query` value (a single string) into a finite integer.
  * Rejects arrays, empty strings, and non-integer input.
  */
-export const zIntQuery = () =>
-  zNumberQuery().refine((n) => Number.isInteger(n), { message: "Expected an integer" });
+export const zIntQuery = () => zNumberQuery().refine((n) => Number.isInteger(n), { message: "Expected an integer" });
 
 /**
  * Accepts only a single string value from `ctx.query` (rejects arrays).

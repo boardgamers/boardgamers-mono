@@ -235,10 +235,7 @@ type SocialProvider = keyof typeof env.social;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SocialStrategyCtor<T extends Strategy> = new (options: any, verify: any) => T;
 
-function makeSocialStrategy<T extends Strategy>(
-  provider: SocialProvider,
-  SocialStrategy: SocialStrategyCtor<T>,
-) {
+function makeSocialStrategy<T extends Strategy>(provider: SocialProvider, SocialStrategy: SocialStrategyCtor<T>) {
   passport.use(
     provider,
     new SocialStrategy(

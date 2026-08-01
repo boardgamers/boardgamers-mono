@@ -43,31 +43,37 @@ export const gameSchema = z.object({
         deadline: zDate().optional(),
       }),
     )
-		.nullable()
+    .nullable()
     .optional(),
   data: z.unknown().optional(),
-  context: z.object({
-    round: z.number(),
-  }).optional(),
+  context: z
+    .object({
+      round: z.number(),
+    })
+    .optional(),
   options: z.object({
     setup: z.object({
       seed: z.string(),
       nbPlayers: z.number(),
-	      playerOrder: playerOrderSchema,
+      playerOrder: playerOrderSchema,
     }),
     timing: z.object({
       timePerGame: z.number().optional(),
       timePerMove: z.number().optional(),
-      timer: z.object({
-        start: z.number(),
-        end: z.number(),
-      }).optional(),
+      timer: z
+        .object({
+          start: z.number(),
+          end: z.number(),
+        })
+        .optional(),
       scheduledStart: zDate().optional(),
     }),
-    meta: z.object({
-      unlisted: z.boolean().optional(),
-      minimumKarma: z.number().optional(),
-    }).optional(),
+    meta: z
+      .object({
+        unlisted: z.boolean().optional(),
+        minimumKarma: z.number().optional(),
+      })
+      .optional(),
   }),
   game: z.object({
     name: z.string(),
