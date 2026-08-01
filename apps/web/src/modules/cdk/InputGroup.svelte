@@ -43,4 +43,16 @@
     width: 1%;
     min-width: 0;
   }
+
+  /* Inside a merged group the browser's default focus outline draws a rectangle over
+     the adjoining control (e.g. the Send button) — suppress it and highlight the
+     input's border color instead. */
+  .input-group > :global(input:focus),
+  .input-group > :global(select:focus),
+  .input-group > :global(textarea:focus) {
+    outline: none;
+    border-color: var(--color-primary-light);
+    position: relative;
+    z-index: 1;
+  }
 </style>
