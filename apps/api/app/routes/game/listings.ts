@@ -1,7 +1,7 @@
-import { gameStatusSchema, type GameStatus } from "@bgs/models";
+import { gameStatusSchema, type GameDoc, type GameStatus } from "@bgs/models";
 import { removeFalsy } from "@bgs/utils/remove-falsy";
 import { simplifyFilter } from "@coyotte508/mongo-query";
-import type { ObjectId } from "mongodb";
+import type { Filter, ObjectId, WithId } from "mongodb";
 import { colls } from "../../config/db.ts";
 import { gameBasicsProjection } from "../../models/index.ts";
 import { latestAccessibleGames } from "../../services/gameinfo.ts";
@@ -79,7 +79,10 @@ async function gameConditions<T>(
     }
   })();
 
-  return simplifyFilter({
+  // The conditions are a heterogeneous mix (status/karma/duration/search filters);
+  // loosen to a plain Mongo filter so simplifyFilter accepts them, and return that
+  // shape so callers can pass it straight to .find()/.aggregate().
+  const conditions = {
     $and: removeFalsy([
       baseConditions,
       params.maxKarma && {
@@ -96,7 +99,9 @@ async function gameConditions<T>(
       params.search && { _id: { $regex: escapeRegex(params.search), $options: "i" } },
       await filterAccessibleGames(params.requester),
     ]),
-  }) as Record<string, unknown>;
+  };
+
+  return simplifyFilter(conditions as Filter<WithId<GameDoc>>) as Filter<WithId<GameDoc>>;
 }
 
 const myBoardgamesQuerySchema = z.object({

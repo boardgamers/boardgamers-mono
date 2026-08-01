@@ -7,7 +7,8 @@ async function main() {
   // Only import node:cluster when we actually need to fork workers.
   // The cluster module's IPC conflicts with `node --watch`, causing EPIPE.
   if (isMultiThread) {
-    const cluster = await import("node:cluster");
+    // node:cluster's types expose the Cluster object as the module's default export.
+    const cluster = (await import("node:cluster")).default;
     isPrimary = cluster.isPrimary;
     if (cluster.isPrimary) {
       for (let i = 0; i < env.threads; i++) {
