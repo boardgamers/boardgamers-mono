@@ -213,9 +213,16 @@
 
   <div class="container mx-auto px-4">
     <h1 class="mb-2">{info.label}</h1>
-    <p class="mb-6 text-gray-500 dark:text-gray-400">Set up a new game. Only the essentials are required — everything else has a sensible default.</p>
+    <p class="mb-6 text-gray-500 dark:text-gray-400">
+      Set up a new game. Only the essentials are required — everything else has a sensible default.
+    </p>
 
-    <form onsubmit={(e) => { e.preventDefault(); createGame(); }}>
+    <form
+      onsubmit={(e) => {
+        e.preventDefault();
+        createGame();
+      }}
+    >
       <!-- Essentials -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div>
@@ -250,7 +257,9 @@
               aria-label="Game ID"
               required
             />
-            <small class="text-xs text-gray-500 dark:text-gray-400">A name for your game (letters, numbers, hyphens).</small>
+            <small class="text-xs text-gray-500 dark:text-gray-400"
+              >A name for your game (letters, numbers, hyphens).</small
+            >
           </div>
 
           <!-- Important game selects (map / variant / etc.) promoted out of Advanced -->
@@ -273,7 +282,9 @@
               <div class="flex flex-wrap gap-2">
                 {#each info.expansions ?? [] as expansion}
                   <label
-                    class="cursor-pointer rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {expansions.includes(expansion.name)
+                    class="cursor-pointer rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {expansions.includes(
+                      expansion.name
+                    )
                       ? 'border-accent bg-accent text-white'
                       : 'border-gray-300 text-gray-700 hover:border-accent hover:text-accent dark:border-gray-600 dark:text-gray-200 dark:hover:text-accent-lighter'}"
                   >
@@ -291,7 +302,9 @@
           <span class="mb-1 block font-medium">Options</span>
           <div class="flex flex-wrap gap-2">
             <label
-              class="cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {options.includes('join')
+              class="cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {options.includes(
+                'join'
+              )
                 ? 'border-primary bg-primary text-white'
                 : 'border-gray-300 text-gray-700 hover:border-primary hover:text-primary dark:border-gray-600 dark:text-gray-200 dark:hover:text-primary-lighter'}"
             >
@@ -299,7 +312,9 @@
               Join this game as a player
             </label>
             <label
-              class="cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {options.includes('unlisted')
+              class="cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {options.includes(
+                'unlisted'
+              )
                 ? 'border-primary bg-primary text-white'
                 : 'border-gray-300 text-gray-700 hover:border-primary hover:text-primary dark:border-gray-600 dark:text-gray-200 dark:hover:text-primary-lighter'}"
             >
@@ -308,7 +323,9 @@
             </label>
             {#each (info.options ?? []).filter((opt) => opt.type === "checkbox") as option}
               <label
-                class="cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {options.includes(option.name)
+                class="cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {options.includes(
+                  option.name
+                )
                   ? 'border-primary bg-primary text-white'
                   : 'border-gray-300 text-gray-700 hover:border-primary hover:text-primary dark:border-gray-600 dark:text-gray-200 dark:hover:text-primary-lighter'}"
               >
@@ -322,11 +339,17 @@
 
       <!-- Timing -->
       <h3 class="mt-4">Timing</h3>
-      <p class="mb-3 text-sm text-gray-500 dark:text-gray-400">How long each player has for the whole game, plus extra time added per move.</p>
+      <p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
+        How long each player has for the whole game, plus extra time added per move.
+      </p>
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div class="mb-3">
           <label for="timePerGame">Time per player per game</label>
-          <select bind:value={timePerGame} id="timePerGame" class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800">
+          <select
+            bind:value={timePerGame}
+            id="timePerGame"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
+          >
             {#each [60, 180, 300, 600, 1800, 3600, 6 * 3600, 24 * 3600, 3 * 24 * 3600, 10 * 24 * 3600] as x}
               <option value={x}>{duration(x)}</option>
             {/each}
@@ -335,7 +358,11 @@
 
         <div class="mb-3">
           <label for="timePerMove">Additional time per move</label>
-          <select bind:value={timePerMove} id="timePerMove" class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800">
+          <select
+            bind:value={timePerMove}
+            id="timePerMove"
+            class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
+          >
             {#each [5, 10, 30, 60, 5 * 60, 15 * 60, 3600, 2 * 3600, 6 * 3600, 24 * 3600] as x}
               <option value={x}>{duration(x)}</option>
             {/each}
@@ -355,9 +382,12 @@
           class="underline decoration-dotted underline-offset-2 hover:text-primary dark:hover:text-primary-lighter"
           onclick={() => {
             showAdvanced = true;
-            setTimeout(() => document.getElementById("timerEnd")?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
-          }}
-        >Edit</button>
+            setTimeout(
+              () => document.getElementById("timerEnd")?.scrollIntoView({ behavior: "smooth", block: "center" }),
+              50
+            );
+          }}>Edit</button
+        >
       </p>
 
       {#if !scheduledDay || !scheduledTime}
@@ -379,8 +409,18 @@
           onclick={() => (showAdvanced = !showAdvanced)}
         >
           Advanced options
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="1em" height="1em" fill="currentColor" class="shrink-0 transition-transform {showAdvanced ? 'rotate-180' : ''}">
-            <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 16 16"
+            width="1em"
+            height="1em"
+            fill="currentColor"
+            class="shrink-0 transition-transform {showAdvanced ? 'rotate-180' : ''}"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"
+            />
           </svg>
         </button>
 
@@ -407,7 +447,9 @@
                   placeholder="Random seed"
                   aria-label="Random seed"
                 />
-                <small class="text-xs text-gray-500 dark:text-gray-400">Games with the same seed share configuration.</small>
+                <small class="text-xs text-gray-500 dark:text-gray-400"
+                  >Games with the same seed share configuration.</small
+                >
               </div>
             </div>
 
@@ -429,11 +471,21 @@
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label for="scheduledDate">Day</label>
-                  <input type="date" class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800" bind:value={scheduledDay} id="scheduledDate" />
+                  <input
+                    type="date"
+                    class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
+                    bind:value={scheduledDay}
+                    id="scheduledDate"
+                  />
                 </div>
                 <div>
                   <label for="scheduledTime">Time</label>
-                  <input type="time" class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800" bind:value={scheduledTime} id="scheduledTime" />
+                  <input
+                    type="time"
+                    class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
+                    bind:value={scheduledTime}
+                    id="scheduledTime"
+                  />
                 </div>
               </div>
               <small class="text-xs text-gray-500 dark:text-gray-400">The game starts then, or is cancelled.</small>

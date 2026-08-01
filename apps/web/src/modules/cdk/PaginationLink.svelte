@@ -33,18 +33,10 @@
   );
 
   // Pagination uses these glyphs for first/prev/next/last.
-  let defaultContent = $derived(
-    first ? "«" : previous ? "‹" : next ? "›" : last ? "»" : undefined
-  );
+  let defaultContent = $derived(first ? "«" : previous ? "‹" : next ? "›" : last ? "»" : undefined);
 </script>
 
-<a
-  {href}
-  class={classes}
-  aria-label={arialabel}
-  {onclick}
-  {...rest}
->
+<a {href} class={classes} aria-label={arialabel} {onclick} {...rest}>
   {@render children?.()}
   {#if defaultContent !== undefined && !children}{defaultContent}{/if}
 </a>

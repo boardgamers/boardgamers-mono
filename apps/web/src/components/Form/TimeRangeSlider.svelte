@@ -34,7 +34,7 @@
   let startMin = $derived(toMinutes(start));
   let endMin = $derived(toMinutes(end));
   // Span length, wrapping if end <= start (e.g. 22:00–03:00 → 5h)
-  let span = $derived(((endMin - startMin) % DAY + DAY) % DAY || DAY);
+  let span = $derived((((endMin - startMin) % DAY) + DAY) % DAY || DAY);
   let startPct = $derived((startMin / DAY) * 100);
   let endPct = $derived((endMin / DAY) * 100);
   let spanPct = $derived((span / DAY) * 100);
@@ -78,7 +78,7 @@
       end = toTime(mins);
     } else {
       // Move the whole span (frozen length), wrapping around the day
-      const newStart = ((mins - dragOffset) % DAY + DAY) % DAY;
+      const newStart = (((mins - dragOffset) % DAY) + DAY) % DAY;
       start = toTime(newStart);
       end = toTime(newStart + dragSpan);
     }
@@ -97,8 +97,13 @@
   <div bind:this={track} class="relative h-9 rounded-md bg-gray-200 dark:bg-gray-700" role="presentation">
     <!-- active span (draggable) -->
     <div
-      class="absolute top-0 bottom-0 flex cursor-grab items-center justify-center rounded-md bg-primary/70 text-[0.7rem] font-semibold text-white active:cursor-grabbing {dragging === 'span' ? 'ring-2 ring-primary-light' : ''}"
-      style="left: {startPct}%; width: {Math.min(spanPct, 100 - startPct)}%; {spanPct > 100 - startPct ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : ''}"
+      class="absolute top-0 bottom-0 flex cursor-grab items-center justify-center rounded-md bg-primary/70 text-[0.7rem] font-semibold text-white active:cursor-grabbing {dragging ===
+      'span'
+        ? 'ring-2 ring-primary-light'
+        : ''}"
+      style="left: {startPct}%; width: {Math.min(spanPct, 100 - startPct)}%; {spanPct > 100 - startPct
+        ? `border-top-right-radius: 0; border-bottom-right-radius: 0;`
+        : ''}"
       onpointerdown={onSpanDown}
       role="presentation"
     >
@@ -120,7 +125,10 @@
     <!-- hour ticks -->
     {#each ticks as h}
       <div class="absolute top-0 h-full w-px bg-gray-400/60 dark:bg-gray-500/60" style="left: {(h / 24) * 100}%"></div>
-      <span class="absolute -bottom-4 -translate-x-1/2 text-[0.65rem] text-gray-500 dark:text-gray-400" style="left: {(h / 24) * 100}%">
+      <span
+        class="absolute -bottom-4 -translate-x-1/2 text-[0.65rem] text-gray-500 dark:text-gray-400"
+        style="left: {(h / 24) * 100}%"
+      >
         {String(h).padStart(2, "0")}h
       </span>
     {/each}
@@ -130,10 +138,14 @@
       <button
         type="button"
         aria-label="Active from"
-        class="block h-6 w-4 cursor-ew-resize rounded-full border-2 border-white bg-primary shadow {dragging === 'start' ? 'ring-2 ring-primary-light' : ''}"
+        class="block h-6 w-4 cursor-ew-resize rounded-full border-2 border-white bg-primary shadow {dragging === 'start'
+          ? 'ring-2 ring-primary-light'
+          : ''}"
         onpointerdown={onHandleDown("start")}
       ></button>
-      <span class="absolute top-full left-1/2 mt-1 -translate-x-1/2 rounded bg-gray-800 px-1 text-[0.65rem] whitespace-nowrap text-white dark:bg-gray-200 dark:text-gray-900">
+      <span
+        class="absolute top-full left-1/2 mt-1 -translate-x-1/2 rounded bg-gray-800 px-1 text-[0.65rem] whitespace-nowrap text-white dark:bg-gray-200 dark:text-gray-900"
+      >
         {start}
       </span>
     </div>
@@ -142,10 +154,14 @@
       <button
         type="button"
         aria-label="Active until"
-        class="block h-6 w-4 cursor-ew-resize rounded-full border-2 border-white bg-primary shadow {dragging === 'end' ? 'ring-2 ring-primary-light' : ''}"
+        class="block h-6 w-4 cursor-ew-resize rounded-full border-2 border-white bg-primary shadow {dragging === 'end'
+          ? 'ring-2 ring-primary-light'
+          : ''}"
         onpointerdown={onHandleDown("end")}
       ></button>
-      <span class="absolute top-full left-1/2 mt-1 -translate-x-1/2 rounded bg-gray-800 px-1 text-[0.65rem] whitespace-nowrap text-white dark:bg-gray-200 dark:text-gray-900">
+      <span
+        class="absolute top-full left-1/2 mt-1 -translate-x-1/2 rounded bg-gray-800 px-1 text-[0.65rem] whitespace-nowrap text-white dark:bg-gray-200 dark:text-gray-900"
+      >
         {end}
       </span>
     </div>

@@ -68,7 +68,13 @@
         {#if setting.type === "checkbox"}
           {@const settingName = setting.name}
           {@const settingsObj = settings}
-          <Checkbox checked={(settingsObj[settingName] as boolean | undefined) ?? false} onchange={(e) => { settingsObj[settingName] = (e.target as HTMLInputElement).checked; postSettings(); }}>
+          <Checkbox
+            checked={(settingsObj[settingName] as boolean | undefined) ?? false}
+            onchange={(e) => {
+              settingsObj[settingName] = (e.target as HTMLInputElement).checked;
+              postSettings();
+            }}
+          >
             {setting.label}
           </Checkbox>
         {:else if setting.type === "select"}

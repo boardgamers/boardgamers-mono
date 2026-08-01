@@ -94,8 +94,8 @@
     href="/"
     onclick={logoClick}
     data-sveltekit-preload-data="hover"
-    class="me-2 text-xl font-bold text-white no-underline hover:text-white"
-  >BGS</a>
+    class="me-2 text-xl font-bold text-white no-underline hover:text-white">BGS</a
+  >
 
   {#if user}
     <a
@@ -147,8 +147,12 @@
             Log in with
             <div class="mt-3 mb-1 flex flex-wrap justify-around">
               <Button color="google" href="/api/account/auth/google" rel="external" class="w-[46%] mb-2">Google</Button>
-              <Button color="discord" href="/api/account/auth/discord" rel="external" class="w-[46%] mb-2">Discord</Button>
-              <Button color="facebook" href="/api/account/auth/facebook" rel="external" class="w-[46%] mb-2">Facebook</Button>
+              <Button color="discord" href="/api/account/auth/discord" rel="external" class="w-[46%] mb-2"
+                >Discord</Button
+              >
+              <Button color="facebook" href="/api/account/auth/facebook" rel="external" class="w-[46%] mb-2"
+                >Facebook</Button
+              >
             </div>
             or
             <Form class="mt-3" onsubmit={handleSubmit}>

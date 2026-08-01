@@ -113,108 +113,108 @@
 <div id="floating-controls"></div>
 {#if game && gameInfo}
   <h3 class="mt-3">Players</h3>
-    {#each game.players as player}
-      <div class={"mb-1 flex items-center player-row"} class:active={isCurrentPlayer(player._id)}>
-        <PlayerGameAvatar game={game.game.name} {userId} {player} status={status(player._id)} class="me-2" />
+  {#each game.players as player}
+    <div class={"mb-1 flex items-center player-row"} class:active={isCurrentPlayer(player._id)}>
+      <PlayerGameAvatar game={game.game.name} {userId} {player} status={status(player._id)} class="me-2" />
 
-        <div>
-          <a href={`/user/${player.name}`} class="player-name" class:dropped={player.dropped}>
-            {player.name}
-          </a>
-          <sup class="ms-1">
-            {#if player.elo}
-              {player.elo.initial} {(player.elo.delta ?? 0) >= 0 ? "+" : "-"} {Math.abs(player.elo.delta ?? 0)} elo
-            {:else}
-              {playerElo(player._id)} elo
-            {/if}
-          </sup>
-          {#if game.status === "active"}
-            <span class="ms-1"> - {shortDuration(remainingTimes[player._id])}</span>
+      <div>
+        <a href={`/user/${player.name}`} class="player-name" class:dropped={player.dropped}>
+          {player.name}
+        </a>
+        <sup class="ms-1">
+          {#if player.elo}
+            {player.elo.initial} {(player.elo.delta ?? 0) >= 0 ? "+" : "-"} {Math.abs(player.elo.delta ?? 0)} elo
+          {:else}
+            {playerElo(player._id)} elo
           {/if}
-        </div>
-      </div>
-    {/each}
-    <div class="mt-3 flex items-center">
-      <IconClockHistory class="me-1" />
-      <span>
-        {alwaysActive
-          ? "24h"
-          : `${timerTime(game.options.timing.timer?.start ?? 0)}-${timerTime(game.options.timing.timer?.end ?? 0)}`}
-        / {duration(game.options.timing.timePerGame ?? 0)} + {duration(game.options.timing.timePerMove ?? 0)}
-      </span>
-    </div>
-    {#if game.status === "ended"}
-      <div class="mt-3">
-        <b> Game ended! </b>
-      </div>
-    {/if}
-    {#key game.currentPlayers}
-      {#if userId && isCurrentPlayer(userId)}
-        <div class="mt-3">
-          <b class="your-turn">Your turn!</b>
-        </div>
-      {/if}
-    {/key}
-    {#if playerUser && game.status !== "ended"}
-      <div class="mt-3">
-        <Button
-          color="warning"
-          size="sm"
-          disabled={playerUser.dropped || playerUser.voteCancel || playerUser.quit}
-          onclick={voteCancel}
-        >
-          Vote to cancel
-        </Button>
-        {#if game.players.some((pl) => !!pl.dropped)}
-          <Button size="sm" class="ms-2" disabled={playerUser.dropped || playerUser.quit} onclick={quit}>Quit</Button>
+        </sup>
+        {#if game.status === "active"}
+          <span class="ms-1"> - {shortDuration(remainingTimes[player._id])}</span>
         {/if}
-        {#each game.players as player}
-          {#if remainingTime(player) <= 0 && isCurrentPlayer(player._id) && !player.dropped && !player.quit}
-            <Button
-              size="sm"
-              class="ms-2"
-              color="danger"
-              disabled={requestedDrop[player._id]}
-              onclick={() => requestDrop(player._id)}
-            >
-              Drop {player.name}
-            </Button>
-          {/if}
+      </div>
+    </div>
+  {/each}
+  <div class="mt-3 flex items-center">
+    <IconClockHistory class="me-1" />
+    <span>
+      {alwaysActive
+        ? "24h"
+        : `${timerTime(game.options.timing.timer?.start ?? 0)}-${timerTime(game.options.timing.timer?.end ?? 0)}`}
+      / {duration(game.options.timing.timePerGame ?? 0)} + {duration(game.options.timing.timePerMove ?? 0)}
+    </span>
+  </div>
+  {#if game.status === "ended"}
+    <div class="mt-3">
+      <b> Game ended! </b>
+    </div>
+  {/if}
+  {#key game.currentPlayers}
+    {#if userId && isCurrentPlayer(userId)}
+      <div class="mt-3">
+        <b class="your-turn">Your turn!</b>
+      </div>
+    {/if}
+  {/key}
+  {#if playerUser && game.status !== "ended"}
+    <div class="mt-3">
+      <Button
+        color="warning"
+        size="sm"
+        disabled={playerUser.dropped || playerUser.voteCancel || playerUser.quit}
+        onclick={voteCancel}
+      >
+        Vote to cancel
+      </Button>
+      {#if game.players.some((pl) => !!pl.dropped)}
+        <Button size="sm" class="ms-2" disabled={playerUser.dropped || playerUser.quit} onclick={quit}>Quit</Button>
+      {/if}
+      {#each game.players as player}
+        {#if remainingTime(player) <= 0 && isCurrentPlayer(player._id) && !player.dropped && !player.quit}
+          <Button
+            size="sm"
+            class="ms-2"
+            color="danger"
+            disabled={requestedDrop[player._id]}
+            onclick={() => requestDrop(player._id)}
+          >
+            Drop {player.name}
+          </Button>
+        {/if}
+      {/each}
+    </div>
+  {/if}
+
+  <GameSettings />
+
+  <GamePreferences />
+
+  <GameNotes gameId={gameId ?? ""} />
+
+  {#if (game.game.expansions?.length ?? 0) > 0}
+    <div class="mt-3">
+      <h3>Expansions</h3>
+      {#each game.game.expansions as expansion}
+        <Badge color="accent" class="me-1">
+          {@html oneLineMarked(gameInfo.expansions?.find((xp) => xp.name === expansion)?.label ?? "")}
+        </Badge>
+      {/each}
+    </div>
+  {/if}
+
+  <GameLog />
+
+  <ReplayControls />
+
+  {#if (gameInfo.options ?? []).some((x) => !!gameOptions()[x.name])}
+    <div class="mt-3">
+      <h3 class="mb-1">Setup options</h3>
+      <div class="flex flex-wrap gap-1">
+        {#each (gameInfo.options ?? []).filter((x) => !!gameOptions()[x.name]) as pref}
+          <SetupOptionBadge {pref} value={gameOptions()[pref.name]} />
         {/each}
       </div>
-    {/if}
-
-    <GameSettings />
-
-    <GamePreferences />
-
-    <GameNotes gameId={gameId ?? ""} />
-
-    {#if (game.game.expansions?.length ?? 0) > 0}
-      <div class="mt-3">
-        <h3>Expansions</h3>
-        {#each game.game.expansions as expansion}
-          <Badge color="accent" class="me-1">
-            {@html oneLineMarked(gameInfo.expansions?.find((xp) => xp.name === expansion)?.label ?? "")}
-          </Badge>
-        {/each}
-      </div>
-    {/if}
-
-    <GameLog />
-
-    <ReplayControls />
-
-    {#if (gameInfo.options ?? []).some((x) => !!gameOptions()[x.name])}
-      <div class="mt-3">
-        <h3 class="mb-1">Setup options</h3>
-        <div class="flex flex-wrap gap-1">
-          {#each (gameInfo.options ?? []).filter((x) => !!gameOptions()[x.name]) as pref}
-            <SetupOptionBadge {pref} value={gameOptions()[pref.name]} />
-          {/each}
-        </div>
-      </div>
-    {/if}
+    </div>
+  {/if}
   <div class="my-3"></div>
   {#if $devGameSettings}
     <a target="_blank" rel="external" href={`/api/gameplay/${game._id}`}>Download JSON</a>

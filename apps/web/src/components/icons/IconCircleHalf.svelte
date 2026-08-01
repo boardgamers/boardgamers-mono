@@ -1,5 +1,10 @@
 <script lang="ts">
-  let { class: className = "", style = "", size = "1em", ...rest }: { class?: string; style?: string; size?: string; [key: string]: any } = $props();
+  let {
+    class: className = "",
+    style = "",
+    size = "1em",
+    ...rest
+  }: { class?: string; style?: string; size?: string; [key: string]: any } = $props();
 </script>
 
 <svg
@@ -9,7 +14,7 @@
   height={size}
   fill="currentColor"
   class={className}
-  style={style}
+  {style}
   aria-hidden="true"
   {...rest}
 >

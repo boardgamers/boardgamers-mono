@@ -54,11 +54,7 @@
   };
 
   let inputClass = $derived(
-    classnames(
-      plaintext ? "bg-transparent border-transparent" : base,
-      bsSize ? sizeClass[bsSize] : "",
-      className
-    )
+    classnames(plaintext ? "bg-transparent border-transparent" : base, bsSize ? sizeClass[bsSize] : "", className)
   );
 </script>
 
@@ -69,12 +65,12 @@
     class={inputClass}
     {required}
     {disabled}
-    onchange={onchange}
-    oninput={oninput}
-    onblur={onblur}
-    onfocus={onfocus}
-    onclick={onclick}
-    onmousedown={onmousedown}
+    {onchange}
+    {oninput}
+    {onblur}
+    {onfocus}
+    {onclick}
+    {onmousedown}
     {...rest}
   >
     {@render children?.()}
@@ -88,18 +84,18 @@
     {disabled}
     {autofocus}
     class={inputClass}
-    onchange={onchange}
-    oninput={oninput}
-    onblur={onblur}
-    onfocus={onfocus}
-    onkeyup={onkeyup}
-    onkeydown={onkeydown}
-    onclick={onclick}
+    {onchange}
+    {oninput}
+    {onblur}
+    {onfocus}
+    {onkeyup}
+    {onkeydown}
+    {onclick}
     {...rest}
   ></textarea>
 {:else}
   <input
-    type={type}
+    {type}
     bind:value
     {id}
     {placeholder}
@@ -107,14 +103,14 @@
     {disabled}
     {autofocus}
     class={inputClass}
-    onchange={onchange}
-    oninput={oninput}
-    onblur={onblur}
-    onfocus={onfocus}
-    onkeyup={onkeyup}
-    onkeydown={onkeydown}
-    onclick={onclick}
-    onmousedown={onmousedown}
+    {onchange}
+    {oninput}
+    {onblur}
+    {onfocus}
+    {onkeyup}
+    {onkeydown}
+    {onclick}
+    {onmousedown}
     {...rest}
   />
 {/if}

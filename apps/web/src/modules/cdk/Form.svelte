@@ -16,4 +16,4 @@
   let classes = $derived(classnames(className));
 </script>
 
-<form class={classes} onsubmit={onsubmit} {...rest}>{@render children?.()}</form>
+<form class={classes} {onsubmit} {...rest}>{@render children?.()}</form>

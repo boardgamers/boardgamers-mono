@@ -1,5 +1,10 @@
 <script lang="ts">
-  let { class: className = "", style = "", size = "1em", ...rest }: { class?: string; style?: string; size?: string; [key: string]: any } = $props();
+  let {
+    class: className = "",
+    style = "",
+    size = "1em",
+    ...rest
+  }: { class?: string; style?: string; size?: string; [key: string]: any } = $props();
 </script>
 
 <svg
@@ -9,9 +14,11 @@
   height={size}
   fill="currentColor"
   class={className}
-  style={style}
+  {style}
   aria-hidden="true"
   {...rest}
 >
-  <path d="M4 4a.5.5 0 0 1 1 0v3.248l6.267-3.636c.54-.313 1.232.066 1.232.696v7.384c0 .63-.692 1.01-1.232.697L5 8.753V12a.5.5 0 0 1-1 0V4z" />
+  <path
+    d="M4 4a.5.5 0 0 1 1 0v3.248l6.267-3.636c.54-.313 1.232.066 1.232.696v7.384c0 .63-.692 1.01-1.232.697L5 8.753V12a.5.5 0 0 1-1 0V4z"
+  />
 </svg>

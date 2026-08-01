@@ -16,11 +16,7 @@
   } = $props();
 
   let classes = $derived(
-    classnames(
-      active ? "bg-primary text-white" : "",
-      disabled ? "opacity-50 pointer-events-none" : "",
-      className
-    )
+    classnames(active ? "bg-primary text-white" : "", disabled ? "opacity-50 pointer-events-none" : "", className)
   );
 </script>
 

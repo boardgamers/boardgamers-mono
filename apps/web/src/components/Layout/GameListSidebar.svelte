@@ -29,9 +29,7 @@
   // game of it, re-pinning it automatically. Read from the SSR-loaded user
   // (page.data.user) so hidden games stay hidden during SSR; fall back to the live
   // account store so a forget/unforget updates the list without a reload.
-  let forgotten = $derived(
-    (($account ?? page.data.user)?.settings?.home?.forgottenGames ?? []) as string[]
-  );
+  let forgotten = $derived((($account ?? page.data.user)?.settings?.home?.forgottenGames ?? []) as string[]);
   function saveForgotten(next: string[]) {
     post<UserFront>("/account", { settings: { home: { forgottenGames: next } } })
       .then((updated) => account.set(updated))
@@ -50,7 +48,9 @@
     return i === -1 ? Number.MAX_SAFE_INTEGER : i;
   };
   let pinnedIds = $derived(myBoardgames.filter((id) => !forgotten.includes(id)));
-  let topGames = $derived(games.filter((g) => pinnedIds.includes(g._id.game)).sort((a, b) => rank(a._id.game) - rank(b._id.game)));
+  let topGames = $derived(
+    games.filter((g) => pinnedIds.includes(g._id.game)).sort((a, b) => rank(a._id.game) - rank(b._id.game))
+  );
   let otherGames = $derived(games.filter((g) => !pinnedIds.includes(g._id.game)).sort(byLabel));
 
   function gameRoute(gameId: string) {
@@ -132,7 +132,9 @@
       {#each topGames as game}
         {@render gameItem(game, true)}
       {/each}
-      <li class="px-4 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">All games</li>
+      <li class="px-4 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+        All games
+      </li>
     {/if}
     {#each otherGames as game}
       {@render gameItem(game, false)}

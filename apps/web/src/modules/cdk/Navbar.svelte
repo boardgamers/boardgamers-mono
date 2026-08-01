@@ -34,7 +34,7 @@
   let classes = $derived(
     classnames(
       "flex items-center justify-between px-4 py-2 overflow-visible",
-      color ? bgClass[color] ?? "" : "",
+      color ? (bgClass[color] ?? "") : "",
       dark && !color ? "bg-gray-800 text-white" : "",
       light && !color ? "bg-gray-100 text-gray-800" : "",
       fixed === "top" ? "fixed top-0 inset-x-0" : fixed === "bottom" ? "fixed bottom-0 inset-x-0" : "",

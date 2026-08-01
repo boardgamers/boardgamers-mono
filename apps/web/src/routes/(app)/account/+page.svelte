@@ -78,8 +78,14 @@
         avatar: art,
       },
     })
-      .then((r) => { account.set(r); avatarReload++; }, handleError)
-      .finally(() => { editingAvatar = false; logoClick(); });
+      .then((r) => {
+        account.set(r);
+        avatarReload++;
+      }, handleError)
+      .finally(() => {
+        editingAvatar = false;
+        logoClick();
+      });
 
   const updateAccount = debounce(
     () => {
@@ -160,159 +166,179 @@
 </svelte:head>
 
 {#if user}
-<div class="container mx-auto px-4">
-  <div class="grid grid-cols-2">
-    <div>
-      <h1>{user.account.username}</h1>
-    </div>
-    <div class="text-right">
-      <Button color="primary" href={`/user/${user.account.username}`}>Profile</Button>
-    </div>
-  </div>
-
-  <Card class="mt-4 border-accent" header="User Settings">
-    {#if !editingAvatar}
-      {#key avatarReload}
-        <UserAvatar
-          --avatar-border="1px solid gray"
-          role="button"
-          onclick={() => (editingAvatar = true)}
-          userId={user._id}
-          username={user.account.username}
-        />
-      {/key}
-    {:else}
-      <input type="file" bind:this={fileUpload} onchange={uploadAvatar} accept="image/*" class="hidden" />
-      <a href="#upload" style="width: 100%" role="button" onclick={(e) => { e.preventDefault(); fileUpload?.click(); }}>Upload</a>
-      <div style="display: contents" class:hidden={customAvatarError}>
-        <UserAvatar
-          userId={user._id}
-          username="Custom avatar"
-          role="button"
-          onerror={() => (customAvatarError = true)}
-          onload={() => (customAvatarError = false)}
-          onclick={() => selectArt("upload")}
-        />
+  <div class="container mx-auto px-4">
+    <div class="grid grid-cols-2">
+      <div>
+        <h1>{user.account.username}</h1>
       </div>
-      {#each avatarStyles as art}
-        <UserAvatar {art} username={user.account.username} role="button" onclick={() => selectArt(art)} />
-      {/each}
-    {/if}
-    <FormGroup class="mt-2">
-      <label for="bio">Bio</label>
-      <Input
-        type="textarea"
-        id="bio"
-        placeholder="Something about yourself..."
-        value={bio}
-        onchange={(event) => updateBio((event.target as HTMLTextAreaElement).value)}
-      />
-    </FormGroup>
-    <FormGroup class="mt-2">
-      <label for="email">Email</label>
-      <InputGroup>
+      <div class="text-right">
+        <Button color="primary" href={`/user/${user.account.username}`}>Profile</Button>
+      </div>
+    </div>
+
+    <Card class="mt-4 border-accent" header="User Settings">
+      {#if !editingAvatar}
+        {#key avatarReload}
+          <UserAvatar
+            --avatar-border="1px solid gray"
+            role="button"
+            onclick={() => (editingAvatar = true)}
+            userId={user._id}
+            username={user.account.username}
+          />
+        {/key}
+      {:else}
+        <input type="file" bind:this={fileUpload} onchange={uploadAvatar} accept="image/*" class="hidden" />
+        <a
+          href="#upload"
+          style="width: 100%"
+          role="button"
+          onclick={(e) => {
+            e.preventDefault();
+            fileUpload?.click();
+          }}>Upload</a
+        >
+        <div style="display: contents" class:hidden={customAvatarError}>
+          <UserAvatar
+            userId={user._id}
+            username="Custom avatar"
+            role="button"
+            onerror={() => (customAvatarError = true)}
+            onload={() => (customAvatarError = false)}
+            onclick={() => selectArt("upload")}
+          />
+        </div>
+        {#each avatarStyles as art}
+          <UserAvatar {art} username={user.account.username} role="button" onclick={() => selectArt(art)} />
+        {/each}
+      {/if}
+      <FormGroup class="mt-2">
+        <label for="bio">Bio</label>
         <Input
-          type="email"
-          id="email"
-          placeholder="Email address"
-          bind:value={email}
-          onkeyup={(e) => {
-            if (e.code === "Enter") {
-              e.preventDefault();
-              e.stopPropagation();
-              saveEmail();
-            }
-          }}
-          disabled={!editingEmail}
+          type="textarea"
+          id="bio"
+          placeholder="Something about yourself..."
+          value={bio}
+          onchange={(event) => updateBio((event.target as HTMLTextAreaElement).value)}
         />
+      </FormGroup>
+      <FormGroup class="mt-2">
+        <label for="email">Email</label>
+        <InputGroup>
+          <Input
+            type="email"
+            id="email"
+            placeholder="Email address"
+            bind:value={email}
+            onkeyup={(e) => {
+              if (e.code === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                saveEmail();
+              }
+            }}
+            disabled={!editingEmail}
+          />
 
-        {#if !editingEmail}
-          <Button outline color="secondary" onclick={() => (editingEmail = true)}>Edit</Button>
-        {:else}
-          <Button outline color="success" onclick={saveEmail}>Save</Button>
-        {/if}
-      </InputGroup>
-      <span class="text-xs">{user.security.confirmed ? "Your email is confirmed." : "Your email is not confirmed."}</span>
-    </FormGroup>
-    <p class="mb-3 flex flex-wrap items-center gap-2">
-      Connect with
-
-      {#each ["google", "discord", "facebook"] as const as social}
-        <Button
-          color={social}
-          disabled={!!(user.account.social && user.account.social[social])}
-          href={`/api/account/auth/${social}`}
-          aria-disabled={!!(user.account.social && user.account.social[social])}
-          rel="external"
+          {#if !editingEmail}
+            <Button outline color="secondary" onclick={() => (editingEmail = true)}>Edit</Button>
+          {:else}
+            <Button outline color="success" onclick={saveEmail}>Save</Button>
+          {/if}
+        </InputGroup>
+        <span class="text-xs"
+          >{user.security.confirmed ? "Your email is confirmed." : "Your email is not confirmed."}</span
         >
-          {upperFirst(social)}
-        </Button>
-      {/each}
-    </p>
-    {#if !user.account.termsAndConditions}
-      <Checkbox bind:checked={tc} onchange={acceptTC} class="mb-3">
-        I agree to the <a href="/page/terms-and-conditions">Terms and Conditions</a> 📝
-      </Checkbox>
-    {:else}
-      <p>
-        I accepted the <a href="/page/terms-and-conditions">Terms and Conditions</a> on
-        {niceDate(user.account.termsAndConditions)}.
+      </FormGroup>
+      <p class="mb-3 flex flex-wrap items-center gap-2">
+        Connect with
+
+        {#each ["google", "discord", "facebook"] as const as social}
+          <Button
+            color={social}
+            disabled={!!(user.account.social && user.account.social[social])}
+            href={`/api/account/auth/${social}`}
+            aria-disabled={!!(user.account.social && user.account.social[social])}
+            rel="external"
+          >
+            {upperFirst(social)}
+          </Button>
+        {/each}
       </p>
-    {/if}
-    <hr />
-    <div class="space-y-2">
-      <Checkbox bind:checked={newsletter} onchange={updateAccount}>Get newsletter, up to six emails per year.</Checkbox>
-      <div class="flex flex-row items-center gap-3">
-      <div class="flex-shrink-0">
-        <Checkbox bind:checked={gameNotification} onchange={updateAccount}>
-          Receive an email when it's your turn after a delay of
+      {#if !user.account.termsAndConditions}
+        <Checkbox bind:checked={tc} onchange={acceptTC} class="mb-3">
+          I agree to the <a href="/page/terms-and-conditions">Terms and Conditions</a> 📝
         </Checkbox>
-      </div>
-      <div class="flex-shrink-0">
-        <select
-          class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
-          bind:value={gameNotificationDelay}
-          onblur={() => {
-            gameNotification = true;
-            updateAccount();
-          }}
+      {:else}
+        <p>
+          I accepted the <a href="/page/terms-and-conditions">Terms and Conditions</a> on
+          {niceDate(user.account.termsAndConditions)}.
+        </p>
+      {/if}
+      <hr />
+      <div class="space-y-2">
+        <Checkbox bind:checked={newsletter} onchange={updateAccount}
+          >Get newsletter, up to six emails per year.</Checkbox
         >
-          {#each [60, 5 * 60, 10 * 60, 30 * 60, 2 * 3600, 6 * 3600, 12 * 3600] as seconds}
-            <option value={seconds}>
-              {duration(seconds)}
-            </option>
-          {/each}
-        </select>
+        <div class="flex flex-row items-center gap-3">
+          <div class="flex-shrink-0">
+            <Checkbox bind:checked={gameNotification} onchange={updateAccount}>
+              Receive an email when it's your turn after a delay of
+            </Checkbox>
+          </div>
+          <div class="flex-shrink-0">
+            <select
+              class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+              bind:value={gameNotificationDelay}
+              onblur={() => {
+                gameNotification = true;
+                updateAccount();
+              }}
+            >
+              {#each [60, 5 * 60, 10 * 60, 30 * 60, 2 * 3600, 6 * 3600, 12 * 3600] as seconds}
+                <option value={seconds}>
+                  {duration(seconds)}
+                </option>
+              {/each}
+            </select>
+          </div>
+        </div>
       </div>
+      <hr />
+      <Checkbox bind:checked={$developerSettings}>🔧 Enable developper settings on this device</Checkbox>
+      {#if $developerSettings}
+        <div
+          class="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-dashed border-gray-300 p-3 dark:border-gray-600"
+        >
+          <span class="text-sm text-gray-500 dark:text-gray-400">Test notifications:</span>
+          <Button size="sm" color="primary" outline onclick={() => handleInfo("ℹ️ This is an info notification.")}
+            >Info</Button
+          >
+          <Button size="sm" color="accent" outline onclick={() => handleSuccess("✅ This is a success notification.")}
+            >Success</Button
+          >
+          <Button size="sm" color="danger" outline onclick={() => handleError("🚨 This is an error notification.")}
+            >Error</Button
+          >
+          <Button
+            size="sm"
+            color="secondary"
+            outline
+            onclick={async () => {
+              const ok = await confirm("This is a test confirmation dialog. Proceed?");
+              handleInfo(ok ? "You clicked OK ✅" : "You clicked Cancel ❌");
+            }}>Confirm</Button
+          >
+        </div>
+      {/if}
+    </Card>
+    <Card class="mt-4 border-accent" header="Game Settings">
+      <div class="space-y-2">
+        <Checkbox bind:checked={soundNotification} onchange={updateAccount}>
+          Play a sound when it's your turn in one of your games
+        </Checkbox>
+        <Checkbox bind:checked={notifications}>Notification on this device when it's your turn</Checkbox>
       </div>
-    </div>
-    <hr />
-    <Checkbox bind:checked={$developerSettings}>🔧 Enable developper settings on this device</Checkbox>
-    {#if $developerSettings}
-      <div class="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-dashed border-gray-300 p-3 dark:border-gray-600">
-        <span class="text-sm text-gray-500 dark:text-gray-400">Test notifications:</span>
-        <Button size="sm" color="primary" outline onclick={() => handleInfo("ℹ️ This is an info notification.")}>Info</Button>
-        <Button size="sm" color="accent" outline onclick={() => handleSuccess("✅ This is a success notification.")}>Success</Button>
-        <Button size="sm" color="danger" outline onclick={() => handleError("🚨 This is an error notification.")}>Error</Button>
-        <Button
-          size="sm"
-          color="secondary"
-          outline
-          onclick={async () => {
-            const ok = await confirm("This is a test confirmation dialog. Proceed?");
-            handleInfo(ok ? "You clicked OK ✅" : "You clicked Cancel ❌");
-          }}
-        >Confirm</Button>
-      </div>
-    {/if}
-  </Card>
-  <Card class="mt-4 border-accent" header="Game Settings">
-    <div class="space-y-2">
-      <Checkbox bind:checked={soundNotification} onchange={updateAccount}>
-        Play a sound when it's your turn in one of your games
-      </Checkbox>
-      <Checkbox bind:checked={notifications}>Notification on this device when it's your turn</Checkbox>
-    </div>
-  </Card>
-</div>
+    </Card>
+  </div>
 {/if}

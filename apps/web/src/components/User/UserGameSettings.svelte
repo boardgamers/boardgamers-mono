@@ -83,7 +83,7 @@
 </script>
 
 <Card class={classes} header={title || game.label}>
-  <CardText class="h-full flex flex-col" >
+  <CardText class="h-full flex flex-col">
     <Loading loading={!prefs}>
       <div class="grow space-y-3">
         <div class="flex items-center gap-2 rounded-lg bg-accent/10 p-3 dark:bg-accent/20">

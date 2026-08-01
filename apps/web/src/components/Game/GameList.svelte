@@ -122,7 +122,6 @@
     load(true);
   });
 
-
   $effect(() => {
     currentPage;
     onCurrentPageChanged();
@@ -138,7 +137,9 @@
   </h3>
   <div>
     {#if games.length > 0}
-      <ul class="divide-y divide-accent/80 rounded-lg border border-accent/80 bg-white text-start dark:divide-accent/60 dark:border-accent/60 dark:bg-gray-900 game-list">
+      <ul
+        class="divide-y divide-accent/80 rounded-lg border border-accent/80 bg-white text-start dark:divide-accent/60 dark:border-accent/60 dark:bg-gray-900 game-list"
+      >
         {#each games as game}
           <a
             href={`/game/${game._id}`}
@@ -155,7 +156,9 @@
                 {#if game.status === "active"}
                   <Badge color="contrast" class="me-2 text-xs text-white">R{game.context?.round ?? 0}</Badge>
                 {:else if game.status === "open"}
-                  <span class="me-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/60 dark:text-blue-200">
+                  <span
+                    class="me-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/60 dark:text-blue-200"
+                  >
                     {game.players.length}/{game.options.setup.nbPlayers}
                   </span>
                 {/if}

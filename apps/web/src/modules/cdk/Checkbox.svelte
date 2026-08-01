@@ -56,7 +56,7 @@
     bind:checked
     {value}
     onchange={handleChange}
-    onblur={onblur}
+    {onblur}
     {...rest}
   />
   <label class="text-sm cursor-pointer" for={id}>{@render children?.()}</label>

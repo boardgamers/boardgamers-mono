@@ -60,7 +60,13 @@
 
 <div class="container mx-auto px-4">
   <h1>Create an account</h1>
-  <form method="post" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+  <form
+    method="post"
+    onsubmit={(e) => {
+      e.preventDefault();
+      handleSubmit();
+    }}
+  >
     <div class="mb-3">
       <label for="signup-username">Username</label>
       <input

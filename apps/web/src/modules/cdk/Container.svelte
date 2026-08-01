@@ -13,12 +13,7 @@
     [key: string]: any;
   } = $props();
 
-  let classes = $derived(
-    classnames(
-      fluid ? "w-full px-4" : "container mx-auto px-4",
-      className
-    )
-  );
+  let classes = $derived(classnames(fluid ? "w-full px-4" : "container mx-auto px-4", className));
 </script>
 
 <div class={classes} {...rest}>{@render children?.()}</div>

@@ -65,7 +65,13 @@
       <Card class="border-gray-400 h-full dark:border-gray-600" header={rules ? "Rules" : "Description"}>
         {@html marked((rules ? boardgame.rules : boardgame.description) ?? "")}
         {#snippet footer()}
-          <a href={rules ? "#description" : "#rules"} onclick={(e) => { e.preventDefault(); rules = !rules; }}>
+          <a
+            href={rules ? "#description" : "#rules"}
+            onclick={(e) => {
+              e.preventDefault();
+              rules = !rules;
+            }}
+          >
             {rules ? "See description" : "See rules"}
           </a>
         {/snippet}

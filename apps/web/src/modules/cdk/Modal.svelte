@@ -203,7 +203,7 @@
   let classes = $derived(
     classnames(
       "bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full mx-4",
-      size ? sizeClass[size] ?? "max-w-lg" : "max-w-lg",
+      size ? (sizeClass[size] ?? "max-w-lg") : "max-w-lg",
       centered ? "m-auto" : "mt-auto mb-auto",
       scrollable ? "overflow-hidden" : "",
       className

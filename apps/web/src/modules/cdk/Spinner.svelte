@@ -38,7 +38,7 @@
       type === "grow"
         ? "inline-block bg-current rounded-full opacity-75 animate-pulse"
         : "animate-spin rounded-full border-2 border-current border-t-transparent",
-      color ? colorClass[color] ?? "" : "",
+      color ? (colorClass[color] ?? "") : "",
       size ? sizeClass[size] : type === "border" ? "h-8 w-8" : "",
       className
     )

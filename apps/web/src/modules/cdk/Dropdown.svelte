@@ -43,13 +43,7 @@
     toggle: doToggle,
   });
 
-  let classes = $derived(
-    classnames(
-      group ? "inline-flex" : "relative",
-      nav ? "flex items-center" : "",
-      className
-    )
-  );
+  let classes = $derived(classnames(group ? "inline-flex" : "relative", nav ? "flex items-center" : "", className));
 </script>
 
 <div class={classes} {...rest}>

@@ -18,9 +18,7 @@
     lg: "text-base",
   };
 
-  let classes = $derived(
-    classnames("input-group flex items-stretch", size ? sizeClass[size] : "", className)
-  );
+  let classes = $derived(classnames("input-group flex items-stretch", size ? sizeClass[size] : "", className));
 </script>
 
 <div class={classes} {...rest}>{@render children?.()}</div>

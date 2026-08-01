@@ -5,7 +5,8 @@
   import type { LoadGamesResult } from "@/lib/games.svelte";
   import { debounce } from "lodash";
 
-  let { data }: { data: { featured: LoadGamesResult; lobby: LoadGamesResult; boardgameId: string | undefined } } = $props();
+  let { data }: { data: { featured: LoadGamesResult; lobby: LoadGamesResult; boardgameId: string | undefined } } =
+    $props();
 
   let firstTab = $state(true);
   let animating = $state(false);
@@ -34,7 +35,12 @@
       <NavItem><NavLink href="#" onclick={() => (firstTab = false)} active={!firstTab}>Finished</NavLink></NavItem>
     </Nav>
     <div class="w-full sm:w-64">
-      <Input type="search" placeholder="Filter by game name…" bind:value={searchInput} aria-label="Filter games by name" />
+      <Input
+        type="search"
+        placeholder="Filter by game name…"
+        bind:value={searchInput}
+        aria-label="Filter games by name"
+      />
     </div>
   </div>
 

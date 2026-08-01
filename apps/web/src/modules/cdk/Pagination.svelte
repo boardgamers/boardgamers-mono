@@ -30,13 +30,7 @@
     left: "justify-start",
   };
 
-  let classes = $derived(
-    classnames(
-      "flex items-center gap-1",
-      align ? alignClass[align] : "",
-      className
-    )
-  );
+  let classes = $derived(classnames("flex items-center gap-1", align ? alignClass[align] : "", className));
 
   let totalPages = $derived(Math.max(1, Math.ceil(count / perPage)));
 
@@ -81,10 +75,7 @@
   </PaginationItem>
   {#each Array(pageItems) as _, position (pageFor(position) + "_" + position)}
     {#if !((pageFor(position) as number) < 0)}
-      <PaginationItem
-        disabled={typeof pageFor(position) !== "number"}
-        active={pageFor(position) === currentPage}
-      >
+      <PaginationItem disabled={typeof pageFor(position) !== "number"} active={pageFor(position) === currentPage}>
         <PaginationLink
           href={baseUrl ? `${baseUrl}/${+pageFor(position) + 1}` : "#"}
           onclick={!baseUrl

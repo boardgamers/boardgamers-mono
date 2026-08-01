@@ -22,7 +22,7 @@ catalog:
   type-fest: "^5.4.4"
 
 minimumReleaseAgeExclude:
-  - '@sveltejs/kit@2.70.2'
+  - "@sveltejs/kit@2.70.2"
   - vite@8.2.0
 
 # pnpm 11 moved settings from package.json "pnpm" field to here.

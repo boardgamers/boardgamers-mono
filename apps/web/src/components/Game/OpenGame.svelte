@@ -12,16 +12,7 @@
     defer,
   } from "@/utils";
   import marked from "marked";
-  import {
-    Badge,
-    Button,
-    Dropdown,
-    DropdownItem,
-    DropdownMenu,
-    DropdownToggle,
-    FormGroup,
-    Input,
-  } from "@/modules/cdk";
+  import { Badge, Button, Dropdown, DropdownItem, DropdownMenu, DropdownToggle, FormGroup, Input } from "@/modules/cdk";
   import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
   import IconList from "@/components/icons/IconList.svelte";
   import IconPerson from "@/components/icons/IconPerson.svelte";
@@ -53,7 +44,7 @@
 
   /** Game-specific options, keyed by option name. */
   const gameOptions = (game: { game: { options?: unknown } } | null | undefined): JsonObject =>
-    ((game?.game.options ?? {}) as JsonObject);
+    (game?.game.options ?? {}) as JsonObject;
 
   const shortPlayTime = () => {
     if (timer?.start !== timer?.end) {
@@ -221,7 +212,9 @@
   <!-- Title: boardgame link (breadcrumb-style) + status -->
   <div class="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
     <h1 class="mb-0">{context.gameInfo?.label}</h1>
-    <span class="rounded-full bg-blue-100 px-2.5 py-0.5 text-sm font-medium text-blue-800 dark:bg-blue-900/50 dark:text-blue-200">
+    <span
+      class="rounded-full bg-blue-100 px-2.5 py-0.5 text-sm font-medium text-blue-800 dark:bg-blue-900/50 dark:text-blue-200"
+    >
       Open game
     </span>
     <span class="text-sm text-gray-500 dark:text-gray-400">
@@ -242,7 +235,9 @@
 
   <div class="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
     <div>
-      <h3 class="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+      <h3
+        class="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
+      >
         <IconList /> About this game
       </h3>
       <ul class="space-y-1.5 text-sm">
@@ -250,7 +245,10 @@
           <IconPerson class="text-gray-400" />
           <span>
             Hosted by
-            <a href={`/user/${context.players.find((pl) => pl._id === context.game?.creator)?.name}`} class="font-medium">
+            <a
+              href={`/user/${context.players.find((pl) => pl._id === context.game?.creator)?.name}`}
+              class="font-medium"
+            >
               {context.players.find((pl) => pl._id === context.game?.creator)?.name}
             </a>
           </span>
@@ -266,7 +264,9 @@
         {/if}
         {#if typeof context.game?.options.meta?.minimumKarma === "number"}
           <li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-            <span title="Minimum karma to join the game">☯️ requires {context.game.options.meta.minimumKarma} karma</span>
+            <span title="Minimum karma to join the game"
+              >☯️ requires {context.game.options.meta.minimumKarma} karma</span
+            >
           </li>
         {/if}
       </ul>
@@ -280,7 +280,9 @@
     </div>
 
     <div>
-      <h3 class="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+      <h3
+        class="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
+      >
         <IconHourglass /> Timer
       </h3>
       <ul class="space-y-1.5 text-sm">
@@ -313,7 +315,9 @@
     <h3>Setup options</h3>
 
     <div class="flex flex-wrap gap-1">
-      <Badge color="secondary" class="setup-badge">{playerOrderText(context.game?.options.setup.playerOrder ?? "random")}</Badge>
+      <Badge color="secondary" class="setup-badge"
+        >{playerOrderText(context.game?.options.setup.playerOrder ?? "random")}</Badge
+      >
       {#each (context.gameInfo?.options ?? []).filter((x) => !!gameOptions(context.game)[x.name]) as pref}
         <SetupOptionBadge {pref} value={gameOptions(context.game)[pref.name]} />
       {/each}
@@ -338,10 +342,15 @@
             <a href={`/user/${info?.name}`} class="font-medium">{info?.name}</a>
             <span class="text-sm text-gray-500 dark:text-gray-400">{info?.elo} elo</span>
             {#if player.pending}
-              <span class="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">invited</span>
+              <span
+                class="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                >invited</span
+              >
             {/if}
             {#if player._id === context.game?.creator}
-              <span class="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary dark:text-primary-lighter">host</span>
+              <span class="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary dark:text-primary-lighter"
+                >host</span
+              >
             {/if}
           </li>
         {/each}
@@ -350,7 +359,9 @@
 
     {#if context.game && context.game.options.setup.nbPlayers > context.game.players.length}
       <p class="mb-3 text-sm text-gray-600 dark:text-gray-300">
-        ⏳ Waiting on <b>{pluralize(context.game.options.setup.nbPlayers - context.game.players.length, "more player")}</b> to start.
+        ⏳ Waiting on <b
+          >{pluralize(context.game.options.setup.nbPlayers - context.game.players.length, "more player")}</b
+        > to start.
       </p>
       {#if $user?._id === context.game.creator && (1 || context.game.options.timing.scheduledStart)}
         <FormGroup>
@@ -378,8 +389,18 @@
           {#each playerOrder as playerIndex}
             <div>
               - {context.game.players[playerIndex].name}
-              <span onclick={() => moveUp(playerIndex)} role="button" tabindex="0" onkeydown={(e) => e.key === "Enter" && moveUp(playerIndex)}><IconArrowUp /></span>
-              <span onclick={() => moveDown(playerIndex)} role="button" tabindex="0" onkeydown={(e) => e.key === "Enter" && moveDown(playerIndex)}><IconArrowDown /></span>
+              <span
+                onclick={() => moveUp(playerIndex)}
+                role="button"
+                tabindex="0"
+                onkeydown={(e) => e.key === "Enter" && moveUp(playerIndex)}><IconArrowUp /></span
+              >
+              <span
+                onclick={() => moveDown(playerIndex)}
+                role="button"
+                tabindex="0"
+                onkeydown={(e) => e.key === "Enter" && moveDown(playerIndex)}><IconArrowDown /></span
+              >
             </div>
           {/each}
           <Button color="primary" onclick={start} class="mt-4">Start the game!</Button>

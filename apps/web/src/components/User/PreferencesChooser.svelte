@@ -18,10 +18,16 @@
   const preferenceItems = $derived(
     gameInfo?.viewer?.alternate?.url
       ? [
-          { name: "alternateUI", label: "Use alternate UI", type: "checkbox", items: null, category: null } as unknown as GameInfoOption,
+          {
+            name: "alternateUI",
+            label: "Use alternate UI",
+            type: "checkbox",
+            items: null,
+            category: null,
+          } as unknown as GameInfoOption,
           ...(gameInfo.preferences ?? []),
         ]
-      : (gameInfo?.preferences ?? []),
+      : (gameInfo?.preferences ?? [])
   );
 
   const handleChange = (key: string, val: Primitive) => {
@@ -44,10 +50,13 @@
 {/each}
 {#each preferenceItems.filter((item) => item.type === "category") as category}
   {@const open = shownCategories[category.name] ?? false}
-  <div class="{open && framed ? 'overflow-hidden rounded-md border border-gray-200 dark:border-gray-700' : ''}">
+  <div class={open && framed ? "overflow-hidden rounded-md border border-gray-200 dark:border-gray-700" : ""}>
     <button
       type="button"
-      class="flex w-full items-center justify-between py-1.5 text-base font-semibold hover:text-primary dark:hover:text-primary-lighter {open && framed ? 'px-3' : ''} {open ? 'no-underline' : 'underline decoration-dotted underline-offset-4'}"
+      class="flex w-full items-center justify-between py-1.5 text-base font-semibold hover:text-primary dark:hover:text-primary-lighter {open &&
+      framed
+        ? 'px-3'
+        : ''} {open ? 'no-underline' : 'underline decoration-dotted underline-offset-4'}"
       aria-expanded={open}
       onclick={() => {
         shownCategories[category.name] = !open;
@@ -62,17 +71,16 @@
         fill="currentColor"
         class="shrink-0 transition-transform duration-150 {open ? 'rotate-180' : ''}"
       >
-        <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z" />
+        <path
+          fill-rule="evenodd"
+          d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"
+        />
       </svg>
     </button>
     {#if open}
       <div class="space-y-2 {framed ? 'border-t border-gray-200 px-3 py-3 dark:border-gray-700' : 'pt-1'}">
         {#each preferenceItems.filter((item) => item.category === category.name) as item}
-          <PreferenceInput
-            {item}
-            value={preferences[item.name]}
-            onchange={(val) => handleChange(item.name, val)}
-          />
+          <PreferenceInput {item} value={preferences[item.name]} onchange={(val) => handleChange(item.name, val)} />
         {/each}
       </div>
     {/if}

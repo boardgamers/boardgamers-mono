@@ -93,7 +93,10 @@
   });
 
   function postGamedata() {
-    gameIframe?.contentWindow?.postMessage({ type: "state", state: JSON.parse(JSON.stringify(context.game?.data)) }, "*");
+    gameIframe?.contentWindow?.postMessage(
+      { type: "state", state: JSON.parse(JSON.stringify(context.game?.data)) },
+      "*"
+    );
   }
 
   function postUpdatePresent() {
@@ -108,7 +111,10 @@
 
   function postPreferences() {
     if (gameIframe && prefs) {
-      gameIframe.contentWindow?.postMessage({ type: "preferences", preferences: JSON.parse(JSON.stringify(prefs.preferences)) }, "*");
+      gameIframe.contentWindow?.postMessage(
+        { type: "preferences", preferences: JSON.parse(JSON.stringify(prefs.preferences)) },
+        "*"
+      );
     }
   }
 
