@@ -101,7 +101,7 @@ async function gameConditions<T>(
     ]),
   };
 
-  return simplifyFilter(conditions as Filter<WithId<GameDoc>>) as Filter<WithId<GameDoc>>;
+  return simplifyFilter(conditions as Filter<WithId<GameDoc>>);
 }
 
 const myBoardgamesQuerySchema = z.object({
