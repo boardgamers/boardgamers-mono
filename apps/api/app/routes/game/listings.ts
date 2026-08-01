@@ -103,10 +103,16 @@ const myBoardgamesQuerySchema = z.object({
   user: zObjectId(),
 });
 
+// Cap on how many of the player's most recent games the aggregation scans. The
+// $match+$sort+$limit run on the { "players._id": 1, lastMove: -1 } index, so the
+// $group only ever sees ≤ this many index-sorted docs — bounded cost regardless of
+// total history. Trade-off: a boardgame only played beyond this window won't appear
+// in the pinned list, which is fine for a "recently played" sidebar.
+const MY_BOARDGAMES_SCAN = 100;
+
 /**
- * Boardgames a player has played (open/active/ended), each with the timestamp of
- * their most recent activity, ordered by recency. Powers the sidebar's
- * "your games first" ordering in a single request.
+ * Boardgames a player has recently played, ordered by most recent activity. Powers
+ * the sidebar's "your games first" ordering. Approximate by design — see above.
  */
 export async function myBoardgames(ctx: Context) {
   const { user } = myBoardgamesQuerySchema.parse(ctx.query);
@@ -114,6 +120,8 @@ export async function myBoardgames(ctx: Context) {
   const results = await colls.games
     .aggregate<{ _id: string; lastActivity: Date }>([
       { $match: { "players._id": user } },
+      { $sort: { lastMove: -1 } },
+      { $limit: MY_BOARDGAMES_SCAN },
       {
         $group: {
           _id: "$game.name",
