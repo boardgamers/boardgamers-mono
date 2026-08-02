@@ -1,18 +1,17 @@
 import { redirect } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
-import { get, setApiContext } from "@/lib/api";
+import { get } from "@/lib/api";
 import { redirectLoggedIn } from "@/utils/redirect";
+import type { UserFront } from "@bgs/models";
 
-export const load: PageServerLoad = async ({ locals, url, fetch }) => {
-	setApiContext({ fetch, ip: locals.ip });
-	// Fetch account + active games server-side
+export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.refreshToken) {
 		throw redirect(302, redirectLoggedIn(url));
 	}
 
-	let user;
+	let user: UserFront | null;
 	try {
-		user = await get<import("@bgs/models").UserFront>("/account");
+		user = await get<UserFront | null>("/account");
 	} catch {
 		throw redirect(302, redirectLoggedIn(url));
 	}

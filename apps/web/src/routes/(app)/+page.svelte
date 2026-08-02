@@ -7,8 +7,9 @@
 	import { activeGames } from "@/lib/stores.svelte";
 	import { page } from "$app/state";
 	import type { UserFront } from "@bgs/models";
+	import type { PageProps } from "./$types";
 
-	let { data }: { data: { announcement?: { title: string; content: string } } } = $props();
+	let { data }: PageProps = $props();
 	let announcement = $derived(data.announcement);
 
 	// Client prefers the stores (seeded by the layout); SSR falls back to page.data so

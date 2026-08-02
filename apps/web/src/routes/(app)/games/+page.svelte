@@ -2,11 +2,10 @@
 	import { fade } from "svelte/transition";
 	import { GameList, SEO } from "@/components";
 	import { Nav, NavItem, NavLink, Input } from "@/modules/cdk";
-	import type { LoadGamesResult } from "@/lib/games.svelte";
 	import { debounce } from "lodash";
+	import type { PageProps } from "./$types";
 
-	let { data }: { data: { featured: LoadGamesResult; lobby: LoadGamesResult; boardgameId: string | undefined } } =
-		$props();
+	let { data }: PageProps = $props();
 
 	let firstTab = $state(true);
 	let animating = $state(false);

@@ -8,9 +8,9 @@
 	import { tokens } from "$lib/auth.svelte.ts";
 	import type { GameInfoFront } from "@bgs/models";
 	import MarkdownEditor from "$components/MarkdownEditor.svelte";
-	import type { ServerInfo, HealthStatus } from "./+page.ts";
+	import type { PageProps } from "./$types";
 
-	let { data }: { data: { serverInfo: ServerInfo | null; healthStatus: HealthStatus } } = $props();
+	let { data }: PageProps = $props();
 
 	let refreshing = $state(false);
 	let announcement = $state({ title: "", content: "" });

@@ -1,12 +1,10 @@
 import { error } from "@sveltejs/kit";
 import type { PageLoad } from "./$types";
 import { loadGame, loadGamePlayers } from "@/lib/game.svelte";
-import { gameInfo, loadGameInfo } from "@/lib/game-info.svelte";
-import { loadGamePreferences } from "@/lib/game-preferences.svelte";
-import { setApiContext } from "@/lib/api";
+import { getGameInfo } from "@/lib/game-info.svelte";
+import { getGamePreferences } from "@/lib/game-preferences.svelte";
 
-export const load: PageLoad = async ({ params, fetch }) => {
-	setApiContext((prev) => ({ ...prev, fetch }));
+export const load: PageLoad = async ({ params }) => {
 	const gameId = params.gameId;
 
 	let game, players;
@@ -23,11 +21,15 @@ export const load: PageLoad = async ({ params, fetch }) => {
 		throw error(404, "Game data is incomplete");
 	}
 
-	await Promise.all([loadGameInfo(game.game.name, game.game.version), loadGamePreferences(game.game.name)]);
+	const [gameInfo, preferences] = await Promise.all([
+		getGameInfo(game.game.name, game.game.version),
+		getGamePreferences(game.game.name),
+	]);
 
 	return {
 		game,
 		players,
-		gameInfo: gameInfo(game.game.name, game.game.version),
+		gameInfo,
+		preferences,
 	};
 };

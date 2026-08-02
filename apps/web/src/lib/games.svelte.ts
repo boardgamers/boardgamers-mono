@@ -1,7 +1,6 @@
 import type { GameStatus, GameFront } from "@bgs/models";
 import { get as getStore } from "svelte/store";
 import { account } from "./stores.svelte";
-import { gameInfo, loadGameInfo } from "./game-info.svelte";
 import { get } from "./api";
 
 export type LoadGamesParams = {
@@ -66,11 +65,6 @@ export function loadGames({
 		get<GameFront[]>(`/game/status/${gameStatus}`, queryParams),
 		fetchCount ? get<number>(`/game/status/${gameStatus}/count`, queryParams) : 0,
 	]).then(async ([games, total]) => {
-		const missingGameInfos = games.map((game) => game.game.name).filter((boardgameId) => !gameInfo(boardgameId));
-		if (missingGameInfos.length > 0) {
-			await Promise.all(missingGameInfos.map((boardgameId) => loadGameInfo(boardgameId)));
-		}
-
 		if (store) {
 			gamesCache.set(key, { games, total });
 		}

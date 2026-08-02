@@ -1,9 +1,8 @@
 <script lang="ts">
 	import type { PlayerInfoFront } from "@bgs/models";
-	import { classnames, handleError } from "@/utils";
+	import { classnames } from "@/utils";
 	import { account } from "@/lib/stores.svelte";
-	import { loadGameInfo, gameInfo, gameInfos } from "@/lib/game-info.svelte";
-	import { browser } from "$app/environment";
+	import { gameInfoKey, useGameInfos } from "@/lib/game-info.svelte";
 
 	let {
 		player,
@@ -23,15 +22,13 @@
 		isCurrent?: boolean | undefined;
 	} = $props();
 
-	$effect(() => {
-		browser && game && !gameInfo(game) && loadGameInfo(game).catch(handleError);
-	});
-
 	let highlightedPlayerId = $derived(userId ?? $account?._id);
 
+	const infos = useGameInfos();
+	let bg = $derived(infos[gameInfoKey(game, "latest")]);
 	let style = $derived(
 		`background-image: url('${
-			player.faction && gameInfo(game)?.factions?.avatars
+			player.faction && bg?.factions?.avatars
 				? `/images/factions/icons/${player.faction}.svg`
 				: `/api/user/${player._id}/avatar?d=${$account?.account.avatar}`
 		}')`

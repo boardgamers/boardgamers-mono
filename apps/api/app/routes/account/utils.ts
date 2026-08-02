@@ -1,11 +1,11 @@
 import type { Context } from "koa";
 import { colls } from "../../config/db.ts";
 import { accessTokenDuration, createAccessToken, generateRefreshCode, isUserAdmin } from "../../models/index.ts";
+import { refreshTokenDuration, setRefreshCookie } from "../../models/session.ts";
 
 export async function sendAuthInfo(ctx: Context) {
 	const code = generateRefreshCode();
 	const createdAt = new Date();
-	const expiresAt = new Date(createdAt.getTime() + 120 * 24 * 3600 * 1000);
 
 	const result = await colls.jwtRefreshTokens.insertOne({
 		user: ctx.state.user._id,
@@ -22,20 +22,10 @@ export async function sendAuthInfo(ctx: Context) {
 
 	const json = {
 		code: refreshToken.code,
-		expiresAt: createdAt.getTime() + 120 * 24 * 3600 * 1000,
+		expiresAt: createdAt.getTime() + refreshTokenDuration(),
 	};
 
-	try {
-		// Should not be needed as already done in the front-end code, but sveltekit has weird issues
-		ctx.cookies.set("refreshToken", JSON.stringify(json), {
-			httpOnly: false,
-			expires: expiresAt,
-			secure: true,
-			sameSite: true,
-		});
-	} catch {
-		// Happens on localhost, because of secure flag
-	}
+	setRefreshCookie(ctx, code);
 
 	ctx.body = {
 		user: ctx.state.user,

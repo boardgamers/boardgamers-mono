@@ -24,6 +24,12 @@ import type { WithId } from "mongodb";
 import { colls } from "./config/db.ts";
 import { accessTokenPayloadSchema } from "./models/jwtrefreshtokens.ts";
 import { notifyLogin, notifyLastIp } from "./models/user.ts";
+import { setRefreshCookie, parseRefreshCookie } from "./models/session.ts";
+
+// Throttle sliding-session cookie refreshes (per refresh code) so active users
+// don't rewrite the cookie / bump lastSeen on every single mutating request.
+const REFRESH_SLIDE_INTERVAL_MS = 60 * 1000;
+const refreshSlideThrottle = new Map<string, number>();
 /* Local stuff */
 import router from "./routes/index.ts";
 
@@ -99,6 +105,33 @@ async function listen(port = env.listen.port.api) {
 			const { token } = tokenQuerySchema.parse(ctx.query);
 			if (token) {
 				await processToken(token);
+			}
+		}
+
+		// Cookie session auth: if no bearer token resolved a user, fall back to the
+		// long-lived refresh-token cookie. This is the primary auth mechanism for the
+		// web app (browser + SSR-forwarded cookie); bearer tokens remain for the
+		// game-server (gameplay scope) and API clients.
+		if (!ctx.state.user) {
+			const raw = ctx.cookies.get("refreshToken");
+			const code = parseRefreshCookie(raw);
+			if (code) {
+				const rt = await colls.jwtRefreshTokens.findOne({ code });
+				if (rt) {
+					ctx.state.user = (await colls.users.findOne({ _id: rt.user })) ?? undefined;
+
+					// Sliding session: extend the cookie + bump lastSeen on mutating activity,
+					// throttled so we don't rewrite the cookie / hit the DB on every request.
+					const isMutating = !["GET", "HEAD", "OPTIONS"].includes(ctx.method);
+					if (ctx.state.user && isMutating) {
+						const last = refreshSlideThrottle.get(code) ?? 0;
+						if (Date.now() - last > REFRESH_SLIDE_INTERVAL_MS) {
+							refreshSlideThrottle.set(code, Date.now());
+							setRefreshCookie(ctx, code);
+							colls.users.updateOne({ _id: rt.user }, { $set: { "security.lastSeen": new Date() } }).catch(() => {});
+						}
+					}
+				}
 			}
 		}
 

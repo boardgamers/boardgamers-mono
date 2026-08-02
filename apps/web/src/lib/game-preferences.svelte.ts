@@ -1,12 +1,36 @@
 import { browser } from "$app/environment";
+import { getContext, hasContext, setContext } from "svelte";
 import type { GameInfoFront, GamePreferencesFront } from "@bgs/models";
 import { isEmpty, set } from "lodash";
-import { get as getStore, writable } from "svelte/store";
+import { get as getStore } from "svelte/store";
 import type { Primitive } from "type-fest";
-import { account } from "./stores.svelte";
+import { account, clientWritable } from "./stores.svelte";
 import { get, post } from "./api";
 
-export const gamePreferences = writable<Record<string, GamePreferencesFront>>({});
+export const gamePreferences = clientWritable<Record<string, GamePreferencesFront>>("gamePreferences", {});
+
+/**
+ * Preferences are per-user and reactive (updated via `updatePreference`), so the store is
+ * the client read API. But the store is browser-only — empty during SSR. Layouts that SSR
+ * preferences (boardgame, boardgames, new-game, game) provide their SSR-fetched prefs via
+ * context, so readers can fall back to it server-side. `useGamePreference()` reads the
+ * store first (reactive on the client), then the context fallback (SSR).
+ */
+const GAME_PREFS_KEY = "gamePreferences";
+
+/** Called by a layout component with the prefs its load SSR-fetched. */
+export function provideGamePreferences(prefs: Record<string, GamePreferencesFront>): void {
+	setContext(GAME_PREFS_KEY, prefs);
+}
+
+/**
+ * Capture the layout-provided SSR preferences for this component (component-init only,
+ * getContext). Use with the store in a `$derived`: `$gamePreferences[game] ?? ssrPrefs[game]`
+ * — reactive on the client (store), correct during SSR (context fallback).
+ */
+export function useGamePreferencesFallback(): Record<string, GamePreferencesFront> {
+	return hasContext(GAME_PREFS_KEY) ? getContext<Record<string, GamePreferencesFront>>(GAME_PREFS_KEY) : {};
+}
 
 export function addDefaults(prefs: GamePreferencesFront, gameinfo: GameInfoFront) {
 	if (!gameinfo?.preferences || !prefs?.preferences) {
@@ -46,66 +70,110 @@ const augment = (data: GamePreferencesFront) => {
 	return data;
 };
 
-const loading = new Map<string, Promise<void>>();
+/**
+ * Fetch one game's preferences for the current session, WITHOUT touching the store.
+ * SSR-safe: `get` uses the request's `event.fetch` (cookie-forwarded, request-scoped),
+ * and the result is returned — so a `load` function can SSR per-user prefs with no
+ * shared-state leak. Logged-out requests get the default-shape object.
+ */
+export async function fetchGamePreferences(game: string): Promise<GamePreferencesFront> {
+	// Logged out → 401; return the default-shape object (same as the previous behavior).
+	const data = await get<GamePreferencesFront>(`/account/games/${game}/settings`).catch((err) => {
+		if (err?.status === 401 || err?.status === 404) {
+			return { game } as GamePreferencesFront;
+		}
+		throw err;
+	});
+	return augment(data);
+}
+
+/** Fetch all games' preferences for the current session, WITHOUT touching the store. SSR-safe. */
+export async function fetchAllGamePreferences(): Promise<Record<string, GamePreferencesFront>> {
+	const prefs = await get<GamePreferencesFront[]>("/account/games/settings").catch((err) => {
+		if (err?.status === 401 || err?.status === 404) {
+			return [] as GamePreferencesFront[];
+		}
+		throw err;
+	});
+	const data: Record<string, GamePreferencesFront> = {};
+	for (const pref of prefs) {
+		data[pref.game] = augment(pref);
+	}
+	return data;
+}
+
+/**
+ * Get one game's preferences, using the store as a client-side cache: in the browser, if
+ * the store already has this game's prefs, return it with no network call; otherwise (SSR
+ * or a cache miss) fetch it. SSR-safe: the result is returned, never written to the store.
+ */
+export async function getGamePreferences(game: string): Promise<GamePreferencesFront> {
+	if (browser) {
+		const cached = getStore(gamePreferences)[game];
+		if (cached) {
+			return cached;
+		}
+		const prefs = await fetchGamePreferences(game);
+		mergeGamePreferences({ [game]: prefs });
+		return prefs;
+	}
+	return fetchGamePreferences(game);
+}
+
+/** Browser-only: merge preferences into the reactive store cache. Never call during SSR (shared module state). */
+export function mergeGamePreferences(prefs: Record<string, GamePreferencesFront>) {
+	if (!browser) {
+		throw new Error("mergeGamePreferences must not run during SSR — per-user store");
+	}
+	gamePreferences.update((all) => ({ ...all, ...prefs }));
+}
+
+/** Browser-only: fetch + store one game's preferences (skips if already cached). */
 export async function loadGamePreferences(game: string): Promise<void> {
-	if (loading.has(game)) {
-		return loading.get(game);
+	if (!browser) {
+		throw new Error("loadGamePreferences must not run during SSR — per-user store");
 	}
 	if (game in getStore(gamePreferences)) {
 		return;
 	}
-
-	loading.set(
-		game,
-		Promise.resolve()
-			.then(async () => {
-				const data = getStore(account)
-					? await get<GamePreferencesFront>(`/account/games/${game}/settings`)
-					: ({ game } as GamePreferencesFront);
-
-				gamePreferences.set({ ...getStore(gamePreferences), [game]: augment(data) });
-				loading.delete(game);
-			})
-			.catch((err) => {
-				loading.delete(game);
-				return Promise.reject(err);
-			}),
-	);
-
-	return loading.get(game);
+	const data = await fetchGamePreferences(game);
+	gamePreferences.update((all) => ({ ...all, [game]: data }));
 }
 
+/** Browser-only: fetch + store all games' preferences (1h freshness unless forced). */
 let lastUpdate = 0;
-let allPromise: Promise<void> | undefined;
 export async function loadAllGamePreferences(force = false): Promise<void> {
+	if (!browser) {
+		throw new Error("loadAllGamePreferences must not run during SSR — per-user store");
+	}
 	if (!getStore(account)) {
 		return;
 	}
-	if (allPromise) {
-		return allPromise;
-	}
-
 	if (!isEmpty(gamePreferences) && !force && Date.now() - lastUpdate < 3600 * 1000) {
 		return;
 	}
+	const data = await fetchAllGamePreferences();
+	lastUpdate = Date.now();
+	gamePreferences.set(data);
+}
 
-	return (allPromise = get<GamePreferencesFront[]>("/account/games/settings").then(
-		(prefs) => {
-			lastUpdate = Date.now();
-
-			const data: Record<string, GamePreferencesFront> = {};
-
-			for (const pref of prefs) {
-				data[pref.game] = augment(pref);
-			}
-
-			gamePreferences.set(data);
-		},
-		(err) => {
-			allPromise = undefined;
-			return Promise.reject(err);
-		},
-	));
+/**
+ * Store-cached getter for the WHOLE prefs map (mirrors `getGamePreferences`). In the
+ * browser: return the cached store if non-empty (no refetch); on a miss fetch and populate
+ * the store. On SSR: fetch and return (no store write). The returned map can be provided
+ * via context (`provideGamePreferences`) for SSR rendering.
+ */
+export async function getAllGamePreferences(): Promise<Record<string, GamePreferencesFront>> {
+	if (browser) {
+		const cached = getStore(gamePreferences);
+		if (!isEmpty(cached)) {
+			return cached;
+		}
+		const data = await fetchAllGamePreferences();
+		gamePreferences.set(data);
+		return data;
+	}
+	return fetchAllGamePreferences();
 }
 
 if (browser) {

@@ -70,14 +70,27 @@ export const handleFetch: HandleFetch = async ({ request, fetch, event }) => {
 	const ctx = requestContextStorage.getStore();
 	const path = new URL(request.url).pathname;
 
-	const backend = path.startsWith("/api/gameplay")
+	const isGameplay = path.startsWith("/api/gameplay");
+	const isMainApi = !isGameplay && path.startsWith("/api/");
+	const backend = isGameplay
 		? (import.meta.env.VITE_backend ?? "http://127.0.0.1:50803")
-		: path.startsWith("/api/")
+		: isMainApi
 			? (import.meta.env.VITE_backend ?? "http://127.0.0.1:50801")
 			: null;
 
 	if (backend) {
 		request = new Request(request.url.replace(event.url.origin, backend), request);
+
+		// Forward the session cookie to the main API only (never the game-server). SvelteKit's
+		// event.fetch only auto-forwards cookies when the target host matches the app origin —
+		// but we rewrite /api/* to the backend host, so forward it explicitly. The game-server
+		// runs untrusted engine code and must only ever see the minted "gameplay"-scoped bearer
+		// token, never the full-power session cookie. Request-scoped, never shared state.
+		const cookie = event.request.headers.get("cookie");
+		if (isMainApi && cookie && !request.headers.has("cookie")) {
+			request.headers.set("cookie", cookie);
+		}
+
 		if (ctx) {
 			request.headers.set("x-request-id", ctx.requestId);
 			if (ctx.clientIp) {

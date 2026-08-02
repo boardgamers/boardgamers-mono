@@ -1,12 +1,11 @@
 import { redirect } from "@sveltejs/kit";
 import type { PageLoad } from "./$types";
-import { get, setApiContext } from "@/lib/api";
-import { setAuthData, type AuthData } from "@/lib/auth.svelte";
+import { get } from "@/lib/api";
+import { setAuthData, type AuthData } from "@/lib/account.svelte";
 
 export const ssr = false;
 
-export const load: PageLoad = async ({ params, url, fetch }) => {
-	setApiContext((prev) => ({ ...prev, fetch }));
+export const load: PageLoad = async ({ params, url }) => {
 	const response = await get<{ createSocialAccount: boolean } & AuthData>(
 		`/account/auth/${params.provider}/callback`,
 		url.searchParams,

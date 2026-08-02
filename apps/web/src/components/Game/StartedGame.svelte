@@ -6,7 +6,7 @@
 	import { getContext, onDestroy, onMount } from "svelte";
 	import { loadGame } from "@/lib/game.svelte";
 	import { get, post } from "@/lib/api";
-	import { addDefaults, updatePreference, gamePreferences } from "@/lib/game-preferences.svelte";
+	import { addDefaults, updatePreference, gamePreferences, useGamePreferencesFallback } from "@/lib/game-preferences.svelte";
 	import { gameInfoKey } from "@/lib/game-info.svelte";
 	import { account as user } from "@/lib/account.svelte";
 	import { devGameSettings, developerSettings, lastGameUpdate } from "@/lib/stores.svelte";
@@ -38,7 +38,10 @@
 	// Note: `prefs` is intentionally left unannotated — an explicit GamePreferencesFront
 	// annotation/generic makes tsgo re-check the addDefaults call and drop the cast on
 	// the store index expression below (tsgo contextual-typing bug).
-	const storedPrefs: GamePreferencesFront = $derived($gamePreferences[gameName ?? ""] as GamePreferencesFront);
+	const ssrPrefs = useGamePreferencesFallback();
+	const storedPrefs: GamePreferencesFront = $derived(
+		($gamePreferences[gameName ?? ""] ?? ssrPrefs[gameName ?? ""]) as GamePreferencesFront
+	);
 	let prefs = $derived(addDefaults(storedPrefs, context.gameInfo!));
 
 	let src = $derived.by(() => {

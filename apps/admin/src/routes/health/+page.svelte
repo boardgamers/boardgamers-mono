@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { invalidateAll } from "$app/navigation";
 	import { api } from "$lib/api.ts";
-	import type { HealthData, ApiErrorEntry } from "./+page.ts";
+	import type { PageProps } from "./$types";
+	import type { ApiErrorEntry } from "./+page.ts";
 
-	let { data }: { data: { health: HealthData } } = $props();
+	let { data }: PageProps = $props();
 
 	let refreshing = $state(false);
 

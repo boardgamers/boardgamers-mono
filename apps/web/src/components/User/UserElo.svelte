@@ -1,38 +1,17 @@
 <script lang="ts">
-	import { gameInfo, loadGameInfo } from "@/lib/game-info.svelte";
-	import { get } from "@/lib/api";
-	import { handleError, pluralize } from "@/utils";
+	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
+	import { pluralize } from "@/utils";
 	import type { GamePreferencesFront } from "@bgs/models";
 	import IconInfoCircleFill from "@/components/icons/IconInfoCircleFill.svelte";
 
-	let { userId }: { userId: string } = $props();
+	// SSR'd by the user/[username] load function — no client-side fetch needed.
+	let { gamePreferences }: { gamePreferences: GamePreferencesFront[] } = $props();
 
-	let gamePreferences: GamePreferencesFront[] = $state([]);
-
-	const onUserIdChanged = () =>
-		get<GamePreferencesFront[]>(`/user/${userId}/games/elo`)
-			.then((prefs) => (gamePreferences = prefs))
-			.catch(handleError);
-
-	$effect(() => {
-		userId;
-		onUserIdChanged();
-	});
-
-	async function gameName(game: string): Promise<string> {
-		const info = gameInfo(game, "latest");
-
-		if (!info) {
-			return loadGameInfo(game, "latest").then(
-				() => gameName(game),
-				(err: Error) => {
-					handleError(err);
-					return "error";
-				}
-			);
-		}
-
-		return info.label;
+	// Game infos come from the root-provided context (set during SSR), so this resolves
+	// synchronously. Fall back to the raw game id if somehow missing.
+	const gameInfos = useGameInfos();
+	function gameName(game: string): string {
+		return gameInfos[gameInfoKey(game, "latest")]?.label ?? game;
 	}
 </script>
 
@@ -45,10 +24,8 @@
 			{#each gamePreferences.filter((pref) => !!pref.elo) as gamePref}
 				<div class="cursor-pointer px-4 py-2 hover:bg-accent/5">
 					<span>
-						{#await gameName(gamePref.game) then name}
-							{name} - <b>{gamePref.elo!.value}</b> in
-							{pluralize(gamePref.elo!.games, "game")}
-						{/await}
+						{gameName(gamePref.game)} - <b>{gamePref.elo!.value}</b> in
+						{pluralize(gamePref.elo!.games, "game")}
 					</span>
 				</div>
 			{/each}

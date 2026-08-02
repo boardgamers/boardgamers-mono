@@ -8,6 +8,7 @@ import type { GamePreferencesDoc } from "@bgs/models";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
 import { accessTokenDuration, createAccessToken, findGamesWithPlayersTurn, isUserAdmin } from "../../models/index.ts";
+import { parseRefreshCookie, clearRefreshCookie } from "../../models/session.ts";
 import {
 	confirm,
 	findByEmail,
@@ -292,6 +293,7 @@ router.post("/login", passport.authenticate("local-login", { session: false }), 
 
 router.post("/signout", (ctx: Context) => {
 	ctx.logout();
+	clearRefreshCookie(ctx);
 	ctx.status = 200;
 });
 
@@ -316,15 +318,25 @@ router.post("/confirm", async (ctx: Context) => {
 	await sendAuthInfo(ctx);
 });
 
-router.post("/refresh", async (ctx: Context) => {
-	const { code, scopes } = z
-		.object({ code: z.string(), scopes: z.array(z.string()).optional() })
-		.parse(ctx.request.body);
+const mintBodySchema = z.object({ code: z.string().optional(), scopes: z.array(z.string()).optional() });
+
+/**
+ * Mint a short-lived access token. The refresh code comes from the request body
+ * (legacy/API clients) or the session cookie (web). Used mainly to obtain a
+ * narrowly-scoped token (e.g. "gameplay") for the game-server.
+ */
+async function mintAccessToken(ctx: Context) {
+	const { code: bodyCode, scopes } = mintBodySchema.parse(ctx.request.body);
+	const code = bodyCode ?? parseRefreshCookie(ctx.cookies.get("refreshToken"));
+
+	if (!code) {
+		throw createError(401, "No refresh token (body or session cookie)");
+	}
 
 	const rt = await colls.jwtRefreshTokens.findOne({ code });
 
 	if (!rt) {
-		throw createError(404, "Can't find refresh token: " + code);
+		throw createError(404, "Can't find refresh token");
 	}
 
 	const user = await colls.users.findOne({ _id: rt.user });
@@ -336,7 +348,13 @@ router.post("/refresh", async (ctx: Context) => {
 		code: await createAccessToken(rt, scopes, isUserAdmin(user)),
 		expiresAt: Date.now() + accessTokenDuration(),
 	};
-});
+}
+
+router.post("/mint", mintAccessToken);
+
+// DEPRECATED: use /account/mint. Kept for the old web app / external clients during
+// the auth migration — remove once nothing calls /refresh anymore.
+router.post("/refresh", mintAccessToken);
 
 router.post("/reset", loggedOut, passport.authenticate("local-reset", { session: false }), sendAuthInfo);
 

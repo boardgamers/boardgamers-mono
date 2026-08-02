@@ -1,9 +1,7 @@
 import type { PageLoad } from "./$types";
 import { loadGames, clearGamesCache } from "@/lib/games.svelte";
-import { setApiContext } from "@/lib/api";
 
-export const load: PageLoad = async ({ params, fetch, url }) => {
-	setApiContext((prev) => ({ ...prev, fetch }));
+export const load: PageLoad = async ({ params, url }) => {
 	clearGamesCache();
 	const boardgameId = params.boardgameId;
 	// Start on the "Active" tab unless the URL asks for finished games (?status=ended).

@@ -14,7 +14,7 @@
 	import type { UserFront } from "@bgs/models";
 	import { useLoggedIn } from "@/lib/auth-guards.svelte";
 	import { post } from "@/lib/api";
-	import { gameInfo } from "@/lib/game-info.svelte";
+	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { page } from "$app/state";
 	import { SEO } from "@/components";
 	import TimeRangeSlider from "@/components/Form/TimeRangeSlider.svelte";
@@ -27,7 +27,10 @@
 	let karma = $derived((($account ?? page.data.user) as UserFront | null)?.account.karma ?? 80);
 
 	let boardgameId = $derived(page.params.boardgameId); // Can be undefined during page navigation out
-	let info = $derived(boardgameId ? gameInfo(boardgameId, "latest") : undefined);
+	// Game-info list comes from the root-provided context; capture the map at init
+	// (getContext) and read from it reactively.
+	const infos = useGameInfos();
+	let info = $derived(boardgameId ? infos[gameInfoKey(boardgameId, "latest")] : undefined);
 
 	let gameId = $state(randomId());
 	let showAdvanced = $state(false);

@@ -1,21 +1,13 @@
 <script lang="ts">
 	import { page } from "$app/state";
-	import { loadGameInfos, gameInfos, latestGameInfos } from "@/lib/game-info.svelte";
+	import { useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { logoClick } from "@/lib/stores.svelte";
 	import { post } from "@/lib/api";
 	import { account } from "@/lib/account.svelte";
 	import { handleError } from "@/utils";
 	import type { GameInfoFront, UserFront } from "@bgs/models";
 
-	loadGameInfos().catch(handleError);
-
-	// Read synchronously for SSR — the +layout.ts load function already called
-	// `await loadGameInfos()` which populated the store before this component renders.
-	let games = $state<GameInfoFront[]>(latestGameInfos() as GameInfoFront[]);
-	$effect(() => {
-		$gameInfos;
-		games = latestGameInfos() as GameInfoFront[];
-	});
+	const games = useLatestGameInfos() as GameInfoFront[];
 	let boardgameId = $derived(page!.params.boardgameId);
 
 	// Boardgames the player has played (open/active/ended), floated to the top and

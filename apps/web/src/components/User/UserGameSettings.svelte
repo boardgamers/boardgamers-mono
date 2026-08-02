@@ -3,7 +3,7 @@
 	import { untrack } from "svelte";
 	import { get as getStore } from "svelte/store";
 	import type { GameInfoFront } from "@bgs/models";
-	import { handleError, confirm, classnames } from "@/utils";
+	import { handleError, confirm, classnames, createWatcher } from "@/utils";
 	import Card from "@/modules/cdk/Card.svelte";
 	import { CardText, FormGroup, Input } from "@/modules/cdk";
 	import Checkbox from "@/modules/cdk/Checkbox.svelte";
@@ -12,7 +12,7 @@
 	import { post } from "@/lib/api";
 	import { gameInfoKey } from "@/lib/game-info.svelte";
 	import { developerSettings, devGameSettings } from "@/lib/stores.svelte";
-	import { gamePreferences, loadGamePreferences } from "@/lib/game-preferences.svelte";
+	import { gamePreferences, useGamePreferencesFallback } from "@/lib/game-preferences.svelte";
 
 	let {
 		title = "",
@@ -24,18 +24,18 @@
 		class?: string;
 	} = $props();
 
-	$effect(() => {
-		loadGamePreferences(game._id.game);
-	});
+	const ssrPrefs = useGamePreferencesFallback();
+	let prefs = $derived($gamePreferences[game._id.game] ?? ssrPrefs[game._id.game]);
 
-	let prefs = $derived($gamePreferences[game._id.game]);
+	let ownership = $state(untrack(() => ($gamePreferences[game._id.game] ?? ssrPrefs[game._id.game])?.access?.ownership ?? false));
 
-	// Seed synchronously from the store for SSR — the +layout.ts load function
-	// already called `await loadGamePreferences()` which populated the store.
-	let ownership = $state(untrack(() => getStore(gamePreferences)[game._id.game]?.access?.ownership ?? false));
-
-	$effect(() => {
+	// Only react to subsequent store changes — the initial value was already seeded above.
+	const syncOwnership = createWatcher(() => {
 		ownership = prefs?.access?.ownership ?? false;
+	});
+	$effect(() => {
+		prefs;
+		syncOwnership();
 	});
 
 	async function postOwnership(event: Event) {
