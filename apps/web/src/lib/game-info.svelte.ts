@@ -21,7 +21,7 @@ export type GameInfoMap = Record<string, SetOptional<GameInfoFront, "viewer">>;
 
 /**
  * Browser-only shared store — the backing cache for `gameInfo()` (the non-component
- * fallback), `getGameInfo`, `mergeGameInfos`, `loadGameInfo(s)`. NOT exported: component
+ * fallback), `getGameInfo`, `mergeGameInfos`. NOT exported: component
  * list reads must go through the context (`useGameInfos`/`useGameInfo`/`useLatestGameInfos`).
  * `clientWritable` throws on mutation during SSR, so this can never leak across requests.
  */
