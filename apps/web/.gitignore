@@ -4,3 +4,4 @@ build-new
 build-old
 node_modules
 /.svelte-kit
+.fast-check

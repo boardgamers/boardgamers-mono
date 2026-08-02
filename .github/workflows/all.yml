@@ -2,17 +2,17 @@ name: All
 on: [pull_request, push]
 
 jobs:
-  prettier:
+  format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: "24"
       - run: corepack enable
       - run: pnpm install
-      # Root check (docs, config files). Admin/web are excluded from the root
-      # check — they have their own .prettierrc with prettier-plugin-svelte + Svelte 5.
-      - run: pnpm run prettier-check
-      - run: cd apps/admin && npx prettier --check .
-      - run: cd apps/web && npx prettier --check .
+      # oxfmt formats JS/TS/YAML/MD/JSON across the repo (Svelte excluded — oxfmt's
+      # Svelte parser is still beta). Svelte files are checked by prettier.
+      - run: npx oxfmt --check .
+      - run: cd apps/admin && npx prettier --check "src/**/*.svelte"
+      - run: cd apps/web && npx prettier --check "src/**/*.svelte"

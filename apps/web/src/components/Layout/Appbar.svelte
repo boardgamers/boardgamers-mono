@@ -1,196 +1,205 @@
 <script lang="ts">
-  import {
-    Navbar,
-    Nav,
-    Dropdown,
-    DropdownToggle,
-    DropdownMenu,
-    Button,
-    Input,
-    Form,
-    FormGroup,
-    Label,
-    FormText,
-    NavLink,
-    Icon,
-  } from "@/modules/cdk";
-  import gearFill from "@iconify/icons-bi/gear-fill.js";
-  import power from "@iconify/icons-bi/power.js";
-  import { handleError } from "@/utils";
-  import { useAccount } from "@/composition/useAccount";
-  import { useLogoClicks } from "@/composition/useLogoClicks";
-  import { useActiveGames } from "@/composition/useActiveGames";
-  import { browser } from "$app/env";
-  import UserAvatar from "../User/UserAvatar.svelte";
+	import {
+		Navbar,
+		Nav,
+		Dropdown,
+		DropdownToggle,
+		DropdownMenu,
+		Button,
+		Input,
+		Form,
+		FormGroup,
+		Label,
+		FormText,
+		NavLink,
+	} from "@/modules/cdk";
+	import IconGearFill from "@/components/icons/IconGearFill.svelte";
+	import IconPower from "@/components/icons/IconPower.svelte";
+	import IconSunFill from "@/components/icons/IconSunFill.svelte";
+	import IconMoonFill from "@/components/icons/IconMoonFill.svelte";
+	import IconCircleHalf from "@/components/icons/IconCircleHalf.svelte";
+	import { handleError } from "@/utils";
+	import { account, login, logout } from "@/lib/account.svelte";
+	import { logoClick } from "@/lib/stores.svelte";
+	import { activeGames } from "@/lib/stores.svelte";
+	import { browser } from "$app/environment";
+	import { currentTheme, cycleTheme, type Theme } from "@/lib/theme";
+	import UserAvatar from "../User/UserAvatar.svelte";
+	import { page } from "$app/state";
+	import type { UserFront } from "@bgs/models";
 
-  const { account: user, login, logout } = useAccount();
-  const { logoClick } = useLogoClicks();
-  const { activeGames } = useActiveGames();
+	const themeLabel: Record<Theme, string> = {
+		light: "Light",
+		dark: "Dark",
+		system: "System",
+	};
 
-  let email = "";
-  let password = "";
-  let className = "";
-  let admin: boolean;
-  let hasGames: boolean;
+	let { class: className = "", ...rest } = $props();
+	let email = $state("");
+	let password = $state("");
 
-  export { className as class };
+	// Client prefers the account store (seeded by the layout, live-updates on
+	// login/logout); SSR falls back to page.data.user so the navbar renders the
+	// user immediately without a post-SSR flicker.
+	let user = $derived(($account ?? page.data.user) as UserFront | null);
 
-  const handleSubmit = (event: Event) => {
-    event.preventDefault();
+	const handleSubmit = (event: Event) => {
+		event.preventDefault();
 
-    login(email, password).catch(handleError);
-  };
+		login(email, password).catch(handleError);
+	};
 
-  const logOut = () => {
-    logout().catch(handleError);
-  };
+	const logOut = () => {
+		logout().catch(handleError);
+	};
 
-  $: admin = $user?.authority === "admin";
-  // todo use load() function of svelte kit instead
-  // $: adminLink =
-  //   location.hostname === "localhost"
-  //     ? "http://localhost:8613"
-  //     : `${location.protocol}//admin.${location.hostname.slice(location.hostname.indexOf(".") + 1)}`;
-  const adminLink = "https://admin.boardgamers.space";
-  $: hasGames = $activeGames.length > 0;
+	let admin = $derived(user?.authority === "admin");
+	// SSR fallback for active games so the count badge doesn't flicker after hydration.
+	let myActiveGames = $derived($activeGames.length > 0 ? $activeGames : ((page.data.activeGames as string[]) ?? []));
 
-  const onHasGamesChanged = () => {
-    if (hasGames) {
-      if (document.hidden) {
-        if ($user?.settings?.game?.soundNotification) {
-          (document.getElementById("sound-notification") as HTMLAudioElement).play();
-        }
-        if (localStorage.getItem("notifications")) {
-          new Notification("Boardgamers 🌌", { icon: "/favicon-active.ico", body: "It's your turn!" });
-        }
-      }
-    }
-  };
+	// Derive the admin panel URL from the current host: local dev → local admin port,
+	// production → admin.<root-domain> (handles www. and subdomains).
+	let adminLink = $derived.by(() => {
+		const { protocol, hostname } = page.url;
+		if (hostname === "localhost" || hostname === "127.0.0.1") {
+			return `${protocol}//${hostname}:8613`;
+		}
+		const rootDomain = hostname.startsWith("www.") ? hostname.slice(4) : hostname;
+		return `${protocol}//admin.${rootDomain}`;
+	});
 
-  $: (browser && onHasGamesChanged(), [hasGames]);
+	let hasGames = $derived(myActiveGames.length > 0);
+
+	const onHasGamesChanged = () => {
+		if (hasGames) {
+			if (document.hidden) {
+				if (user?.settings?.game?.soundNotification) {
+					(document.getElementById("sound-notification") as HTMLAudioElement).play();
+				}
+				if (localStorage.getItem("notifications")) {
+					new Notification("Boardgamers 🌌", { icon: "/favicon-active.ico", body: "It's your turn!" });
+				}
+			}
+		}
+	};
+
+	$effect(() => {
+		hasGames;
+		if (browser) onHasGamesChanged();
+	});
 </script>
 
 <Navbar color="primary" class={className} dark expand>
-  <a href="/" on:click={logoClick} sveltekit:prefetch class="navbar-brand">BGS</a>
+	<a
+		href="/"
+		onclick={logoClick}
+		data-sveltekit-preload-data="hover"
+		class="me-2 text-xl font-bold text-white no-underline hover:text-white">BGS</a
+	>
 
-  {#if $user}
-    <a
-      class="btn btn-sm me-3"
-      class:btn-success={hasGames}
-      class:btn-secondary={!hasGames}
-      href="/next-game"
-      title="Jump to next active game"
-      id="active-game-count"
-    >
-      {$activeGames.length}
-    </a>
-  {/if}
+	{#if user}
+		<a
+			class={`me-3 flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-bold text-white no-underline transition hover:text-white ${
+				hasGames ? "bg-green-600 hover:bg-green-500" : "bg-gray-500 hover:bg-gray-400"
+			}`}
+			href="/next-game"
+			title={hasGames
+				? `${myActiveGames.length} ${myActiveGames.length === 1 ? "game" : "games"} waiting for your move — click to jump to the next one`
+				: "No games waiting for your move"}
+			id="active-game-count"
+		>
+			{myActiveGames.length}
+		</a>
+	{/if}
 
-  <a href="/boardgames" title="Boardgames list" sveltekit:prefetch>
-    <img src="/images/icons/dice.svg" height="28" width="28" alt="Boardgames list" />
-  </a>
+	<a href="/boardgames" title="Boardgames list" data-sveltekit-preload-data="hover">
+		<img src="/images/icons/dice.svg" height="28" width="28" alt="Boardgames list" />
+	</a>
 
-  <audio preload="none" id="sound-notification">
-    <source src="/audio/notification.mp3" type="audio/mpeg" />
-    <source src="/audio/notification.ogg" type="audio/ogg" />
-  </audio>
+	<audio preload="none" id="sound-notification">
+		<source src="/audio/notification.mp3" type="audio/mpeg" />
+		<source src="/audio/notification.ogg" type="audio/ogg" />
+	</audio>
 
-  <Nav class="ms-auto" navbar>
-    {#if !$user}
-      <!-- todo: hide on mobile -->
-      <span class="navbar-text">Have an account?</span>
-      <Dropdown nav inNavbar>
-        <DropdownToggle nav caret>Login</DropdownToggle>
-        <DropdownMenu right class="login-dp">
-          <div class="row">
-            <div class="col-md-12">
-              Log in with
-              <div class="social-buttons">
-                <Button href="/api/account/auth/google" rel="external" class="google">Google</Button>
-                <Button href="/api/account/auth/discord" rel="external" class="discord">Discord</Button>
-                <Button href="/api/account/auth/facebook" rel="external" class="facebook">Facebook</Button>
-              </div>
-              or
-              <Form class="mt-3" on:submit={handleSubmit}>
-                <FormGroup>
-                  <Label hidden for="email">Email</Label>
-                  <Input id="email" type="email" required bind:value={email} autofocus />
-                </FormGroup>
-                <FormGroup>
-                  <Label hidden for="password">Password</Label>
-                  <Input id="password" type="password" bind:value={password} required />
-                  <FormText class="mt-2 pt-2">
-                    <a href="/forgotten-password">Forgotten password ?</a>
-                  </FormText>
-                </FormGroup>
-                <FormGroup>
-                  <Button type="submit" color="primary" block>Log in</Button>
-                </FormGroup>
-              </Form>
-            </div>
-            <div class="bottom text-center bg-red-300">
-              New ? <a href="/signup"><b>Join us</b></a>
-            </div>
-          </div>
-        </DropdownMenu>
-      </Dropdown>
-    {:else}
-      {#if admin}
-        <NavLink href={adminLink} class="d-flex" style="align-items: center; gap: 0.5em">
-          <Icon icon={gearFill} inline={true} class="big" />
-          <span class="d-none d-sm-inline">Admin</span>
-        </NavLink>
-      {/if}
-      <NavLink href={`/user/${$user.account.username}`} sveltekit:prefetch class="appbar-user-link">
-        <UserAvatar username={$user.account.username} userId={$user._id} size="2rem" />
-        <span class="d-none d-sm-inline">{$user.account.username}</span>
-      </NavLink>
-      <NavLink on:click={logOut} class="d-flex" style="align-items: center; gap: 0.5em">
-        <Icon icon={power} inline={true} class="big" />
-        <span class="d-none d-sm-inline">Log out</span>
-      </NavLink>
-    {/if}
-  </Nav>
+	<Nav class="ms-auto" navbar>
+		<button
+			onclick={cycleTheme}
+			title={`Theme: ${themeLabel[$currentTheme]}`}
+			class="me-2 flex items-center gap-1 rounded-md px-2 py-1 text-white hover:bg-white/10"
+		>
+			{#if $currentTheme === "light"}
+				<IconSunFill size="1.25rem" />
+			{:else if $currentTheme === "dark"}
+				<IconMoonFill size="1.25rem" />
+			{:else}
+				<IconCircleHalf size="1.25rem" />
+			{/if}
+			<span class="hidden sm:inline">{themeLabel[$currentTheme]}</span>
+		</button>
+
+		{#if !user}
+			<!-- todo: hide on mobile -->
+			<span class="text-white">Have an account?</span>
+			<Dropdown nav inNavbar>
+				<DropdownToggle nav caret>Login</DropdownToggle>
+				<DropdownMenu right class="mt-4 min-w-[250px] p-3.5 pb-0">
+					<div>
+						Log in with
+						<div class="mt-3 mb-1 flex flex-wrap justify-around">
+							<Button color="google" href="/api/account/auth/google" rel="external" class="w-[46%] mb-2">Google</Button>
+							<Button color="discord" href="/api/account/auth/discord" rel="external" class="w-[46%] mb-2"
+								>Discord</Button
+							>
+							<Button color="facebook" href="/api/account/auth/facebook" rel="external" class="w-[46%] mb-2"
+								>Facebook</Button
+							>
+						</div>
+						or
+						<Form class="mt-3" onsubmit={handleSubmit}>
+							<FormGroup>
+								<Label hidden for="email">Email</Label>
+								<Input id="email" type="email" required bind:value={email} autofocus />
+							</FormGroup>
+							<FormGroup>
+								<Label hidden for="password">Password</Label>
+								<Input id="password" type="password" bind:value={password} required />
+								<FormText class="mt-2 pt-2">
+									<a href="/forgotten-password">Forgotten password ?</a>
+								</FormText>
+							</FormGroup>
+							<FormGroup>
+								<Button type="submit" color="primary" block>Log in</Button>
+							</FormGroup>
+						</Form>
+					</div>
+					<div class="mt-3 border-t border-gray-200 p-3.5 text-center dark:border-gray-700">
+						New ? <a href="/signup"><b>Join us</b></a>
+					</div>
+				</DropdownMenu>
+			</Dropdown>
+		{:else}
+			{#if admin}
+				<NavLink href={adminLink} class="flex items-center gap-2">
+					<IconGearFill size="1.25rem" />
+					<span class="hidden sm:inline">Admin</span>
+				</NavLink>
+			{/if}
+			<NavLink
+				href={`/user/${user.account.username}`}
+				data-sveltekit-preload-data="hover"
+				class="flex items-center gap-2 rounded-md px-2 py-1 no-underline hover:bg-white/10 hover:text-white"
+			>
+				<UserAvatar username={user.account.username} userId={user._id} size="1.75rem" />
+				<span class="hidden sm:inline">{user.account.username}</span>
+			</NavLink>
+			<NavLink
+				onclick={logOut}
+				title="Log out"
+				class="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-white/10 hover:text-white"
+			>
+				<IconPower size="1.25rem" />
+				<span class="hidden sm:inline">Log out</span>
+			</NavLink>
+		{/if}
+	</Nav>
 </Navbar>
-
-<style lang="postcss" global>
-  .appbar-user-link {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    display: flex !important;
-    gap: 0.5rem;
-    align-items: center;
-  }
-  .login-dp {
-    min-width: 250px !important;
-    padding: 14px 14px 0 !important;
-    margin-top: 8px !important;
-    overflow: hidden;
-    right: 0;
-    background-color: rgba(255, 255, 255, 0.8);
-
-    .bottom {
-      border-top: 1px solid #ddd;
-      clear: both;
-      padding: 14px;
-    }
-
-    .social-buttons {
-      display: flex;
-      justify-content: space-around;
-      flex-wrap: wrap;
-      margin-top: 12px;
-      margin-bottom: 4px;
-
-      a {
-        width: 46%;
-        margin-bottom: 8px;
-      }
-    }
-  }
-
-  #active-game-count {
-    border-radius: 50%;
-    padding: 0.1rem 0.5rem;
-  }
-</style>

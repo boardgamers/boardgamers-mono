@@ -1,82 +1,96 @@
 <script lang="ts">
-  import { browser } from "$app/env";
-  import { debounce } from "lodash";
-  import { useRest } from "@/composition/useRest";
-  import { useAccount } from "@/composition/useAccount";
+	import { browser } from "$app/environment";
+	import { debounce } from "lodash";
+	import { get, post } from "@/lib/api";
+	import { account } from "@/lib/stores.svelte";
 
-  const { get, post } = useRest();
-  const { account } = useAccount();
+	let showNotes = $state(browser ? localStorage.getItem("show-notes") !== "false" : true);
 
-  let showNotes = browser ? localStorage.getItem("show-notes") !== "false" : true;
+	let notes = $state("");
+	let lastReceivedNotes = $state<string | null>(null);
+	let notesLoaded = $state(false);
+	let textArea: HTMLTextAreaElement;
 
-  let notes = "";
-  let lastReceivedNotes: string | null = null;
-  let notesLoaded = false;
-  let textArea: HTMLTextAreaElement;
+	let userId = $derived($account?._id);
+	let { gameId }: { gameId: string } = $props();
 
-  let userId: string | undefined;
-  export let gameId: string;
+	async function loadNotes() {
+		if (userId) {
+			lastReceivedNotes = notes = await get(`/game/${gameId}/notes`);
+			notesLoaded = true;
+			updateTextareaSize();
+			setTimeout(updateTextareaSize);
+		}
+	}
 
-  async function loadNotes() {
-    if (userId) {
-      lastReceivedNotes = notes = await get(`/game/${gameId}/notes`);
-      notesLoaded = true;
-      updateTextareaSize();
-      setTimeout(updateTextareaSize);
-    }
-  }
+	function toggleNotes() {
+		showNotes = !showNotes;
+		localStorage.setItem("show-notes", showNotes ? "true" : "");
+	}
 
-  function toggleNotes() {
-    showNotes = !showNotes;
-    localStorage.setItem("show-notes", showNotes ? "true" : "");
-  }
+	let updateNotesDebounce = debounce(
+		async () => {
+			if ($account && notes !== lastReceivedNotes) {
+				await post(`/game/${gameId}/notes`, { notes });
+			}
+		},
+		800,
+		{ leading: false, trailing: true }
+	);
 
-  let updateNotesDebounce = debounce(
-    async () => {
-      if ($account && notes !== lastReceivedNotes) {
-        await post(`/game/${gameId}/notes`, { notes });
-      }
-    },
-    800,
-    { leading: false, trailing: true }
-  );
+	// Initial load: run synchronously during component init so SSR has data.
+	loadNotes();
 
-  $: userId = $account?._id;
-  $: (loadNotes(), [userId, gameId]);
+	let firstRun = true;
 
-  function updateTextareaSize() {
-    if (!textArea) {
-      return;
-    }
-    textArea.style.height = "auto";
-    textArea.style.height = textArea.scrollHeight + (textArea.offsetHeight - textArea.clientHeight) + "px";
-  }
+	$effect(() => {
+		userId;
+		gameId;
+		// Skip the first run — initial load already happened synchronously above.
+		if (firstRun) {
+			firstRun = false;
+			return;
+		}
+		loadNotes();
+	});
+
+	function updateTextareaSize() {
+		if (!textArea) {
+			return;
+		}
+		textArea.style.height = "auto";
+		textArea.style.height = textArea.scrollHeight + (textArea.offsetHeight - textArea.clientHeight) + "px";
+	}
 </script>
 
-<div class="mt-75">
-  <div class="d-flex align-items-baseline">
-    <h3 class="mb-0">Notes</h3>
-    <div class="ms-2" style="font-size: smaller">
-      (<a
-        href={showNotes ? "#hideNotes" : "#showNotes"}
-        style="font-weight: unset !important"
-        on:click|preventDefault={toggleNotes}>{showNotes ? "hide" : "show"}</a
-      >)
-    </div>
-  </div>
+<div class="mt-3">
+	<div class="flex items-baseline">
+		<h3 class="mb-0">Notes</h3>
+		<div class="ms-2" style="font-size: smaller">
+			(<a
+				href={showNotes ? "#hideNotes" : "#showNotes"}
+				class="no-underline"
+				style="font-weight: unset"
+				onclick={(e) => {
+					e.preventDefault();
+					toggleNotes();
+				}}>{showNotes ? "hide" : "show"}</a
+			>)
+		</div>
+	</div>
 
-  <textarea
-    class={"mt-2 form-control" + (!showNotes ? " d-none" : "")}
-    bind:value={notes}
-    bind:this={textArea}
-    on:input={() => {
-      updateNotesDebounce();
-      updateTextareaSize();
-    }}
-    rows="3"
-    max-rows="8"
-    placeholder="You can make plans here..."
-    disabled={!$account || !notesLoaded}
-    style="overflow: hidden; resize: none"
-  />
+	<textarea
+		class={"mt-2 w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800" +
+			(!showNotes ? " hidden" : "")}
+		bind:value={notes}
+		bind:this={textArea}
+		oninput={() => {
+			updateNotesDebounce();
+			updateTextareaSize();
+		}}
+		rows="3"
+		placeholder="You can make plans here..."
+		disabled={!$account || !notesLoaded}
+		style="overflow: hidden; resize: none"
+	></textarea>
 </div>

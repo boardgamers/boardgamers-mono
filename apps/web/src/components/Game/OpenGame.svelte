@@ -1,359 +1,432 @@
 <script lang="ts">
-  import {
-    duration,
-    handleError,
-    niceDate,
-    oneLineMarked,
-    pluralize,
-    timerTime,
-    confirm,
-    localTimezone,
-    createWatcher,
-    defer,
-  } from "@/utils";
-  import clockHistory from "@iconify/icons-bi/clock-history.js";
-  import arrowDown from "@iconify/icons-bi/arrow-down.js";
-  import arrowUp from "@iconify/icons-bi/arrow-up.js";
-  import marked from "marked";
-  import {
-    Badge,
-    Button,
-    Dropdown,
-    DropdownItem,
-    DropdownMenu,
-    DropdownToggle,
-    FormGroup,
-    Input,
-    Icon,
-  } from "@/modules/cdk";
-  import { getContext } from "svelte";
-  import type { GameContext } from "@/routes/game/[gameId].svelte";
-  import { playerOrderText } from "@/data/playerOrders";
-  import { useAccount } from "@/composition/useAccount";
-  import { useCurrentGame } from "@/composition/useCurrentGame";
-  import { useRest } from "@/composition/useRest";
-  import { useGame } from "@/composition/useGame";
-  import { goto } from "$app/navigation";
-  import { redirectLoggedIn } from "@/utils/redirect";
-  import { page } from "$app/stores";
-  import SEO from "../SEO.svelte";
-  import removeMarkdown from "remove-markdown";
-  import { gameLabel } from "@/utils/game-label";
-  import type { IUser } from "@bgs/models";
-  import { debounce, map } from "lodash";
+	import {
+		duration,
+		handleError,
+		niceDate,
+		oneLineMarked,
+		pluralize,
+		timerTime,
+		confirm,
+		localTimezone,
+		createWatcher,
+		defer,
+	} from "@/utils";
+	import marked from "marked";
+	import { Badge, Button, Dropdown, DropdownItem, DropdownMenu, DropdownToggle, FormGroup, Input } from "@/modules/cdk";
+	import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
+	import IconList from "@/components/icons/IconList.svelte";
+	import IconPerson from "@/components/icons/IconPerson.svelte";
+	import IconHourglass from "@/components/icons/IconHourglass.svelte";
+	import UserAvatar from "@/components/User/UserAvatar.svelte";
+	import SetupOptionBadge from "./SetupOptionBadge.svelte";
+	import IconArrowDown from "@/components/icons/IconArrowDown.svelte";
+	import IconArrowUp from "@/components/icons/IconArrowUp.svelte";
+	import { getContext } from "svelte";
+	import type { GameContext } from "@/routes/game/[gameId]/game-context";
+	import { playerOrderText } from "@/data/playerOrders";
+	import { account as user } from "@/lib/account.svelte";
+	import { lastGameUpdate } from "@/lib/stores.svelte";
+	import { get, post } from "@/lib/api";
+	import { loadGame, loadGamePlayers } from "@/lib/game.svelte";
+	import { goto } from "$app/navigation";
+	import { redirectLoggedIn } from "@/utils/redirect";
+	import { page } from "$app/state";
+	import SEO from "../SEO.svelte";
+	import removeMarkdown from "remove-markdown";
+	import { gameLabel } from "@/utils/game-label";
+	import type { UserFront } from "@bgs/models";
+	import type { JsonObject, JsonValue } from "type-fest";
+	import { debounce } from "lodash";
 
-  const { post, get } = useRest();
+	const context = getContext("game") as GameContext;
+	let timer = $derived(context.game?.options.timing.timer);
+	let gameId = $derived(context.game?._id);
 
-  const { account: user } = useAccount();
-  const { lastGameUpdate } = useCurrentGame();
-  const { loadGame, loadGamePlayers } = useGame();
+	/** Game-specific options, keyed by option name. */
+	const gameOptions = (game: { game: { options?: unknown } } | null | undefined): JsonObject =>
+		(game?.game.options ?? {}) as JsonObject;
 
-  const { game, players, gameInfo }: GameContext = getContext("game");
-  $: timer = $game.options.timing.timer;
-  $: gameId = $game._id;
+	const shortPlayTime = () => {
+		if (timer?.start !== timer?.end) {
+			return `${timerTime(timer?.start ?? 0)}-${timerTime(timer?.end ?? 0)}`;
+		} else {
+			return "24h";
+		}
+	};
 
-  const shortPlayTime = () => {
-    if (timer?.start !== timer?.end) {
-      return `${timerTime(timer?.start)}-${timerTime(timer?.end)}`;
-    } else {
-      return "24h";
-    }
-  };
+	const playTime = () => {
+		if (timer?.start !== undefined) {
+			return `active between ${timerTime(timer.start)} and ${timerTime(
+				timer.end
+			)}, in your local time (${localTimezone()})`;
+		} else {
+			return "always active";
+		}
+	};
 
-  const playTime = () => {
-    if (timer?.start !== undefined) {
-      return `active between ${timerTime(timer?.start)} and ${timerTime(
-        timer?.end
-      )}, in your local time (${localTimezone()})`;
-    } else {
-      return "always active";
-    }
-  };
+	const leave = async () => {
+		if (await confirm("Are you sure you want to leave this game?")) {
+			post(`/game/${gameId}/unjoin`).then(() => goto("/"), handleError);
+		}
+	};
 
-  const leave = async () => {
-    if (await confirm("Are you sure you want to leave this game?")) {
-      post(`/game/${gameId}/unjoin`).then(() => goto("/"), handleError);
-    }
-  };
+	const join = async () => {
+		if (!$user) {
+			goto(redirectLoggedIn(page.url));
+			return;
+		}
 
-  const join = async () => {
-    if (!$user) {
-      goto(redirectLoggedIn($page.url));
-      return;
-    }
+		if (context.game && (context.game.options.timing.timePerGame ?? Infinity) <= 24 * 3600) {
+			if (
+				!(await confirm(
+					"This game has a short duration. You need to keep yourself available in order to play the game until the end."
+				))
+			) {
+				return;
+			}
+		}
 
-    if ($game.options.timing.timePerGame <= 24 * 3600) {
-      if (
-        !(await confirm(
-          "This game has a short duration. You need to keep yourself available in order to play the game until the end."
-        ))
-      ) {
-        return;
-      }
-    }
+		post(`/game/${gameId}/join`).catch(handleError);
+	};
 
-    post(`/game/${gameId}/join`).catch(handleError);
-  };
+	let playerOrder = $state<number[]>(context.game?.players.map((_, i) => i) ?? []);
 
-  let playerOrder: number[];
+	function refreshPlayerOrder() {
+		if (context.game) {
+			playerOrder = context.game.players.map((_, i) => i);
+		}
+	}
 
-  function refreshPlayerOrder() {
-    playerOrder = $game.players.map((_, i) => i);
-  }
+	$effect(() => {
+		context.game;
+		refreshPlayerOrder();
+	});
 
-  $: (refreshPlayerOrder(), [$game]);
+	const moveUp = (playerId: number) => {
+		const index = playerOrder.indexOf(playerId);
 
-  const moveUp = (playerId: number) => {
-    const index = playerOrder.indexOf(playerId);
+		if (index > 0) {
+			const tmp = playerOrder[index - 1];
+			playerOrder[index - 1] = playerOrder[index];
+			playerOrder[index] = tmp;
+			playerOrder = playerOrder;
+		}
+	};
 
-    if (index > 0) {
-      const tmp = playerOrder[index - 1];
-      playerOrder[index - 1] = playerOrder[index];
-      playerOrder[index] = tmp;
-      playerOrder = playerOrder;
-    }
-  };
+	const moveDown = (playerId: number) => {
+		const index = playerOrder.indexOf(playerId);
 
-  const moveDown = (playerId: number) => {
-    const index = playerOrder.indexOf(playerId);
+		if (index + 1 < playerOrder.length) {
+			const tmp = playerOrder[index + 1];
+			playerOrder[index + 1] = playerOrder[index];
+			playerOrder[index] = tmp;
+			playerOrder = playerOrder;
+		}
+	};
 
-    if (index + 1 < playerOrder.length) {
-      const tmp = playerOrder[index + 1];
-      playerOrder[index + 1] = playerOrder[index];
-      playerOrder[index] = tmp;
-      playerOrder = playerOrder;
-    }
-  };
+	let canStart = $derived(
+		context.game
+			? context.game.options.setup.nbPlayers === context.game.players.length &&
+					!context.game.ready &&
+					$user?._id === context.game.creator
+			: false
+	);
 
-  $: canStart = $game.options.setup.nbPlayers === $game.players.length && !$game.ready && $user?._id === $game.creator;
+	const start = () => {
+		post(`/game/${gameId}/start`, { playerOrder: playerOrder.map((x) => context.game?.players[x]._id) }).catch(
+			handleError
+		);
+	};
 
-  const start = () => {
-    post(`/game/${gameId}/start`, { playerOrder: playerOrder.map((x) => $game.players[x]._id) }).catch(handleError);
-  };
+	let isOpen = $state(false);
 
-  let isOpen = false;
+	let foundUsers = $state<UserFront[]>([]);
+	let query = $state("");
 
-  let foundUsers: IUser[] = [];
-  let query = "";
+	const invite = defer(async (userId: string, isName = false) => {
+		if (isName) {
+			const user = await get<UserFront>(`/user/infoByName/${encodeURIComponent(userId)}`);
+			userId = user._id ?? "";
+		}
+		post(`/game/${gameId}/invite`, { userId });
+	});
 
-  const invite = defer(async (userId: string, isName = false) => {
-    if (isName) {
-      const user = await get<IUser>(`/user/infoByName/${encodeURIComponent(userId)}`);
-      userId = user._id;
-    }
-    post(`/game/${gameId}/invite`, { userId });
-  });
+	const watcher = debounce(
+		async () => {
+			if (query) {
+				foundUsers = (await get<UserFront[]>("/user/search", { name: query.trim() }).catch(handleError)) || [];
+			} else {
+				foundUsers = [];
+			}
+		},
+		400,
+		{ leading: false }
+	);
 
-  const watcher = debounce(
-    async () => {
-      if (query) {
-        foundUsers = (await get<IUser[]>("/user/search", { name: query.trim() }).catch(handleError)) || [];
-      } else {
-        foundUsers = [];
-      }
-    },
-    400,
-    { leading: false }
-  );
+	$effect(() => {
+		query;
+		watcher();
+	});
 
-  $: (watcher(), query);
+	const updateGameWatcher = createWatcher(async () => {
+		if (context.game && gameId && $lastGameUpdate > new Date(context.game.updatedAt ?? 0)) {
+			const [g, p] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
 
-  const updateGameWatcher = createWatcher(async () => {
-    if ($game && $lastGameUpdate > new Date($game.updatedAt)) {
-      const [g, p] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
+			if (context.game && gameId === g._id) {
+				context.game = g;
+				context.players = p;
+			}
+		}
+	});
 
-      if ($game && gameId === g._id) {
-        $game = g;
-        $players = p;
-      }
-    }
-  });
-
-  // Autorefresh when another player joins
-  $: (updateGameWatcher(), $lastGameUpdate);
+	// Autorefresh when another player joins
+	$effect(() => {
+		$lastGameUpdate;
+		updateGameWatcher();
+	});
 </script>
 
 <SEO
-  title="{gameId} - {gameLabel($gameInfo.label)} game"
-  description="{$game.players.length} / {$game.options.setup.nbPlayers} players. Timer of {duration(
-    $game.options.timing.timePerGame
-  )} per player, with an additional {duration($game.options.timing.timePerMove)} per move.
-{$game.game.expansions?.length > 0 &&
-    `
-      Expansions: ${$game.game.expansions.join(',')}
-`}
-{$gameInfo.options
-    .filter((x) => !!($game.game.options || {})[x.name])
-    .map((pref) =>
-      pref.type === 'checkbox'
-        ? pref.label
-        : pref.type === 'select' && pref.items
-          ? pref.label + ': ' + pref.items.find((x) => x.name === $game.game.options[pref.name])?.label
-          : ''
-    )
-    .filter(Boolean)
-    .map((str) => `- ${removeMarkdown(str)}`)
-    .join('\n')}"
+	title="{gameId} - {gameLabel(context.gameInfo?.label ?? '')} game"
+	description="{context.game?.players.length} / {context.game?.options.setup.nbPlayers} players. Timer of {duration(
+		context.game?.options.timing.timePerGame ?? 0
+	)} per player, with an additional {duration(context.game?.options.timing.timePerMove ?? 0)} per move.
+{(context.game?.game.expansions?.length ?? 0) > 0 &&
+		`
+      Expansions: ${context.game?.game.expansions.join(',')}\\n`}
+{(context.gameInfo?.options ?? [])
+		.filter((x) => !!gameOptions(context.game)[x.name])
+		.map((pref) =>
+			pref.type === 'checkbox'
+				? pref.label
+				: pref.type === 'select' && pref.items
+					? pref.label + ': ' + pref.items.find((x) => x.name === gameOptions(context.game)[pref.name])?.label
+					: ''
+		)
+		.filter(Boolean)
+		.map((str) => `- ${removeMarkdown(str)}`)
+		.join('\\n')}"
 />
 
-<div class="container pb-3">
-  <h1 class="mb-3">{$gameInfo.label} – Open Game</h1>
+<div class="container mx-auto px-4 pb-3">
+	<!-- Title: boardgame link (breadcrumb-style) + status -->
+	<div class="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+		<h1 class="mb-0">{context.gameInfo?.label}</h1>
+		<span
+			class="rounded-full bg-blue-100 px-2.5 py-0.5 text-sm font-medium text-blue-800 dark:bg-blue-900/50 dark:text-blue-200"
+		>
+			Open game
+		</span>
+		<span class="text-sm text-gray-500 dark:text-gray-400">
+			{context.game?.players.length ?? 0} / {context.game?.options.setup.nbPlayers ?? 0} seats filled
+		</span>
+	</div>
+	<p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
+		<a href={`/boardgame/${context.gameInfo?._id.game}`}>About the game</a>
+		· <a href="/boardgame/{context.gameInfo?._id.game}/new-game">Create a new game</a>
+	</p>
 
-  <div class="row">
-    <div class="col-md-6">
-      <h2>Description</h2>
-      <div>
-        {@html marked($gameInfo.description)}
-      </div>
-    </div>
+	<!-- Intro description (no heading — reads as lead copy) -->
+	{#if context.gameInfo?.description}
+		<div class="mb-5 max-w-2xl text-gray-700 dark:text-gray-300">
+			{@html marked(context.gameInfo.description)}
+		</div>
+	{/if}
 
-    <div class="col-md-6">
-      <h2>Rules</h2>
-      <div>
-        {@html marked($gameInfo.rules)}
-      </div>
-    </div>
-  </div>
+	<div class="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
+		<div>
+			<h3
+				class="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
+			>
+				<IconList /> About this game
+			</h3>
+			<ul class="space-y-1.5 text-sm">
+				<li class="flex items-center gap-2">
+					<IconPerson class="text-gray-400" />
+					<span>
+						Hosted by
+						<a
+							href={`/user/${context.players.find((pl) => pl._id === context.game?.creator)?.name}`}
+							class="font-medium"
+						>
+							{context.players.find((pl) => pl._id === context.game?.creator)?.name}
+						</a>
+					</span>
+				</li>
+				<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+					<IconClockHistory class="text-gray-400" />
+					<span title="Timezone">Plays {shortPlayTime()}</span>
+				</li>
+				{#if context.game?.options.setup.seed}
+					<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+						<span title="Game seed">🌱 {context.game.options.setup.seed}</span>
+					</li>
+				{/if}
+				{#if typeof context.game?.options.meta?.minimumKarma === "number"}
+					<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+						<span title="Minimum karma to join the game"
+							>☯️ requires {context.game.options.meta.minimumKarma} karma</span
+						>
+					</li>
+				{/if}
+			</ul>
 
-  <h2>Info</h2>
-  <p>
-    Game <i>{gameId}</i>, created by
+			{#if context.game?.options.timing.scheduledStart}
+				<p class="mt-2 text-sm font-medium">
+					Scheduled to start on {niceDate(context.game.options.timing.scheduledStart)} at
+					{new Date(context.game.options.timing.scheduledStart).toLocaleTimeString("en")}
+				</p>
+			{/if}
+		</div>
 
-    <a href={`/user/${$players.find((pl) => pl._id === $game.creator)?.name}`}>
-      {$players.find((pl) => pl._id === $game.creator)?.name}
-    </a>
+		<div>
+			<h3
+				class="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
+			>
+				<IconHourglass /> Timer
+			</h3>
+			<ul class="space-y-1.5 text-sm">
+				<li>
+					<b>{duration(context.game?.options.timing.timePerGame ?? 0)}</b> per player,
+					<b>+{duration(context.game?.options.timing.timePerMove ?? 0)}</b> per move
+				</li>
+				<li class="text-gray-500 dark:text-gray-400">Clock runs {playTime()}</li>
+			</ul>
 
-    <br />
-    <small class="text-muted">
-      {#if typeof $game.options.meta?.minimumKarma === "number"}
-        <span title="Minimum karma to join the game">
-          ☯️ {$game.options.meta.minimumKarma}
-        </span>
-      {/if}
+			{#if context.gameInfo?.rules}
+				<h4 class="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Rules</h4>
+				<div class="rules text-sm">{@html marked(context.gameInfo.rules)}</div>
+			{/if}
+		</div>
+	</div>
 
-      {#if $game.options.setup.seed}
-        <span title="Game seed"> 🌱 {$game.options.setup.seed}</span>
-      {/if}
-      <span class="ps-1" title="Timezone"> <Icon icon={clockHistory} inline={true} /> {shortPlayTime()}</span>
-    </small>
-  </p>
+	{#if (context.game?.game.expansions?.length ?? 0) > 0}
+		<div class="mt-3">
+			<h3>Expansions</h3>
+			{#each context.game!.game.expansions as expansion}
+				<Badge color="info"
+					>{@html oneLineMarked(context.gameInfo?.expansions?.find((xp) => xp.name === expansion)?.label ?? "")}</Badge
+				>
+			{/each}
+		</div>
+	{/if}
 
-  {#if $game.options.timing.scheduledStart}
-    <div class="mb-3">
-      <b>
-        Game is scheduled to start on {niceDate($game.options.timing.scheduledStart)} at
-        {new Date($game.options.timing.scheduledStart).toLocaleTimeString("en")}
-      </b>
-    </div>
-  {/if}
+	<div class="mt-3">
+		<h3>Setup options</h3>
 
-  <h3>Timer</h3>
+		<div class="flex flex-wrap gap-1">
+			<Badge color="secondary" class="setup-badge"
+				>{playerOrderText(context.game?.options.setup.playerOrder ?? "random")}</Badge
+			>
+			{#each (context.gameInfo?.options ?? []).filter((x) => !!gameOptions(context.game)[x.name]) as pref}
+				<SetupOptionBadge {pref} value={gameOptions(context.game)[pref.name]} />
+			{/each}
+		</div>
+	</div>
 
-  <div>
-    {duration($game.options.timing.timePerGame)} per player, with an additional
-    {duration($game.options.timing.timePerMove)} per move
-  </div>
-  <div>Timer {playTime()}</div>
+	<!-- Players + status -->
+	<div class="my-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+		<h3 class="mb-3">
+			Players
+			<span class="ml-1 text-base font-normal text-gray-500 dark:text-gray-400">
+				{context.game?.players.length ?? 0} / {context.game?.options.setup.nbPlayers ?? 0}
+			</span>
+		</h3>
 
-  {#if $game.game.expansions?.length > 0}
-    <div class="mt-3">
-      <h3>Expansions</h3>
-      {#each $game.game.expansions as expansion}
-        <Badge color="info"
-          >{@html oneLineMarked($gameInfo.expansions.find((xp) => xp.name === expansion)?.label ?? "")}</Badge
-        >
-      {/each}
-    </div>
-  {/if}
+		{#if context.game && context.game.players.length > 0}
+			<ul class="mb-3 space-y-2">
+				{#each context.game.players as player}
+					{@const info = context.players.find((pl) => pl._id === player._id)}
+					<li class="flex items-center gap-2">
+						<UserAvatar userId={player._id} username={info?.name ?? "?"} size="2rem" />
+						<a href={`/user/${info?.name}`} class="font-medium">{info?.name}</a>
+						<span class="text-sm text-gray-500 dark:text-gray-400">{info?.elo} elo</span>
+						{#if player.pending}
+							<span
+								class="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+								>invited</span
+							>
+						{/if}
+						{#if player._id === context.game?.creator}
+							<span class="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary dark:text-primary-lighter"
+								>host</span
+							>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		{/if}
 
-  <div class="mt-3">
-    <h3>Setup options</h3>
+		{#if context.game && context.game.options.setup.nbPlayers > context.game.players.length}
+			<p class="mb-3 text-sm text-gray-600 dark:text-gray-300">
+				⏳ Waiting on <b
+					>{pluralize(context.game.options.setup.nbPlayers - context.game.players.length, "more player")}</b
+				> to start.
+			</p>
+			{#if $user?._id === context.game.creator && (1 || context.game.options.timing.scheduledStart)}
+				<FormGroup>
+					<label for="invite">Invite player</label>
+					<Dropdown isOpen={Boolean(isOpen && foundUsers.length)} toggle={() => (isOpen = !isOpen)}>
+						<DropdownToggle tag="div" class="inline-block">
+							<Input
+								id="invite"
+								bind:value={query}
+								onkeydown={(e) => e.key === "Enter" && invite((e.target as HTMLInputElement).value, true)}
+							/>
+						</DropdownToggle>
+						<DropdownMenu>
+							{#each foundUsers as result}
+								<DropdownItem onclick={() => invite(result._id)}>{result.account.username}</DropdownItem>
+							{/each}
+						</DropdownMenu>
+					</Dropdown>
+				</FormGroup>
+			{/if}
+		{:else if context.game && !context.game.ready}
+			{#if $user?._id === context.game.creator}
+				{#if context.game.options.setup.playerOrder === "host"}
+					<h3>Select player order</h3>
+					{#each playerOrder as playerIndex}
+						<div>
+							- {context.game.players[playerIndex].name}
+							<span
+								onclick={() => moveUp(playerIndex)}
+								role="button"
+								tabindex="0"
+								onkeydown={(e) => e.key === "Enter" && moveUp(playerIndex)}><IconArrowUp /></span
+							>
+							<span
+								onclick={() => moveDown(playerIndex)}
+								role="button"
+								tabindex="0"
+								onkeydown={(e) => e.key === "Enter" && moveDown(playerIndex)}><IconArrowDown /></span
+							>
+						</div>
+					{/each}
+					<Button color="primary" onclick={start} class="mt-4">Start the game!</Button>
+				{/if}
+			{:else if context.game.players.some((p) => p.pending)}
+				<p class="text-sm text-gray-600 dark:text-gray-300">Waiting on some players to accept the invitation.</p>
+			{:else}
+				<p class="text-sm"><b>Waiting on host for final settings</b></p>
+			{/if}
+		{:else if context.game?.options.timing.scheduledStart}
+			<p class="text-sm text-gray-600 dark:text-gray-300">Waiting on scheduled start.</p>
+		{/if}
+	</div>
 
-    <Badge color="secondary" class="me-1">{playerOrderText($game.options.setup.playerOrder)}</Badge>
-    {#each $gameInfo.options.filter((x) => !!($game.game.options || {})[x.name]) as pref}
-      <Badge color="secondary" class="me-1">
-        {#if pref.type === "checkbox"}
-          {@html oneLineMarked(pref.label)}
-        {:else if pref.type === "select" && pref.items && pref.items.some((x) => x.name === $game.game.options[pref.name])}
-          {@html oneLineMarked(
-            pref.label + ": " + pref.items.find((x) => x.name === $game.game.options[pref.name])?.label
-          )}
-        {/if}
-      </Badge>
-    {/each}
-  </div>
-
-  <div class="my-3">
-    <h3>Players</h3>
-    {#if $game.players.length > 0}
-      <div class="mb-2">
-        {#each $game.players as player}
-          <div>
-            -
-            <a href={`/user/${$players.find((pl) => pl._id === player._id)?.name}`}>
-              {$players.find((pl) => pl._id === player._id)?.name}
-            </a>
-            - {$players.find((pl) => pl._id === player._id)?.elo} elo {#if player.pending}<span class="text-muted">
-                (invited)
-              </span>{/if}
-          </div>
-        {/each}
-      </div>
-    {/if}
-    {#if $game.options.setup.nbPlayers > $game.players.length}
-      <p>Waiting on {pluralize($game.options.setup.nbPlayers - $game.players.length, "more player")}</p>
-      {#if $user?._id === $game.creator && (1 || $game.options.timing.scheduledStart)}
-        <FormGroup>
-          <label for="invite">Invite player</label>
-          <Dropdown isOpen={Boolean(isOpen && foundUsers.length)} toggle={() => (isOpen = !isOpen)}>
-            <DropdownToggle tag="div" class="d-inline-block">
-              <Input
-                id="invite"
-                bind:value={query}
-                on:keydown={(e) => e.key === "Enter" && invite(e.target.value, true)}
-              />
-            </DropdownToggle>
-            <DropdownMenu>
-              {#each foundUsers as result}
-                <DropdownItem on:click={() => invite(result._id)}>{result.account.username}</DropdownItem>
-              {/each}
-            </DropdownMenu>
-          </Dropdown>
-        </FormGroup>
-      {/if}
-    {:else if !$game.ready}
-      {#if $user?._id === $game.creator}
-        {#if $game.options.setup.playerOrder === "host"}
-          <h3>Select player order</h3>
-          {#each playerOrder as playerIndex}
-            <div>
-              - {$game.players[playerIndex].name}
-              <span on:click={() => moveUp(playerIndex)} role="button"><Icon icon={arrowUp} inline={true} /></span>
-              <span on:click={() => moveDown(playerIndex)} role="button"><Icon icon={arrowDown} inline={true} /></span>
-            </div>
-          {/each}
-          <Button color="primary" on:click={start} class="mt-4">Start the game!</Button>
-        {/if}
-      {:else if $game.players.some((p) => p.pending)}
-        <p>Waiting on some players to accept the invitation.</p>
-      {:else}
-        <p><b>Waiting on host for final settings</b></p>
-      {/if}
-    {:else if $game.options.timing.scheduledStart}
-      <p>Waiting on scheduled start</p>
-    {/if}
-  </div>
-
-  {#if !canStart}
-    {#if $game.players.some((pl) => pl._id === $user?._id)}
-      {#if $game.players.find((pl) => pl._id === $user._id).pending}
-        <Button color="accent" on:click={join}>Accept invitation</Button>
-        <Button color="secondary" on:click={leave}>Refuse invitation</Button>
-      {:else}
-        <Button color="warning" on:click={leave}>Leave</Button>
-      {/if}
-    {:else}
-      <Button color="accent" on:click={join}>Join!</Button>
-    {/if}
-  {/if}
+	{#if !canStart && context.game}
+		<div class="flex gap-2">
+			{#if context.game.players.some((pl) => pl._id === $user?._id)}
+				{#if context.game.players.find((pl) => pl._id === $user?._id)?.pending}
+					<Button color="accent" onclick={join}>Accept invitation</Button>
+					<Button color="secondary" onclick={leave}>Refuse invitation</Button>
+				{:else}
+					<Button color="warning" onclick={leave}>Leave</Button>
+				{/if}
+			{:else}
+				<Button color="accent" onclick={join}>Join!</Button>
+			{/if}
+		</div>
+	{/if}
 </div>

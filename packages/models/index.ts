@@ -1,5 +1,3 @@
-import type { Db, IndexDescription } from "mongodb";
-
 // --- API Error ---
 export type { ApiErrorDoc, ApiErrorFront } from "./api-error.ts";
 export { apiErrorSchema, API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollectionOptions } from "./api-error.ts";
@@ -7,21 +5,21 @@ export { apiErrorSchema, API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollec
 // --- Chat Message ---
 export type { ChatMessageDoc, ChatMessageFront } from "./chatmessage.ts";
 export {
-  chatMessageSchema,
-  CHAT_MESSAGES_COLLECTION,
-  chatMessageIndexes,
-  chatMessagesCollectionOptions,
+	chatMessageSchema,
+	CHAT_MESSAGES_COLLECTION,
+	chatMessageIndexes,
+	chatMessagesCollectionOptions,
 } from "./chatmessage.ts";
 
 // --- Game ---
 export type { GameDoc, GameFront, PlayerInfo, PlayerInfoFront, GameStatus, PlayerOrder } from "./game.ts";
 export {
-  gameSchema,
-  playerInfoSchema,
-  gameStatusSchema,
-  playerOrderSchema,
-  GAMES_COLLECTION,
-  gameIndexes,
+	gameSchema,
+	playerInfoSchema,
+	gameStatusSchema,
+	playerOrderSchema,
+	GAMES_COLLECTION,
+	gameIndexes,
 } from "./game.ts";
 
 // --- Game Info ---
@@ -31,10 +29,10 @@ export { gameInfoSchema, viewerInfoSchema, gameInfoOptionSchema, GAME_INFOS_COLL
 // --- Game Notification ---
 export type { GameNotificationDoc, GameNotificationFront, NotificationKind } from "./gamenotification.ts";
 export {
-  gameNotificationSchema,
-  notificationKindSchema,
-  GAME_NOTIFICATIONS_COLLECTION,
-  gameNotificationIndexes,
+	gameNotificationSchema,
+	notificationKindSchema,
+	GAME_NOTIFICATIONS_COLLECTION,
+	gameNotificationIndexes,
 } from "./gamenotification.ts";
 
 // --- Game Preferences ---
@@ -74,104 +72,5 @@ export { zObjectId, zDate } from "./helpers.ts";
 export { zodToMongoSchema } from "./mongo-schema.ts";
 export { withAutoUpdatedAt } from "./auto-updated-at.ts";
 
-// --- Backward-compat aliases for frontend migration from @bgs/types ---
-export type { UserFront as IUser, UserFront as IAbstractUser } from "./user.ts";
-export type { GameFront as IGame, GameFront as IAbstractGame } from "./game.ts";
-export type { GameInfoFront as GameInfo } from "./gameinfo.ts";
-export type { GamePreferencesFront as GamePreferences } from "./gamepreferences.ts";
-export type { GameNotificationFront as GameNotification } from "./gamenotification.ts";
-export type { ChatMessageFront as ChatMessage } from "./chatmessage.ts";
-export type { ApiErrorFront as ApiError } from "./api-error.ts";
-export type { PageFront as Page } from "./page.ts";
-export type { NotificationKind as notificationKind } from "./gamenotification.ts";
-
-// --- Setup helpers ---
-
-import type { ZodType } from "zod";
-import { API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollectionOptions, apiErrorSchema } from "./api-error.ts";
-import {
-  CHAT_MESSAGES_COLLECTION,
-  chatMessageIndexes,
-  chatMessagesCollectionOptions,
-  chatMessageSchema,
-} from "./chatmessage.ts";
-import { GAMES_COLLECTION, gameIndexes, gameSchema } from "./game.ts";
-import { GAME_INFOS_COLLECTION, gameInfoSchema } from "./gameinfo.ts";
-import { GAME_NOTIFICATIONS_COLLECTION, gameNotificationIndexes, gameNotificationSchema } from "./gamenotification.ts";
-import { GAME_PREFERENCES_COLLECTION, gamePreferencesIndexes, gamePreferencesSchema } from "./gamepreferences.ts";
-import { IMAGES_COLLECTION, imageIndexes, imageSchema } from "./image.ts";
-import { JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenIndexes, jwtRefreshTokenSchema } from "./jwtrefreshtoken.ts";
-import { LOGS_COLLECTION, logsCollectionOptions, logSchema } from "./log.ts";
-import { PAGES_COLLECTION, pageSchema } from "./page.ts";
-import { ROOM_METADATA_COLLECTION, roomMetaDataIndexes, roomMetaDataSchema } from "./roommetadata.ts";
-import { SETTINGS_COLLECTION, settingsSchema } from "./settings.ts";
-import { USERS_COLLECTION, userIndexes, userSchema } from "./user.ts";
-import { zodToMongoSchema } from "./mongo-schema.ts";
-
-async function ensureCappedCollection(db: Db, name: string, options: { size: number; max?: number }) {
-  const existing = await db.listCollections({ name }).toArray();
-  if (existing.length === 0) {
-    await db.createCollection(name, { capped: true, ...options });
-  }
-}
-
-export async function ensureCollections(db: Db) {
-  await ensureCappedCollection(db, API_ERRORS_COLLECTION, apiErrorsCollectionOptions);
-  await ensureCappedCollection(db, CHAT_MESSAGES_COLLECTION, chatMessagesCollectionOptions);
-  await ensureCappedCollection(db, LOGS_COLLECTION, logsCollectionOptions);
-}
-
-export async function ensureIndexes(db: Db) {
-  const indexMap: [string, IndexDescription[]][] = [
-    [GAMES_COLLECTION, gameIndexes],
-    [USERS_COLLECTION, userIndexes],
-    [API_ERRORS_COLLECTION, apiErrorIndexes],
-    [CHAT_MESSAGES_COLLECTION, chatMessageIndexes],
-    [GAME_NOTIFICATIONS_COLLECTION, gameNotificationIndexes],
-    [GAME_PREFERENCES_COLLECTION, gamePreferencesIndexes],
-    [IMAGES_COLLECTION, imageIndexes],
-    [JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenIndexes],
-    [ROOM_METADATA_COLLECTION, roomMetaDataIndexes],
-  ];
-
-  for (const [collection, indexes] of indexMap) {
-    await db.collection(collection).createIndexes(indexes);
-  }
-}
-
-export async function ensureValidation(db: Db) {
-  const validationMap: [string, ZodType][] = [
-    [API_ERRORS_COLLECTION, apiErrorSchema],
-    [CHAT_MESSAGES_COLLECTION, chatMessageSchema],
-    [GAMES_COLLECTION, gameSchema],
-    [GAME_INFOS_COLLECTION, gameInfoSchema],
-    [GAME_NOTIFICATIONS_COLLECTION, gameNotificationSchema],
-    [GAME_PREFERENCES_COLLECTION, gamePreferencesSchema],
-    [IMAGES_COLLECTION, imageSchema],
-    [JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenSchema],
-    [LOGS_COLLECTION, logSchema],
-    [PAGES_COLLECTION, pageSchema],
-    [ROOM_METADATA_COLLECTION, roomMetaDataSchema],
-    [SETTINGS_COLLECTION, settingsSchema],
-    [USERS_COLLECTION, userSchema],
-  ];
-
-  const existing = new Set((await db.listCollections().toArray()).map((c) => c.name));
-
-  for (const [collection, schema] of validationMap) {
-    if (!existing.has(collection)) {
-      continue;
-    }
-    try {
-      const $jsonSchema = zodToMongoSchema(schema);
-      await db.command({
-        collMod: collection,
-        validator: { $jsonSchema },
-        validationAction: "warn",
-        validationLevel: "moderate",
-      });
-    } catch (err) {
-      console.warn(`Failed to set validation on ${collection}:`, err);
-    }
-  }
-}
+// --- Backend DB setup (import from "./setup.ts" to avoid pulling mongodb into frontend bundles) ---
+export { ensureCollections, ensureIndexes, ensureValidation } from "./setup.ts";

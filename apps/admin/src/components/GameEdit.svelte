@@ -64,7 +64,7 @@
 		if (viewer.dependencies) {
 			viewer.dependencies.scripts = viewer.dependencies.scripts.map((s) => setNpmVersion(s, info.pkg!, info.latest!));
 			viewer.dependencies.stylesheets = viewer.dependencies.stylesheets.map((s) =>
-				setNpmVersion(s, info.pkg!, info.latest!),
+				setNpmVersion(s, info.pkg!, info.latest!)
 			);
 		}
 		upgrade[key] = undefined;

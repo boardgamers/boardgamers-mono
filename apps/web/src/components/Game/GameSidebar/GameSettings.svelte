@@ -1,71 +1,93 @@
 <script lang="ts">
-  import { Icon, Checkbox, Label, Input, FormGroup } from "@/modules/cdk";
-  import { handleError, oneLineMarked } from "@/utils";
-  import type { GameContext } from "@/pages/Game.svelte";
-  import infoCircleFill from "@iconify/icons-bi/info-circle-fill.js";
-  import { getContext } from "svelte";
-  import { useAccount } from "@/composition/useAccount";
-  import { useRest } from "@/composition/useRest";
+	import { Checkbox, Label, Input, FormGroup } from "@/modules/cdk";
+	import IconInfoCircleFill from "@/components/icons/IconInfoCircleFill.svelte";
+	import { handleError, oneLineMarked } from "@/utils";
+	import type { GameContext } from "@/routes/game/[gameId]/game-context";
+	import { getContext } from "svelte";
+	import { account } from "@/lib/stores.svelte";
+	import { post, get } from "@/lib/api";
 
-  const { account } = useAccount();
-  const { post, get } = useRest();
+	const context: GameContext = getContext("game");
+	let game = $derived(context.game);
+	let gameInfo = $derived(context.gameInfo);
+	let settings = $state<Record<string, unknown> | null>(null);
 
-  const { game, gameInfo }: GameContext = getContext("game");
-  let settings: Record<string, unknown> | null = null;
+	let userId = $derived($account?._id);
+	let playerUser = $derived(game?.players.find((pl) => pl._id === userId));
+	let gameStatus = $derived(game?.status);
+	let gameId = $derived(game?._id);
 
-  $: userId = $account?._id;
-  $: playerUser = $game?.players.find((pl) => pl._id === userId);
-  $: gameStatus = $game?.status;
-  $: gameId = $game?._id;
+	async function loadSettings() {
+		if (gameStatus !== "active" || !playerUser || !gameInfo) {
+			settings = null;
+			return;
+		}
+		if ((gameInfo.settings?.length ?? 0) > 0) {
+			settings = (await get<typeof settings>(`/gameplay/${gameId}/settings`).catch(handleError)) ?? null;
+		} else {
+			settings = null;
+		}
+	}
 
-  async function loadSettings() {
-    if (gameStatus !== "active" || !playerUser || !$gameInfo) {
-      settings = null;
-      return;
-    }
-    if ($gameInfo.settings?.length > 0) {
-      settings = (await get<typeof settings>(`/gameplay/${gameId}/settings`).catch(handleError)) ?? null;
-    } else {
-      settings = null;
-    }
-  }
+	// Initial load: run synchronously during component init so SSR has data.
+	loadSettings();
 
-  $: (loadSettings(), [gameStatus, userId, $gameInfo]);
+	let firstRun = true;
 
-  async function postSettings() {
-    if (!$account) {
-      return;
-    }
-    await post(`/gameplay/${gameId}/settings`, settings as any);
-  }
+	$effect(() => {
+		gameStatus;
+		userId;
+		gameInfo;
+		// Skip the first run — initial load already happened synchronously above.
+		if (firstRun) {
+			firstRun = false;
+			return;
+		}
+		loadSettings();
+	});
+
+	async function postSettings() {
+		if (!$account) {
+			return;
+		}
+		await post(`/gameplay/${gameId}/settings`, settings as any);
+	}
 </script>
 
-{#if $gameInfo?.settings?.length > 0 && $game.status === "active" && settings && playerUser}
-  <div class="mt-75">
-    <h3>
-      Settings
-      <a href={`/page/${$game.game.name}/settings`}>
-        <Icon icon={infoCircleFill} class="small" />
-      </a>
-    </h3>
-    <!-- Code very similar to PreferencesChooser -->
-    {#each $gameInfo.settings as setting}
-      {#if !setting.faction || setting.faction === playerUser.faction}
-        {#if setting.type === "checkbox"}
-          <Checkbox bind:checked={settings[setting.name]} on:change={postSettings}>
-            {setting.label}
-          </Checkbox>
-        {:else if setting.type === "select"}
-          <FormGroup class="d-flex align-items-center mt-2">
-            <Label class="nowrap me-2 mb-0">{@html oneLineMarked(setting.label)}</Label>
-            <Input type="select" bind:value={settings[setting.name]} on:change={postSettings} bsSize="sm">
-              {#each setting.items as item}
-                <option value={item.name}>{item.label}</option>
-              {/each}
-            </Input>
-          </FormGroup>
-        {/if}
-      {/if}
-    {/each}
-  </div>
+{#if game && gameInfo && (gameInfo.settings?.length ?? 0) > 0 && game.status === "active" && settings && playerUser}
+	<div class="mt-3">
+		<h3>
+			Settings
+			<a href={`/page/${game.game.name}/settings`}>
+				<IconInfoCircleFill class="text-xs" />
+			</a>
+		</h3>
+		<!-- Code very similar to PreferencesChooser -->
+		{#each gameInfo.settings ?? [] as setting}
+			{#if !setting.faction || setting.faction === playerUser.faction}
+				{#if setting.type === "checkbox"}
+					{@const settingName = setting.name}
+					{@const settingsObj = settings}
+					<Checkbox
+						checked={(settingsObj[settingName] as boolean | undefined) ?? false}
+						onchange={(e) => {
+							settingsObj[settingName] = (e.target as HTMLInputElement).checked;
+							postSettings();
+						}}
+					>
+						{setting.label}
+					</Checkbox>
+				{:else if setting.type === "select"}
+					<FormGroup class="flex items-center mt-2">
+						<Label class="whitespace-nowrap me-2 mb-0">{@html oneLineMarked(setting.label)}</Label>
+						<Input type="select" bind:value={settings[setting.name]} onchange={postSettings} bsSize="sm">
+							{#each setting.items as item}
+								<option value={item.name}>{item.label}</option>
+							{/each}
+						</Input>
+					</FormGroup>
+				{/if}
+			{/if}
+		{/each}
+	</div>
 {/if}

@@ -2,13 +2,13 @@ import { z } from "zod";
 import { zObjectId, zDate } from "./helpers.ts";
 
 export const logSchema = z.object({
-  kind: z.enum(["processGameEnded", "processPlayerDrop", "mailChange"]),
-  data: z.object({
-    game: z.string().optional(),
-    player: zObjectId().optional(),
-    change: z.object({ from: z.string().optional(), to: z.string() }).optional(),
-  }),
-  createdAt: zDate().optional(),
+	kind: z.enum(["processGameEnded", "processPlayerDrop", "mailChange"]),
+	data: z.object({
+		game: z.string().optional(),
+		player: zObjectId().optional(),
+		change: z.object({ from: z.string().optional(), to: z.string() }).optional(),
+	}),
+	createdAt: zDate().optional(),
 });
 
 export type LogDoc = z.output<typeof logSchema>;

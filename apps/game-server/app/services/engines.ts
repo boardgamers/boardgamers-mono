@@ -9,49 +9,49 @@ const engines: Record<string, Engine> = {};
  * package name+version (see installer.ts) so a new engine version always gets a
  * brand-new install path — which is what actually busts the ESM module cache. */
 export function engineKey(game: string, version: number, pkg: { name: string; version: string }): string {
-  const name = pkg.name.replace(/^@/, "").replace(/[/@]/g, "-");
-  const version_ = pkg.version.replace(/[^0-9A-Za-z.-]/g, "-");
-  return `${game}_${version}_${name}_${version_}`;
+	const name = pkg.name.replace(/^@/, "").replace(/[/@]/g, "-");
+	const version_ = pkg.version.replace(/[^0-9A-Za-z.-]/g, "-");
+	return `${game}_${version}_${name}_${version_}`;
 }
 
 async function requirePath(name: string, version: number) {
-  const info = await colls.gameInfos.findOne({ _id: { game: name, version } }, { projection: { engine: 1 } });
-  assert(info?.engine?.package && info.engine.entryPoint, `No engine registered for ${name} v${version}`);
-  return `../../games/node_modules/${engineKey(name, version, info.engine.package)}/${info.engine.entryPoint}`;
+	const info = await colls.gameInfos.findOne({ _id: { game: name, version } }, { projection: { engine: 1 } });
+	assert(info?.engine?.package && info.engine.entryPoint, `No engine registered for ${name} v${version}`);
+	return `../../games/node_modules/${engineKey(name, version, info.engine.package)}/${info.engine.entryPoint}`;
 }
 
 export async function getEngine(name: string, version: number): Promise<Engine> {
-  const key = `${name}_${version}`;
+	const key = `${name}_${version}`;
 
-  if (!engines[key]) {
-    // NOTE: we can't `decache` the previous module here — that only clears the
-    // CommonJS require.cache, but engines are loaded via dynamic `import()`
-    // (ESM), whose cache decache never touches. Because the import path embeds
-    // the package version, a bumped engine resolves to a new, uncached path.
-    engines[key] = await import(await requirePath(name, version));
-  }
+	if (!engines[key]) {
+		// NOTE: we can't `decache` the previous module here — that only clears the
+		// CommonJS require.cache, but engines are loaded via dynamic `import()`
+		// (ESM), whose cache decache never touches. Because the import path embeds
+		// the package version, a bumped engine resolves to a new, uncached path.
+		engines[key] = await import(await requirePath(name, version));
+	}
 
-  assert(engines[key], "Game server hasn't loaded the engine for this game yet");
+	assert(engines[key], "Game server hasn't loaded the engine for this game yet");
 
-  return engines[key];
+	return engines[key];
 }
 
 export function refreshEngine(name: string, version: number) {
-  console.log("refreshing engine", name, version, cluster.isPrimary);
-  delete engines[`${name}_${version}`];
+	console.log("refreshing engine", name, version, cluster.isPrimary);
+	delete engines[`${name}_${version}`];
 
-  if (cluster.isPrimary) {
-    for (const worker of Object.values(cluster.workers)) {
-      worker.send({ type: "refreshEngine", name, version });
-    }
-  }
+	if (cluster.isPrimary) {
+		for (const worker of Object.values(cluster.workers)) {
+			worker.send({ type: "refreshEngine", name, version });
+		}
+	}
 }
 
 if (cluster.isWorker) {
-  process.on("message", (msg: { type?: string; name?: string; version?: number }) => {
-    console.log("received message from master", msg);
-    if (msg.type === "refreshEngine") {
-      refreshEngine(msg.name, msg.version);
-    }
-  });
+	process.on("message", (msg: { type?: string; name?: string; version?: number }) => {
+		console.log("received message from master", msg);
+		if (msg.type === "refreshEngine") {
+			refreshEngine(msg.name, msg.version);
+		}
+	});
 }

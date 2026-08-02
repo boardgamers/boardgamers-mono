@@ -39,7 +39,7 @@
 		dbErrorsLoading = true;
 		try {
 			const res = await api.get<{ errors: ApiErrorEntry[]; total: number }>(
-				`/admin/errors?page=${dbErrorsPage + 1}&limit=20`,
+				`/admin/errors?page=${dbErrorsPage + 1}&limit=20`
 			);
 			allDbErrors = [...allDbErrors, ...res.errors];
 			dbErrorsPage++;
@@ -68,7 +68,7 @@
 	const totalRequests = $derived(statusCounts.reduce((a, b) => a + b.count, 0));
 	// Exclude 401s (routine auth checks) from the error count — they're not real errors.
 	const errorCount = $derived(
-		statusCounts.filter((s) => Number(s.status) >= 400 && s.status !== "401").reduce((a, b) => a + b.count, 0),
+		statusCounts.filter((s) => Number(s.status) >= 400 && s.status !== "401").reduce((a, b) => a + b.count, 0)
 	);
 </script>
 

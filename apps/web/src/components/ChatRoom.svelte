@@ -1,264 +1,183 @@
 <script lang="ts">
-  import chat from "@iconify/icons-bi/chat.js";
-  import { useAccount } from "@/composition/useAccount";
-  import { useCurrentGame } from "@/composition/useCurrentGame";
-  import { useCurrentRoom } from "@/composition/useCurrentRoom";
-  import { useRest } from "@/composition/useRest";
-  import { useSidebarOpen } from "@/composition/useSidebarOpen";
-  import { Modal, ModalHeader, Icon, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
-  import { dateFromObjectId, dateTime, handleError } from "@/utils";
-  import { fly } from "svelte/transition";
-  import UserAvatar from "./User/UserAvatar.svelte";
+	import { account, currentGameId, sidebarOpen, chatMessages } from "@/lib/stores.svelte";
+	import { get, post } from "@/lib/api";
+	import { Modal, ModalHeader, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
+	import IconChat from "@/components/icons/IconChat.svelte";
+	import { dateFromObjectId, handleError } from "@/utils";
+	import { fly } from "svelte/transition";
+	import UserAvatar from "./User/UserAvatar.svelte";
 
-  const { get, post } = useRest();
-  const { account } = useAccount();
-  const { currentGameId } = useCurrentGame();
-  const { sidebarOpen } = useSidebarOpen();
-  const { chatMessages } = useCurrentRoom();
+	let isOpen = $state(false);
+	let toggle = () => {
+		isOpen = !isOpen;
+	};
+	let lastRead = $state(0);
+	let { room }: { room: string } = $props();
 
-  let isOpen = false;
-  let toggle = () => {
-    isOpen = !isOpen;
-  };
-  let lastRead: number = 0;
-  export let room: string;
+	let currentMessage = $state("");
 
-  let currentMessage = "";
+	const sendMessage = async () => {
+		console.log("send message");
+		const msg = currentMessage;
+		currentMessage = "";
 
-  const sendMessage = async () => {
-    console.log("send message");
-    const msg = currentMessage;
-    currentMessage = "";
+		// Mark message as delivered? by adding meta: 'Delivered'
+		return post(`/game/${room}/chat`, {
+			author: "me",
+			data: {
+				text: msg,
+			},
+			type: "text",
+		}).catch(handleError);
+	};
 
-    // Mark message as delivered? by adding meta: 'Delivered'
-    return post(`/game/${room}/chat`, {
-      author: "me",
-      data: {
-        text: msg,
-      },
-      type: "text",
-    }).catch(handleError);
-  };
+	let messagesContainer: HTMLDivElement;
 
-  let messagesContainer: ModalBody;
+	function onMessagesChanged() {
+		setTimeout(() => {
+			if (messagesContainer) {
+				messagesContainer.scrollTop = messagesContainer.scrollHeight;
+			}
+		});
 
-  function onMessagesChanged() {
-    setTimeout(() => {
-      if (messagesContainer) {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      }
-    });
+		if (isOpen) {
+			postLastRead();
+		}
+	}
 
-    if (isOpen) {
-      postLastRead();
-    }
-  }
+	async function loadLastRead() {
+		if (userId) {
+			lastRead = await get(`/game/${room}/chat/lastRead`);
+		} else {
+			lastRead = 0;
+		}
+	}
 
-  async function loadLastRead() {
-    if (userId) {
-      lastRead = await get(`/game/${room}/chat/lastRead`);
-    } else {
-      lastRead = 0;
-    }
-  }
+	async function postLastRead() {
+		const lastMessage = $chatMessages.slice(-1).pop();
 
-  async function postLastRead() {
-    const lastMessage = $chatMessages.slice(-1).pop();
+		if (!lastMessage) {
+			return;
+		}
 
-    if (!lastMessage) {
-      return;
-    }
+		if (!lastMessage._id) {
+			return;
+		}
 
-    const lastMessageTime = dateFromObjectId(lastMessage._id).getTime();
+		const lastMessageTime = dateFromObjectId(lastMessage._id).getTime();
 
-    if (lastMessageTime <= lastRead) {
-      return;
-    }
+		if (lastMessageTime <= lastRead) {
+			return;
+		}
 
-    lastRead = Date.now();
+		lastRead = Date.now();
 
-    if (userId) {
-      await post(`/game/${room}/chat/lastRead`, { lastRead }).catch(handleError);
-    }
-  }
+		if (userId) {
+			await post(`/game/${room}/chat/lastRead`, { lastRead }).catch(handleError);
+		}
+	}
 
-  $: userId = $account?._id;
-  $: (onMessagesChanged(), [$chatMessages, isOpen]);
-  $: (loadLastRead(), [userId, room]);
-  $: unreadMessages = $chatMessages.filter(
-    (msg) => msg.type !== "system" && dateFromObjectId(msg._id).getTime() > lastRead
-  ).length;
+	let userId = $derived($account?._id);
+	$effect(() => {
+		$chatMessages;
+		isOpen;
+		onMessagesChanged();
+	});
+	$effect(() => {
+		userId;
+		room;
+		loadLastRead();
+	});
+	let unreadMessages = $derived(
+		$chatMessages.filter((msg) => msg.type !== "system" && !!msg._id && dateFromObjectId(msg._id).getTime() > lastRead)
+			.length
+	);
+
+	// Close on Escape while the chat is open.
+	$effect(() => {
+		if (!isOpen) return;
+		const onKey = (e: KeyboardEvent) => e.key === "Escape" && (isOpen = false);
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
+	});
+
+	// Friendly locale timestamp, e.g. "Jul 23, 12:22 AM".
+	function chatTime(objectId: string | undefined): string {
+		if (!objectId) {
+			return "";
+		}
+		return dateFromObjectId(objectId).toLocaleString(undefined, {
+			month: "short",
+			day: "numeric",
+			hour: "numeric",
+			minute: "2-digit",
+		});
+	}
 </script>
 
 <Modal
-  {isOpen}
-  {toggle}
-  backdrop={false}
-  transitionType={fly}
-  transitionOptions={{ y: -300 }}
-  class={"chat-modal" + ($sidebarOpen ? " sidebar-open" : "")}
+	{isOpen}
+	{toggle}
+	backdrop
+	backdropClassName="!bg-transparent"
+	transitionType={fly}
+	transitionOptions={{ y: -300 }}
+	class={"chat-modal" + ($sidebarOpen ? " sidebar-open" : "")}
 >
-  <ModalHeader {toggle}
-    ><Icon icon={chat} height="1.5rem" style="vertical-align: -0.25rem" /> {$currentGameId}</ModalHeader
-  >
-  <div class="chat-messages modal-body" bind:this={messagesContainer}>
-    {#each $chatMessages as message}
-      <div class="message-container" class:sent={message.author?._id === userId}>
-        {#if message.author}
-          <UserAvatar userId={message.author._id} username={message.author.name} size="3rem" />
-        {/if}
-        <div
-          class="message"
-          class:system={message.type === "system"}
-          title={"Sent at " + dateTime(dateFromObjectId(message._id))}
-        >
-          {message.data.text}
-          {#if !message.author}
-            <p class="message-meta">
-              {dateTime(dateFromObjectId(message._id))}
-            </p>
-          {/if}
-        </div>
-        <span class="mx-4" />
-      </div>
-    {/each}
-    <span style="height: 0">&nbsp;</span>
-  </div>
-  <ModalFooter>
-    <form on:submit|preventDefault={sendMessage} style="width: 100%">
-      <InputGroup>
-        <Input type="text" bind:value={currentMessage} />
-        <Button type="submit" color="secondary" outline>Send</Button>
-      </InputGroup>
-    </form>
-  </ModalFooter>
+	<ModalHeader {toggle} class="gap-2">
+		<IconChat size="1.25rem" class="shrink-0 text-gray-400" />
+		<span class="truncate font-semibold">{$currentGameId}</span>
+	</ModalHeader>
+	<div class="chat-messages thin-scrollbar" bind:this={messagesContainer}>
+		{#each $chatMessages as message}
+			{#if message.type === "system"}
+				<div class="my-3 text-center text-xs text-gray-400 italic" title={chatTime(message._id)}>
+					{message.data.text}
+					<span class="ml-1 not-italic opacity-60">· {chatTime(message._id)}</span>
+				</div>
+			{:else}
+				{@const sent = message.author?._id === userId}
+				<div class="mb-3 flex items-end gap-2 {sent ? 'flex-row-reverse' : ''}">
+					{#if message.author}
+						<a href={`/user/${message.author.name}`} title={message.author.name} class="shrink-0" tabindex="-1">
+							<UserAvatar userId={message.author._id} username={message.author.name} size="2.5rem" />
+						</a>
+					{/if}
+					<div
+						class="max-w-[75%] rounded-2xl px-3 py-2 text-sm leading-snug whitespace-pre-wrap {sent
+							? 'rounded-br-md bg-blue-500 text-white'
+							: 'rounded-bl-md bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100'}"
+						title={"Sent at " + chatTime(message._id)}
+					>
+						{message.data.text}
+					</div>
+				</div>
+			{/if}
+		{/each}
+	</div>
+	<ModalFooter class="p-3">
+		<form
+			onsubmit={(e) => {
+				e.preventDefault();
+				sendMessage();
+			}}
+			class="w-full"
+		>
+			<InputGroup>
+				<Input type="text" bind:value={currentMessage} placeholder="Type a message…" />
+				<Button type="submit" color="primary">Send</Button>
+			</InputGroup>
+		</form>
+	</ModalFooter>
 </Modal>
 
 <Button
-  color="primary"
-  on:click={toggle}
-  class={"rounded-circle b-avatar sidebar-fab chat-button" + ($sidebarOpen ? " sidebar-open" : "")}
+	color="primary"
+	onclick={toggle}
+	class={"!rounded-full sidebar-fab chat-button" + ($sidebarOpen ? " sidebar-open" : "")}
 >
-  <Icon icon={chat} style="height: 1.5rem; width: 1.5rem;" class="absolute-center" />
-  {#if unreadMessages}
-    <Badge pill color="danger">{unreadMessages}</Badge>
-  {/if}
+	<IconChat size="1.5rem" />
+	{#if unreadMessages}
+		<Badge pill color="danger">{unreadMessages}</Badge>
+	{/if}
 </Button>
-
-<style lang="postcss" global>
-  .modal {
-    pointer-events: none;
-  }
-
-  .chat-messages {
-    display: flex;
-    flex-direction: column;
-    font-family:
-      Helvetica Neue,
-      Helvetica,
-      Arial,
-      sans-serif;
-    max-height: calc(100vh - 300px);
-    overflow-y: auto;
-
-    .message-container {
-      display: flex;
-      flex-direction: row;
-      &:not(:last-of-type) {
-        margin-bottom: 0.75em;
-      }
-      &:last-of-type {
-        margin-bottom: -0.5em;
-      }
-
-      &.sent {
-        flex-direction: row-reverse;
-      }
-      align-items: center;
-
-      .message {
-        color: rgb(34, 34, 34);
-        background-color: rgb(234, 234, 234);
-        border-radius: 6px;
-        padding: 8px 20px;
-        margin-right: auto;
-        white-space: pre-wrap;
-        line-height: 1.2;
-        font-size: 14px;
-        margin-left: 1em;
-
-        display: grid; /* To remove the space below the <p> */
-
-        &.system {
-          align-self: center;
-          font-weight: 300;
-          font-size: 12px;
-          font-style: italic;
-          opacity: 0.55;
-          margin-left: auto;
-        }
-
-        .message-meta {
-          font-size: xx-small;
-          margin-bottom: 0;
-          margin-top: 5px;
-          opacity: 0.5;
-        }
-      }
-
-      &.sent .message {
-        margin-left: auto;
-        margin-right: 1em;
-        color: white;
-        background-color: rgb(78, 140, 255);
-      }
-    }
-  }
-
-  .chat-modal {
-    position: absolute !important;
-    bottom: 50px;
-
-    right: calc(var(--fab-right) + 4em);
-    transition: all 0.3s ease;
-
-    &.sidebar-open {
-      right: calc(var(--fab-right) + var(--sidebar-width));
-    }
-  }
-
-  .sidebar-fab.chat-button {
-    right: calc(var(--fab-right) + 4em);
-    transition: all 0.3s ease;
-
-    &.sidebar-open {
-      right: calc(var(--fab-right) + var(--sidebar-width));
-    }
-
-    .badge {
-      position: absolute;
-      bottom: -3px;
-      top: auto;
-      right: -6px;
-      padding: 0.3em 0.5em;
-    }
-  }
-
-  @media screen and (max-width: 600px) {
-    .chat-modal {
-      bottom: 70px;
-
-      right: auto;
-      left: auto;
-      transition: all 0.3s ease;
-
-      &.sidebar-open {
-        right: auto;
-      }
-    }
-
-    .sidebar-fab.chat-button.sidebar-open {
-      right: calc(var(--fab-right) + 4em);
-    }
-  }
-</style>

@@ -1,21 +1,21 @@
 {
-  "compilerOptions": {
-    "target": "ES2024",
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "sourceMap": true,
-    "noEmit": true,
-    "allowImportingTsExtensions": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "allowJs": true,
-    "strict": false,
-    "strictNullChecks": false,
-    "resolveJsonModule": true,
-    "esModuleInterop": true,
-    "verbatimModuleSyntax": true,
-    "skipLibCheck": true,
-    "types": ["node"]
-  },
-  "include": ["app/**/*.ts", "server.ts", "scripts/**/*.ts"]
+	"compilerOptions": {
+		"target": "ES2024",
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"sourceMap": true,
+		"noEmit": true,
+		"allowImportingTsExtensions": true,
+		"experimentalDecorators": true,
+		"emitDecoratorMetadata": true,
+		"allowJs": true,
+		"strict": false,
+		"strictNullChecks": false,
+		"resolveJsonModule": true,
+		"esModuleInterop": true,
+		"verbatimModuleSyntax": true,
+		"skipLibCheck": true,
+		"types": ["node"]
+	},
+	"include": ["app/**/*.ts", "server.ts", "scripts/**/*.ts"]
 }

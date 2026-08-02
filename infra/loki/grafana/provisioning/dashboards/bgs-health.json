@@ -1,181 +1,181 @@
 {
-  "title": "Boardgamers — Server Health",
-  "uid": "bgs-health",
-  "schemaVersion": 39,
-  "version": 3,
-  "timezone": "browser",
-  "refresh": "10s",
-  "time": { "from": "now-1h", "to": "now" },
-  "tags": ["boardgamers"],
-  "templating": {
-    "list": [
-      {
-        "name": "source",
-        "type": "query",
-        "datasource": { "type": "loki", "uid": "loki" },
-        "query": "label_values({job=\"pm2\"}, source)",
-        "refresh": 1,
-        "includeAll": true,
-        "multi": true,
-        "current": { "selected": true, "text": "All", "value": "$__all" }
-      },
-      {
-        "name": "requestId",
-        "type": "textbox",
-        "query": "",
-        "current": { "text": "", "value": "" },
-        "label": "Request ID",
-        "description": "Paste a request ID to trace it across web → API → game-server"
-      }
-    ]
-  },
-  "panels": [
-    {
-      "id": 1,
-      "title": "Request Rate (req/s) by Source",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "datasource": { "type": "loki", "uid": "loki" },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (source) (rate({job=\"pm2\", msg=\"request\"}[$__interval]))",
-          "queryType": "range",
-          "legendFormat": "{{source}}"
-        }
-      ],
-      "fieldConfig": { "defaults": { "unit": "reqps" } }
-    },
-    {
-      "id": 2,
-      "title": "Status Code Distribution (5m)",
-      "type": "bargauge",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "datasource": { "type": "loki", "uid": "loki" },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (status) (count_over_time({job=\"pm2\", msg=\"request\"}[$__range]))",
-          "queryType": "range",
-          "legendFormat": "{{status}}"
-        }
-      ],
-      "options": {
-        "orientation": "horizontal",
-        "displayMode": "gradient",
-        "showUnfilled": true
-      }
-    },
-    {
-      "id": 3,
-      "title": "Error Rate (errors/min) by Source",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-      "datasource": { "type": "loki", "uid": "loki" },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "sum by (source) (rate({job=\"pm2\", level=~\"error|warn\"}[$__interval]) * 60)",
-          "queryType": "range",
-          "legendFormat": "{{source}}"
-        }
-      ],
-      "fieldConfig": { "defaults": { "unit": "ops" } }
-    },
-    {
-      "id": 4,
-      "title": "Avg Latency (ms) by Source",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-      "datasource": { "type": "loki", "uid": "loki" },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "avg by (source) (avg_over_time({job=\"pm2\", msg=\"request\"} | json | unwrap durationMs [$__interval]))",
-          "queryType": "range",
-          "legendFormat": "{{source}}"
-        }
-      ],
-      "fieldConfig": { "defaults": { "unit": "ms" } }
-    },
-    {
-      "id": 5,
-      "title": "Top 10 Slowest Endpoints (avg ms, last 1h)",
-      "type": "table",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
-      "datasource": { "type": "loki", "uid": "loki" },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "topk(10, avg by (route) (avg_over_time({job=\"pm2\", msg=\"request\"} | json | unwrap durationMs [1h])))",
-          "queryType": "instant",
-          "format": "table",
-          "instant": true
-        }
-      ],
-      "fieldConfig": { "defaults": { "unit": "ms" } }
-    },
-    {
-      "id": 6,
-      "title": "Endpoints with Most Errors (4xx¬401 + 5xx, last 1h)",
-      "type": "table",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-      "datasource": { "type": "loki", "uid": "loki" },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "topk(10, sum by (route) (count_over_time({job=\"pm2\", msg=\"request\"} | json | status =~ \"[45][0-9][0-9]\" | status != 401 [1h])))",
-          "queryType": "instant",
-          "format": "table",
-          "instant": true
-        }
-      ],
-      "fieldConfig": { "defaults": { "unit": "short" } }
-    },
-    {
-      "id": 7,
-      "title": "Recent Errors (live stream)",
-      "type": "logs",
-      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 24 },
-      "datasource": { "type": "loki", "uid": "loki" },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "{job=\"pm2\", level=~\"error|warn\"}",
-          "queryType": "range"
-        }
-      ],
-      "options": {
-        "showTime": true,
-        "showLabels": true,
-        "showCommonLabels": false,
-        "wrapLogMessage": true,
-        "prettifyLogMessage": false,
-        "enableLogDetails": true
-      }
-    },
-    {
-      "id": 8,
-      "title": "Request Trace (by request ID)",
-      "type": "logs",
-      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 36 },
-      "datasource": { "type": "loki", "uid": "loki" },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "{job=\"pm2\"} | json | requestId=\"$requestId\"",
-          "queryType": "range"
-        }
-      ],
-      "description": "Shows all log lines for a given request ID across web, api, and game-server. Enter a request ID in the variable above. Empty = no results.",
-      "options": {
-        "showTime": true,
-        "showLabels": true,
-        "showCommonLabels": false,
-        "wrapLogMessage": true,
-        "prettifyLogMessage": true,
-        "enableLogDetails": true
-      }
-    }
-  ]
+	"title": "Boardgamers — Server Health",
+	"uid": "bgs-health",
+	"schemaVersion": 39,
+	"version": 3,
+	"timezone": "browser",
+	"refresh": "10s",
+	"time": { "from": "now-1h", "to": "now" },
+	"tags": ["boardgamers"],
+	"templating": {
+		"list": [
+			{
+				"name": "source",
+				"type": "query",
+				"datasource": { "type": "loki", "uid": "loki" },
+				"query": "label_values({job=\"pm2\"}, source)",
+				"refresh": 1,
+				"includeAll": true,
+				"multi": true,
+				"current": { "selected": true, "text": "All", "value": "$__all" }
+			},
+			{
+				"name": "requestId",
+				"type": "textbox",
+				"query": "",
+				"current": { "text": "", "value": "" },
+				"label": "Request ID",
+				"description": "Paste a request ID to trace it across web → API → game-server"
+			}
+		]
+	},
+	"panels": [
+		{
+			"id": 1,
+			"title": "Request Rate (req/s) by Source",
+			"type": "timeseries",
+			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+			"datasource": { "type": "loki", "uid": "loki" },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (source) (rate({job=\"pm2\", msg=\"request\"}[$__interval]))",
+					"queryType": "range",
+					"legendFormat": "{{source}}"
+				}
+			],
+			"fieldConfig": { "defaults": { "unit": "reqps" } }
+		},
+		{
+			"id": 2,
+			"title": "Status Code Distribution (5m)",
+			"type": "bargauge",
+			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+			"datasource": { "type": "loki", "uid": "loki" },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (status) (count_over_time({job=\"pm2\", msg=\"request\"}[$__range]))",
+					"queryType": "range",
+					"legendFormat": "{{status}}"
+				}
+			],
+			"options": {
+				"orientation": "horizontal",
+				"displayMode": "gradient",
+				"showUnfilled": true
+			}
+		},
+		{
+			"id": 3,
+			"title": "Error Rate (errors/min) by Source",
+			"type": "timeseries",
+			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+			"datasource": { "type": "loki", "uid": "loki" },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (source) (rate({job=\"pm2\", level=~\"error|warn\"}[$__interval]) * 60)",
+					"queryType": "range",
+					"legendFormat": "{{source}}"
+				}
+			],
+			"fieldConfig": { "defaults": { "unit": "ops" } }
+		},
+		{
+			"id": 4,
+			"title": "Avg Latency (ms) by Source",
+			"type": "timeseries",
+			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+			"datasource": { "type": "loki", "uid": "loki" },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "avg by (source) (avg_over_time({job=\"pm2\", msg=\"request\"} | json | unwrap durationMs [$__interval]))",
+					"queryType": "range",
+					"legendFormat": "{{source}}"
+				}
+			],
+			"fieldConfig": { "defaults": { "unit": "ms" } }
+		},
+		{
+			"id": 5,
+			"title": "Top 10 Slowest Endpoints (avg ms, last 1h)",
+			"type": "table",
+			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+			"datasource": { "type": "loki", "uid": "loki" },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "topk(10, avg by (route) (avg_over_time({job=\"pm2\", msg=\"request\"} | json | unwrap durationMs [1h])))",
+					"queryType": "instant",
+					"format": "table",
+					"instant": true
+				}
+			],
+			"fieldConfig": { "defaults": { "unit": "ms" } }
+		},
+		{
+			"id": 6,
+			"title": "Endpoints with Most Errors (4xx¬401 + 5xx, last 1h)",
+			"type": "table",
+			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+			"datasource": { "type": "loki", "uid": "loki" },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "topk(10, sum by (route) (count_over_time({job=\"pm2\", msg=\"request\"} | json | status =~ \"[45][0-9][0-9]\" | status != 401 [1h])))",
+					"queryType": "instant",
+					"format": "table",
+					"instant": true
+				}
+			],
+			"fieldConfig": { "defaults": { "unit": "short" } }
+		},
+		{
+			"id": 7,
+			"title": "Recent Errors (live stream)",
+			"type": "logs",
+			"gridPos": { "h": 12, "w": 24, "x": 0, "y": 24 },
+			"datasource": { "type": "loki", "uid": "loki" },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "{job=\"pm2\", level=~\"error|warn\"}",
+					"queryType": "range"
+				}
+			],
+			"options": {
+				"showTime": true,
+				"showLabels": true,
+				"showCommonLabels": false,
+				"wrapLogMessage": true,
+				"prettifyLogMessage": false,
+				"enableLogDetails": true
+			}
+		},
+		{
+			"id": 8,
+			"title": "Request Trace (by request ID)",
+			"type": "logs",
+			"gridPos": { "h": 12, "w": 24, "x": 0, "y": 36 },
+			"datasource": { "type": "loki", "uid": "loki" },
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "{job=\"pm2\"} | json | requestId=\"$requestId\"",
+					"queryType": "range"
+				}
+			],
+			"description": "Shows all log lines for a given request ID across web, api, and game-server. Enter a request ID in the variable above. Empty = no results.",
+			"options": {
+				"showTime": true,
+				"showLabels": true,
+				"showCommonLabels": false,
+				"wrapLogMessage": true,
+				"prettifyLogMessage": true,
+				"enableLogDetails": true
+			}
+		}
+	]
 }

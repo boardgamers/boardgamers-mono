@@ -16,32 +16,32 @@
  * ```
  */
 export function createWatcher(
-  callback: () => unknown,
-  { immediate = false }: { immediate: boolean } = { immediate: false }
+	callback: () => unknown,
+	{ immediate = false }: { immediate: boolean } = { immediate: false },
 ): () => void {
-  // Watchers are typically only useful in the browser, not in SSR
-  if (typeof window === "undefined") {
-    return () => {};
-  }
-  let skip = !immediate;
+	// Watchers are typically only useful in the browser, not in SSR
+	if (typeof window === "undefined") {
+		return () => {};
+	}
+	let skip = !immediate;
 
-  return () => {
-    if (skip) {
-      skip = false;
-      return;
-    }
-    callback();
-  };
+	return () => {
+		if (skip) {
+			skip = false;
+			return;
+		}
+		callback();
+	};
 }
 
 export function skipOnce<T extends unknown[]>(callback: (...args: T) => unknown): () => void {
-  let skipped = false;
-  return (...args: T) => {
-    if (!skipped) {
-      skipped = true;
-      return;
-    }
+	let skipped = false;
+	return (...args: T) => {
+		if (!skipped) {
+			skipped = true;
+			return;
+		}
 
-    callback(...args);
-  };
+		callback(...args);
+	};
 }

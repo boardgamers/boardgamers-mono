@@ -7,14 +7,15 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check": "svelte-kit sync && svelte-fast-check -p ./tsconfig.json",
 		"lint": "eslint .",
-		"format": "prettier --write ."
+		"format": "oxfmt . && prettier --write \"src/**/*.svelte\""
 	},
 	"dependencies": {
 		"marked": "^15.0.0"
 	},
 	"devDependencies": {
+		"@alasano/svelte-fast-check": "0.4.6-fork.2",
 		"@bgs/models": "workspace:*",
 		"@sveltejs/adapter-static": "^3.0.0",
 		"@sveltejs/kit": "^2.0.0",
@@ -24,12 +25,12 @@
 		"eslint": "^9.0.0",
 		"eslint-config-prettier": "^10.0.0",
 		"eslint-plugin-svelte": "^3.0.0",
-		"prettier": "^3.0.0",
-		"prettier-plugin-svelte": "^3.0.0",
+		"oxfmt": "catalog:",
+		"prettier": "catalog:",
+		"prettier-plugin-svelte": "catalog:",
 		"svelte": "^5.0.0",
-		"svelte-check": "^4.0.0",
 		"tailwindcss": "^4.0.0",
-		"typescript": "~5.9.3",
+		"typescript": "catalog:",
 		"vite": "^6.0.0"
 	}
 }

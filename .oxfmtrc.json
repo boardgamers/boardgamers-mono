@@ -1,0 +1,16 @@
+{
+	"$schema": "./node_modules/oxfmt/configuration_schema.json",
+	"printWidth": 120,
+	"useTabs": true,
+	"tabWidth": 2,
+	"ignorePatterns": [
+		"**/node_modules/**",
+		"**/dist/**",
+		"**/build/**",
+		"**/.svelte-kit/**",
+		"**/pnpm-lock.yaml",
+		"**/auto-imports.d.ts",
+		"**/admin-app/**",
+		"**/*.svelte"
+	]
+}

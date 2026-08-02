@@ -7,14 +7,14 @@ to communicate with our application.
 
 ```ts
 window.viewer = {
-  // Place the viewer inside the element designated by the selector
-  launch(selector) {
-    const emitter = new EventEmitter();
+	// Place the viewer inside the element designated by the selector
+	launch(selector) {
+		const emitter = new EventEmitter();
 
-    // ....
+		// ....
 
-    return emitter;
-  },
+		return emitter;
+	},
 };
 ```
 
@@ -30,7 +30,7 @@ This is the events the application passes to the viewer. You can receive them th
 
 ```ts
 emitter.on("event", (arg) => {
-  // Handle downlink event
+	// Handle downlink event
 });
 ```
 
@@ -38,7 +38,7 @@ emitter.on("event", (arg) => {
 
 ```ts
 emitter.on("state", (state: GameData) => {
-  // ...
+	// ...
 });
 ```
 
@@ -50,7 +50,7 @@ This replaces the current game state with a new one, you should completely overw
 
 ```ts
 emitter.on("state:updated", () => {
-  // ...
+	// ...
 });
 ```
 
@@ -62,7 +62,7 @@ You can request the full state by emitting [fetchState](#fetchstate) or request 
 
 ```ts
 emitter.on("gamelog", (logData: { start: number; end?: number; data: any }) => {
-  //...
+	//...
 });
 ```
 
@@ -74,7 +74,7 @@ Receive log data.
 
 ```ts
 emitter.on("preferences", (preferences: { [key: string]: any }) => {
-  //...
+	//...
 });
 ```
 
@@ -86,7 +86,7 @@ For example, for Gaia Project, there are two UI preferences: whether to use flat
 
 ```ts
 emitter.on("player", (playerInfo: { index: number }) => {
-  // ...
+	// ...
 });
 ```
 
@@ -98,7 +98,7 @@ This event is not triggered when the user is just a spectator.
 
 ```ts
 emitter.on("avatars", (avatars: string[]) => {
-  // ...
+	// ...
 });
 ```
 
@@ -108,7 +108,7 @@ Receive the avatars of each player, in order.
 
 ```ts
 emitter.on("replay:start", () => {
-  // ...
+	// ...
 });
 ```
 
@@ -120,7 +120,7 @@ When entering replay mode, you should emit the [replay:info](#replay-info) event
 
 ```ts
 emitter.on("replay:to", (logIndex: number) => {
-  // ...
+	// ...
 });
 ```
 
@@ -130,7 +130,7 @@ Replay up to that point in the log.
 
 ```ts
 emitter.on("replay:end", () => {
-  //...
+	//...
 });
 ```
 

@@ -23,26 +23,26 @@ app.use(morgan("dev"));
 // Assign a request ID, preferring the incoming X-Request-ID header so it
 // correlates with the web app / nginx. Echo it back in the response header.
 app.use(async (ctx, next) => {
-  ctx.state.requestId = ctx.get("x-request-id") || randomUUID();
-  await next();
-  ctx.set("x-request-id", ctx.state.requestId);
+	ctx.state.requestId = ctx.get("x-request-id") || randomUUID();
+	await next();
+	ctx.set("x-request-id", ctx.state.requestId);
 });
 app.use(async (ctx, next) => {
-  const start = Date.now();
-  try {
-    await next();
-  } finally {
-    logRequest("game-server", {
-      method: ctx.request.method,
-      path: ctx.request.path,
-      route: matchedRoute(ctx),
-      status: ctx.status,
-      durationMs: Date.now() - start,
-      ip: ctx.ip,
-      userId: ctx.state.user?.id,
-      requestId: ctx.state.requestId,
-    });
-  }
+	const start = Date.now();
+	try {
+		await next();
+	} finally {
+		logRequest("game-server", {
+			method: ctx.request.method,
+			path: ctx.request.path,
+			route: matchedRoute(ctx),
+			status: ctx.status,
+			durationMs: Date.now() - start,
+			ip: ctx.ip,
+			userId: ctx.state.user?.id,
+			requestId: ctx.state.requestId,
+		});
+	}
 });
 app.proxy = true;
 app.use(compression());
@@ -50,85 +50,85 @@ app.use(bodyParser());
 
 // JWT auth
 app.use(async (ctx, next) => {
-  if (ctx.get("Authorization")?.startsWith("Bearer ")) {
-    const token = ctx.get("Authorization").slice("Bearer ".length);
+	if (ctx.get("Authorization")?.startsWith("Bearer ")) {
+		const token = ctx.get("Authorization").slice("Bearer ".length);
 
-    const decoded = jwt.verify(token, env.jwt.keys.public) as { userId: string; isAdmin: boolean; scopes: string[] };
+		const decoded = jwt.verify(token, env.jwt.keys.public) as { userId: string; isAdmin: boolean; scopes: string[] };
 
-    if (decoded && decoded.scopes?.includes("gameplay")) {
-      ctx.state.user = {
-        id: decoded.userId,
-        isAdmin: decoded.isAdmin,
-      };
-    }
-  } else {
-    console.log("no token");
-  }
+		if (decoded && decoded.scopes?.includes("gameplay")) {
+			ctx.state.user = {
+				id: decoded.userId,
+				isAdmin: decoded.isAdmin,
+			};
+		}
+	} else {
+		console.log("no token");
+	}
 
-  await next();
+	await next();
 });
 
 app.use(async (ctx, next) => {
-  try {
-    await next();
-  } catch (err) {
-    if (err instanceof createError.HttpError) {
-      ctx.status = err.statusCode;
-      ctx.body = { message: err.message };
-    } else if (err instanceof ZodError) {
-      ctx.status = 400;
-      ctx.body = { message: z.prettifyError(err) };
-    } else if (err instanceof AssertionError) {
-      ctx.status = 422;
-      ctx.body = { message: err.message };
-    } else {
-      ctx.status = 500;
-      ctx.body = { message: "Internal error: " + err.message, stack: err.stack };
-    }
+	try {
+		await next();
+	} catch (err) {
+		if (err instanceof createError.HttpError) {
+			ctx.status = err.statusCode;
+			ctx.body = { message: err.message };
+		} else if (err instanceof ZodError) {
+			ctx.status = 400;
+			ctx.body = { message: z.prettifyError(err) };
+		} else if (err instanceof AssertionError) {
+			ctx.status = 422;
+			ctx.body = { message: err.message };
+		} else {
+			ctx.status = 500;
+			ctx.body = { message: "Internal error: " + err.message, stack: err.stack };
+		}
 
-    // Routine 401 auth checks are expected traffic, not real errors — skip
-    // the console dump and DB error record for them.
-    const isRoutineAuth = err instanceof createError.HttpError && err.statusCode === 401;
-    if (!isRoutineAuth) {
-      console.error(err);
-      await colls.apiErrors.insertOne({
-        request: {
-          url: ctx.request.originalUrl,
-          method: ctx.request.method,
-          body: JSON.stringify(ctx.request.body),
-          status: ctx.status,
-          id: ctx.state.requestId,
-        },
-        error: {
-          name: err.name,
-          stack: err.stack,
-          message: err.message,
-        },
-        user: ctx.state.user?.id ? new ObjectId(ctx.state.user.id) : undefined,
-        meta: {
-          source: "game-server",
-        },
-        createdAt: new Date(),
-      });
-    }
-  }
+		// Routine 401 auth checks are expected traffic, not real errors — skip
+		// the console dump and DB error record for them.
+		const isRoutineAuth = err instanceof createError.HttpError && err.statusCode === 401;
+		if (!isRoutineAuth) {
+			console.error(err);
+			await colls.apiErrors.insertOne({
+				request: {
+					url: ctx.request.originalUrl,
+					method: ctx.request.method,
+					body: JSON.stringify(ctx.request.body),
+					status: ctx.status,
+					id: ctx.state.requestId,
+				},
+				error: {
+					name: err.name,
+					stack: err.stack,
+					message: err.message,
+				},
+				user: ctx.state.user?.id ? new ObjectId(ctx.state.user.id) : undefined,
+				meta: {
+					source: "game-server",
+				},
+				createdAt: new Date(),
+			});
+		}
+	}
 });
 
 app.use(router.routes());
 app.use(router.allowedMethods());
 
 async function listen() {
-  const promise = new Promise<void>((resolve, reject) => {
-    app.listen(env.listen.port, env.listen.host, () => resolve());
-    app.once("error", (err) => reject(err));
-  });
+	const promise = new Promise<void>((resolve, reject) => {
+		app.listen(env.listen.port, env.listen.host, () => resolve());
+		app.once("error", (err) => reject(err));
+	});
 
-  await promise;
+	await promise;
 
-  console.log("app started on port", env.listen.port);
+	console.log("app started on port", env.listen.port);
 }
 
 listen().catch((err: Error) => {
-  console.error(err);
-  process.exit(1);
+	console.error(err);
+	process.exit(1);
 });
