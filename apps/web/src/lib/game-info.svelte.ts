@@ -96,35 +96,6 @@ export async function fetchGameInfos(): Promise<Record<string, SetOptional<GameI
 	return buildGameInfoMap(games);
 }
 
-/** Browser-only: replace the reactive store with a fetched map. Never during SSR (shared state). */
-export function seedGameInfos(map: Record<string, SetOptional<GameInfoFront, "viewer">>) {
-	if (!browser) {
-		throw new Error("seedGameInfos must not run during SSR — shared store");
-	}
-	gameInfos.set(map);
-}
-
-let promise: Promise<void> | null = null;
-/** Browser-only: fetch + seed the store (deduped concurrent calls). Prefer `fetchGameInfos` in loads. */
-export async function loadGameInfos(): Promise<void> {
-	if (!browser) {
-		throw new Error("loadGameInfos must not run during SSR — use fetchGameInfos and return the data");
-	}
-	if (promise) {
-		return promise;
-	}
-	return (promise = fetchGameInfos().then(
-		(map) => {
-			promise = null;
-			seedGameInfos(map);
-		},
-		(err) => {
-			promise = null;
-			return Promise.reject(err);
-		},
-	));
-}
-
 /**
  * Fetch the full game-info doc (including `viewer`), WITHOUT touching the store. SSR-safe:
  * the doc is returned, so a `load` can SSR it with no shared-state mutation. A nonexistent
@@ -172,50 +143,13 @@ export function mergeGameInfos(infos: Array<GameInfoFront | undefined>) {
 		throw new Error("mergeGameInfos must not run during SSR — shared store");
 	}
 	gameInfos.update((all) => {
-		const next = { ...all };
-		for (const info of infos) {
-			if (!info?._id) {
-				continue;
-			}
-			next[gameInfoKey(info._id.game, info._id.version)] = info;
+	const next = { ...all };
+	for (const info of infos) {
+		if (!info?._id) {
+			continue;
 		}
-		return next;
-	});
-}
-
-const loading = new Map<string, Promise<void>>();
-/**
- * Browser-only: fetch the full doc (with `viewer`) and merge it into the store. Skips the
- * network call if the store already has the full doc (viewer present) — e.g. when the
- * current game's info was loaded alongside the all-games list. Deduped concurrent calls.
- */
-export async function loadGameInfo(game: string, version: number | "latest" = "latest"): Promise<void> {
-	if (!browser) {
-		throw new Error("loadGameInfo must not run during SSR — use fetchGameInfo and return the data");
+		next[gameInfoKey(info._id.game, info._id.version)] = info;
 	}
-	const id = gameInfoKey(game, version);
-	if (loading.has(id)) {
-		return loading.get(id);
-	}
-	if (getStore(gameInfos)[id]?.viewer) {
-		return;
-	}
-
-	loading.set(
-		id,
-		fetchGameInfo(game, version).then(
-			(info) => {
-				loading.delete(id);
-				if (info) {
-					mergeGameInfos([info]);
-				}
-			},
-			(err) => {
-				loading.delete(id);
-				return Promise.reject(err);
-			},
-		),
-	);
-
-	return loading.get(id);
+	return next;
+});
 }

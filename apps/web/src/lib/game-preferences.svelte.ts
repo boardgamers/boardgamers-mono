@@ -128,35 +128,6 @@ export function mergeGamePreferences(prefs: Record<string, GamePreferencesFront>
 	gamePreferences.update((all) => ({ ...all, ...prefs }));
 }
 
-/** Browser-only: fetch + store one game's preferences (skips if already cached). */
-export async function loadGamePreferences(game: string): Promise<void> {
-	if (!browser) {
-		throw new Error("loadGamePreferences must not run during SSR — per-user store");
-	}
-	if (game in getStore(gamePreferences)) {
-		return;
-	}
-	const data = await fetchGamePreferences(game);
-	gamePreferences.update((all) => ({ ...all, [game]: data }));
-}
-
-/** Browser-only: fetch + store all games' preferences (1h freshness unless forced). */
-let lastUpdate = 0;
-export async function loadAllGamePreferences(force = false): Promise<void> {
-	if (!browser) {
-		throw new Error("loadAllGamePreferences must not run during SSR — per-user store");
-	}
-	if (!getStore(account)) {
-		return;
-	}
-	if (!isEmpty(gamePreferences) && !force && Date.now() - lastUpdate < 3600 * 1000) {
-		return;
-	}
-	const data = await fetchAllGamePreferences();
-	lastUpdate = Date.now();
-	gamePreferences.set(data);
-}
-
 /**
  * Store-cached getter for the WHOLE prefs map (mirrors `getGamePreferences`). In the
  * browser: return the cached store if non-empty (no refetch); on a miss fetch and populate
@@ -184,7 +155,6 @@ if (browser) {
 		}
 
 		prevAccountId = accountVal?._id;
-		lastUpdate = 0;
 		gamePreferences.set({});
 	});
 }
