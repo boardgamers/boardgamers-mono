@@ -6,7 +6,7 @@ on:
       - "apps/api/**"
       - "packages/**"
     branches:
-      - master
+      - main
   pull_request:
     paths:
       - ".github/workflows/api.yml"

@@ -6,7 +6,7 @@ on:
       - "apps/game-server/**"
       - "packages/**"
     branches:
-      - master
+      - main
   pull_request:
     paths:
       - ".github/workflows/game-server.yml"

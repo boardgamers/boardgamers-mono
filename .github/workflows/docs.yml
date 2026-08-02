@@ -5,7 +5,7 @@ on:
       - ".github/workflows/docs.yml"
       - "apps/docs/**"
     branches:
-      - master
+      - main
 
 defaults:
   run:

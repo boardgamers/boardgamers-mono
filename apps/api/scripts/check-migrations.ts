@@ -7,7 +7,7 @@
  * migration keyed at or below an existing one would silently never run.
  *
  * Compares the migration registry on the current checkout against the base ref
- * (default `origin/master`, override with $BASE_REF). Works across both the old
+ * (default `origin/main`, override with $BASE_REF). Works across both the old
  * single-file (`migrations.ts`) and the new per-version (`migrations/`) layouts,
  * since it just scrapes the `"x.y.z":` registry keys from whichever exists.
  */
@@ -15,7 +15,7 @@ import { execFileSync } from "node:child_process";
 import semver from "semver";
 import { migrations } from "../app/models/migrations/index.ts";
 
-const BASE_REF = process.env.BASE_REF || "origin/master";
+const BASE_REF = process.env.BASE_REF || "origin/main";
 
 const SEMVER_KEY = /["'](\d+\.\d+\.\d+)["']\s*:/g;
 

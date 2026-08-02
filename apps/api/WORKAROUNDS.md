@@ -10,7 +10,7 @@ Things that are intentional for now but should be revisited / removed later. Add
 
 ## Migration-order CI guard supports the old layout (`scripts/check-migrations.ts`)
 
-`check-migrations.ts` reads the base branch's migration registry across **both** the old single-file (`migrations.ts`) and new per-version (`migrations/`) layouts, because the refactor straddles that change. Once the new layout is on `master`, the old-layout fallback (`baseSource()`'s second candidate path) can be dropped.
+`check-migrations.ts` reads the base branch's migration registry across **both** the old single-file (`migrations.ts`) and new per-version (`migrations/`) layouts, because the refactor straddles that change. Once the new layout is on `main`, the old-layout fallback (`baseSource()`'s second candidate path) can be dropped.
 
 ## Koa doesn't recognise web streams or BSON `Binary` as response bodies (`app/routes/user/index.ts`)
 

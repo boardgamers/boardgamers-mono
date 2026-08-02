@@ -5,7 +5,7 @@ on:
       - ".github/workflows/utils.yml"
       - "packages/utils/**"
     branches:
-      - master
+      - main
   pull_request:
     paths:
       - ".github/workflows/utils.yml"

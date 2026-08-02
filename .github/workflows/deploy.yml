@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -39,8 +39,8 @@ jobs:
             cd ~/boardgamers-mono
 
             echo \":: pulling latest code\"
-            git fetch origin master
-            git reset --hard origin/master
+            git fetch origin main
+            git reset --hard origin/main
 
             echo \":: installing dependencies\"
             CI=true pnpm install --frozen-lockfile
