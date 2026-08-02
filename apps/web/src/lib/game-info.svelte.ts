@@ -143,13 +143,13 @@ export function mergeGameInfos(infos: Array<GameInfoFront | undefined>) {
 		throw new Error("mergeGameInfos must not run during SSR — shared store");
 	}
 	gameInfos.update((all) => {
-	const next = { ...all };
-	for (const info of infos) {
-		if (!info?._id) {
-			continue;
+		const next = { ...all };
+		for (const info of infos) {
+			if (!info?._id) {
+				continue;
+			}
+			next[gameInfoKey(info._id.game, info._id.version)] = info;
 		}
-		next[gameInfoKey(info._id.game, info._id.version)] = info;
-	}
-	return next;
-});
+		return next;
+	});
 }

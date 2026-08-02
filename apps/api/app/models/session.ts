@@ -29,7 +29,7 @@ export function setRefreshCookie(ctx: Context, code: string) {
 	const expiresAt = Date.now() + refreshTokenDuration();
 	const value = JSON.stringify({ code, expiresAt });
 	ctx.cookies.set(SESSION_COOKIE, value, {
-		httpOnly: false, // readable by the SPA for the game-token mint flow
+		httpOnly: true,
 		expires: new Date(expiresAt),
 		// secure only in production — over http (localhost dev) a secure cookie is dropped.
 		secure: env.isProduction,
