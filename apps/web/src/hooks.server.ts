@@ -76,11 +76,7 @@ export const handleFetch: HandleFetch = async ({ request, fetch, event }) => {
 	// Ports are fixed per service; only the host family varies by environment.
 	const host = import.meta.env.VITE_backend_host ?? "127.0.0.1";
 	const backendHost = host.includes(":") ? `[${host}]` : host;
-	const backend = isGameplay
-		? `http://${backendHost}:50803`
-		: isMainApi
-			? `http://${backendHost}:50801`
-			: null;
+	const backend = isGameplay ? `http://${backendHost}:50803` : isMainApi ? `http://${backendHost}:50801` : null;
 
 	if (backend) {
 		request = new Request(request.url.replace(event.url.origin, backend), request);
