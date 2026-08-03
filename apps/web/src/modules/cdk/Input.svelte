@@ -62,7 +62,7 @@
 	<select
 		bind:value
 		{id}
-		class={inputClass}
+		class={classnames(inputClass, "cursor-pointer")}
 		{required}
 		{disabled}
 		{onchange}
