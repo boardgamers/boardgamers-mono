@@ -39,7 +39,7 @@ Division of labor:
 
   ```bash
   IP=$(scripts/instance-ip.sh alloc <name>)       # unique 127.1.X.Y, idempotent
-	[spawn subagent with IP, tell it its name]
+    [spawn subagent with IP, tell it its name]
   for app in api game-server; do
     [ -f apps/$app/.env ] && cp apps/$app/.env .worktrees/<name>/apps/$app/.env
   done
