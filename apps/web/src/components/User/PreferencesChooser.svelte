@@ -3,7 +3,12 @@
 	import PreferenceInput from "./PreferenceInput.svelte";
 	import type { GameInfoFront, GameInfoOption } from "@bgs/models";
 	import type { Primitive } from "type-fest";
-	import { gamePreferences, addDefaults, updatePreference, useGamePreferencesFallback } from "@/lib/game-preferences.svelte";
+	import {
+		gamePreferences,
+		addDefaults,
+		updatePreference,
+		useGamePreferencesFallback,
+	} from "@/lib/game-preferences.svelte";
 
 	let { game: gameInfo, framed = false }: { game: GameInfoFront; framed?: boolean } = $props();
 
@@ -11,7 +16,9 @@
 	let boardgameVersion = $derived(gameInfo._id.version);
 
 	const ssrPrefs = useGamePreferencesFallback();
-	let preferences = $derived(addDefaults($gamePreferences[boardgameId] ?? ssrPrefs[boardgameId], gameInfo)?.preferences || {});
+	let preferences = $derived(
+		addDefaults($gamePreferences[boardgameId] ?? ssrPrefs[boardgameId], gameInfo)?.preferences || {}
+	);
 
 	let shownCategories: Record<string, boolean> = $state({});
 

@@ -27,7 +27,9 @@
 	const ssrPrefs = useGamePreferencesFallback();
 	let prefs = $derived($gamePreferences[game._id.game] ?? ssrPrefs[game._id.game]);
 
-	let ownership = $state(untrack(() => ($gamePreferences[game._id.game] ?? ssrPrefs[game._id.game])?.access?.ownership ?? false));
+	let ownership = $state(
+		untrack(() => ($gamePreferences[game._id.game] ?? ssrPrefs[game._id.game])?.access?.ownership ?? false)
+	);
 
 	// Only react to subsequent store changes — the initial value was already seeded above.
 	const syncOwnership = createWatcher(() => {
