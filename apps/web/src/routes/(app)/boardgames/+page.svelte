@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Card, CardText } from "@/modules/cdk";
 	import { goto } from "$app/navigation";
-	import marked from "marked";
+	import ExpandableMarkdown from "@/components/ExpandableMarkdown.svelte";
 	import { useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
 	import { SEO } from "@/components";
@@ -32,14 +32,12 @@
 			<div>
 				<Card
 					header={game.label}
-					class="border-gray-300 h-full dark:border-gray-600"
+					class="border-gray-300 h-full cursor-pointer transition-shadow hover:border-primary hover:shadow-lg dark:border-gray-600 dark:hover:border-primary-lighter"
 					onclick={() => goto(`/boardgame/${game._id.game}`)}
 					role="button"
 				>
 					<CardText>
-						<div class="prose dark:prose-invert max-w-none">
-							{@html marked(game.description ?? "")}
-						</div>
+						<ExpandableMarkdown markdown={game.description} />
 					</CardText>
 					{#snippet footer()}
 						<span

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { Card, CardText } from "@/modules/cdk";
 	import { confirm } from "@/utils";
-	import marked from "marked";
 	import { goto } from "$app/navigation";
+	import ExpandableMarkdown from "@/components/ExpandableMarkdown.svelte";
 	import { useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
 	import type { IterableElement } from "type-fest";
@@ -40,11 +40,13 @@
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 		{#each info as game}
 			<div role="button">
-				<Card header={game.label} class="border-gray-300 h-full dark:border-gray-600" onclick={() => onClick(game)}>
+				<Card
+					header={game.label}
+					class="border-gray-300 h-full cursor-pointer transition-shadow hover:border-primary hover:shadow-lg dark:border-gray-600 dark:hover:border-primary-lighter"
+					onclick={() => onClick(game)}
+				>
 					<CardText>
-						<div class="prose dark:prose-invert max-w-none">
-							{@html marked(game.description ?? "")}
-						</div>
+						<ExpandableMarkdown markdown={game.description} />
 					</CardText>
 					{#snippet footer()}
 						<span
