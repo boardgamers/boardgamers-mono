@@ -13,6 +13,6 @@ jobs:
       - run: pnpm install
       # oxfmt formats JS/TS/YAML/MD/JSON across the repo (Svelte excluded — oxfmt's
       # Svelte parser is still beta). Svelte files are checked by prettier.
-      - run: npx oxfmt --check .
+      - run: pnpm run format-check
       - run: cd apps/admin && npx prettier --check "src/**/*.svelte"
       - run: cd apps/web && npx prettier --check "src/**/*.svelte"
