@@ -228,7 +228,7 @@
 
 	<!-- Intro description (no heading — reads as lead copy) -->
 	{#if context.gameInfo?.description}
-		<div class="mb-5 max-w-2xl text-gray-700 dark:text-gray-300">
+		<div class="prose dark:prose-invert mb-5 max-w-2xl">
 			{@html marked(context.gameInfo.description)}
 		</div>
 	{/if}
@@ -295,7 +295,7 @@
 
 			{#if context.gameInfo?.rules}
 				<h4 class="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Rules</h4>
-				<div class="rules text-sm">{@html marked(context.gameInfo.rules)}</div>
+				<div class="prose prose-sm dark:prose-invert max-w-none">{@html marked(context.gameInfo.rules)}</div>
 			{/if}
 		</div>
 	</div>

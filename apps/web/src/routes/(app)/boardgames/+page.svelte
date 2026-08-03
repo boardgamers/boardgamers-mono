@@ -37,7 +37,9 @@
 					role="button"
 				>
 					<CardText>
-						{@html marked(game.description ?? "")}
+						<div class="prose dark:prose-invert max-w-none">
+							{@html marked(game.description ?? "")}
+						</div>
 					</CardText>
 					{#snippet footer()}
 						<span

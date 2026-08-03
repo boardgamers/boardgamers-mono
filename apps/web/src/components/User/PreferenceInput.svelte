@@ -25,17 +25,17 @@
 		{item.label}
 	</Checkbox>
 {:else if item.type === "select"}
-<FormGroup class="mt-2">
-	<Label class="mb-1 block text-sm">{@html oneLineMarked(item.label)}</Label>
-	<Input
-		type="select"
-		{value}
-		onchange={(event) => handleChange((event.target as HTMLSelectElement).value)}
-		bsSize="sm"
-	>
-		{#each item.items as option}
-			<option value={option.name}>{option.label}</option>
-		{/each}
-	</Input>
-</FormGroup>
+	<FormGroup class="mt-2">
+		<Label class="mb-1 block text-sm">{@html oneLineMarked(item.label)}</Label>
+		<Input
+			type="select"
+			{value}
+			onchange={(event) => handleChange((event.target as HTMLSelectElement).value)}
+			bsSize="sm"
+		>
+			{#each item.items as option}
+				<option value={option.name}>{option.label}</option>
+			{/each}
+		</Input>
+	</FormGroup>
 {/if}
