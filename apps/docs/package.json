@@ -17,5 +17,8 @@
 	"authors": {
 		"name": "coyotte508",
 		"email": "coyotte508@gmail.com"
+	},
+	"lint-staged": {
+		"*": "oxfmt --ignore-unknown"
 	}
 }

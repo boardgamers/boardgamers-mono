@@ -55,7 +55,10 @@
 		"vitest": "^3.1.4"
 	},
 	"lint-staged": {
-		"*.ts": "oxfmt",
-		"package.json": "oxfmt"
+		"*.{ts,svelte}": [
+			"oxfmt",
+			"eslint --fix"
+		],
+		"*.svelte": "prettier --write"
 	}
 }

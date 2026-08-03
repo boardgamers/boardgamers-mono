@@ -26,5 +26,11 @@
 	},
 	"peerDependencies": {
 		"mongodb": ">=6"
+	},
+	"lint-staged": {
+		"*.ts": [
+			"oxfmt",
+			"oxlint --fix"
+		]
 	}
 }

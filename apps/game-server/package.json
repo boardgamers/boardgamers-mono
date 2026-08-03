@@ -45,5 +45,11 @@
 		"oxlint": "^1.51.0",
 		"oxlint-tsgolint": "^0.16.0",
 		"typescript": "catalog:"
+	},
+	"lint-staged": {
+		"*.ts": [
+			"oxfmt",
+			"oxlint --fix"
+		]
 	}
 }
