@@ -72,10 +72,14 @@ export const handleFetch: HandleFetch = async ({ request, fetch, event }) => {
 
 	const isGameplay = path.startsWith("/api/gameplay");
 	const isMainApi = !isGameplay && path.startsWith("/api/");
+	// Backend loopback host — 127.0.0.1 in local dev (vite), ::1 in prod (matches nginx).
+	// Ports are fixed per service; only the host family varies by environment.
+	const host = import.meta.env.VITE_backend_host ?? "127.0.0.1";
+	const backendHost = host.includes(":") ? `[${host}]` : host;
 	const backend = isGameplay
-		? (import.meta.env.VITE_backend ?? "http://127.0.0.1:50803")
+		? `http://${backendHost}:50803`
 		: isMainApi
-			? (import.meta.env.VITE_backend ?? "http://127.0.0.1:50801")
+			? `http://${backendHost}:50801`
 			: null;
 
 	if (backend) {
