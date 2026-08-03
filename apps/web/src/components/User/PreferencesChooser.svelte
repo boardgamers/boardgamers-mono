@@ -1,17 +1,24 @@
 <script lang="ts">
-	import { createWatcher, handleError } from "@/utils";
+	import { handleError } from "@/utils";
 	import PreferenceInput from "./PreferenceInput.svelte";
 	import type { GameInfoFront, GameInfoOption } from "@bgs/models";
 	import type { Primitive } from "type-fest";
-	import { gamePreferences, addDefaults, updatePreference, loadGamePreferences } from "@/lib/game-preferences.svelte";
-	import { account } from "@/lib/stores.svelte";
+	import {
+		gamePreferences,
+		addDefaults,
+		updatePreference,
+		useGamePreferencesFallback,
+	} from "@/lib/game-preferences.svelte";
 
 	let { game: gameInfo, framed = false }: { game: GameInfoFront; framed?: boolean } = $props();
 
 	let boardgameId = $derived(gameInfo._id.game);
 	let boardgameVersion = $derived(gameInfo._id.version);
 
-	let preferences = $derived(addDefaults($gamePreferences[boardgameId], gameInfo)?.preferences || {});
+	const ssrPrefs = useGamePreferencesFallback();
+	let preferences = $derived(
+		addDefaults($gamePreferences[boardgameId] ?? ssrPrefs[boardgameId], gameInfo)?.preferences || {}
+	);
 
 	let shownCategories: Record<string, boolean> = $state({});
 
@@ -33,13 +40,6 @@
 	const handleChange = (key: string, val: Primitive) => {
 		updatePreference(boardgameId, boardgameVersion, key, val).catch(handleError);
 	};
-
-	const loadPrefs = createWatcher(() => loadGamePreferences(boardgameId));
-
-	$effect(() => {
-		$account?._id;
-		loadPrefs();
-	});
 </script>
 
 {#each preferenceItems.filter((item) => item.type === "checkbox" && item.category == null) as item}

@@ -1,6 +1,29 @@
-import { clearTokens, getAccessToken, getRefreshToken, setAccessToken, type Token } from "./auth.svelte";
-
 const BASE = "/api";
+
+/**
+ * Resolve the right fetch for the current execution context.
+ *
+ * On the server (inside a request — SSR `load`, action, endpoint, or any async helper
+ * they call), this returns the current request's `event.fetch` via `getRequestEvent()`
+ * (AsyncLocalStorage — the context propagates across `await`, and each concurrent
+ * request has its own, so there's no cross-request leak). `event.fetch` handles relative
+ * URLs and forwards the session cookie to the API (via `handleFetch`).
+ *
+ * In the browser, or outside a request (websocket, prerender, etc.), `getRequestEvent()`
+ * throws — so we fall back to the shared context fetch (the browser's native fetch,
+ * where the cookie is sent automatically by the browser).
+ *
+ * On the server, `getRequestEvent().fetch` comes from `./api.server` (a `.server` module
+ * SvelteKit strips from the client bundle); `import.meta.env.SSR` is a compile-time
+ * constant so the dynamic import is dead-code-eliminated in the browser build.
+ */
+async function requestFetch(): Promise<typeof fetch> {
+	if (!import.meta.env.SSR) {
+		return context.fetch;
+	}
+	const { currentEventFetch } = await import("./api.server");
+	return currentEventFetch() ?? context.fetch;
+}
 
 export class ApiError extends Error {
 	readonly status: number;
@@ -10,6 +33,8 @@ export class ApiError extends Error {
 		this.status = status;
 	}
 }
+
+export type Token = { code: string; expiresAt: number };
 
 async function getResponseData<T>(response: Response): Promise<T> {
 	const contentType = response.headers.get("content-type");
@@ -22,97 +47,108 @@ async function getResponseData<T>(response: Response): Promise<T> {
 	return body as T;
 }
 
-function scopesFor(url: string): string[] {
-	if (url.startsWith("/gameplay")) return ["gameplay"];
-	if (url.startsWith("ws")) return ["site"];
-	return ["all"];
-}
-
-export interface ApiContext {
-	/** SSR-aware fetch (event.fetch on the server, global fetch on the client). */
-	fetch: typeof fetch;
-	/** Client IP to forward as X-Real-IP (server only). */
-	ip?: string;
-}
-
-let context: ApiContext = { fetch: globalThis.fetch };
-
-/** Set the API context for the current render cycle (called from +layout). */
-export function setApiContext(ctx: ApiContext | ((prev: ApiContext) => ApiContext)) {
-	context = typeof ctx === "function" ? ctx(context) : ctx;
-}
-
-async function getAccessTokenFor(url: string): Promise<Token | null> {
-	const scopes = scopesFor(url);
-	const key = scopes.join(",");
-
-	const existing = getAccessToken(key);
-	if (existing && existing.expiresAt > Date.now() + 5 * 60 * 1000) {
-		return existing;
-	}
-
-	const refresh = getRefreshToken();
-	if (!refresh) return null;
-
-	const res = await context.fetch(`${BASE}/account/refresh`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json", ...(context.ip && { "X-Real-IP": context.ip }) },
-		body: JSON.stringify({ code: refresh.code, scopes }),
-	});
-
-	if (res.status === 404) {
-		clearTokens();
-		return null;
-	}
-
-	const token = await getResponseData<Token>(res);
-	setAccessToken(key, token);
-	return token;
-}
+/**
+ * Shared fallback fetch (the browser's native fetch; also the SSR fallback when
+ * `getRequestEvent()` has no request — prerender, websocket, etc.). Per-request SSR
+ * fetches resolve `event.fetch` via `requestFetch()` instead, so nothing per-request
+ * is ever written to this module-level value.
+ */
+const context = { fetch: globalThis.fetch };
 
 function transformUrl(url: string) {
 	return url.startsWith("http") || url.startsWith("//") ? url : BASE + url;
 }
 
-export async function get<T>(url: string, query?: Record<string, unknown> | URLSearchParams): Promise<T> {
-	const token = await getAccessTokenFor(url);
+/**
+ * Game-server calls (/gameplay/*) authenticate with a minted "gameplay"-scoped bearer
+ * token — the game-server verifies JWTs by public key only and has no session/cookie
+ * access. All other API calls use the session cookie (sent automatically).
+ */
+async function authHeaderFor(url: string, fetchFn: typeof fetch): Promise<Record<string, string>> {
+	if (!url.startsWith("/gameplay")) {
+		return {};
+	}
+	const token = await mintToken("gameplay", fetchFn).catch(() => null);
+	return token ? { Authorization: `Bearer ${token.code}` } : {};
+}
+
+export interface FetchOptions {
+	/**
+	 * Per-request fetch override. On the server, pass `event.fetch` — it inherits the
+	 * request's cookie for same-origin /api calls, so the API resolves the session
+	 * itself with no shared token state (request-scoped, leak-safe). Defaults to the
+	 * shared context fetch (browser / public SSR data).
+	 */
+	fetch?: typeof fetch;
+}
+
+export async function get<T>(
+	url: string,
+	query?: Record<string, unknown> | URLSearchParams,
+	opts?: FetchOptions,
+): Promise<T> {
+	const doFetch = opts?.fetch ?? (await requestFetch());
 	const qs = query ? "?" + new URLSearchParams(query as Record<string, string>).toString() : "";
 	return getResponseData<T>(
-		await context.fetch(transformUrl(url) + qs, {
-			headers: {
-				...(context.ip && { "X-Real-IP": context.ip }),
-				...(token && { Authorization: `Bearer ${token.code}` }),
-			},
+		await doFetch(transformUrl(url) + qs, {
+			credentials: "same-origin",
+			headers: await authHeaderFor(url, doFetch),
 		}),
 	);
 }
 
-export async function post<T>(url: string, data: Record<string, unknown> = {}): Promise<T> {
-	const token = await getAccessTokenFor(url);
+export async function post<T>(url: string, data: Record<string, unknown> = {}, opts?: FetchOptions): Promise<T> {
+	const doFetch = opts?.fetch ?? (await requestFetch());
 	return getResponseData<T>(
-		await context.fetch(transformUrl(url), {
+		await doFetch(transformUrl(url), {
 			method: "POST",
+			credentials: "same-origin",
 			body: JSON.stringify(data),
-			headers: {
-				"Content-Type": "application/json",
-				...(context.ip && { "X-Real-IP": context.ip }),
-				...(token && { Authorization: `Bearer ${token.code}` }),
-			},
+			headers: { "Content-Type": "application/json", ...(await authHeaderFor(url, doFetch)) },
 		}),
 	);
 }
 
-export async function apiFetch(url: string, options: RequestInit): Promise<Response> {
-	const token = await getAccessTokenFor(url);
-	return context.fetch(transformUrl(url), {
+export async function apiFetch(url: string, options: RequestInit, opts?: FetchOptions): Promise<Response> {
+	const doFetch = opts?.fetch ?? (await requestFetch());
+	return doFetch(transformUrl(url), {
+		credentials: "same-origin",
 		...options,
-		headers: {
-			...options.headers,
-			...(context.ip && { "X-Real-IP": context.ip }),
-			...(token && { Authorization: `Bearer ${token.code}` }),
-		},
+		headers: { ...options.headers, ...(await authHeaderFor(url, doFetch)) },
 	});
 }
 
-// The websocket layer needs raw token access
-export { getRefreshToken as getRefreshTokenRaw, clearTokens };
+/**
+ * Mint a short-lived, narrowly-scoped access token (e.g. "gameplay" for the
+ * game-server, "site" for the websocket). Auth is via the session cookie — no refresh
+ * token is handled in JS. Cached per scope until near expiry.
+ */
+const mintedTokens: Record<string, Token> = {};
+
+export async function mintToken(scope: string, fetchFn?: typeof fetch): Promise<Token | null> {
+	const existing = mintedTokens[scope];
+	if (existing && existing.expiresAt > Date.now() + 5 * 60 * 1000) {
+		return existing;
+	}
+
+	const doFetch = fetchFn ?? (await requestFetch());
+	const res = await doFetch(`${BASE}/account/mint`, {
+		method: "POST",
+		credentials: "same-origin",
+		body: JSON.stringify({ scopes: [scope] }),
+		headers: { "Content-Type": "application/json" },
+	});
+
+	if (res.status === 401 || res.status === 404) {
+		delete mintedTokens[scope];
+		return null; // not logged in
+	}
+
+	const token = await getResponseData<Token>(res);
+	mintedTokens[scope] = token;
+	return token;
+}
+
+export function clearMintedTokens(): void {
+	for (const key of Object.keys(mintedTokens)) delete mintedTokens[key];
+}

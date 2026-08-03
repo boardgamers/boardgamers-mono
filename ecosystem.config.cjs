@@ -1,3 +1,8 @@
+// Run every app under Node 24 (/usr/local/bin/node). api/game-server point straight at
+// server.ts (Node ≥24 strips types) instead of going through `npm start` — otherwise PM2
+// spawns npm with its default node (node18 at /usr/bin/node), ignoring the interpreter.
+const NODE = "/usr/local/bin/node";
+
 module.exports = {
 	apps: [
 		{
@@ -10,18 +15,27 @@ module.exports = {
 				PORT: 8612,
 			},
 			exec_mode: "cluster",
+			interpreter: NODE,
 		},
 		{
 			name: "game-server",
-			script: "npm",
+			script: "./server.ts",
 			cwd: "./apps/game-server",
-			args: "start",
+			env: {
+				NODE_ENV: "production",
+			},
+			interpreter: NODE,
+			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
 		{
 			name: "api",
-			script: "npm",
+			script: "./server.ts",
 			cwd: "./apps/api",
-			args: "start",
+			env: {
+				NODE_ENV: "production",
+			},
+			interpreter: NODE,
+			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
 	],
 };

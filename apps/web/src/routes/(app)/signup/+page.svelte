@@ -2,7 +2,7 @@
 	import { page } from "$app/state";
 	import { SEO } from "@/components";
 	import { Button } from "@/modules/cdk";
-	import { setAuthData, type AuthData } from "@/lib/auth.svelte";
+	import { setAuthData, type AuthData } from "@/lib/account.svelte";
 	import { useLoggedOut } from "@/lib/auth-guards.svelte";
 	import { post } from "@/lib/api";
 	import Checkbox from "@/modules/cdk/Checkbox.svelte";

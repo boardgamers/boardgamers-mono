@@ -1,24 +1,28 @@
 <script lang="ts">
 	import { Card, CardText } from "@/modules/cdk";
-	import { confirm, createWatcher } from "@/utils";
+	import { confirm } from "@/utils";
 	import marked from "marked";
 	import { goto } from "$app/navigation";
-	import { latestGameInfos } from "@/lib/game-info.svelte";
-	import { gamePreferences, loadAllGamePreferences } from "@/lib/game-preferences.svelte";
-	import { account } from "@/lib/account.svelte";
+	import { useLatestGameInfos } from "@/lib/game-info.svelte";
+	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
 	import type { IterableElement } from "type-fest";
 	import { SEO } from "@/components";
+	import type { PageProps } from "./$types";
 
-	let info = latestGameInfos();
+	let { data }: PageProps = $props();
 
-	const watcher = createWatcher(loadAllGamePreferences);
-	$effect(() => {
-		$account?._id;
-		watcher();
-	});
+	let info = useLatestGameInfos();
+
+	if (data.gamePreferences) {
+		provideGamePreferences(data.gamePreferences);
+	}
+
+	function owns(gameId: string): boolean {
+		return !!($gamePreferences[gameId] ?? data.gamePreferences?.[gameId])?.access?.ownership;
+	}
 
 	const onClick = async (gameInfo: IterableElement<typeof info>) => {
-		if (gameInfo.meta.needOwnership && !$gamePreferences[gameInfo._id.game]?.access?.ownership) {
+		if (gameInfo.meta.needOwnership && !owns(gameInfo._id.game)) {
 			await confirm(
 				"You need to have game ownership to host a new game. You can set game ownership in your account settings."
 			);
@@ -42,12 +46,12 @@
 					</CardText>
 					{#snippet footer()}
 						<span
-							class:text-accent={$gamePreferences[game._id.game]?.access?.ownership}
-							class:dark:text-accent-lighter={$gamePreferences[game._id.game]?.access?.ownership}
-							class:text-gray-500={!$gamePreferences[game._id.game]?.access?.ownership}
-							class:dark:text-gray-400={!$gamePreferences[game._id.game]?.access?.ownership}
+							class:text-accent={owns(game._id.game)}
+							class:dark:text-accent-lighter={owns(game._id.game)}
+							class:text-gray-500={!owns(game._id.game)}
+							class:dark:text-gray-400={!owns(game._id.game)}
 						>
-							{#if $gamePreferences[game._id.game]?.access?.ownership}
+							{#if owns(game._id.game)}
 								You own this game
 							{:else}
 								You do not own this game

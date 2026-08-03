@@ -1,7 +1,6 @@
 import { browser } from "$app/environment";
 import { get as getStore } from "svelte/store";
-import type { Token } from "./auth.svelte";
-import { getRefreshTokenRaw } from "./api";
+import { mintToken } from "./api";
 import { account, activeGames, chatMessages, currentGameId, lastGameUpdate, playerStatus, room } from "./stores.svelte";
 
 let ws: WebSocket | null = null;
@@ -42,25 +41,9 @@ const url = browser ? `${protocol}://${window.location.host}/ws` : "";
 
 async function sendUser() {
 	if (browser && ws?.readyState === WebSocket.OPEN) {
-		// Mint a site-scoped token for the websocket auth
-		const refresh = getRefreshTokenRaw();
-		let tokenCode: string | null = null;
-		if (refresh) {
-			try {
-				const res = await fetch("/api/account/refresh", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ code: refresh.code, scopes: ["site"] }),
-				});
-				if (res.ok) {
-					const token: Token = await res.json();
-					tokenCode = token.code;
-				}
-			} catch {
-				// ignore
-			}
-		}
-		ws.send(JSON.stringify({ jwt: tokenCode }));
+		// Mint a site-scoped token for websocket auth (cookie-authed; null when logged out)
+		const token = await mintToken("site").catch(() => null);
+		ws.send(JSON.stringify({ jwt: token?.code ?? null }));
 	}
 }
 

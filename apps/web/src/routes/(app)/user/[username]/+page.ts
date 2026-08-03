@@ -1,11 +1,10 @@
 import { error } from "@sveltejs/kit";
 import type { PageLoad } from "./$types";
-import { get, setApiContext } from "@/lib/api";
+import { get } from "@/lib/api";
 import { loadGames, clearGamesCache } from "@/lib/games.svelte";
-import type { UserFront } from "@bgs/models";
+import type { GamePreferencesFront, UserFront } from "@bgs/models";
 
-export const load: PageLoad = async ({ params, fetch }) => {
-	setApiContext((prev) => ({ ...prev, fetch }));
+export const load: PageLoad = async ({ params }) => {
 	clearGamesCache();
 	const user = await get<UserFront>(`/user/infoByName/${encodeURIComponent(params.username)}`);
 
@@ -13,11 +12,13 @@ export const load: PageLoad = async ({ params, fetch }) => {
 		throw error(404, "User not found");
 	}
 
-	await Promise.all([
+	const [, , , elo] = await Promise.all([
 		loadGames({ userId: user._id, gameStatus: "active", count: 5, store: true }),
 		loadGames({ userId: user._id, gameStatus: "open", count: 5, store: true }),
 		loadGames({ userId: user._id, gameStatus: "ended", count: 5, store: true }),
+		// Public per-user elo ratings — SSR'd here so UserElo renders synchronously.
+		get<GamePreferencesFront[]>(`/user/${user._id}/games/elo`).catch(() => []),
 	]);
 
-	return { user };
+	return { user, elo };
 };

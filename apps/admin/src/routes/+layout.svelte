@@ -5,10 +5,9 @@
 	import NavBar from "$components/NavBar.svelte";
 	import Sidebar from "$components/Sidebar.svelte";
 	import Toast from "$components/Toast.svelte";
-	import type { Snippet } from "svelte";
-	import type { UserFront } from "@bgs/models";
+	import type { LayoutProps } from "./$types";
 
-	let { data, children }: { data: import("./+layout.ts").LayoutData; children: Snippet } = $props();
+	let { data, children }: LayoutProps = $props();
 
 	const isLoginPage = $derived(page.url.pathname === "/login");
 

@@ -6,7 +6,7 @@
 	import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
 	import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
 	import { logoClicks } from "@/lib/stores.svelte";
-	import { gameInfo } from "@/lib/game-info.svelte";
+	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { loadGames, type LoadGamesResult } from "@/lib/games.svelte";
 	import { isPromise } from "@bgs/utils";
 
@@ -97,8 +97,9 @@
 		}
 	}
 
+	const gameInfos = useGameInfos();
 	function gameIcon(name: string) {
-		const game = gameInfo(name, "latest");
+		const game = gameInfos[gameInfoKey(name, "latest")];
 
 		return game?.label.trim().slice(0, game?.label.trim().indexOf(" "));
 	}

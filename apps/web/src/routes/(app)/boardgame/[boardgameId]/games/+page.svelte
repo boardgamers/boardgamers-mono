@@ -3,19 +3,12 @@
 	import { fade } from "svelte/transition";
 	import { GameList, SEO } from "@/components";
 	import { Nav, NavItem, NavLink } from "@/modules/cdk";
-	import type { LoadGamesResult } from "@/lib/games.svelte";
-	import { gameInfo } from "@/lib/game-info.svelte";
+	import { useGameInfo } from "@/lib/game-info.svelte";
+	import type { PageProps } from "./$types";
 
-	let {
-		data,
-	}: {
-		data: {
-			boardgameId: string;
-			featured: LoadGamesResult;
-			lobby: LoadGamesResult;
-			firstTab: boolean;
-		};
-	} = $props();
+	let { data }: PageProps = $props();
+
+	const gameInfo = useGameInfo(data.boardgameId, "latest");
 
 	import { untrack } from "svelte";
 	// One-shot init from SSR data — firstTab is a user-toggled local state
@@ -27,7 +20,7 @@
 </script>
 
 <SEO
-	title={`${gameInfo(data.boardgameId, "latest").label} games`}
+	title={`${gameInfo?.label ?? data.boardgameId} games`}
 	description={`${featuredCount} ongoing games and ${lobbyCount} open games.`}
 />
 

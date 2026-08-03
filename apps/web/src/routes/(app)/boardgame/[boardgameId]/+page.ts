@@ -1,10 +1,8 @@
 import type { PageLoad } from "./$types";
 import { loadGames, clearGamesCache } from "@/lib/games.svelte";
 import { loadEloRankings } from "@/lib/elo-rankings.svelte";
-import { setApiContext } from "@/lib/api";
 
-export const load: PageLoad = async ({ params, fetch, parent }) => {
-	setApiContext((prev) => ({ ...prev, fetch }));
+export const load: PageLoad = async ({ params, parent }) => {
 	const { user } = await parent();
 
 	// Clear stale cache from previous navigation so GameList components always

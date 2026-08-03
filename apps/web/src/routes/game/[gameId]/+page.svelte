@@ -3,6 +3,14 @@
 	import type { GameFront } from "@bgs/models";
 	import { getContext } from "svelte";
 	import type { GameContext } from "./game-context";
+	import { provideGamePreferences } from "@/lib/game-preferences.svelte";
+	import type { PageProps } from "./$types";
+
+	let { data }: PageProps = $props();
+
+	if (data.preferences?.game) {
+		provideGamePreferences({ [data.preferences.game]: data.preferences });
+	}
 
 	// Read the live game from the shared context (set by the layout), NOT page.data.game
 	// (a stale SSR snapshot). This lets the page auto-transition from the lobby (OpenGame)

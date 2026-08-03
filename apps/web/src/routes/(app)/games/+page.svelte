@@ -2,14 +2,26 @@
 	import { fade } from "svelte/transition";
 	import { GameList, SEO } from "@/components";
 	import { Nav, NavItem, NavLink, Input } from "@/modules/cdk";
-	import type { LoadGamesResult } from "@/lib/games.svelte";
+	import { goto } from "$app/navigation";
+	import { page } from "$app/state";
 	import { debounce } from "lodash";
+	import type { PageProps } from "./$types";
 
-	let { data }: { data: { featured: LoadGamesResult; lobby: LoadGamesResult; boardgameId: string | undefined } } =
-		$props();
+	let { data }: PageProps = $props();
 
-	let firstTab = $state(true);
+	// Tab is driven by the ?status= query param so it's linkable and back/forward works.
+	let firstTab = $derived(page.url.searchParams.get("status") !== "finished");
 	let animating = $state(false);
+
+	function selectTab(active: boolean) {
+		const url = new URL(page.url);
+		if (active) {
+			url.searchParams.delete("status");
+		} else {
+			url.searchParams.set("status", "finished");
+		}
+		goto(url, { keepFocus: true, noScroll: true });
+	}
 
 	let featuredCount = $derived(data.featured);
 	let lobbyCount = $derived(data.lobby);
@@ -31,8 +43,11 @@
 	<div class="flex flex-wrap items-center gap-3">
 		<Nav pills class="flex-1">
 			<h1 class="me-3">Games</h1>
-			<NavItem><NavLink href="#" onclick={() => (firstTab = true)} active={firstTab}>Active</NavLink></NavItem>
-			<NavItem><NavLink href="#" onclick={() => (firstTab = false)} active={!firstTab}>Finished</NavLink></NavItem>
+			<NavItem><NavLink href="?" onclick={() => selectTab(true)} active={firstTab}>Active</NavLink></NavItem>
+			<NavItem
+				><NavLink href="?status=finished" onclick={() => selectTab(false)} active={!firstTab}>Finished</NavLink
+				></NavItem
+			>
 		</Nav>
 		<div class="w-full sm:w-64">
 			<Input

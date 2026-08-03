@@ -3,9 +3,10 @@
 	import { toast } from "$lib/toast.svelte.ts";
 	import { trim } from "$lib/actions.ts";
 	import { goto, invalidateAll } from "$app/navigation";
-	import type { UserInfo, ApiErrorItem, RecentGame } from "./+page.ts";
+	import type { PageProps } from "./$types";
+	import type { UserInfo, ApiErrorItem } from "./+page.ts";
 
-	let { data }: { data: { user: UserInfo | null; errors: ApiErrorItem[] } } = $props();
+	let { data }: PageProps = $props();
 
 	let user = $state<UserInfo | null>(data.user);
 	let errors = $state<ApiErrorItem[]>(data.errors);

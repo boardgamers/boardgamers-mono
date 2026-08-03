@@ -1,10 +1,24 @@
+import { invalidateAll } from "$app/navigation";
 import type { UserFront } from "@bgs/models";
 import { handleError } from "@/utils";
-import { account } from "./stores.svelte";
-import { setAuthData, clearTokens, type AuthData } from "./auth.svelte";
-import { post } from "./api";
+import { account, setAccount } from "./stores.svelte";
+import { post, clearMintedTokens } from "./api";
 
 export { account };
+
+export type AuthData = {
+	user: UserFront;
+};
+
+/**
+ * After any auth change the session cookie differs, so every per-user `load` must re-run.
+ * `invalidateAll()` re-runs all active load functions (the root layout re-fetches /account,
+ * pages re-fetch their per-user data), keeping the UI consistent without a full reload.
+ */
+async function refreshAfterAuthChange(user: UserFront | null) {
+	setAccount(user);
+	await invalidateAll();
+}
 
 export async function loadAccount() {
 	try {
@@ -13,24 +27,27 @@ export async function loadAccount() {
 			return null;
 		});
 		if (user) {
-			account.set(user);
+			await refreshAfterAuthChange(user);
 		}
 	} catch {
 		// ignore
 	}
 }
 
+/**
+ * Login/signup/social-auth: the API sets the session cookie in the response. We seed the
+ * account store with the returned user, then invalidate so per-user loads re-run.
+ */
+export function setAuthData(data: AuthData) {
+	return refreshAfterAuthChange(data.user);
+}
+
 export function login(email: string, password: string) {
-	return post<AuthData>("/account/login", { email, password }).then((data) => {
-		setAuthData(data);
-		account.set(data.user);
-	});
+	return post<AuthData>("/account/login", { email, password }).then(setAuthData);
 }
 
 export async function logout() {
 	await post("/account/signout");
-	account.set(null);
-	clearTokens();
+	clearMintedTokens();
+	await refreshAfterAuthChange(null);
 }
-
-export { setAuthData, type AuthData } from "./auth.svelte";

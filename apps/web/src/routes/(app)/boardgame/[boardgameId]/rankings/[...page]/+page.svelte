@@ -1,15 +1,16 @@
 <script lang="ts">
 	import { BoardgameElo, SEO } from "@/components";
-	import type { LoadEloRankingsResult } from "@/lib/elo-rankings.svelte";
-	import { gameInfo } from "@/lib/game-info.svelte";
+	import { useGameInfo } from "@/lib/game-info.svelte";
 	import { gameLabel } from "@/utils/game-label";
+	import type { PageProps } from "./$types";
 
-	let { data }: { data: { rankings: LoadEloRankingsResult; boardgameId: string; currentPage: number; skip: number } } =
-		$props();
+	let { data }: PageProps = $props();
+
+	const gameInfo = useGameInfo(data.boardgameId, "latest");
 </script>
 
 <SEO
-	title={`Page ${data.currentPage} - ${gameLabel(gameInfo(data.boardgameId, "latest").label)} rankings`}
+	title={`Page ${data.currentPage} - ${gameLabel(gameInfo?.label ?? data.boardgameId)} rankings`}
 	description={data.rankings.rankings
 		.map((x, i) => `${data.skip + i + 1}° ${x.user.name} (${x.elo.value} elo)`)
 		.join("\n")}

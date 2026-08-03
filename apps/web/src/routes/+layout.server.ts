@@ -1,28 +1,18 @@
 import type { LayoutServerLoad } from "./$types";
-import { setApiContext, get, post } from "@/lib/api";
-import { setRefreshToken } from "@/lib/auth.svelte";
+import { get } from "@/lib/api";
 import type { UserFront } from "@bgs/models";
 
-export const load: LayoutServerLoad = async ({ locals, fetch, cookies }) => {
-	// Set the API context for server-side fetches (IP forwarding, etc.)
-	setApiContext({ fetch, ip: locals.ip });
-
-	// Seed the refresh token from the cookie
-	if (locals.refreshToken) {
-		setRefreshToken(locals.refreshToken);
-	}
-
+export const load: LayoutServerLoad = async ({ locals }) => {
 	let user: UserFront | null = null;
 	let activeGames: string[] = [];
 
+	// Only when the request presents a session cookie — skips the API roundtrip for anon
+	// visitors. `get` resolves the request's event.fetch (via getRequestEvent), inheriting
+	// the cookie — request-scoped, no shared token state, no cross-request leak.
 	if (locals.refreshToken) {
-		try {
-			user = await get<UserFront | null>("/account").catch(() => null);
-			if (user) {
-				activeGames = await get<string[]>("/account/active-games").catch(() => []);
-			}
-		} catch {
-			// Token invalid/expired — leave user as null
+		user = await get<UserFront | null>("/account").catch(() => null);
+		if (user) {
+			activeGames = await get<string[]>("/account/active-games").catch(() => []);
 		}
 	}
 

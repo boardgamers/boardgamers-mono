@@ -1,3 +1,5 @@
+// Test credentials in the seeded DB (fixtures/User.json) — every user's password is
+// literally "password". E.g. log in with admin@test.com / password.
 import type { GameDoc, GameInfoDoc, GameNotificationDoc, UserDoc } from "@bgs/models";
 import { gameInfoSchema, gamePreferencesSchema, settingsSchema, userSchema } from "@bgs/models";
 import type { ZodType } from "zod";

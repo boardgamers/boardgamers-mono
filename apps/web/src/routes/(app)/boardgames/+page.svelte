@@ -1,20 +1,26 @@
 <script lang="ts">
 	import { Card, CardText } from "@/modules/cdk";
 	import { goto } from "$app/navigation";
-	import { createWatcher } from "@/utils";
 	import marked from "marked";
-	import { latestGameInfos } from "@/lib/game-info.svelte";
-	import { gamePreferences, loadAllGamePreferences } from "@/lib/game-preferences.svelte";
-	import { account } from "@/lib/account.svelte";
+	import { useLatestGameInfos } from "@/lib/game-info.svelte";
+	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
 	import { SEO } from "@/components";
+	import type { PageProps } from "./$types";
 
-	let info = latestGameInfos();
+	let { data }: PageProps = $props();
 
-	const watcher = createWatcher(loadAllGamePreferences);
-	$effect(() => {
-		$account?._id;
-		watcher();
-	});
+	let info = useLatestGameInfos();
+
+	// Provide the SSR-fetched prefs map via context so the ownership classes render during
+	// SSR (the store is browser-only). On the client the store (seeded by the load's getter)
+	// is the reactive source; the context is the SSR fallback.
+	if (data.gamePreferences) {
+		provideGamePreferences(data.gamePreferences);
+	}
+
+	function owns(gameId: string): boolean {
+		return !!($gamePreferences[gameId] ?? data.gamePreferences?.[gameId])?.access?.ownership;
+	}
 </script>
 
 <SEO title="Game selection" />
@@ -35,12 +41,12 @@
 					</CardText>
 					{#snippet footer()}
 						<span
-							class:text-accent={$gamePreferences[game._id.game]?.access?.ownership}
-							class:dark:text-accent-lighter={$gamePreferences[game._id.game]?.access?.ownership}
-							class:text-gray-500={!$gamePreferences[game._id.game]?.access?.ownership}
-							class:dark:text-gray-400={!$gamePreferences[game._id.game]?.access?.ownership}
+							class:text-accent={owns(game._id.game)}
+							class:dark:text-accent-lighter={owns(game._id.game)}
+							class:text-gray-500={!owns(game._id.game)}
+							class:dark:text-gray-400={!owns(game._id.game)}
 						>
-							{#if $gamePreferences[game._id.game]?.access?.ownership}
+							{#if owns(game._id.game)}
 								You own this game
 							{:else}
 								You do not own this game

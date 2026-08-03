@@ -4,9 +4,9 @@
 	import { toast } from "$lib/toast.svelte.ts";
 	import { loadGames } from "$lib/stores.svelte.ts";
 	import GameEdit, { type GameInfoData } from "$components/GameEdit.svelte";
-	import type { GameInfoFront } from "@bgs/models";
+	import type { PageProps } from "./$types";
 
-	let { data }: { data: { value: GameInfoFront | null } } = $props();
+	let { data }: PageProps = $props();
 
 	const gameId = data.value?._id?.game ?? "";
 	const version = data.value?._id?.version ?? 0;

@@ -5,41 +5,29 @@
 	import { Button, Card } from "@/modules/cdk";
 	import { UserGameSettings, GameList, BoardgameElo, SEO } from "@/components";
 	import { account } from "@/lib/account.svelte";
-	import { gameInfo, loadGameInfo, gameInfos } from "@/lib/game-info.svelte";
-	import { gamePreferences, loadGamePreferences } from "@/lib/game-preferences.svelte";
+	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
+	import { gamePreferences, useGamePreferencesFallback } from "@/lib/game-preferences.svelte";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
-	import type { LoadEloRankingsResult } from "@/lib/elo-rankings.svelte";
 	import { gameLabel } from "@/utils/game-label";
 	import type { UserFront } from "@bgs/models";
+	import type { PageProps } from "./$types";
 
-	let { data }: { data: { rankings: LoadEloRankingsResult; myGamesStatus?: "active" | "ended" } } = $props();
+	let { data }: PageProps = $props();
 
 	// The route guarantees the `boardgameId` param is present.
 	let boardgameId = $derived(page.params.boardgameId!);
 	// Client prefers the account store; SSR falls back to page.data.user.
 	let user = $derived(($account ?? page.data.user) as UserFront | null);
-	let boardgame = $derived.by(() => {
-		// track the gameInfos store so this re-evaluates after loadGameInfo resolves
-		$gameInfos;
-		return gameInfo(boardgameId, "latest") as GameInfoFront;
-	});
-	let hasOwnership = $derived($gamePreferences[boardgameId]?.access?.ownership);
+	// Game-info list comes from the root-provided context (fetched fresh per request);
+	// capture the map at init (getContext) and read from it reactively.
+	const infos = useGameInfos();
+	let boardgame = $derived(infos[gameInfoKey(boardgameId, "latest")] as GameInfoFront);
+	const ssrPrefs = useGamePreferencesFallback();
+	let hasOwnership = $derived(($gamePreferences[boardgameId] ?? ssrPrefs[boardgameId])?.access?.ownership);
 	let needOwnership = $derived(boardgame?.meta?.needOwnership);
 
 	let rules = $state(false);
-
-	const onUserChanged = () => {
-		loadGameInfo(boardgameId, "latest").catch(handleError);
-		loadGamePreferences(boardgameId).catch(handleError);
-	};
-
-	// re-run whenever the logged-in account or boardgame changes
-	$effect(() => {
-		user?._id;
-		boardgameId;
-		onUserChanged();
-	});
 
 	async function newGame() {
 		if (needOwnership && !hasOwnership) {

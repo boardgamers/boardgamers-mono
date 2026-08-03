@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { UserFront } from "@bgs/models";
 	import { UserGames, UserElo, SEO, UserAvatar } from "@/components";
 	import { Button, Card } from "@/modules/cdk";
 	import { account } from "@/lib/account.svelte";
 	import { dateFromObjectId } from "@/utils";
 	import { page } from "$app/state";
+	import type { PageProps } from "./$types";
 
-	let { data }: { data: { user: UserFront } } = $props();
+	let { data }: PageProps = $props();
 	let username = $derived(data.user.account.username);
 	// The load function 404s if the user doesn't exist, so `_id` is always set here.
 	let userId = $derived(data.user._id!);
@@ -51,7 +51,7 @@
 			<Card class="border-gray-300 mt-4 dark:border-gray-600" header="Statistics">
 				<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 					<div class="mb-3">
-						<UserElo {userId} />
+						<UserElo gamePreferences={data.elo} />
 					</div>
 					<div>
 						<h3 class="text-lg font-semibold">Tournaments</h3>

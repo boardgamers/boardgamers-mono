@@ -4,9 +4,10 @@
 	import { toast } from "$lib/toast.svelte.ts";
 	import { loadPages } from "$lib/stores.svelte.ts";
 	import PageEdit from "$components/PageEdit.svelte";
+	import type { PageProps } from "./$types";
 	import type { PageData } from "./+page.ts";
 
-	let { data }: { data: { value: PageData | null } } = $props();
+	let { data }: PageProps = $props();
 
 	const name = data.value?._id.name ?? "";
 	const lang = data.value?._id.lang ?? "";
