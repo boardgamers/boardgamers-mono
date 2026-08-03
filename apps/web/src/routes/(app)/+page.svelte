@@ -53,22 +53,23 @@
 			{/if}
 		</header>
 
+		{#if user && myGames.length === 0}
+			<!-- Logged in but no games: a full-width welcome banner above the game lists. -->
+			<div
+				class="mb-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 px-4 py-3 dark:from-primary/20 dark:to-accent/20"
+			>
+				<span class="text-sm font-medium">Welcome back! Ready to play?</span>
+				<span class="flex gap-2">
+					<Button color="primary" size="sm" href="/new-game" data-sveltekit-preload-data="hover">New Game</Button>
+					<Button color="accent" size="sm" href="/games" data-sveltekit-preload-data="hover">Browse lobby</Button>
+				</span>
+			</div>
+		{/if}
+
 		<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 			<div>
 				{#if myGames.length > 0}
 					<GameList gameStatus="active" userId={user?._id} perPage={5} title="My games" />
-				{:else if user}
-					<!-- Logged in but no games: a warm welcome + featured games fill the space. -->
-					<div
-						class="mb-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 px-4 py-3 dark:from-primary/20 dark:to-accent/20"
-					>
-						<span class="text-sm font-medium">Welcome back! Ready to play?</span>
-						<span class="flex gap-2">
-							<Button color="primary" size="sm" href="/new-game" data-sveltekit-preload-data="hover">New Game</Button>
-							<Button color="accent" size="sm" href="/games" data-sveltekit-preload-data="hover">Browse lobby</Button>
-						</span>
-					</div>
-					<GameList gameStatus="active" topRecords perPage={5} title="Featured games" />
 				{:else}
 					<GameList gameStatus="active" topRecords perPage={5} title="Featured games" />
 				{/if}
