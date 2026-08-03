@@ -21,7 +21,17 @@ export const load: LayoutLoad = async ({ data }) => {
 	// SSR always renders current game data (no shared 1-hour server cache).
 	const gameInfos: Record<string, SetOptional<GameInfoFront, "viewer">> = await fetchGameInfos().catch(() => ({}));
 
+	// Boardgames the player has played, ordered by recency — the sidebar's pinned "My
+	// games" group. SSR-safe (request-scoped fetch via getRequestEvent), so the divider
+	// and pinned group render on first paint, not after hydration.
 	let myBoardgames: string[] = [];
+	if (data?.user?._id) {
+		myBoardgames = await get<{ boardgame: string; lastActivity: string }[]>("/game/my-boardgames", {
+			user: data.user._id,
+		})
+			.then((rows) => rows.map((r) => r.boardgame))
+			.catch(() => []);
+	}
 
 	if (browser) {
 		// Seed stores from the initial SSR data (client only).
@@ -33,18 +43,6 @@ export const load: LayoutLoad = async ({ data }) => {
 		initWebsocket();
 		initNProgress();
 		initErrorReporting();
-
-		// Boardgames the player has played, ordered by recency — used by the sidebar's
-		// "My games" pinned group. Per-user, so browser-only: on the server this fetch
-		// would read the shared token/context singletons. The sidebar pops it in after
-		// hydration (SSR renders only the "All games" group).
-		if (data?.user?._id) {
-			myBoardgames = await get<{ boardgame: string; lastActivity: string }[]>("/game/my-boardgames", {
-				user: data.user._id,
-			})
-				.then((rows) => rows.map((r) => r.boardgame))
-				.catch(() => []);
-		}
 	}
 
 	// Pass through the layout data so child pages can access it via `await parent()`
