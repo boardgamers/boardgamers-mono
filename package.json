@@ -10,7 +10,6 @@
 	"devDependencies": {
 		"@typescript/native-preview": "7.0.0-dev.20260707.2",
 		"oxfmt": "catalog:",
-		"svelte": "^3.42.6",
 		"svelte-language-server": "^0.18.3",
 		"typescript": "catalog:"
 	},

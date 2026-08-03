@@ -5,6 +5,7 @@
 	import { activeGames } from "@/lib/stores.svelte";
 	import { initNProgress } from "@/lib/nprogress.svelte";
 	import { page } from "$app/state";
+	import { browser } from "$app/environment";
 	import { setContext, onDestroy } from "svelte";
 	import EventEmitter from "eventemitter3";
 	import type { GameFront, GameInfoFront, PlayerInfoFront } from "@bgs/models";
@@ -23,7 +24,7 @@
 
 	let gameId = $derived(game?._id);
 	$effect(() => {
-		if (gameId) {
+		if (browser && gameId) {
 			currentGameId.set(gameId);
 			currentRoom.set(gameId);
 		}
@@ -48,8 +49,10 @@
 	});
 
 	onDestroy(() => {
-		currentGameId.set(null);
-		currentRoom.set(null);
+		if (browser) {
+			currentGameId.set(null);
+			currentRoom.set(null);
+		}
 	});
 </script>
 
