@@ -44,7 +44,10 @@
 		<Nav pills class="flex-1">
 			<h1 class="me-3">Games</h1>
 			<NavItem><NavLink href="?" onclick={() => selectTab(true)} active={firstTab}>Active</NavLink></NavItem>
-			<NavItem><NavLink href="?status=finished" onclick={() => selectTab(false)} active={!firstTab}>Finished</NavLink></NavItem>
+			<NavItem
+				><NavLink href="?status=finished" onclick={() => selectTab(false)} active={!firstTab}>Finished</NavLink
+				></NavItem
+			>
 		</Nav>
 		<div class="w-full sm:w-64">
 			<Input

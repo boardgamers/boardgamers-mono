@@ -1,3 +1,23 @@
+<script lang="ts" context="module">
+	// Minimal github-slugger (lowercase, spaces→hyphens, dedupe) for heading anchors.
+	class GithubSlugger {
+		private seen = new Map<string, number>();
+		reset() {
+			this.seen.clear();
+		}
+		slug(value: string): string {
+			let slug = value
+				.toLowerCase()
+				.trim()
+				.replace(/[^\w\s-]/g, "")
+				.replace(/[\s_]+/g, "-");
+			const count = this.seen.get(slug) ?? 0;
+			this.seen.set(slug, count + 1);
+			return count > 0 ? `${slug}-${count}` : slug;
+		}
+	}
+</script>
+
 <script lang="ts">
 	import type { PageFront } from "@bgs/models";
 	import marked from "marked";
@@ -78,23 +98,3 @@
 		scroll-margin-top: 4.5rem;
 	}
 </style>
-
-<script lang="ts" context="module">
-	// Minimal github-slugger (lowercase, spaces→hyphens, dedupe) for heading anchors.
-	class GithubSlugger {
-		private seen = new Map<string, number>();
-		reset() {
-			this.seen.clear();
-		}
-		slug(value: string): string {
-			let slug = value
-				.toLowerCase()
-				.trim()
-				.replace(/[^\w\s-]/g, "")
-				.replace(/[\s_]+/g, "-");
-			const count = this.seen.get(slug) ?? 0;
-			this.seen.set(slug, count + 1);
-			return count > 0 ? `${slug}-${count}` : slug;
-		}
-	}
-</script>

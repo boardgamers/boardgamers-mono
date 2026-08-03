@@ -30,8 +30,7 @@
 				Play <a class="no-link font-semibold text-accent dark:text-accent-lighter" href="/boardgame/gaia-project"
 					>Gaia Project</a
 				>,
-				<a class="no-link font-semibold text-accent dark:text-accent-lighter" href="/boardgame/powergrid">Powergrid</a
-				>,
+				<a class="no-link font-semibold text-accent dark:text-accent-lighter" href="/boardgame/powergrid">Powergrid</a>,
 				<a class="no-link font-semibold text-accent dark:text-accent-lighter" href="/boardgame/take6">6nimmt</a>
 				and
 				<a class="no-link font-semibold text-accent dark:text-accent-lighter" href="/boardgame/container">Container</a>
