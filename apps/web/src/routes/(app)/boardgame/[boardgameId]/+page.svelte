@@ -51,7 +51,9 @@
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 		<div>
 			<Card class="border-gray-400 h-full dark:border-gray-600" header={rules ? "Rules" : "Description"}>
-				{@html marked((rules ? boardgame.rules : boardgame.description) ?? "")}
+				<div class="prose dark:prose-invert max-w-none">
+					{@html marked((rules ? boardgame.rules : boardgame.description) ?? "")}
+				</div>
 				{#snippet footer()}
 					<a
 						href={rules ? "#description" : "#rules"}
