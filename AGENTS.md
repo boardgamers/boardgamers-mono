@@ -24,6 +24,51 @@ Default to no comment — write self-explanatory code. Only comment the non-obvi
 
 Avoid reading env vars & secrets directly, you can store them in files or env and load them, but avoid reading them directly
 
+## Running instances (agent swarms)
+
+Multiple copies of the stack can run side-by-side on one machine — this is how a
+coordinator agent gives each of its sub-agents an isolated environment.
+**Never run two agents against the default ports/db at once** (they collide and
+share `bgs-dev`).
+
+Division of labor:
+
+- **Coordinator**: spawns one sub-agent per worktree. Before spawning, pick a
+  unique `<name>`, allocate its IP, and **copy the local env files into the
+  worktree** — `.env` is gitignored so the worktree has none:
+
+  ```bash
+  IP=$(scripts/instance-ip.sh alloc <name>)       # unique 127.1.X.Y, idempotent
+	[spawn subagent with IP, tell it its name]
+  for app in api game-server; do
+    [ -f apps/$app/.env ] && cp apps/$app/.env .worktrees/<name>/apps/$app/.env
+  done
+  # (no .env on this machine? give the sub-agent a dbUrl in its task instead)
+  ```
+
+- **Sub-agent**: runs the stack from inside its worktree, on the IP it was given:
+
+  ```bash
+  pnpm install
+  listenHost=$IP dbName=bgs-<name> \
+    VITE_backend=$IP WEB_HOST=$IP \
+    pnpm dev                                        # web+api+game-server, default ports
+  # → http://<IP>:8612   (api 50801, ws 50802, game-server 50803, all on the IP)
+  # when done: coordinator runs scripts/instance-ip.sh free <name>
+  ```
+
+Rules for the agent:
+
+- Always set `dbName` (e.g. `bgs-<name>`) — otherwise the instance shares the
+  default `bgs-dev` db. `NODE_ENV` stays unset (development), so the db is
+  actually `bgs-<name>-dev` and apps never fork `threads=cpu` workers.
+- **Don't set `dbUrl` if the coordinator gave you an `.env`** — it already
+  points at the right Mongo for this host, and `dbUrl` overrides it. If there
+  is **no** `apps/api/.env` in your worktree, set `dbUrl` explicitly if the default
+  one doesnt work (ask the
+  coordinator for the Mongo URL if you don't have one). Mongo must be running
+  (`docker compose up -d mongo` → port 27517, or whatever the local `.env` says).
+
 ## Workarounds
 
 Each project keeps a `WORKAROUNDS.md` (e.g. `apps/web/WORKAROUNDS.md`, `apps/api/WORKAROUNDS.md`) listing temporary shims and deferred cleanups — things intentional for now but to revisit later. When you add such a thing, log a short entry there; when you touch related code, check whether an entry can be removed.
