@@ -1,3 +1,9 @@
+// Load env files in-process (see api/server.ts): PM2 cluster mode drops
+// --env-file node_args for forked workers, so load them here instead.
+import { loadEnvFile } from "node:process";
+loadEnvFile(".env");
+loadEnvFile(".env.production");
+
 import { listen } from "./app/app.ts";
 import env from "./app/config/env.ts";
 import { gracefulShutdown, installProcessHandlers, logEvent, pm2Ready, type Closable } from "@bgs/utils/log";
