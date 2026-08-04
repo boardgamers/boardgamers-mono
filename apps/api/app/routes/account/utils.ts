@@ -3,13 +3,16 @@ import { colls } from "../../config/db.ts";
 import { accessTokenDuration, createAccessToken, generateRefreshCode, isUserAdmin } from "../../models/index.ts";
 import { refreshTokenDuration, setRefreshCookie } from "../../models/session.ts";
 
-export async function sendAuthInfo(ctx: Context) {
+export async function sendAuthInfo(ctx: Context, loginMethod?: string) {
 	const code = generateRefreshCode();
 	const createdAt = new Date();
+	// The social-signup strategy stashes the OAuth provider on the user it returns.
+	const method = loginMethod ?? ctx.state.user?.loginMethod;
 
 	const result = await colls.jwtRefreshTokens.insertOne({
 		user: ctx.state.user._id,
 		code,
+		loginMethod: method,
 		createdAt,
 	});
 

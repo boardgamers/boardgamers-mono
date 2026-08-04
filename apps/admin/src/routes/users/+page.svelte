@@ -42,6 +42,8 @@
 		recentDays: number;
 		perMethod: { recent: Record<Method, number>; older: Record<Method, number> };
 		combinations: { methods: Method[]; recent: number; older: number }[];
+		sessions: Record<string, number>;
+		trend: { weeks: number; methods: string[]; loginsByWeek: ({ week: string } & Record<string, number>)[] };
 	}
 	type Method = "password" | "google" | "facebook" | "discord";
 	const methodLabels: Record<Method, string> = {
@@ -50,6 +52,49 @@
 		facebook: "Facebook",
 		discord: "Discord",
 	};
+
+	const trendColor = (method: string) =>
+		({
+			password: "#3b82f6",
+			google: "#ef4444",
+			facebook: "#1877f2",
+			discord: "#5865f2",
+			admin: "#a855f7",
+			unknown: "#9ca3af",
+		})[method] ?? "#14b8a6";
+
+	function linePath(values: number[], max: number, width: number, height: number): string {
+		if (values.length === 0) return "";
+		const pts = values.map((v, i) => [
+			(i / Math.max(values.length - 1, 1)) * width,
+			height - (v / Math.max(max, 1)) * height,
+		]);
+		return pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+	}
+
+	const trendMax = $derived(
+		Math.max(1, ...(loginMethods?.trend.loginsByWeek ?? []).flatMap((w) => Object.values(w).slice(1)))
+	);
+	const totalSessions = $derived(Object.values(loginMethods?.sessions ?? {}).reduce((acc, n) => acc + n, 0));
+
+	const comboPageSize = 10;
+	let comboFilter = $state<Method | "all">("all");
+	let comboPage = $state(0);
+	const filteredCombos = $derived(
+		(loginMethods?.combinations ?? []).filter((c) => comboFilter === "all" || c.methods.includes(comboFilter))
+	);
+	const comboPageCount = $derived(Math.max(1, Math.ceil(filteredCombos.length / comboPageSize)));
+	const pagedCombos = $derived(
+		filteredCombos.slice(
+			Math.min(comboPage, comboPageCount - 1) * comboPageSize,
+			(Math.min(comboPage, comboPageCount - 1) + 1) * comboPageSize
+		)
+	);
+
+	function toggleComboFilter(method: Method) {
+		comboFilter = comboFilter === method ? "all" : method;
+		comboPage = 0;
+	}
 
 	let stats = $state<UserStats | null>(null);
 	let loginMethods = $state<LoginMethods | null>(null);
@@ -237,7 +282,8 @@
 			<h3 class="text-sm font-semibold mb-1">Login methods</h3>
 			<p class="text-xs text-gray-400 mb-4">
 				Users by login mechanism on their account — a user with several linked methods counts once per method in totals,
-				once per combination below. Active = logged in within the last {loginMethods.recentDays} days.
+				once per combination below. Active = logged in within the last {loginMethods.recentDays} days. Click a method to filter
+				the combinations table.
 			</p>
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 				<div class="overflow-x-auto">
@@ -251,7 +297,13 @@
 						</thead>
 						<tbody>
 							{#each Object.keys(methodLabels) as method}
-								<tr class="border-b border-gray-50 dark:border-gray-800/50">
+								<tr
+									class="border-b border-gray-50 dark:border-gray-800/50 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50 {comboFilter ===
+									method
+										? 'bg-blue-50 dark:bg-blue-900/30'
+										: ''}"
+									onclick={() => toggleComboFilter(method as Method)}
+								>
 									<td class="py-2 pr-4 font-medium">{methodLabels[method as Method]}</td>
 									<td class="py-2 pr-4 text-right">{loginMethods.perMethod.recent[method as Method]}</td>
 									<td class="py-2 text-right text-gray-500">{loginMethods.perMethod.older[method as Method]}</td>
@@ -261,6 +313,26 @@
 					</table>
 				</div>
 				<div class="overflow-x-auto">
+					<div class="flex flex-wrap gap-1.5 mb-3">
+						<button
+							class="px-2.5 py-1 text-xs font-medium rounded-full transition-colors {comboFilter === 'all'
+								? 'bg-blue-600 text-white'
+								: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}"
+							onclick={() => toggleComboFilter(comboFilter)}
+						>
+							All
+						</button>
+						{#each Object.keys(methodLabels) as method}
+							<button
+								class="px-2.5 py-1 text-xs font-medium rounded-full transition-colors {comboFilter === method
+									? 'bg-blue-600 text-white'
+									: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}"
+								onclick={() => toggleComboFilter(method as Method)}
+							>
+								{methodLabels[method as Method]}
+							</button>
+						{/each}
+					</div>
 					<table class="w-full text-sm">
 						<thead>
 							<tr class="border-b border-gray-100 dark:border-gray-800 text-left text-xs text-gray-500 uppercase">
@@ -270,7 +342,7 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each loginMethods.combinations as combo}
+							{#each pagedCombos as combo}
 								<tr class="border-b border-gray-50 dark:border-gray-800/50">
 									<td class="py-2 pr-4 font-medium">
 										{combo.methods.length ? combo.methods.map((m) => methodLabels[m]).join(" + ") : "None"}
@@ -278,10 +350,99 @@
 									<td class="py-2 pr-4 text-right">{combo.recent}</td>
 									<td class="py-2 text-right text-gray-500">{combo.older}</td>
 								</tr>
+							{:else}
+								<tr>
+									<td colspan="3" class="py-4 text-sm text-gray-400">No combinations match this filter.</td>
+								</tr>
 							{/each}
 						</tbody>
 					</table>
+					{#if comboPageCount > 1}
+						<div class="flex items-center justify-between mt-3 text-xs text-gray-500">
+							<button
+								class="px-3 py-1.5 font-medium bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg disabled:opacity-50"
+								disabled={comboPage === 0}
+								onclick={() => (comboPage -= 1)}
+							>
+								Previous
+							</button>
+							<span>
+								Page {Math.min(comboPage, comboPageCount - 1) + 1} / {comboPageCount} · {filteredCombos.length} combinations
+							</span>
+							<button
+								class="px-3 py-1.5 font-medium bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg disabled:opacity-50"
+								disabled={comboPage >= comboPageCount - 1}
+								onclick={() => (comboPage += 1)}
+							>
+								Next
+							</button>
+						</div>
+					{/if}
 				</div>
+			</div>
+
+			<!-- Login trend (from refresh tokens stamped with the login method) -->
+			<h4 class="text-sm font-semibold mt-6 mb-1">Logins per method — weekly, last {loginMethods.trend.weeks} weeks</h4>
+			<p class="text-xs text-gray-400 mb-4">
+				Actual logins, recorded on each new session. Pre-existing sessions have no recorded method and show up as
+				"Unknown" until they expire (120-day token TTL).
+			</p>
+			{#if loginMethods.trend.loginsByWeek.length > 0 && loginMethods.trend.methods.length > 0}
+				<svg viewBox="0 0 400 100" preserveAspectRatio="none" class="w-full h-40">
+					{#each loginMethods.trend.methods as method}
+						<path
+							d={linePath(
+								loginMethods.trend.loginsByWeek.map((w) => w[method]),
+								trendMax,
+								400,
+								100
+							)}
+							fill="none"
+							stroke={trendColor(method)}
+							stroke-width="1.5"
+							vector-effect="non-scaling-stroke"
+						/>
+					{/each}
+				</svg>
+				<div class="flex justify-between mt-1 text-[10px] text-gray-400">
+					<span>{loginMethods.trend.loginsByWeek[0]?.week ?? ""}</span>
+					<span>{loginMethods.trend.loginsByWeek[loginMethods.trend.loginsByWeek.length - 1]?.week ?? ""}</span>
+				</div>
+				<div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs">
+					{#each loginMethods.trend.methods as method}
+						<span class="flex items-center gap-1.5">
+							<span class="inline-block w-2.5 h-2.5 rounded-full" style="background: {trendColor(method)}"></span>
+							{methodLabels[method as Method] ?? method}
+						</span>
+					{/each}
+				</div>
+			{:else}
+				<p class="text-sm text-gray-400">No logins recorded yet.</p>
+			{/if}
+
+			<!-- Active sessions per mechanism (live refresh tokens, TTL-bounded) -->
+			<h4 class="text-sm font-semibold mt-6 mb-4">Active sessions per mechanism</h4>
+			<div class="overflow-x-auto md:w-1/2">
+				<table class="w-full text-sm">
+					<thead>
+						<tr class="border-b border-gray-100 dark:border-gray-800 text-left text-xs text-gray-500 uppercase">
+							<th class="py-2 pr-4">Method</th>
+							<th class="py-2 pr-4 text-right">Sessions</th>
+							<th class="py-2 text-right">Share</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each Object.entries(loginMethods.sessions).sort((a, b) => b[1] - a[1]) as [method, count]}
+							<tr class="border-b border-gray-50 dark:border-gray-800/50">
+								<td class="py-2 pr-4 font-medium">{methodLabels[method as Method] ?? method}</td>
+								<td class="py-2 pr-4 text-right">{count}</td>
+								<td class="py-2 text-right text-gray-500">
+									{totalSessions > 0 ? Math.round((count / totalSessions) * 100) : 0}%
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
 			</div>
 		</div>
 	{/if}

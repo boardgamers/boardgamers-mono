@@ -246,8 +246,77 @@ router.get("/login-methods", async (ctx) => {
 
 	combinations.sort((a, b) => b.recent + b.older - (a.recent + a.older));
 
-	ctx.body = { recentDays, perMethod, combinations };
+	// Real login trend: refresh tokens double as a login log (bounded by their 120-day TTL).
+	// Each token is stamped with the login method used to open the session.
+	const trendWeeks = 13;
+	const trendSince = new Date(Date.now() - trendWeeks * 7 * DAY_MS);
+
+	const [sessionsByMethod, loginsByMethodWeek] = await Promise.all([
+		colls.jwtRefreshTokens
+			.aggregate<{ _id: string | null; count: number }>([{ $group: { _id: "$loginMethod", count: { $sum: 1 } } }])
+			.toArray(),
+		colls.jwtRefreshTokens
+			.aggregate<{ _id: { week: string; method: string | null }; count: number }>([
+				{ $match: { createdAt: { $gte: trendSince } } },
+				{
+					$group: {
+						_id: {
+							week: { $dateToString: { format: "%G-W%V", date: "$createdAt" } },
+							method: { $ifNull: ["$loginMethod", "unknown"] },
+						},
+						count: { $sum: 1 },
+					},
+				},
+				{ $sort: { "_id.week": 1 } },
+			])
+			.toArray(),
+	]);
+
+	const sessions: Record<string, number> = {};
+	for (const { _id, count } of sessionsByMethod) {
+		sessions[_id ?? "unknown"] = count;
+	}
+
+	const methodSet = new Set<string>();
+	const countMap = new Map<string, number>();
+	for (const { _id, count } of loginsByMethodWeek) {
+		methodSet.add(_id.method);
+		countMap.set(`${_id.week}/${_id.method}`, count);
+	}
+	const methods = [...methodSet].sort();
+
+	// Fill missing weeks so the chart has a continuous x-axis (Mongo 8 sorts %G-W%V correctly).
+	const weekSet = new Set<string>();
+	for (let i = 0; i < trendWeeks; i++) {
+		weekSet.add(isoWeekString(new Date(Date.now() - (trendWeeks - 1 - i) * 7 * DAY_MS)));
+	}
+	for (const { _id } of loginsByMethodWeek) {
+		weekSet.add(_id.week);
+	}
+	const weeks = [...weekSet].sort();
+
+	const loginsByWeek = weeks.map((week) => {
+		const entry: { week: string } & Record<string, number> = { week };
+		for (const method of methods) {
+			entry[method] = countMap.get(`${week}/${method}`) ?? 0;
+		}
+		return entry;
+	});
+
+	ctx.body = { recentDays, perMethod, combinations, sessions, trend: { weeks: trendWeeks, methods, loginsByWeek } };
 });
+
+const DAY_MS = 24 * 3600 * 1000;
+
+function isoWeekString(date: Date): string {
+	const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+	// Move to the Thursday of the ISO week — the ISO year is the year that Thursday falls in.
+	d.setUTCDate(d.getUTCDate() + 3 - ((d.getUTCDay() + 6) % 7));
+	const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+	firstThursday.setUTCDate(firstThursday.getUTCDate() + 3 - ((firstThursday.getUTCDay() + 6) % 7));
+	const week = 1 + Math.round((d.getTime() - firstThursday.getTime()) / (7 * DAY_MS));
+	return `${d.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
 
 router.post("/:userId/confirm", async (ctx) => {
 	if (!(await colls.users.countDocuments({ _id: new ObjectId(ctx.params.userId) }))) {

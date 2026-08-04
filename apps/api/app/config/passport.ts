@@ -150,7 +150,8 @@ passport.use(
 				const result = await colls.users.insertOne(newUserDoc);
 				const newUser: WithId<UserDoc> = { ...newUserDoc, _id: result.insertedId };
 
-				return done(null, newUser);
+				// sendAuthInfo picks the provider up to stamp it on the refresh token.
+				return done(null, { ...newUser, loginMethod: decoded.provider });
 			} catch (err) {
 				return done(err);
 			}

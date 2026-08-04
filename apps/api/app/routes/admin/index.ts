@@ -165,7 +165,7 @@ router.post("/login-as", async (ctx) => {
 
 	ctx.state.user = user;
 
-	await sendAuthInfo(ctx);
+	await sendAuthInfo(ctx, "admin");
 });
 
 router.post("/compute-karma", async (ctx) => {
