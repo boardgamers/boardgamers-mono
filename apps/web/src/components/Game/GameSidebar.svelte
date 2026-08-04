@@ -11,6 +11,7 @@
 	import { GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings } from "./GameSidebar";
 	import type { GameContext } from "@/routes/game/[gameId]/game-context";
 	import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
+	import UsernameLink from "@/components/User/UsernameLink.svelte";
 	import SetupOptionBadge from "./SetupOptionBadge.svelte";
 	import { post } from "@/lib/api";
 	import { account } from "@/lib/account.svelte";
@@ -118,9 +119,11 @@
 			<PlayerGameAvatar game={game.game.name} {userId} {player} status={status(player._id)} class="me-2" />
 
 			<div>
-				<a href={`/user/${player.name}`} class="player-name" class:dropped={player.dropped}>
-					{player.name}
-				</a>
+				<UsernameLink
+					username={player.name}
+					userId={player._id}
+					class={player.dropped ? "player-name dropped" : "player-name"}
+				/>
 				<sup class="ms-1">
 					{#if player.elo}
 						{player.elo.initial} {(player.elo.delta ?? 0) >= 0 ? "+" : "-"} {Math.abs(player.elo.delta ?? 0)} elo

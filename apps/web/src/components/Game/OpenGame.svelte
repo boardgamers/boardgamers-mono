@@ -18,6 +18,7 @@
 	import IconPerson from "@/components/icons/IconPerson.svelte";
 	import IconHourglass from "@/components/icons/IconHourglass.svelte";
 	import UserAvatar from "@/components/User/UserAvatar.svelte";
+	import UsernameLink from "@/components/User/UsernameLink.svelte";
 	import SetupOptionBadge from "./SetupOptionBadge.svelte";
 	import IconArrowDown from "@/components/icons/IconArrowDown.svelte";
 	import IconArrowUp from "@/components/icons/IconArrowUp.svelte";
@@ -245,12 +246,11 @@
 					<IconPerson class="text-gray-400" />
 					<span>
 						Hosted by
-						<a
-							href={`/user/${context.players.find((pl) => pl._id === context.game?.creator)?.name}`}
+						<UsernameLink
+							username={context.players.find((pl) => pl._id === context.game?.creator)?.name ?? "?"}
+							userId={context.game?.creator}
 							class="font-medium"
-						>
-							{context.players.find((pl) => pl._id === context.game?.creator)?.name}
-						</a>
+						/>
 					</span>
 				</li>
 				<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
@@ -347,7 +347,7 @@
 					{@const info = context.players.find((pl) => pl._id === player._id)}
 					<li class="flex items-center gap-2">
 						<UserAvatar userId={player._id} username={info?.name ?? "?"} size="2rem" />
-						<a href={`/user/${info?.name}`} class="font-medium">{info?.name}</a>
+						<UsernameLink username={info?.name ?? "?"} userId={player._id} class="font-medium" />
 						<span class="text-sm text-gray-500 dark:text-gray-400">{info?.elo} elo</span>
 						{#if player.pending}
 							<span
