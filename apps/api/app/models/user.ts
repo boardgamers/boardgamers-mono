@@ -95,7 +95,12 @@ export async function validPassword(user: WithId<UserDoc>, password: string) {
 
 export async function resetPassword(user: WithId<UserDoc>, password: string) {
 	const hash = await generateHash(password);
-	await colls.users.updateOne({ _id: user._id }, { $set: { "account.password": hash, "security.reset": null } });
+	await Promise.all([
+		colls.users.updateOne({ _id: user._id }, { $set: { "account.password": hash, "security.reset": null } }),
+		// A password change can mean the account was compromised — revoke all
+		// sessions; every device has to log in again with the new password.
+		colls.jwtRefreshTokens.deleteMany({ user: user._id }),
+	]);
 }
 
 export function generateConfirmKey(): string {

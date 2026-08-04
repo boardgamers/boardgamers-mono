@@ -102,6 +102,25 @@
 		}
 	}
 
+	let showRevokeConfirm = $state(false);
+	let revoking = $state(false);
+
+	async function revokeSessions() {
+		if (!user) return;
+		revoking = true;
+		try {
+			const res = await api.del<{ deleted: number }>(`/admin/users/${user._id}/refresh-tokens`);
+			toast.success(
+				`Sessions revoked (${res.deleted} refresh token${res.deleted === 1 ? "" : "s"} deleted) — all devices logged out`
+			);
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed to revoke sessions");
+		} finally {
+			revoking = false;
+			showRevokeConfirm = false;
+		}
+	}
+
 	async function deleteUser() {
 		if (!user) return;
 		deleting = true;
@@ -245,6 +264,28 @@
 				>
 					Log in as
 				</button>
+				{#if !showRevokeConfirm}
+					<button
+						onclick={() => (showRevokeConfirm = true)}
+						class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium"
+					>
+						Clear sessions
+					</button>
+				{:else}
+					<button
+						onclick={revokeSessions}
+						disabled={revoking}
+						class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+					>
+						{revoking ? "Revoking…" : "Revoke all sessions?"}
+					</button>
+					<button
+						onclick={() => (showRevokeConfirm = false)}
+						class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-sm font-medium"
+					>
+						Cancel
+					</button>
+				{/if}
 			</div>
 		</div>
 
