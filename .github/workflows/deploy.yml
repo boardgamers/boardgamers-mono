@@ -58,8 +58,8 @@ jobs:
             # mtimes so the age-based pruning below measures from the chunk's first build,
             # not its last copy.
             for prev in apps/web/build-old apps/web/build; do
-              if [ -d \"$prev/client/_app/immutable\" ]; then
-                cp -prn \"$prev/client/_app/immutable/.\" apps/web/build-new/client/_app/immutable/
+              if [ -d \"\$prev/client/_app/immutable\" ]; then
+                cp -prn \"\$prev/client/_app/immutable/.\" apps/web/build-new/client/_app/immutable/
               fi
             done
             find apps/web/build-new/client/_app/immutable -type f -mtime +30 -delete
@@ -80,8 +80,8 @@ jobs:
 
             # Same immutable-chunk retention as the web app (nginx serves dist/ directly).
             for prev in apps/admin/dist-old apps/admin/dist; do
-              if [ -d \"$prev/_app/immutable\" ]; then
-                cp -prn \"$prev/_app/immutable/.\" apps/admin/dist-new/_app/immutable/
+              if [ -d \"\$prev/_app/immutable\" ]; then
+                cp -prn \"\$prev/_app/immutable/.\" apps/admin/dist-new/_app/immutable/
               fi
             done
             find apps/admin/dist-new/_app/immutable -type f -mtime +30 -delete
