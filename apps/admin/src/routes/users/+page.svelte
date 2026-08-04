@@ -38,7 +38,29 @@
 	let loadingAdmins = $state(true);
 	let promoting = $state<string | null>(null);
 
+	interface LoginMethods {
+		recentDays: number;
+		perMethod: { recent: Record<Method, number>; older: Record<Method, number> };
+		combinations: { methods: Method[]; recent: number; older: number }[];
+	}
+	type Method = "password" | "google" | "facebook" | "discord";
+	const methodLabels: Record<Method, string> = {
+		password: "Password",
+		google: "Google",
+		facebook: "Facebook",
+		discord: "Discord",
+	};
+
 	let stats = $state<UserStats | null>(null);
+	let loginMethods = $state<LoginMethods | null>(null);
+
+	async function loadLoginMethods() {
+		try {
+			loginMethods = await api.get<LoginMethods>("/admin/users/login-methods");
+		} catch {
+			loginMethods = null;
+		}
+	}
 
 	async function loadAdmins() {
 		loadingAdmins = true;
@@ -142,6 +164,7 @@
 
 	loadAdmins();
 	loadStats();
+	loadLoginMethods();
 </script>
 
 <svelte:head>
@@ -205,6 +228,61 @@
 			{:else}
 				<p class="text-sm text-gray-400">No new users in the last 30 days.</p>
 			{/if}
+		</div>
+	{/if}
+
+	<!-- Login methods -->
+	{#if loginMethods}
+		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+			<h3 class="text-sm font-semibold mb-1">Login methods</h3>
+			<p class="text-xs text-gray-400 mb-4">
+				Users by login mechanism on their account — a user with several linked methods counts once per method in totals,
+				once per combination below. Active = logged in within the last {loginMethods.recentDays} days.
+			</p>
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+				<div class="overflow-x-auto">
+					<table class="w-full text-sm">
+						<thead>
+							<tr class="border-b border-gray-100 dark:border-gray-800 text-left text-xs text-gray-500 uppercase">
+								<th class="py-2 pr-4">Method</th>
+								<th class="py-2 pr-4 text-right">Active</th>
+								<th class="py-2 text-right">Inactive / never</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each Object.keys(methodLabels) as method}
+								<tr class="border-b border-gray-50 dark:border-gray-800/50">
+									<td class="py-2 pr-4 font-medium">{methodLabels[method as Method]}</td>
+									<td class="py-2 pr-4 text-right">{loginMethods.perMethod.recent[method as Method]}</td>
+									<td class="py-2 text-right text-gray-500">{loginMethods.perMethod.older[method as Method]}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+				<div class="overflow-x-auto">
+					<table class="w-full text-sm">
+						<thead>
+							<tr class="border-b border-gray-100 dark:border-gray-800 text-left text-xs text-gray-500 uppercase">
+								<th class="py-2 pr-4">Combination</th>
+								<th class="py-2 pr-4 text-right">Active</th>
+								<th class="py-2 text-right">Inactive / never</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each loginMethods.combinations as combo}
+								<tr class="border-b border-gray-50 dark:border-gray-800/50">
+									<td class="py-2 pr-4 font-medium">
+										{combo.methods.length ? combo.methods.map((m) => methodLabels[m]).join(" + ") : "None"}
+									</td>
+									<td class="py-2 pr-4 text-right">{combo.recent}</td>
+									<td class="py-2 text-right text-gray-500">{combo.older}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			</div>
 		</div>
 	{/if}
 

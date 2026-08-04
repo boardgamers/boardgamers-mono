@@ -181,6 +181,74 @@ router.post("/:userId/access/grant", async (ctx) => {
 	ctx.status = 200;
 });
 
+const zeroMethodCounts = () => ({ password: 0, google: 0, facebook: 0, discord: 0 });
+
+// DELETE /api/admin/users/:userId/refresh-tokens — revoke all sessions (refresh tokens) of a user
+router.delete("/:userId/refresh-tokens", async (ctx) => {
+	const userId = new ObjectId(ctx.params.userId);
+
+	if (!(await colls.users.countDocuments({ _id: userId }))) {
+		ctx.status = 404;
+		return;
+	}
+
+	const { deletedCount } = await colls.jwtRefreshTokens.deleteMany({ user: userId });
+
+	ctx.body = { deleted: deletedCount };
+});
+
+// GET /api/admin/users/login-methods — users grouped by login mechanisms, split by recent activity
+router.get("/login-methods", async (ctx) => {
+	const recentDays = 90;
+	const since = new Date(Date.now() - recentDays * 24 * 60 * 60 * 1000);
+
+	const grouped = await colls.users
+		.aggregate<{
+			_id: { password: boolean; google: boolean; facebook: boolean; discord: boolean; recent: boolean };
+			count: number;
+		}>([
+			{
+				$group: {
+					_id: {
+						password: { $gt: [{ $strLenCP: { $ifNull: ["$account.password", ""] } }, 0] },
+						google: { $gt: ["$account.social.google", null] },
+						facebook: { $gt: ["$account.social.facebook", null] },
+						discord: { $gt: ["$account.social.discord", null] },
+						recent: { $gte: [{ $ifNull: ["$security.lastLogin.date", new Date(0)] }, since] },
+					},
+					count: { $sum: 1 },
+				},
+			},
+		])
+		.toArray();
+
+	const perMethod = { recent: zeroMethodCounts(), older: zeroMethodCounts() };
+	const combinations: { methods: string[]; recent: number; older: number }[] = [];
+
+	for (const { _id, count } of grouped) {
+		const bucket = _id.recent ? "recent" : "older";
+		if (_id.password) {
+			perMethod[bucket].password += count;
+		}
+		if (_id.google) {
+			perMethod[bucket].google += count;
+		}
+		if (_id.facebook) {
+			perMethod[bucket].facebook += count;
+		}
+		if (_id.discord) {
+			perMethod[bucket].discord += count;
+		}
+
+		const methods = (["password", "google", "facebook", "discord"] as const).filter((m) => _id[m]);
+		combinations.push({ methods, recent: _id.recent ? count : 0, older: _id.recent ? 0 : count });
+	}
+
+	combinations.sort((a, b) => b.recent + b.older - (a.recent + a.older));
+
+	ctx.body = { recentDays, perMethod, combinations };
+});
+
 router.post("/:userId/confirm", async (ctx) => {
 	if (!(await colls.users.countDocuments({ _id: new ObjectId(ctx.params.userId) }))) {
 		return;
