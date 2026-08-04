@@ -20,6 +20,12 @@ export const userSchema = z.object({
 			.optional(),
 		avatar: z.string().optional(),
 		bio: z.string().optional(),
+		// 2-letter ISO 3166-1 alpha-2 code, user-chosen, shown in rankings/profile
+		country: z
+			.string()
+			.regex(/^[a-zA-Z]{2}$/)
+			.toUpperCase()
+			.optional(),
 	}),
 	settings: z
 		.object({

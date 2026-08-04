@@ -104,6 +104,7 @@ router.get("/:boardgame/elo", async (ctx) => {
 					"access.ownership": 1,
 					"user.name": "$userData.account.username",
 					"user._id": "$userData._id",
+					"user.country": "$userData.account.country",
 				},
 			},
 		])

@@ -49,6 +49,12 @@ router.post("/", loggedIn, async (ctx) => {
 				.object({
 					avatar: z.string().optional(),
 					bio: z.string().optional(),
+					country: z
+						.string()
+						.regex(/^[a-zA-Z]{2}$/)
+						.toUpperCase()
+						.or(z.literal(""))
+						.optional(),
 				})
 				.optional(),
 		})
@@ -80,6 +86,9 @@ router.post("/", loggedIn, async (ctx) => {
 	}
 	if (body.account?.bio != null) {
 		updateFields["account.bio"] = body.account.bio;
+	}
+	if (body.account?.country != null) {
+		updateFields["account.country"] = body.account.country === "" ? null : body.account.country;
 	}
 
 	if (Object.keys(updateFields).length > 0) {

@@ -3,6 +3,7 @@
 	import { Button, Card } from "@/modules/cdk";
 	import { account } from "@/lib/account.svelte";
 	import { dateFromObjectId } from "@/utils";
+	import { countryFlag, countryName } from "@/lib/countries";
 	import { page } from "$app/state";
 	import type { PageProps } from "./$types";
 
@@ -35,6 +36,10 @@
 			<h1 class="mb-2">{username}</h1>
 			<div class="mb-2">
 				☯️ <a href="/page/karma" title="karma">{data.user.account.karma}</a> karma <br />
+				{#if data.user.account.country}
+					{countryFlag(data.user.account.country)}
+					{countryName(data.user.account.country)} <br />
+				{/if}
 				🎉 Joined us in {joinDate.toLocaleString("en", { month: "long" })}
 				{joinDate.toLocaleString("default", { year: "numeric" })}!
 			</div>
