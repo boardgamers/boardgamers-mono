@@ -5,7 +5,7 @@ import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { testUser } from "../../config/test-helpers.ts";
 import { createAccessToken, generateRefreshCode } from "../../models/jwtrefreshtokens.ts";
-import { resetPassword } from "../../models/user.ts";
+import { generateHash, resetPassword } from "../../models/user.ts";
 
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
 
@@ -26,6 +26,36 @@ async function makeAuthHeaders(userId: ObjectId) {
 }
 
 const DAY = 24 * 3600 * 1000;
+
+const WEDNESDAY = new Date(Date.UTC(2026, 7, 5));
+
+interface TrendBody {
+	sessions: Record<string, number>;
+	trend: { weeks: number; methods: string[]; loginsByWeek: ({ week: string } & Record<string, number>)[] };
+}
+
+const isoWeek = (d: Date) => `${d.getUTCFullYear()}-W${String(isoWeekNumber(d)).padStart(2, "0")}`;
+
+const sessionCount = (body: TrendBody, method: string) => body.sessions[method] ?? 0;
+
+const weeklyCount = (body: TrendBody, method: string, weeksAfterFixture: number) =>
+	body.trend.loginsByWeek.find((w) => w.week === isoWeek(mondayOfWeek(weeksAfterFixture)))?.[method] ?? 0;
+
+// Monday of the ISO week, `weeks` weeks after the Wednesday fixture date.
+function mondayOfWeek(weeks: number): Date {
+	const d = new Date(WEDNESDAY);
+	d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + weeks * 7);
+	return d;
+}
+
+// Mirrors the %G-W%V bucketing done by the endpoint (Mongo computes it from the date).
+function isoWeekNumber(d: Date): number {
+	const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+	date.setUTCDate(date.getUTCDate() + 3 - ((date.getUTCDay() + 6) % 7));
+	const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
+	firstThursday.setUTCDate(firstThursday.getUTCDate() + 3 - ((firstThursday.getUTCDay() + 6) % 7));
+	return 1 + Math.round((date.getTime() - firstThursday.getTime()) / (7 * DAY));
+}
 
 describe("Admin users API", () => {
 	const adminId = new ObjectId();
@@ -161,6 +191,85 @@ describe("Admin users API", () => {
 			// (May also count users from other spec files when the full suite shares the db.)
 			assert.strictEqual(combo([]).recent, 0);
 			assert.ok(combo([]).older >= 3);
+		});
+
+		describe("login trend + active sessions (refresh tokens)", () => {
+			const trendUserId = new ObjectId();
+
+			before(async () => {
+				await colls.users.insertOne(testUser({ _id: trendUserId }));
+				const token = (loginMethod: string | undefined, createdAt: Date, code: string) => ({
+					user: trendUserId,
+					code,
+					createdAt,
+					...(loginMethod ? { loginMethod } : {}),
+				});
+				await colls.jwtRefreshTokens.insertMany([
+					token("password", mondayOfWeek(0), "trend-pw-0a"),
+					token("password", mondayOfWeek(0), "trend-pw-0b"),
+					token("password", mondayOfWeek(1), "trend-pw-1"),
+					token("google", mondayOfWeek(1), "trend-google-1"),
+					token(undefined, mondayOfWeek(1), "trend-unknown-1"),
+					token("discord", mondayOfWeek(2), "trend-discord-2"),
+				]);
+			});
+
+			it("returns a weekly trend bucketed by login method", async () => {
+				const res = await api("GET", "/api/admin/users/login-methods", adminHeaders);
+				assert.strictEqual(res.status, 200);
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+				const body = res.data as TrendBody;
+
+				assert.strictEqual(body.trend.weeks, 13);
+				// Codes are unique-indexed, so these fixtures can't collide with other specs.
+				assert.strictEqual(weeklyCount(body, "password", 0), 2);
+				assert.strictEqual(weeklyCount(body, "password", 1), 1);
+				assert.strictEqual(weeklyCount(body, "google", 1), 1);
+				assert.strictEqual(weeklyCount(body, "discord", 2), 1);
+				// Tokens without a loginMethod land in "unknown".
+				assert.strictEqual(weeklyCount(body, "unknown", 1), 1);
+
+				const passwordWeeks = body.trend.loginsByWeek.filter((w) => (w.password ?? 0) > 0);
+				assert.strictEqual(passwordWeeks.length, 2);
+			});
+
+			it("counts active sessions per mechanism", async () => {
+				const res = await api("GET", "/api/admin/users/login-methods", adminHeaders);
+				assert.strictEqual(res.status, 200);
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+				const body = res.data as TrendBody;
+
+				assert.strictEqual(sessionCount(body, "password"), 3);
+				assert.strictEqual(sessionCount(body, "google"), 1);
+				assert.strictEqual(sessionCount(body, "discord"), 1);
+				// The other docs without a method come from this spec's own fixtures above.
+				assert.ok(sessionCount(body, "unknown") >= 1);
+			});
+		});
+
+		describe("POST /account/login", () => {
+			const loginUserId = new ObjectId();
+			const email = "login-method-trend@test.com";
+			const password = "test-password-123";
+
+			before(async () => {
+				await colls.users.insertOne(
+					testUser({ _id: loginUserId, account: { email, password: await generateHash(password) } }),
+				);
+			});
+
+			it("stamps loginMethod=password on the created refresh token", async () => {
+				const res = await fetch(`${baseURL()}/api/account/login`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ email, password }),
+				});
+				assert.strictEqual(res.status, 200);
+
+				const token = await colls.jwtRefreshTokens.findOne({ user: loginUserId });
+				assert.ok(token);
+				assert.strictEqual(token.loginMethod, "password");
+			});
 		});
 	});
 });

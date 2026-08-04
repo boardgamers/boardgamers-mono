@@ -287,11 +287,14 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
 	ctx.status = 200;
 });
 
-router.post("/signup", loggedOut, passport.authenticate("local-signup", { session: false }), sendAuthInfo);
+router.post("/signup", loggedOut, passport.authenticate("local-signup", { session: false }), (ctx) =>
+	sendAuthInfo(ctx, "password"),
+);
 
+// The social-signup strategy attaches the provider as `loginMethod` on the returned user.
 router.post("/signup/social", loggedOut, passport.authenticate("social-signup", { session: false }), sendAuthInfo);
 
-router.post("/login", passport.authenticate("local-login", { session: false }), sendAuthInfo);
+router.post("/login", passport.authenticate("local-login", { session: false }), (ctx) => sendAuthInfo(ctx, "password"));
 
 router.post("/signout", (ctx: Context) => {
 	ctx.logout();
@@ -317,7 +320,7 @@ router.post("/confirm", async (ctx: Context) => {
 	const updatedUser = await colls.users.findOne({ _id: user._id });
 	ctx.state.user = updatedUser;
 
-	await sendAuthInfo(ctx);
+	await sendAuthInfo(ctx, "password");
 });
 
 const mintBodySchema = z.object({ code: z.string().optional(), scopes: z.array(z.string()).optional() });
@@ -358,7 +361,9 @@ router.post("/mint", mintAccessToken);
 // the auth migration — remove once nothing calls /refresh anymore.
 router.post("/refresh", mintAccessToken);
 
-router.post("/reset", loggedOut, passport.authenticate("local-reset", { session: false }), sendAuthInfo);
+router.post("/reset", loggedOut, passport.authenticate("local-reset", { session: false }), (ctx) =>
+	sendAuthInfo(ctx, "password"),
+);
 
 router.post("/forget", loggedOut, async (ctx: Context) => {
 	const { email } = z.object({ email: z.string().email() }).parse(ctx.request.body);
