@@ -223,7 +223,9 @@ router.get("/login-methods", async (ctx) => {
 		.toArray();
 
 	const perMethod = { recent: zeroMethodCounts(), older: zeroMethodCounts() };
-	const combinations: { methods: string[]; recent: number; older: number }[] = [];
+	// The $group splits each method set into recent/older buckets — merge them back
+	// so every combination is a single row carrying both counts.
+	const comboMap = new Map<string, { methods: string[]; recent: number; older: number }>();
 
 	for (const { _id, count } of grouped) {
 		const bucket = _id.recent ? "recent" : "older";
@@ -241,10 +243,17 @@ router.get("/login-methods", async (ctx) => {
 		}
 
 		const methods = (["password", "google", "facebook", "discord"] as const).filter((m) => _id[m]);
-		combinations.push({ methods, recent: _id.recent ? count : 0, older: _id.recent ? 0 : count });
+		const key = methods.join("+");
+		const row = comboMap.get(key) ?? { methods, recent: 0, older: 0 };
+		if (_id.recent) {
+			row.recent += count;
+		} else {
+			row.older += count;
+		}
+		comboMap.set(key, row);
 	}
 
-	combinations.sort((a, b) => b.recent + b.older - (a.recent + a.older));
+	const combinations = [...comboMap.values()].sort((a, b) => b.recent + b.older - (a.recent + a.older));
 
 	// Real login trend: refresh tokens double as a login log (bounded by their 120-day TTL).
 	// Each token is stamped with the login method used to open the session.
