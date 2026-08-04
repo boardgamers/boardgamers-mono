@@ -59,9 +59,9 @@ pnpm dev
 
 Add `pnpm dev:admin` for the admin panel.
 
-## Contributing
+### Multiple isolated instances
 
-We welcome contributions from everybody! Don't hesitate to ask a question.
+To run several copies of the stack side-by-side (e.g. one per agent or per PR),
+give each its own worktree and loopback IP.
 
-VS Code is the recommended editor. Its workspace feature is great to open multiple windows, one with all the back, and another with the all the front.
-Install the prettier & [gitmoji](https://github.com/carloscuesta/gitmoji) extensions!
+See the "Running instances" section of [AGENTS.md](./AGENTS.md) for details.

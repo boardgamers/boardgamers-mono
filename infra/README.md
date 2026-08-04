@@ -17,11 +17,12 @@ PM2 is managed as the `bgs` user (not root). Logs are in `~/.pm2/logs/`.
 
 ## Nginx
 
-Nginx (root) fronts all public traffic:
+Nginx (root) fronts all public traffic. Prod is **full IPv6**: app processes bind
+`::1` (`listenHost=::1` in the prod env) and nginx upstreams dial `::1`:
 
-- `boardgamers.space` / `www.boardgamers.space` → SvelteKit SSR (`127.0.0.1:8612`)
-- `admin.boardgamers.space` → admin SPA (static files + `/api` proxy to `127.0.0.1:50801`)
-- `resources.boardgamers.space` → resources API (`127.0.0.1:50804`)
+- `boardgamers.space` / `www.boardgamers.space` → SvelteKit SSR (`[::1]:8612`)
+- `admin.boardgamers.space` → admin SPA (static files + `/api` proxy to `[::1]:50801`)
+- `resources.boardgamers.space` → resources API (`[::1]:50804`)
 - `forum.boardgamers.space` → NodeBB
 - `grafana.boardgamers.space` → Grafana (`127.0.0.1:3030`)
 

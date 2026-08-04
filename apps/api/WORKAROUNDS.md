@@ -2,15 +2,9 @@
 
 Things that are intentional for now but should be revisited / removed later. Add an entry when you leave a temporary shim, a deferred migration, or anything a future reader might mistake for a permanent decision. Keep entries short and link the code.
 
-## Dev/prod listen host defaults to `127.0.0.1` (`app/config/env.ts`)
+## Listen host: default `127.0.0.1`, prod binds `::1` (`app/config/env.ts`)
 
-`env.listen.host` defaults to `127.0.0.1` (was `localhost`). On hosts whose `/etc/hosts` maps `localhost` to **both** `127.0.0.1` and `::1`, Node's `http.listen("localhost")` binds **only `::1`**. The dev Vite proxy (`apps/admin/vite.config.ts`) dials `127.0.0.1`, so it was refused. Standardising on `127.0.0.1` everywhere (server bind + proxy targets) matches the repo's existing convention — `app/config/test-setup.ts` already forces `127.0.0.1`, the Loki route uses `127.0.0.1:3100`, and the bundled nginx sample (`app/config/nginx`) uses `127.0.0.1`.
-
-**Prod note (2026-07-10):** prod nginx upstreams (`/etc/nginx/sites-enabled/gaia-project`) now dial `127.0.0.1` for api 50801 / ws 50802 / gameplay 50803 / resources 50804 — matching this default. Both sides are aligned; no `listenHost` env override is needed in prod. Don't change the default back to `localhost` or flip nginx to `::1` without doing both simultaneously (see the rationale above — `localhost` binds only `::1` on this host, so an IPv4 nginx dial is refused). Operators can still force `::1` / `0.0.0.0` via `listenHost`. Game-server (`apps/game-server/app/config/env.ts`) mirrors this. Revisit if we ever move to dual-stack listen or a hostname-based upstream.
-
-## Migration-order CI guard supports the old layout (`scripts/check-migrations.ts`)
-
-`check-migrations.ts` reads the base branch's migration registry across **both** the old single-file (`migrations.ts`) and new per-version (`migrations/`) layouts, because the refactor straddles that change. Once the new layout is on `main`, the old-layout fallback (`baseSource()`'s second candidate path) can be dropped.
+`env.listen.host` defaults to `127.0.0.1` (local dev, `scripts/instance-ip.sh` multi-instance). Prod is full IPv6: `listenHost=::1` in the prod env, and the nginx upstreams dial `::1`. Override via the `listenHost` env var. One rule: server bind and whoever dials it (nginx, vite proxy) must use the **same address family** — on coyo `localhost` binds only `::1`, so an IPv4 dial is refused (and vice versa). Revisit if we move to dual-stack listen or a hostname-based upstream. Game-server (`apps/game-server/app/config/env.ts`) mirrors this.
 
 ## Koa doesn't recognise web streams or BSON `Binary` as response bodies (`app/routes/user/index.ts`)
 
