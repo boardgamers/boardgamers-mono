@@ -171,6 +171,9 @@ async function listen(port = env.listen.port.api) {
 						// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 						(body as Record<string, unknown>).password = "*******";
 					}
+					// Game-scoped requests carry the game id as a route param — record it so
+					// admin error listings can jump straight to the offending game.
+					const gameId: string | undefined = ctx.params?.gameId ?? ctx.params?.id ?? ctx.state.game?._id;
 					await colls.apiErrors.insertOne({
 						request: {
 							url: ctx.request.originalUrl,
@@ -187,6 +190,7 @@ async function listen(port = env.listen.port.api) {
 						user: ctx.state.user?._id,
 						meta: {
 							source: "api-node",
+							gameId,
 						},
 						createdAt: new Date(),
 					});

@@ -9,6 +9,7 @@ import { z } from "zod";
 import { playerOrderSchema, type GameDoc, type RoomMetaDataDoc } from "@bgs/models";
 import { ObjectId } from "mongodb";
 import { colls } from "../../config/db.ts";
+import { env } from "../../config/index.ts";
 import locks from "../../config/locks.ts";
 import { zObjectId } from "../../utils/zod.ts";
 import { notifyGameStart } from "../../services/game.ts";
@@ -104,6 +105,17 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 
 	if (await colls.games.findOne({ _id: gameId })) {
 		throw createError(400, `A game with the id '${gameId}' already exists`);
+	}
+
+	// Cap the number of open games a user can host at once — they all show in the
+	// open-games lobby. Unlisted games count too: the cap is about games one
+	// created, not just lobby visibility.
+	if (env.maxOpenGamesPerUser > 0) {
+		const openGames = await colls.games.countDocuments({ creator: user._id, status: "open", cancelled: { $ne: true } });
+		assert(
+			openGames < env.maxOpenGamesPerUser,
+			`You can't have more than ${env.maxOpenGamesPerUser} open games at the same time`,
+		);
 	}
 
 	for (const [key, val] of Object.entries(body.options ?? {})) {
