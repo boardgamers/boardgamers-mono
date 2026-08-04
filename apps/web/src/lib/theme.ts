@@ -14,8 +14,11 @@ function getStoredTheme(): Theme {
 
 function applyTheme(theme: Theme) {
 	if (!browser) return;
-	const isDark = theme === "dark" || (theme === "system" && getSystemPreference());
-	document.documentElement.classList.toggle("dark", isDark);
+	document.documentElement.classList.toggle("dark", isDark(theme));
+}
+
+export function isDark(theme: Theme): boolean {
+	return theme === "dark" || (theme === "system" && getSystemPreference());
 }
 
 // Use a store so components can subscribe with $currentTheme
