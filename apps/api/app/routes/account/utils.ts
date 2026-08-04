@@ -1,9 +1,11 @@
-import type { Context } from "koa";
+import type { Context, Next } from "koa";
 import { colls } from "../../config/db.ts";
 import { accessTokenDuration, createAccessToken, generateRefreshCode, isUserAdmin } from "../../models/index.ts";
 import { refreshTokenDuration, setRefreshCookie } from "../../models/session.ts";
 
-export async function sendAuthInfo(ctx: Context, loginMethod?: string) {
+// Usable as route middleware (ctx, next) — the next param doubles as loginMethod in internal calls.
+export async function sendAuthInfo(ctx: Context, loginMethodOrNext?: string | Next): Promise<void> {
+	const loginMethod = typeof loginMethodOrNext === "string" ? loginMethodOrNext : undefined;
 	const code = generateRefreshCode();
 	const createdAt = new Date();
 	// The social-signup strategy stashes the OAuth provider on the user it returns.

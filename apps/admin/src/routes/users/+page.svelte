@@ -43,7 +43,7 @@
 		perMethod: { recent: Record<Method, number>; older: Record<Method, number> };
 		combinations: { methods: Method[]; recent: number; older: number }[];
 		sessions: Record<string, number>;
-		trend: { weeks: number; methods: string[]; loginsByWeek: ({ week: string } & Record<string, number>)[] };
+		trend: { weeks: number; methods: string[]; loginsByWeek: Record<string, string | number>[] };
 	}
 	type Method = "password" | "google" | "facebook" | "discord";
 	const methodLabels: Record<Method, string> = {

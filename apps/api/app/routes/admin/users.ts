@@ -256,7 +256,7 @@ router.get("/login-methods", async (ctx) => {
 			.aggregate<{ _id: string | null; count: number }>([{ $group: { _id: "$loginMethod", count: { $sum: 1 } } }])
 			.toArray(),
 		colls.jwtRefreshTokens
-			.aggregate<{ _id: { week: string; method: string | null }; count: number }>([
+			.aggregate<{ _id: { week: string; method: string }; count: number }>([
 				{ $match: { createdAt: { $gte: trendSince } } },
 				{
 					$group: {
@@ -296,7 +296,7 @@ router.get("/login-methods", async (ctx) => {
 	const weeks = [...weekSet].sort();
 
 	const loginsByWeek = weeks.map((week) => {
-		const entry: { week: string } & Record<string, number> = { week };
+		const entry: Record<string, string | number> = { week };
 		for (const method of methods) {
 			entry[method] = countMap.get(`${week}/${method}`) ?? 0;
 		}
