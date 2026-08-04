@@ -4,8 +4,12 @@
 // here is independent of how the process was spawned. loadEnvFile is a no-op when
 // the file is absent, and PM2's own `env` block overrides these via real env vars.
 import { loadEnvFile } from "node:process";
-loadEnvFile(".env");
-loadEnvFile(".env.production");
+import { existsSync } from "node:fs";
+for (const f of [".env", ".env.production"]) {
+	if (existsSync(f)) {
+		loadEnvFile(f);
+	}
+}
 
 import { listen } from "./app/app.ts";
 import initDb from "./app/config/db.ts";

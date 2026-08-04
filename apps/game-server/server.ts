@@ -1,8 +1,12 @@
 // Load env files in-process (see api/server.ts): PM2 cluster mode drops
 // --env-file node_args for forked workers, so load them here instead.
 import { loadEnvFile } from "node:process";
-loadEnvFile(".env");
-loadEnvFile(".env.production");
+import { existsSync } from "node:fs";
+for (const f of [".env", ".env.production"]) {
+	if (existsSync(f)) {
+		loadEnvFile(f);
+	}
+}
 
 import { listen } from "./app/app.ts";
 import env from "./app/config/env.ts";
