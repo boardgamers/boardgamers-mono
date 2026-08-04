@@ -1,16 +1,3 @@
-// Load env files in-process. PM2 cluster mode does NOT propagate `node_args`
-// (--env-file) to forked workers, so passing --env-file via the ecosystem config
-// silently loses env vars (dbUrl, …) and the app falls back to defaults. Loading
-// here is independent of how the process was spawned. loadEnvFile is a no-op when
-// the file is absent, and PM2's own `env` block overrides these via real env vars.
-import { loadEnvFile } from "node:process";
-import { existsSync } from "node:fs";
-for (const f of [".env", ".env.production"]) {
-	if (existsSync(f)) {
-		loadEnvFile(f);
-	}
-}
-
 import { listen } from "./app/app.ts";
 import initDb from "./app/config/db.ts";
 import env from "./app/config/env.ts";

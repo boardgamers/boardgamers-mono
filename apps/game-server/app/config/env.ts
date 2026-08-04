@@ -1,4 +1,17 @@
 import fs from "node:fs";
+import { parseEnv } from "node:util";
+
+// Load .env files before reading process.env (see api/app/config/env.ts for why this
+// lives here and not in the entrypoint: ESM import hoisting + PM2 cluster dropping
+// node_args). Real environment variables take precedence over file values.
+for (const name of [".env", `.env.${process.env.NODE_ENV ?? "development"}`]) {
+	const url = new URL(`../../${name}`, import.meta.url);
+	if (fs.existsSync(url)) {
+		for (const [key, value] of Object.entries(parseEnv(fs.readFileSync(url, "utf8")))) {
+			process.env[key] ??= value;
+		}
+	}
+}
 
 let dbName = process.env.dbName ?? "bgs";
 

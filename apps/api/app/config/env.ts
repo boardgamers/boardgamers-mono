@@ -1,4 +1,22 @@
 import fs from "node:fs";
+import { parseEnv } from "node:util";
+
+// Load .env files before reading process.env below. This must live here, not in the
+// entrypoint: ESM hoists imports, so a loadEnvFile call in server.ts would only run
+// after this module already read process.env. PM2 cluster mode also drops node_args
+// (--env-file) when forking workers, so loading in-process is the only path that works
+// everywhere. Paths resolve relative to this module (app/config → package root), not
+// cwd. Real environment variables take precedence over file values (??=), matching
+// --env-file-if-exists semantics.
+for (const name of [".env", `.env.${process.env.NODE_ENV ?? "development"}`]) {
+	const url = new URL(`../../${name}`, import.meta.url);
+	if (fs.existsSync(url)) {
+		for (const [key, value] of Object.entries(parseEnv(fs.readFileSync(url, "utf8")))) {
+			process.env[key] ??= value;
+		}
+	}
+}
+
 const domain = process.env.domain || "boardgamers.space";
 let dbName = process.env.dbName ?? "bgs";
 
