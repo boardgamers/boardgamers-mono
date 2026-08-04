@@ -1,6 +1,8 @@
 <script lang="ts">
 	import marked from "marked";
 
+	import SanitizedHtml from "./SanitizedHtml.svelte";
+
 	let { markdown, lines = 5 }: { markdown?: string; lines?: number } = $props();
 
 	let expanded = $state(false);
@@ -17,9 +19,10 @@
 	let long = $derived((markdown ?? "").length > lines * 60);
 </script>
 
-<div class="prose dark:prose-invert max-w-none {expanded || !long ? '' : lineClamp[lines]}">
-	{@html marked(markdown ?? "")}
-</div>
+<SanitizedHtml
+	html={marked(markdown ?? "")}
+	class="block prose dark:prose-invert max-w-none {expanded || !long ? '' : lineClamp[lines]}"
+/>
 {#if long}
 	<button
 		type="button"

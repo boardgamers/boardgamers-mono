@@ -1,3 +1,4 @@
+import { SvelteMap } from "svelte/reactivity";
 import { get } from "./api";
 import type { GamePreferencesFront, UserFront } from "@bgs/models";
 
@@ -13,7 +14,7 @@ type CacheEntry = {
 
 // Per-username cache for hover-card contents — a username maps to the same profile for the
 // whole session, so one fetch per user no matter how many times their name is hovered.
-const cache = new Map<string, CacheEntry>();
+const cache = new SvelteMap<string, CacheEntry>();
 
 export function getUserCardData(username: string): CacheEntry {
 	const key = username.toLowerCase();

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
 	import UserAvatar from "./UserAvatar.svelte";
 	import { countryFlag, countryName } from "@/lib/countries";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
@@ -44,7 +45,9 @@
 		<UserAvatar {username} {userId} size="3rem" />
 		<div class="min-w-0">
 			<div class="truncate font-semibold">{username}</div>
-			<a href={`/user/${encodeURIComponent(username)}`} class="text-sm text-primary hover:underline">View profile</a>
+			<a href={resolve("/(app)/user/[username]", { username })} class="text-sm text-primary hover:underline"
+				>View profile</a
+			>
 		</div>
 	</div>
 {:else}
@@ -70,7 +73,7 @@
 		{/if}
 		{#if eloRatings.length > 0}
 			<div class="mt-2 flex flex-wrap gap-1">
-				{#each eloRatings as pref}
+				{#each eloRatings as pref (pref.game)}
 					<span
 						class="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary dark:bg-primary/20 dark:text-primary-lighter"
 					>
@@ -80,11 +83,13 @@
 			</div>
 		{/if}
 		<div class="mt-3 flex items-center justify-between border-t border-gray-200 pt-2 dark:border-gray-700">
-			<a href={`/user/${encodeURIComponent(username)}`} class="text-sm text-primary hover:underline">
+			<a href={resolve("/(app)/user/[username]", { username })} class="text-sm text-primary hover:underline">
 				View profile →
 			</a>
 			{#if isSelf}
-				<a href="/account" class="text-sm text-gray-500 hover:underline dark:text-gray-400">Edit profile</a>
+				<a href={resolve("/(app)/account")} class="text-sm text-gray-500 hover:underline dark:text-gray-400"
+					>Edit profile</a
+				>
 			{/if}
 		</div>
 	</div>

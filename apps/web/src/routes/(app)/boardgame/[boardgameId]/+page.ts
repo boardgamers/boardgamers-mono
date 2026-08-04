@@ -24,7 +24,7 @@ export const load: PageLoad = async ({ params, parent }) => {
 
 	const lobbyGames = loadGames({ sample: true, gameStatus: "open", boardgameId, count: 5, store: true });
 
-	const [active, _2, _3, rankings] = await Promise.all([
+	const [active, , , rankings] = await Promise.all([
 		myActiveGames,
 		featuredGames,
 		lobbyGames,

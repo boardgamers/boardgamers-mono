@@ -2,6 +2,7 @@
 	import { Card, CardText } from "@/modules/cdk";
 	import { confirm } from "@/utils";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import ExpandableMarkdown from "@/components/ExpandableMarkdown.svelte";
 	import { useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
@@ -13,9 +14,11 @@
 
 	let info = useLatestGameInfos();
 
-	if (data.gamePreferences) {
-		provideGamePreferences(data.gamePreferences);
-	}
+	$effect(() => {
+		if (data.gamePreferences) {
+			provideGamePreferences(data.gamePreferences);
+		}
+	});
 
 	function owns(gameId: string): boolean {
 		return !!($gamePreferences[gameId] ?? data.gamePreferences?.[gameId])?.access?.ownership;
@@ -27,7 +30,7 @@
 				"You need to have game ownership to host a new game. You can set game ownership in your account settings."
 			);
 		} else {
-			goto(`/boardgame/${gameInfo._id.game}/new-game`);
+			goto(resolve("/(app)/boardgame/[boardgameId]/new-game", { boardgameId: gameInfo._id.game }));
 		}
 		return;
 	};
@@ -38,7 +41,7 @@
 <div class="container mx-auto px-4">
 	<h1 class="mb-4">Choose which game to play</h1>
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-		{#each info as game}
+		{#each info as game (game._id.game)}
 			<div role="button">
 				<Card
 					header={game.label}

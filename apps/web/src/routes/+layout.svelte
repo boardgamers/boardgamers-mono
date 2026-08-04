@@ -7,8 +7,10 @@
 	let { data, children }: LayoutProps & { children: Snippet } = $props();
 
 	// Provide the game-info list to all descendants via context (available during SSR and
-	// on the client). The load re-runs on invalidateAll, so this stays fresh.
-	provideGameInfos(data.gameInfos ?? {});
+	// on the client). The load re-runs on invalidateAll; an effect re-provides fresh data.
+	$effect(() => {
+		provideGameInfos(data.gameInfos ?? {});
+	});
 </script>
 
 {@render children()}

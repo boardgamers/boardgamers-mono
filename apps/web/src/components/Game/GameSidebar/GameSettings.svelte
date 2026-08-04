@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
+	import SanitizedHtml from "../../SanitizedHtml.svelte";
 	import { Checkbox, Label, Input, FormGroup } from "@/modules/cdk";
 	import IconInfoCircleFill from "@/components/icons/IconInfoCircleFill.svelte";
 	import { handleError, oneLineMarked } from "@/utils";
@@ -58,12 +60,12 @@
 	<div class="mt-3">
 		<h3>
 			Settings
-			<a href={`/page/${game.game.name}/settings`}>
+			<a href={resolve("/(app)/page/[part1]/[...part2]", { part1: game.game.name, part2: "settings" })}>
 				<IconInfoCircleFill class="text-xs" />
 			</a>
 		</h3>
 		<!-- Code very similar to PreferencesChooser -->
-		{#each gameInfo.settings ?? [] as setting}
+		{#each gameInfo.settings ?? [] as setting (setting.name)}
 			{#if !setting.faction || setting.faction === playerUser.faction}
 				{#if setting.type === "checkbox"}
 					{@const settingName = setting.name}
@@ -79,9 +81,9 @@
 					</Checkbox>
 				{:else if setting.type === "select"}
 					<FormGroup class="flex items-center mt-2">
-						<Label class="whitespace-nowrap me-2 mb-0">{@html oneLineMarked(setting.label)}</Label>
+						<Label class="whitespace-nowrap me-2 mb-0"><SanitizedHtml html={oneLineMarked(setting.label)} /></Label>
 						<Input type="select" bind:value={settings[setting.name]} onchange={postSettings} bsSize="sm">
-							{#each setting.items as item}
+							{#each setting.items as item (item.name)}
 								<option value={item.name}>{item.label}</option>
 							{/each}
 						</Input>

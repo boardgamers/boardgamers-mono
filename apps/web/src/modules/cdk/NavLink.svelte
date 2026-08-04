@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
+	import type { Pathname, ResolvedPathname } from "$app/types";
 	import { classnames } from "@/utils";
 
 	let {
@@ -12,7 +14,7 @@
 	}: {
 		active?: boolean;
 		disabled?: boolean;
-		href?: string;
+		href?: Pathname | ResolvedPathname | `#${string}` | `?${string}` | `http${string}`;
 		class?: string;
 		children?: import("svelte").Snippet;
 		onclick?: (e: MouseEvent) => void;
@@ -39,6 +41,16 @@
 	}
 </script>
 
-<a {href} class={classes} aria-disabled={disabled || undefined} onclick={handleClick} {...rest}>
+<!-- resolve() only applies to plain pathnames; "#" (tab toggles), "?query" and external -->
+<!-- http(s) hrefs pass through as-is. -->
+<!-- eslint-disable svelte/no-navigation-without-resolve -->
+<a
+	href={href.startsWith("#") || href.startsWith("?") || href.startsWith("http") ? href : resolve(href as Pathname)}
+	class={classes}
+	aria-disabled={disabled || undefined}
+	onclick={handleClick}
+	{...rest}
+>
 	{@render children?.()}
 </a>
+<!-- eslint-enable svelte/no-navigation-without-resolve -->

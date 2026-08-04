@@ -2,7 +2,7 @@
 	import { browser } from "$app/environment";
 	import type { GameContext } from "@/routes/game/[gameId]/game-context";
 	import { oneLineMarked } from "@/utils";
-	import DOMPurify from "dompurify";
+	import SanitizedHtml from "../../SanitizedHtml.svelte";
 	import { getContext } from "svelte";
 
 	const context: GameContext = getContext("game");
@@ -32,7 +32,7 @@
 	}
 
 	function logToHtml(log: string) {
-		return DOMPurify.sanitize(oneLineMarked(log));
+		return oneLineMarked(log);
 	}
 </script>
 
@@ -41,21 +41,18 @@
 		<div class="flex items-baseline">
 			<h3 class="mb-0">Log</h3>
 			<div class="ms-2" style="font-size: smaller">
-				(<a
-					href={showLog ? "#hideLog" : "#showLog"}
+				(<button
+					class="cursor-pointer border-0 bg-transparent p-0 text-inherit underline"
 					style="font-weight: unset !important"
-					onclick={(e) => {
-						e.preventDefault();
-						toggleShowLog();
-					}}>{showLog ? "hide" : "show"}</a
+					onclick={() => toggleShowLog()}>{showLog ? "hide" : "show"}</button
 				>)
 			</div>
 		</div>
 		{#if showLog}
 			<div class="log mt-2" bind:this={logElement}>
-				{#each log as item}
+				{#each log as item (item)}
 					<div>
-						{@html logToHtml(item)}
+						<SanitizedHtml html={logToHtml(item)} />
 					</div>
 				{/each}
 			</div>

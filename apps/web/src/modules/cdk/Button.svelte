@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
+	import type { Pathname, ResolvedPathname } from "$app/types";
 	import { classnames } from "@/utils";
 
 	let {
@@ -19,7 +21,11 @@
 		size?: "sm" | "lg" | "";
 		block?: boolean;
 		disabled?: boolean;
-		href?: string;
+		/**
+		 * Internal app pathname. Non-route endpoints (OAuth, API) are also allowed; they're
+		 * always used with rel="external" (full page load), so resolve() is a harmless no-op prefix.
+		 */
+		href?: Pathname | ResolvedPathname | `http${string}` | `/api/${string}`;
 		type?: "button" | "submit" | "reset";
 		class?: string;
 		children?: import("svelte").Snippet;
@@ -72,7 +78,14 @@
 </script>
 
 {#if tag === "a"}
-	<a {href} class={classes} role="button" aria-disabled={disabled} {onclick} {...rest}>
+	<a
+		href={resolve((href ?? "#") as Pathname)}
+		class={classes}
+		role="button"
+		aria-disabled={disabled}
+		{onclick}
+		{...rest}
+	>
 		{@render children?.()}
 	</a>
 {:else}

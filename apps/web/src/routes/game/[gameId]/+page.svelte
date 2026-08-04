@@ -8,9 +8,11 @@
 
 	let { data }: PageProps = $props();
 
-	if (data.preferences?.game) {
-		provideGamePreferences({ [data.preferences.game]: data.preferences });
-	}
+	$effect(() => {
+		if (data.preferences?.game) {
+			provideGamePreferences({ [data.preferences.game]: data.preferences });
+		}
+	});
 
 	// Read the live game from the shared context (set by the layout), NOT page.data.game
 	// (a stale SSR snapshot). This lets the page auto-transition from the lobby (OpenGame)

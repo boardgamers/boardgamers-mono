@@ -3,11 +3,10 @@ interface ImportMetaEnv {
 	readonly VITE_backend: string;
 }
 
-interface ImportMeta {
-	readonly env: ImportMetaEnv;
-}
-
 declare global {
+	interface ImportMeta {
+		readonly env: ImportMetaEnv;
+	}
 	// Injected by vite.config.ts (`define.__APP_RELEASE__`).
 	const __APP_RELEASE__: string;
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
 	import { loadEloRankings, type EloRanking } from "@/lib/elo-rankings.svelte";
 	import { countryFlag, countryName } from "@/lib/countries";
 	import { Loading, Pagination } from "@/modules/cdk";
@@ -11,14 +12,15 @@
 		boardgameId,
 		top = false,
 		perPage = 5,
-		baseUrl = undefined,
+		serverPagination = false,
 		initial = undefined,
 		currentPage = $bindable(0),
 	}: {
 		boardgameId: string;
 		top?: boolean;
 		perPage?: number;
-		baseUrl?: string | undefined;
+		/** When true, page changes navigate to /boardgame/[boardgameId]/rankings/[...page] instead of loading client-side. */
+		serverPagination?: boolean;
 		initial?: { rankings: EloRanking[]; total: number } | void;
 		currentPage?: number;
 	} = $props();
@@ -56,10 +58,10 @@
 		reload();
 	});
 
-	const onPageChange = createWatcher(() => !baseUrl && load(false));
+	const onPageChange = createWatcher(() => !serverPagination && load(false));
 
 	$effect(() => {
-		if (baseUrl && initial) {
+		if (serverPagination && initial) {
 			boardgameElo = initial.rankings;
 		}
 	});
@@ -76,9 +78,9 @@
 		<ul
 			class="divide-y divide-accent/80 rounded-lg border border-accent/80 bg-white text-left dark:divide-accent/60 dark:border-accent/60 dark:bg-gray-900"
 		>
-			{#each boardgameElo as bgElo, pos}
+			{#each boardgameElo as bgElo, pos (bgElo.user._id)}
 				<a
-					href={`/user/${bgElo.user.name}#elo`}
+					href={resolve("/(app)/user/[username]#elo", { username: bgElo.user.name })}
 					class="flex items-center px-4 py-2 no-underline text-inherit hover:bg-gray-100 dark:hover:bg-gray-800"
 				>
 					<UserAvatar username={bgElo.user.name} userId={bgElo.user._id} size="2rem" />
@@ -94,7 +96,14 @@
 			{/each}
 		</ul>
 		{#if !top}
-			<Pagination class="mt-1" align="right" {count} bind:currentPage {baseUrl} {perPage} />
+			<Pagination
+				class="mt-1"
+				align="right"
+				{count}
+				bind:currentPage
+				boardgameId={serverPagination ? boardgameId : undefined}
+				{perPage}
+			/>
 		{/if}
 	</Loading>
 </div>

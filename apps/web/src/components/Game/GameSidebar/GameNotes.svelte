@@ -67,14 +67,10 @@
 	<div class="flex items-baseline">
 		<h3 class="mb-0">Notes</h3>
 		<div class="ms-2" style="font-size: smaller">
-			(<a
-				href={showNotes ? "#hideNotes" : "#showNotes"}
-				class="no-underline"
+			(<button
+				class="cursor-pointer border-0 bg-transparent p-0 text-inherit"
 				style="font-weight: unset"
-				onclick={(e) => {
-					e.preventDefault();
-					toggleNotes();
-				}}>{showNotes ? "hide" : "show"}</a
+				onclick={() => toggleNotes()}>{showNotes ? "hide" : "show"}</button
 			>)
 		</div>
 	</div>

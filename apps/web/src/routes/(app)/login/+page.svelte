@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
 	import { Button, FormGroup, Label } from "@/modules/cdk";
 	import { handleError } from "@/utils";
 	import { useLoggedOut } from "@/lib/auth-guards.svelte";
@@ -49,7 +50,7 @@
 				required
 			/>
 			<div class="mt-1 text-right">
-				<a href="/forgotten-password"><span class="text-xs">Forgotten password ?</span></a>
+				<a href={resolve("/(app)/forgotten-password")}><span class="text-xs">Forgotten password ?</span></a>
 			</div>
 		</FormGroup>
 		<div class="mt-3">
@@ -59,5 +60,5 @@
 
 	<hr />
 
-	<p class="mt-3">Need an account ? <a href="/signup">Register</a></p>
+	<p class="mt-3">Need an account ? <a href={resolve("/(app)/signup")}>Register</a></p>
 </div>

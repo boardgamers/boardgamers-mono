@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
+	import type { Pathname, ResolvedPathname } from "$app/types";
 	import { classnames } from "@/utils";
 
 	let {
@@ -13,7 +15,7 @@
 		onclick,
 		...rest
 	}: {
-		href?: string;
+		href?: Pathname | ResolvedPathname | `#${string}`;
 		first?: boolean;
 		previous?: boolean;
 		next?: boolean;
@@ -36,7 +38,7 @@
 	let defaultContent = $derived(first ? "«" : previous ? "‹" : next ? "›" : last ? "»" : undefined);
 </script>
 
-<a {href} class={classes} aria-label={arialabel} {onclick} {...rest}>
+<a href={resolve(href as Pathname)} class={classes} aria-label={arialabel} {onclick} {...rest}>
 	{@render children?.()}
 	{#if defaultContent !== undefined && !children}{defaultContent}{/if}
 </a>

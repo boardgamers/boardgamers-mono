@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
+	import type { Pathname, ResolvedPathname } from "$app/types";
 	import { classnames } from "@/utils";
 
 	let {
@@ -9,7 +11,7 @@
 		onclick,
 		...rest
 	}: {
-		href?: string;
+		href?: Pathname | ResolvedPathname | `#${string}`;
 		disabled?: boolean;
 		class?: string;
 		children?: import("svelte").Snippet;
@@ -34,6 +36,12 @@
 	}
 </script>
 
-<a {href} class={classes} aria-disabled={disabled || undefined} onclick={handleClick} {...rest}>
+<a
+	href={resolve(href as Pathname)}
+	class={classes}
+	aria-disabled={disabled || undefined}
+	onclick={handleClick}
+	{...rest}
+>
 	{@render children?.()}
 </a>

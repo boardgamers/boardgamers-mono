@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
 	import type { Snippet } from "svelte";
 	import Portal from "@/modules/portal";
 	import UserCard from "./UserCard.svelte";
@@ -111,7 +112,7 @@
 
 <a
 	bind:this={trigger}
-	href={`/user/${encodeURIComponent(username)}`}
+	href={resolve("/(app)/user/[username]", { username })}
 	class={className}
 	onmouseenter={scheduleOpen}
 	onmouseleave={scheduleClose}
@@ -125,7 +126,6 @@
 
 {#if open}
 	<Portal>
-		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<div
 			bind:this={card}
 			role="tooltip"
