@@ -72,6 +72,12 @@ export const gameSchema = z.object({
 			.object({
 				unlisted: z.boolean().optional(),
 				minimumKarma: z.number().optional(),
+				eloRange: z
+					.object({
+						min: z.number(),
+						max: z.number(),
+					})
+					.optional(),
 			})
 			.optional(),
 	}),

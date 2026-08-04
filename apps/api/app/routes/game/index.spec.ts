@@ -13,13 +13,14 @@ import { createAccessToken, generateRefreshCode } from "../../models/jwtrefresht
 
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
 
-const newGameBody = (gameId: string) => ({
+const newGameBody = (gameId: string, extra: Record<string, unknown> = {}) => ({
 	gameId,
 	game: { game: "test", version: 1 },
 	timePerMove: 5000,
 	timePerGame: 5000,
 	players: 2,
 	options: { join: true },
+	...extra,
 });
 
 async function api(method: string, path: string, body?: unknown, headers?: Record<string, string>) {
@@ -41,13 +42,54 @@ function errorMessage(data: unknown): string | undefined {
 	return undefined;
 }
 
+async function makeAuthHeaders(userId: ObjectId) {
+	const code = generateRefreshCode();
+	const tokenDoc = { user: userId, code, createdAt: new Date() };
+	await colls.jwtRefreshTokens.insertOne(tokenDoc);
+	const token = await createAccessToken(tokenDoc, ["all"], false);
+	return { Authorization: `Bearer ${token}` };
+}
+
 describe("Game API", () => {
 	const userId = new ObjectId();
+	const joinerId = new ObjectId();
+	const joiner2Id = new ObjectId();
+	const joiner3Id = new ObjectId();
 	let authHeaders: Record<string, string> = {};
+	let joinerAuthHeaders: Record<string, string> = {};
+	let joiner2AuthHeaders: Record<string, string> = {};
+	let joiner3AuthHeaders: Record<string, string> = {};
 
 	before(async () => {
 		await colls.users.insertOne(
 			testUser({ _id: userId, account: { username: "test", email: "test@test.com" }, security: { confirmed: true } }),
+		);
+		await colls.users.insertOne(
+			testUser({
+				_id: joinerId,
+				account: { username: "joiner", email: "joiner@test.com", karma: 80 },
+				security: { confirmed: true },
+			}),
+		);
+		await colls.users.insertOne(
+			testUser({
+				_id: joiner2Id,
+				account: { username: "joiner2", email: "joiner2@test.com", karma: 80 },
+				security: { confirmed: true },
+			}),
+		);
+		await colls.gamePreferences.insertOne(
+			testGamePrefs({ user: joinerId, game: "test", elo: { value: 400, games: 5 } }),
+		);
+		await colls.gamePreferences.insertOne(
+			testGamePrefs({ user: joiner2Id, game: "test", elo: { value: 200, games: 5 } }),
+		);
+		await colls.users.insertOne(
+			testUser({
+				_id: joiner3Id,
+				account: { username: "joiner3", email: "joiner3@test.com", karma: 80 },
+				security: { confirmed: true },
+			}),
 		);
 		await colls.gameInfos.insertOne({
 			_id: { game: "test", version: 1 },
@@ -56,11 +98,17 @@ describe("Game API", () => {
 			players: [2],
 			meta: { public: true, needOwnership: true },
 		});
-		const code = generateRefreshCode();
-		const tokenDoc = { user: userId, code, createdAt: new Date() };
-		await colls.jwtRefreshTokens.insertOne(tokenDoc);
-		const token = await createAccessToken(tokenDoc, ["all"], false);
-		authHeaders = { Authorization: `Bearer ${token}` };
+		await colls.gameInfos.insertOne({
+			_id: { game: "test3", version: 1 },
+			label: "Test 3P",
+			viewer: { url: "//test.com/test3", topLevelVariable: "test3" },
+			players: [2, 3],
+			meta: { public: true, needOwnership: true },
+		});
+		authHeaders = await makeAuthHeaders(userId);
+		joinerAuthHeaders = await makeAuthHeaders(joinerId);
+		joiner2AuthHeaders = await makeAuthHeaders(joiner2Id);
+		joiner3AuthHeaders = await makeAuthHeaders(joiner3Id);
 	});
 
 	it("should not be able to create a game without ownership", async () => {
@@ -229,6 +277,93 @@ describe("Game API", () => {
 			const res = await api("POST", "/api/game/new-game", newGameBody("test-below-cap"), capAuthHeaders);
 
 			assert.strictEqual(res.ok, true, `Unexpected response: ${JSON.stringify(res.data)}`);
+		});
+
+		describe("elo range", () => {
+			before(async () => {
+				await colls.gamePreferences.updateOne(
+					{ user: userId, game: "test" },
+					{ $set: { elo: { value: 150, games: 10 } } },
+				);
+				await colls.gamePreferences.insertOne(
+					testGamePrefs({ user: userId, game: "test3", access: { ownership: true }, elo: { value: 150, games: 10 } }),
+				);
+			});
+
+			it("should not create a game with an elo range narrower than 100", async () => {
+				const res = await api(
+					"POST",
+					"/api/game/new-game",
+					newGameBody("test-elo-narrow", { eloRange: { min: 100, max: 150 } }),
+					authHeaders,
+				);
+
+				assert.strictEqual(res.status, 422);
+				assert.strictEqual(errorMessage(res.data), "The Elo range must be at least 100 wide");
+			});
+
+			it("should not create a game when the creator's elo is outside the range", async () => {
+				const res = await api(
+					"POST",
+					"/api/game/new-game",
+					newGameBody("test-elo-creator", { eloRange: { min: 200, max: 300 } }),
+					authHeaders,
+				);
+
+				assert.strictEqual(res.status, 422);
+				assert.ok(errorMessage(res.data)?.includes("must be within the game's Elo range"));
+			});
+
+			it("should create a game with an elo range including the creator's elo", async () => {
+				const res = await api(
+					"POST",
+					"/api/game/new-game",
+					newGameBody("test-elo-ok", { eloRange: { min: 100, max: 300 } }),
+					authHeaders,
+				);
+
+				assert.strictEqual(res.ok, true);
+				const game = await colls.games.findOne({ _id: "test-elo-ok" });
+				assert.deepStrictEqual(game?.options.meta?.eloRange, { min: 100, max: 300 });
+			});
+
+			it("should not let a player with elo outside the range join", async () => {
+				const res = await api("POST", "/api/game/test-elo-ok/join", {}, joinerAuthHeaders);
+
+				assert.strictEqual(res.status, 422);
+				assert.ok(errorMessage(res.data)?.includes("outside this game's Elo range"));
+			});
+
+			it("should let a player with elo inside the range join", async () => {
+				const res = await api("POST", "/api/game/test-elo-ok/join", {}, joiner2AuthHeaders);
+
+				assert.strictEqual(res.ok, true, JSON.stringify(res.data));
+				const game = await colls.games.findOne({ _id: "test-elo-ok" });
+				assert.ok(
+					game?.players.some((pl) => pl._id.equals(joiner2Id)),
+					"Joiner should be in the player list",
+				);
+			});
+
+			it("should treat an unrated player as elo 0", async () => {
+				const createRes = await api(
+					"POST",
+					"/api/game/new-game",
+					newGameBody("test-elo-unrated", {
+						game: { game: "test3", version: 1 },
+						players: 3,
+						options: { join: false },
+						eloRange: { min: 100, max: 300 },
+					}),
+					authHeaders,
+				);
+				assert.strictEqual(createRes.ok, true);
+
+				const res = await api("POST", "/api/game/test-elo-unrated/join", {}, joiner3AuthHeaders);
+
+				assert.strictEqual(res.status, 422);
+				assert.ok(errorMessage(res.data)?.includes("Your Elo (0)"));
+			});
 		});
 	});
 

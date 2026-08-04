@@ -269,6 +269,14 @@
 						>
 					</li>
 				{/if}
+				{#if context.game?.options.meta?.eloRange}
+					<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+						<span title="Elo range required to join the game"
+							>📈 Elo between {context.game.options.meta.eloRange.min} and {context.game.options.meta.eloRange
+								.max}</span
+						>
+					</li>
+				{/if}
 			</ul>
 
 			{#if context.game?.options.timing.scheduledStart}
