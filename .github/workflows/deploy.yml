@@ -49,6 +49,21 @@ jobs:
             # Build into a temp dir so the live build/ is never half-written.
             WEB_ADAPTER_OUT=build-new pnpm --filter @bgs/web build
 
+            # Keep immutable chunks from recent builds for ~30 days: clients with an
+            # already-loaded page still reference old hashed filenames, and deleting them
+            # breaks client-side navigation until a refresh. Files under _app/immutable are
+            # content-hashed, so a same-named carry-over is byte-identical. build-old (the
+            # pre-swap build) is copied first because it accumulated chunks from earlier
+            # deploys; cp -n never overwrites, so duplicates are skipped. cp -p preserves
+            # mtimes so the age-based pruning below measures from the chunk's first build,
+            # not its last copy.
+            for prev in apps/web/build-old apps/web/build; do
+              if [ -d \"$prev/client/_app/immutable\" ]; then
+                cp -prn \"$prev/client/_app/immutable/.\" apps/web/build-new/client/_app/immutable/
+              fi
+            done
+            find apps/web/build-new/client/_app/immutable -type f -mtime +30 -delete
+
             # Atomically swap the new build into place, then reload PM2.
             # PM2 runs index.js from cwd ./apps/web/build in cluster mode,
             # so reload picks up the new files with zero downtime.
@@ -62,6 +77,15 @@ jobs:
             # Nginx serves admin from dist/ directly (no PM2), so the swap
             # is the only protection against a half-written directory.
             ADMIN_ADAPTER_OUT=dist-new pnpm --filter @bgs/admin build
+
+            # Same immutable-chunk retention as the web app (nginx serves dist/ directly).
+            for prev in apps/admin/dist-old apps/admin/dist; do
+              if [ -d \"$prev/_app/immutable\" ]; then
+                cp -prn \"$prev/_app/immutable/.\" apps/admin/dist-new/_app/immutable/
+              fi
+            done
+            find apps/admin/dist-new/_app/immutable -type f -mtime +30 -delete
+
             rm -rf apps/admin/dist-old
             if [ -d apps/admin/dist ]; then mv apps/admin/dist apps/admin/dist-old; fi
             mv apps/admin/dist-new apps/admin/dist

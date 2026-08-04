@@ -10,7 +10,7 @@ All apps run under PM2 as the `bgs` user, managed via `ecosystem.config.cjs` at 
 | --------------- | ------------------ | ------- | ---------------------------------------------- |
 | `api`           | `apps/api`         | fork    | Koa REST API, `npm start`                      |
 | `game-server`   | `apps/game-server` | fork    | Game engine runner, `npm start`                |
-| `web`           | `apps/web`         | cluster | SvelteKit SSR (pinned prerelease), 2 instances |
+| `web`           | `apps/web`         | cluster | SvelteKit SSR, 2 instances                     |
 | `pm2-logrotate` | (module)           | fork    | Rotates PM2 logs at 10 MB, 30-day retain       |
 
 PM2 is managed as the `bgs` user (not root). Logs are in `~/.pm2/logs/`.

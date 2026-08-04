@@ -8,7 +8,7 @@ Boardgamers — an online board game platform. pnpm workspace, Node ≥ 24, ESM 
 
 | Path               | What                                                                                             |
 | ------------------ | ------------------------------------------------------------------------------------------------ |
-| `apps/web`         | Player frontend (SvelteKit, **pinned to an ancient prerelease** — see `apps/web/WORKAROUNDS.md`) |
+| `apps/web`         | Player frontend (SvelteKit, Svelte 5)                                                            |
 | `apps/admin`       | Admin panel (SvelteKit, modern)                                                                  |
 | `apps/api`         | REST API (Koa + MongoDB)                                                                         |
 | `apps/game-server` | Game engine runner / gameplay API                                                                |
