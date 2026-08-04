@@ -63,8 +63,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 function backendUrl(override: string | undefined, defaultPort: number): string {
 	const raw = (override ?? import.meta.env.VITE_backend ?? "127.0.0.1").replace(/^https?:\/\//, "");
-	const [host, port] = raw.split(":");
-	const ip = host.includes(":") ? `[${host}]` : host; // bare IPv6
+	// Bare IPv6 (contains multiple colons, no brackets) has no port — a naive split(":")
+	// would shred it. Otherwise split host:port on the last colon only.
+	const isBareIpv6 = !raw.startsWith("[") && (raw.match(/:/g)?.length ?? 0) > 1;
+	const idx = raw.lastIndexOf(":");
+	const host = isBareIpv6 || idx === -1 ? raw : raw.slice(0, idx);
+	const port = isBareIpv6 || idx === -1 ? undefined : raw.slice(idx + 1);
+	const ip = host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
 	return `http://${ip}:${port ?? defaultPort}`;
 }
 
