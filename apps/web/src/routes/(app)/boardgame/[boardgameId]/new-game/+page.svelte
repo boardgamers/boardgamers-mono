@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { handleError, oneLineMarked, duration } from "@/utils";
 	import marked from "marked";
-	import { fromPairs, upperFirst } from "lodash";
+	import { fromPairs } from "lodash";
 	import { Button, Input, Checkbox } from "@/modules/cdk";
 	import { goto } from "$app/navigation";
-	import { adjectives, nouns } from "@/data";
+	import { randomGameName } from "@/data";
 	import { fade } from "svelte/transition";
 	import { untrack } from "svelte";
 	import { browser } from "$app/environment";
@@ -201,13 +201,7 @@
 	});
 
 	function randomId() {
-		return (
-			upperFirst(adjectives[Math.floor(Math.random() * adjectives.length)]) +
-			"-" +
-			nouns[Math.floor(Math.random() * nouns.length)] +
-			"-" +
-			Math.ceil(Math.random() * 9999)
-		);
+		return randomGameName();
 	}
 </script>
 
