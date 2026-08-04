@@ -196,7 +196,7 @@
 			<span class="text-sm font-medium {healthConfig.text}">{healthConfig.label}</span>
 			{#if healthStatus.total > 0}
 				<span class="text-xs text-gray-400">
-					{healthStatus.errors} errors / {healthStatus.total} requests (1h)
+					{healthStatus.errors.toLocaleString()} errors / {healthStatus.total.toLocaleString()} requests (1h)
 				</span>
 			{/if}
 			<span class="ml-auto text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">View details →</span>
