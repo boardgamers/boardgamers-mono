@@ -95,6 +95,9 @@ app.use(async (ctx, next) => {
 		if (!isRoutineAuth) {
 			const e = err instanceof Error ? err : new Error(String(err));
 			console.error(err);
+			// Gameplay routes are all scoped on /:gameId — record it so admin error
+			// listings can jump straight to the offending game.
+			const gameId: string | undefined = ctx.params?.gameId;
 			await colls.apiErrors.insertOne({
 				request: {
 					url: ctx.request.originalUrl,
@@ -111,6 +114,7 @@ app.use(async (ctx, next) => {
 				user: ctx.state.user?.id ? new ObjectId(ctx.state.user.id) : undefined,
 				meta: {
 					source: "game-server",
+					gameId,
 				},
 				createdAt: new Date(),
 			});

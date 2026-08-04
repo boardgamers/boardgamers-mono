@@ -106,4 +106,6 @@ export const gameIndexes: IndexDescription[] = [
 		key: { status: 1, "options.timing.scheduledStart": 1 },
 		partialFilterExpression: { status: "open", "options.timing.scheduledStart": { $exists: true } },
 	},
+	// api: open-games-per-creator cap on game creation
+	{ key: { creator: 1, status: 1 } },
 ];
