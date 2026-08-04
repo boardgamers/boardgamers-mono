@@ -138,8 +138,7 @@
 		</button>
 
 		{#if !user}
-			<!-- todo: hide on mobile -->
-			<span class="text-white">Have an account?</span>
+			<span class="hidden text-white sm:inline">Have an account?</span>
 			<Dropdown nav inNavbar>
 				<DropdownToggle nav caret>Login</DropdownToggle>
 				<DropdownMenu right class="mt-4 min-w-[250px] p-3.5 pb-0">
