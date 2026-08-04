@@ -15,6 +15,7 @@
 	import { useLoggedIn } from "@/lib/auth-guards.svelte";
 	import { post } from "@/lib/api";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
+	import { useGamePreferencesFallback, gamePreferences } from "@/lib/game-preferences.svelte";
 	import { page } from "$app/state";
 	import { SEO } from "@/components";
 	import TimeRangeSlider from "@/components/Form/TimeRangeSlider.svelte";
@@ -71,6 +72,15 @@
 	// Editable field seeded once from karma; untrack marks the one-time capture as intentional.
 	let minimumKarma = $state(untrack(() => Math.min(75, karma - 5)));
 
+	// Unrated players start at 0 elo.
+	const ssrPrefs = useGamePreferencesFallback();
+	let ownElo = $derived(
+		boardgameId ? ($gamePreferences[boardgameId]?.elo?.value ?? ssrPrefs[boardgameId]?.elo?.value ?? 0) : 0
+	);
+	let enableEloRange = $state(false);
+	let minElo = $state(untrack(() => Math.max(0, ownElo - 100)));
+	let maxElo = $state(untrack(() => ownElo + 100));
+
 	function createGame() {
 		submitting = true;
 
@@ -90,6 +100,7 @@
 			timerEnd: undefined as number | undefined,
 			scheduledStart: undefined as number | undefined,
 			minimumKarma: +minimumKarma as number | undefined,
+			eloRange: undefined as { min: number; max: number } | undefined,
 		};
 
 		if (scheduledDay && scheduledTime) {
@@ -104,6 +115,10 @@
 
 		if (!enableKarma || !dataObj.minimumKarma) {
 			delete dataObj.minimumKarma;
+		}
+
+		if (enableEloRange) {
+			dataObj.eloRange = { min: Math.floor(+minElo), max: Math.floor(+maxElo) };
 		}
 
 		if (timerStart === undefined || timerStart === timerEnd || timerEnd === undefined) {
@@ -461,6 +476,18 @@
 									max={karma - 5}
 								/>
 							</div>
+						</div>
+
+						<div>
+							<Checkbox bind:checked={enableEloRange}>Restrict who can join by Elo</Checkbox>
+							<div class="mt-2 flex max-w-xs items-center gap-2">
+								<Input type="number" disabled={!enableEloRange} placeholder="Min Elo" bind:value={minElo} min={0} />
+								<span>–</span>
+								<Input type="number" disabled={!enableEloRange} placeholder="Max Elo" bind:value={maxElo} min={0} />
+							</div>
+							<small class="text-xs text-gray-500 dark:text-gray-400">
+								Your Elo is {ownElo}. The range must include it and be at least 100 wide.
+							</small>
 						</div>
 
 						<fieldset>
