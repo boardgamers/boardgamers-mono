@@ -178,15 +178,25 @@ describe("Admin users API", () => {
 			assert.strictEqual(body.perMethod.older.discord, 0);
 			assert.ok(body.combinations.length > 0);
 
-			// A method set can appear as separate recent/older rows — merge before asserting.
-			const combo = (methods: string[]) =>
-				body.combinations
-					.filter((c) => c.methods.length === methods.length && methods.every((m) => c.methods.includes(m)))
-					.reduce((acc, c) => ({ recent: acc.recent + c.recent, older: acc.older + c.older }), { recent: 0, older: 0 });
+			// Each method set must appear exactly once: recent/older buckets are merged into a
+			// single row carrying both counts.
+			const combos = (methods: string[]) =>
+				body.combinations.filter(
+					(c) => c.methods.length === methods.length && methods.every((m) => c.methods.includes(m)),
+				);
+			const combo = (methods: string[]) => {
+				const rows = combos(methods);
+				assert.strictEqual(rows.length, 1, `expected one row for [${methods.join(",")}], got ${JSON.stringify(rows)}`);
+				return rows[0];
+			};
 			// ["password"]: recentPasswordId (recent) + otherUserId (older — resetPassword gave it a hash)
-			assert.deepStrictEqual(combo(["password"]), { recent: 1, older: 1 });
-			assert.deepStrictEqual(combo(["google"]), { recent: 0, older: 1 });
-			assert.deepStrictEqual(combo(["password", "google", "discord"]), { recent: 1, older: 0 });
+			assert.deepStrictEqual(combo(["password"]), { methods: ["password"], recent: 1, older: 1 });
+			assert.deepStrictEqual(combo(["google"]), { methods: ["google"], recent: 0, older: 1 });
+			assert.deepStrictEqual(combo(["password", "google", "discord"]), {
+				methods: ["password", "google", "discord"],
+				recent: 1,
+				older: 0,
+			});
 			// adminId, userId, noMethodId: testUser leaves password "" and no social → no usable method.
 			// (May also count users from other spec files when the full suite shares the db.)
 			assert.strictEqual(combo([]).recent, 0);
