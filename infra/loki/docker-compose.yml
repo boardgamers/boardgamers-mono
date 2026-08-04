@@ -12,6 +12,8 @@ services:
     image: docker.io/grafana/loki:3.0.0
     container_name: bgs-loki
     restart: unless-stopped
+    # cap so a Loki mem spike is OOM-killed+restarted instead of starving the 32GB box — hit 18GB on 2026-08-04 after a promtail backfill
+    mem_limit: 4g
     ports:
       - "127.0.0.1:3100:3100"
     volumes:
@@ -23,6 +25,7 @@ services:
     image: docker.io/grafana/promtail:3.0.0
     container_name: bgs-promtail
     restart: unless-stopped
+    mem_limit: 512m
     ports:
       - "127.0.0.1:9080:9080"
     volumes:
@@ -34,6 +37,7 @@ services:
     image: docker.io/grafana/grafana:11.0.0
     container_name: bgs-grafana
     restart: unless-stopped
+    mem_limit: 1g
     ports:
       - "127.0.0.1:3030:3000"
     volumes:
