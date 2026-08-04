@@ -19,9 +19,27 @@
 	// stores.svelte.ts), so the homepage doesn't flicker between "My games" and "Featured".
 	let user = $derived(live($account, (page.data.user as UserFront | null) ?? null));
 	let myGames = $derived(live($activeGames, (page.data.activeGames as string[]) ?? []));
-</script>
 
-<SEO />
+	let websiteJsonLd = $derived(
+		JSON.stringify({
+			"@context": "https://schema.org",
+			"@type": "WebSite",
+			name: "Boardgamers",
+			url: page.url.origin,
+			description:
+				"Play Gaia Project, Powergrid, 6nimmt and Container online with other people. All games and the platform are open source!",
+		})
+	);
+	</script>
+
+<SEO
+	title="Boardgamers — play boardgames online"
+	description="Play Gaia Project, Powergrid, 6nimmt and Container online with other people, live or asynchronously. All games and the platform are open source!"
+/>
+
+<svelte:head>
+	{@html `<script type="application/ld+json">${websiteJsonLd}</script>`}
+</svelte:head>
 
 <div class="flex">
 	<GameListSidebar />

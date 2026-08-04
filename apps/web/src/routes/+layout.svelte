@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Notifications } from "@/components";
+	import { Notifications, SEO } from "@/components";
 	import { provideGameInfos } from "@/lib/game-info.svelte";
 	import type { Snippet } from "svelte";
 	import type { LayoutProps } from "./$types";
@@ -12,6 +12,9 @@
 	const gameInfos = () => data.gameInfos ?? {};
 	provideGameInfos(gameInfos());
 </script>
+
+<!-- Default site-wide meta (title/description/OG/canonical); pages override with their own <SEO>. -->
+<SEO />
 
 {@render children()}
 

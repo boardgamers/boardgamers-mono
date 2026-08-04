@@ -15,7 +15,8 @@
 	import { useLoggedIn } from "@/lib/auth-guards.svelte";
 	import UserAvatar from "@/components/User/UserAvatar.svelte";
 	import CountrySelect from "@/components/Form/CountrySelect.svelte";
-	import { logoClick, live } from "@/lib/stores.svelte";
+import { SEO } from "@/components";
+import { logoClick, live } from "@/lib/stores.svelte";
 
 	useLoggedIn();
 
@@ -172,9 +173,7 @@
 	});
 </script>
 
-<svelte:head>
-	<title>Account</title>
-</svelte:head>
+<SEO title="Account settings" noindex />
 
 {#if user}
 	<div class="container mx-auto px-4">

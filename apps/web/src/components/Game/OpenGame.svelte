@@ -37,6 +37,7 @@
 	import SEO from "../SEO.svelte";
 	import removeMarkdown from "remove-markdown";
 	import { gameLabel } from "@/utils/game-label";
+	import { defaultOgImage, ogImageUrl } from "@/lib/seo";
 	import type { UserFront } from "@bgs/models";
 	import type { JsonObject, JsonValue } from "type-fest";
 	import { debounce } from "lodash";
@@ -192,7 +193,8 @@
 </script>
 
 <SEO
-	title="{gameId} - {gameLabel(context.gameInfo?.label ?? '')} game"
+	noindex
+	title="{gameLabel(context.gameInfo?.label ?? '')} game {gameId}"
 	description="{context.game?.players.length} / {context.game?.options.setup.nbPlayers} players. Timer of {duration(
 		context.game?.options.timing.timePerGame ?? 0
 	)} per player, with an additional {duration(context.game?.options.timing.timePerMove ?? 0)} per move.
@@ -211,6 +213,10 @@
 		.filter(Boolean)
 		.map((str) => `- ${removeMarkdown(str)}`)
 		.join('\\n')}"
+	image={ogImageUrl(defaultOgImage.path, {
+		title: `${gameLabel(context.gameInfo?.label ?? "")} — open game`,
+		subtitle: `${context.game?.players.length} / ${context.game?.options.setup.nbPlayers} players joined`,
+	})}
 />
 
 <div class="container mx-auto px-4 pb-3">
