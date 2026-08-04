@@ -186,7 +186,7 @@ describe("Admin users API", () => {
 				);
 			const combo = (methods: string[]) => {
 				const rows = combos(methods);
-				assert.strictEqual(rows.length, 1, `expected one row for [${methods}], got ${JSON.stringify(rows)}`);
+				assert.strictEqual(rows.length, 1, `expected one row for [${methods.join(",")}], got ${JSON.stringify(rows)}`);
 				return rows[0];
 			};
 			// ["password"]: recentPasswordId (recent) + otherUserId (older — resetPassword gave it a hash)
