@@ -1,7 +1,7 @@
 import { listen } from "./app/app.ts";
 import initDb from "./app/config/db.ts";
 import env from "./app/config/env.ts";
-import { gracefulShutdown, installProcessHandlers, logEvent } from "@bgs/utils/log";
+import { gracefulShutdown, installProcessHandlers, logEvent, pm2Ready, type Closable } from "@bgs/utils/log";
 import { listen as listenResources } from "./app/resources.ts";
 import type { Server } from "node:http";
 import type { WebSocketServer } from "ws";
@@ -24,6 +24,7 @@ const serving = !env.cron || !env.isProduction;
 let apiServer: Server | undefined;
 let resourcesServer: Server | undefined;
 let wss: WebSocketServer | undefined;
+let cron: Closable | undefined;
 
 if (serving) {
 	apiServer = await listen().catch(handleError);
@@ -31,11 +32,15 @@ if (serving) {
 	({ wss } = await import("./app/ws.ts"));
 }
 
-gracefulShutdown("api", () => [apiServer, resourcesServer, wss].filter(Boolean) as (Server | WebSocketServer)[]);
-
 // Cron (game notifications, scheduled games, emails) runs when env.cron is set —
 // always in dev (single process), and only in the dedicated api-cron PM2 process in
 // production. See ecosystem.config.cjs.
 if (env.cron) {
-	await import("./app/services/cron.ts");
+	({ cron } = await import("./app/services/cron.ts"));
 }
+
+gracefulShutdown("api", () => [apiServer, resourcesServer, wss, cron]);
+
+// Signal PM2 (wait_ready) that we're up and listening — reload only swaps in a new
+// worker once it reports ready, so a worker still connecting to the DB gets no traffic.
+pm2Ready();

@@ -79,23 +79,27 @@ export function installProcessHandlers(label: string): void {
 	});
 }
 
-type Closable = {
-	/** http.Server / ws.WebSocketServer both expose close(cb). */
+/**
+ * Anything that can be closed gracefully. http.Server / ws.WebSocketServer call back
+ * once in-flight connections drain; a cron module implements the same shape to stop its
+ * loops, wait for in-flight ticks (releasing their DB locks), and close the DB client.
+ */
+export type Closable = {
 	close(cb?: (err?: Error) => void): void;
 };
 
 /**
  * Graceful shutdown for PM2 reload/restart. PM2 sends SIGINT (then SIGKILL after
- * kill_timeout); we close every registered server so in-flight requests finish and
- * listen sockets free up, then exit 0 so PM2 considers it a clean stop.
+ * kill_timeout); we close every registered closable (servers drain connections, cron
+ * stops its loops and frees locks) and exit 0 once they've all called back — a clean
+ * stop so PM2 doesn't escalate to SIGKILL.
  *
- * Usage: `gracefulShutdown("api", () => [server, resourcesServer, wss])`. The getter
- * is called lazily at signal time so servers created after registration are included.
- * Idempotent — a second signal while closing is ignored. A hard cap forces exit so a
- * hung connection can't stall the reload past PM2's kill_timeout (bump kill_timeout in
- * ecosystem.config.cjs to give this room).
+ * Usage: `gracefulShutdown("api", () => [server, wss, cron])`. The getter is lazy
+ * (called at signal time) so things registered before they're created are included.
+ * Idempotent — a repeat signal is ignored. A hard cap forces exit so hung work can't
+ * stall the reload past PM2's kill_timeout (bump kill_timeout in ecosystem.config.cjs).
  */
-export function gracefulShutdown(label: string, getServers: () => Closable | Closable[] | undefined, timeoutMs = 8000): void {
+export function gracefulShutdown(label: string, getClosables: () => (Closable | undefined)[], timeoutMs = 8000): void {
 	let closing = false;
 
 	const shutdown = (signal: string) => {
@@ -105,17 +109,16 @@ export function gracefulShutdown(label: string, getServers: () => Closable | Clo
 		closing = true;
 		logEvent("info", "shutdown", { source: label, signal });
 
-		const servers = getServers();
-		const list = (Array.isArray(servers) ? servers : [servers]).filter((s): s is Closable => !!s);
+		const list = getClosables().filter((s): s is Closable => !!s);
 
-		// Never hang past the cap even if a connection is kept open by a client.
+		// Never hang past the cap even if a connection or lock is held open.
 		const force = setTimeout(() => {
 			logEvent("warn", "shutdownTimeout", { source: label, timeoutMs });
 			process.exit(0);
 		}, timeoutMs);
 		force.unref();
 
-		Promise.all(
+		void Promise.all(
 			list.map(
 				(s) =>
 					new Promise<void>((resolve) => {
@@ -134,4 +137,18 @@ export function gracefulShutdown(label: string, getServers: () => Closable | Clo
 
 	process.on("SIGINT", () => shutdown("SIGINT"));
 	process.on("SIGTERM", () => shutdown("SIGTERM"));
+}
+
+/**
+ * Tell PM2 the process is ready to receive traffic. PM2 only honors this when the app
+ * is configured with `wait_ready: true` (see ecosystem.config.cjs) — then `pm2 reload`
+ * starts the new worker, waits for "ready", and only then stops the old one. Without it
+ * PM2 swaps immediately on process spawn, so a worker that's still connecting to the DB
+ * would receive (and drop) traffic. `process.send` only exists under PM2/cluster IPC;
+ * it's a no-op locally.
+ */
+export function pm2Ready(): void {
+	if (typeof process.send === "function") {
+		process.send("ready");
+	}
 }

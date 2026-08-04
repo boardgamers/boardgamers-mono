@@ -1,44 +1,79 @@
 import env from "../config/env.ts";
 import { processCurrentMove, processGameEnded, processPlayerDrop } from "../models/gamenotification.ts";
 import { sendGameNotificationEmail } from "../models/user.ts";
-import { colls } from "../config/db.ts";
+import { colls, closeDb } from "../config/db.ts";
 import locks from "../config/locks.ts";
 import { cancelOldOpenGames, processSchedulesGames, processUnreadyGames } from "./game.ts";
+import type { Closable } from "@bgs/utils/log";
+
+const intervals: NodeJS.Timeout[] = [];
+const inFlight = new Set<Promise<void>>();
 
 // Run `task` under a short-lived DB lock so exactly one process performs it per tick.
 // cron=true already confines these to the api-cron process (or the single dev process);
 // the lock makes it safe during the brief overlap of a PM2 reload. lock() is
-// non-blocking (null when held), so the loser simply skips the tick.
+// non-blocking (null when held), so the loser simply skips the tick. Each tick is
+// tracked in `inFlight` so shutdown can wait for it (releasing its lock) before exiting.
 function singleton(name: string, task: () => Promise<unknown>) {
-	return async () => {
-		await using lock = await locks.lock("cron", name).catch(() => null);
-		if (!lock) {
-			return;
-		}
-		try {
-			await task();
-		} catch (err) {
-			console.error(err);
-		}
+	return () => {
+		const tick = (async () => {
+			await using lock = await locks.lock("cron", name).catch(() => null);
+			if (!lock) {
+				return;
+			}
+			try {
+				await task();
+			} catch (err) {
+				console.error(err);
+			}
+		})();
+		inFlight.add(tick);
+		void tick.finally(() => inFlight.delete(tick));
 	};
+}
+
+function every(ms: number, task: () => void) {
+	intervals.push(setInterval(task, ms));
 }
 
 /* Check move deadlines every 10 seconds - only on one thread of the server */
 if (env.cron) {
-	setInterval(singleton("currentMove", processCurrentMove), 10000);
-	setInterval(singleton("gameEnded", processGameEnded), 10000);
-	setInterval(singleton("playerDrop", processPlayerDrop), 10000);
-	setInterval(singleton("scheduledGames", processSchedulesGames), 1000);
-	setInterval(singleton("cancelOldOpenGames", cancelOldOpenGames), 5000);
-	setInterval(singleton("unreadyGames", processUnreadyGames), 10000);
+	every(10000, singleton("currentMove", processCurrentMove));
+	every(10000, singleton("gameEnded", processGameEnded));
+	every(10000, singleton("playerDrop", processPlayerDrop));
+	every(1000, singleton("scheduledGames", processSchedulesGames));
+	every(5000, singleton("cancelOldOpenGames", cancelOldOpenGames));
+	every(10000, singleton("unreadyGames", processUnreadyGames));
 }
 
 if (env.automatedEmails) {
-	setInterval(
+	every(
+		60000,
 		singleton("gameNotificationEmails", async () => {
 			const toEmail = await colls.users.find({ "meta.nextGameNotification": { $lte: new Date() } }).toArray();
 			await Promise.all(toEmail.map((user) => sendGameNotificationEmail(user)));
 		}),
-		60000,
 	);
 }
+
+/**
+ * Closable cron: on close, stop the loops, wait for any in-flight tick to finish (its
+ * `await using` releases the DB lock), then close the mongo client. Registered with
+ * gracefulShutdown in server.ts so a PM2 reload doesn't kill a tick mid-flight.
+ */
+export const cron: Closable = {
+	close(cb) {
+		for (const id of intervals) {
+			clearInterval(id);
+		}
+		void (async () => {
+			while (inFlight.size > 0) {
+				await Promise.allSettled(inFlight);
+			}
+			await closeDb().catch(() => {});
+		})().then(
+			() => cb?.(),
+			() => cb?.(),
+		);
+	},
+};

@@ -1,6 +1,6 @@
 import { listen } from "./app/app.ts";
 import env from "./app/config/env.ts";
-import { gracefulShutdown, installProcessHandlers, logEvent } from "@bgs/utils/log";
+import { gracefulShutdown, installProcessHandlers, logEvent, pm2Ready, type Closable } from "@bgs/utils/log";
 import type { Server } from "node:http";
 
 installProcessHandlers("game-server");
@@ -18,13 +18,16 @@ const handleError = (err: Error) => {
 const serving = !env.cron || !env.isProduction;
 
 let server: Server | undefined;
+let cron: Closable | undefined;
 
 if (serving) {
 	server = await listen().catch(handleError);
 }
 
-gracefulShutdown("game-server", () => server);
-
 if (env.cron) {
-	await import("./app/services/cron.ts");
+	({ cron } = await import("./app/services/cron.ts"));
 }
+
+gracefulShutdown("game-server", () => [server, cron]);
+
+pm2Ready();

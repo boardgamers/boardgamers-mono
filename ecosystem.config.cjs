@@ -29,6 +29,8 @@ module.exports = {
 			instances: 2,
 			interpreter: NODE,
 			kill_timeout: 10000,
+			// No wait_ready: adapter-node handles SIGINT/SIGTERM itself but never sends the
+			// PM2 "ready" signal, so wait_ready would stall its reloads.
 		},
 		{
 			name: "game-server",
@@ -42,6 +44,7 @@ module.exports = {
 			instances: 2,
 			interpreter: NODE,
 			kill_timeout: 10000,
+			wait_ready: true,
 			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
 		{
@@ -56,6 +59,7 @@ module.exports = {
 			instances: 1,
 			interpreter: NODE,
 			kill_timeout: 10000,
+			wait_ready: true,
 			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
 		{
@@ -70,6 +74,7 @@ module.exports = {
 			instances: 2,
 			interpreter: NODE,
 			kill_timeout: 10000,
+			wait_ready: true,
 			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
 		{
@@ -84,6 +89,7 @@ module.exports = {
 			instances: 1,
 			interpreter: NODE,
 			kill_timeout: 10000,
+			wait_ready: true,
 			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
 	],
