@@ -1,4 +1,5 @@
 export function typedInclude<V, T extends V>(arr: readonly T[], v: V): v is T {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing V to T is the whole point of the type guard
 	return arr.includes(v as T);
 }
 

@@ -65,12 +65,14 @@ router.post("/", loggedIn, async (ctx) => {
 			for (const [key, value] of Object.entries(obj)) {
 				const path = prefix ? `${prefix}.${key}` : key;
 				if (value && typeof value === "object" && !Array.isArray(value)) {
+					// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- guarded to a plain object above
 					flatten(value as Record<string, unknown>, path);
 				} else {
 					updateFields[`settings.${path}`] = value;
 				}
 			}
 		};
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- settings is a partial settings tree
 		flatten(body.settings as Record<string, unknown>, "");
 	}
 	if (body.account?.avatar != null) {

@@ -3,7 +3,7 @@
 	"plugins": ["typescript", "unicorn", "oxc"],
 	"categories": {
 		"correctness": "error",
-		"suspicious": "warn"
+		"suspicious": "error"
 	},
 	"options": {
 		"typeAware": true
@@ -20,6 +20,8 @@
 		"unicorn/prefer-node-protocol": "error",
 		"unicorn/no-array-sort": "off",
 		"unicorn/no-thenable": "off",
+		// Express-specific rule; Koa awaits async middleware natively.
+		"oxc/no-async-endpoint-handlers": "off",
 		"eslint/no-constant-condition": ["error", { "checkLoops": false }]
 	},
 	"overrides": [

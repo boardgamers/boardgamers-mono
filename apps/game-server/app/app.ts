@@ -54,6 +54,7 @@ app.use(async (ctx, next) => {
 	if (ctx.get("Authorization")?.startsWith("Bearer ")) {
 		const token = ctx.get("Authorization").slice("Bearer ".length);
 
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- JWT payload shape is fixed by our own signer
 		const decoded = jwt.verify(token, env.jwt.keys.public) as { userId: string; isAdmin: boolean; scopes: string[] };
 
 		if (decoded && decoded.scopes?.includes("gameplay")) {
@@ -83,14 +84,16 @@ app.use(async (ctx, next) => {
 			ctx.status = 422;
 			ctx.body = { message: err.message };
 		} else {
+			const e = err instanceof Error ? err : new Error(String(err));
 			ctx.status = 500;
-			ctx.body = { message: "Internal error: " + err.message, stack: err.stack };
+			ctx.body = { message: "Internal error: " + e.message, stack: e.stack };
 		}
 
 		// Routine 401 auth checks are expected traffic, not real errors — skip
 		// the console dump and DB error record for them.
 		const isRoutineAuth = err instanceof createError.HttpError && err.statusCode === 401;
 		if (!isRoutineAuth) {
+			const e = err instanceof Error ? err : new Error(String(err));
 			console.error(err);
 			await colls.apiErrors.insertOne({
 				request: {
@@ -101,9 +104,9 @@ app.use(async (ctx, next) => {
 					id: ctx.state.requestId,
 				},
 				error: {
-					name: err.name,
-					stack: err.stack,
-					message: err.message,
+					name: e.name,
+					stack: e.stack ? e.stack.split("\n") : [],
+					message: e.message,
 				},
 				user: ctx.state.user?.id ? new ObjectId(ctx.state.user.id) : undefined,
 				meta: {

@@ -61,14 +61,16 @@ export interface Engine {
 	// Used for thumbnails in game lists
 	factions(data: GameData): string[];
 
-	// Middleware to process data to be sent to a player, strip secrets if needed
-	// In case of a spectator, the player is undefined
-	stripSecret(data: GameData, player?: number): unknown;
+	// Middleware to process data to be sent to a player, strip secrets if needed.
+	// Optional: engines that keep no secrets omit it. In case of a spectator, the
+	// player is undefined.
+	stripSecret?(data: GameData, player?: number): unknown;
 
-	// Middleware to process data to be sent to the backend
+	// Middleware to process data to be sent to the backend. Optional: engines without a
+	// backend-calculation step omit it.
 	// Undefined = do not save anything (for example if a move was
 	// made just to request a backend calculation)
-	toSave(data: GameData): unknown;
+	toSave?(data: GameData): unknown;
 
 	// Important system messages to show in chat
 	// Another call on `ret.data` should not show the same messages

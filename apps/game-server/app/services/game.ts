@@ -66,6 +66,7 @@ export async function startNextGame(): Promise<boolean> {
 			let gameData = await engine.init(
 				game.options.setup.nbPlayers,
 				game.game.expansions,
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- engine options are a plain record
 				(game.game.options as Record<string, unknown>) || {},
 				seed,
 				creator === -1 ? undefined : creator,
@@ -85,19 +86,26 @@ export async function startNextGame(): Promise<boolean> {
 				return Array.isArray(current) ? current : [current];
 			})();
 
-			game.currentPlayers = currentPlayers.map((playerNumber) => ({
-				_id: game.players[playerNumber]._id,
-				timerStart: new Date(),
-				deadline: deadline(
-					game.players[playerNumber].remainingTime ?? game.options.timing.timePerGame,
-					game.options.timing.timer,
-				),
-			}));
+			const { timePerGame, timer } = game.options.timing;
+			assert(timePerGame !== undefined, "timePerGame is required for timed games");
+
+			game.currentPlayers = currentPlayers.map((playerNumber) => {
+				const player = game.players[playerNumber];
+				assert(player, `No player at index ${playerNumber}`);
+				return {
+					_id: player._id,
+					timerStart: new Date(),
+					deadline: deadline(player.remainingTime ?? timePerGame, timer),
+				};
+			});
 
 			game.lastMove = new Date();
 
 			if (engine.round) {
-				game.context.round = engine.round(gameData);
+				const round = engine.round(gameData);
+				if (round !== undefined) {
+					game.context = { ...game.context, round };
+				}
 			}
 
 			game.data = JSON.parse(JSON.stringify(game.data));
@@ -218,12 +226,16 @@ export async function processQuit(notification: GameNotificationDoc) {
 }
 
 export async function afterMove(engine: Engine, game: GameDoc, gameData: GameData, alreadyEnded = false) {
-	const oldPlayers = game.currentPlayers;
+	const oldPlayers = game.currentPlayers ?? [];
+	const { timePerGame, timePerMove, timer } = game.options.timing;
 
 	gameData = await handleMessages(engine, game._id, gameData);
 
 	if (engine.round) {
-		game.context.round = engine.round(gameData);
+		const round = engine.round(gameData);
+		if (round !== undefined) {
+			game.context = { ...game.context, round };
+		}
 	}
 
 	if (
@@ -244,14 +256,13 @@ export async function afterMove(engine: Engine, game: GameDoc, gameData: GameDat
 			return Array.isArray(current) ? current : [current];
 		})();
 		game.currentPlayers = currentPlayers.map((playerNumber) => {
-			const oldPlayer = oldPlayers?.find((player) => player._id.equals(game.players[playerNumber]._id));
 			const player = game.players[playerNumber];
+			assert(player, `No player at index ${playerNumber}`);
+			const oldPlayer = oldPlayers.find((p) => p._id.equals(player._id));
 			return {
 				_id: player._id,
 				timerStart: oldPlayer?.timerStart ?? new Date(),
-				deadline:
-					oldPlayer?.deadline ??
-					deadline(player.remainingTime ?? game.options.timing.timePerGame, game.options.timing.timer),
+				deadline: oldPlayer?.deadline ?? deadline(player.remainingTime ?? timePerGame ?? 0, timer),
 			};
 		});
 	}
@@ -282,17 +293,15 @@ export async function afterMove(engine: Engine, game: GameDoc, gameData: GameDat
 	if (!engine.ended(gameData)) {
 		for (const oldPlayer of oldPlayers.filter((pl) => !game.currentPlayers?.some((pl2) => pl2._id.equals(pl._id)))) {
 			const player = game.players.find((pl) => pl._id.equals(oldPlayer._id));
-			player.remainingTime =
-				(player.remainingTime ?? game.options.timing.timePerGame) -
-				elapsedSeconds(oldPlayer.timerStart, game.options.timing.timer);
+			if (!player) {
+				continue;
+			}
+			player.remainingTime = (player.remainingTime ?? timePerGame ?? 0) - elapsedSeconds(oldPlayer.timerStart, timer);
 
 			if (!player.dropped) {
-				player.remainingTime += game.options.timing.timePerMove;
+				player.remainingTime += timePerMove ?? 0;
 
-				player.remainingTime = Math.max(
-					Math.min(game.options.timing.timePerGame, player.remainingTime),
-					game.options.timing.timePerMove,
-				);
+				player.remainingTime = Math.max(Math.min(timePerGame ?? player.remainingTime, player.remainingTime), timePerMove ?? 0);
 			}
 		}
 	}

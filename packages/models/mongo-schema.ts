@@ -39,6 +39,7 @@ function convert(schema: JsonSchema): JsonSchema {
 
 	if (schema.properties && typeof schema.properties === "object") {
 		const props: JsonSchema = {};
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Zod JSON-schema output is untyped; we treat properties as a schema map
 		for (const [key, val] of Object.entries(schema.properties as Record<string, JsonSchema>)) {
 			props[key] = convert(val);
 		}
@@ -46,14 +47,17 @@ function convert(schema: JsonSchema): JsonSchema {
 	}
 
 	if (schema.items && typeof schema.items === "object") {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Zod JSON-schema output is untyped
 		out.items = convert(schema.items as JsonSchema);
 	}
 
 	if (Array.isArray(schema.oneOf)) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Zod JSON-schema output is untyped
 		out.oneOf = (schema.oneOf as JsonSchema[]).map(convert);
 	}
 
 	if (Array.isArray(schema.anyOf)) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Zod JSON-schema output is untyped
 		out.anyOf = (schema.anyOf as JsonSchema[]).map(convert);
 	}
 
