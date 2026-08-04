@@ -22,6 +22,7 @@ module.exports = {
 				PORT: 8612,
 			},
 			exec_mode: "cluster",
+			instances: 2,
 			interpreter: NODE,
 		},
 		{
@@ -33,6 +34,7 @@ module.exports = {
 				cron: "false",
 			},
 			exec_mode: "cluster",
+			instances: 2,
 			interpreter: NODE,
 			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
@@ -58,6 +60,7 @@ module.exports = {
 				cron: "false",
 			},
 			exec_mode: "cluster",
+			instances: 2,
 			interpreter: NODE,
 			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
