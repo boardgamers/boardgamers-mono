@@ -1,8 +1,9 @@
 import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
+import env from "../../config/env.ts";
 
-const LOKI_URL = process.env.lokiUrl || "http://127.0.0.1:3100";
+const LOKI_URL = env.lokiUrl;
 
 // Node 18+ wraps network failures from fetch() as TypeError("fetch failed") with
 // the real cause (ECONNREFUSED, ENOTFOUND, …) on err.cause. Check both layers.

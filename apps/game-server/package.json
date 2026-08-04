@@ -6,8 +6,8 @@
 	"type": "module",
 	"main": "server.ts",
 	"scripts": {
-		"batch-replay": "node --env-file-if-exists=.env --env-file-if-exists=.env.${NODE_ENV} scripts/batch-replay.ts",
-		"dev": "node --watch --env-file-if-exists=.env --env-file-if-exists=.env.${NODE_ENV} server.ts",
+		"batch-replay": "node scripts/batch-replay.ts",
+		"dev": "node --watch server.ts",
 		"fmt": "oxfmt",
 		"fmt-check": "oxfmt --check",
 		"lint": "oxlint --fix",
