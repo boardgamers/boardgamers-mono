@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
+	import { timeAgo } from "$lib/utils.ts";
 	import { trim } from "$lib/actions.ts";
 	import { goto, invalidateAll } from "$app/navigation";
 	import WebLink from "$components/WebLink.svelte";
@@ -116,21 +117,6 @@
 			deleting = false;
 			showDeleteConfirm = false;
 		}
-	}
-
-	function timeAgo(iso?: string): string {
-		if (!iso) return "never";
-		const diff = Date.now() - new Date(iso).getTime();
-		const sec = Math.floor(diff / 1000);
-		if (sec < 60) return `${sec}s ago`;
-		const min = Math.floor(sec / 60);
-		if (min < 60) return `${min}m ago`;
-		const hr = Math.floor(min / 60);
-		if (hr < 24) return `${hr}h ago`;
-		const day = Math.floor(hr / 24);
-		if (day < 30) return `${day}d ago`;
-		const mon = Math.floor(day / 30);
-		return `${mon}mo ago`;
 	}
 
 	const totalGames = $derived(user?.games ? Object.values(user.games).reduce((a, b) => a + (b ?? 0), 0) : 0);

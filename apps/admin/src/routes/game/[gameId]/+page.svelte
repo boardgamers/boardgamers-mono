@@ -3,7 +3,7 @@
 	import { page } from "$app/state";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
-	import { gameLabelParts } from "$lib/utils.ts";
+	import { gameLabelParts, timeAgo } from "$lib/utils.ts";
 	import WebLink from "$components/WebLink.svelte";
 	import type { GameInfoFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
@@ -35,19 +35,6 @@
 
 	function playerName(playerId: string): string {
 		return info?.usernames[playerId] ?? playerId;
-	}
-
-	function timeAgo(iso?: string): string {
-		if (!iso) return "never";
-		const diff = Date.now() - new Date(iso).getTime();
-		const sec = Math.floor(diff / 1000);
-		if (sec < 60) return `${sec}s ago`;
-		const min = Math.floor(sec / 60);
-		if (min < 60) return `${min}m ago`;
-		const hr = Math.floor(min / 60);
-		if (hr < 24) return `${hr}h ago`;
-		const day = Math.floor(hr / 24);
-		return `${day}d ago`;
 	}
 
 	function formatDate(iso?: string): string {
