@@ -61,6 +61,17 @@ const QUERIES: Record<string, { type: "query" | "query_range"; logql: string }> 
 	},
 };
 
+// Hard cap on the queried window. Instant queries below always collapse to a
+// single timestamp, but query_range queries (recentErrors …) scan every log
+// line in the window — an unbounded start→end span can hammer Loki.
+const MAX_WINDOW_MS = 6 * 3600_000;
+
+// Coarse step for query_range requests so Loki doesn't auto-pick a too-fine
+// one (~60 points per window, never below 15s).
+function computeStepSeconds(start: number, end: number): number {
+	return Math.max(15, Math.round((end - start) / 1000 / 60));
+}
+
 const router = new Router<Application.DefaultState, Context>();
 
 // GET /api/admin/loki/query/:key — runs a pre-built LogQL query
@@ -72,17 +83,35 @@ router.get("/query/:key", async (ctx) => {
 	}
 
 	const now = Date.now();
-	const start = ctx.query.start ? Number(ctx.query.start) : now - 3600_000; // default: 1h ago
+	let start = ctx.query.start ? Number(ctx.query.start) : now - 3600_000; // default: 1h ago
 	const end = ctx.query.end ? Number(ctx.query.end) : now;
 	const limit = ctx.query.limit ? Math.min(Number(ctx.query.limit), 5000) : 1000;
 
+	if (end - start > MAX_WINDOW_MS) {
+		throw createError(400, "Time range too large: start→end must be at most 6h");
+	}
+
 	const url = new URL(`${LOKI_URL}/loki/api/v1/${query.type}`);
-	url.searchParams.set("query", query.logql);
-	url.searchParams.set("start", String(Math.floor(start / 1000).toString()));
-	url.searchParams.set("end", String(Math.floor(end / 1000).toString()));
-	if (query.type === "query_range") {
+	let logql = query.logql;
+
+	if (query.type === "query") {
+		// Instant queries: the LogQL already carries its lookback ([1h]), so the
+		// request must evaluate at a SINGLE timestamp. Passing a start→end span
+		// makes Loki recompute the whole `| json | unwrap` scan at every step
+		// across the window — 30–60× the intended work.
+		start = end;
+		url.searchParams.set("time", String(Math.floor(end / 1000)));
+	} else {
+		// $__interval is a Grafana macro — Loki never expands it and rejects the
+		// query. Substitute the computed step ourselves and pass it explicitly.
+		const step = computeStepSeconds(start, end);
+		logql = logql.replaceAll("$__interval", `${step}s`);
+		url.searchParams.set("start", String(Math.floor(start / 1000)));
+		url.searchParams.set("end", String(Math.floor(end / 1000)));
+		url.searchParams.set("step", String(step));
 		url.searchParams.set("limit", String(limit));
 	}
+	url.searchParams.set("query", logql);
 
 	try {
 		const res = await fetch(url);
