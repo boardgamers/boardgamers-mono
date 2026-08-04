@@ -36,7 +36,7 @@ const newGameSchema = z.object({
 	timerEnd: z.number().optional(),
 	minimumKarma: z.number().int().nonnegative().optional().nullable(),
 	scheduledStart: z.number().optional(),
-	seed: z.string().regex(gameIdPattern).or(z.literal("")).optional(),
+	seed: z.string().regex(gameIdPattern).optional(),
 	options: z.record(z.string(), z.union([z.string(), z.boolean()])).optional(),
 });
 
