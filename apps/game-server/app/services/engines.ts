@@ -1,5 +1,4 @@
 import assert from "node:assert";
-import cluster from "node:cluster";
 import { colls } from "../config/db.ts";
 import type { Engine } from "../types/engine.ts";
 
@@ -37,21 +36,6 @@ export async function getEngine(name: string, version: number): Promise<Engine> 
 }
 
 export function refreshEngine(name: string, version: number) {
-	console.log("refreshing engine", name, version, cluster.isPrimary);
+	console.log("refreshing engine", name, version);
 	delete engines[`${name}_${version}`];
-
-	if (cluster.isPrimary) {
-		for (const worker of Object.values(cluster.workers)) {
-			worker.send({ type: "refreshEngine", name, version });
-		}
-	}
-}
-
-if (cluster.isWorker) {
-	process.on("message", (msg: { type?: string; name?: string; version?: number }) => {
-		console.log("received message from master", msg);
-		if (msg.type === "refreshEngine") {
-			refreshEngine(msg.name, msg.version);
-		}
-	});
 }

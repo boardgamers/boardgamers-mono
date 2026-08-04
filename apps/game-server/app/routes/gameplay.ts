@@ -97,12 +97,10 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 		const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 
 		if (toSave) {
-			if (game.options.timing.timePerMove <= 15 * 60) {
-				game.players[playerIndex].remainingTime = Math.min(
-					game.options.timing.timePerGame,
-					(game.players[playerIndex].remainingTime ?? game.options.timing.timePerGame) +
-						game.options.timing.timePerMove,
-				);
+			const { timePerMove, timePerGame } = game.options.timing;
+			const player = game.players[playerIndex];
+			if (timePerMove !== undefined && timePerGame !== undefined && player && timePerMove <= 15 * 60) {
+				player.remainingTime = Math.min(timePerGame, (player.remainingTime ?? timePerGame) + timePerMove);
 			}
 			await afterMove(engine, game, toSave);
 		}
@@ -134,6 +132,7 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
 		{ _id: { game: game.game.name, version: game.game.version } },
 		{ projection: { settings: 1 } },
 	);
+	assert(gameInfo?.settings, "No settings registered for this game");
 	const settingsMap = keyBy(gameInfo.settings, (s) => s.name);
 
 	const filteredSettings = pick(z.record(z.string(), z.unknown()).parse(ctx.request.body), Object.keys(settingsMap));
@@ -145,7 +144,7 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
 				}
 				break;
 			case "select":
-				if (!settingsMap[key].items.some((item) => item.name === setting)) {
+				if (!settingsMap[key].items?.some((item) => item.name === setting)) {
 					delete filteredSettings[key];
 				}
 				break;
@@ -162,6 +161,7 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
 	{
 		await using _lock = await locks.lock("game", ctx.params.gameId);
 		const freshGame = await colls.games.findOne({ _id: ctx.params.gameId });
+		assert(freshGame, "Game not found");
 
 		let gameData = freshGame.data;
 

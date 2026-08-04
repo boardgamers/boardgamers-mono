@@ -61,13 +61,20 @@ Rules for the agent:
 
 - Always set `dbName` (e.g. `bgs-<name>`) — otherwise the instance shares the
   default `bgs-dev` db. `NODE_ENV` stays unset (development), so the db is
-  actually `bgs-<name>-dev` and apps never fork `threads=cpu` workers.
+  actually `bgs-<name>-dev`. Process forking is owned by PM2 (see
+  `ecosystem.config.cjs`), not the app, so a direct `pnpm dev` run is always a
+  single process that also runs cron (which defaults on in dev).
 - **Don't set `dbUrl` if the coordinator gave you an `.env`** — it already
   points at the right Mongo for this host, and `dbUrl` overrides it. If there
   is **no** `apps/api/.env` in your worktree, set `dbUrl` explicitly if the default
   one doesnt work (ask the
-  coordinator for the Mongo URL if you don't have one). Mongo must be running
-  (`docker compose up -d mongo` → port 27517, or whatever the local `.env` says).
+  coordinator for the Mongo URL if you don't have one).
+- **Mongo**: check `dbUrl` in `apps/api/.env` first — that's the source of truth. In
+  the devcontainer it's the compose service (`mongodb://mongo:27017/admin`), reachable
+  via the docker network, already running, with `mongosh` on PATH. Only when running
+  outside the devcontainer (plain host) do you `docker compose up -d mongo` and hit the
+  published port (`127.0.0.1:27517`). Note `docker` is **not** on PATH inside the
+  devcontainer, so don't try to start Mongo from here — use the `mongo` hostname.
 
 ## Workarounds
 

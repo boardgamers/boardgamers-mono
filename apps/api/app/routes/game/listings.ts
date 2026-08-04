@@ -101,6 +101,7 @@ async function gameConditions<T>(
 		]),
 	};
 
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- heterogeneous $and mix is deliberately loosened to a Mongo filter
 	return simplifyFilter(conditions as Filter<WithId<GameDoc>>);
 }
 

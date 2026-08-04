@@ -22,6 +22,10 @@ const client = new MongoClient(env.database.bgs.url, { directConnection: true })
 const _db = client.db(env.database.bgs.name);
 console.log("successfully connected to database");
 
+export async function closeDb() {
+	await client.close();
+}
+
 export function db(): Db {
 	return _db;
 }

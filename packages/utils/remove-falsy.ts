@@ -11,5 +11,6 @@ type NonFalsy<T> = T extends false
 					: T;
 
 export function removeFalsy<T>(x: T[]) {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- filter(Boolean) does narrow, just not in a way TS can express here
 	return x.filter(Boolean) as NonFalsy<T>[];
 }

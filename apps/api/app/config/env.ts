@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import os from "node:os";
 const domain = process.env.domain || "boardgamers.space";
 let dbName = process.env.dbName ?? "bgs";
 
@@ -53,10 +52,12 @@ export default {
 		nodebb: "mongodb://nodebb:NodeBBPassword@localhost:27017/nodebb",
 	},
 	isProduction: process.env.NODE_ENV === "production",
-	threads: process.env.threads || os.cpus().length,
 	/** Is the computer able to send emails? If not, let the main server send the emails */
 	automatedEmails: process.env.automatedEmails || false,
-	cron: process.env.chron || process.env.cron || false,
+	// Cron (game notifications, scheduled games, emails) is on by default — in dev the
+	// single process must run it. PM2 workers opt out with cron=false so only the
+	// dedicated api-cron process runs it (see ecosystem.config.cjs).
+	cron: (process.env.chron ?? process.env.cron ?? "true") !== "false",
 	mailing: {
 		provider: "mailgun",
 		api: {

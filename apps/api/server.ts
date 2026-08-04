@@ -1,9 +1,10 @@
-import cluster from "node:cluster";
 import { listen } from "./app/app.ts";
 import initDb from "./app/config/db.ts";
 import env from "./app/config/env.ts";
-import { installProcessHandlers, logEvent } from "@bgs/utils/log";
+import { gracefulShutdown, installProcessHandlers, logEvent, pm2Ready, type Closable } from "@bgs/utils/log";
 import { listen as listenResources } from "./app/resources.ts";
+import type { Server } from "node:http";
+import type { WebSocketServer } from "ws";
 
 installProcessHandlers("api");
 
@@ -14,21 +15,32 @@ const handleError = (err: Error) => {
 
 await initDb().catch(handleError);
 
-// In production, run a process for each CPU
-if (cluster.isPrimary && env.isProduction && Number(env.threads) > 1) {
-	for (let i = 0; i < Number(env.threads); i++) {
-		cluster.fork();
-	}
-	cluster.on("exit", (worker, code, signal) => {
-		logEvent("warn", "workerExited", { source: "api", workerId: worker.id, code, signal });
-		cluster.fork();
-	});
-} else {
-	listen().catch(handleError);
-	listenResources().catch(handleError);
-	await import("./app/ws.ts");
+// Workers (cron=false) serve traffic. The dedicated api-cron process (cron=true) only
+// runs cron and must NOT bind the ports — it runs alongside a worker on the same host
+// (PM2 fork), so listening would hit EADDRINUSE. In dev, cron defaults on and the single
+// process does both (serve + cron).
+const serving = !env.cron || !env.isProduction;
+
+let apiServer: Server | undefined;
+let resourcesServer: Server | undefined;
+let wss: WebSocketServer | undefined;
+let cron: Closable | undefined;
+
+if (serving) {
+	apiServer = await listen().catch(handleError);
+	resourcesServer = await listenResources().catch(handleError);
+	({ wss } = await import("./app/ws.ts"));
 }
 
-if (cluster.isPrimary) {
-	await import("./app/services/cron.ts");
+// Cron (game notifications, scheduled games, emails) runs when env.cron is set —
+// always in dev (single process), and only in the dedicated api-cron PM2 process in
+// production. See ecosystem.config.cjs.
+if (env.cron) {
+	({ cron } = await import("./app/services/cron.ts"));
 }
+
+gracefulShutdown("api", () => [apiServer, resourcesServer, wss, cron]);
+
+// Signal PM2 (wait_ready) that we're up and listening — reload only swaps in a new
+// worker once it reports ready, so a worker still connecting to the DB gets no traffic.
+pm2Ready();

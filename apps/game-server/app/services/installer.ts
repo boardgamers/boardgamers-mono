@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "fs-extra";
 import pkg from "../../package.json" with { type: "json" };
 import { colls } from "../config/db.ts";
+import locks from "../config/locks.ts";
 import { engineKey, refreshEngine } from "./engines.ts";
 
 // npm rather than yarn/pnpm: corepack refuses to run yarn inside this repo
@@ -36,6 +37,15 @@ export async function installNewGames() {
 		return;
 	}
 	installing = true;
+
+	// npm install in ./games must run on exactly one process at a time. cron=true already
+	// restricts it to the game-server-cron process, and this DB lock (non-blocking —
+	// null when held) makes it safe across a PM2 reload overlap.
+	await using lock = await locks.lock("engine-install").catch(() => null);
+	if (!lock) {
+		installing = false;
+		return;
+	}
 
 	try {
 		await initIfNeeded();

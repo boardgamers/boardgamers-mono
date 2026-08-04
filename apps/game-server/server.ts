@@ -1,30 +1,33 @@
+import { listen } from "./app/app.ts";
 import env from "./app/config/env.ts";
+import { gracefulShutdown, installProcessHandlers, logEvent, pm2Ready, type Closable } from "@bgs/utils/log";
+import type { Server } from "node:http";
 
-async function main() {
-	let isPrimary = true;
-	const isMultiThread = env.isProduction && env.threads > 1;
+installProcessHandlers("game-server");
 
-	// Only import node:cluster when we actually need to fork workers.
-	// The cluster module's IPC conflicts with `node --watch`, causing EPIPE.
-	if (isMultiThread) {
-		// node:cluster's types expose the Cluster object as the module's default export.
-		const cluster = (await import("node:cluster")).default;
-		isPrimary = cluster.isPrimary;
-		if (cluster.isPrimary) {
-			for (let i = 0; i < env.threads; i++) {
-				cluster.fork();
-			}
-		}
-	}
+const handleError = (err: Error) => {
+	logEvent("error", "startup", { source: "game-server", error: err.message, stack: err.stack?.split("\n") });
+	process.exit(1);
+};
 
-	// Start the app unless we're the primary in multi-thread production mode
-	if (!isMultiThread || !isPrimary) {
-		await import("./app/app.ts");
-	}
+// Workers (PM2 cluster, cron=false) serve the gameplay API. The dedicated
+// game-server-cron process (cron=true) runs start/drop/quit processing and engine
+// installs and must NOT bind the port — it runs alongside a worker on the same host
+// (PM2 fork), so listening would hit EADDRINUSE. In dev, cron defaults on and the
+// single process does both (serve + cron).
+const serving = !env.cron || !env.isProduction;
 
-	if (isPrimary) {
-		await import("./app/services/cron.ts");
-	}
+let server: Server | undefined;
+let cron: Closable | undefined;
+
+if (serving) {
+	server = await listen().catch(handleError);
 }
 
-void main();
+if (env.cron) {
+	({ cron } = await import("./app/services/cron.ts"));
+}
+
+gracefulShutdown("game-server", () => [server, cron]);
+
+pm2Ready();

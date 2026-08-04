@@ -10,7 +10,7 @@ import type { GameDoc } from "@bgs/models";
 import { colls } from "./config/db.ts";
 import { accessTokenPayloadSchema, findGamesWithPlayersTurn } from "./models/index.ts";
 
-const wss = new WebSocketServer({ port: env.listen.port.ws, host: env.listen.host });
+export const wss = new WebSocketServer({ port: env.listen.port.ws, host: env.listen.host });
 
 type AugmentedWebSocket = WebSocket & {
 	game?: string;
