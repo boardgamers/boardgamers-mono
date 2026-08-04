@@ -7,9 +7,8 @@
  * migration keyed at or below an existing one would silently never run.
  *
  * Compares the migration registry on the current checkout against the base ref
- * (default `origin/main`, override with $BASE_REF). Works across both the old
- * single-file (`migrations.ts`) and the new per-version (`migrations/`) layouts,
- * since it just scrapes the `"x.y.z":` registry keys from whichever exists.
+ * (default `origin/main`, override with $BASE_REF) by scraping the `"x.y.z":`
+ * registry keys from `migrations/index.ts`.
  */
 import { execFileSync } from "node:child_process";
 import semver from "semver";
@@ -24,19 +23,14 @@ function keysFromSource(source: string): string[] {
 }
 
 function baseSource(): string | null {
-	// The base branch may keep migrations in either layout; try both.
-	const candidates = ["apps/api/app/models/migrations/index.ts", "apps/api/app/models/migrations.ts"];
-	for (const path of candidates) {
-		try {
-			return execFileSync("git", ["show", `${BASE_REF}:${path}`], {
-				encoding: "utf8",
-				stdio: ["ignore", "pipe", "ignore"],
-			});
-		} catch {
-			// not present at this path on the base ref; try the next
-		}
+	try {
+		return execFileSync("git", ["show", `${BASE_REF}:apps/api/app/models/migrations/index.ts`], {
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "ignore"],
+		});
+	} catch {
+		return null;
 	}
-	return null;
 }
 
 function main() {

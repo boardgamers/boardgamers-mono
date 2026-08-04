@@ -14,11 +14,11 @@
 		"@vuepress/plugin-medium-zoom": "^1.3.1",
 		"vuepress": "^1.3.1"
 	},
+	"lint-staged": {
+		"*": "oxfmt --ignore-unknown"
+	},
 	"authors": {
 		"name": "coyotte508",
 		"email": "coyotte508@gmail.com"
-	},
-	"lint-staged": {
-		"*": "oxfmt --ignore-unknown"
 	}
 }

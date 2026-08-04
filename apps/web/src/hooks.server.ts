@@ -61,6 +61,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 	});
 };
 
+function backendUrl(override: string | undefined, defaultPort: number): string {
+	const raw = (override ?? import.meta.env.VITE_backend ?? "127.0.0.1").replace(/^https?:\/\//, "");
+	const [host, port] = raw.split(":");
+	const ip = host.includes(":") ? `[${host}]` : host; // bare IPv6
+	return `http://${ip}:${port ?? defaultPort}`;
+}
+
 /**
  * During SSR, event.fetch calls are routed through here. We rewrite /api/*
  * URLs to the backend host (same logic as the old externalFetch hook, minus the
@@ -72,11 +79,17 @@ export const handleFetch: HandleFetch = async ({ request, fetch, event }) => {
 
 	const isGameplay = path.startsWith("/api/gameplay");
 	const isMainApi = !isGameplay && path.startsWith("/api/");
-	// Backend loopback host — 127.0.0.1 in local dev (vite), ::1 in prod (matches nginx).
-	// Ports are fixed per service; only the host family varies by environment.
-	const host = import.meta.env.VITE_backend_host ?? "127.0.0.1";
-	const backendHost = host.includes(":") ? `[${host}]` : host;
-	const backend = isGameplay ? `http://${backendHost}:50803` : isMainApi ? `http://${backendHost}:50801` : null;
+
+	// Backend address: `VITE_backend` (host or host:port — same var as vite.config.ts)
+	// locates the api service; the gameplay backend defaults to the same host on its
+	// standard port so multi-instance dev (one loopback IP per instance, default ports
+	// — see AGENTS.md "Running instances") only has to set the one variable.
+	// Per-service escape hatches: VITE_backend_api / VITE_backend_gameplay.
+	const backend = isGameplay
+		? backendUrl(import.meta.env.VITE_backend_gameplay, 50803)
+		: isMainApi
+			? backendUrl(import.meta.env.VITE_backend_api, 50801)
+			: null;
 
 	if (backend) {
 		request = new Request(request.url.replace(event.url.origin, backend), request);

@@ -6,3 +6,4 @@ pnpm-debug.log*
 .pnpm-store
 .fast-check
 .playwright-mcp
+.worktrees
