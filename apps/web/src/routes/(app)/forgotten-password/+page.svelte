@@ -12,7 +12,7 @@
 	}
 </script>
 
-<SEO title="Forgotten password" />
+<SEO title="Forgotten password" noindex />
 <div class="container mx-auto px-4">
 	<h1>Forgotten password</h1>
 	<form

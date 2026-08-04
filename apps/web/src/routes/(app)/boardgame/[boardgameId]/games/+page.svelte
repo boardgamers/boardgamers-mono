@@ -4,6 +4,7 @@
 	import { GameList, SEO } from "@/components";
 	import { Nav, NavItem, NavLink } from "@/modules/cdk";
 	import { useGameInfo } from "@/lib/game-info.svelte";
+	import { gameLabel } from "@/utils/game-label";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -20,8 +21,8 @@
 </script>
 
 <SEO
-	title={`${gameInfo?.label ?? data.boardgameId} games`}
-	description={`${featuredCount} ongoing games and ${lobbyCount} open games.`}
+	title={`${gameLabel(gameInfo?.label ?? data.boardgameId)} games`}
+	description={`${featuredCount.length} ongoing games and ${lobbyCount} open games of ${gameLabel(gameInfo?.label ?? data.boardgameId)}.`}
 />
 
 <div class="container mx-auto px-4">
