@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { invalidateAll } from "$app/navigation";
+	import { goto, invalidateAll } from "$app/navigation";
 	import { page } from "$app/state";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
@@ -8,6 +8,7 @@
 	import { tokens } from "$lib/auth.svelte.ts";
 	import type { GameInfoFront } from "@bgs/models";
 	import MarkdownEditor from "$components/MarkdownEditor.svelte";
+	import WebLink from "$components/WebLink.svelte";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -15,11 +16,6 @@
 	let refreshing = $state(false);
 	let announcement = $state({ title: "", content: "" });
 	let gameId = $state("");
-	let gameData: unknown = $state(null);
-	let gameLength: number | null = $state(null);
-	let replayTo = $state(0);
-	let editJson = $state("");
-	let showJsonEditor = $state(false);
 	let batchGameIds = $state("");
 
 	// Initialise the editable announcement from the loaded serverInfo.
@@ -53,64 +49,10 @@
 		}
 	}
 
-	// gameId is trimmed on paste/blur by the use:trim action; we only URL-encode it here.
-	async function loadGame() {
-		const id = encodeURIComponent(gameId);
-		if (!id) return;
-		try {
-			const [data, length] = await Promise.all([
-				api.get(`/gameplay/${id}?admin=true`),
-				api.get<number>(`/gameplay/${id}/length`),
-			]);
-			gameData = data;
-			gameLength = length;
-			replayTo = length;
-			editJson = JSON.stringify((data as { data?: unknown })?.data ?? data, null, 2);
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Game not found");
-			gameData = null;
-			gameLength = null;
-		}
-	}
-
-	async function deleteGame() {
-		const id = encodeURIComponent(gameId);
-		if (!id || !confirm(`Delete game ${gameId}?`)) return;
-		try {
-			await api.del(`/game/${id}`);
-			toast.success("Game deleted");
-			gameData = null;
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Failed to delete");
-		}
-	}
-
-	async function replayGame() {
-		const id = encodeURIComponent(gameId);
-		if (!id) return;
-		try {
-			await api.post(`/gameplay/${id}/replay`, { to: replayTo });
-			toast.success("Replay started");
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Replay failed");
-		}
-	}
-
-	async function editGameData() {
-		if (!editJson.trim()) {
-			toast.error("Body is empty");
-			return;
-		}
-		const id = encodeURIComponent(gameId);
-		if (!id) return;
-		try {
-			const parsed = JSON.parse(editJson);
-			await api.post(`/gameplay/${id}/edit-data`, { json: parsed });
-			toast.success("Game data updated. If the current player changed, don't forget to replay it.");
-			showJsonEditor = false;
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Invalid JSON or update failed");
-		}
+	// gameId is trimmed on paste/blur by the use:trim action; the game page has the full tooling.
+	function loadGame() {
+		if (!gameId) return;
+		goto(`/game/${encodeURIComponent(gameId)}`);
 	}
 
 	async function batchReplay() {
@@ -305,6 +247,9 @@
 									<span class="mr-1">{gameEmojiByName[g.game.name] ?? ""}</span>
 									{g._id}
 								</a>
+								<span class="text-xs flex-shrink-0" title="View on site">
+									<WebLink path={`/game/${g._id}`}>↗</WebLink>
+								</span>
 								<span class="text-xs text-gray-400 flex-shrink-0">{timeAgo(g.lastMove)}</span>
 							</li>
 						{/each}
@@ -362,56 +307,11 @@
 					onkeydown={(e) => e.key === "Enter" && loadGame()}
 				/>
 			</div>
-
-			{#if gameData}
-				<div>
-					<label class="block text-xs font-medium text-gray-500 mb-1">Replay to move #</label>
-					<input
-						type="number"
-						bind:value={replayTo}
-						class="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-					/>
-					<span class="text-xs text-gray-400 ml-2">of {gameLength}</span>
-				</div>
-
-				{#if showJsonEditor}
-					<div>
-						<label class="block text-xs font-medium text-gray-500 mb-1">JSON</label>
-						<textarea
-							bind:value={editJson}
-							rows="10"
-							class="w-full font-mono text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 focus:outline-none focus:ring-2 focus:ring-blue-500"
-						></textarea>
-					</div>
-				{/if}
-			{/if}
-
-			<div class="flex flex-wrap gap-2">
-				{#if !gameData}
-					<button
-						onclick={loadGame}
-						class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">Load</button
-					>
-				{:else}
-					<button
-						onclick={replayGame}
-						class="px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium">Replay</button
-					>
-					<button
-						onclick={() => (showJsonEditor = !showJsonEditor)}
-						class="px-3 py-2 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg text-sm font-medium"
-						>{showJsonEditor ? "Hide JSON" : "Edit JSON"}</button
-					>
-					<button
-						onclick={editGameData}
-						class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">Save JSON</button
-					>
-					<button
-						onclick={deleteGame}
-						class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium ml-auto"
-						>Delete</button
-					>
-				{/if}
+			<div>
+				<button
+					onclick={loadGame}
+					class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">Open</button
+				>
 			</div>
 		</div>
 

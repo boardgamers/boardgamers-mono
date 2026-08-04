@@ -18,6 +18,22 @@ export function gameEmoji(label: string | undefined): string {
 	return gameLabelParts(label).emoji;
 }
 
+/**
+ * Base URL of the public site, derived from the admin host
+ * (admin.boardgamers.space → boardgamers.space). In dev, override with
+ * VITE_web_host (host or host:port, e.g. "127.0.0.1:8612").
+ */
+export function webHost(): string {
+	const devHost = import.meta.env.VITE_web_host;
+	if (devHost) {
+		return `http://${devHost}`;
+	}
+	if (location.hostname === "localhost" || /^\\d{1,3}(\\.\\d{1,3}){3}$/.test(location.hostname)) {
+		return "http://localhost:8612";
+	}
+	return `//${location.hostname.replace(/^admin\\./, "")}`;
+}
+
 export function filesize(bytes: number): string {
 	if (bytes < 1000) return `${bytes} B`;
 	if (bytes < 1000 * 1000) return `${(bytes / 1000).toFixed(1)} kB`;

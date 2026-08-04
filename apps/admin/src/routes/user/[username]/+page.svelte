@@ -3,6 +3,7 @@
 	import { toast } from "$lib/toast.svelte.ts";
 	import { trim } from "$lib/actions.ts";
 	import { goto, invalidateAll } from "$app/navigation";
+	import WebLink from "$components/WebLink.svelte";
 	import type { PageProps } from "./$types";
 	import type { UserInfo, ApiErrorItem } from "./+page.ts";
 
@@ -178,6 +179,9 @@
 					{togglingAdmin ? "…" : "Demote to user"}
 				</button>
 			{/if}
+			<div class="ml-auto text-sm">
+				<WebLink path={`/user/${user.account.username}`} />
+			</div>
 		</div>
 
 		<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">

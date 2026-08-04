@@ -4,6 +4,7 @@
 	import { toast } from "$lib/toast.svelte.ts";
 	import { loadPages } from "$lib/stores.svelte.ts";
 	import PageEdit from "$components/PageEdit.svelte";
+	import WebLink from "$components/WebLink.svelte";
 	import type { PageProps } from "./$types";
 	import type { PageData } from "./+page.ts";
 
@@ -43,9 +44,14 @@
 
 {#if value}
 	<div class="max-w-3xl">
-		<h2 class="text-xl font-bold mb-6">
-			{value.title || value._id.name} <span class="text-gray-400 font-normal">({value._id.lang})</span>
-		</h2>
+		<div class="flex items-center gap-4 mb-6">
+			<h2 class="text-xl font-bold">
+				{value.title || value._id.name} <span class="text-gray-400 font-normal">({value._id.lang})</span>
+			</h2>
+			<div class="ml-auto text-sm">
+				<WebLink path={`/page/${name.replaceAll(":", "/")}`} />
+			</div>
+		</div>
 		<PageEdit mode="edit" bind:value onsave={save} ondelete={remove} />
 	</div>
 {:else}
