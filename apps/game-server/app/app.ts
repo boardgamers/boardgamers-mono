@@ -128,7 +128,4 @@ async function listen() {
 	console.log("app started on port", env.listen.port);
 }
 
-listen().catch((err: Error) => {
-	console.error(err);
-	process.exit(1);
-});
+export { listen };

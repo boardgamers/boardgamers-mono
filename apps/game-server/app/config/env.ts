@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import os from "node:os";
 
 let dbName = process.env.dbName ?? "bgs";
 
@@ -33,7 +32,9 @@ export default {
 		},
 	},
 	isProduction: process.env.NODE_ENV === "production",
-	threads: +(process.env.threads || os.cpus().length),
 	seedEncryptionKey: process.env.seedEncryptionKey || "hashing key for seed",
-	cron: process.env.cron || process.env.chron || false,
+	// Cron (start/drop/quit games, engine install) is on by default — in dev the single
+	// process must run it. PM2 workers opt out with cron=false so only the dedicated
+	// game-server-cron process runs it (see ecosystem.config.cjs).
+	cron: (process.env.cron ?? process.env.chron ?? "true") !== "false",
 };

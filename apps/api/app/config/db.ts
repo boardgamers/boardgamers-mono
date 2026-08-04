@@ -1,4 +1,3 @@
-import cluster from "node:cluster";
 import { type Collection, type Db, MongoClient } from "mongodb";
 import {
 	type ApiErrorDoc,
@@ -100,16 +99,22 @@ export default async function initDb(url = env.database.bgs.url, runMigrations =
 	await ensureIndexes(_db);
 	await ensureValidation(_db);
 
-	if (cluster.isPrimary && runMigrations) {
+	// Migrations + the dev-seed hint are singleton work: only in the cron process
+	// (env.cron — always in dev, the api-cron process in prod). The DB lock makes it
+	// safe even if two cron processes overlap during a PM2 reload (lock() is
+	// non-blocking and returns null when already held).
+	if (env.cron && runMigrations) {
 		try {
-			await using _lock = await locks.lock("migration");
-			await migrate();
+			await using lock = await locks.lock("migration");
+			if (lock) {
+				await migrate();
+			}
 		} catch (err) {
 			console.error(err);
 		}
 	}
 
-	if (cluster.isPrimary && !env.isProduction && (await colls.users.estimatedDocumentCount()) === 0) {
+	if (env.cron && !env.isProduction && (await colls.users.estimatedDocumentCount()) === 0) {
 		console.log("\n⚠️  No users found in the database. Run `pnpm seed` to populate it with dev data.\n");
 	}
 
