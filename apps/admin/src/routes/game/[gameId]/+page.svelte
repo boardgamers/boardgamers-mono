@@ -156,9 +156,7 @@
 					{#each game.players as player}
 						<div class="px-5 py-2.5 flex items-center gap-3 text-sm">
 							{#if game.currentPlayers?.some((p) => String(p._id) === player._id)}
-								<span
-									class="inline-block w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"
-									title="Current player"
+								<span class="inline-block w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" title="Current player"
 								></span>
 							{/if}
 							<a
@@ -195,9 +193,8 @@
 				<div class="px-5 py-3 border-b border-gray-200 dark:border-gray-800">
 					<h3 class="text-sm font-semibold">Options</h3>
 				</div>
-				<pre
-					class="px-5 py-3 text-xs font-mono whitespace-pre-wrap break-all max-h-80 overflow-y-auto">{JSON.stringify(
-						{ ...game.options, ...game.game.options ? { gameOptions: game.game.options } : {} },
+				<pre class="px-5 py-3 text-xs font-mono whitespace-pre-wrap break-all max-h-80 overflow-y-auto">{JSON.stringify(
+						{ ...game.options, ...(game.game.options ? { gameOptions: game.game.options } : {}) },
 						null,
 						2
 					)}</pre>
@@ -321,14 +318,12 @@
 				{#if showJsonEditor}
 					<button
 						onclick={editGameData}
-						class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
-						>Save JSON</button
+						class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">Save JSON</button
 					>
 				{/if}
 				<button
 					onclick={deleteGame}
-					class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium ml-auto"
-					>Delete</button
+					class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium ml-auto">Delete</button
 				>
 			</div>
 		</div>
