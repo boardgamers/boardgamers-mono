@@ -75,7 +75,7 @@ export default {
 	// Cron (game notifications, scheduled games, emails) is on by default — in dev the
 	// single process must run it. PM2 workers opt out with cron=false so only the
 	// dedicated api-cron process runs it (see ecosystem.config.cjs).
-	cron: (process.env.chron ?? process.env.cron ?? "true") !== "false",
+	cron: (process.env.cron ?? "true") !== "false",
 	mailing: {
 		provider: "mailgun",
 		api: {

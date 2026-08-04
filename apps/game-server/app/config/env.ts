@@ -49,5 +49,5 @@ export default {
 	// Cron (start/drop/quit games, engine install) is on by default — in dev the single
 	// process must run it. PM2 workers opt out with cron=false so only the dedicated
 	// game-server-cron process runs it (see ecosystem.config.cjs).
-	cron: (process.env.cron ?? process.env.chron ?? "true") !== "false",
+	cron: (process.env.cron ?? "true") !== "false",
 };
