@@ -4,6 +4,7 @@
 	import { toast } from "$lib/toast.svelte.ts";
 	import { loadGames } from "$lib/stores.svelte.ts";
 	import GameEdit, { type GameInfoData } from "$components/GameEdit.svelte";
+	import WebLink from "$components/WebLink.svelte";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -56,7 +57,12 @@
 
 {#if value}
 	<div>
-		<h2 class="text-xl font-bold mb-6">{value.label} <span class="text-gray-400 font-normal">v{version}</span></h2>
+		<div class="flex items-center gap-4 mb-6">
+			<h2 class="text-xl font-bold">{value.label} <span class="text-gray-400 font-normal">v{version}</span></h2>
+			<div class="ml-auto text-sm">
+				<WebLink path={`/boardgame/${gameId}`} />
+			</div>
+		</div>
 		<GameEdit mode="edit" bind:value onsave={save} onduplicate={duplicate} ondelete={remove} />
 	</div>
 {:else}
