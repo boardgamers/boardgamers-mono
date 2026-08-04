@@ -6,7 +6,7 @@
 	import marked from "marked";
 	import type { GameInfoFront } from "@bgs/models";
 	import { Button, Card } from "@/modules/cdk";
-	import { UserGameSettings, GameList, BoardgameElo, SEO } from "@/components";
+	import { UserGameSettings, GameList, BoardgameElo, BoardgameLinks, SEO } from "@/components";
 	import { account } from "@/lib/account.svelte";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { gamePreferences, useGamePreferencesFallback } from "@/lib/game-preferences.svelte";
@@ -60,15 +60,18 @@
 					<SanitizedHtml html={marked((rules ? boardgame.rules : boardgame.description) ?? "")} />
 				</div>
 				{#snippet footer()}
-					<a
-						href={rulesToggleHref}
-						onclick={(e) => {
-							e.preventDefault();
-							rules = !rules;
-						}}
-					>
-						{rules ? "See description" : "See rules"}
-					</a>
+					<div class="flex flex-col gap-2">
+						<a
+							href={rulesToggleHref}
+							onclick={(e) => {
+								e.preventDefault();
+								rules = !rules;
+							}}
+						>
+							{rules ? "See description" : "See rules"}
+						</a>
+						<BoardgameLinks links={boardgame.links} />
+					</div>
 				{/snippet}
 			</Card>
 		</div>

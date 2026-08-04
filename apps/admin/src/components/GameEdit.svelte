@@ -226,6 +226,14 @@
 				delete (setting as OptionItem).faction;
 			}
 		}
+		for (const key of Object.keys(value.links ?? {}) as (keyof NonNullable<GameInfoData["links"]>)[]) {
+			if (!value.links![key]) {
+				delete value.links![key];
+			}
+		}
+		if (Object.keys(value.links ?? {}).length === 0) {
+			delete value.links;
+		}
 		onsave(value);
 	}
 
@@ -467,6 +475,27 @@
 			<label class="flex items-center gap-2 text-sm">
 				<input type="checkbox" bind:checked={value.meta.needOwnership} class="rounded" /> Requires ownership
 			</label>
+		</div>
+	</details>
+
+	<!-- Links -->
+	<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+		<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">Links</summary>
+		<div class="px-5 pb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+			{#each [{ key: "source" as const, label: "Source code URL", placeholder: "https://github.com/…" }, { key: "bgg" as const, label: "BoardGameGeek URL", placeholder: "https://boardgamegeek.com/boardgame/…" }, { key: "publisher" as const, label: "Publisher URL", placeholder: "https://…" }, { key: "buy" as const, label: "Buy URL (affiliate)", placeholder: "https://…" }] as field}
+				<div>
+					<label class={labelClass}>{field.label}</label>
+					<input
+						value={value.links?.[field.key] ?? ""}
+						use:trim
+						oninput={(e) => {
+							value.links = { ...value.links, [field.key]: e.currentTarget.value };
+						}}
+						placeholder={field.placeholder}
+						class={inputClass}
+					/>
+				</div>
+			{/each}
 		</div>
 	</details>
 
