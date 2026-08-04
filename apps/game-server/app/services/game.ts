@@ -301,7 +301,10 @@ export async function afterMove(engine: Engine, game: GameDoc, gameData: GameDat
 			if (!player.dropped) {
 				player.remainingTime += timePerMove ?? 0;
 
-				player.remainingTime = Math.max(Math.min(timePerGame ?? player.remainingTime, player.remainingTime), timePerMove ?? 0);
+				player.remainingTime = Math.max(
+					Math.min(timePerGame ?? player.remainingTime, player.remainingTime),
+					timePerMove ?? 0,
+				);
 			}
 		}
 	}
