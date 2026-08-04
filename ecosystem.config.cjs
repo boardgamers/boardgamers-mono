@@ -45,7 +45,6 @@ module.exports = {
 			interpreter: NODE,
 			kill_timeout: 10000,
 			wait_ready: true,
-			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
 		{
 			name: "game-server-cron",
@@ -60,7 +59,6 @@ module.exports = {
 			interpreter: NODE,
 			kill_timeout: 10000,
 			wait_ready: true,
-			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
 		{
 			name: "api",
@@ -75,7 +73,6 @@ module.exports = {
 			interpreter: NODE,
 			kill_timeout: 10000,
 			wait_ready: true,
-			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
 		{
 			name: "api-cron",
@@ -90,7 +87,6 @@ module.exports = {
 			interpreter: NODE,
 			kill_timeout: 10000,
 			wait_ready: true,
-			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
 	],
 };
