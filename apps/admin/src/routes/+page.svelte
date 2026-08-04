@@ -227,16 +227,18 @@
 				{#if serverInfo.recentGames?.length}
 					<ul class="space-y-2">
 						{#each serverInfo.recentGames as g}
-							<li class="flex items-center justify-between text-sm">
-								<a
-									href={`/game/${g._id}`}
-									class="text-blue-600 dark:text-blue-400 hover:underline font-medium truncate"
-								>
-									<span class="mr-1">{gameEmojiByName[g.game.name] ?? ""}</span>
-									{g._id}
-								</a>
-								<span class="text-xs flex-shrink-0" title="View on site">
-									<WebLink path={`/game/${g._id}`}>↗</WebLink>
+							<li class="flex items-center justify-between gap-2 text-sm">
+								<span class="flex items-center gap-1.5 min-w-0">
+									<a
+										href={`/game/${g._id}`}
+										class="text-blue-600 dark:text-blue-400 hover:underline font-medium truncate"
+									>
+										<span class="mr-1">{gameEmojiByName[g.game.name] ?? ""}</span>
+										{g._id}
+									</a>
+									<span class="text-xs flex-shrink-0" title="View on site">
+										<WebLink path={`/game/${g._id}`}>↗</WebLink>
+									</span>
 								</span>
 								<span class="text-xs text-gray-400 flex-shrink-0">{timeAgo(g.lastMove)}</span>
 							</li>
