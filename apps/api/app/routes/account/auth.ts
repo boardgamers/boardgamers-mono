@@ -35,6 +35,13 @@ router.get("/facebook", async (ctx, next) => {
 	})(ctx, next);
 });
 
+router.get("/github", async (ctx, next) => {
+	await passport.authenticate("github", {
+		scope: ["read:user"],
+		callbackURL: `${ctx.protocol}://${ctx.hostname}/auth/github/callback`,
+	})(ctx, next);
+});
+
 router.get(
 	"/:provider/callback",
 	async (ctx, next) => {

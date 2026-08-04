@@ -21,7 +21,7 @@ export function makeDefaultUser(params: {
 	confirmKey: string;
 	confirmed: boolean;
 	newsletter: boolean;
-	social?: { google?: string; facebook?: string; discord?: string };
+	social?: { google?: string; facebook?: string; discord?: string; github?: string };
 }): UserDoc {
 	const now = new Date();
 	return {

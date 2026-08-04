@@ -104,6 +104,10 @@ export default {
 			id: process.env.googleId || "google-oauth-id",
 			secret: process.env.googleSecret || "google-oauth-secret",
 		},
+		github: {
+			id: process.env.githubId || "github-oauth-id",
+			secret: process.env.githubSecret || "github-oauth-secret",
+		},
 	},
 	silent: false,
 };

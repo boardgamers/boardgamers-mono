@@ -19,6 +19,7 @@ export const userSchema = z.object({
 				google: z.string().optional(),
 				facebook: z.string().optional(),
 				discord: z.string().optional(),
+				github: z.string().optional(),
 			})
 			.optional(),
 		avatar: z.string().optional(),
@@ -105,6 +106,8 @@ export const userIndexes: IndexDescription[] = [
 	{ key: { "account.social.facebook": 1 }, unique: true, sparse: true },
 	// api: social OAuth login
 	{ key: { "account.social.discord": 1 }, unique: true, sparse: true },
+	// api: social OAuth login
+	{ key: { "account.social.github": 1 }, unique: true, sparse: true },
 	// api: URL-based user lookup (profile pages)
 	{ key: { "security.slug": 1 }, unique: true, sparse: true },
 	// api: admin IP-based lookups

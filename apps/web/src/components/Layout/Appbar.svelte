@@ -15,6 +15,7 @@
 	} from "@/modules/cdk";
 	import IconGearFill from "@/components/icons/IconGearFill.svelte";
 	import IconPower from "@/components/icons/IconPower.svelte";
+	import IconGithub from "@/components/icons/IconGithub.svelte";
 	import IconSunFill from "@/components/icons/IconSunFill.svelte";
 	import IconMoonFill from "@/components/icons/IconMoonFill.svelte";
 	import IconCircleHalf from "@/components/icons/IconCircleHalf.svelte";
@@ -151,6 +152,9 @@
 							>
 							<Button color="facebook" href="/api/account/auth/facebook" rel="external" class="w-[46%] mb-2"
 								>Facebook</Button
+							>
+							<Button color="github" href="/api/account/auth/github" rel="external" class="w-[46%] mb-2"
+								><IconGithub class="me-1" />GitHub</Button
 							>
 						</div>
 						or

@@ -40,6 +40,7 @@
 		google: "bg-social-google text-white hover:opacity-90",
 		discord: "bg-social-discord text-white hover:opacity-90",
 		facebook: "bg-social-facebook text-white hover:opacity-90",
+		github: "bg-social-github text-white hover:opacity-90",
 	};
 
 	const outlineClasses: Record<string, string> = {

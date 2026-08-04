@@ -267,7 +267,7 @@
 			<p class="mb-3 flex flex-wrap items-center gap-2">
 				Connect with
 
-				{#each ["google", "discord", "facebook"] as const as social}
+				{#each ["google", "discord", "facebook", "github"] as const as social}
 					<Button
 						color={social}
 						disabled={!!(user.account.social && user.account.social[social])}
