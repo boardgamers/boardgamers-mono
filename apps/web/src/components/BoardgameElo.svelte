@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { loadEloRankings, type EloRanking } from "@/lib/elo-rankings.svelte";
+	import { countryFlag, countryName } from "@/lib/countries";
 	import { Loading, Pagination } from "@/modules/cdk";
 	import { createWatcher, handleError, pluralize } from "@/utils";
 	import { untrack } from "svelte";
@@ -81,8 +82,11 @@
 				>
 					<UserAvatar username={bgElo.user.name} userId={bgElo.user._id} size="2rem" />
 					<span class="ms-2">
-						<b>{pos + 1 + currentPage * perPage}</b> - {bgElo.user.name} -
-						<b>{bgElo.elo.value}</b> elo in {pluralize(bgElo.elo.games, "game")}
+						<b>{pos + 1 + currentPage * perPage}</b> - {bgElo.user.name}
+						{#if bgElo.user.country}<span title={countryName(bgElo.user.country)}
+								>{countryFlag(bgElo.user.country)}</span
+							>{/if}
+						- <b>{bgElo.elo.value}</b> elo in {pluralize(bgElo.elo.games, "game")}
 					</span>
 				</a>
 			{/each}

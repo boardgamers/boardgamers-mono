@@ -62,6 +62,7 @@ export const publicInfoProjection = {
 	"account.username": 1,
 	"account.bio": 1,
 	"account.karma": 1,
+	"account.country": 1,
 	createdAt: 1,
 } as const;
 
@@ -313,6 +314,7 @@ export function userPublicInfo(user: WithId<UserDoc>) {
 			username: user.account?.username,
 			bio: user.account?.bio,
 			karma: user.account?.karma,
+			country: user.account?.country,
 		},
 		createdAt: user.createdAt,
 	};

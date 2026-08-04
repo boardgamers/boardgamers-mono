@@ -13,6 +13,7 @@
 	import { useLoggedIn } from "@/lib/auth-guards.svelte";
 	import UserAvatar from "@/components/User/UserAvatar.svelte";
 	import { logoClick } from "@/lib/stores.svelte";
+	import { countries, countryFlag } from "@/lib/countries";
 
 	useLoggedIn();
 
@@ -34,6 +35,7 @@
 	let fileUpload = $state<HTMLInputElement>();
 
 	let bio = $derived(user?.account.bio ?? "");
+	let country = $derived(user?.account.country ?? "");
 
 	const avatarStyles = [
 		"adventurer",
@@ -112,6 +114,13 @@
 		post<UserFront>("/account", {
 			account: {
 				bio,
+			},
+		}).then((r) => account.set(r), handleError);
+
+	const updateCountry = (country: string) =>
+		post<UserFront>("/account", {
+			account: {
+				country,
 			},
 		}).then((r) => account.set(r), handleError);
 
@@ -221,6 +230,21 @@
 					value={bio}
 					onchange={(event) => updateBio((event.target as HTMLTextAreaElement).value)}
 				/>
+			</FormGroup>
+			<FormGroup class="mt-2">
+				<label for="country">Country</label>
+				<select
+					id="country"
+					class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+					value={country}
+					onchange={(event) => updateCountry((event.target as HTMLSelectElement).value)}
+				>
+					<option value="">Not specified</option>
+					{#each countries as c}
+						<option value={c.code}>{countryFlag(c.code)} {c.name}</option>
+					{/each}
+				</select>
+				<span class="text-xs">Shown next to your name in rankings and on your profile.</span>
 			</FormGroup>
 			<FormGroup class="mt-2">
 				<label for="email">Email</label>
