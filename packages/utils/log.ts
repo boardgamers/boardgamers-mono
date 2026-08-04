@@ -78,3 +78,60 @@ export function installProcessHandlers(label: string): void {
 		setTimeout(() => process.exit(1), 100);
 	});
 }
+
+type Closable = {
+	/** http.Server / ws.WebSocketServer both expose close(cb). */
+	close(cb?: (err?: Error) => void): void;
+};
+
+/**
+ * Graceful shutdown for PM2 reload/restart. PM2 sends SIGINT (then SIGKILL after
+ * kill_timeout); we close every registered server so in-flight requests finish and
+ * listen sockets free up, then exit 0 so PM2 considers it a clean stop.
+ *
+ * Usage: `gracefulShutdown("api", () => [server, resourcesServer, wss])`. The getter
+ * is called lazily at signal time so servers created after registration are included.
+ * Idempotent — a second signal while closing is ignored. A hard cap forces exit so a
+ * hung connection can't stall the reload past PM2's kill_timeout (bump kill_timeout in
+ * ecosystem.config.cjs to give this room).
+ */
+export function gracefulShutdown(label: string, getServers: () => Closable | Closable[] | undefined, timeoutMs = 8000): void {
+	let closing = false;
+
+	const shutdown = (signal: string) => {
+		if (closing) {
+			return;
+		}
+		closing = true;
+		logEvent("info", "shutdown", { source: label, signal });
+
+		const servers = getServers();
+		const list = (Array.isArray(servers) ? servers : [servers]).filter((s): s is Closable => !!s);
+
+		// Never hang past the cap even if a connection is kept open by a client.
+		const force = setTimeout(() => {
+			logEvent("warn", "shutdownTimeout", { source: label, timeoutMs });
+			process.exit(0);
+		}, timeoutMs);
+		force.unref();
+
+		Promise.all(
+			list.map(
+				(s) =>
+					new Promise<void>((resolve) => {
+						try {
+							s.close(() => resolve());
+						} catch {
+							resolve();
+						}
+					}),
+			),
+		).then(() => {
+			clearTimeout(force);
+			process.exit(0);
+		});
+	};
+
+	process.on("SIGINT", () => shutdown("SIGINT"));
+	process.on("SIGTERM", () => shutdown("SIGTERM"));
+}

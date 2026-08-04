@@ -9,6 +9,10 @@ const NODE = "/usr/local/bin/node";
 //   - a dedicated fork process (cron=true, instances:1) that runs the singleton work.
 // The singleton DB locks (apps/*/app/config/locks.ts) keep it exactly-once even during
 // the brief overlap of a PM2 reload.
+//
+// Graceful shutdown: every app closes its HTTP/WS servers on SIGINT/SIGTERM and exits
+// (api/game-server via gracefulShutdown in @bgs/utils/log, web via adapter-node).
+// kill_timeout gives those closes time to finish before PM2 escalates to SIGKILL.
 
 module.exports = {
 	apps: [
@@ -24,6 +28,7 @@ module.exports = {
 			exec_mode: "cluster",
 			instances: 2,
 			interpreter: NODE,
+			kill_timeout: 10000,
 		},
 		{
 			name: "game-server",
@@ -36,6 +41,7 @@ module.exports = {
 			exec_mode: "cluster",
 			instances: 2,
 			interpreter: NODE,
+			kill_timeout: 10000,
 			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
 		{
@@ -49,6 +55,7 @@ module.exports = {
 			exec_mode: "fork",
 			instances: 1,
 			interpreter: NODE,
+			kill_timeout: 10000,
 			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
 		{
@@ -62,6 +69,7 @@ module.exports = {
 			exec_mode: "cluster",
 			instances: 2,
 			interpreter: NODE,
+			kill_timeout: 10000,
 			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
 		{
@@ -75,6 +83,7 @@ module.exports = {
 			exec_mode: "fork",
 			instances: 1,
 			interpreter: NODE,
+			kill_timeout: 10000,
 			node_args: ["--env-file-if-exists=.env", "--env-file-if-exists=.env.production"],
 		},
 	],

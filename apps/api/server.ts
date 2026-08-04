@@ -1,8 +1,10 @@
 import { listen } from "./app/app.ts";
 import initDb from "./app/config/db.ts";
 import env from "./app/config/env.ts";
-import { installProcessHandlers, logEvent } from "@bgs/utils/log";
+import { gracefulShutdown, installProcessHandlers, logEvent } from "@bgs/utils/log";
 import { listen as listenResources } from "./app/resources.ts";
+import type { Server } from "node:http";
+import type { WebSocketServer } from "ws";
 
 installProcessHandlers("api");
 
@@ -19,11 +21,17 @@ await initDb().catch(handleError);
 // process does both (serve + cron).
 const serving = !env.cron || !env.isProduction;
 
+let apiServer: Server | undefined;
+let resourcesServer: Server | undefined;
+let wss: WebSocketServer | undefined;
+
 if (serving) {
-	listen().catch(handleError);
-	listenResources().catch(handleError);
-	await import("./app/ws.ts");
+	apiServer = await listen().catch(handleError);
+	resourcesServer = await listenResources().catch(handleError);
+	({ wss } = await import("./app/ws.ts"));
 }
+
+gracefulShutdown("api", () => [apiServer, resourcesServer, wss].filter(Boolean) as (Server | WebSocketServer)[]);
 
 // Cron (game notifications, scheduled games, emails) runs when env.cron is set —
 // always in dev (single process), and only in the dedicated api-cron PM2 process in

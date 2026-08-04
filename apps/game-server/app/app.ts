@@ -1,6 +1,7 @@
 /* Koa stuff */
 import { AssertionError } from "node:assert";
 import { randomUUID } from "node:crypto";
+import type { Server } from "node:http";
 import createError from "http-errors";
 import jwt from "jsonwebtoken";
 import { ObjectId } from "mongodb";
@@ -118,14 +119,17 @@ app.use(router.routes());
 app.use(router.allowedMethods());
 
 async function listen() {
+	let server!: Server;
 	const promise = new Promise<void>((resolve, reject) => {
-		app.listen(env.listen.port, env.listen.host, () => resolve());
+		server = app.listen(env.listen.port, env.listen.host, () => resolve());
 		app.once("error", (err) => reject(err));
 	});
 
 	await promise;
 
 	console.log("app started on port", env.listen.port);
+
+	return server;
 }
 
 export { listen };
