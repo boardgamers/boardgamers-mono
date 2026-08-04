@@ -6,15 +6,15 @@ Guidance for AI agents (and humans) working in this monorepo.
 
 Boardgamers — an online board game platform. pnpm workspace, Node ≥ 24, ESM (`"type": "module"`).
 
-| Path               | What                                                                                             |
-| ------------------ | ------------------------------------------------------------------------------------------------ |
-| `apps/web`         | Player frontend (SvelteKit, Svelte 5)                                                            |
-| `apps/admin`       | Admin panel (SvelteKit, modern)                                                                  |
-| `apps/api`         | REST API (Koa + MongoDB)                                                                         |
-| `apps/game-server` | Game engine runner / gameplay API                                                                |
-| `apps/docs`        | Docs site                                                                                        |
-| `packages/models`  | Shared Zod schemas + Mongo collection definitions (`@bgs/models`)                                |
-| `packages/utils`   | Shared helpers (`@bgs/utils`)                                                                    |
+| Path               | What                                                              |
+| ------------------ | ----------------------------------------------------------------- |
+| `apps/web`         | Player frontend (SvelteKit, Svelte 5)                             |
+| `apps/admin`       | Admin panel (SvelteKit, modern)                                   |
+| `apps/api`         | REST API (Koa + MongoDB)                                          |
+| `apps/game-server` | Game engine runner / gameplay API                                 |
+| `apps/docs`        | Docs site                                                         |
+| `packages/models`  | Shared Zod schemas + Mongo collection definitions (`@bgs/models`) |
+| `packages/utils`   | Shared helpers (`@bgs/utils`)                                     |
 
 ## Comments
 
