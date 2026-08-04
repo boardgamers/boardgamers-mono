@@ -15,9 +15,7 @@ router.get("/:gameId", async (ctx) => {
 	const [users, chat, errors, logs] = await Promise.all([
 		colls.users.find({ _id: { $in: userIds } }, { projection: { "account.username": 1 } }).toArray(),
 		colls.chatMessages.find({ room: game._id }).sort({ _id: 1 }).limit(200).toArray(),
-		colls.apiErrors
-			.find({ "request.url": { $regex: game._id } }, { sort: { createdAt: -1 }, limit: 10 })
-			.toArray(),
+		colls.apiErrors.find({ "request.url": { $regex: game._id } }, { sort: { createdAt: -1 }, limit: 10 }).toArray(),
 		colls.logs.find({ "data.game": game._id }).sort({ createdAt: -1 }).limit(20).toArray(),
 	]);
 
