@@ -14,14 +14,16 @@
 
 	let info = useLatestGameInfos();
 
-	$effect(() => {
-		if (data.gamePreferences) {
-			provideGamePreferences(data.gamePreferences);
-		}
-	});
+	// SSR: provide the SSR-fetched prefs map via context during init so the ownership
+	// classes render server-side (setContext must run at init; $effect does NOT run during
+	// SSR). On the client the store (seeded by the load's getter) is the reactive source.
+	const ssrPreferences = () => data.gamePreferences;
+	if (ssrPreferences()) {
+		provideGamePreferences(ssrPreferences()!);
+	}
 
 	function owns(gameId: string): boolean {
-		return !!($gamePreferences[gameId] ?? data.gamePreferences?.[gameId])?.access?.ownership;
+		return !!($gamePreferences[gameId] ?? ssrPreferences()?.[gameId])?.access?.ownership;
 	}
 
 	const onClick = async (gameInfo: IterableElement<typeof info>) => {

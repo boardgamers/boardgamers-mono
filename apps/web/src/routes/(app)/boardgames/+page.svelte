@@ -12,17 +12,17 @@
 
 	let info = useLatestGameInfos();
 
-	// Provide the SSR-fetched prefs map via context so the ownership classes render during
-	// SSR (the store is browser-only). On the client the store (seeded by the load's getter)
-	// is the reactive source; the context is the SSR fallback.
-	$effect(() => {
-		if (data.gamePreferences) {
-			provideGamePreferences(data.gamePreferences);
-		}
-	});
+	// SSR: provide the SSR-fetched prefs map via context during init so the ownership
+	// classes render server-side (setContext must run at init; $effect does NOT run during
+	// SSR). On the client the store (seeded by the load's getter) is the reactive source.
+	// Read through a function: intentional init-time capture of `data` (no reactivity wanted).
+	const ssrPreferences = () => data.gamePreferences;
+	if (ssrPreferences()) {
+		provideGamePreferences(ssrPreferences()!);
+	}
 
 	function owns(gameId: string): boolean {
-		return !!($gamePreferences[gameId] ?? data.gamePreferences?.[gameId])?.access?.ownership;
+		return !!($gamePreferences[gameId] ?? ssrPreferences()?.[gameId])?.access?.ownership;
 	}
 </script>
 

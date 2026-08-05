@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { resolve } from "$app/paths";
 	import type { Pathname, ResolvedPathname } from "$app/types";
 	import { classnames } from "@/utils";
 
@@ -41,16 +40,10 @@
 	}
 </script>
 
-<!-- resolve() only applies to plain pathnames; "#" (tab toggles), "?query" and external -->
-<!-- http(s) hrefs pass through as-is. -->
-<!-- eslint-disable svelte/no-navigation-without-resolve -->
-<a
-	href={href.startsWith("#") || href.startsWith("?") || href.startsWith("http") ? href : resolve(href as Pathname)}
-	class={classes}
-	aria-disabled={disabled || undefined}
-	onclick={handleClick}
-	{...rest}
->
+<!-- Callers pass fully-formed hrefs (resolve()'d route IDs, "#"/"?" tab toggles, or -->
+<!-- external http(s)); render as-is. Do NOT re-resolve(): with paths.relative (the -->
+<!-- SvelteKit default) resolve() returns a relative URL, and re-resolving it throws. -->
+<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href is already resolve()'d by callers; re-resolving a paths.relative result throws -->
+<a {href} class={classes} aria-disabled={disabled || undefined} onclick={handleClick} {...rest}>
 	{@render children?.()}
 </a>
-<!-- eslint-enable svelte/no-navigation-without-resolve -->

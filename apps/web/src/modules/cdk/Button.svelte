@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { resolve } from "$app/paths";
 	import type { Pathname, ResolvedPathname } from "$app/types";
 	import { classnames } from "@/utils";
 
@@ -22,8 +21,9 @@
 		block?: boolean;
 		disabled?: boolean;
 		/**
-		 * Internal app pathname. Non-route endpoints (OAuth, API) are also allowed; they're
-		 * always used with rel="external" (full page load), so resolve() is a harmless no-op prefix.
+		 * Fully-formed href, rendered as-is: a resolve()'d route, or a non-route endpoint
+		 * (OAuth, API) used with rel="external". Not re-resolved here — with paths.relative
+		 * (the SvelteKit default) resolve() returns a relative URL and re-resolving throws.
 		 */
 		href?: Pathname | ResolvedPathname | `http${string}` | `/api/${string}`;
 		type?: "button" | "submit" | "reset";
@@ -78,14 +78,8 @@
 </script>
 
 {#if tag === "a"}
-	<a
-		href={resolve((href ?? "#") as Pathname)}
-		class={classes}
-		role="button"
-		aria-disabled={disabled}
-		{onclick}
-		{...rest}
-	>
+	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- href is already resolve()'d by callers (or a rel="external" endpoint); re-resolving a paths.relative result throws -->
+	<a {href} class={classes} role="button" aria-disabled={disabled} {onclick} {...rest}>
 		{@render children?.()}
 	</a>
 {:else}

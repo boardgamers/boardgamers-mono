@@ -8,11 +8,13 @@
 
 	let { data }: PageProps = $props();
 
-	$effect(() => {
-		if (data.preferences?.game) {
-			provideGamePreferences({ [data.preferences.game]: data.preferences });
-		}
-	});
+	// SSR: provide this game's SSR-fetched prefs via context during init so descendants
+	// (StartedGame, PreferencesChooser, UserGameSettings) render them server-side
+	// (setContext must run at init; $effect does NOT run during SSR).
+	const ssrPreferences = () => data.preferences;
+	if (ssrPreferences()?.game) {
+		provideGamePreferences({ [ssrPreferences()!.game]: ssrPreferences()! });
+	}
 
 	// Read the live game from the shared context (set by the layout), NOT page.data.game
 	// (a stale SSR snapshot). This lets the page auto-transition from the lobby (OpenGame)
