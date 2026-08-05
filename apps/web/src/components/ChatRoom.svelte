@@ -6,6 +6,7 @@
 	import { dateFromObjectId, handleError } from "@/utils";
 	import { fly } from "svelte/transition";
 	import UserAvatar from "./User/UserAvatar.svelte";
+	import UsernameLink from "./User/UsernameLink.svelte";
 
 	let isOpen = $state(false);
 	let toggle = () => {
@@ -139,9 +140,15 @@
 				{@const sent = message.author?._id === userId}
 				<div class="mb-3 flex items-end gap-2 {sent ? 'flex-row-reverse' : ''}">
 					{#if message.author}
-						<a href={`/user/${message.author.name}`} title={message.author.name} class="shrink-0" tabindex="-1">
+						<UsernameLink
+							username={message.author.name}
+							userId={message.author._id}
+							class="shrink-0"
+							title={message.author.name}
+							tabindex="-1"
+						>
 							<UserAvatar userId={message.author._id} username={message.author.name} size="2.5rem" />
-						</a>
+						</UsernameLink>
 					{/if}
 					<div
 						class="max-w-[75%] rounded-2xl px-3 py-2 text-sm leading-snug whitespace-pre-wrap {sent

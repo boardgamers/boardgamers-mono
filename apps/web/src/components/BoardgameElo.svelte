@@ -5,6 +5,7 @@
 	import { createWatcher, handleError, pluralize } from "@/utils";
 	import { untrack } from "svelte";
 	import UserAvatar from "./User/UserAvatar.svelte";
+	import UsernameLink from "./User/UsernameLink.svelte";
 
 	let {
 		boardgameId,
@@ -82,7 +83,8 @@
 				>
 					<UserAvatar username={bgElo.user.name} userId={bgElo.user._id} size="2rem" />
 					<span class="ms-2">
-						<b>{pos + 1 + currentPage * perPage}</b> - {bgElo.user.name}
+						<b>{pos + 1 + currentPage * perPage}</b> -
+						<UsernameLink username={bgElo.user.name} userId={bgElo.user._id} class="text-inherit no-underline" />
 						{#if bgElo.user.country}<span title={countryName(bgElo.user.country)}
 								>{countryFlag(bgElo.user.country)}</span
 							>{/if}
