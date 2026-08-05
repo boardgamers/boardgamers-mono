@@ -9,6 +9,10 @@ Environment=BIND=10.90.0.2 PORT=9900
 ExecStart=/usr/bin/node %h/bgs-previews/manager/preview-api.mjs
 Restart=always
 RestartSec=3
+# Env containers are spawned as podman children of this process; without this,
+# systemd's default cgroup teardown on restart/stop would SIGTERM every live env.
+# mixed = only the main process gets the stop signal; children keep running.
+KillMode=mixed
 
 [Install]
 WantedBy=default.target

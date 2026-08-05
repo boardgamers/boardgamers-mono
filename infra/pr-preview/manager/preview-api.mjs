@@ -76,9 +76,18 @@ async function createEnv(pr, sha) {
 	if (existing) await deleteEnv(pr);
 
 	const p = ports(pr);
-	await sh("podman", [
+	// Launch via systemd-run so the container (and its rootlessport forwarder) lives in
+	// its own transient scope, NOT in preview-api's cgroup. Otherwise a preview-api
+	// restart/stop would tear down every live env's port-forwarding (rootlessport is a
+	// child of whoever started the container).
+	await sh("systemd-run", [
+		"--user",
+		"--unit",
+		`bgs-pr-${pr}`,
+		"--collect",
+		"podman",
 		"run",
-		"-d",
+		"--rm",
 		"--name",
 		`bgs-pr-${pr}`,
 		"--label",
@@ -140,6 +149,9 @@ async function createEnv(pr, sha) {
 }
 
 async function deleteEnv(pr) {
+	// Stop the transient scope first (kills the container); podman rm is the fallback
+	// for anything not under systemd-run.
+	await sh("systemctl", ["--user", "stop", `bgs-pr-${pr}`]).catch(() => {});
 	await sh("podman", ["rm", "-f", "-t", "5", `bgs-pr-${pr}`]).catch(() => {});
 	const state = loadState();
 	state.envs = state.envs.filter((e) => e.pr !== pr);
@@ -159,6 +171,62 @@ async function listEnvs() {
 	const state = loadState();
 	return Promise.all(state.envs.map(async (e) => ({ ...e, status: await containerStatus(e.pr) })));
 }
+
+// --- janitor -----------------------------------------------------------------
+// The workflow's DELETE is best-effort — a network blip, GitHub outage or a killed
+// runner would leave an env running forever. The janitor is the backstop: reap any
+// env past ENV_TTL_DAYS, plus orphans (a container or db with no entry in state).
+// A long-open PR whose env got reaped just respawns on the next push.
+const ENV_TTL_DAYS = Number(process.env.ENV_TTL_DAYS ?? 14);
+const JANITOR_INTERVAL_MS = 60 * 60 * 1000; // hourly
+
+async function sweep() {
+	const state = loadState();
+	const known = new Set(state.envs.map((e) => e.pr));
+	const cutoff = Date.now() - ENV_TTL_DAYS * 24 * 60 * 60 * 1000;
+
+	// 1. Known envs past their TTL.
+	for (const env of state.envs) {
+		if (Date.parse(env.createdAt) < cutoff) {
+			console.log(`[janitor] reaping pr ${env.pr} (created ${env.createdAt}, older than ${ENV_TTL_DAYS}d)`);
+			await deleteEnv(env.pr).catch((e) => console.warn(`[janitor] pr ${env.pr}: ${e.message}`));
+		}
+	}
+
+	// 2. Orphan containers: bgs-pr-<n> running but not in state.
+	const ps = await sh("podman", [
+		"ps", "-a", "--filter", "name=bgs-pr-", "--format", "{{.Names}}",
+	]).catch(() => "");
+	for (const name of ps.split("\n").filter(Boolean)) {
+		const pr = Number(name.replace("bgs-pr-", ""));
+		if (Number.isInteger(pr) && !known.has(pr)) {
+			console.log(`[janitor] removing orphan container ${name}`);
+			await sh("systemctl", ["--user", "stop", name]).catch(() => {});
+			await sh("podman", ["rm", "-f", "-t", "5", name]).catch(() => {});
+		}
+	}
+
+	// 3. Orphan dbs: bgs-pr-<n> with no live env (and never the shared template).
+	const live = new Set(loadState().envs.map((e) => e.pr));
+	const dbsOut = await sh("podman", [
+		"exec", "bgs-preview-mongo", "mongosh", "--quiet",
+		"--eval", "db.getMongo().getDBNames().filter((n) => /^bgs-pr-/.test(n)).join('\\n')",
+	]).catch(() => "");
+	for (const db of dbsOut.split("\n").filter(Boolean)) {
+		const pr = Number(db.replace("bgs-pr-", ""));
+		if (Number.isInteger(pr) && !live.has(pr)) {
+			console.log(`[janitor] dropping orphan db ${db}`);
+			await sh("podman", [
+				"exec", "bgs-preview-mongo", "mongosh", "--quiet",
+				"--eval", `db.getSiblingDB('${db}').dropDatabase()`,
+			]).catch(() => {});
+		}
+	}
+}
+
+// Sweep on boot (catches anything orphaned while the service was down), then hourly.
+sweep().catch((e) => console.warn("[janitor]", e.message));
+setInterval(() => sweep().catch((e) => console.warn("[janitor]", e.message)), JANITOR_INTERVAL_MS);
 
 async function seed() {
 	const dumpDir = `${ROOT}/dumps/template`;
