@@ -67,6 +67,10 @@ passport.use(
 					throw createError(422, "Specify a username");
 				}
 
+				if (username.includes("@")) {
+					throw createError(422, "Username can't contain @");
+				}
+
 				if (await findByUsername(username)) {
 					throw createError(422, `Username ${username} is taken`);
 				}
@@ -119,6 +123,10 @@ passport.use(
 
 				if (!username) {
 					throw createError(422, "Specify a username");
+				}
+
+				if (username.includes("@")) {
+					throw createError(422, "Username can't contain @");
 				}
 
 				if (await findByUsername(username)) {
@@ -213,7 +221,10 @@ passport.use(
 		},
 		async (email, password, done) => {
 			try {
-				const user = await findByEmail(email);
+				// Accept email or username: previews sanitize emails to <username>@preview.invalid,
+				// so there login by username is the only usable form. Harmless in prod (email
+				// still matches first).
+				const user = (await findByEmail(email)) ?? (await findByUsername(email));
 				// if no user is found, return the message
 				if (!user) {
 					throw createError(404, `${email} isn't registered`);

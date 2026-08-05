@@ -80,6 +80,25 @@ Rules for the agent:
 
 Each project keeps a `WORKAROUNDS.md` (e.g. `apps/web/WORKAROUNDS.md`, `apps/api/WORKAROUNDS.md`) listing temporary shims and deferred cleanups — things intentional for now but to revisit later. When you add such a thing, log a short entry there; when you touch related code, check whether an entry can be removed.
 
+## Personal data & the preview sanitize script
+
+PR preview envs (`infra/pr-preview/`) restore their db from a **sanitized** dump of
+prod. The sanitization lives in `infra/pr-preview/seed/`:
+
+- `dump-and-ship.sh` **excludes whole collections** (`EXCLUDED=(...)`) — sessions,
+  tokens, private comms, cron state, debug/transient bulk.
+- `scrub-users.mjs` rebuilds `users` from a **whitelist** of safe fields and sets
+  every password to the hash of `password` (so you can log in as anyone on a
+  preview), with emails rewritten to `<username>@preview.invalid`.
+
+**When you add a collection or a user field that holds personal data** (emails,
+passwords, OAuth ids, IPs, tokens, private messages, anything identifying), update
+these two files in the same change: add the collection to `EXCLUDED`, or make sure
+the new user field is *not* in the `KEEP_*` sets (the whitelist drops unknown
+fields by default — you only need to act if you *want* the field kept, or if it's
+a new collection that isn't covered). The whitelist is the safety net: a field you
+don't mention never reaches a preview.
+
 ## Conventions
 
 - **Formatting** is enforced (see `.prettierrc`: 120 cols, 2-space, `trailingComma: es5`). Don't hand-format; let the formatter run.

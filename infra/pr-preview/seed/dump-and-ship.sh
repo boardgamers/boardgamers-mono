@@ -22,12 +22,37 @@ trap 'rm -rf "$WORK"' EXIT
 dbUrl="$(grep -E '^dbUrl=' "$REPO/apps/api/.env" | head -1 | cut -d= -f2- | tr -d '"'"'"'\r')"
 MONGO_TOOLS="${dbUrl%/admin}"
 
-# Collections to exclude entirely (sessions, tokens, private comms, cron state).
-EXCLUDED=(usersettings locks chats notifications sessions jwtrefreshtokens)
+# Collections to exclude entirely. Private: sessions, tokens, private comms, cron
+# state. Debug/transient bulk that previews don't need: apierrors, logs,
+# gamenotifications (~25 MB). And games is dumped separately below with a status
+# filter (open+active only), because 99% of it is 2.8 GB of ended games.
+EXCLUDED=(
+  usersettings locks chats notifications sessions jwtrefreshtokens
+  apierrors logs gamenotifications
+  games
+)
 EXCLUDE_ARGS=()
 for c in "${EXCLUDED[@]}"; do EXCLUDE_ARGS+=(--excludeCollection "$c"); done
 
 mongodump --uri="$MONGO_TOOLS" --authenticationDatabase admin --db bgs --out "$WORK/dump" "${EXCLUDE_ARGS[@]}"
+
+# Games: open + active, plus the most recent ~1000 ended games so rankings/history
+# look real in previews (~1500 docs, ~60 MB) instead of all 51k (~2.8 GB). "Recent"
+# is by lastMove (indexed, time-ordered); games._id is a string slug, not an
+# ObjectId, so it can't be used for ordering. Metadata (indexes) comes along.
+LAST_ENDED_MOVE=$(mongosh --quiet "$dbUrl" --eval '
+  const g = db.getSiblingDB("bgs").games
+    .find({ status: "ended", lastMove: { $type: "date" } }, { lastMove: 1 })
+    .sort({ lastMove: -1 }).skip(999).limit(1).toArray()[0];
+  print(g ? g.lastMove.toISOString() : "");
+')
+if [ -n "$LAST_ENDED_MOVE" ]; then
+  GAMES_QUERY="{\"\$or\":[{\"status\":{\"\$in\":[\"open\",\"active\"]}},{\"status\":\"ended\",\"lastMove\":{\"\$gte\":{\"\$date\":\"$LAST_ENDED_MOVE\"}}}]}"
+else
+  GAMES_QUERY='{"status":{"$in":["open","active"]}}'
+fi
+mongodump --uri="$MONGO_TOOLS" --authenticationDatabase admin --db bgs \
+  --collection games --query "$GAMES_QUERY" --out "$WORK/dump"
 
 # Assemble the template: everything public + scrubbed users.
 mkdir -p "$WORK/template/bgs-preview-template"

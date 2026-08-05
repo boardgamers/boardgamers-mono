@@ -26,14 +26,14 @@
 		}}
 	>
 		<FormGroup>
-			<Label for="email">Email</Label>
+			<Label for="email">Email or username</Label>
 			<input
 				bind:value={email}
-				type="email"
+				type="text"
 				class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
 				id="email"
 				name="email"
-				placeholder="Email address"
+				placeholder="Email address or username"
 				required
 			/>
 		</FormGroup>

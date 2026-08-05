@@ -52,8 +52,8 @@ function saveState(state) {
 }
 
 async function sh(cmd, args, opts = {}) {
-	const { stdout } = await run(cmd, args, { maxBuffer: 16 * 1024 * 1024, ...opts });
-	return stdout.trim();
+	const { stdout, stderr } = await run(cmd, args, { maxBuffer: 16 * 1024 * 1024, ...opts });
+	return (stdout + "\n" + stderr).trim();
 }
 
 async function containerStatus(pr) {
@@ -178,7 +178,7 @@ async function seed() {
 	]);
 	// mongorestore runs via a one-off container from the same mongo image (tools aren't
 	// installed on the host), with the dumps dir bind-mounted in.
-	await sh("podman", [
+	const restoreOut = await sh("podman", [
 		"run",
 		"--rm",
 		"--network",
@@ -191,7 +191,7 @@ async function seed() {
 		"--db=bgs-preview-template",
 		"--dir=/dumps/template/bgs-preview-template",
 	]);
-	return { seeded: true, at: statSync(dumpDir).mtime };
+	return { seeded: true, at: statSync(dumpDir).mtime, restoreTail: restoreOut.split("\n").slice(-3).join("\n") };
 }
 
 function nginxVhost(pr, host) {
