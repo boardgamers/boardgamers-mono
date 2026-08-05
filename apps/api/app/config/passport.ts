@@ -221,9 +221,6 @@ passport.use(
 		},
 		async (email, password, done) => {
 			try {
-				// Accept email or username: previews sanitize emails to <username>@preview.invalid,
-				// so there login by username is the only usable form. Harmless in prod (email
-				// still matches first).
 				const user = (await findByEmail(email)) ?? (await findByUsername(email));
 				// if no user is found, return the message
 				if (!user) {
