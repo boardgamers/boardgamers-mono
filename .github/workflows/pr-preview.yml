@@ -1,0 +1,81 @@
+name: PR Preview
+
+# Ephemeral env per PR on the home minipc (issue #120). Spins a rootless Podman
+# container (web+api+game-server from the PR commit, own bgs-pr-<n> db from the
+# nightly sanitized dump) and comments the URL. Capped at 5 concurrent envs by
+# the preview-api; teardown on close/unlabel.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, closed, labeled, unlabeled]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    if: github.repository == 'boardgamers/boardgamers-mono'
+    timeout-minutes: 15
+    steps:
+      - name: Check gate (MEMBER or preview label)
+        id: gate
+        env:
+          ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          ACTION: ${{ github.event.action }}
+        run: |
+          ok=false
+          if [ "$ASSOCIATION" = "MEMBER" ] || [ "$ASSOCIATION" = "OWNER" ] || [ "$ASSOCIATION" = "COLLABORATOR" ]; then ok=true; fi
+          if echo "$LABELS" | grep -q '"preview"'; then ok=true; fi
+          echo "allowed=$ok" >> "$GITHUB_OUTPUT"
+          echo "association=$ASSOCIATION labels=$LABELS → allowed=$ok"
+
+      - name: Tear down (PR closed, or label removed from non-member)
+        if: steps.gate.outputs.allowed == 'false' || github.event.action == 'closed'
+        env:
+          PREVIEW_SECRET: ${{ secrets.PREVIEW_SECRET }}
+        run: |
+          curl -sf -X DELETE \
+            -H "Authorization: Bearer $PREVIEW_SECRET" \
+            https://pr-preview-api.boardgamers.space/envs/${{ github.event.pull_request.number }} || true
+          echo "env torn down"
+
+      - name: Create/update env
+        if: steps.gate.outputs.allowed == 'true' && github.event.action != 'closed'
+        id: env
+        env:
+          PREVIEW_SECRET: ${{ secrets.PREVIEW_SECRET }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          response=$(curl -sf -X PUT \
+            -H "Authorization: Bearer $PREVIEW_SECRET" \
+            -H "content-type: application/json" \
+            -d "{\"sha\": \"$SHA\"}" \
+            https://pr-preview-api.boardgamers.space/envs/$PR) || {
+            echo "preview-api refused (likely at the 5-env cap) — try again after another PR's env is torn down"
+            exit 1
+          }
+          url=$(echo "$response" | jq -r .url)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Comment the URL
+        if: steps.env.outputs.url
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = process.env.PREVIEW_URL;
+            const marker = "<!-- pr-preview-url -->";
+            const body = `${marker}\n🖥️ **Preview env**: ${url}\n\nRuns commit \`${context.payload.pull_request.head.sha.slice(0, 7)}\` on the minipc (ephemeral, own db from the nightly sanitized dump). Rebuilt on every push; torn down when the PR closes.`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body });
+            }
+        env:
+          PREVIEW_URL: ${{ steps.env.outputs.url }}

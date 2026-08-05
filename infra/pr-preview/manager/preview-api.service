@@ -1,0 +1,14 @@
+[Unit]
+Description=BGS PR preview control plane (listens on WireGuard IP only)
+After=network-online.target wg-quick@wg0.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=BIND=10.90.0.2 PORT=9900
+ExecStart=/usr/bin/node %h/bgs-previews/manager/preview-api.mjs
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
