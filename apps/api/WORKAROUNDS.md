@@ -2,6 +2,10 @@
 
 Things that are intentional for now but should be revisited / removed later. Add an entry when you leave a temporary shim, a deferred migration, or anything a future reader might mistake for a permanent decision. Keep entries short and link the code.
 
+## Dead-session cookie clearing also clears the legacy host-only variant (`app/app.ts`, `app/models/session.ts`)
+
+Pre-overhaul (#112) deployments set the `refreshToken` cookie host-only (no `domain`); the current code sets `domain=env.domain`. Browsers treat those as two distinct cookies, and the older host-only one sorts first in the `Cookie` header, shadowing the fresh cookie — affected users can't log in at all. When the cookie-session middleware sees a code that no longer exists in `jwtrefreshtokens`, it clears **both** variants (`clearAllRefreshCookieVariants`). Safe to reduce back to `clearRefreshCookie` once pre-overhaul cookies have aged out (120-day expiry from the last pre-#112 deploy).
+
 ## Listen host: default `127.0.0.1`, prod binds `::1` (`app/config/env.ts`)
 
 `env.listen.host` defaults to `127.0.0.1` (local dev, `scripts/instance-ip.sh` multi-instance). Prod is full IPv6: `listenHost=::1` in the prod env, and the nginx upstreams dial `::1`. Override via the `listenHost` env var. One rule: server bind and whoever dials it (nginx, vite proxy) must use the **same address family** — on coyo `localhost` binds only `::1`, so an IPv4 dial is refused (and vice versa). Revisit if we move to dual-stack listen or a hostname-based upstream. Game-server (`apps/game-server/app/config/env.ts`) mirrors this.

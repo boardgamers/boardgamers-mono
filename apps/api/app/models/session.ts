@@ -48,3 +48,16 @@ export function setRefreshCookie(ctx: Context, code: string) {
 export function clearRefreshCookie(ctx: Context) {
 	ctx.cookies.set(SESSION_COOKIE, null, { maxAge: 0, domain: isLocalhost(ctx) ? undefined : env.domain });
 }
+
+/**
+ * Clear every variant of the session cookie: the current domain-scoped one AND the
+ * host-only one set by pre-overhaul deployments. A lingering host-only duplicate sorts
+ * first in the Cookie header and shadows the fresh domain cookie on every request,
+ * locking the browser out of login until it expires (120 days).
+ */
+export function clearAllRefreshCookieVariants(ctx: Context) {
+	clearRefreshCookie(ctx);
+	if (!isLocalhost(ctx)) {
+		ctx.cookies.set(SESSION_COOKIE, null, { maxAge: 0 });
+	}
+}
