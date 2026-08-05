@@ -2,14 +2,14 @@ name: PR Preview
 
 # Ephemeral env per PR on the home minipc (issue #120). Spins a rootless Podman
 # container (web+api+game-server from the PR commit, own bgs-pr-<n> db from the
-# nightly sanitized dump) and comments the URL. Capped at 5 concurrent envs by
-# the preview-api; teardown on close/unlabel.
+# nightly sanitized dump) and surfaces the URL as a GitHub Deployment
+# (pr-<n> environment, view-deployment button on the PR). Capped at 5 concurrent
+# envs by the preview-api; teardown on close/unlabel.
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, closed, labeled, unlabeled]
 
 permissions:
-  pull-requests: write
   deployments: write
 
 jobs:
@@ -76,27 +76,6 @@ jobs:
           }
           url=$(echo "$response" | jq -r .url)
           echo "url=$url" >> "$GITHUB_OUTPUT"
-
-      - name: Comment the URL
-        if: steps.env.outputs.url
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const url = process.env.PREVIEW_URL;
-            const marker = "<!-- pr-preview-url -->";
-            const body = `${marker}\n🖥️ **Preview env**: ${url}\n\nRuns commit \`${context.payload.pull_request.head.sha.slice(0, 7)}\` on the minipc (ephemeral, own db from the nightly sanitized dump). Rebuilt on every push; torn down when the PR closes.`;
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-            const existing = comments.find((c) => c.body.includes(marker));
-            if (existing) {
-              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: existing.id, body });
-            } else {
-              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body });
-            }
-        env:
-          PREVIEW_URL: ${{ steps.env.outputs.url }}
 
       - name: Register a GitHub Deployment
         if: steps.env.outputs.url
