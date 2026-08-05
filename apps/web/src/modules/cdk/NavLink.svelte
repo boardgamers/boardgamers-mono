@@ -37,8 +37,8 @@
 		}
 		onclick?.(e);
 	}
-	</script>
+</script>
 
-	<a {href} class={classes} aria-disabled={disabled || undefined} onclick={handleClick} {...rest}>
+<a {href} class={classes} aria-disabled={disabled || undefined} onclick={handleClick} {...rest}>
 	{@render children?.()}
-	</a>
+</a>
