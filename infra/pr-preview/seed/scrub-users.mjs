@@ -26,20 +26,14 @@ while (offset < buf.length) {
 	const clean = {};
 	for (const k of KEEP_TOP) if (doc[k] !== undefined) clean[k] = doc[k];
 	if (doc.account) {
-		clean.account = Object.fromEntries(
-			Object.entries(doc.account).filter(([k]) => KEEP_ACCOUNT.has(k)),
-		);
+		clean.account = Object.fromEntries(Object.entries(doc.account).filter(([k]) => KEEP_ACCOUNT.has(k)));
 		clean.account.email = `${doc.account.username ?? "user"}@preview.invalid`;
 	}
 	if (doc.security) {
-		clean.security = Object.fromEntries(
-			Object.entries(doc.security).filter(([k]) => KEEP_SECURITY.has(k)),
-		);
+		clean.security = Object.fromEntries(Object.entries(doc.security).filter(([k]) => KEEP_SECURITY.has(k)));
 	}
 	if (doc.settings) {
-		clean.settings = Object.fromEntries(
-			Object.entries(doc.settings).filter(([k]) => KEEP_SETTINGS.has(k)),
-		);
+		clean.settings = Object.fromEntries(Object.entries(doc.settings).filter(([k]) => KEEP_SETTINGS.has(k)));
 	}
 	out.push(BSON.serialize(clean));
 }

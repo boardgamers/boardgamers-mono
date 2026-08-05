@@ -77,29 +77,59 @@ async function createEnv(pr, sha) {
 
 	const p = ports(pr);
 	await sh("podman", [
-		"run", "-d", "--name", `bgs-pr-${pr}`,
-		"--label", "bgs-preview=true",
-		"--network", "slirp4netns:allow_host_loopback=true",
+		"run",
+		"-d",
+		"--name",
+		`bgs-pr-${pr}`,
+		"--label",
+		"bgs-preview=true",
+		"--network",
+		"slirp4netns:allow_host_loopback=true",
 		// Bound to the WireGuard IP only — envs must not appear on the minipc's LAN.
-		"-p", `${BIND}:${p.web}:${p.web}`,
-		"-p", `${BIND}:${p.api}:${p.api}`,
-		"-p", `${BIND}:${p.gameplay}:${p.gameplay}`,
-		"-p", `${BIND}:${p.ws}:${p.ws}`,
-		"-p", `${BIND}:${p.resources}:${p.resources}`,
-		"-e", `PR=${pr}`, "-e", `SHA=${sha}`, "-e", `MONGO_URL=${MONGO_URL}`,
-		"-e", `WEB_PORT=${p.web}`, "-e", `API_PORT=${p.api}`,
-		"-e", `GS_PORT=${p.gameplay}`, "-e", `WS_PORT=${p.ws}`,
-		"-e", `RESOURCES_PORT=${p.resources}`,
-		"-v", `${ROOT}/dumps:/dumps:ro`,
-		"--security-opt", "no-new-privileges",
-		"--cap-drop", "ALL",
-		"--memory", "4g", "--cpus", "4",
-		"--pids-limit", "512",
+		"-p",
+		`${BIND}:${p.web}:${p.web}`,
+		"-p",
+		`${BIND}:${p.api}:${p.api}`,
+		"-p",
+		`${BIND}:${p.gameplay}:${p.gameplay}`,
+		"-p",
+		`${BIND}:${p.ws}:${p.ws}`,
+		"-p",
+		`${BIND}:${p.resources}:${p.resources}`,
+		"-e",
+		`PR=${pr}`,
+		"-e",
+		`SHA=${sha}`,
+		"-e",
+		`MONGO_URL=${MONGO_URL}`,
+		"-e",
+		`WEB_PORT=${p.web}`,
+		"-e",
+		`API_PORT=${p.api}`,
+		"-e",
+		`GS_PORT=${p.gameplay}`,
+		"-e",
+		`WS_PORT=${p.ws}`,
+		"-e",
+		`RESOURCES_PORT=${p.resources}`,
+		"-v",
+		`${ROOT}/dumps:/dumps:ro`,
+		"--security-opt",
+		"no-new-privileges",
+		"--cap-drop",
+		"ALL",
+		"--memory",
+		"4g",
+		"--cpus",
+		"4",
+		"--pids-limit",
+		"512",
 		// Writable: the entrypoint fetches/checks out the PR commit, pnpm-installs and
 		// builds in /repo, and game-server `npm install`s engines into /repo/games
 		// (apps/game-server/app/services/installer.ts). The container is the sandbox
 		// boundary instead: rootless, no caps, no-new-privileges, mem/cpu/pids caps.
-		"--tmpfs", "/tmp:size=2g,mode=1777",
+		"--tmpfs",
+		"/tmp:size=2g,mode=1777",
 		IMAGE,
 	]);
 
@@ -116,16 +146,18 @@ async function deleteEnv(pr) {
 	saveState(state);
 	// db cleanup is best-effort; a leftover db is harmless and reused on next create
 	await sh("podman", [
-		"exec", "bgs-preview-mongo", "mongosh", "--quiet",
-		"--eval", `db.getSiblingDB('bgs-pr-${pr}').dropDatabase()`,
+		"exec",
+		"bgs-preview-mongo",
+		"mongosh",
+		"--quiet",
+		"--eval",
+		`db.getSiblingDB('bgs-pr-${pr}').dropDatabase()`,
 	]).catch(() => {});
 }
 
 async function listEnvs() {
 	const state = loadState();
-	return Promise.all(
-		state.envs.map(async (e) => ({ ...e, status: await containerStatus(e.pr) })),
-	);
+	return Promise.all(state.envs.map(async (e) => ({ ...e, status: await containerStatus(e.pr) })));
 }
 
 async function seed() {
@@ -137,16 +169,27 @@ async function seed() {
 		throw err;
 	}
 	await sh("podman", [
-		"exec", "bgs-preview-mongo", "mongosh", "--quiet",
-		"--eval", "db.getSiblingDB('bgs-preview-template').dropDatabase()",
+		"exec",
+		"bgs-preview-mongo",
+		"mongosh",
+		"--quiet",
+		"--eval",
+		"db.getSiblingDB('bgs-preview-template').dropDatabase()",
 	]);
 	// mongorestore runs via a one-off container from the same mongo image (tools aren't
 	// installed on the host), with the dumps dir bind-mounted in.
 	await sh("podman", [
-		"run", "--rm", "--network", "slirp4netns:allow_host_loopback=true",
-		"-v", `${ROOT}/dumps:/dumps:ro`,
-		"docker.io/library/mongo:8", "mongorestore",
-		`--uri=${MONGO_URL}`, "--db=bgs-preview-template", "--dir=/dumps/template/bgs-preview-template",
+		"run",
+		"--rm",
+		"--network",
+		"slirp4netns:allow_host_loopback=true",
+		"-v",
+		`${ROOT}/dumps:/dumps:ro`,
+		"docker.io/library/mongo:8",
+		"mongorestore",
+		`--uri=${MONGO_URL}`,
+		"--db=bgs-preview-template",
+		"--dir=/dumps/template/bgs-preview-template",
 	]);
 	return { seeded: true, at: statSync(dumpDir).mtime };
 }

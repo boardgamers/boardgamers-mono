@@ -56,14 +56,14 @@ secret `PREVIEW_SECRET` = the minipc `~/.config/bgs-preview/secret`.
 
 ## Ports (minipc, WireGuard IP only)
 
-| port | what |
-| --- | --- |
-| 9900 | preview-api control plane |
-| 27017 | bgs-preview-mongo |
-| 12000+n | env n web |
-| 13000+n | env n api |
-| 14000+n | env n game-server (gameplay) |
-| 15000+n | env n websocket |
+| port    | what                                  |
+| ------- | ------------------------------------- |
+| 9900    | preview-api control plane             |
+| 27017   | bgs-preview-mongo                     |
+| 12000+n | env n web                             |
+| 13000+n | env n api                             |
+| 14000+n | env n game-server (gameplay)          |
+| 15000+n | env n websocket                       |
 | 16000+n | env n resources (game-viewer iframes) |
 
 nginx builds the upstream port by zero-padding the PR number to 3 digits
