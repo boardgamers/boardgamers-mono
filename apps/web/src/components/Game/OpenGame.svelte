@@ -238,7 +238,9 @@
 
 	<!-- Intro description (no heading — reads as lead copy) -->
 	{#if context.gameInfo?.description}
-		<SanitizedHtml html={marked(context.gameInfo.description)} class="block prose dark:prose-invert mb-5 max-w-2xl" />
+		<div class="prose dark:prose-invert mb-5 max-w-2xl">
+			<SanitizedHtml html={marked(context.gameInfo.description)} />
+		</div>
 	{/if}
 
 	<div class="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
@@ -310,10 +312,9 @@
 
 			{#if context.gameInfo?.rules}
 				<h4 class="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Rules</h4>
-				<SanitizedHtml
-					html={marked(context.gameInfo.rules)}
-					class="block prose prose-sm dark:prose-invert max-w-none"
-				/>
+				<div class="prose prose-sm dark:prose-invert max-w-none">
+					<SanitizedHtml html={marked(context.gameInfo.rules)} />
+				</div>
 			{/if}
 		</div>
 	</div>

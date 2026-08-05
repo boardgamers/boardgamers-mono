@@ -58,7 +58,7 @@
 					class="mx-auto mt-5 w-fit max-w-xl rounded-lg border border-accent/60 bg-accent/5 px-4 py-3 text-left dark:border-accent-light/50 dark:bg-accent/10"
 				>
 					<div class="mb-1 text-base font-semibold text-accent dark:text-accent-lighter">{announcement.title}</div>
-					<SanitizedHtml html={marked(announcement.content)} class="announcement-content block" />
+					<div class="announcement-content"><SanitizedHtml html={marked(announcement.content)} /></div>
 				</aside>
 			{/if}
 		</header>

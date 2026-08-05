@@ -19,10 +19,9 @@
 	let long = $derived((markdown ?? "").length > lines * 60);
 </script>
 
-<SanitizedHtml
-	html={marked(markdown ?? "")}
-	class="block prose dark:prose-invert max-w-none {expanded || !long ? '' : lineClamp[lines]}"
-/>
+<div class="prose dark:prose-invert max-w-none {expanded || !long ? '' : lineClamp[lines]}">
+	<SanitizedHtml html={marked(markdown ?? "")} />
+</div>
 {#if long}
 	<button
 		type="button"

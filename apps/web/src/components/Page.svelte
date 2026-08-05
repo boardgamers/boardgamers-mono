@@ -80,7 +80,7 @@
 
 	<article class="prose dark:prose-invert lg:prose-lg min-w-0 max-w-3xl page-article">
 		<h1>{pageContent.title}</h1>
-		<SanitizedHtml html={htmlWithIds} class="block" />
+		<SanitizedHtml html={htmlWithIds} />
 	</article>
 </div>
 

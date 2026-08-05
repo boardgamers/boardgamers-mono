@@ -1,17 +1,8 @@
 <script lang="ts">
-	// isomorphic-dompurify: native DOMPurify in the browser, jsdom-backed on the server,
-	// so sanitization also runs during SSR (plain `dompurify` has no `window` there).
-	import DOMPurify from "isomorphic-dompurify";
-	import type { HTMLAttributes } from "svelte/elements";
+	import { sanitizeHtml } from "@/lib/sanitize";
 
-	type Props = {
-		html: string;
-	} & HTMLAttributes<HTMLElement>;
-
-	let { html, ...rest }: Props = $props();
+	let { html }: { html: string } = $props();
 </script>
 
-<span {...rest}>
-	<!-- eslint-disable-next-line svelte/no-at-html-tags -- server renders the attribute, client mounts the fragment -->
-	{@html DOMPurify.sanitize(html)}</span
->
+<!-- eslint-disable-next-line svelte/no-at-html-tags -- server renders the attribute, client mounts the fragment -->
+{@html sanitizeHtml(html)}
