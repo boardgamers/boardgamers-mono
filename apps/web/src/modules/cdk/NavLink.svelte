@@ -27,8 +27,18 @@
 			className
 		)
 	);
-</script>
 
-<a {href} class={classes} aria-disabled={disabled || undefined} {onclick} {...rest}>
+	// Default href="#" means the link is used as a button (tab toggle, logout, …): don't
+	// actually navigate to "#" (which would append "/#" to the URL). Real hrefs navigate
+	// normally unless the handler prevents it.
+	function handleClick(e: MouseEvent) {
+		if (href === "#") {
+			e.preventDefault();
+		}
+		onclick?.(e);
+	}
+	</script>
+
+	<a {href} class={classes} aria-disabled={disabled || undefined} onclick={handleClick} {...rest}>
 	{@render children?.()}
-</a>
+	</a>
