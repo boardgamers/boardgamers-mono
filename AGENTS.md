@@ -94,8 +94,8 @@ prod. The sanitization lives in `infra/pr-preview/seed/`:
 **When you add a collection or a user field that holds personal data** (emails,
 passwords, OAuth ids, IPs, tokens, private messages, anything identifying), update
 these two files in the same change: add the collection to `EXCLUDED`, or make sure
-the new user field is *not* in the `KEEP_*` sets (the whitelist drops unknown
-fields by default — you only need to act if you *want* the field kept, or if it's
+the new user field is _not_ in the `KEEP_*` sets (the whitelist drops unknown
+fields by default — you only need to act if you _want_ the field kept, or if it's
 a new collection that isn't covered). The whitelist is the safety net: a field you
 don't mention never reaches a preview.
 

@@ -194,9 +194,7 @@ async function sweep() {
 	}
 
 	// 2. Orphan containers: bgs-pr-<n> running but not in state.
-	const ps = await sh("podman", [
-		"ps", "-a", "--filter", "name=bgs-pr-", "--format", "{{.Names}}",
-	]).catch(() => "");
+	const ps = await sh("podman", ["ps", "-a", "--filter", "name=bgs-pr-", "--format", "{{.Names}}"]).catch(() => "");
 	for (const name of ps.split("\n").filter(Boolean)) {
 		const pr = Number(name.replace("bgs-pr-", ""));
 		if (Number.isInteger(pr) && !known.has(pr)) {
@@ -209,16 +207,24 @@ async function sweep() {
 	// 3. Orphan dbs: bgs-pr-<n> with no live env (and never the shared template).
 	const live = new Set(loadState().envs.map((e) => e.pr));
 	const dbsOut = await sh("podman", [
-		"exec", "bgs-preview-mongo", "mongosh", "--quiet",
-		"--eval", "db.getMongo().getDBNames().filter((n) => /^bgs-pr-/.test(n)).join('\\n')",
+		"exec",
+		"bgs-preview-mongo",
+		"mongosh",
+		"--quiet",
+		"--eval",
+		"db.getMongo().getDBNames().filter((n) => /^bgs-pr-/.test(n)).join('\\n')",
 	]).catch(() => "");
 	for (const db of dbsOut.split("\n").filter(Boolean)) {
 		const pr = Number(db.replace("bgs-pr-", ""));
 		if (Number.isInteger(pr) && !live.has(pr)) {
 			console.log(`[janitor] dropping orphan db ${db}`);
 			await sh("podman", [
-				"exec", "bgs-preview-mongo", "mongosh", "--quiet",
-				"--eval", `db.getSiblingDB('${db}').dropDatabase()`,
+				"exec",
+				"bgs-preview-mongo",
+				"mongosh",
+				"--quiet",
+				"--eval",
+				`db.getSiblingDB('${db}').dropDatabase()`,
 			]).catch(() => {});
 		}
 	}
