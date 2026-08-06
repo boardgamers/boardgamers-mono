@@ -169,7 +169,14 @@
 							</FormGroup>
 							<FormGroup>
 								<Label hidden for="password">Password</Label>
-								<Input id="password" type="password" name="password" placeholder="Password" bind:value={password} required />
+								<Input
+									id="password"
+									type="password"
+									name="password"
+									placeholder="Password"
+									bind:value={password}
+									required
+								/>
 								<FormText class="mt-2 pt-2">
 									<a href="/forgotten-password">Forgotten password ?</a>
 								</FormText>
