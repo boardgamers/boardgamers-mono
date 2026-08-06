@@ -7,3 +7,4 @@ pnpm-debug.log*
 .fast-check
 .playwright-mcp
 .worktrees
+.moon-shots
