@@ -10,7 +10,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --tsgo",
 		"lint": "oxfmt --check . && prettier --check \"src/**/*.svelte\" && eslint .",
 		"format": "oxfmt . && prettier --write \"src/**/*.svelte\"",
-		"test": "vitest run"
+		"test": "vitest run && SANITIZE_TEST_BROWSER=1 vitest run"
 	},
 	"dependencies": {
 		"@bgs/utils": "workspace:*",

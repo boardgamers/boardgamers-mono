@@ -1,11 +1,20 @@
 import createDOMPurify from "dompurify";
-import { browser } from "$app/environment";
-import { JSDOM } from "jsdom";
 
-// DOMPurify@2 is a factory: with a real DOM in scope the default export is already a ready
-// instance; under SSR (no window) it returns an unbound factory, which we bind to a single
-// shared jsdom window. One module-level JSDOM — creating one per sanitize call would be a
-// per-request perf/memory cost.
-const purify = browser ? createDOMPurify() : createDOMPurify(new JSDOM("").window as unknown as Window);
+// jsdom is server-only and ~5.7 MB — it must never reach the client bundle. It is
+// loaded via a dynamic import guarded by `import.meta.env.SSR` (a compile-time
+// constant: `true` building the server, `false` building the client), so Vite splits
+// sanitize-ssr + jsdom into a chunk the client never downloads. A *static* jsdom
+// import can't be tree-shaken out (jsdom's module side effects defeat it), so the
+// dynamic import is what actually keeps the client lean. The top-level await runs
+// once at module init; `sanitizeHtml` stays synchronous for `{@html}` markup.
+let purify: ReturnType<typeof createDOMPurify>;
+
+if (import.meta.env.SSR) {
+	const { serverPurify } = await import("./sanitize-ssr");
+	purify = serverPurify;
+} else {
+	// DOMPurify hooks the ambient window lazily, on first sanitize.
+	purify = createDOMPurify();
+}
 
 export const sanitizeHtml = (html: string): string => purify.sanitize(html);
