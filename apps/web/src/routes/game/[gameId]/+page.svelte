@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { OpenGame, StartedGame, ChatRoom, YourTurnBanner } from "@/components";
+	import { OpenGame, StartedGame, ChatRoom } from "@/components";
 	import type { GameFront } from "@bgs/models";
 	import { getContext } from "svelte";
 	import type { GameContext } from "./game-context";
@@ -19,8 +19,6 @@
 	let status = $derived(context.game?.status);
 	let gameId = $derived(context.game?._id ?? "");
 </script>
-
-<YourTurnBanner />
 
 {#if status === "open"}
 	<OpenGame />
