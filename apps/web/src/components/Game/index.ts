@@ -4,4 +4,4 @@ export { default as GameSidebar } from "./GameSidebar.svelte";
 export { default as OpenGame } from "./OpenGame.svelte";
 export { default as PlayerGameAvatar } from "./PlayerGameAvatar.svelte";
 export { default as StartedGame } from "./StartedGame.svelte";
-export { default as YourTurnBanner } from "./YourTurnBanner.svelte";
+

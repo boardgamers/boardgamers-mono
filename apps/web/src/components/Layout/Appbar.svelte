@@ -100,7 +100,7 @@
 	{#if user}
 		<a
 			class={`me-3 flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-bold text-white no-underline transition hover:text-white ${
-				hasGames ? "bg-green-600 hover:bg-green-500" : "bg-gray-500 hover:bg-gray-400"
+				hasGames ? "animate-pulse bg-green-600 hover:bg-green-500" : "bg-gray-500 hover:bg-gray-400"
 			}`}
 			href="/next-game"
 			title={hasGames
