@@ -53,8 +53,17 @@ export domain="pr-${PR}.boardgamers.space"
 
 cd /repo/apps/api
 port="$API_PORT" wsPort="$WS_PORT" resourcesPort="$RESOURCES_PORT" node server.ts &
+# api cron as a separate process (serving + cron in one process only happens in dev;
+# in prod the cron process must not bind the ports). Gated by the db locks so the
+# game-server's own cron doesn't double-fire shared work.
+cron=true node server.ts &
 cd /repo/apps/game-server
-port="$GS_PORT" node server.ts &
+# One game-server process doing BOTH serve + cron in production mode (previews have no
+# PM2 worker/cron split): cron=true installs engines & starts/times-out games, and
+# serve=true forces it to also bind the gameplay port (server.ts normally skips
+# listening when cron=true in prod, to avoid EADDRINUSE against a PM2 worker).
+# Emails are off (automatedEmails defaults false) so notifications don't spam.
+port="$GS_PORT" cron=true serve=true node server.ts &
 cd /repo/apps/web/build
 HOST=0.0.0.0 PORT="$WEB_PORT" node index.js &
 
