@@ -156,12 +156,20 @@
 						or
 						<Form class="mt-3" onsubmit={handleSubmit}>
 							<FormGroup>
-								<Label hidden for="email">Email</Label>
-								<Input id="email" type="email" required bind:value={email} autofocus />
+								<Label hidden for="email">Email or username</Label>
+								<Input
+									id="email"
+									type="text"
+									name="email"
+									placeholder="Email address or username"
+									required
+									bind:value={email}
+									autofocus
+								/>
 							</FormGroup>
 							<FormGroup>
 								<Label hidden for="password">Password</Label>
-								<Input id="password" type="password" bind:value={password} required />
+								<Input id="password" type="password" name="password" placeholder="Password" bind:value={password} required />
 								<FormText class="mt-2 pt-2">
 									<a href="/forgotten-password">Forgotten password ?</a>
 								</FormText>
