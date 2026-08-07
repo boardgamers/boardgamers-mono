@@ -80,7 +80,10 @@ const prLocks = new Map();
 function withPrLock(pr, fn) {
 	const prev = prLocks.get(pr) ?? Promise.resolve();
 	const next = prev.then(fn, fn);
-	prLocks.set(pr, next.catch(() => {}));
+	prLocks.set(
+		pr,
+		next.catch(() => {}),
+	);
 	return next;
 }
 
