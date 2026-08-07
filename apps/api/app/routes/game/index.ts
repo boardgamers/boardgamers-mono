@@ -9,9 +9,11 @@ import { z } from "zod";
 import { playerOrderSchema, type GameDoc, type RoomMetaDataDoc } from "@bgs/models";
 import { ObjectId } from "mongodb";
 import { colls } from "../../config/db.ts";
+import { env } from "../../config/index.ts";
 import locks from "../../config/locks.ts";
 import { zObjectId } from "../../utils/zod.ts";
 import { notifyGameStart } from "../../services/game.ts";
+import { getUserElo } from "../../services/elo.ts";
 import { isAdmin, isConfirmed, loggedIn } from "../utils.ts";
 import listings, { myBoardgames } from "./listings.ts";
 
@@ -35,8 +37,15 @@ const newGameSchema = z.object({
 	timerStart: z.number().optional(),
 	timerEnd: z.number().optional(),
 	minimumKarma: z.number().int().nonnegative().optional().nullable(),
+	eloRange: z
+		.object({
+			min: z.number().int().nonnegative(),
+			max: z.number().int().positive(),
+		})
+		.optional()
+		.nullable(),
 	scheduledStart: z.number().optional(),
-	seed: z.string().regex(gameIdPattern).or(z.literal("")).optional(),
+	seed: z.string().regex(gameIdPattern).optional(),
 	options: z.record(z.string(), z.union([z.string(), z.boolean()])).optional(),
 });
 
@@ -59,6 +68,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 		timerStart,
 		timerEnd,
 		minimumKarma,
+		eloRange,
 		scheduledStart,
 	} = body;
 	const options: Record<string, string | boolean> = {};
@@ -104,6 +114,17 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 
 	if (await colls.games.findOne({ _id: gameId })) {
 		throw createError(400, `A game with the id '${gameId}' already exists`);
+	}
+
+	// Cap the number of open games a user can host at once — they all show in the
+	// open-games lobby. Unlisted games count too: the cap is about games one
+	// created, not just lobby visibility.
+	if (env.maxOpenGamesPerUser > 0) {
+		const openGames = await colls.games.countDocuments({ creator: user._id, status: "open", cancelled: { $ne: true } });
+		assert(
+			openGames < env.maxOpenGamesPerUser,
+			`You can't have more than ${env.maxOpenGamesPerUser} open games at the same time`,
+		);
 	}
 
 	for (const [key, val] of Object.entries(body.options ?? {})) {
@@ -176,6 +197,15 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 		assert(+minimumKarma === minimumKarma && Math.floor(minimumKarma) === minimumKarma && minimumKarma >= 0);
 		assert(minimumKarma + 5 <= user.account.karma, "You can't create a game with that high of a karma restriction");
 		meta.minimumKarma = minimumKarma;
+	}
+	if (eloRange !== undefined && eloRange !== null) {
+		assert(eloRange.max - eloRange.min >= 100, "The Elo range must be at least 100 wide");
+		const creatorElo = await getUserElo(user._id, gameInfoId.game);
+		assert(
+			creatorElo >= eloRange.min && creatorElo <= eloRange.max,
+			`Your Elo (${creatorElo}) must be within the game's Elo range`,
+		);
+		meta.eloRange = eloRange;
 	}
 
 	const gameExpansions = gameInfo.expansions ?? [];
@@ -342,6 +372,17 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
 	assert(initialGame.status === "open");
 	const karma = user.account.karma;
 
+	const checkEloRange = async (game: GameDoc) => {
+		const eloRange = game.options.meta?.eloRange;
+		if (eloRange) {
+			const elo = await getUserElo(user._id, game.game.name);
+			assert(
+				elo >= eloRange.min && elo <= eloRange.max,
+				`Your Elo (${elo}) is outside this game's Elo range (${eloRange.min} - ${eloRange.max})`,
+			);
+		}
+	};
+
 	if (initialGame.players.some((pl) => pl._id.equals(user._id) && pl.pending)) {
 		// The player is pending, so was invited by the host, he can bypass restrictions
 	} else {
@@ -349,6 +390,7 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
 			initialGame.options.meta?.minimumKarma === undefined || karma >= initialGame.options.meta.minimumKarma,
 			"You do not have enough karma to join this game",
 		);
+		await checkEloRange(initialGame);
 
 		if (karma < 50) {
 			const activeGames = await colls.games
@@ -381,6 +423,9 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
 		} else {
 			assert(!existingPlayer, "You already joined the game");
 			assert(game.players.length < game.options.setup.nbPlayers, "Too many people have joined the game");
+			// Re-check on the freshly loaded doc: the range may have been added (or the
+			// player's elo changed) since the pre-lock check.
+			await checkEloRange(game);
 
 			game.players.push({
 				_id: user._id,

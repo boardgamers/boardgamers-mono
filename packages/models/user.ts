@@ -6,7 +6,10 @@ import { zObjectId, zDate } from "./helpers.ts";
 export const userSchema = z.object({
 	_id: zObjectId().optional(),
 	account: z.object({
-		username: z.string(),
+		// No "@": login accepts email-or-username, and a "@" in a username would make
+		// the two indistinguishable (and clash with the preview envs' sanitized
+		// <username>@preview.invalid emails).
+		username: z.string().regex(/^[^@]+$/, "Username can't contain @"),
 		email: z.string().optional(),
 		password: z.string().optional(),
 		karma: z.number(),
@@ -20,6 +23,12 @@ export const userSchema = z.object({
 			.optional(),
 		avatar: z.string().optional(),
 		bio: z.string().optional(),
+		// 2-letter ISO 3166-1 alpha-2 code, user-chosen, shown in rankings/profile
+		country: z
+			.string()
+			.regex(/^[a-zA-Z]{2}$/)
+			.toUpperCase()
+			.optional(),
 	}),
 	settings: z
 		.object({

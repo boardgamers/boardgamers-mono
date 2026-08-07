@@ -17,7 +17,15 @@ export const apiErrorSchema = z.object({
 		status: z.number().optional(),
 		id: z.string().optional(),
 	}),
-	meta: z.unknown(),
+	meta: z
+		.object({
+			source: z.string().optional(),
+			userAgent: z.string().optional(),
+			// Game the errored request was about (gameplay moves, /api/game/:id/… routes)
+			gameId: z.string().optional(),
+			release: z.string().optional(),
+		})
+		.loose(),
 	user: zObjectId().optional(),
 	createdAt: zDate().optional(),
 	updatedAt: zDate().optional(),

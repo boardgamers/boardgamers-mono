@@ -6,6 +6,10 @@ export const jwtRefreshTokenSchema = z.object({
 	_id: zObjectId().optional(),
 	user: zObjectId(),
 	code: z.string(),
+	// How the session was opened: "password", a social provider ("google" | "facebook" |
+	// "discord"), or "admin" (impersonation). Missing on tokens created before the field
+	// existed — aggregate those as "unknown".
+	loginMethod: z.string().optional(),
 	createdAt: zDate(),
 	updatedAt: zDate().optional(),
 });

@@ -4,6 +4,7 @@ export type EloRanking = {
 	user: {
 		name: string;
 		_id: string;
+		country?: string;
 	};
 	elo: {
 		value: number;

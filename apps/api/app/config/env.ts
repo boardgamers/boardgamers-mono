@@ -35,6 +35,9 @@ export default {
 	title: process.env.title || "BGS",
 	inviteOnly: process.env.inviteOnly || false,
 	minPasswordLength: process.env.minPasswordLength || 6,
+	// Max games with status "open" a user may have created at once (they clog the
+	// open-games lobby). Active/ended games don't count. 0 disables the cap.
+	maxOpenGamesPerUser: Math.max(0, Number(process.env.maxOpenGamesPerUser) || 10),
 	sessionSecret: process.env.sessionSecret || "Quel est donc le secret mystère du succès de Gaia Project?!",
 	jwt: {
 		keys: {

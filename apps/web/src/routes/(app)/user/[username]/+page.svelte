@@ -3,7 +3,9 @@
 	import { Button, Card } from "@/modules/cdk";
 	import { account } from "@/lib/account.svelte";
 	import { dateFromObjectId } from "@/utils";
+	import { countryFlag, countryName } from "@/lib/countries";
 	import { page } from "$app/state";
+	import { resolve } from "$app/paths";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -34,7 +36,12 @@
 			/>
 			<h1 class="mb-2">{username}</h1>
 			<div class="mb-2">
-				☯️ <a href="/page/karma" title="karma">{data.user.account.karma}</a> karma <br />
+				☯️ <a href={resolve("/(app)/page/[part1]", { part1: "karma" })} title="karma">{data.user.account.karma}</a>
+				karma <br />
+				{#if data.user.account.country}
+					{countryFlag(data.user.account.country)}
+					{countryName(data.user.account.country)} <br />
+				{/if}
 				🎉 Joined us in {joinDate.toLocaleString("en", { month: "long" })}
 				{joinDate.toLocaleString("default", { year: "numeric" })}!
 			</div>
@@ -42,7 +49,18 @@
 					📝 {data.user.account.bio}
 				</p>{/if}
 			{#if data.user && $account?._id === data.user._id}
-				<Button color="primary" href="/account" class="mt-2">Settings</Button>
+				<Button color="primary" href="/account" class="mt-2">✏️ Edit profile</Button>
+				{#if !data.user.account.bio || !data.user.account.country}
+					<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+						{#if !data.user.account.bio && !data.user.account.country}
+							Your profile looks empty — add a bio and your country so other players see them here.
+						{:else if !data.user.account.bio}
+							Add a bio so other players see it here.
+						{:else}
+							Add your country so other players see the flag here.
+						{/if}
+					</p>
+				{/if}
 			{/if}
 		</div>
 		<div class="grow-[3]">

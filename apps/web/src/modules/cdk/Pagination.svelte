@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
+	import type { Pathname } from "$app/types";
 	import { classnames } from "@/utils";
 	import PaginationItem from "./PaginationItem.svelte";
 	import PaginationLink from "./PaginationLink.svelte";
@@ -9,7 +11,7 @@
 		count = 0,
 		perPage = 10,
 		currentPage = $bindable(0),
-		baseUrl = undefined,
+		boardgameId = undefined,
 		class: className = "",
 	}: {
 		align?: "right" | "left" | "center";
@@ -17,7 +19,8 @@
 		count?: number;
 		perPage?: number;
 		currentPage?: number;
-		baseUrl?: string;
+		/** When set, pages link to /boardgame/[boardgameId]/rankings/[...page] (server-side pagination). */
+		boardgameId?: string;
 		class?: string;
 	} = $props();
 
@@ -50,13 +53,25 @@
 
 		return pos;
 	}
+
+	// 1-based page number → href: typed rankings route when server-paginating, anchor otherwise.
+	function pageHref(pageNumber: number): Pathname {
+		if (boardgameId) {
+			return resolve("/(app)/boardgame/[boardgameId]/rankings/[...page]", {
+				boardgameId,
+				page: String(pageNumber),
+			}) as Pathname;
+		}
+		// Non-navigating placeholder (click is intercepted): keep a fragment href.
+		return `#${pageNumber}` as Pathname;
+	}
 </script>
 
 <ul class={classes} aria-label={title}>
 	<PaginationItem disabled={currentPage === 0}>
 		<PaginationLink
 			first
-			href={baseUrl ? `${baseUrl}/1` : "#first"}
+			href={pageHref(1)}
 			onclick={(e) => {
 				e.preventDefault();
 				currentPage = 0;
@@ -66,7 +81,7 @@
 	<PaginationItem disabled={currentPage === 0}>
 		<PaginationLink
 			previous
-			href={baseUrl ? `${baseUrl}/${currentPage}` : "#previous"}
+			href={pageHref(currentPage)}
 			onclick={(e) => {
 				e.preventDefault();
 				currentPage -= 1;
@@ -77,8 +92,8 @@
 		{#if !((pageFor(position) as number) < 0)}
 			<PaginationItem disabled={typeof pageFor(position) !== "number"} active={pageFor(position) === currentPage}>
 				<PaginationLink
-					href={baseUrl ? `${baseUrl}/${+pageFor(position) + 1}` : "#"}
-					onclick={!baseUrl
+					href={pageHref(+pageFor(position) + 1)}
+					onclick={!boardgameId
 						? (e) => {
 								e.preventDefault();
 								currentPage = +pageFor(position);
@@ -94,7 +109,7 @@
 	<PaginationItem disabled={currentPage === totalPages - 1}>
 		<PaginationLink
 			next
-			href={baseUrl ? `${baseUrl}/${currentPage + 2}` : "#next"}
+			href={pageHref(currentPage + 2)}
 			onclick={(e) => {
 				e.preventDefault();
 				currentPage += 1;
@@ -104,7 +119,7 @@
 	<PaginationItem disabled={currentPage === totalPages - 1}>
 		<PaginationLink
 			last
-			href={baseUrl ? `${baseUrl}/${totalPages}` : "#last"}
+			href={pageHref(totalPages)}
 			onclick={(e) => {
 				e.preventDefault();
 				currentPage = totalPages - 1;

@@ -1,8 +1,14 @@
-import type { AnyBulkWriteOperation } from "mongodb";
+import type { AnyBulkWriteOperation, ObjectId } from "mongodb";
 import { keyBy } from "@bgs/utils/array";
 import type { GameDoc, GamePreferencesDoc } from "@bgs/models";
 import { colls } from "../config/db.ts";
 import { eloDiff } from "../engine/elo.ts";
+
+// Unrated players start at 0: first win sets elo to the delta, first loss to 1.
+export async function getUserElo(userId: ObjectId, game: string): Promise<number> {
+	const gamePref = await colls.gamePreferences.findOne({ user: userId, game }, { projection: { "elo.value": 1 } });
+	return gamePref?.elo?.value ?? 0;
+}
 
 export async function processEloForGame(game: Pick<GameDoc, "_id" | "players" | "game" | "cancelled">) {
 	const dropped = game.players.some((pl) => pl.dropped);

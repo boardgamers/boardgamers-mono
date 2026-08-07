@@ -67,6 +67,10 @@ passport.use(
 					throw createError(422, "Specify a username");
 				}
 
+				if (username.includes("@")) {
+					throw createError(422, "Username can't contain @");
+				}
+
 				if (await findByUsername(username)) {
 					throw createError(422, `Username ${username} is taken`);
 				}
@@ -121,6 +125,10 @@ passport.use(
 					throw createError(422, "Specify a username");
 				}
 
+				if (username.includes("@")) {
+					throw createError(422, "Username can't contain @");
+				}
+
 				if (await findByUsername(username)) {
 					throw createError(422, `Username ${username} is taken`);
 				}
@@ -150,7 +158,8 @@ passport.use(
 				const result = await colls.users.insertOne(newUserDoc);
 				const newUser: WithId<UserDoc> = { ...newUserDoc, _id: result.insertedId };
 
-				return done(null, newUser);
+				// sendAuthInfo picks the provider up to stamp it on the refresh token.
+				return done(null, { ...newUser, loginMethod: decoded.provider });
 			} catch (err) {
 				return done(err);
 			}
@@ -212,7 +221,7 @@ passport.use(
 		},
 		async (email, password, done) => {
 			try {
-				const user = await findByEmail(email);
+				const user = (await findByEmail(email)) ?? (await findByUsername(email));
 				// if no user is found, return the message
 				if (!user) {
 					throw createError(404, `${email} isn't registered`);

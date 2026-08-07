@@ -8,14 +8,15 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --tsgo",
-		"lint": "oxfmt --check . && prettier --check \"src/**/*.svelte\" && eslint --ignore-path .gitignore .",
+		"lint": "oxfmt --check . && prettier --check \"src/**/*.svelte\" && eslint .",
 		"format": "oxfmt . && prettier --write \"src/**/*.svelte\"",
-		"test": "vitest run"
+		"test": "vitest run && SANITIZE_TEST_BROWSER=1 vitest run"
 	},
 	"dependencies": {
 		"@bgs/utils": "workspace:*",
 		"dompurify": "^2.3.1",
 		"eventemitter3": "^4.0.7",
+		"jsdom": "^30.0.1",
 		"lodash": "npm:lodash-es@^4.17.21",
 		"marked": "^3.0.2",
 		"nprogress": "^0.2.0",
@@ -33,6 +34,7 @@
 		"@types/awesome-notifications": "^3.1.8",
 		"@types/cookie": "^0.4.1",
 		"@types/dompurify": "^2.2.1",
+		"@types/jsdom": "^28.0.3",
 		"@types/lodash": "^4.14.168",
 		"@types/marked": "^2.0.0",
 		"@types/nprogress": "^0.2.0",
@@ -48,6 +50,7 @@
 		"prettier": "catalog:",
 		"prettier-plugin-svelte": "catalog:",
 		"svelte-check": "4.7.4",
+		"svelte-eslint-parser": "^1.8.0",
 		"tailwindcss": "^4.2.1",
 		"tslib": "^2.3.1",
 		"typescript": "~6.0.3",

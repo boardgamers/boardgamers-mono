@@ -3,6 +3,8 @@
 	import { GameList, SEO } from "@/components";
 	import { Nav, NavItem, NavLink, Input } from "@/modules/cdk";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import type { Pathname } from "$app/types";
 	import { page } from "$app/state";
 	import { debounce } from "lodash";
 	import type { PageProps } from "./$types";
@@ -20,7 +22,10 @@
 		} else {
 			url.searchParams.set("status", "finished");
 		}
-		goto(url, { keepFocus: true, noScroll: true });
+		// Redirect-to-self (the games route) with updated query params.
+		const gamesTarget = resolve("/(app)/games") + url.search;
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- path is resolve()d above; the rule can't trace resolve() + query-string concatenation
+		goto(gamesTarget, { keepFocus: true, noScroll: true });
 	}
 
 	let featuredCount = $derived(data.featured);

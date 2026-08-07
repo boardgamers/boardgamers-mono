@@ -62,7 +62,7 @@ router.get(
 				jwt: jwt.sign(body, env.jwt.keys.private, { expiresIn: "1h", algorithm: env.jwt.algorithm }),
 			};
 		} else {
-			await sendAuthInfo(ctx);
+			await sendAuthInfo(ctx, ctx.params.provider);
 		}
 	},
 );

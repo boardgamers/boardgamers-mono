@@ -18,6 +18,7 @@ import { sendAuthInfo } from "../account/index.ts";
 import { z } from "zod";
 import { isAdmin } from "../utils.ts";
 import gameInfo from "./gameinfo.ts";
+import gamesRouter from "./games.ts";
 import loki from "./loki.ts";
 import pagesRouter from "./pages.ts";
 import usersRouter from "./users.ts";
@@ -27,6 +28,7 @@ const router = new Router<Application.DefaultState, Context>();
 router.use(isAdmin);
 
 router.use("/gameinfo", gameInfo.routes(), gameInfo.allowedMethods());
+router.use("/games", gamesRouter.routes(), gamesRouter.allowedMethods());
 router.use("/loki", loki.routes(), loki.allowedMethods());
 router.use("/page", pagesRouter.routes(), pagesRouter.allowedMethods());
 router.use("/users", usersRouter.routes(), usersRouter.allowedMethods());
@@ -165,7 +167,7 @@ router.post("/login-as", async (ctx) => {
 
 	ctx.state.user = user;
 
-	await sendAuthInfo(ctx);
+	await sendAuthInfo(ctx, "admin");
 });
 
 router.post("/compute-karma", async (ctx) => {
