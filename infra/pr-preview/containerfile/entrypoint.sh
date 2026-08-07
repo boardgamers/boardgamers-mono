@@ -15,6 +15,7 @@ API_PORT="${API_PORT:-50801}"
 WS_PORT="${WS_PORT:-50802}"
 GS_PORT="${GS_PORT:-50803}"
 RESOURCES_PORT="${RESOURCES_PORT:-50804}"
+ADMIN_PORT="${ADMIN_PORT:-50805}"
 DB="bgs-pr-${PR}"
 TEMPLATE="bgs-preview-template"
 
@@ -37,6 +38,12 @@ VITE_backend_api="127.0.0.1:${API_PORT}" \
 VITE_backend_gameplay="127.0.0.1:${GS_PORT}" \
 VITE_backend_ws="127.0.0.1:${WS_PORT}" \
 pnpm --filter @bgs/web build
+
+echo "[entrypoint] building admin"
+# The admin SPA calls a relative /api at runtime; the coyo vhost for
+# admin-pr-<n>.boardgamers.space proxies that to this env's api port, so no API URL
+# is baked into the build.
+pnpm --filter @bgs/admin build
 
 echo "[entrypoint] restoring db ${DB} from ${TEMPLATE}"
 until mongosh --quiet "$MONGO_URL/admin" --eval 'db.runCommand({ping:1})' >/dev/null 2>&1; do sleep 1; done
@@ -66,6 +73,9 @@ cd /repo/apps/game-server
 port="$GS_PORT" cron=true serve=true node server.ts &
 cd /repo/apps/web/build
 HOST=0.0.0.0 PORT="$WEB_PORT" node index.js &
+# Admin SPA (static, built above) on its own port; coyo routes admin-pr-<n> here.
+cd /repo
+ADMIN_ROOT=/repo/apps/admin/dist ADMIN_PORT="$ADMIN_PORT" node /usr/local/bin/serve-admin.mjs &
 
 trap 'kill 0' TERM INT
 wait -n

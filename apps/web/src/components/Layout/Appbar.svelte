@@ -60,12 +60,18 @@
 	let myActiveGames = $derived($activeGames.length > 0 ? $activeGames : ((page.data.activeGames as string[]) ?? []));
 
 	// Derive the admin panel URL from the current host: local dev → local admin port,
-	// production → admin.<root-domain> (handles www. and subdomains). External link.
+	// production → admin.<root-domain>, PR preview → admin-pr-<n>.<root-domain>.
+	// The preview admin uses a dash-subdomain, not admin.pr-<n>..., because the
+	// *.boardgamers.space cert only covers one subdomain level. External link.
 	let adminLink = $derived.by((): `http${string}` => {
 		const { hostname } = page.url;
 		const protocol = page.url.protocol as "http:" | "https:";
 		if (hostname === "localhost" || hostname === "127.0.0.1") {
 			return `${protocol}//${hostname}:8613`;
+		}
+		const prPreview = /^pr-(\d+)\.(.+)$/.exec(hostname);
+		if (prPreview) {
+			return `${protocol}//admin-pr-${prPreview[1]}.${prPreview[2]}`;
 		}
 		const rootDomain = hostname.startsWith("www.") ? hostname.slice(4) : hostname;
 		return `${protocol}//admin.${rootDomain}`;

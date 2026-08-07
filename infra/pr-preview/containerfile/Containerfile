@@ -26,4 +26,5 @@ RUN git clone --filter=blob:none https://github.com/boardgamers/boardgamers-mono
 
 WORKDIR /repo
 COPY entrypoint.sh /usr/local/bin/preview-entrypoint.sh
+COPY serve-admin.mjs /usr/local/bin/serve-admin.mjs
 ENTRYPOINT ["/usr/local/bin/preview-entrypoint.sh"]
