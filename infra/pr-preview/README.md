@@ -29,7 +29,7 @@ mongo **by container name** (`mongodb://bgs-preview-mongo:27017`). There is **no
 can `npm install` engines. Caveat: services bound to the WireGuard IP `10.90.0.2`
 (preview-api :9900, other envs' ports) remain reachable from envs since that IP is
 routable from the bridge — preview-api is bearer-token authed, so this is acceptable;
-only host *loopback* is firewalled off.
+only host _loopback_ is firewalled off.
 
 ## Files here
 
