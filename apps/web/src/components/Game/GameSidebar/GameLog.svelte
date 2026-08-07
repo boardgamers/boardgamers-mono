@@ -50,7 +50,7 @@
 		</div>
 		{#if showLog}
 			<div class="log mt-2" bind:this={logElement}>
-				{#each log as item (item)}
+				{#each log as item, i (i)}
 					<div>
 						<SanitizedHtml html={logToHtml(item)} />
 					</div>
