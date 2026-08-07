@@ -136,6 +136,27 @@ emitter.on("replay:end", () => {
 
 Leave replay mode
 
+### theme
+
+```ts
+window.addEventListener("message", (event) => {
+	if (event.data.type === "theme") {
+		// event.data.dark is a boolean
+	}
+});
+```
+
+Receive the site's current color theme: `{ type: "theme", dark: boolean }`.
+
+Unlike the events above, this one is **not** re-emitted on the emitter — it is a raw `postMessage` from the site,
+handled directly by the iframe page. It is sent when the game is ready and every time the theme changes afterwards,
+including when the OS theme flips while the user's setting is "system".
+
+The viewer must apply the theme live, **without reloading the iframe** — never swap the iframe `src` to change the
+theme, a `src` change reloads it and loses the game state.
+
+See [Dark mode](#dark-mode).
+
 ## Uplink
 
 This is all the info that your viewer gives to the app.
@@ -227,3 +248,20 @@ When you want to edit preferences within the game itself and not BGS' sidebar
 ```ts
 emitter.emit('update:preference', data: {name: string, value: string | boolean | null})
 ```
+
+## Dark mode
+
+The site supports a light/dark theme, switchable by the user or following the OS ("system"). Viewers served through
+the API's wrapper page get dark mode support out of the box:
+
+- The wrapper reads the `?dark=1` URL parameter for the initial paint and sets a `dark` class on `<html>` (no flash
+  of light theme).
+- It injects a dark stylesheet (`darkStylesheet`) that re-themes the page chrome — background, default text,
+  Bootstrap-ish tables, modals and forms. It only targets classless elements, so your viewer's own styling always
+  wins.
+- It listens for the [theme](#theme) message and toggles the `dark` class on `<html>` when the site theme changes.
+
+To support dark mode in your viewer: read the initial state from `?dark=1` (or the `<html class="dark">` the wrapper
+already set) for the first paint, then listen for the [theme](#theme) message for live changes. Style your components
+under a `.dark` root class so they follow the toggle, and scope any overrides so they take precedence over the
+generic wrapper stylesheet.
