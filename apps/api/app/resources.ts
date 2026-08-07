@@ -69,9 +69,15 @@ html.dark input:not([class]), html.dark select:not([class]), html.dark textarea:
   border-color: #4b5563;
 }
 /* SVG labels rendered alongside HTML (player names under turn-order / current-player
-   circles) default to the SVG initial fill (black). Explicit fills (e.g. white text on
-   faction-colored circles) are left alone. */
-html.dark svg:not([style]) text:not([fill]):not([style*="fill"]) { fill: #f3f4f6; }`;
+   circles) default to the SVG initial fill (black). Setting fill on the svg root and
+   letting it inherit recolors only bare text — an explicit fill on the text itself
+   (attribute, inline style or viewer CSS class — e.g. white text on faction-colored
+   circles) is a direct declaration and still wins. currentColor then follows the
+   light body text color. Note: fill:currentColor on the text rule itself would still
+   clobber CSS-class fills (Blink treats that declaration as higher-priority), so it
+   must live on the svg root. */
+html.dark svg:not([style]) { fill: currentColor; }
+html.dark svg:not([style]) text:not([fill]):not([style*="fill"]) { color: #f3f4f6; }`;
 
 router.get("/iframe", (ctx) => {
 	const { src } = iframeQuerySchema.parse(ctx.query);

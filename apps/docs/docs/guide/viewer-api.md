@@ -257,8 +257,9 @@ the API's wrapper page get dark mode support out of the box:
 - The wrapper reads the `?dark=1` URL parameter for the initial paint and sets a `dark` class on `<html>` (no flash
   of light theme).
 - It injects a dark stylesheet (`darkStylesheet`) that re-themes the page chrome — background, default text,
-  Bootstrap-ish tables, modals and forms. It only targets classless elements, so your viewer's own styling always
-  wins.
+  Bootstrap-ish tables, modals and forms. It only targets classless elements and only uses inherited properties,
+  so your viewer's own styling always wins (e.g. bare SVG text is filled with the light `currentColor`, but an
+  explicit `fill` — attribute, inline style or CSS class — is left alone).
 - It listens for the [theme](#theme) message and toggles the `dark` class on `<html>` when the site theme changes.
 
 To support dark mode in your viewer: read the initial state from `?dark=1` (or the `<html class="dark">` the wrapper
