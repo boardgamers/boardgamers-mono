@@ -26,7 +26,11 @@ const STATE_FILE = `${ROOT}/envs.json`;
 const SECRET = readFileSync(`${HOME}/.config/bgs-preview/secret`, "utf8").trim();
 const BIND = process.env.BIND ?? "10.90.0.2";
 const PORT = Number(process.env.PORT ?? 9900);
-const MONGO_URL = "mongodb://10.90.0.2:27017";
+// Envs and the seeder reach Mongo over the `bgs-preview` bridge network by container
+// name — NOT via the host. That keeps them off the host loopback entirely (the old
+// slirp4netns:allow_host_loopback let a compromised env hit any host loopback service).
+const MONGO_URL = "mongodb://bgs-preview-mongo:27017";
+const POD_NETWORK = "bgs-preview";
 const IMAGE = "localhost/bgs-preview:latest";
 const MAX_ENVS = 5;
 const HOST_DOMAIN = (pr) => `pr-${pr}.boardgamers.space`;
@@ -95,8 +99,11 @@ async function createEnv(pr, sha) {
 		`bgs-pr-${pr}`,
 		"--label",
 		"bgs-preview=true",
+		// Isolated bridge shared with the mongo container (reached by name). No
+		// allow_host_loopback: envs can't touch the minipc's host loopback services.
+		// Outbound internet still works (bridge NAT) so engines can npm-install.
 		"--network",
-		"slirp4netns:allow_host_loopback=true",
+		POD_NETWORK,
 		// Bound to the WireGuard IP only — envs must not appear on the minipc's LAN.
 		"-p",
 		`${BIND}:${p.web}:${p.web}`,
@@ -259,7 +266,7 @@ async function seed() {
 		"run",
 		"--rm",
 		"--network",
-		"slirp4netns:allow_host_loopback=true",
+		POD_NETWORK,
 		"-v",
 		`${ROOT}/dumps:/dumps:ro`,
 		"docker.io/library/mongo:8",
