@@ -13,7 +13,7 @@
 		useGamePreferencesFallback,
 	} from "@/lib/game-preferences.svelte";
 	import { gameInfoKey } from "@/lib/game-info.svelte";
-	import { currentTheme, isDark } from "@/lib/theme";
+	import { isDarkMode } from "@/lib/theme";
 	import { account as user } from "@/lib/account.svelte";
 	import { devGameSettings, developerSettings, lastGameUpdate } from "@/lib/stores.svelte";
 	import { page } from "$app/state";
@@ -68,7 +68,7 @@
 	});
 
 	function postTheme() {
-		gameIframe?.contentWindow?.postMessage({ type: "theme", dark: isDark($currentTheme) }, "*");
+		gameIframe?.contentWindow?.postMessage({ type: "theme", dark: $isDarkMode }, "*");
 	}
 
 	function postUser() {
@@ -88,7 +88,7 @@
 	});
 
 	$effect(() => {
-		$currentTheme;
+		$isDarkMode;
 		postTheme();
 	});
 
