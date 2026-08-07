@@ -34,10 +34,7 @@
 	const host = $derived(page.url.host);
 	const hostname = $derived(host.split(":")[0]);
 	const resourcesLink = $derived(
-		host.startsWith("localhost") ||
-			/^[\d.]+$/.test(hostname) ||
-			host.endsWith("gitpod.io") ||
-			host.endsWith("boardgamers.space")
+		host.startsWith("localhost") || /^[\d.]+$/.test(hostname) || host.endsWith("boardgamers.space")
 			? `/resources`
 			: `//resources.${host.slice(host.indexOf(".") + 1)}`
 	);
