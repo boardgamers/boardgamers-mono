@@ -13,6 +13,7 @@
 		useGamePreferencesFallback,
 	} from "@/lib/game-preferences.svelte";
 	import { gameInfoKey } from "@/lib/game-info.svelte";
+	import { isDarkMode } from "@/lib/theme";
 	import { account as user } from "@/lib/account.svelte";
 	import { devGameSettings, developerSettings, lastGameUpdate } from "@/lib/stores.svelte";
 	import { page } from "$app/state";
@@ -31,8 +32,9 @@
 	// produced a broken "//resources./game/..." src — fine on client-side navigation
 	// but it left a direct page load stuck on the loading spinner forever.
 	const host = $derived(page.url.host);
+	const hostname = $derived(host.split(":")[0]);
 	const resourcesLink = $derived(
-		host.startsWith("localhost") || host.endsWith("gitpod.io") || host.endsWith("boardgamers.space")
+		host.startsWith("localhost") || /^[\d.]+$/.test(hostname) || host.endsWith("boardgamers.space")
 			? `/resources`
 			: `//resources.${host.slice(host.indexOf(".") + 1)}`
 	);
@@ -50,6 +52,9 @@
 	);
 	let prefs = $derived(addDefaults(storedPrefs, context.gameInfo!));
 
+	// The theme is only pushed via postMessage — baking `dark` into the src would make it
+	// change with $currentTheme, and any src change reloads the iframe (and SSR/hydration
+	// can't agree on its value anyway).
 	let src = $derived.by(() => {
 		if (!context.gameInfo) return "";
 		const customUrl = $developerSettings
@@ -61,6 +66,10 @@
 			prefs?.preferences?.alternateUI ? 1 : 0
 		}&customViewerUrl=${customUrl}`;
 	});
+
+	function postTheme() {
+		gameIframe?.contentWindow?.postMessage({ type: "theme", dark: $isDarkMode }, "*");
+	}
 
 	function postUser() {
 		const index = context.game?.players.findIndex((pl) => pl._id === $user?._id);
@@ -76,6 +85,11 @@
 	$effect(() => {
 		$user;
 		postUser();
+	});
+
+	$effect(() => {
+		$isDarkMode;
+		postTheme();
 	});
 
 	$effect(() => {
@@ -151,6 +165,7 @@
 			console.log("receive event", event.data.type);
 			if (event.data.type === "gameReady") {
 				console.log("game ready, posting user & pref");
+				postTheme();
 				postUser();
 				postPreferences();
 				postAvatars();
@@ -272,6 +287,11 @@ ${context.game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}
 		width: 100%;
 		margin-bottom: -6px;
 		min-height: calc(100vh - var(--navbar-height));
+	}
+
+	/* Shows through the (transparent) iframe while the viewer loads, avoiding a white flash */
+	:global(.dark) #game-iframe {
+		background: rgb(3 7 18);
 	}
 
 	#game-iframe.fullScreen {
