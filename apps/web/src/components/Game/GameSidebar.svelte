@@ -197,7 +197,7 @@
 	{#if (game.game.expansions?.length ?? 0) > 0}
 		<div class="mt-3">
 			<h3>Expansions</h3>
-			{#each game.game.expansions as expansion (expansion)}
+			{#each game.game.expansions as expansion, i (i)}
 				<Badge color="accent" class="me-1">
 					<SanitizedHtml html={oneLineMarked(gameInfo.expansions?.find((xp) => xp.name === expansion)?.label ?? "")} />
 				</Badge>

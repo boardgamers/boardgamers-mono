@@ -58,8 +58,35 @@
 		if (!textArea) {
 			return;
 		}
-		textArea.style.height = "auto";
-		textArea.style.height = textArea.scrollHeight + (textArea.offsetHeight - textArea.clientHeight) + "px";
+		// Capture the scroll position of every scrolled ancestor so it can be restored after
+		// the resize (growing/shrinking the textarea can make scroll containers re-anchor).
+		const scrollTops = new Map<Element, number>();
+		for (let el = textArea.parentElement; el; el = el.parentElement) {
+			if (el.scrollTop > 0) {
+				scrollTops.set(el, el.scrollTop);
+			}
+		}
+		const windowScrollY = window.scrollY > 0 ? window.scrollY : null;
+
+		// Measure without resetting height to "auto": with overflow:hidden, scrollHeight still
+		// reflects the content size, so the textarea never visibly collapses while typing.
+		const newHeight = textArea.scrollHeight + (textArea.offsetHeight - textArea.clientHeight);
+		if (newHeight !== textArea.offsetHeight) {
+			textArea.style.height = newHeight + "px";
+		}
+
+		const restoreScroll = () => {
+			for (const [el, top] of scrollTops) {
+				el.scrollTop = top;
+			}
+			if (windowScrollY !== null) {
+				window.scrollTo({ top: windowScrollY });
+			}
+		};
+		restoreScroll();
+		// The browser's scroll anchoring can still shift scroll positions after this handler
+		// (tracked layout change); restoring again on the next frame undoes that.
+		requestAnimationFrame(restoreScroll);
 	}
 </script>
 

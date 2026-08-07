@@ -50,13 +50,14 @@
 			class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm space-y-4"
 		>
 			<div>
-				<label for="email" class="block text-sm font-medium mb-1.5">Email</label>
+				<label for="email" class="block text-sm font-medium mb-1.5">Email or username</label>
 				<input
 					id="email"
-					type="email"
+					type="text"
 					bind:value={email}
 					required
-					autocomplete="email"
+					autocomplete="username"
+					placeholder="Email address or username"
 					class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
 				/>
 			</div>

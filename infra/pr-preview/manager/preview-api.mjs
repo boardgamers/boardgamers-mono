@@ -32,7 +32,7 @@ const PORT = Number(process.env.PORT ?? 9900);
 const MONGO_URL = "mongodb://bgs-preview-mongo:27017";
 const POD_NETWORK = "bgs-preview";
 const IMAGE = "localhost/bgs-preview:latest";
-const MAX_ENVS = 5;
+const MAX_ENVS = 12;
 const HOST_DOMAIN = (pr) => `pr-${pr}.boardgamers.space`;
 
 const ports = (pr) => ({
@@ -41,6 +41,7 @@ const ports = (pr) => ({
 	gameplay: 14000 + Number(pr),
 	ws: 15000 + Number(pr),
 	resources: 16000 + Number(pr),
+	admin: 17000 + Number(pr),
 });
 
 // Env containers reach mongo the same way the host does (the preview-api runs on the
@@ -70,6 +71,17 @@ async function containerStatus(pr) {
 	} catch {
 		return "missing";
 	}
+}
+
+// Serialize create/delete per PR: without this, two concurrent PUTs for the same PR
+// both pass the "existing"/capacity check before either saves, piling up duplicate
+// state entries for one actual container.
+const prLocks = new Map();
+function withPrLock(pr, fn) {
+	const prev = prLocks.get(pr) ?? Promise.resolve();
+	const next = prev.then(fn, fn);
+	prLocks.set(pr, next.catch(() => {}));
+	return next;
 }
 
 async function createEnv(pr, sha) {
@@ -115,6 +127,8 @@ async function createEnv(pr, sha) {
 		`${BIND}:${p.ws}:${p.ws}`,
 		"-p",
 		`${BIND}:${p.resources}:${p.resources}`,
+		"-p",
+		`${BIND}:${p.admin}:${p.admin}`,
 		"-e",
 		`PR=${pr}`,
 		"-e",
@@ -131,6 +145,8 @@ async function createEnv(pr, sha) {
 		`WS_PORT=${p.ws}`,
 		"-e",
 		`RESOURCES_PORT=${p.resources}`,
+		"-e",
+		`ADMIN_PORT=${p.admin}`,
 		"-v",
 		`${ROOT}/dumps:/dumps:ro`,
 		"--security-opt",
@@ -152,9 +168,13 @@ async function createEnv(pr, sha) {
 		IMAGE,
 	]);
 
+	// Re-read (deleteEnv may have rewritten state) and replace, not push, so a retried
+	// PUT never leaves a duplicate entry for the same PR.
+	const fresh = loadState();
+	fresh.envs = fresh.envs.filter((e) => e.pr !== pr);
 	const env = { pr, sha, url: `https://${HOST_DOMAIN(pr)}`, ports: p, createdAt: new Date().toISOString() };
-	state.envs.push(env);
-	saveState(state);
+	fresh.envs.push(env);
+	saveState(fresh);
 	return env;
 }
 
@@ -306,10 +326,10 @@ const server = createServer(async (req, res) => {
 				for await (const chunk of req) body += chunk;
 				const { sha } = JSON.parse(body || "{}");
 				if (!sha || !/^[0-9a-f]{7,64}$/i.test(sha)) return json(res, 400, { error: "bad sha" });
-				return json(res, 200, await createEnv(pr, sha));
+				return json(res, 200, await withPrLock(pr, () => createEnv(pr, sha)));
 			}
 			if (req.method === "DELETE") {
-				await deleteEnv(pr);
+				await withPrLock(pr, () => deleteEnv(pr));
 				return json(res, 200, { deleted: pr });
 			}
 		}
