@@ -305,7 +305,12 @@ router.post("/signup/social", loggedOut, passport.authenticate("social-signup", 
 
 router.post("/login", passport.authenticate("local-login", { session: false }), (ctx) => sendAuthInfo(ctx, "password"));
 
-router.post("/signout", (ctx: Context) => {
+router.post("/signout", async (ctx: Context) => {
+	// Revoke server-side too — otherwise a leaked cookie keeps working until its 120-day expiry.
+	const code = parseRefreshCookie(ctx.cookies.get("refreshToken"));
+	if (code) {
+		await colls.jwtRefreshTokens.deleteOne({ code });
+	}
 	ctx.logout();
 	clearRefreshCookie(ctx);
 	ctx.status = 200;

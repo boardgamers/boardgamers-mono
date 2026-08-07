@@ -6,6 +6,8 @@
 
 	let { data }: PageProps = $props();
 
+	// boardgameId never changes on this page (per-boardgame route), so a one-shot read is fine.
+	// svelte-ignore state_referenced_locally
 	const gameInfo = useGameInfo(data.boardgameId, "latest");
 </script>
 
@@ -25,7 +27,7 @@
 				initial={data.rankings}
 				perPage={15}
 				currentPage={data.currentPage - 1}
-				baseUrl={`/boardgame/${data.boardgameId}/rankings`}
+				serverPagination
 			/>
 		</div>
 		<!--

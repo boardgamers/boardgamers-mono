@@ -6,14 +6,16 @@
 	import { post, apiFetch } from "@/lib/api";
 	import type { UserFront } from "@bgs/models";
 	import { browser } from "$app/environment";
+	import { resolve } from "$app/paths";
+	import type { Pathname } from "$app/types";
 	import { invalidateAll } from "$app/navigation";
 	import { page } from "$app/state";
 	import { untrack } from "svelte";
 	import { developerSettings } from "@/lib/stores.svelte";
 	import { useLoggedIn } from "@/lib/auth-guards.svelte";
 	import UserAvatar from "@/components/User/UserAvatar.svelte";
+	import CountrySelect from "@/components/Form/CountrySelect.svelte";
 	import { logoClick } from "@/lib/stores.svelte";
-	import { countries, countryFlag } from "@/lib/countries";
 
 	useLoggedIn();
 
@@ -181,7 +183,7 @@
 				<h1>{user.account.username}</h1>
 			</div>
 			<div class="text-right">
-				<Button color="primary" href={`/user/${user.account.username}`}>Profile</Button>
+				<Button color="primary" href={`/user/${user.account.username}` as Pathname}>Profile</Button>
 			</div>
 		</div>
 
@@ -217,7 +219,7 @@
 						onclick={() => selectArt("upload")}
 					/>
 				</div>
-				{#each avatarStyles as art}
+				{#each avatarStyles as art (art)}
 					<UserAvatar {art} username={user.account.username} role="button" onclick={() => selectArt(art)} />
 				{/each}
 			{/if}
@@ -233,17 +235,7 @@
 			</FormGroup>
 			<FormGroup class="mt-2">
 				<label for="country">Country</label>
-				<select
-					id="country"
-					class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
-					value={country}
-					onchange={(event) => updateCountry((event.target as HTMLSelectElement).value)}
-				>
-					<option value="">Not specified</option>
-					{#each countries as c}
-						<option value={c.code}>{countryFlag(c.code)} {c.name}</option>
-					{/each}
-				</select>
+				<CountrySelect id="country" value={country} onselect={updateCountry} />
 				<span class="text-xs">Shown next to your name in rankings and on your profile.</span>
 			</FormGroup>
 			<FormGroup class="mt-2">
@@ -277,11 +269,12 @@
 			<p class="mb-3 flex flex-wrap items-center gap-2">
 				Connect with
 
-				{#each ["google", "discord", "facebook"] as const as social}
+				<!-- OAuth endpoints are not app routes: off-site navigation (rel="external"). -->
+				{#each ["google", "discord", "facebook"] as const as social (social)}
 					<Button
 						color={social}
 						disabled={!!(user.account.social && user.account.social[social])}
-						href={`/api/account/auth/${social}`}
+						href={`/api/account/auth/${social}` as Pathname}
 						aria-disabled={!!(user.account.social && user.account.social[social])}
 						rel="external"
 					>
@@ -291,11 +284,16 @@
 			</p>
 			{#if !user.account.termsAndConditions}
 				<Checkbox bind:checked={tc} onchange={acceptTC} class="mb-3">
-					I agree to the <a href="/page/terms-and-conditions">Terms and Conditions</a> 📝
+					I agree to the <a href={resolve("/(app)/page/[part1]", { part1: "terms-and-conditions" })}
+						>Terms and Conditions</a
+					> 📝
 				</Checkbox>
 			{:else}
 				<p>
-					I accepted the <a href="/page/terms-and-conditions">Terms and Conditions</a> on
+					I accepted the <a href={resolve("/(app)/page/[part1]", { part1: "terms-and-conditions" })}
+						>Terms and Conditions</a
+					>
+					on
 					{niceDate(user.account.termsAndConditions)}.
 				</p>
 			{/if}
@@ -319,7 +317,7 @@
 								updateAccount();
 							}}
 						>
-							{#each [60, 5 * 60, 10 * 60, 30 * 60, 2 * 3600, 6 * 3600, 12 * 3600] as seconds}
+							{#each [60, 5 * 60, 10 * 60, 30 * 60, 2 * 3600, 6 * 3600, 12 * 3600] as seconds (seconds)}
 								<option value={seconds}>
 									{duration(seconds)}
 								</option>

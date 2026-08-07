@@ -21,6 +21,7 @@
 	import { gameLabel } from "@/utils/game-label";
 	import { minBy, sortBy } from "lodash";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 
 	const context: GameContext = getContext("game");
 	const { emitter } = context;
@@ -183,7 +184,7 @@
 					)
 				);
 			} else if (event.data.type === "playerClick") {
-				goto("/user/" + encodeURIComponent(event.data.player.name));
+				goto(resolve("/(app)/user/[username]", { username: event.data.player.name }));
 			} else if (event.data.type === "gameMove") {
 				await addMove(event.data.move);
 			} else if (event.data.type === "displayReady") {

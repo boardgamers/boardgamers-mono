@@ -208,3 +208,12 @@ export function countryFlag(code: string): string {
 export function countryName(code: string): string | undefined {
 	return countries.find((c) => c.code === code)?.name;
 }
+
+// Case-insensitive substring match on the country name, prefix match on the ISO code.
+export function filterCountries(query: string): { code: string; name: string }[] {
+	const q = query.trim().toLowerCase();
+	if (!q) {
+		return countries;
+	}
+	return countries.filter((c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase().startsWith(q));
+}

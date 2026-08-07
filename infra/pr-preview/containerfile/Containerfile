@@ -1,0 +1,29 @@
+FROM docker.io/library/node:24-bookworm-slim
+
+# Tools the env bootstrap needs at container start:
+#  - git: fetch the PR commit into the cached repo
+#  - pnpm: install deps (via corepack, pinned by repo package.json)
+#  - mongodb tools: wait on mongo, restore the per-env db from the template
+#  - curl: health checks
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git curl ca-certificates gnupg \
+ && curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-8.0.gpg \
+ && echo "deb [signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg] http://repo.mongodb.org/apt/debian bookworm/mongodb-org/8.0 main" \
+    > /etc/apt/sources.list.d/mongodb-org-8.0.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends mongodb-database-tools mongodb-mongosh \
+ && apt-get clean && rm -rf /var/lib/apt/lists/* \
+ && corepack enable
+
+# Clone the repo at build time so the pnpm store and most of the git history are
+# baked into the image. The entrypoint fetches the PR ref on top of this, so env
+# startup only downloads the delta. Update the built-in ref by rebuilding the image.
+ARG BASE_REF=main
+RUN git clone --filter=blob:none https://github.com/boardgamers/boardgamers-mono.git /repo \
+ && git -C /repo checkout $BASE_REF \
+ && git -C /repo rev-parse HEAD > /repo/.image-base-ref \
+ && cd /repo && CI=true pnpm install --frozen-lockfile
+
+WORKDIR /repo
+COPY entrypoint.sh /usr/local/bin/preview-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/preview-entrypoint.sh"]

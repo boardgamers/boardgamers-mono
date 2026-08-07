@@ -1,0 +1,8 @@
+{
+	"name": "@bgs/pr-preview-manager",
+	"private": true,
+	"type": "module",
+	"engines": {
+		"node": ">=24"
+	}
+}

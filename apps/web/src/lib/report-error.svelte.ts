@@ -1,4 +1,5 @@
 import { browser } from "$app/environment";
+import { SvelteSet } from "svelte/reactivity";
 import { get as getStore } from "svelte/store";
 import { currentGameId } from "@/lib/stores.svelte";
 
@@ -7,7 +8,7 @@ const release = __APP_RELEASE__;
 
 // Dedupe + throttle: the same error (name+message) is only reported once per session,
 // and we cap total reports per session so a flooding error loop can't spam the API.
-const seen = new Set<string>();
+const seen = new SvelteSet<string>();
 let reported = 0;
 const MAX_REPORTS = 25;
 

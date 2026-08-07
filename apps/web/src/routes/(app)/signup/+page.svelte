@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state";
+	import { resolve } from "$app/paths";
 	import { SEO } from "@/components";
 	import { Button } from "@/modules/cdk";
 	import { setAuthData, type AuthData } from "@/lib/account.svelte";
@@ -136,7 +137,10 @@
 
 		<div class="mt-3 space-y-2">
 			<Checkbox bind:checked={tc}>
-				I have read and agree to the <a href="/page/terms-and-conditions" target="_blank">Terms and Conditions</a>.
+				I have read and agree to the <a
+					href={resolve("/(app)/page/[part1]", { part1: "terms-and-conditions" })}
+					target="_blank">Terms and Conditions</a
+				>.
 			</Checkbox>
 
 			<Button id="signup-button" class="ml-auto" type="submit" color="primary">Register</Button>
@@ -146,7 +150,7 @@
 	<hr />
 
 	<div class="mt-3 space-y-1">
-		<p>Already have an account? <a href="/login">Log in</a></p>
-		<p>Or head <a href="/">home</a>.</p>
+		<p>Already have an account? <a href={resolve("/(app)/login")}>Log in</a></p>
+		<p>Or head <a href={resolve("/(app)")}>home</a>.</p>
 	</div>
 </div>
