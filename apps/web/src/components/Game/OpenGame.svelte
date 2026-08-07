@@ -322,7 +322,7 @@
 	{#if (context.game?.game.expansions?.length ?? 0) > 0}
 		<div class="mt-3">
 			<h3>Expansions</h3>
-			{#each context.game!.game.expansions as expansion (expansion)}
+			{#each context.game!.game.expansions as expansion, i (i)}
 				<Badge color="info"
 					><SanitizedHtml
 						html={oneLineMarked(context.gameInfo?.expansions?.find((xp) => xp.name === expansion)?.label ?? "")}
@@ -407,7 +407,7 @@
 			{#if $user?._id === context.game.creator}
 				{#if context.game.options.setup.playerOrder === "host"}
 					<h3>Select player order</h3>
-					{#each playerOrder as playerIndex (playerIndex)}
+					{#each playerOrder as playerIndex, i (i)}
 						<div>
 							- {context.game.players[playerIndex].name}
 							<span

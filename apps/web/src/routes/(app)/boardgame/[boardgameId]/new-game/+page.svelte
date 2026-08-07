@@ -243,7 +243,7 @@
 					<div class="mb-4">
 						<span class="mb-1 block font-medium">Number of players</span>
 						<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Number of players">
-							{#each info.players as option (option)}
+							{#each info.players as option, i (i)}
 								<button
 									type="button"
 									class="rounded-md border px-4 py-2 text-sm font-medium transition-colors {numPlayers === option
