@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { get } from "@/lib/api";
 	import { setAuthData, type AuthData } from "@/lib/account.svelte";
@@ -19,12 +20,14 @@
 
 			if (response.createSocialAccount) {
 				// oxlint-disable-next-line typescript/no-explicit-any
-				await goto("/signup?" + new URLSearchParams(response as any).toString(), { replaceState: true });
+				const signupTarget = resolve("/(app)/signup") + "?" + new URLSearchParams(response as any).toString();
+				// eslint-disable-next-line svelte/no-navigation-without-resolve -- path is resolve()d above; the rule can't trace resolve() + query-string concatenation
+				await goto(signupTarget, { replaceState: true });
 				return;
 			}
 
 			await setAuthData(response);
-			await goto("/account", { replaceState: true });
+			await goto(resolve("/(app)/account"), { replaceState: true });
 		} catch (err) {
 			error = err instanceof Error ? err.message : String(err);
 		}
@@ -35,7 +38,7 @@
 	{#if error}
 		<h1>Login failed</h1>
 		<p class="text-red-600">{error}</p>
-		<a href="/login">Back to login</a>
+		<a href={resolve("/(app)/login")}>Back to login</a>
 	{:else}
 		<p>Signing you in…</p>
 	{/if}

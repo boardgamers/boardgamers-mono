@@ -130,7 +130,7 @@
 		<span class="truncate font-semibold">{$currentGameId}</span>
 	</ModalHeader>
 	<div class="chat-messages thin-scrollbar" bind:this={messagesContainer}>
-		{#each $chatMessages as message}
+		{#each $chatMessages as message (message._id)}
 			{#if message.type === "system"}
 				<div class="my-3 text-center text-xs text-gray-400 italic" title={chatTime(message._id)}>
 					{message.data.text}

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
+	import SanitizedHtml from "../SanitizedHtml.svelte";
 	import {
 		duration,
 		handleError,
@@ -30,7 +32,7 @@
 	import { get, post } from "@/lib/api";
 	import { loadGame, loadGamePlayers } from "@/lib/game.svelte";
 	import { goto } from "$app/navigation";
-	import { redirectLoggedIn } from "@/utils/redirect";
+	import { loginRedirectQuery } from "@/utils/redirect";
 	import { page } from "$app/state";
 	import SEO from "../SEO.svelte";
 	import removeMarkdown from "remove-markdown";
@@ -67,13 +69,15 @@
 
 	const leave = async () => {
 		if (await confirm("Are you sure you want to leave this game?")) {
-			post(`/game/${gameId}/unjoin`).then(() => goto("/"), handleError);
+			post(`/game/${gameId}/unjoin`).then(() => goto(resolve("/(app)")), handleError);
 		}
 	};
 
 	const join = async () => {
 		if (!$user) {
-			goto(redirectLoggedIn(page.url));
+			const loginTarget = resolve("/(app)/login") + loginRedirectQuery(page.url);
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- path is resolve()d above; the rule can't trace resolve() + query-string concatenation
+			goto(loginTarget);
 			return;
 		}
 
@@ -223,14 +227,19 @@
 		</span>
 	</div>
 	<p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
-		<a href={`/boardgame/${context.gameInfo?._id.game}`}>About the game</a>
-		· <a href="/boardgame/{context.gameInfo?._id.game}/new-game">Create a new game</a>
+		<a href={resolve("/(app)/boardgame/[boardgameId]", { boardgameId: context.gameInfo?._id.game ?? "" })}
+			>About the game</a
+		>
+		·
+		<a href={resolve("/(app)/boardgame/[boardgameId]/new-game", { boardgameId: context.gameInfo?._id.game ?? "" })}
+			>Create a new game</a
+		>
 	</p>
 
 	<!-- Intro description (no heading — reads as lead copy) -->
 	{#if context.gameInfo?.description}
 		<div class="prose dark:prose-invert mb-5 max-w-2xl">
-			{@html marked(context.gameInfo.description)}
+			<SanitizedHtml html={marked(context.gameInfo.description)} />
 		</div>
 	{/if}
 
@@ -303,7 +312,9 @@
 
 			{#if context.gameInfo?.rules}
 				<h4 class="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Rules</h4>
-				<div class="prose prose-sm dark:prose-invert max-w-none">{@html marked(context.gameInfo.rules)}</div>
+				<div class="prose prose-sm dark:prose-invert max-w-none">
+					<SanitizedHtml html={marked(context.gameInfo.rules)} />
+				</div>
 			{/if}
 		</div>
 	</div>
@@ -311,9 +322,11 @@
 	{#if (context.game?.game.expansions?.length ?? 0) > 0}
 		<div class="mt-3">
 			<h3>Expansions</h3>
-			{#each context.game!.game.expansions as expansion}
+			{#each context.game!.game.expansions as expansion (expansion)}
 				<Badge color="info"
-					>{@html oneLineMarked(context.gameInfo?.expansions?.find((xp) => xp.name === expansion)?.label ?? "")}</Badge
+					><SanitizedHtml
+						html={oneLineMarked(context.gameInfo?.expansions?.find((xp) => xp.name === expansion)?.label ?? "")}
+					/></Badge
 				>
 			{/each}
 		</div>
@@ -326,7 +339,7 @@
 			<Badge color="secondary" class="setup-badge"
 				>{playerOrderText(context.game?.options.setup.playerOrder ?? "random")}</Badge
 			>
-			{#each (context.gameInfo?.options ?? []).filter((x) => !!gameOptions(context.game)[x.name]) as pref}
+			{#each (context.gameInfo?.options ?? []).filter((x) => !!gameOptions(context.game)[x.name]) as pref (pref.name)}
 				<SetupOptionBadge {pref} value={gameOptions(context.game)[pref.name]} />
 			{/each}
 		</div>
@@ -343,7 +356,7 @@
 
 		{#if context.game && context.game.players.length > 0}
 			<ul class="mb-3 space-y-2">
-				{#each context.game.players as player}
+				{#each context.game.players as player (player._id)}
 					{@const info = context.players.find((pl) => pl._id === player._id)}
 					<li class="flex items-center gap-2">
 						<UserAvatar userId={player._id} username={info?.name ?? "?"} size="2rem" />
@@ -383,7 +396,7 @@
 							/>
 						</DropdownToggle>
 						<DropdownMenu>
-							{#each foundUsers as result}
+							{#each foundUsers as result (result._id)}
 								<DropdownItem onclick={() => invite(result._id)}>{result.account.username}</DropdownItem>
 							{/each}
 						</DropdownMenu>
@@ -394,7 +407,7 @@
 			{#if $user?._id === context.game.creator}
 				{#if context.game.options.setup.playerOrder === "host"}
 					<h3>Select player order</h3>
-					{#each playerOrder as playerIndex}
+					{#each playerOrder as playerIndex (playerIndex)}
 						<div>
 							- {context.game.players[playerIndex].name}
 							<span

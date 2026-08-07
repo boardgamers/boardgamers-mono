@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
+	import type { Pathname } from "$app/types";
 	import { page } from "$app/state";
 	import { useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { logoClick } from "@/lib/stores.svelte";
@@ -45,24 +47,29 @@
 	);
 	let otherGames = $derived(games.filter((g) => !pinnedIds.includes(g._id.game)).sort(byLabel));
 
-	function gameRoute(gameId: string) {
+	const refreshGamesRoute = "/refresh-games";
+
+	function gameRoute(gameId: string): Pathname {
 		if (!boardgameId) {
-			return `/boardgame/${gameId}${page.url.pathname}`;
+			// Same page, but for another boardgame: swap the boardgame id into the current path.
+			return `/boardgame/${gameId}${page.url.pathname}` as Pathname;
 		}
 
 		if (gameId === boardgameId) {
 			if (page.url.pathname === "/boardgame/" + gameId) {
-				return "/refresh-games";
+				// Not a real route: clicking the active game on its own page re-triggers the logo click.
+				return refreshGamesRoute as Pathname;
 			} else {
-				return "/boardgame/" + gameId;
+				return `/boardgame/${gameId}` as Pathname;
 			}
 		}
 
-		return page.url.pathname.replace(`/boardgame/${boardgameId}`, `/boardgame/${gameId}`) + page.url.search;
+		return (page.url.pathname.replace(`/boardgame/${boardgameId}`, `/boardgame/${gameId}`) +
+			page.url.search) as Pathname;
 	}
 
 	function handleClick(event: MouseEvent & { currentTarget: HTMLAnchorElement }) {
-		if (event.currentTarget.attributes.getNamedItem("href")!.value === "/refresh-games") {
+		if (event.currentTarget.attributes.getNamedItem("href")!.value === refreshGamesRoute) {
 			event.preventDefault();
 			logoClick();
 		}
@@ -75,7 +82,7 @@
 	<li class="group relative">
 		<a
 			class="block px-4 py-2 font-semibold no-underline text-inherit hover:bg-gray-100 dark:hover:bg-gray-800"
-			href={gameRoute(id)}
+			href={resolve(gameRoute(id))}
 			class:bg-primary={boardgameId === id}
 			class:text-white={boardgameId === id}
 			data-sveltekit-preload-data="hover"
@@ -121,14 +128,14 @@
 <ul class="hidden w-[250px] shrink-0 divide-y divide-gray-200 dark:divide-gray-700 lg:block">
 	{#key boardgameId}
 		{#if topGames.length > 0}
-			{#each topGames as game}
+			{#each topGames as game (game._id.game)}
 				{@render gameItem(game, true)}
 			{/each}
 			<li class="px-4 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
 				All games
 			</li>
 		{/if}
-		{#each otherGames as game}
+		{#each otherGames as game (game._id.game)}
 			{@render gameItem(game, false)}
 		{/each}
 	{/key}

@@ -5,6 +5,7 @@
 	import { dateFromObjectId } from "@/utils";
 	import { countryFlag, countryName } from "@/lib/countries";
 	import { page } from "$app/state";
+	import { resolve } from "$app/paths";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -35,7 +36,8 @@
 			/>
 			<h1 class="mb-2">{username}</h1>
 			<div class="mb-2">
-				☯️ <a href="/page/karma" title="karma">{data.user.account.karma}</a> karma <br />
+				☯️ <a href={resolve("/(app)/page/[part1]", { part1: "karma" })} title="karma">{data.user.account.karma}</a>
+				karma <br />
 				{#if data.user.account.country}
 					{countryFlag(data.user.account.country)}
 					{countryName(data.user.account.country)} <br />

@@ -42,13 +42,13 @@
 	};
 </script>
 
-{#each preferenceItems.filter((item) => item.type === "checkbox" && item.category == null) as item}
+{#each preferenceItems.filter((item) => item.type === "checkbox" && item.category == null) as item (item.name)}
 	<PreferenceInput {item} value={preferences[item.name]} onchange={(val) => handleChange(item.name, val)} />
 {/each}
-{#each preferenceItems.filter((item) => item.type === "select" && item.category == null) as item}
+{#each preferenceItems.filter((item) => item.type === "select" && item.category == null) as item (item.name)}
 	<PreferenceInput {item} value={preferences[item.name]} onchange={(val) => handleChange(item.name, val)} />
 {/each}
-{#each preferenceItems.filter((item) => item.type === "category") as category}
+{#each preferenceItems.filter((item) => item.type === "category") as category (category.name)}
 	{@const open = shownCategories[category.name] ?? false}
 	<div class={open && framed ? "overflow-hidden rounded-md border border-gray-200 dark:border-gray-700" : ""}>
 		<button
@@ -79,7 +79,7 @@
 		</button>
 		{#if open}
 			<div class="space-y-2 {framed ? 'border-t border-gray-200 px-3 py-3 dark:border-gray-700' : 'pt-1'}">
-				{#each preferenceItems.filter((item) => item.category === category.name) as item}
+				{#each preferenceItems.filter((item) => item.category === category.name) as item (item.name)}
 					<PreferenceInput {item} value={preferences[item.name]} onchange={(val) => handleChange(item.name, val)} />
 				{/each}
 			</div>
