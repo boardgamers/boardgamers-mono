@@ -5,7 +5,6 @@
 	import { toast } from "$lib/toast.svelte.ts";
 	import { trim } from "$lib/actions.ts";
 	import { filesize, gameEmoji, timeAgo } from "$lib/utils.ts";
-	import { tokens } from "$lib/auth.svelte.ts";
 	import type { GameInfoFront } from "@bgs/models";
 	import MarkdownEditor from "$components/MarkdownEditor.svelte";
 	import WebLink from "$components/WebLink.svelte";
@@ -92,10 +91,8 @@
 		}
 	}
 
-	function backupUrl(): string {
-		const token = tokens.getAccess("all")?.code ?? "";
-		return `/api/admin/backup/games?token=${encodeURIComponent(token)}`;
-	}
+	// Same-origin GET — the browser attaches the session cookie, no token needed.
+	const backupUrl = "/api/admin/backup/games";
 </script>
 
 <div class="space-y-6">
@@ -276,7 +273,7 @@
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
 			<h3 class="text-sm font-semibold">Backups</h3>
 			<a
-				href={backupUrl()}
+				href={backupUrl}
 				target="_blank"
 				rel="noopener"
 				class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 font-medium underline"

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from "$app/navigation";
 	import { page } from "$app/state";
-	import { setTokens } from "$lib/auth.svelte.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 
 	let email = $state("");
@@ -13,8 +12,10 @@
 		submitting = true;
 
 		try {
+			// Login sets the httpOnly session cookie (Set-Cookie) — nothing to store in JS.
 			const res = await fetch("/api/account/login", {
 				method: "POST",
+				credentials: "same-origin",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ email, password }),
 			});
@@ -23,9 +24,6 @@
 				const data = await res.json().catch(() => null);
 				throw new Error(data?.message ?? "Login failed");
 			}
-
-			const data = await res.json();
-			setTokens(data);
 
 			const redirect = page.url.searchParams.get("redirect") || "/";
 			await invalidateAll();
