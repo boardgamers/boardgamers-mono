@@ -42,6 +42,7 @@
 		"passport-github2": "^0.1.12",
 		"passport-google-oauth20": "^2.0.0",
 		"passport-local": "^1.0.0",
+		"passport-oauth2": "^1.8.0",
 		"semver": "^7.2.2",
 		"ws": "^8.20.1",
 		"zod": "^4.3.6"
@@ -64,6 +65,7 @@
 		"@types/passport-github2": "^1.2.9",
 		"@types/passport-google-oauth20": "^2.0.3",
 		"@types/passport-local": "^1.0.33",
+		"@types/passport-oauth2": "^1.8.0",
 		"@types/semver": "^7.1.0",
 		"@types/ws": "^8.18.1",
 		"koa-cookie": "^1.0.0",

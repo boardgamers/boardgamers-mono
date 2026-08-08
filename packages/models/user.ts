@@ -20,6 +20,19 @@ export const userSchema = z.object({
 				facebook: z.string().optional(),
 				discord: z.string().optional(),
 				github: z.string().optional(),
+				huggingface: z.string().optional(),
+			})
+			.optional(),
+		// Non-sensitive display info from the OAuth profile (public username + profile URL).
+		// Never store tokens or the raw provider payload (profile._json) here. Intentionally
+		// NOT whitelisted in infra/pr-preview/seed/scrub-users.mjs: identifying → previews drop it.
+		socialMeta: z
+			.object({
+				google: z.object({ username: z.string(), url: z.string() }).optional(),
+				facebook: z.object({ username: z.string(), url: z.string() }).optional(),
+				discord: z.object({ username: z.string(), url: z.string() }).optional(),
+				github: z.object({ username: z.string(), url: z.string() }).optional(),
+				huggingface: z.object({ username: z.string(), url: z.string() }).optional(),
 			})
 			.optional(),
 		avatar: z.string().optional(),
@@ -108,6 +121,8 @@ export const userIndexes: IndexDescription[] = [
 	{ key: { "account.social.discord": 1 }, unique: true, sparse: true },
 	// api: social OAuth login
 	{ key: { "account.social.github": 1 }, unique: true, sparse: true },
+	// api: social OAuth login
+	{ key: { "account.social.huggingface": 1 }, unique: true, sparse: true },
 	// api: URL-based user lookup (profile pages)
 	{ key: { "security.slug": 1 }, unique: true, sparse: true },
 	// api: admin IP-based lookups

@@ -108,6 +108,10 @@ export default {
 			id: process.env.githubId || "github-oauth-id",
 			secret: process.env.githubSecret || "github-oauth-secret",
 		},
+		huggingface: {
+			id: process.env.huggingfaceId || "huggingface-oauth-id",
+			secret: process.env.huggingfaceSecret || "huggingface-oauth-secret",
+		},
 	},
 	silent: false,
 };

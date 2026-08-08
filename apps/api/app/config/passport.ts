@@ -9,6 +9,10 @@ import { Strategy as FacebookStrategy } from "passport-facebook";
 import { Strategy as GitHubStrategy } from "passport-github2";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as LocalStrategy } from "passport-local";
+// No maintained passport-huggingface package exists: the generic OAuth2 strategy works
+// because Hugging Face implements plain OAuth2/OIDC (userinfo endpoint is set below via
+// the strategy's userProfile override).
+import { Strategy as OAuth2Strategy } from "passport-oauth2";
 import { z } from "zod";
 import type { UserDoc } from "@bgs/models";
 import type { WithId } from "mongodb";
@@ -137,14 +141,16 @@ passport.use(
 				const decoded = z
 					.object({
 						id: z.string(),
-						provider: z.enum(["google", "facebook", "discord", "github"]),
+						provider: z.enum(["google", "facebook", "discord", "github", "huggingface"]),
 						createSocialAccount: z.literal(true),
+						socialMeta: z.object({ username: z.string(), url: z.string() }).optional(),
 					})
 					.parse(jwt.verify(token, env.jwt.keys.public));
 
 				// create the user
 				const slug = username.toLowerCase().replace(/\s+/g, "-");
 				const social = { [decoded.provider]: decoded.id };
+				const socialMeta = decoded.socialMeta ? { [decoded.provider]: decoded.socialMeta } : undefined;
 				const newUserDoc: UserDoc = makeDefaultUser({
 					username,
 					email: "",
@@ -154,6 +160,7 @@ passport.use(
 					confirmed: true,
 					newsletter: false,
 					social,
+					socialMeta,
 				});
 
 				const result = await colls.users.insertOne(newUserDoc);
@@ -245,6 +252,39 @@ type SocialProvider = keyof typeof env.social;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SocialStrategyCtor<T extends Strategy> = new (options: any, verify: any) => T;
 
+// Passport profile shape is a superset; we only ever read these fields. `username` /
+// `profileUrl` are optional because not every provider supplies them (HF supplies neither,
+// so its strategy fills them in from the userinfo payload — see its userProfile override).
+type SocialProfile = {
+	id: string;
+	username?: string;
+	profileUrl?: string;
+};
+
+// Extra strategy constructor options for providers configured on a generic strategy
+// (HF on passport-oauth2, which requires its endpoints at construction).
+const extraStrategyOptions: Partial<Record<SocialProvider, Record<string, string>>> = {
+	huggingface: {
+		authorizationURL: "https://huggingface.co/oauth/authorize",
+		tokenURL: "https://huggingface.co/oauth/token",
+	},
+};
+
+// Default public profile URL per provider, for providers whose passport profile lacks
+// profileUrl (discord) or username (facebook with the default fields).
+const defaultProfileUrl: Partial<Record<SocialProvider, (profile: SocialProfile) => string>> = {
+	discord: (profile) => `https://discord.com/users/${profile.id}`,
+	huggingface: (profile) => `https://huggingface.co/${profile.username ?? profile.id}`,
+};
+
+// Extract ONLY non-sensitive display fields (public username + profile URL) from the
+// OAuth profile. Never persist tokens or the raw provider payload (profile._json).
+function socialMetaOf(provider: SocialProvider, profile: SocialProfile) {
+	const username = profile.username ?? profile.profileUrl?.replace(/\/+$/, "").split("/").pop() ?? profile.id;
+	const url = profile.profileUrl ?? defaultProfileUrl[provider]?.(profile);
+	return url ? { username, url } : undefined;
+}
+
 function makeSocialStrategy<T extends Strategy>(provider: SocialProvider, SocialStrategy: SocialStrategyCtor<T>) {
 	passport.use(
 		provider,
@@ -254,15 +294,17 @@ function makeSocialStrategy<T extends Strategy>(provider: SocialProvider, Social
 				clientSecret: env.social[provider].secret,
 				passReqToCallback: true,
 				callbackURL: `https://${env.site}/auth/${provider}/callback`,
+				...extraStrategyOptions[provider],
 			},
 			async function (
 				req: { user?: WithId<UserDoc> },
 				_token: string,
 				_tokenSecret: string,
-				profile: { id: string },
+				profile: SocialProfile,
 				done: (err: unknown, user?: unknown) => void,
 			) {
 				try {
+					const socialMeta = socialMetaOf(provider, profile);
 					const currentUser = req.user;
 					const existingUser = await colls.users.findOne({ [`account.social.${provider}`]: profile.id });
 
@@ -276,16 +318,34 @@ function makeSocialStrategy<T extends Strategy>(provider: SocialProvider, Social
 
 						await colls.users.updateOne(
 							{ _id: currentUser._id },
-							{ $set: { [`account.social.${provider}`]: profile.id } },
+							{
+								$set: {
+									[`account.social.${provider}`]: profile.id,
+									...(socialMeta ? { [`account.socialMeta.${provider}`]: socialMeta } : {}),
+								},
+							},
 						);
 						const updatedUser = await colls.users.findOne({ _id: currentUser._id });
 						done(null, updatedUser);
 					} else {
 						if (existingUser) {
+							// Backfill display meta for accounts linked before socialMeta existed.
+							if (socialMeta && !existingUser.account.socialMeta?.[provider]) {
+								await colls.users.updateOne(
+									{ _id: existingUser._id },
+									{ $set: { [`account.socialMeta.${provider}`]: socialMeta } },
+								);
+							}
 							done(null, existingUser);
 						} else {
-							// Create a new account
-							done(null, { createSocialAccount: true, provider, id: profile.id });
+							// Create a new account (omit socialMeta when absent: it rides in a JWT and the
+							// signup body schema, where an explicit undefined would needlessly differ).
+							done(null, {
+								createSocialAccount: true,
+								provider,
+								id: profile.id,
+								...(socialMeta ? { socialMeta } : {}),
+							});
 						}
 					}
 				} catch (err) {
@@ -300,3 +360,40 @@ makeSocialStrategy("discord", DiscordStrategy);
 makeSocialStrategy("google", GoogleStrategy);
 makeSocialStrategy("facebook", FacebookStrategy);
 makeSocialStrategy("github", GitHubStrategy);
+makeSocialStrategy("huggingface", OAuth2Strategy);
+
+// Hugging Face has no dedicated passport strategy: configure the generic OAuth2 strategy
+// with HF's endpoints and teach it to read the profile from the OIDC userinfo payload.
+{
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- koa-passport types don't expose _strategy
+	const strategy = (passport as unknown as { _strategy(name: string): unknown })._strategy(
+		"huggingface",
+	) as InstanceType<typeof OAuth2Strategy>;
+	// OAuth2Strategy types _oauth2 as protected; reach it via a structural cast.
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion
+	const oauth2 = (strategy as unknown as Record<"_oauth2", { useAuthorizationHeaderforGET(v: boolean): void }>)._oauth2;
+	oauth2.useAuthorizationHeaderforGET(true);
+	strategy.userProfile = function (accessToken: string, done: (err?: unknown, profile?: unknown) => void) {
+		this._oauth2.get("https://huggingface.co/oauth/userinfo", accessToken, (err, body) => {
+			if (err) {
+				done(err);
+				return;
+			}
+			try {
+				const json = z
+					.object({
+						sub: z.union([z.string(), z.number()]).transform(String),
+						preferred_username: z.string().optional(),
+					})
+					.parse(JSON.parse(typeof body === "string" ? body : "{}"));
+				done(null, {
+					id: json.sub,
+					username: json.preferred_username,
+					profileUrl: json.preferred_username ? `https://huggingface.co/${json.preferred_username}` : undefined,
+				});
+			} catch (e) {
+				done(e);
+			}
+		});
+	};
+}

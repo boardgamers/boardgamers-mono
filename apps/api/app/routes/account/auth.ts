@@ -12,6 +12,7 @@ const socialFeedbackSchema = z.object({
 	createSocialAccount: z.boolean(),
 	provider: z.string(),
 	id: z.string(),
+	socialMeta: z.object({ username: z.string(), url: z.string() }).optional(),
 });
 
 router.get("/google", async (ctx, next) => {
@@ -42,6 +43,12 @@ router.get("/github", async (ctx, next) => {
 	})(ctx, next);
 });
 
+router.get("/huggingface", async (ctx, next) => {
+	await passport.authenticate("huggingface", {
+		callbackURL: `${ctx.protocol}://${ctx.hostname}/auth/huggingface/callback`,
+	})(ctx, next);
+});
+
 router.get(
 	"/:provider/callback",
 	async (ctx, next) => {
@@ -54,7 +61,7 @@ router.get(
 	async (ctx) => {
 		const feedback = socialFeedbackSchema.safeParse(ctx.state.user);
 		if (feedback.success && feedback.data.createSocialAccount) {
-			const { provider, id } = feedback.data;
+			const { provider, id, socialMeta } = feedback.data;
 
 			ctx.state.user = undefined;
 
@@ -62,6 +69,7 @@ router.get(
 				createSocialAccount: true,
 				provider,
 				id,
+				socialMeta,
 			};
 
 			ctx.body = {

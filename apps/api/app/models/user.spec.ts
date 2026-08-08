@@ -26,13 +26,28 @@ describe("makeDefaultUser", () => {
 		const users = await colls.users.find({}, { projection: { "account.social": 1 } }).toArray();
 		for (const user of users) {
 			const social = user.account?.social ?? {};
-			for (const provider of ["google", "facebook", "discord", "github"] as const) {
+			for (const provider of ["google", "facebook", "discord", "github", "huggingface"] as const) {
 				assert.ok(
 					!(provider in social) || typeof social[provider] === "undefined" || social[provider] !== "",
 					`account.social.${provider} must not be the empty string (got ${JSON.stringify(social[provider])})`,
 				);
 			}
 		}
+	});
+
+	it("stores only whitelisted display fields in account.socialMeta", async () => {
+		const { insertedId } = await colls.users.insertOne(
+			testUser({
+				account: {
+					social: { github: "gh-meta-1" },
+					socialMeta: { github: { username: "octocat", url: "https://github.com/octocat" } },
+				},
+			}),
+		);
+		const user = await colls.users.findOne({ _id: insertedId });
+		assert.deepStrictEqual(user?.account.socialMeta, {
+			github: { username: "octocat", url: "https://github.com/octocat" },
+		});
 	});
 
 	after(() => db().dropDatabase());
