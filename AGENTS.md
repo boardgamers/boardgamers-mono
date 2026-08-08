@@ -104,6 +104,26 @@ Rules for the agent:
 - Local seeded db (`apps/api/scripts/seed.ts`): every fixture user's password is
   also `password` (e.g. `admin@test.com` / `password`).
 
+### Admin tokens (agent-facing)
+
+To let an agent script `/api/admin/*` (prod or preview) without a password, **a
+human admin creates a token and hands you the raw value** — via the admin
+panel's Admin Tokens page or one `POST /api/admin/tokens` (`{ name, ttlDays? }`)
+from their authenticated admin session; the raw token is shown exactly once at
+creation. You then simply:
+
+```bash
+curl https://<host>/api/admin/<endpoint> -H "Authorization: Bearer <token>"
+```
+
+Raw tokens carry a `bgs_admin_` prefix so the token type is identifiable (and
+flaggable by secret scanners) in logs and code. Tokens are scoped to
+`/api/admin/*` by construction (elsewhere the credential just doesn't
+authenticate), temporary (default 30d, max 90d) and revocable, and only work
+while their owner is still an admin — treat one as a credential, and ask the
+admin for a new one if it stops working. (Admins: list/revoke your own tokens on
+the Admin Tokens page or via `GET`/`DELETE /api/admin/tokens`.)
+
 ## Workarounds
 
 Each project keeps a `WORKAROUNDS.md` (e.g. `apps/web/WORKAROUNDS.md`, `apps/api/WORKAROUNDS.md`) listing temporary shims and deferred cleanups — things intentional for now but to revisit later. When you add such a thing, log a short entry there; when you touch related code, check whether an entry can be removed.

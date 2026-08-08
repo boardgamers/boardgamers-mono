@@ -23,6 +23,7 @@ import type { UserDoc } from "@bgs/models";
 import type { WithId } from "mongodb";
 import { colls } from "./config/db.ts";
 import { accessTokenPayloadSchema } from "./models/jwtrefreshtokens.ts";
+import { authenticateAdminToken } from "./models/admintokens.ts";
 import { notifyLogin, notifyLastIp } from "./models/user.ts";
 import { setRefreshCookie, parseRefreshCookie, clearAllRefreshCookieVariants } from "./models/session.ts";
 
@@ -101,6 +102,21 @@ async function listen(port = env.listen.port.api) {
 			const token = ctx.get("Authorization").slice("Bearer ".length);
 
 			await processToken(token);
+
+			// Admin token auth (issue #105): a Bearer credential that isn't a valid JWT
+			// is looked up by hash in `admintokens` — but only under /api/admin. A hit
+			// authenticates as the owning admin while the token is unexpired, unrevoked,
+			// and the owner still has authority === "admin". Outside /api/admin the
+			// credential resolves to no user at all, so it can never act as a session on
+			// account/game routes — no per-route rejection needed. (ctx.path is still the
+			// full path here; routers strip their prefix later.)
+			if (!ctx.state.user && (ctx.path === "/api/admin" || ctx.path.startsWith("/api/admin/"))) {
+				const adminAuth = await authenticateAdminToken(token);
+				if (adminAuth) {
+					ctx.state.user = adminAuth.user;
+					ctx.state.adminToken = adminAuth.viaAdminToken;
+				}
+			}
 		} else {
 			const { token } = tokenQuerySchema.parse(ctx.query);
 			if (token) {
