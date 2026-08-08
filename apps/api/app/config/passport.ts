@@ -431,9 +431,8 @@ makeSocialStrategy("huggingface", OAuth2Strategy);
 			try {
 				pruneStates();
 				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- koa-passport passes a query-bearing req mock
-				const { returnTo } = z
-					.object({ returnTo: z.string().url().optional() })
-					.parse((req as { query?: unknown }).query);
+				const query = (req as { query?: unknown }).query;
+				const { returnTo } = z.object({ returnTo: z.string().url().optional() }).parse(query);
 				const handle = crypto.randomBytes(24).toString("base64url");
 				relayStates.set(handle, {
 					payload: { codeVerifier: verifier, returnTo },
