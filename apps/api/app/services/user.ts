@@ -1,9 +1,12 @@
 import { subDays } from "date-fns";
 import type { ObjectId } from "mongodb";
 import { type Filter } from "mongodb";
-import type { UserDoc } from "@bgs/models";
+import { z } from "zod";
+import { SettingsKey, type UserDoc } from "@bgs/models";
 import env from "../config/env.ts";
 import { colls } from "../config/db.ts";
+
+export const CLEANUP_DEAD_USERS_INTERVAL_MS = 24 * 3600 * 1000;
 
 const ACTIVITY_FIELDS = ["security.lastActive", "security.lastLogin.date", "security.lastOnline"] as const;
 
@@ -53,6 +56,24 @@ export async function cleanupDeadUsers() {
 	if (env.cleanupDeadUsers === "off") {
 		return;
 	}
+
+	// Deploy-resilient scheduling: a plain setInterval(24h) counts from process boot,
+	// so frequent deploys would postpone the cleanup forever. Instead the last run is
+	// persisted in settings and the cron ticks hourly (plus once on boot) — a missed
+	// window catches up after a restart. Runs at most once per 24h.
+	const lastRun = await colls.settings.findOne({ _id: SettingsKey.CleanupDeadUsersLastRun });
+	const lastRunAt = new Date(z.string().optional().parse(lastRun?.value) ?? 0);
+	if (Date.now() - lastRunAt.getTime() < CLEANUP_DEAD_USERS_INTERVAL_MS) {
+		return;
+	}
+
+	// Stamped before the work: if the process dies mid-run, the next attempt is still
+	// 24h later and this run's already-archived users stay archived (idempotent).
+	await colls.settings.updateOne(
+		{ _id: SettingsKey.CleanupDeadUsersLastRun },
+		{ $set: { value: new Date().toISOString() } },
+		{ upsert: true },
+	);
 
 	const cutoff = subDays(Date.now(), env.cleanupDeadUsersMaxAgeDays);
 	const dead = await findDeadUsers(cutoff, env.cleanupDeadUsersBatchSize);

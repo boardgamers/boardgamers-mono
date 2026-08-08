@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { before, after, describe, it } from "node:test";
+import { before, after, afterEach, describe, it } from "node:test";
 import { ObjectId } from "mongodb";
 import { subDays } from "date-fns";
+import { SettingsKey } from "@bgs/models";
 import { db, colls } from "../config/db.ts";
 import { testUser, testGame } from "../config/test-helpers.ts";
 import env from "../config/env.ts";
@@ -55,6 +56,8 @@ describe("cleanupDeadUsers", () => {
 
 	after(() => db().dropDatabase());
 
+	afterEach(() => colls.settings.deleteMany({ _id: SettingsKey.CleanupDeadUsersLastRun }));
+
 	it("candidate filter matches only old, never-active, non-admin users", async () => {
 		const candidates = await colls.users.find(deadUserCandidateFilter(cutoff)).toArray();
 		const ids = candidates.map((u) => u._id.toString());
@@ -83,6 +86,8 @@ describe("cleanupDeadUsers", () => {
 		env.cleanupDeadUsers = "off";
 		await cleanupDeadUsers();
 		assert.ok(await colls.users.findOne({ _id: deadUserId }));
+		// The lastRunAt stamp is only written for dry-run/delete — off stays inert.
+		assert.equal(await colls.settings.countDocuments({ _id: SettingsKey.CleanupDeadUsersLastRun }), 0);
 	});
 
 	it("dry-run mode selects but archives nothing", async () => {
@@ -90,6 +95,9 @@ describe("cleanupDeadUsers", () => {
 		await cleanupDeadUsers();
 		assert.ok(await colls.users.findOne({ _id: deadUserId }));
 		assert.equal(await colls.deletedUsers.countDocuments({ userId: deadUserId }), 0);
+		// Even a dry-run stamps lastRunAt — otherwise an hourly dry-run tick would
+		// re-scan and re-log the same candidates every hour.
+		assert.equal(await colls.settings.countDocuments({ _id: SettingsKey.CleanupDeadUsersLastRun }), 1);
 	});
 
 	it("delete mode moves the dead user to deletedUsers and deletes their refresh tokens / game preferences", async () => {
@@ -139,6 +147,45 @@ describe("cleanupDeadUsers", () => {
 		assert.equal(await colls.deletedUsers.estimatedDocumentCount(), 2);
 	});
 
+	it("never re-runs within 24h (deploy-resilient throttling via settings)", async () => {
+		// First run stamps lastRunAt; a second immediate call must skip even though a
+		// dead user is still selectable (gameUserId has a game, but a fresh dead user
+		// would be archived — the stamp alone must prevent that).
+		const extraDeadId = new ObjectId();
+		await colls.users.insertOne(testUser({ _id: extraDeadId, createdAt: old, security: noActivity }));
+
+		await cleanupDeadUsers(); // archives extraDeadId, stamps lastRunAt
+		assert.equal(await colls.users.countDocuments({ _id: extraDeadId }), 0);
+
+		const anotherDeadId = new ObjectId();
+		await colls.users.insertOne(testUser({ _id: anotherDeadId, createdAt: old, security: noActivity }));
+
+		await cleanupDeadUsers(); // throttled: lastRunAt is fresh
+		assert.ok(await colls.users.findOne({ _id: anotherDeadId }), "expected throttled run to leave the user alone");
+	});
+
+	it("runs again once lastRunAt is older than 24h (catch-up after a restart)", async () => {
+		// Simulate a restart after more than 24h: fresh process, old stamp.
+		await colls.settings.updateOne(
+			{ _id: SettingsKey.CleanupDeadUsersLastRun },
+			{ $set: { value: subDays(Date.now(), 2).toISOString() } },
+			{ upsert: true },
+		);
+
+		const restartDeadId = new ObjectId();
+		await colls.users.insertOne(testUser({ _id: restartDeadId, createdAt: old, security: noActivity }));
+
+		await cleanupDeadUsers();
+
+		assert.equal(await colls.users.findOne({ _id: restartDeadId }), null);
+		assert.equal(await colls.deletedUsers.countDocuments({ userId: restartDeadId }), 1);
+
+		// lastRunAt was refreshed by the run
+		const stamp = await colls.settings.findOne({ _id: SettingsKey.CleanupDeadUsersLastRun });
+		assert.ok(stamp);
+		assert.ok(Date.now() - new Date(String(stamp.value)).getTime() < 60 * 1000);
+	});
+
 	it("a restored user (moved back from deletedUsers) can be re-archived despite the same userId", async () => {
 		// Restore = re-insert the archived doc into users with `_id: userId`, minus
 		// deletedAt/userId. deadUserId is already archived once; restoring it and running
@@ -150,6 +197,12 @@ describe("cleanupDeadUsers", () => {
 		await colls.users.insertOne({ ...restored, _id: userId });
 		assert.ok(await colls.users.findOne({ _id: deadUserId }));
 
+		// The previous test throttled the runs — age the stamp so this one executes.
+		await colls.settings.updateOne(
+			{ _id: SettingsKey.CleanupDeadUsersLastRun },
+			{ $set: { value: subDays(Date.now(), 2).toISOString() } },
+			{ upsert: true },
+		);
 		await cleanupDeadUsers();
 
 		assert.equal(await colls.users.findOne({ _id: deadUserId }), null);

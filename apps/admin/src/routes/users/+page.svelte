@@ -203,7 +203,10 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<h2 class="text-xl font-bold">Users</h2>
+	<div class="flex items-center justify-between gap-3 flex-wrap">
+		<h2 class="text-xl font-bold">Users</h2>
+		<a href="/users/deleted" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">Deleted users →</a>
+	</div>
 
 	<!-- Metrics -->
 	{#if stats}

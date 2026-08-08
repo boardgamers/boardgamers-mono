@@ -8,17 +8,31 @@ export type UserInfo = Pick<UserFront, "_id" | "account" | "security" | "authori
 	recentGames?: RecentGame[];
 };
 
+// Answer shape when the username resolves to an archived (soft-deleted) account
+// instead of an active one.
+export type ArchivedUserInfo = {
+	archived: true;
+	userId: string;
+	account: { username: string };
+	createdAt?: string;
+	deletedAt: string;
+};
+
 export type ApiErrorItem = ApiErrorFront;
 
 export async function load({ params }: { params: { username: string } }): Promise<{
 	user: UserInfo | null;
+	archived: ArchivedUserInfo | null;
 	errors: ApiErrorItem[];
 }> {
 	try {
-		const user = await api.get<UserInfo>(`/admin/users/infoByName/${params.username}`);
-		const errors = await api.get<ApiErrorItem[]>(`/admin/users/${user._id}/api-errors`);
-		return { user, errors };
+		const user = await api.get<UserInfo | ArchivedUserInfo>(`/admin/users/infoByName/${params.username}`);
+		if ("archived" in user && user.archived) {
+			return { user: null, archived: user, errors: [] };
+		}
+		const errors = await api.get<ApiErrorItem[]>(`/admin/users/${(user as UserInfo)._id}/api-errors`);
+		return { user: user as UserInfo, archived: null, errors };
 	} catch {
-		return { user: null, errors: [] };
+		return { user: null, archived: null, errors: [] };
 	}
 }

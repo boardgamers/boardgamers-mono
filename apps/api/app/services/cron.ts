@@ -45,9 +45,13 @@ if (env.cron) {
 	every(1000, singleton("scheduledGames", processSchedulesGames));
 	every(5000, singleton("cancelOldOpenGames", cancelOldOpenGames));
 	every(10000, singleton("unreadyGames", processUnreadyGames));
-	// Once a day: soft-deletes (archives to deletedUsers) only when cleanupDeadUsers="delete",
-	// otherwise dry-run log/off.
-	every(24 * 3600 * 1000, singleton("cleanupDeadUsers", cleanupDeadUsers));
+	// Dead-user cleanup (archives to deletedUsers; only with cleanupDeadUsers="delete",
+	// otherwise dry-run log/off). It self-throttles to at most once per 24h via a
+	// persisted lastRunAt, so an hourly tick + a boot-time run catch up after a
+	// deploy/restart instead of restarting a 24h countdown.
+	const cleanupDeadUsersTick = singleton("cleanupDeadUsers", cleanupDeadUsers);
+	every(3600 * 1000, cleanupDeadUsersTick);
+	cleanupDeadUsersTick();
 }
 
 if (env.automatedEmails) {

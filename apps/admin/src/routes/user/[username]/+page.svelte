@@ -6,11 +6,12 @@
 	import { goto, invalidateAll } from "$app/navigation";
 	import WebLink from "$components/WebLink.svelte";
 	import type { PageProps } from "./$types";
-	import type { UserInfo, ApiErrorItem } from "./+page.ts";
+	import type { UserInfo, ArchivedUserInfo, ApiErrorItem } from "./+page.ts";
 
 	let { data }: PageProps = $props();
 
 	let user = $state<UserInfo | null>(data.user);
+	let archived = $state<ArchivedUserInfo | null>(data.archived);
 	let errors = $state<ApiErrorItem[]>(data.errors);
 	let expandedError = $state<string | null>(null);
 	let gameName = $state("");
@@ -18,6 +19,7 @@
 
 	$effect(() => {
 		user = data.user;
+		archived = data.archived;
 		errors = data.errors;
 	});
 
@@ -439,6 +441,60 @@
 				</div>
 			{/if}
 		</div>
+	</div>
+{:else if archived}
+	<div class="space-y-6">
+		<div class="flex items-center gap-4 flex-wrap">
+			<h2 class="text-xl font-bold">{archived.account.username}</h2>
+			<span
+				class="px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded-full"
+				>Deleted (archived)</span
+			>
+		</div>
+
+		<div
+			class="bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800 p-5 flex items-center gap-3"
+		>
+			<svg
+				class="w-5 h-5 text-red-500 flex-shrink-0"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+				stroke-width="2"
+			>
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+				/>
+			</svg>
+			<p class="text-sm text-red-700 dark:text-red-300">
+				This account was archived by the dead-user cleanup. Its data was moved to
+				<code class="text-xs bg-red-100 dark:bg-red-900/40 px-1 py-0.5 rounded">deletedUsers</code>
+				— restore is manual via the database.
+			</p>
+		</div>
+
+		<div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Username</div>
+				<div class="text-sm font-medium mt-1 truncate">{archived.account.username}</div>
+			</div>
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Joined</div>
+				<div class="text-sm font-medium mt-1">{archived.createdAt ? timeAgo(archived.createdAt) : "—"}</div>
+			</div>
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-red-800 p-4">
+				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Deleted</div>
+				<div class="text-sm font-medium mt-1 text-red-600 dark:text-red-400" title={archived.deletedAt}>
+					{timeAgo(archived.deletedAt)}
+				</div>
+			</div>
+		</div>
+
+		<a href="/users/deleted" class="inline-block text-sm text-blue-600 dark:text-blue-400 hover:underline">
+			← All deleted users
+		</a>
 	</div>
 {:else}
 	<div class="flex items-center justify-center h-32">

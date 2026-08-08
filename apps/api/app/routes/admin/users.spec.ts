@@ -282,4 +282,80 @@ describe("Admin users API", () => {
 			});
 		});
 	});
+
+	describe("deleted (archived) users", () => {
+		const deletedUserId = new ObjectId();
+		const deletedUser2Id = new ObjectId();
+		const deletedAt = new Date("2026-01-02T03:04:05Z");
+
+		before(async () => {
+			// Archive fixtures built like cleanupDeadUsers does: full user doc minus _id,
+			// plus userId/deletedAt.
+			const archive = (id: ObjectId, username: string, when: Date) => {
+				const { _id, ...rest } = testUser({ _id: id, account: { username }, security: { slug: username } });
+				return { ...rest, userId: id, deletedAt: when };
+			};
+			await colls.deletedUsers.insertMany([
+				archive(deletedUserId, "ghost-one", deletedAt),
+				archive(deletedUser2Id, "ghost-two", new Date("2026-01-03T00:00:00Z")),
+			]);
+		});
+
+		it("GET /admin/users/deleted rejects non-admin callers", async () => {
+			const res = await api("GET", "/api/admin/users/deleted");
+			assert.strictEqual(res.status, 403);
+		});
+
+		it("GET /admin/users/deleted lists archived users, most recent first, paginated", async () => {
+			const res = await api("GET", "/api/admin/users/deleted?page=1&limit=1", adminHeaders);
+			assert.strictEqual(res.status, 200);
+
+			interface DeletedBody {
+				users: { userId: string; account: { username: string }; deletedAt: string }[];
+				total: number;
+				page: number;
+				limit: number;
+			}
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			const body = res.data as DeletedBody;
+			assert.strictEqual(body.total, 2);
+			assert.strictEqual(body.page, 1);
+			assert.strictEqual(body.limit, 1);
+			assert.strictEqual(body.users.length, 1);
+			assert.strictEqual(body.users[0].account.username, "ghost-two");
+			assert.strictEqual(body.users[0].userId, deletedUser2Id.toHexString());
+
+			const res2 = await api("GET", "/api/admin/users/deleted?page=2&limit=1", adminHeaders);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			const body2 = res2.data as DeletedBody;
+			assert.strictEqual(body2.users[0].account.username, "ghost-one");
+		});
+
+		it("GET /admin/users/infoByName/:username returns an archived marker for a deleted user", async () => {
+			const res = await api("GET", "/api/admin/users/infoByName/ghost-one", adminHeaders);
+			assert.strictEqual(res.status, 200);
+
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			const body = res.data as { archived: boolean; userId: string; account: { username: string }; deletedAt: string };
+			assert.strictEqual(body.archived, true);
+			assert.strictEqual(body.userId, deletedUserId.toHexString());
+			assert.strictEqual(body.account.username, "ghost-one");
+			assert.strictEqual(new Date(body.deletedAt).toISOString(), deletedAt.toISOString());
+		});
+
+		it("GET /admin/users/infoByName/:username still 404s for a never-existing user", async () => {
+			const res = await api("GET", "/api/admin/users/infoByName/no-such-user-xyz", adminHeaders);
+			assert.strictEqual(res.status, 404);
+		});
+
+		it("GET /admin/users/infoByName/:username still returns active users (no archived flag)", async () => {
+			const user = await colls.users.findOne({ _id: userId });
+			const res = await api("GET", `/api/admin/users/infoByName/${user!.account.username}`, adminHeaders);
+			assert.strictEqual(res.status, 200);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			const body = res.data as { archived?: boolean; account: { username: string } };
+			assert.strictEqual(body.archived, undefined);
+			assert.strictEqual(body.account.username, user!.account.username);
+		});
+	});
 });
