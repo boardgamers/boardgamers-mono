@@ -47,11 +47,14 @@
 <nav class={classes} {...rest}>{@render children?.()}</nav>
 
 <style>
-	/* Links in a colored navbar should read as light, not the global link color. */
-	nav :global(a) {
+	/* Links in a colored navbar should read as light, not the global link color.
+	   Exempt dropdown menus: they render as white/dark cards, so links there keep
+	   the global link color. */
+	nav :global(a:not(.dropdown-menu a)) {
 		color: rgb(255 255 255 / 0.85);
 	}
-	nav :global(a:hover) {
+
+	nav :global(a:not(.dropdown-menu a):hover) {
 		color: #fff;
 	}
 </style>

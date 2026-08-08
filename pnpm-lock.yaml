@@ -74,13 +74,13 @@ importers:
         version: 4.2.1(vite@6.4.1(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1)(sass@1.97.3)(stylus@0.54.8)(terser@5.46.0)(tsx@4.22.1)(yaml@2.8.2))
       eslint:
         specifier: ^9.0.0
-        version: 9.39.3(jiti@2.6.1)
+        version: 9.39.3(jiti@2.6.1)(supports-color@6.1.0)
       eslint-config-prettier:
         specifier: ^10.0.0
-        version: 10.1.8(eslint@9.39.3(jiti@2.6.1))
+        version: 10.1.8(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))
       eslint-plugin-svelte:
         specifier: ^3.0.0
-        version: 3.15.0(eslint@9.39.3(jiti@2.6.1))(svelte@5.53.7)
+        version: 3.15.0(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(svelte@5.53.7)
       oxfmt:
         specifier: 'catalog:'
         version: 0.61.0(svelte@5.53.7)
@@ -171,12 +171,18 @@ importers:
       passport-facebook:
         specifier: ^3.0.0
         version: 3.0.0
+      passport-github2:
+        specifier: ^0.1.12
+        version: 0.1.12
       passport-google-oauth20:
         specifier: ^2.0.0
         version: 2.0.0
       passport-local:
         specifier: ^1.0.0
         version: 1.0.0
+      passport-oauth2:
+        specifier: ^1.8.0
+        version: 1.8.0
       semver:
         specifier: ^7.2.2
         version: 7.7.4
@@ -229,12 +235,18 @@ importers:
       '@types/passport-facebook':
         specifier: ^2.1.10
         version: 2.1.11
+      '@types/passport-github2':
+        specifier: ^1.2.9
+        version: 1.2.9
       '@types/passport-google-oauth20':
         specifier: ^2.0.3
         version: 2.0.17
       '@types/passport-local':
         specifier: ^1.0.33
         version: 1.0.38
+      '@types/passport-oauth2':
+        specifier: ^1.8.0
+        version: 1.8.0
       '@types/semver':
         specifier: ^7.1.0
         version: 7.7.1
@@ -431,10 +443,10 @@ importers:
         version: 0.3.4
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.32.1
-        version: 8.56.1(@typescript-eslint/parser@8.56.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(supports-color@6.1.0)(typescript@6.0.3))(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(supports-color@6.1.0)(typescript@6.0.3)
+        version: 8.56.1(@typescript-eslint/parser@8.56.1(eslint@9.39.3(jiti@2.6.1))(supports-color@6.1.0)(typescript@6.0.3))(eslint@9.39.3(jiti@2.6.1))(supports-color@6.1.0)(typescript@6.0.3)
       '@typescript-eslint/parser':
         specifier: ^8.32.1
-        version: 8.56.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(supports-color@6.1.0)(typescript@6.0.3)
+        version: 8.56.1(eslint@9.39.3(jiti@2.6.1))(supports-color@6.1.0)(typescript@6.0.3)
       '@typescript/native':
         specifier: npm:typescript@^7.0.2
         version: typescript@7.0.2
@@ -443,13 +455,13 @@ importers:
         version: 8.6.0
       eslint:
         specifier: ^9.27.0
-        version: 9.39.3(jiti@2.6.1)(supports-color@6.1.0)
+        version: 9.39.3(jiti@2.6.1)
       eslint-config-prettier:
         specifier: ^10.1.5
-        version: 10.1.8(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))
+        version: 10.1.8(eslint@9.39.3(jiti@2.6.1))
       eslint-plugin-svelte:
         specifier: ^3.9.1
-        version: 3.15.0(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(svelte@5.56.8(@typescript-eslint/types@8.56.1))
+        version: 3.15.0(eslint@9.39.3(jiti@2.6.1))(svelte@5.56.8(@typescript-eslint/types@8.56.1))
       oxfmt:
         specifier: 'catalog:'
         version: 0.61.0(svelte@5.56.8(@typescript-eslint/types@8.56.1))
@@ -2722,6 +2734,9 @@ packages:
 
   '@types/passport-facebook@2.1.11':
     resolution: {integrity: sha512-YsZUZryJvHt2E/WdR22FlnCi9ckMwkGR+FwCcXq830rOvruhXJHJtKSXSD+Kn4phBsrEpqoP4xX6fFuEodk20A==}
+
+  '@types/passport-github2@1.2.9':
+    resolution: {integrity: sha512-/nMfiPK2E6GKttwBzwj0Wjaot8eHrM57hnWxu52o6becr5/kXlH/4yE2v2rh234WGvSgEEzIII02Nc5oC5xEHA==}
 
   '@types/passport-google-oauth20@2.0.17':
     resolution: {integrity: sha512-MHNOd2l7gOTCn3iS+wInPQMiukliAUvMpODO3VlXxOiwNEMSyzV7UNvAdqxSN872o8OXx1SqPDVT6tLW74AtqQ==}
@@ -6932,6 +6947,10 @@ packages:
     resolution: {integrity: sha512-K/qNzuFsFISYAyC1Nma4qgY/12V3RSLFdFVsPKXiKZt434wOvthFW1p7zKa1iQihQMRhaWorVE1o3Vi1o+ZgeQ==}
     engines: {node: '>= 0.4.0'}
 
+  passport-github2@0.1.12:
+    resolution: {integrity: sha512-3nPUCc7ttF/3HSP/k9sAXjz3SkGv5Nki84I05kSQPo01Jqq1NzJACgMblCK0fGcv9pKCG/KXU3AJRDGLqHLoIw==}
+    engines: {node: '>= 0.8.0'}
+
   passport-google-oauth20@2.0.0:
     resolution: {integrity: sha512-KSk6IJ15RoxuGq7D1UKK/8qKhNfzbLeLrG3gkLZ7p4A6DBCcv7xpyQwuXtWdpyR0+E0mwkpjY1VfPOhxQrKzdQ==}
     engines: {node: '>= 0.4.0'}
@@ -11130,6 +11149,12 @@ snapshots:
       '@types/express': 5.0.6
       '@types/passport': 1.0.17
 
+  '@types/passport-github2@1.2.9':
+    dependencies:
+      '@types/express': 5.0.6
+      '@types/passport': 1.0.17
+      '@types/passport-oauth2': 1.8.0
+
   '@types/passport-google-oauth20@2.0.17':
     dependencies:
       '@types/express': 5.0.6
@@ -11229,15 +11254,15 @@ snapshots:
     dependencies:
       '@types/node': 25.3.3
 
-  '@typescript-eslint/eslint-plugin@8.56.1(@typescript-eslint/parser@8.56.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(supports-color@6.1.0)(typescript@6.0.3))(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(supports-color@6.1.0)(typescript@6.0.3)':
+  '@typescript-eslint/eslint-plugin@8.56.1(@typescript-eslint/parser@8.56.1(eslint@9.39.3(jiti@2.6.1))(supports-color@6.1.0)(typescript@6.0.3))(eslint@9.39.3(jiti@2.6.1))(supports-color@6.1.0)(typescript@6.0.3)':
     dependencies:
       '@eslint-community/regexpp': 4.12.2
-      '@typescript-eslint/parser': 8.56.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(supports-color@6.1.0)(typescript@6.0.3)
+      '@typescript-eslint/parser': 8.56.1(eslint@9.39.3(jiti@2.6.1))(supports-color@6.1.0)(typescript@6.0.3)
       '@typescript-eslint/scope-manager': 8.56.1
-      '@typescript-eslint/type-utils': 8.56.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(supports-color@6.1.0)(typescript@6.0.3)
-      '@typescript-eslint/utils': 8.56.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(typescript@6.0.3)
+      '@typescript-eslint/type-utils': 8.56.1(eslint@9.39.3(jiti@2.6.1))(supports-color@6.1.0)(typescript@6.0.3)
+      '@typescript-eslint/utils': 8.56.1(eslint@9.39.3(jiti@2.6.1))(typescript@6.0.3)
       '@typescript-eslint/visitor-keys': 8.56.1
-      eslint: 9.39.3(jiti@2.6.1)(supports-color@6.1.0)
+      eslint: 9.39.3(jiti@2.6.1)
       ignore: 7.0.5
       natural-compare: 1.4.0
       ts-api-utils: 2.4.0(typescript@6.0.3)
@@ -11245,14 +11270,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/parser@8.56.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(supports-color@6.1.0)(typescript@6.0.3)':
+  '@typescript-eslint/parser@8.56.1(eslint@9.39.3(jiti@2.6.1))(supports-color@6.1.0)(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/scope-manager': 8.56.1
       '@typescript-eslint/types': 8.56.1
       '@typescript-eslint/typescript-estree': 8.56.1(supports-color@6.1.0)(typescript@6.0.3)
       '@typescript-eslint/visitor-keys': 8.56.1
       debug: 4.4.3(supports-color@6.1.0)
-      eslint: 9.39.3(jiti@2.6.1)(supports-color@6.1.0)
+      eslint: 9.39.3(jiti@2.6.1)
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
@@ -11275,13 +11300,13 @@ snapshots:
     dependencies:
       typescript: 6.0.3
 
-  '@typescript-eslint/type-utils@8.56.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(supports-color@6.1.0)(typescript@6.0.3)':
+  '@typescript-eslint/type-utils@8.56.1(eslint@9.39.3(jiti@2.6.1))(supports-color@6.1.0)(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/types': 8.56.1
       '@typescript-eslint/typescript-estree': 8.56.1(supports-color@6.1.0)(typescript@6.0.3)
-      '@typescript-eslint/utils': 8.56.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(typescript@6.0.3)
+      '@typescript-eslint/utils': 8.56.1(eslint@9.39.3(jiti@2.6.1))(typescript@6.0.3)
       debug: 4.4.3(supports-color@6.1.0)
-      eslint: 9.39.3(jiti@2.6.1)(supports-color@6.1.0)
+      eslint: 9.39.3(jiti@2.6.1)
       ts-api-utils: 2.4.0(typescript@6.0.3)
       typescript: 6.0.3
     transitivePeerDependencies:
@@ -11304,13 +11329,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/utils@8.56.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(typescript@6.0.3)':
+  '@typescript-eslint/utils@8.56.1(eslint@9.39.3(jiti@2.6.1))(typescript@6.0.3)':
     dependencies:
-      '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))
+      '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.3(jiti@2.6.1))
       '@typescript-eslint/scope-manager': 8.56.1
       '@typescript-eslint/types': 8.56.1
       '@typescript-eslint/typescript-estree': 8.56.1(supports-color@6.1.0)(typescript@6.0.3)
-      eslint: 9.39.3(jiti@2.6.1)(supports-color@6.1.0)
+      eslint: 9.39.3(jiti@2.6.1)
       typescript: 6.0.3
     transitivePeerDependencies:
       - supports-color
@@ -13708,7 +13733,7 @@ snapshots:
     dependencies:
       eslint: 9.39.3(jiti@2.6.1)
 
-  eslint-plugin-svelte@3.15.0(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(svelte@5.56.8(@typescript-eslint/types@8.56.1)):
+  eslint-plugin-svelte@3.15.0(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(svelte@5.53.7):
     dependencies:
       '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -13720,13 +13745,13 @@ snapshots:
       postcss-load-config: 3.1.4(postcss@8.5.6)
       postcss-safe-parser: 7.0.1(postcss@8.5.6)
       semver: 7.7.4
-      svelte-eslint-parser: 1.5.1(svelte@5.56.8(@typescript-eslint/types@8.56.1))
+      svelte-eslint-parser: 1.5.1(svelte@5.53.7)
     optionalDependencies:
-      svelte: 5.56.8(@typescript-eslint/types@8.56.1)
+      svelte: 5.53.7
     transitivePeerDependencies:
       - ts-node
 
-  eslint-plugin-svelte@3.15.0(eslint@9.39.3(jiti@2.6.1))(svelte@5.53.7):
+  eslint-plugin-svelte@3.15.0(eslint@9.39.3(jiti@2.6.1))(svelte@5.56.8(@typescript-eslint/types@8.56.1)):
     dependencies:
       '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.3(jiti@2.6.1))
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -13738,9 +13763,9 @@ snapshots:
       postcss-load-config: 3.1.4(postcss@8.5.6)
       postcss-safe-parser: 7.0.1(postcss@8.5.6)
       semver: 7.7.4
-      svelte-eslint-parser: 1.5.1(svelte@5.53.7)
+      svelte-eslint-parser: 1.5.1(svelte@5.56.8(@typescript-eslint/types@8.56.1))
     optionalDependencies:
-      svelte: 5.53.7
+      svelte: 5.56.8(@typescript-eslint/types@8.56.1)
     transitivePeerDependencies:
       - ts-node
 
@@ -16125,6 +16150,10 @@ snapshots:
       passport-oauth2: 1.8.0
 
   passport-facebook@3.0.0:
+    dependencies:
+      passport-oauth2: 1.8.0
+
+  passport-github2@0.1.12:
     dependencies:
       passport-oauth2: 1.8.0
 

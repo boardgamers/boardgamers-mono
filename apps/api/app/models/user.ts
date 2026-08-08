@@ -21,7 +21,8 @@ export function makeDefaultUser(params: {
 	confirmKey: string;
 	confirmed: boolean;
 	newsletter: boolean;
-	social?: { google?: string; facebook?: string; discord?: string };
+	social?: { google?: string; facebook?: string; discord?: string; github?: string; huggingface?: string };
+	socialMeta?: UserDoc["account"]["socialMeta"];
 }): UserDoc {
 	const now = new Date();
 	return {
@@ -34,6 +35,7 @@ export function makeDefaultUser(params: {
 			// Omit `social` when absent: the driver serializes `undefined` as null, and a
 			// stored `social: null` breaks later `$set: { "account.social.<provider>" }` updates.
 			...(params.social ? { social: params.social } : {}),
+			...(params.socialMeta ? { socialMeta: params.socialMeta } : {}),
 			avatar: "avataaars",
 			bio: "",
 		},

@@ -7,6 +7,8 @@
 // root node_modules, so the store path is passed in and imported dynamically.
 const { BSON } = await import(process.env.MONGODB_STORE);
 
+// `account.social` and `account.socialMeta` are intentionally NOT whitelisted: provider
+// account ids and public profile handles/URLs identify the person, so previews drop them.
 const KEEP_ACCOUNT = new Set(["username", "karma", "termsAndConditions", "avatar", "bio", "country"]);
 const KEEP_SECURITY = new Set(["slug", "confirmed", "lastActive", "lastOnline", "lastSeen"]);
 const KEEP_SETTINGS = new Set(["game", "home"]);

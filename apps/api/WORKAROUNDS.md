@@ -30,3 +30,24 @@ The route inherits `router.use(isAdmin)` from the admin router (`app/routes/admi
 ### `fetch()` errors and the `isLokiDown` helper
 
 Node 18+ wraps network failures from `fetch()` as `TypeError("fetch failed")` with the real cause (`ECONNREFUSED`, `ENOTFOUND`, `EAI_AGAIN`, …) on `err.cause`, not on `err.message`. The `isLokiDown()` helper in `loki.ts` checks both layers so a down Loki surfaces as a 503 ("Loki is not running") instead of leaking through as a 500. If we ever drop the `fetch`-based proxy (e.g. switch to undici directly, or Node changes the error shape), revisit the helper.
+
+## Hugging Face login via CIMD — no registered app, no relay (`app/config/passport.ts`, `apps/web/src/routes/.well-known/oauth-cimd/+server.ts`)
+
+Hugging Face supports CIMD (Client ID Metadata Documents): the OAuth `client_id` is the
+env's OWN `/.well-known/oauth-cimd` URL (served by the web app), which HF fetches and
+validates. That doc names the env's own `/auth/huggingface/callback` as the redirect, so
+every environment (prod + each PR preview) does HF login directly — the old prod
+redirect-**relay** (`/huggingface?returnTo=…` + `/relay/callback`) is gone entirely, and
+no `huggingfaceId`/`huggingfaceSecret` env or HF OAuth app registration is needed.
+
+Because the client_id is per-origin and passport-oauth2 bakes it into the strategy, HF
+strategies are built lazily and cached per origin (`huggingfaceStrategy(origin)`).
+CIMD mandates a public PKCE client (`token_endpoint_auth_method: "none"`), so there is
+no secret by design. The PKCE state lives in Mongo `oauthflows` (`models/oauthflows.ts`)
+— single-use, TTL-expired, shared across processes.
+
+The CIMD endpoint must be publicly reachable over HTTPS at
+`https://<host>/.well-known/oauth-cimd` (it's on the web app, which nginx routes the
+public origin to). The other providers (google/discord/facebook/github) have no CIMD
+support — they keep their pre-registered confidential-client (or, for github, PKCE) apps
+with prod's fixed callback, so on preview envs their social login simply isn't wired up.

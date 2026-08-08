@@ -8,13 +8,14 @@
 	import { post } from "@/lib/api";
 	import Checkbox from "@/modules/cdk/Checkbox.svelte";
 	import { handleError } from "@/utils";
-	import { upperFirst } from "lodash";
 
 	useLoggedOut();
 
 	let email = $state(page.url.searchParams.get("user") ?? "");
-	let isSocial = page.url.searchParams.get("createSocialAccount");
-	let provider = page.url.searchParams.get("provider")!;
+	// Social signup arrives either with a server-side `ticket` (redirect-only flow, #155)
+	// or the legacy query params (createSocialAccount + jwt) from the old interstitial.
+	let ticket = page.url.searchParams.get("ticket");
+	let isSocial = ticket !== null || page.url.searchParams.get("createSocialAccount") !== null;
 
 	let password = $state("");
 	let passwordConfirm = $state("");
@@ -32,7 +33,12 @@
 		return post<AuthData>("/account/signup", params).then(setAuthData);
 	}
 
-	async function registerSocial(params: { jwt: string; username: string; termsAndConditions: boolean }): Promise<void> {
+	async function registerSocial(params: {
+		username: string;
+		termsAndConditions: boolean;
+		jwt?: string;
+		ticket?: string;
+	}): Promise<void> {
 		return post<AuthData>("/account/signup/social", params).then(setAuthData);
 	}
 
@@ -43,9 +49,11 @@
 		}
 
 		if (isSocial) {
-			const jwt = page.url.searchParams.get("jwt")!;
-
-			registerSocial({ username, termsAndConditions: tc, jwt }).catch(handleError);
+			registerSocial({
+				username,
+				termsAndConditions: tc,
+				...(ticket ? { ticket } : { jwt: page.url.searchParams.get("jwt")! }),
+			}).catch(handleError);
 		} else {
 			if (password !== passwordConfirm) {
 				handleError("The two passwords don't match");
@@ -82,8 +90,7 @@
 			/>
 			{#if isSocial}
 				<small id="usernameHelp" class="text-xs text-gray-500 dark:text-gray-400">
-					You are signing up with <b class={`text-${provider}`}> {upperFirst(provider)}</b>. You still need to decide on
-					a username to use on the site.
+					You are signing up with a social account. You still need to decide on a username to use on the site.
 				</small>
 			{/if}
 		</div>
