@@ -1,6 +1,6 @@
 import { browser } from "$app/environment";
 import type { LayoutLoad } from "./$types";
-import { activeGames, setAccount, sidebarOpen } from "@/lib/stores.svelte";
+import { seedAccountFromSSR, seedActiveGamesFromSSR, sidebarOpen } from "@/lib/stores.svelte";
 import { fetchGameInfos } from "@/lib/game-info.svelte";
 import type { GameInfoFront } from "@bgs/models";
 import type { SetOptional } from "type-fest";
@@ -34,11 +34,13 @@ export const load: LayoutLoad = async ({ data }) => {
 	}
 
 	if (browser) {
-		// Seed stores from the initial SSR data (client only).
-		setAccount(data?.user ?? null);
-		if (data?.activeGames) {
-			activeGames.set(data.activeGames);
-		}
+		// Seed the client stores from the SSR snapshot. These are no-ops on a
+		// same-identity revalidation (see the "seed once per identity" invariant in
+		// stores.svelte.ts), so `invalidateAll()` re-runs don't clobber live state,
+		// while login/logout (identity change) re-seed from the fresh snapshot.
+		const user = data?.user ?? null;
+		seedAccountFromSSR(user);
+		seedActiveGamesFromSSR(data?.activeGames ?? [], user?._id ?? null);
 
 		initWebsocket();
 		initNProgress();

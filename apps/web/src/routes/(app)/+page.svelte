@@ -7,7 +7,7 @@
 	import marked from "marked";
 	import GameList from "@/components/Game/GameList.svelte";
 	import { account } from "@/lib/account.svelte";
-	import { activeGames } from "@/lib/stores.svelte";
+	import { activeGames, live } from "@/lib/stores.svelte";
 	import { page } from "$app/state";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
@@ -15,10 +15,10 @@
 	let { data }: PageProps = $props();
 	let announcement = $derived(data.announcement);
 
-	// Client prefers the stores (seeded by the layout); SSR falls back to page.data so
-	// the homepage doesn't flicker between "My games" and "Featured games".
-	let user = $derived(($account ?? page.data.user) as UserFront | null);
-	let myGames = $derived($activeGames.length > 0 ? $activeGames : ((page.data.activeGames as string[]) ?? []));
+	// SSR renders the snapshot; the client trusts the seeded stores (see the invariant in
+	// stores.svelte.ts), so the homepage doesn't flicker between "My games" and "Featured".
+	let user = $derived(live($account, (page.data.user as UserFront | null) ?? null));
+	let myGames = $derived(live($activeGames, (page.data.activeGames as string[]) ?? []));
 </script>
 
 <SEO />

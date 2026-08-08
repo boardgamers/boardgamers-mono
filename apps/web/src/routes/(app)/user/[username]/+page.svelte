@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { UserGames, UserElo, SEO, UserAvatar } from "@/components";
 	import { Button, Card } from "@/modules/cdk";
-	import { account } from "@/lib/account.svelte";
 	import { dateFromObjectId } from "@/utils";
 	import { countryFlag, countryName } from "@/lib/countries";
 	import { page } from "$app/state";
@@ -48,7 +47,7 @@
 			{#if data.user.account.bio}<p class="mt-2" title={`${data.user.account.username}'s bio`}>
 					📝 {data.user.account.bio}
 				</p>{/if}
-			{#if data.user && $account?._id === data.user._id}
+			{#if data.isOwnProfile}
 				<Button color="primary" href="/account" class="mt-2">✏️ Edit profile</Button>
 				{#if !data.user.account.bio || !data.user.account.country}
 					<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
