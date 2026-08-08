@@ -3,9 +3,15 @@ import type { IndexDescription } from "mongodb";
 
 /**
  * Server-side state for an in-flight social OAuth flow (PKCE handshake or pending
- * social signup). Single-use, short-lived. Stored in Mongo so the flow survives
- * process restarts and works across PM2 workers (the predecessor was a per-process
- * in-memory Map — see apps/api WORKAROUNDS.md).
+ * social signup). Single-use, short-lived.
+ *
+ * Deliberately server-side rather than a cookie: the PKCE code_verifier is a bearer
+ * secret, so keeping it out of the browser entirely beats even an httpOnly cookie
+ * (which rides every request), and deleting the doc on first use is genuinely
+ * single-use (a cookie clears only when the response reaches the browser). Mongo
+ * also makes the flow survive restarts and work across PM2 workers with no sticky
+ * routing — and the pending-signup ticket is redeemed cross-origin after the OAuth
+ * callback, which a cookie couldn't do at all.
  *
  * Verifiers and pending signups are NOT personal data — they are single-use and
  * expire within minutes (TTL index below).

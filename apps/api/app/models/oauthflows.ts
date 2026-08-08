@@ -4,8 +4,10 @@ import { colls } from "../config/db.ts";
 
 /**
  * Server-side store for in-flight social OAuth flows (Mongo-backed, so state
- * survives restarts and works across PM2 workers — replacing the per-process
- * in-memory Maps the PKCE work started with).
+ * survives restarts and works across PM2 workers). Server-side over a cookie on
+ * purpose: the PKCE verifier is a bearer secret that never enters the browser,
+ * and findOneAndDelete is genuinely single-use — see the schema doc in
+ * @bgs/models (oauthflow.ts).
  *
  * Lifecycle per flow kind (all single-use, all TTL-expired):
  *  - `oauth-state`    createOAuthState → verifyOAuthState (deletes)

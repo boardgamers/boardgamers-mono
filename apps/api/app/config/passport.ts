@@ -432,8 +432,14 @@ const strategyOf = (name: SocialProvider) =>
 
 // The default PKCE state store keeps the code verifier in `req.session`, which this app
 // doesn't have. This store keeps the same CSRF model (random handle in the OAuth `state`
-// param, verified on callback) but persists server-side in Mongo (models/oauthflows.ts),
-// so the flow survives restarts and works across processes. Shared by every PKCE strategy.
+// param, verified on callback) but persists server-side in Mongo (models/oauthflows.ts).
+// Why not an httpOnly cookie instead? The verifier is a bearer secret: server-side it
+// never enters the browser at all, while a cookie travels with every request; deletion
+// on first callback makes it genuinely single-use server-side (a cookie clears only when
+// the response reaches the browser); and it survives restarts / works across PM2 workers
+// with no sticky routing. The collection also backs the pending-signup ticket, which is
+// redeemed on the web origin after the callback — that one can't be a cookie regardless.
+// Shared by every PKCE strategy.
 const STATE_TTL_MS = 15 * 60 * 1000;
 
 const mongoStateStore = {
@@ -482,13 +488,21 @@ const mongoStateStore = {
 // ---------------------------------------------------------------------------
 // Hugging Face via CIMD (Client ID Metadata Documents)
 //
-// HF advertises `client_id_metadata_document_supported: true`, so instead of a
-// pre-registered OAuth app the client_id is the env's OWN `/.well-known/oauth-cimd`
-// URL (served by the web app), which HF fetches+validates. CIMD mandates a public
-// PKCE client (token_endpoint_auth_method "none") — no secret, no env, no registered
-// redirect: each origin's doc names its own /auth/huggingface/callback, so previews
-// log in directly (no prod relay). Because the client_id is per-origin and passport
-// bakes it into the strategy, strategies are built lazily and cached per origin.
+// CIMD is the elegant part of this login, not a workaround: HF advertises
+// `client_id_metadata_document_supported: true`, so instead of a pre-registered
+// OAuth app the client_id is the env's OWN `/.well-known/oauth-cimd` URL (served
+// by the web app), which HF fetches+validates. CIMD mandates a public PKCE client
+// (token_endpoint_auth_method "none") — no secret, no env, no registered redirect:
+// each origin's doc names its own /auth/huggingface/callback, so prod AND every PR
+// preview log in directly (no prod relay). Only constraint: the CIMD endpoint must
+// be publicly reachable over HTTPS at `https://<host>/.well-known/oauth-cimd` (it
+// is — nginx routes the public origin to the web app).
+//
+// Because the client_id is per-origin and passport bakes it into the strategy,
+// strategies are built lazily and cached per origin. The other providers
+// (google/discord/facebook/github) have no CIMD support — they keep their
+// pre-registered apps with prod's fixed callback, so on preview envs their social
+// login simply isn't wired up.
 // ---------------------------------------------------------------------------
 const hfStrategies = new Map<string, OAuth2StrategyInstance>();
 
