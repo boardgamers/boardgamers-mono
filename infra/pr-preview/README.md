@@ -79,9 +79,19 @@ only host _loopback_ is firewalled off.
 
 `.github/workflows/pr-preview.yml` (`pull_request_target`): gated on
 MEMBER/OWNER/COLLABORATOR or a `preview` label, calls
-`https://pr-preview-api.boardgamers.space` with the shared secret, comments the
-URL on the PR (updated on each push), tears down on close/unlabel. Needs repo
-secret `PREVIEW_SECRET` = the minipc `~/.config/bgs-preview/secret`.
+`https://pr-preview-api.boardgamers.space` with the shared secret, surfaces the URL as a
+GitHub Deployment per push, comments the player + admin URLs on the PR the first time a
+preview goes live (sentinel `<!-- pr-preview-deployed -->`, so later pushes don't spam),
+and tears down on close/unlabel. Needs repo secret `PREVIEW_SECRET` = the minipc
+`~/.config/bgs-preview/secret`.
+
+The session cookie is scoped host-only per preview host. The api stamps
+`Domain=domain` (`pr-<n>.boardgamers.space`), which the browser accepts on the player host
+(host == Domain) but rejects on the admin host — `admin-pr-<n>.boardgamers.space` is a
+sibling of `pr-<n>`, not a subdomain. The coyo vhost rewrites it with
+`proxy_cookie_domain pr-<n>.boardgamers.space $host;` in BOTH server blocks, so each host
+stores a host-only cookie (`pr-<n>` on the player, `admin-pr-<n>` on the admin) and no
+cookie ever carries the shared `boardgamers.space` ancestor (which would leak into prod).
 
 ## Ports (minipc, WireGuard IP only)
 
