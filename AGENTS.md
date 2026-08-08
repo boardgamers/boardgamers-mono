@@ -104,6 +104,38 @@ Rules for the agent:
 - Local seeded db (`apps/api/scripts/seed.ts`): every fixture user's password is
   also `password` (e.g. `admin@test.com` / `password`).
 
+### Admin tokens (scripting admin APIs without a password)
+
+For scripting `/api/admin/*` (e.g. filling preview/prod data), an admin can mint a
+**personal admin token** instead of embedding credentials. Tokens are temporary
+(`ttlDays`, max 90, default 30) and revocable/rotatable at any time. Only the
+token's sha256 hash is stored — the raw token is returned exactly once, so copy
+it immediately. A token authenticates as its owner on admin routes only while the
+owner still has `authority === "admin"`; it is **not** a session — it can't mint
+access/refresh tokens or change the account. Create one with any admin session
+(JWT or cookie), e.g. on a preview with `coyotte508` / `password`:
+
+```bash
+# 1. Log in as an admin → accessToken.code
+ACCESS=$(curl -s https://pr-<N>.boardgamers.space/api/account/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"coyotte508","password":"password"}' | jq -r .accessToken.code)
+
+# 2. Create an admin token (raw value shown only in this response)
+curl -X POST https://pr-<N>.boardgamers.space/api/admin/tokens \
+  -H "Authorization: Bearer $ACCESS" -H 'content-type: application/json' \
+  -d '{"name":"my-agent","ttlDays":7}'
+# → { _id, name, createdAt, expiresAt, token: "<raw token — save it now>" }
+
+# 3. Use it on admin APIs
+curl https://pr-<N>.boardgamers.space/api/admin/serverinfo \
+  -H "Authorization: Bearer <raw token>"
+
+# Manage: list own tokens, revoke by id (rotation = revoke + create)
+curl https://pr-<N>.boardgamers.space/api/admin/tokens -H "Authorization: Bearer <raw token>"
+curl -X DELETE https://pr-<N>.boardgamers.space/api/admin/tokens/<id> -H "Authorization: Bearer <raw token>"
+```
+
 ## Workarounds
 
 Each project keeps a `WORKAROUNDS.md` (e.g. `apps/web/WORKAROUNDS.md`, `apps/api/WORKAROUNDS.md`) listing temporary shims and deferred cleanups — things intentional for now but to revisit later. When you add such a thing, log a short entry there; when you touch related code, check whether an entry can be removed.
