@@ -275,6 +275,12 @@ ${context.game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}
 	image={ogImageUrl(defaultOgImage.path, {
 		title: `${gameLabel(context.gameInfo?.label ?? "")} game`,
 		subtitle: ogSubtitle,
+		game: gameLabel(context.gameInfo?.label ?? ""),
+		players: context.game ? `${context.game.players.length} players` : undefined,
+		pace:
+			context.game?.status === "active" && context.game.context?.round
+				? `Round ${context.game.context.round}`
+				: undefined,
 	})}
 />
 

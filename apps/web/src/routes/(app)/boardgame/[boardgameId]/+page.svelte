@@ -55,6 +55,7 @@
 	image={ogImageUrl(defaultOgImage.path, {
 		title: gameLabel(boardgame.label),
 		subtitle: `Play ${gameLabel(boardgame.label)} online with other people!`,
+		game: gameLabel(boardgame.label),
 	})}
 />
 

@@ -68,6 +68,16 @@
 		}
 	};
 
+	// Chips on the OG card: players joined + game pace (≥24h per player = asynchronous,
+	// same threshold as the short-duration warning below).
+	let ogPlayers = $derived(`${context.game?.players.length} / ${context.game?.options.setup.nbPlayers} players joined`);
+	let ogPace = $derived(
+		(context.game?.options.timing.timePerGame ?? 0) >= 24 * 3600
+			? `Asynchronous — ${duration(context.game?.options.timing.timePerGame ?? 0)} / player`
+			: `Live — ${duration(context.game?.options.timing.timePerGame ?? 0)} / player`
+	);
+	let ogSubtitle = $derived(`Join and play online! ${ogPace}`);
+
 	const leave = async () => {
 		if (await confirm("Are you sure you want to leave this game?")) {
 			post(`/game/${gameId}/unjoin`).then(() => goto(resolve("/(app)")), handleError);
@@ -215,7 +225,10 @@
 		.join('\\n')}"
 	image={ogImageUrl(defaultOgImage.path, {
 		title: `${gameLabel(context.gameInfo?.label ?? "")} — open game`,
-		subtitle: `${context.game?.players.length} / ${context.game?.options.setup.nbPlayers} players joined`,
+		subtitle: ogSubtitle,
+		game: gameLabel(context.gameInfo?.label ?? ""),
+		players: ogPlayers,
+		pace: ogPace,
 	})}
 />
 
