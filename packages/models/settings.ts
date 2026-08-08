@@ -22,4 +22,7 @@ export const SETTINGS_COLLECTION = "settings";
 export const SettingsKey = {
 	Announcement: "announcement",
 	DBVersion: "dbVersion",
+	// Last time the dead-user cleanup ran (ISO string in `value`) — lets the cron
+	// survive restarts/deploys instead of counting 24h from process boot.
+	CleanupDeadUsersLastRun: "cleanupDeadUsersLastRun",
 } as const;

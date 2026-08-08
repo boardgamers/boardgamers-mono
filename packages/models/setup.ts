@@ -18,6 +18,7 @@ import { PAGES_COLLECTION, pageSchema } from "./page.ts";
 import { ROOM_METADATA_COLLECTION, roomMetaDataIndexes, roomMetaDataSchema } from "./roommetadata.ts";
 import { SETTINGS_COLLECTION, settingsSchema } from "./settings.ts";
 import { USERS_COLLECTION, userIndexes, userSchema } from "./user.ts";
+import { DELETED_USERS_COLLECTION, deletedUserIndexes, deletedUserSchema } from "./deleteduser.ts";
 import { zodToMongoSchema } from "./mongo-schema.ts";
 
 async function ensureCappedCollection(db: Db, name: string, options: { size: number; max?: number }) {
@@ -44,6 +45,7 @@ export async function ensureIndexes(db: Db) {
 		[IMAGES_COLLECTION, imageIndexes],
 		[JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenIndexes],
 		[ROOM_METADATA_COLLECTION, roomMetaDataIndexes],
+		[DELETED_USERS_COLLECTION, deletedUserIndexes],
 	];
 
 	for (const [collection, indexes] of indexMap) {
@@ -66,6 +68,7 @@ export async function ensureValidation(db: Db) {
 		[ROOM_METADATA_COLLECTION, roomMetaDataSchema],
 		[SETTINGS_COLLECTION, settingsSchema],
 		[USERS_COLLECTION, userSchema],
+		[DELETED_USERS_COLLECTION, deletedUserSchema],
 	];
 
 	const existing = new Set((await db.listCollections().toArray()).map((c) => c.name));
