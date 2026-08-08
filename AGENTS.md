@@ -104,37 +104,21 @@ Rules for the agent:
 - Local seeded db (`apps/api/scripts/seed.ts`): every fixture user's password is
   also `password` (e.g. `admin@test.com` / `password`).
 
-### Admin tokens (scripting admin APIs without a password)
+### Admin tokens (agent-facing)
 
-For scripting `/api/admin/*` (e.g. filling preview/prod data), an admin can mint a
-**personal admin token** instead of embedding credentials. Tokens are temporary
-(`ttlDays`, max 90, default 30) and revocable/rotatable at any time. Only the
-token's sha256 hash is stored — the raw token is returned exactly once, so copy
-it immediately. A token authenticates as its owner on admin routes only while the
-owner still has `authority === "admin"`; it is **not** a session — it can't mint
-access/refresh tokens or change the account. Create one with any admin session
-(JWT or cookie), e.g. on a preview with `coyotte508` / `password`:
+To let an agent script `/api/admin/*` (prod or preview) without a password, **a
+human admin creates a token and hands you the raw value** — via one
+`POST /api/admin/tokens` (`{ name, ttlDays? }`) from their authenticated admin
+session; the raw token is shown exactly once in that response. You then simply:
 
 ```bash
-# 1. Log in as an admin → accessToken.code
-ACCESS=$(curl -s https://pr-<N>.boardgamers.space/api/account/login \
-  -H 'content-type: application/json' \
-  -d '{"email":"coyotte508","password":"password"}' | jq -r .accessToken.code)
-
-# 2. Create an admin token (raw value shown only in this response)
-curl -X POST https://pr-<N>.boardgamers.space/api/admin/tokens \
-  -H "Authorization: Bearer $ACCESS" -H 'content-type: application/json' \
-  -d '{"name":"my-agent","ttlDays":7}'
-# → { _id, name, createdAt, expiresAt, token: "<raw token — save it now>" }
-
-# 3. Use it on admin APIs
-curl https://pr-<N>.boardgamers.space/api/admin/serverinfo \
-  -H "Authorization: Bearer <raw token>"
-
-# Manage: list own tokens, revoke by id (rotation = revoke + create)
-curl https://pr-<N>.boardgamers.space/api/admin/tokens -H "Authorization: Bearer <raw token>"
-curl -X DELETE https://pr-<N>.boardgamers.space/api/admin/tokens/<id> -H "Authorization: Bearer <raw token>"
+curl https://<host>/api/admin/<endpoint> -H "Authorization: Bearer <token>"
 ```
+
+Tokens are temporary (default 30d, max 90d) and revocable, and only work while
+their owner is still an admin — treat one as a credential, and ask the admin for
+a new one if it stops working. (Admins: list/revoke your own tokens via
+`GET`/`DELETE /api/admin/tokens`.)
 
 ## Workarounds
 
