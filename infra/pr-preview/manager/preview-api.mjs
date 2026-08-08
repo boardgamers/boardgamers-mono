@@ -4,7 +4,8 @@
 //   GET    /health
 //   GET    /envs                      -> [{pr, sha, status, ports, url, createdAt}]
 //   PUT    /envs/:pr   {sha}          create (or update to a new sha); 409 when full
-//   DELETE /envs/:pr                  tear down
+//                                       update swaps the container but KEEPS the env db
+//   DELETE /envs/:pr                  tear down (container + db)
 //   POST   /seed                      import newest dumps/template as bgs-preview-template
 //
 // Public routing (TLS, /api, /ws, /resources, /) is done by a wildcard nginx vhost on
@@ -95,7 +96,10 @@ async function createEnv(pr, sha) {
 		err.status = 409;
 		throw err;
 	}
-	if (existing) await deleteEnv(pr);
+	// Update (PUT for an existing PR): swap the container only — the env db is NOT
+	// dropped, so admin-added content survives a code redeploy. Dropping the db is
+	// reserved for true deletes (PR closed / janitor reap), see deleteEnv.
+	if (existing) await stopContainer(pr);
 
 	const p = ports(pr);
 	// Launch via systemd-run so the container (and its rootlessport forwarder) lives in
@@ -171,8 +175,8 @@ async function createEnv(pr, sha) {
 		IMAGE,
 	]);
 
-	// Re-read (deleteEnv may have rewritten state) and replace, not push, so a retried
-	// PUT never leaves a duplicate entry for the same PR.
+	// Re-read and replace, not push, so a retried PUT never leaves a duplicate entry
+	// for the same PR.
 	const fresh = loadState();
 	fresh.envs = fresh.envs.filter((e) => e.pr !== pr);
 	const env = { pr, sha, url: `https://${HOST_DOMAIN(pr)}`, ports: p, createdAt: new Date().toISOString() };
@@ -181,14 +185,14 @@ async function createEnv(pr, sha) {
 	return env;
 }
 
-async function deleteEnv(pr) {
-	// Stop the transient scope first (kills the container); podman rm is the fallback
-	// for anything not under systemd-run.
+// Stop the transient scope first (kills the container); podman rm is the fallback
+// for anything not under systemd-run. Touches neither state nor the env db.
+async function stopContainer(pr) {
 	await sh("systemctl", ["--user", "stop", `bgs-pr-${pr}`]).catch(() => {});
 	await sh("podman", ["rm", "-f", "-t", "5", `bgs-pr-${pr}`]).catch(() => {});
-	const state = loadState();
-	state.envs = state.envs.filter((e) => e.pr !== pr);
-	saveState(state);
+}
+
+async function dropEnvDb(pr) {
 	// db cleanup is best-effort; a leftover db is harmless and reused on next create
 	await sh("podman", [
 		"exec",
@@ -198,6 +202,15 @@ async function deleteEnv(pr) {
 		"--eval",
 		`db.getSiblingDB('bgs-pr-${pr}').dropDatabase()`,
 	]).catch(() => {});
+}
+
+// True delete (PR closed, janitor TTL reap): container + state + db all go.
+async function deleteEnv(pr) {
+	await stopContainer(pr);
+	const state = loadState();
+	state.envs = state.envs.filter((e) => e.pr !== pr);
+	saveState(state);
+	await dropEnvDb(pr);
 }
 
 async function listEnvs() {

@@ -4,6 +4,7 @@
 
 	let {
 		header = "",
+		headerContent,
 		class: className = "",
 		onclick,
 		footer,
@@ -11,6 +12,7 @@
 		...rest
 	}: {
 		header?: string;
+		headerContent?: Snippet;
 		class?: string;
 		onclick?: (e: MouseEvent) => void;
 		footer?: Snippet;
@@ -27,8 +29,10 @@
 </script>
 
 <div class={classes} {onclick} {...rest}>
-	{#if header}
-		<div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 font-semibold text-center">{header}</div>
+	{#if header || headerContent}
+		<div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 font-semibold text-center">
+			{#if headerContent}{@render headerContent()}{:else}{header}{/if}
+		</div>
 	{/if}
 	<div class="grow p-4">
 		{@render children?.()}

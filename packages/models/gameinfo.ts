@@ -40,6 +40,14 @@ export const gameInfoSchema = z.object({
 	label: z.string(),
 	description: z.string().optional(),
 	rules: z.string().optional(),
+	links: z
+		.object({
+			source: z.string().optional(),
+			bgg: z.string().optional(),
+			publisher: z.string().optional(),
+			buy: z.string().optional(),
+		})
+		.optional(),
 	viewer: viewerInfoSchema.extend({ alternate: viewerInfoSchema.optional() }),
 	engine: z
 		.object({

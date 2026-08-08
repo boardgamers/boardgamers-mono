@@ -52,7 +52,7 @@ export type { OAuthFlowDoc } from "./oauthflow.ts";
 export { oauthFlowSchema, OAUTH_FLOWS_COLLECTION, oauthFlowIndexes } from "./oauthflow.ts";
 
 // --- Log ---
-export type { LogDoc } from "./log.ts";
+export type { LogDoc, LogFront } from "./log.ts";
 export { logSchema, LOGS_COLLECTION, logsCollectionOptions } from "./log.ts";
 
 // --- Page ---
@@ -70,6 +70,10 @@ export { settingsSchema, SETTINGS_COLLECTION, SettingsKey, announcementSchema } 
 // --- User ---
 export type { UserDoc, UserFront } from "./user.ts";
 export { userSchema, USERS_COLLECTION, userIndexes } from "./user.ts";
+
+// --- Deleted User (soft-delete archive) ---
+export type { DeletedUserDoc } from "./deleteduser.ts";
+export { deletedUserSchema, DELETED_USERS_COLLECTION, deletedUserIndexes } from "./deleteduser.ts";
 
 // --- Helpers ---
 export { zObjectId, zDate } from "./helpers.ts";

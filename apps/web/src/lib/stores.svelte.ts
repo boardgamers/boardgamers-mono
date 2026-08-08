@@ -36,7 +36,42 @@ export function assertBrowserStore(name: string) {
 	}
 }
 
-// --- Account (client-side cache, seeded from $page.data.user) ---
+/**
+ * Read an SSR-seeded, client-live store in a component `$derived`.
+ *
+ * Returns the store value on the client (the single source of truth once seeded), and
+ * the SSR snapshot during server render / the very first hydration pass — so SSR HTML
+ * is correct with no flash and there is no hydration mismatch. After hydration the
+ * seeded store takes over and live-updates.
+ *
+ * Usage: `let user = $derived(live($account, data.user));`
+ *
+ * This replaces the buggy `$store ?? data.x` / `store.length > 0 ? $store : data.x`
+ * patterns: it never conflates "empty" with "not yet loaded", because on the client it
+ * always trusts the seeded store (even when empty), and during SSR it always trusts the
+ * snapshot.
+ */
+export function live<T>(storeValue: T, ssrSnapshot: T): T {
+	return browser ? storeValue : ssrSnapshot;
+}
+
+// --- SSR-seeded, client-live stores -------------------------------------------------
+//
+// INVARIANT (the "seed once per identity" contract):
+//   These stores hold per-session client state. They are browser-only: during SSR the
+//   store stays at its initial value (never mutated — that would leak one request's
+//   state into another's render) and components render the SSR `data` snapshot instead.
+//   On the client the store is seeded from that snapshot exactly once per *identity*,
+//   then it becomes the single source of truth — live-updated by websocket pushes and
+//   user actions. Re-running loads (e.g. `invalidateAll()` after login/logout) produces
+//   a fresh snapshot with a *different identity*, which re-seeds; a same-identity
+//   snapshot (a plain revalidation) must NOT clobber live store state.
+//
+// Components therefore read `$store` directly on the client and `data.x` during SSR,
+// never `$store ?? data.x` — after the seed an empty store is a *real* empty state
+// (e.g. zero active games), not "not yet loaded".
+
+// --- Account (client-side cache, seeded from the layout's SSR `user`) ---
 
 export const account = clientWritable<UserFront | null>("account", null);
 
@@ -44,9 +79,57 @@ export function setAccount(user: UserFront | null) {
 	account.set(user);
 }
 
+// The last SSR snapshot identity the account store was seeded from (its user id, or
+// `null` for an anonymous snapshot). Compared against incoming snapshots so a
+// revalidation for the same user doesn't reset locally-mutated account state.
+let accountSeededFor: string | null | undefined;
+
+/**
+ * Seed the account store from the layout's SSR snapshot. Runs on the client only.
+ * No-op once a snapshot for this identity (`user._id`, or `null` when logged out) has
+ * already seeded the store — so `invalidateAll()` re-runs don't clobber live state,
+ * while a genuine login/logout (identity change) re-seeds with the fresh snapshot.
+ */
+export function seedAccountFromSSR(user: UserFront | null) {
+	if (!browser) return;
+	const id = user?._id ?? null;
+	if (accountSeededFor === id) return;
+	accountSeededFor = id;
+	account.set(user);
+}
+
 // --- Active games (loaded via +layout.server.ts, maintained by websocket) ---
 
 export const activeGames = clientWritable<string[]>("activeGames", []);
+
+// The exact array reference we last wrote into `activeGames` from an SSR snapshot, and
+// the identity (user id / `null`) that snapshot belonged to. We re-apply a snapshot
+// only when the store still holds that reference — meaning no websocket push
+// (`activeGames.set`) has replaced it since. Once the store has been live-updated it is
+// authoritative and a same-identity revalidation must not clobber it (the #167 bug
+// class: an empty push is a real empty state, not "not yet loaded").
+let activeGamesLastSeeded: string[] | undefined;
+let activeGamesSeededFor: string | null | undefined;
+
+/**
+ * Seed the activeGames store from the layout's SSR snapshot. Client-only.
+ *
+ * - On an identity change (login/logout → `forUserId` differs), always apply: the fresh
+ *   snapshot is the new user's truth and the websocket will re-push live state anyway.
+ * - On a same-identity revalidation (`invalidateAll`), apply only when the store has not
+ *   been live-updated since the last seed; otherwise the websocket-fed store is truth.
+ */
+export function seedActiveGamesFromSSR(games: string[], forUserId: string | null) {
+	if (!browser) return;
+	let current: string[] | undefined;
+	activeGames.subscribe((v) => (current = v))();
+	const identityChanged = activeGamesSeededFor !== forUserId;
+	const storeUntouched = activeGamesLastSeeded === undefined || current === activeGamesLastSeeded;
+	if (!identityChanged && !storeUntouched) return;
+	activeGamesSeededFor = forUserId;
+	activeGamesLastSeeded = games;
+	activeGames.set(games);
+}
 
 export function addActiveGame(gameId: string) {
 	let current = false;

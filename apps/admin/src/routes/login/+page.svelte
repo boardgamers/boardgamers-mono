@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from "$app/navigation";
 	import { page } from "$app/state";
-	import { setTokens } from "$lib/auth.svelte.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 
 	let email = $state("");
@@ -13,8 +12,10 @@
 		submitting = true;
 
 		try {
+			// Login sets the httpOnly session cookie (Set-Cookie) — nothing to store in JS.
 			const res = await fetch("/api/account/login", {
 				method: "POST",
+				credentials: "same-origin",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ email, password }),
 			});
@@ -24,11 +25,10 @@
 				throw new Error(data?.message ?? "Login failed");
 			}
 
-			const data = await res.json();
-			setTokens(data);
-
+			// The redirect param is an already-resolved same-origin path (set by +layout).
 			const redirect = page.url.searchParams.get("redirect") || "/";
 			await invalidateAll();
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- dynamic same-origin redirect target, not a static route id.
 			goto(redirect);
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Login failed");

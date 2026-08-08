@@ -4,23 +4,20 @@
 	import { timeAgo } from "$lib/utils.ts";
 	import { trim } from "$lib/actions.ts";
 	import { goto, invalidateAll } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import WebLink from "$components/WebLink.svelte";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
-	import type { UserInfo, ApiErrorItem } from "./+page.ts";
+	import type { UserInfo, ArchivedUserInfo, ApiErrorItem } from "./+page.ts";
 
 	let { data }: PageProps = $props();
 
-	let user = $state<UserInfo | null>(data.user);
-	let errors = $state<ApiErrorItem[]>(data.errors);
+	const user = $derived<UserInfo | null>(data.user);
+	const archived = $derived<ArchivedUserInfo | null>(data.archived);
+	const errors = $derived<ApiErrorItem[]>(data.errors);
 	let expandedError = $state<string | null>(null);
 	let gameName = $state("");
 	let elo = $state(0);
-
-	$effect(() => {
-		user = data.user;
-		errors = data.errors;
-	});
 
 	// gameName is trimmed on paste/blur by the use:trim action.
 	async function grantAccess() {
@@ -130,7 +127,7 @@
 		try {
 			await api.del(`/admin/users/${user._id}`);
 			toast.success("User deleted");
-			goto("/users");
+			goto(resolve("/users"));
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed to delete user");
 		} finally {
@@ -286,12 +283,14 @@
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
 			<h3 class="text-sm font-semibold">User Management</h3>
 			<div class="flex items-center gap-3">
-				<label class="text-sm text-gray-500">Karma</label>
-				<input
-					type="number"
-					bind:value={user.account.karma}
-					class="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-				/>
+				<label class="text-sm text-gray-500 flex items-center gap-3"
+					>Karma
+					<input
+						type="number"
+						bind:value={user.account.karma}
+						class="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+					/>
+				</label>
 				<button
 					onclick={updateKarma}
 					class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">Update</button
@@ -334,20 +333,24 @@
 			<h3 class="text-sm font-semibold">Boardgame Management</h3>
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 				<div>
-					<label class="block text-xs font-medium text-gray-500 mb-1">Boardgame name</label>
-					<input
-						bind:value={gameName}
-						use:trim
-						class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-					/>
+					<label class="block text-xs font-medium text-gray-500 mb-1"
+						>Boardgame name
+						<input
+							bind:value={gameName}
+							use:trim
+							class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+						/>
+					</label>
 				</div>
 				<div>
-					<label class="block text-xs font-medium text-gray-500 mb-1">Elo</label>
-					<input
-						type="number"
-						bind:value={elo}
-						class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-					/>
+					<label class="block text-xs font-medium text-gray-500 mb-1"
+						>Elo
+						<input
+							type="number"
+							bind:value={elo}
+							class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+						/>
+					</label>
 				</div>
 			</div>
 			<div class="flex gap-2">
@@ -373,9 +376,9 @@
 					<h3 class="text-sm font-semibold">Recent Games ({user.recentGames.length})</h3>
 				</div>
 				<div class="divide-y divide-gray-100 dark:divide-gray-800">
-					{#each user.recentGames as game}
+					{#each user.recentGames as game (game._id)}
 						<a
-							href={`/game/${game._id}`}
+							href={resolve("/game/[gameId]", { gameId: game._id })}
 							class="px-5 py-2.5 flex items-center justify-between text-sm hover:bg-gray-50 dark:hover:bg-gray-800/50"
 						>
 							<span class="font-mono text-xs truncate flex-1">{game._id}</span>
@@ -413,10 +416,10 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each errors as err}
+							{#each errors as err (err._id)}
 								<tr
 									class="border-b border-gray-50 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
-									onclick={() => toggleError(err._id)}
+									onclick={() => toggleError(String(err._id))}
 								>
 									<td class="px-4 py-2 text-gray-400">
 										<svg
@@ -489,6 +492,60 @@
 				</div>
 			{/if}
 		</div>
+	</div>
+{:else if archived}
+	<div class="space-y-6">
+		<div class="flex items-center gap-4 flex-wrap">
+			<h2 class="text-xl font-bold">{archived.account.username}</h2>
+			<span
+				class="px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded-full"
+				>Deleted (archived)</span
+			>
+		</div>
+
+		<div
+			class="bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800 p-5 flex items-center gap-3"
+		>
+			<svg
+				class="w-5 h-5 text-red-500 flex-shrink-0"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+				stroke-width="2"
+			>
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+				/>
+			</svg>
+			<p class="text-sm text-red-700 dark:text-red-300">
+				This account was archived by the dead-user cleanup. Its data was moved to
+				<code class="text-xs bg-red-100 dark:bg-red-900/40 px-1 py-0.5 rounded">deletedUsers</code>
+				— restore is manual via the database.
+			</p>
+		</div>
+
+		<div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Username</div>
+				<div class="text-sm font-medium mt-1 truncate">{archived.account.username}</div>
+			</div>
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Joined</div>
+				<div class="text-sm font-medium mt-1">{archived.createdAt ? timeAgo(archived.createdAt) : "—"}</div>
+			</div>
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-red-800 p-4">
+				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Deleted</div>
+				<div class="text-sm font-medium mt-1 text-red-600 dark:text-red-400" title={archived.deletedAt}>
+					{timeAgo(archived.deletedAt)}
+				</div>
+			</div>
+		</div>
+
+		<a href={resolve("/users/deleted")} class="inline-block text-sm text-blue-600 dark:text-blue-400 hover:underline">
+			← All deleted users
+		</a>
 	</div>
 {:else}
 	<div class="flex items-center justify-center h-32">

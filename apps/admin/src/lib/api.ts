@@ -1,5 +1,3 @@
-import { tokens, clearTokens } from "./auth.svelte.ts";
-
 const BASE = "/api";
 
 export class ApiError extends Error {
@@ -11,42 +9,59 @@ export class ApiError extends Error {
 	}
 }
 
-async function getAccessToken(url: string): Promise<string | null> {
-	const scopes = url.startsWith("/api/gameplay") ? ["gameplay"] : ["all"];
-	const key = scopes.join(",");
+type Token = { code: string; expiresAt: number };
 
-	const existing = tokens.getAccess(key);
+/**
+ * Mint a short-lived, narrowly-scoped access token (e.g. "gameplay" for the
+ * game-server, which verifies JWTs by public key only). Auth is via the session
+ * cookie — no refresh token is handled in JS, same as the web app
+ * (apps/web/src/lib/api.ts). Cached per scope until near expiry.
+ */
+const mintedTokens: Record<string, Token> = {};
+
+async function mintToken(scope: string): Promise<Token | null> {
+	const existing = mintedTokens[scope];
 	if (existing && existing.expiresAt > Date.now() + 5 * 60 * 1000) {
-		return existing.code;
+		return existing;
 	}
 
-	const refresh = tokens.refresh;
-	if (!refresh) {
+	const res = await fetch(`${BASE}/account/mint`, {
+		method: "POST",
+		credentials: "same-origin",
+		body: JSON.stringify({ scopes: [scope] }),
+		headers: { "Content-Type": "application/json" },
+	});
+
+	if (res.status === 401 || res.status === 404) {
+		delete mintedTokens[scope];
+		return null; // not logged in
+	}
+	if (!res.ok) {
 		return null;
 	}
 
-	try {
-		const res = await fetch(`${BASE}/account/refresh`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ code: refresh.code, scopes }),
-		});
+	const token: Token = await res.json();
+	mintedTokens[scope] = token;
+	return token;
+}
 
-		if (res.status === 404) {
-			clearTokens();
-			return null;
-		}
-
-		if (!res.ok) {
-			return null;
-		}
-
-		const data = await res.json();
-		tokens.setAccess(key, data);
-		return data.code;
-	} catch {
-		return null;
+export function clearMintedTokens(): void {
+	for (const key of Object.keys(mintedTokens)) {
+		delete mintedTokens[key];
 	}
+}
+
+/**
+ * The main API authenticates via the session cookie (sent automatically, incl. by the
+ * server-side /api proxy). Only game-server calls (/api/gameplay/*) need a bearer
+ * token — minted "gameplay"-scoped, same as the web app.
+ */
+async function authHeaderFor(url: string): Promise<Record<string, string>> {
+	if (!url.startsWith("/api/gameplay")) {
+		return {};
+	}
+	const token = await mintToken("gameplay").catch(() => null);
+	return token ? { Authorization: `Bearer ${token.code}` } : {};
 }
 
 async function request<T = unknown>(
@@ -56,18 +71,15 @@ async function request<T = unknown>(
 	options?: { raw?: boolean },
 ): Promise<T> {
 	const url = path.startsWith("/api") ? path : `${BASE}${path}`;
-	const token = await getAccessToken(url);
 
-	const headers: Record<string, string> = {};
+	const headers: Record<string, string> = await authHeaderFor(url);
 	if (body !== undefined) {
 		headers["Content-Type"] = "application/json";
-	}
-	if (token) {
-		headers["Authorization"] = `Bearer ${token}`;
 	}
 
 	const res = await fetch(url, {
 		method,
+		credentials: "same-origin",
 		headers,
 		body: body !== undefined ? JSON.stringify(body) : undefined,
 	});

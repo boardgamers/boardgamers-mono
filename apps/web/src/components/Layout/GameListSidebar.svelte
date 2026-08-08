@@ -6,6 +6,7 @@
 	import { logoClick } from "@/lib/stores.svelte";
 	import { post } from "@/lib/api";
 	import { account } from "@/lib/account.svelte";
+	import { live } from "@/lib/stores.svelte";
 	import { handleError } from "@/utils";
 	import type { GameInfoFront, UserFront } from "@bgs/models";
 
@@ -20,10 +21,12 @@
 	// "Forgotten" boardgames: hidden from the pinned "My games" group but still shown
 	// in "All games". Stored on the user's account settings (DB-backed, syncs across
 	// devices); the server clears a game's flag when the player joins or creates a
-	// game of it, re-pinning it automatically. Read from the SSR-loaded user
-	// (page.data.user) so hidden games stay hidden during SSR; fall back to the live
-	// account store so a forget/unforget updates the list without a reload.
-	let forgotten = $derived((($account ?? page.data.user)?.settings?.home?.forgottenGames ?? []) as string[]);
+	// game of it, re-pinning it automatically. SSR renders the snapshot so hidden games
+	// stay hidden on first paint; the client trusts the seeded account store so a
+	// forget/unforget updates the list without a reload (see stores.svelte.ts).
+	let forgotten = $derived(
+		(live($account, (page.data.user as UserFront | null) ?? null)?.settings?.home?.forgottenGames ?? []) as string[]
+	);
 	function saveForgotten(next: string[]) {
 		post<UserFront>("/account", { settings: { home: { forgottenGames: next } } })
 			.then((updated) => account.set(updated))

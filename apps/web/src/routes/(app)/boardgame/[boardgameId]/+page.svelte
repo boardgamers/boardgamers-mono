@@ -6,8 +6,9 @@
 	import marked from "marked";
 	import type { GameInfoFront } from "@bgs/models";
 	import { Button, Card } from "@/modules/cdk";
-	import { UserGameSettings, GameList, BoardgameElo, SEO } from "@/components";
+	import { UserGameSettings, GameList, BoardgameElo, BoardgameLinks, SEO } from "@/components";
 	import { account } from "@/lib/account.svelte";
+	import { live } from "@/lib/stores.svelte";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { gamePreferences, useGamePreferencesFallback } from "@/lib/game-preferences.svelte";
 	import { page } from "$app/state";
@@ -20,8 +21,8 @@
 
 	// The route guarantees the `boardgameId` param is present.
 	let boardgameId = $derived(page.params.boardgameId!);
-	// Client prefers the account store; SSR falls back to page.data.user.
-	let user = $derived(($account ?? page.data.user) as UserFront | null);
+	// SSR renders the snapshot; the client trusts the seeded account store (see stores.svelte.ts).
+	let user = $derived(live($account, (page.data.user as UserFront | null) ?? null));
 	// Game-info list comes from the root-provided context (fetched fresh per request);
 	// capture the map at init (getContext) and read from it reactively.
 	const infos = useGameInfos();
@@ -55,7 +56,16 @@
 
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 		<div>
-			<Card class="border-gray-400 h-full dark:border-gray-600" header={rules ? "Rules" : "Description"}>
+			<Card class="border-gray-400 h-full dark:border-gray-600">
+				{#snippet headerContent()}
+					<div class="flex items-center">
+						<span class="min-w-20 flex-1"></span>
+						<span class="font-semibold">{rules ? "Rules" : "Description"}</span>
+						<span class="min-w-20 flex flex-1 justify-end">
+							<BoardgameLinks links={boardgame.links} />
+						</span>
+					</div>
+				{/snippet}
 				<div class="prose dark:prose-invert max-w-none">
 					<SanitizedHtml html={marked((rules ? boardgame.rules : boardgame.description) ?? "")} />
 				</div>

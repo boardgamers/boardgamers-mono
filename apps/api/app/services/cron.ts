@@ -4,6 +4,7 @@ import { sendGameNotificationEmail } from "../models/user.ts";
 import { colls, closeDb } from "../config/db.ts";
 import locks from "../config/locks.ts";
 import { cancelOldOpenGames, processSchedulesGames, processUnreadyGames } from "./game.ts";
+import { cleanupDeadUsers } from "./user.ts";
 import type { Closable } from "@bgs/utils/log";
 
 const intervals: NodeJS.Timeout[] = [];
@@ -44,6 +45,13 @@ if (env.cron) {
 	every(1000, singleton("scheduledGames", processSchedulesGames));
 	every(5000, singleton("cancelOldOpenGames", cancelOldOpenGames));
 	every(10000, singleton("unreadyGames", processUnreadyGames));
+	// Dead-user cleanup (archives to deletedUsers; only with cleanupDeadUsers="delete",
+	// otherwise dry-run log/off). It self-throttles to at most once per 24h via a
+	// persisted lastRunAt, so an hourly tick + a boot-time run catch up after a
+	// deploy/restart instead of restarting a 24h countdown.
+	const cleanupDeadUsersTick = singleton("cleanupDeadUsers", cleanupDeadUsers);
+	every(3600 * 1000, cleanupDeadUsersTick);
+	cleanupDeadUsersTick();
 }
 
 if (env.automatedEmails) {

@@ -13,6 +13,7 @@
 	import type { PlayerOrder } from "@bgs/models";
 	import { playerOrders } from "@/data/playerOrders";
 	import { account } from "@/lib/account.svelte";
+	import { live } from "@/lib/stores.svelte";
 	import type { UserFront } from "@bgs/models";
 	import { useLoggedIn } from "@/lib/auth-guards.svelte";
 	import { post } from "@/lib/api";
@@ -26,8 +27,8 @@
 
 	useLoggedIn();
 
-	// Client prefers the account store; SSR falls back to page.data.user.
-	let karma = $derived((($account ?? page.data.user) as UserFront | null)?.account.karma ?? 80);
+	// SSR renders the snapshot; the client trusts the seeded account store (see stores.svelte.ts).
+	let karma = $derived(live($account, (page.data.user as UserFront | null) ?? null)?.account.karma ?? 80);
 
 	let boardgameId = $derived(page.params.boardgameId); // Can be undefined during page navigation out
 	// Game-info list comes from the root-provided context; capture the map at init

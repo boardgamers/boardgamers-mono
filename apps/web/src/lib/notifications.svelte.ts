@@ -12,6 +12,7 @@ export type Toast = {
 export type ConfirmRequest = {
 	id: number;
 	text: string;
+	link?: { url: string; label: string };
 	resolve: (ok: boolean) => void;
 };
 
@@ -36,10 +37,10 @@ export const notifier = {
 	alert: (text: string) => push("alert", text),
 	info: (text: string) => push("info", text),
 	success: (text: string) => push("success", text),
-	confirm(text: string): Promise<boolean> {
+	confirm(text: string, link?: { url: string; label: string }): Promise<boolean> {
 		if (!browser) return Promise.resolve(false);
 		return new Promise<boolean>((resolve) => {
-			confirmRequest.set({ id: nextId++, text, resolve });
+			confirmRequest.set({ id: nextId++, text, link, resolve });
 		});
 	},
 };

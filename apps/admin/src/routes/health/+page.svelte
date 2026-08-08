@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from "$app/navigation";
+	import { untrack } from "svelte";
 	import { api } from "$lib/api.ts";
 	import type { PageProps } from "./$types";
 	import type { ApiErrorEntry } from "./+page.ts";
@@ -26,7 +27,9 @@
 	const dbErrorsTotal = $derived(health.dbErrorsTotal);
 	let dbErrorsPage = $state(1);
 	let dbErrorsLoading = $state(false);
-	let allDbErrors = $state<ApiErrorEntry[]>([...health.dbErrors]);
+	// Mutable (loadMoreErrors appends pages); the $effect re-syncs it whenever the
+	// load data refreshes (untrack reads the initial value once).
+	let allDbErrors = $state<ApiErrorEntry[]>(untrack(() => [...data.health.dbErrors]));
 	let hasMoreDbErrors = $derived(allDbErrors.length < dbErrorsTotal);
 
 	$effect(() => {
@@ -139,7 +142,7 @@
 				<p class="text-sm text-gray-400">No request logs found — deploy the JSON logger first.</p>
 			{:else}
 				<div class="space-y-2">
-					{#each statusCounts.sort((a, b) => a.status.localeCompare(b.status)) as s}
+					{#each statusCounts.sort((a, b) => a.status.localeCompare(b.status)) as s (s.status)}
 						<div class="flex items-center gap-3">
 							<span class="text-sm font-mono w-12">{s.status}</span>
 							<div class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-6 overflow-hidden">
@@ -170,7 +173,7 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each slowEndpoints as e}
+							{#each slowEndpoints as e (e.route)}
 								<tr class="border-b border-gray-100 dark:border-gray-800/50">
 									<td class="py-2 font-mono text-xs truncate max-w-[200px]">{e.route}</td>
 									<td class="py-2 text-right font-medium">{e.value}</td>
@@ -195,7 +198,7 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each errorEndpoints as e}
+							{#each errorEndpoints as e (e.route)}
 								<tr class="border-b border-gray-100 dark:border-gray-800/50">
 									<td class="py-2 font-mono text-xs truncate max-w-[200px]">{e.route}</td>
 									<td class="py-2 text-right font-medium text-red-500">{e.value}</td>
@@ -225,7 +228,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each allDbErrors as err}
+						{#each allDbErrors as err (String(err._id))}
 							<tr class="border-b border-gray-100 dark:border-gray-800/50">
 								<td class="py-2 text-xs text-gray-400 whitespace-nowrap"
 									>{err.createdAt ? new Date(err.createdAt).toLocaleString() : "—"}</td
@@ -280,7 +283,7 @@
 				<p class="text-sm text-gray-400">No recent errors</p>
 			{:else}
 				<div class="space-y-1.5 max-h-96 overflow-y-auto">
-					{#each recentErrors.slice(0, 50) as err}
+					{#each recentErrors.slice(0, 50) as err (err.requestId ?? `${err.timestamp}:${err.line}`)}
 						<div class="flex items-start gap-2 text-xs py-1.5 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800/50">
 							<span
 								class="px-1.5 py-0.5 rounded font-mono text-[10px] font-medium flex-shrink-0 {err.level === 'error'

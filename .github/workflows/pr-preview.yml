@@ -11,6 +11,7 @@ on:
 
 permissions:
   deployments: write
+  pull-requests: write # first-deploy comment with the preview URLs
 
 jobs:
   preview:
@@ -105,3 +106,35 @@ jobs:
             });
         env:
           PREVIEW_URL: ${{ steps.env.outputs.url }}
+
+      - name: Comment the preview URLs (first deploy only)
+        if: steps.env.outputs.url
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // The "view deployment" button can't be tapped through in the GitHub mobile
+            // app, so surface the URLs in a comment too — but only on the FIRST deploy:
+            // the sentinel marker keeps later pushes from spamming the thread.
+            const sentinel = "<!-- pr-preview-deployed -->";
+            const pr = context.payload.pull_request;
+            const player = `https://pr-${pr.number}.boardgamers.space`;
+            const admin = `https://admin-pr-${pr.number}.boardgamers.space`;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: pr.number, per_page: 100,
+            });
+            if (comments.some((c) => c.body?.includes(sentinel))) {
+              console.log("preview comment already posted, skipping");
+              return;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: pr.number,
+              body: [
+                sentinel,
+                `🎮 **Preview deployed**`,
+                ``,
+                `- Player app: ${player}`,
+                `- Admin panel: ${admin}`,
+                ``,
+                `Every preview user's password is \`password\` (e.g. \`coyotte508\` / \`password\`).`,
+              ].join("\n"),
+            });

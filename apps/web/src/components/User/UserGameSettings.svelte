@@ -9,6 +9,7 @@
 	import Checkbox from "@/modules/cdk/Checkbox.svelte";
 	import Loading from "@/modules/cdk/Loading.svelte";
 	import PreferencesChooser from "./PreferencesChooser.svelte";
+	import IconCart from "../icons/IconCart.svelte";
 	import { post } from "@/lib/api";
 	import { gameInfoKey } from "@/lib/game-info.svelte";
 	import { developerSettings, devGameSettings } from "@/lib/stores.svelte";
@@ -44,7 +45,10 @@
 		const newVal = (event.target! as HTMLInputElement).checked;
 
 		if (newVal) {
-			const res = await confirm("I certify on my honor that I own a copy of the game");
+			const res = await confirm(
+				"I certify on my honor that I own a copy of the game",
+				game.links?.buy ? { url: game.links.buy, label: "Buy a copy" } : undefined
+			);
 
 			if (!res) {
 				ownership = false;
@@ -91,6 +95,17 @@
 				<div class="flex items-center gap-2 rounded-lg bg-accent/10 p-3 dark:bg-accent/20">
 					<Checkbox checked={ownership} onchange={postOwnership} class="text-base font-semibold" />
 					<span class="text-base font-semibold">I own this game</span>
+					{#if game.links?.buy}
+						<a
+							href={game.links.buy}
+							target="_blank"
+							rel="external noopener noreferrer"
+							class="ml-auto inline-flex items-center gap-1.5 text-sm font-semibold no-underline"
+						>
+							<IconCart />
+							Buy
+						</a>
+					{/if}
 				</div>
 				{#if (game.preferences?.length ?? 0) > 0}
 					<hr class="border-gray-200 dark:border-gray-700" />

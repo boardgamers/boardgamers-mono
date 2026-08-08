@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { toasts, confirmRequest, dismiss, answerConfirm, type ToastKind } from "@/lib/notifications.svelte";
+	import IconCart from "@/components/icons/IconCart.svelte";
 	import { fly, fade } from "svelte/transition";
 
 	const kindStyles: Record<ToastKind, { bar: string; icon: string; label: string }> = {
@@ -48,8 +49,19 @@
 	>
 		<div class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-gray-800" role="document">
 			<h3 class="mb-2 font-semibold">Confirmation required</h3>
-			<p class="mb-5 text-sm whitespace-pre-wrap text-gray-700 dark:text-gray-200">{$confirmRequest.text}</p>
-			<div class="flex justify-end gap-2">
+			<p class="text-sm whitespace-pre-wrap text-gray-700 dark:text-gray-200">{$confirmRequest.text}</p>
+			{#if $confirmRequest.link}
+				<a
+					href={$confirmRequest.link.url}
+					target="_blank"
+					rel="external noopener noreferrer"
+					class="mt-2 inline-flex items-center gap-1.5 text-sm"
+				>
+					<IconCart />
+					{$confirmRequest.link.label}
+				</a>
+			{/if}
+			<div class="mt-5 flex justify-end gap-2">
 				<button
 					type="button"
 					class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"

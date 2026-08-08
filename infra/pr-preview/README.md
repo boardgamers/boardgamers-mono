@@ -18,6 +18,10 @@ sanitized dump of prod and never touches the live `bgs`.
   `mongosh "mongodb://10.90.0.2:27017/bgs-pr-<n>"` (minipc mongo over WireGuard).
 - Admin routes check `authority === "admin"` on the user loaded fresh from the db,
   so a stale API container still admin-auths correctly as long as the db is intact.
+- Env dbs (`bgs-pr-<n>`) persist across code updates and container restarts — the
+  entrypoint seeds from the template only on first boot (db empty), and `PUT` on an
+  existing PR swaps the container without touching the db. The db is dropped only on
+  env delete (`DELETE`, PR close) or janitor reap.
 
 ## Layout
 
@@ -47,15 +51,15 @@ only host _loopback_ is firewalled off.
 
 ## Files here
 
-- `containerfile/` — the env image + entrypoint (checkout PR sha, restore db,
-  run web/api/game-server). One container per env = the sandbox boundary:
+- `containerfile/` — the env image + entrypoint (checkout PR sha, seed db on first
+  boot, run web/api/game-server). One container per env = the sandbox boundary:
   rootless, no-new-privileges, cap-drop ALL, mem/cpu/pids caps. The game-server
   `npm install`s third-party engines at runtime (`apps/game-server/app/services/installer.ts`),
   which is exactly why envs are containers with no published ports except via nginx.
 - `manager/preview-api.mjs` — tiny Node control plane on minipc (10.90.0.2:9900).
-  Bearer-authed. `PUT /envs/:n {sha}` creates (cap 5), `DELETE /envs/:n` tears
-  down, `GET /envs` lists, `POST /seed` imports the newest dump. Runs under
-  `systemd --user` (`preview-api.service`).
+  Bearer-authed. `PUT /envs/:n {sha}` creates (cap 5) or updates to a new sha,
+  `DELETE /envs/:n` tears down, `GET /envs` lists, `POST /seed` imports the newest
+  dump. Runs under `systemd --user` (`preview-api.service`).
 - `seed/dump-and-ship.sh` + `seed/scrub-users.mjs` — nightly on coyo: mongodump
   of `bgs` minus private collections, users rebuilt from a **whitelist** of safe
   fields (emails → `@preview.invalid`, passwords/social/IPs dropped), shipped to
@@ -75,9 +79,19 @@ only host _loopback_ is firewalled off.
 
 `.github/workflows/pr-preview.yml` (`pull_request_target`): gated on
 MEMBER/OWNER/COLLABORATOR or a `preview` label, calls
-`https://pr-preview-api.boardgamers.space` with the shared secret, comments the
-URL on the PR (updated on each push), tears down on close/unlabel. Needs repo
-secret `PREVIEW_SECRET` = the minipc `~/.config/bgs-preview/secret`.
+`https://pr-preview-api.boardgamers.space` with the shared secret, surfaces the URL as a
+GitHub Deployment per push, comments the player + admin URLs on the PR the first time a
+preview goes live (sentinel `<!-- pr-preview-deployed -->`, so later pushes don't spam),
+and tears down on close/unlabel. Needs repo secret `PREVIEW_SECRET` = the minipc
+`~/.config/bgs-preview/secret`.
+
+The session cookie is scoped host-only per preview host. The api stamps
+`Domain=domain` (`pr-<n>.boardgamers.space`), which the browser accepts on the player host
+(host == Domain) but rejects on the admin host — `admin-pr-<n>.boardgamers.space` is a
+sibling of `pr-<n>`, not a subdomain. The coyo vhost rewrites it with
+`proxy_cookie_domain pr-<n>.boardgamers.space $host;` in BOTH server blocks, so each host
+stores a host-only cookie (`pr-<n>` on the player, `admin-pr-<n>` on the admin) and no
+cookie ever carries the shared `boardgamers.space` ancestor (which would leak into prod).
 
 ## Ports (minipc, WireGuard IP only)
 

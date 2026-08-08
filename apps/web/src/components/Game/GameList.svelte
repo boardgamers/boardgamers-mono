@@ -22,6 +22,7 @@
 		minDuration = undefined,
 		maxDuration = undefined,
 		search = undefined,
+		class: className = "",
 	}: {
 		title?: string;
 		perPage?: number;
@@ -33,6 +34,9 @@
 		minDuration?: number | undefined;
 		maxDuration?: number | undefined;
 		search?: string | undefined;
+		// Applied to the outer wrapper (e.g. `min-w-0` so the list can shrink inside a
+		// grid/flex cell instead of forcing the layout wide on mobile).
+		class?: string;
 	} = $props();
 
 	let loadingGames = $state(true);
@@ -130,103 +134,105 @@
 	});
 </script>
 
-<Loading loading={loadingGames}>
-	<h3 class="font-semibold">
-		{title}
-		{#if !topRecords && !sample}
-			<span class="text-xs">({count})</span>
-		{/if}
-	</h3>
-	<div>
-		{#if games.length > 0}
-			<ul
-				class="divide-y divide-accent/80 rounded-lg border border-accent/80 bg-white text-start dark:divide-accent/60 dark:border-accent/60 dark:bg-gray-900 game-list"
-			>
-				{#each games as game (game._id)}
-					<a
-						href={resolve("/game/[gameId]", { gameId: game._id })}
-						class="no-link flex cursor-pointer items-center px-4 py-2 pe-1 ps-0 hover:bg-gray-50 dark:hover:bg-gray-800 game-item"
-						class:active-game={game.status === "active"}
-						class:current-turn={game.currentPlayers?.some((pl) => pl._id === userId)}
-					>
-						<span class="game-kind mx-3">
-							{gameIcon(game.game.name)}
-						</span>
+<div class={className}>
+	<Loading loading={loadingGames}>
+		<h3 class="font-semibold">
+			{title}
+			{#if !topRecords && !sample}
+				<span class="text-xs">({count})</span>
+			{/if}
+		</h3>
+		<div>
+			{#if games.length > 0}
+				<ul
+					class="divide-y divide-accent/80 rounded-lg border border-accent/80 bg-white text-start dark:divide-accent/60 dark:border-accent/60 dark:bg-gray-900 game-list"
+				>
+					{#each games as game (game._id)}
+						<a
+							href={resolve("/game/[gameId]", { gameId: game._id })}
+							class="no-link flex cursor-pointer items-center px-4 py-2 pe-1 ps-0 hover:bg-gray-50 dark:hover:bg-gray-800 game-item"
+							class:active-game={game.status === "active"}
+							class:current-turn={game.currentPlayers?.some((pl) => pl._id === userId)}
+						>
+							<span class="game-kind mx-3">
+								{gameIcon(game.game.name)}
+							</span>
 
-						<div class="me-auto min-w-0" style="line-height: 1.1">
-							<div class="flex items-center">
-								{#if game.status === "active"}
-									<Badge color="contrast" class="me-2 text-xs text-white">R{game.context?.round ?? 0}</Badge>
-								{:else if game.status === "open"}
-									<span
-										class="me-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/60 dark:text-blue-200"
-									>
-										{game.players.length}/{game.options.setup.nbPlayers}
-									</span>
-								{/if}
-								<span class="game-name truncate">
-									{game._id}
-								</span>
-								{#if playerEloChange(game)}
-									<sup class="ms-1">
-										{playerEloChange(game)}
-									</sup>
-								{/if}
-							</div>
-							<small
-								class="flex items-center gap-1 whitespace-nowrap text-xs"
-								title={`${playTime(game)} ${duration(game.options.timing.timePerGame ?? 0)} + ${duration(
-									game.options.timing.timePerMove ?? 0
-								)}`}
-							>
-								{#if game.status === "ended"}
-									<span class="text-gray-500 dark:text-gray-400">finished · {niceDate(game.lastMove ?? "")}</span>
-								{:else}
-									<IconClockHistory class="text-[0.8em]" />
-									{compactTiming(game)}
-									{#if game.options.timing.scheduledStart}
-										starts on {niceDate(game.options.timing.scheduledStart)} at
-										{new Date(game.options.timing.scheduledStart).getHours().toString().padStart(2, "0")}}h{new Date(
-											game.options.timing.scheduledStart
-										)
-											.getMinutes()
-											.toString()
-											.padStart(2, "0")}
+							<div class="me-auto min-w-0" style="line-height: 1.1">
+								<div class="flex items-center">
+									{#if game.status === "active"}
+										<Badge color="contrast" class="me-2 text-xs text-white">R{game.context?.round ?? 0}</Badge>
+									{:else if game.status === "open"}
+										<span
+											class="me-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/60 dark:text-blue-200"
+										>
+											{game.players.length}/{game.options.setup.nbPlayers}
+										</span>
 									{/if}
-								{/if}
-							</small>
-						</div>
-
-						{#if game.status !== "open"}
-							<div class="factions flex shrink-0 flex-row">
-								{#each game.players as player (player._id)}
-									<PlayerGameAvatar
-										game={game.game.name}
-										isCurrent={game.currentPlayers?.some((pl) => pl._id === player._id)}
-										userId={userId ?? undefined}
-										{player}
-										class="me-1"
-									/>
-								{/each}
-							</div>
-						{:else}
-							<div class="me-3 text-right" style="line-height: 1.1;">
-								<small class="text-gray-500 dark:text-gray-400">
-									{shortDuration(Math.floor((Date.now() - new Date(game.createdAt ?? "").getTime()) / 1000))} ago
+									<span class="game-name truncate">
+										{game._id}
+									</span>
+									{#if playerEloChange(game)}
+										<sup class="ms-1">
+											{playerEloChange(game)}
+										</sup>
+									{/if}
+								</div>
+								<small
+									class="flex items-center gap-1 whitespace-nowrap text-xs"
+									title={`${playTime(game)} ${duration(game.options.timing.timePerGame ?? 0)} + ${duration(
+										game.options.timing.timePerMove ?? 0
+									)}`}
+								>
+									{#if game.status === "ended"}
+										<span class="text-gray-500 dark:text-gray-400">finished · {niceDate(game.lastMove ?? "")}</span>
+									{:else}
+										<IconClockHistory class="text-[0.8em]" />
+										{compactTiming(game)}
+										{#if game.options.timing.scheduledStart}
+											starts on {niceDate(game.options.timing.scheduledStart)} at
+											{new Date(game.options.timing.scheduledStart).getHours().toString().padStart(2, "0")}}h{new Date(
+												game.options.timing.scheduledStart
+											)
+												.getMinutes()
+												.toString()
+												.padStart(2, "0")}
+										{/if}
+									{/if}
 								</small>
 							</div>
-						{/if}
-					</a>
-				{/each}
-			</ul>
-			{#if !topRecords && count > perPage}
-				<Pagination {count} {perPage} bind:currentPage align="right" class="mt-2" />
+
+							{#if game.status !== "open"}
+								<div class="factions flex shrink-0 flex-row">
+									{#each game.players as player (player._id)}
+										<PlayerGameAvatar
+											game={game.game.name}
+											isCurrent={game.currentPlayers?.some((pl) => pl._id === player._id)}
+											userId={userId ?? undefined}
+											{player}
+											class="me-1"
+										/>
+									{/each}
+								</div>
+							{:else}
+								<div class="me-3 text-right" style="line-height: 1.1;">
+									<small class="text-gray-500 dark:text-gray-400">
+										{shortDuration(Math.floor((Date.now() - new Date(game.createdAt ?? "").getTime()) / 1000))} ago
+									</small>
+								</div>
+							{/if}
+						</a>
+					{/each}
+				</ul>
+				{#if !topRecords && count > perPage}
+					<Pagination {count} {perPage} bind:currentPage align="right" class="mt-2" />
+				{/if}
+			{:else}
+				<p>No games to show</p>
 			{/if}
-		{:else}
-			<p>No games to show</p>
-		{/if}
-	</div>
-</Loading>
+		</div>
+	</Loading>
+</div>
 
 <style>
 	.game-list .game-item {

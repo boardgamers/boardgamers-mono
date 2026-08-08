@@ -96,6 +96,38 @@ router.get("/stats", async (ctx) => {
 	};
 });
 
+// GET /api/admin/users/deleted — paginated list of archived (soft-deleted) users,
+// most recently archived first. Read-only: restore is manual via the DB.
+const deletedUsersQuerySchema = z.object({
+	page: z.coerce.number().int().min(1).default(1),
+	limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+router.get("/deleted", async (ctx) => {
+	const { page, limit } = deletedUsersQuerySchema.parse(ctx.query);
+	const [users, total] = await Promise.all([
+		colls.deletedUsers
+			.find(
+				{},
+				{
+					projection: {
+						userId: 1,
+						"account.username": 1,
+						"account.email": 1,
+						createdAt: 1,
+						deletedAt: 1,
+					},
+				},
+			)
+			.sort({ deletedAt: -1 })
+			.skip((page - 1) * limit)
+			.limit(limit)
+			.toArray(),
+		colls.deletedUsers.countDocuments({}),
+	]);
+	ctx.body = { users, total, page, limit };
+});
+
 const userSearchQuerySchema = z.object({
 	search: z.string().optional(),
 });
@@ -375,6 +407,25 @@ router.get("/infoByName/:username", async (ctx) => {
 	const user = await findByUsername(ctx.params.username);
 
 	if (!user) {
+		// Not an active account — it may have been archived to deletedUsers by the
+		// dead-user cleanup. Answer 200 with a marker so the admin UI can show a
+		// "deleted/archived" state instead of a bare "not found".
+		const slug = ctx.params.username.toLowerCase();
+		const archived =
+			(await colls.deletedUsers.findOne(
+				{ "security.slug": slug },
+				{ sort: { deletedAt: -1 }, projection: { userId: 1, "account.username": 1, createdAt: 1, deletedAt: 1 } },
+			)) ??
+			(await colls.deletedUsers.findOne(
+				{ "account.username": ctx.params.username },
+				{ sort: { deletedAt: -1 }, projection: { userId: 1, "account.username": 1, createdAt: 1, deletedAt: 1 } },
+			));
+
+		if (archived) {
+			ctx.body = { archived: true, ...archived };
+			return;
+		}
+
 		ctx.status = 404;
 		return;
 	}

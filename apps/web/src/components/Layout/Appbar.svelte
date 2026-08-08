@@ -25,8 +25,7 @@
 	import IconCircleHalf from "@/components/icons/IconCircleHalf.svelte";
 	import { handleError } from "@/utils";
 	import { account, login, logout } from "@/lib/account.svelte";
-	import { logoClick } from "@/lib/stores.svelte";
-	import { activeGames } from "@/lib/stores.svelte";
+	import { logoClick, live, activeGames } from "@/lib/stores.svelte";
 	import { browser } from "$app/environment";
 	import { resolve } from "$app/paths";
 	import type { Pathname } from "$app/types";
@@ -45,10 +44,9 @@
 	let email = $state("");
 	let password = $state("");
 
-	// Client prefers the account store (seeded by the layout, live-updates on
-	// login/logout); SSR falls back to page.data.user so the navbar renders the
-	// user immediately without a post-SSR flicker.
-	let user = $derived(($account ?? page.data.user) as UserFront | null);
+	// SSR renders the snapshot, the client renders the seeded store (single source of
+	// truth once hydrated) — see the "seed once per identity" invariant in stores.svelte.ts.
+	let user = $derived(live($account, (page.data.user as UserFront | null) ?? null));
 
 	const handleSubmit = (event: Event) => {
 		event.preventDefault();
@@ -72,8 +70,9 @@
 	];
 
 	let admin = $derived(user?.authority === "admin");
-	// SSR fallback for active games so the count badge doesn't flicker after hydration.
-	let myActiveGames = $derived($activeGames.length > 0 ? $activeGames : ((page.data.activeGames as string[]) ?? []));
+	// SSR renders the snapshot; the client trusts the websocket-fed store, so an empty
+	// store after a `games:currentTurn` push correctly shows "no games" (the #167 fix).
+	let myActiveGames = $derived(live($activeGames, (page.data.activeGames as string[]) ?? []));
 
 	// Derive the admin panel URL from the current host: local dev → local admin port,
 	// production → admin.<root-domain>, PR preview → admin-pr-<n>.<root-domain>.
