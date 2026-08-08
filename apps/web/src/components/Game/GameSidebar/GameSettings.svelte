@@ -19,7 +19,7 @@
 
 	// `live`: the SSR user id during server render / first hydration, the live account
 	// store after — so the Settings section SSRs (no flash) and stays correct client-side.
-	let userId = $derived(live($account?._id ?? null, context.settingsUserId));
+	let userId = $derived(live($account?._id ?? null, context.viewerUserId));
 	let playerUser = $derived(game?.players.find((pl) => pl._id === userId));
 
 	async function postSettings() {

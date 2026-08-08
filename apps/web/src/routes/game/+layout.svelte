@@ -22,7 +22,7 @@
 	let players = $derived(page.data.players as PlayerInfoFront[] | undefined);
 	let gameInfo = $derived(page.data.gameInfo as GameInfoFront | undefined);
 	let settings = $derived((page.data.settings as Record<string, unknown> | null | undefined) ?? null);
-	let settingsUserId = $derived((page.data.settingsUserId as string | null | undefined) ?? null);
+	let viewerUserId = $derived((page.data.viewerUserId as string | null | undefined) ?? null);
 
 	let gameId = $derived(game?._id);
 	$effect(() => {
@@ -37,7 +37,7 @@
 		players: (page.data.players as PlayerInfoFront[]) ?? [],
 		gameInfo: (page.data.gameInfo as GameInfoFront) ?? null,
 		settings: (page.data.settings as Record<string, unknown> | null) ?? null,
-		settingsUserId: (page.data.settingsUserId as string | null) ?? null,
+		viewerUserId: (page.data.viewerUserId as string | null) ?? null,
 		replayData: null as { start: number; end: number; current: number } | null,
 		emitter: new EventEmitter(),
 		log: [] as string[],
@@ -51,7 +51,7 @@
 		context.players = players ?? [];
 		context.gameInfo = gameInfo ?? null;
 		context.settings = settings;
-		context.settingsUserId = settingsUserId;
+		context.viewerUserId = viewerUserId;
 	});
 
 	onDestroy(() => {

@@ -16,7 +16,7 @@
 	import SanitizedHtml from "../SanitizedHtml.svelte";
 	import { post } from "@/lib/api";
 	import { account } from "@/lib/account.svelte";
-	import { playerStatus, addActiveGame, removeActiveGame, devGameSettings } from "@/lib/stores.svelte";
+	import { playerStatus, addActiveGame, removeActiveGame, devGameSettings, live } from "@/lib/stores.svelte";
 
 	const context: GameContext = getContext("game");
 	let game = $derived(context.game);
@@ -34,7 +34,11 @@
 
 	let requestedDrop = $state<Record<string, boolean>>({});
 
-	let userId = $derived($account?._id);
+	// Resolve the viewer server-side too: `live` reads the SSR snapshot (context.viewerUserId,
+	// from the game page's load) during SSR / first hydration, then the live account store
+	// after. This is what lets "Your turn!" and "Vote to cancel" render in the SSR HTML
+	// (no post-hydration pop-in) instead of gating on the client-only $account store.
+	let userId = $derived(live($account?._id ?? null, context.viewerUserId));
 	let playerUser = $derived(game?.players.find((pl) => pl._id === userId));
 	let gameId = $derived(game?._id);
 
@@ -117,7 +121,13 @@
 	<h3 class="mt-3">Players</h3>
 	{#each game.players as player (player._id)}
 		<div class="mb-1 flex items-center player-row" class:active={isCurrentPlayer(player._id)}>
-			<PlayerGameAvatar game={game.game.name} {userId} {player} status={status(player._id)} class="me-2" />
+			<PlayerGameAvatar
+				game={game.game.name}
+				userId={userId ?? undefined}
+				{player}
+				status={status(player._id)}
+				class="me-2"
+			/>
 
 			<div>
 				<UsernameLink

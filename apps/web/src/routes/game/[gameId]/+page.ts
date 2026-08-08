@@ -50,8 +50,9 @@ export const load: PageLoad = async ({ params, parent }) => {
 		gameInfo,
 		preferences,
 		settings,
-		// The user the settings were fetched for, so the component can resolve `playerUser`
-		// during SSR (the `account` store is null server-side; the store takes over after hydration).
-		settingsUserId: settings ? (user?._id ?? null) : null,
+		// The SSR request's user (the viewer). The `account` store is null server-side, so
+		// components resolve their viewer-gated UI ("Your turn!", "Vote to cancel", the
+		// settings panel's playerUser) against this during SSR via `live($account?._id, viewerUserId)`.
+		viewerUserId: user?._id ?? null,
 	};
 };
