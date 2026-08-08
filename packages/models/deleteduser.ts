@@ -27,6 +27,9 @@ export const deletedUserIndexes: IndexDescription[] = [
 	{ key: { userId: 1 } },
 	// lookup by original username
 	{ key: { "account.username": 1 } },
+	// primary lookup of the admin infoByName fallback; non-unique on purpose — a
+	// restored-then-re-archived user appears twice with the same slug
+	{ key: { "security.slug": 1 } },
 	// list most-recently archived first
 	{ key: { deletedAt: -1 } },
 ];

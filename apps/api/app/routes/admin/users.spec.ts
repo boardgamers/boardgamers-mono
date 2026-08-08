@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
+import { deletedUserIndexes } from "@bgs/models";
 import { ObjectId } from "mongodb";
 import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
@@ -341,6 +342,27 @@ describe("Admin users API", () => {
 			assert.strictEqual(body.userId, deletedUserId.toHexString());
 			assert.strictEqual(body.account.username, "ghost-one");
 			assert.strictEqual(new Date(body.deletedAt).toISOString(), deletedAt.toISOString());
+		});
+
+		it("declares a non-unique index on security.slug (the infoByName fallback's primary lookup)", async () => {
+			const declared = deletedUserIndexes.filter((i) => "security.slug" in i.key);
+			assert.strictEqual(declared.length, 1);
+			assert.strictEqual(declared[0].unique ?? false, false);
+
+			const live = (await colls.deletedUsers.indexes()).find((i) => "security.slug" in i.key);
+			assert.ok(live, "expected a live security.slug index on deletedUsers");
+			assert.strictEqual(live.unique ?? false, false);
+		});
+
+		it("GET /admin/users/infoByName/:username finds an archived user by slug", async () => {
+			const res = await api("GET", "/api/admin/users/infoByName/GHOST-TWO", adminHeaders);
+			assert.strictEqual(res.status, 200);
+
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			const body = res.data as { archived: boolean; userId: string; account: { username: string } };
+			assert.strictEqual(body.archived, true);
+			assert.strictEqual(body.userId, deletedUser2Id.toHexString());
+			assert.strictEqual(body.account.username, "ghost-two");
 		});
 
 		it("GET /admin/users/infoByName/:username still 404s for a never-existing user", async () => {
