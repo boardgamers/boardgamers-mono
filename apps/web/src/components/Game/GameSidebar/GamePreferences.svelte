@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
 	import PreferencesChooser from "@/components/User/PreferencesChooser.svelte";
 	import IconInfoCircleFill from "@/components/icons/IconInfoCircleFill.svelte";
 	import type { GameContext } from "@/routes/game/[gameId]/game-context";
@@ -16,7 +17,7 @@
 	<div class="mt-3">
 		<h3 class="flex items-center gap-1">
 			Preferences
-			<a href={`/page/${gameInfo._id.game}/preferences`}>
+			<a href={resolve("/(app)/page/[part1]/[...part2]", { part1: gameInfo._id.game, part2: "preferences" })}>
 				<IconInfoCircleFill class="text-xs" />
 			</a>
 		</h3>

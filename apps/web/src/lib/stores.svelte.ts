@@ -1,5 +1,6 @@
 import { browser } from "$app/environment";
 import type { ChatMessageFront, UserFront } from "@bgs/models";
+import { SvelteDate } from "svelte/reactivity";
 import { writable, type Writable } from "svelte/store";
 
 /**
@@ -64,7 +65,7 @@ export function removeActiveGame(gameId: string) {
 // --- Current game (websocket-maintained, shared across game components) ---
 
 export const currentGameId = clientWritable<string | null>("currentGameId", null);
-export const lastGameUpdate = clientWritable<Date>("lastGameUpdate", new Date(0));
+export const lastGameUpdate = clientWritable<Date>("lastGameUpdate", new SvelteDate(0));
 export const playerStatus = clientWritable<Array<{ _id: string; status: "online" | "offline" | "away" }>>(
 	"playerStatus",
 	[],

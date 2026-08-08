@@ -24,7 +24,7 @@ import type { WithId } from "mongodb";
 import { colls } from "./config/db.ts";
 import { accessTokenPayloadSchema } from "./models/jwtrefreshtokens.ts";
 import { notifyLogin, notifyLastIp } from "./models/user.ts";
-import { setRefreshCookie, parseRefreshCookie } from "./models/session.ts";
+import { setRefreshCookie, parseRefreshCookie, clearAllRefreshCookieVariants } from "./models/session.ts";
 
 // Throttle sliding-session cookie refreshes (per refresh code) so active users
 // don't rewrite the cookie / bump lastSeen on every single mutating request.
@@ -117,6 +117,11 @@ async function listen(port = env.listen.port.api) {
 			const code = parseRefreshCookie(raw);
 			if (code) {
 				const rt = await colls.jwtRefreshTokens.findOne({ code });
+				if (!rt) {
+					// Dead session cookie (revoked or expired server-side). Clear all variants so a
+					// stale pre-overhaul host-only cookie can't shadow future logins (see session.ts).
+					clearAllRefreshCookieVariants(ctx);
+				}
 				if (rt) {
 					ctx.state.user = (await colls.users.findOne({ _id: rt.user })) ?? undefined;
 

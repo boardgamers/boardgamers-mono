@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Card, CardText } from "@/modules/cdk";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import ExpandableMarkdown from "@/components/ExpandableMarkdown.svelte";
 	import { useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
@@ -11,15 +12,17 @@
 
 	let info = useLatestGameInfos();
 
-	// Provide the SSR-fetched prefs map via context so the ownership classes render during
-	// SSR (the store is browser-only). On the client the store (seeded by the load's getter)
-	// is the reactive source; the context is the SSR fallback.
-	if (data.gamePreferences) {
-		provideGamePreferences(data.gamePreferences);
+	// SSR: provide the SSR-fetched prefs map via context during init so the ownership
+	// classes render server-side (setContext must run at init; $effect does NOT run during
+	// SSR). On the client the store (seeded by the load's getter) is the reactive source.
+	// Read through a function: intentional init-time capture of `data` (no reactivity wanted).
+	const ssrPreferences = () => data.gamePreferences;
+	if (ssrPreferences()) {
+		provideGamePreferences(ssrPreferences()!);
 	}
 
 	function owns(gameId: string): boolean {
-		return !!($gamePreferences[gameId] ?? data.gamePreferences?.[gameId])?.access?.ownership;
+		return !!($gamePreferences[gameId] ?? ssrPreferences()?.[gameId])?.access?.ownership;
 	}
 </script>
 
@@ -31,12 +34,12 @@
 <div class="container mx-auto px-4">
 	<h1 class="mb-4">Game selection</h1>
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-		{#each info as game}
+		{#each info as game (game._id.game)}
 			<div>
 				<Card
 					header={game.label}
 					class="border-gray-300 h-full cursor-pointer transition-shadow hover:border-primary hover:shadow-lg dark:border-gray-600 dark:hover:border-primary-lighter"
-					onclick={() => goto(`/boardgame/${game._id.game}`)}
+					onclick={() => goto(resolve("/(app)/boardgame/[boardgameId]", { boardgameId: game._id.game }))}
 					role="button"
 				>
 					<CardText>

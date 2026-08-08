@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
 	import { Button, FormGroup, Label } from "@/modules/cdk";
 	import { handleError } from "@/utils";
 	import { useLoggedOut } from "@/lib/auth-guards.svelte";
@@ -26,14 +27,14 @@
 		}}
 	>
 		<FormGroup>
-			<Label for="email">Email</Label>
+			<Label for="email">Email or username</Label>
 			<input
 				bind:value={email}
-				type="email"
+				type="text"
 				class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
 				id="email"
 				name="email"
-				placeholder="Email address"
+				placeholder="Email address or username"
 				required
 			/>
 		</FormGroup>
@@ -49,7 +50,7 @@
 				required
 			/>
 			<div class="mt-1 text-right">
-				<a href="/forgotten-password"><span class="text-xs">Forgotten password ?</span></a>
+				<a href={resolve("/(app)/forgotten-password")}><span class="text-xs">Forgotten password ?</span></a>
 			</div>
 		</FormGroup>
 		<div class="mt-3">
@@ -59,5 +60,5 @@
 
 	<hr />
 
-	<p class="mt-3">Need an account ? <a href="/signup">Register</a></p>
+	<p class="mt-3">Need an account ? <a href={resolve("/(app)/signup")}>Register</a></p>
 </div>

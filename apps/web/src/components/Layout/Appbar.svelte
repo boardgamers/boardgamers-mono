@@ -23,6 +23,8 @@
 	import { logoClick } from "@/lib/stores.svelte";
 	import { activeGames } from "@/lib/stores.svelte";
 	import { browser } from "$app/environment";
+	import { resolve } from "$app/paths";
+	import type { Pathname } from "$app/types";
 	import { currentTheme, cycleTheme, type Theme } from "@/lib/theme";
 	import UserAvatar from "../User/UserAvatar.svelte";
 	import { page } from "$app/state";
@@ -58,11 +60,18 @@
 	let myActiveGames = $derived($activeGames.length > 0 ? $activeGames : ((page.data.activeGames as string[]) ?? []));
 
 	// Derive the admin panel URL from the current host: local dev → local admin port,
-	// production → admin.<root-domain> (handles www. and subdomains).
-	let adminLink = $derived.by(() => {
-		const { protocol, hostname } = page.url;
+	// production → admin.<root-domain>, PR preview → admin-pr-<n>.<root-domain>.
+	// The preview admin uses a dash-subdomain, not admin.pr-<n>..., because the
+	// *.boardgamers.space cert only covers one subdomain level. External link.
+	let adminLink = $derived.by((): `http${string}` => {
+		const { hostname } = page.url;
+		const protocol = page.url.protocol as "http:" | "https:";
 		if (hostname === "localhost" || hostname === "127.0.0.1") {
 			return `${protocol}//${hostname}:8613`;
+		}
+		const prPreview = /^pr-(\d+)\.(.+)$/.exec(hostname);
+		if (prPreview) {
+			return `${protocol}//admin-pr-${prPreview[1]}.${prPreview[2]}`;
 		}
 		const rootDomain = hostname.startsWith("www.") ? hostname.slice(4) : hostname;
 		return `${protocol}//admin.${rootDomain}`;
@@ -91,7 +100,7 @@
 
 <Navbar color="primary" class={className} dark expand>
 	<a
-		href="/"
+		href={resolve("/(app)")}
 		onclick={logoClick}
 		data-sveltekit-preload-data="hover"
 		class="me-2 text-xl font-bold text-white no-underline hover:text-white">BGS</a
@@ -102,7 +111,7 @@
 			class={`me-3 flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-bold text-white no-underline transition hover:text-white ${
 				hasGames ? "bg-green-600 hover:bg-green-500" : "bg-gray-500 hover:bg-gray-400"
 			}`}
-			href="/next-game"
+			href={resolve("/(app)/next-game")}
 			title={hasGames
 				? `${myActiveGames.length} ${myActiveGames.length === 1 ? "game" : "games"} waiting for your move — click to jump to the next one`
 				: "No games waiting for your move"}
@@ -112,7 +121,7 @@
 		</a>
 	{/if}
 
-	<a href="/boardgames" title="Boardgames list" data-sveltekit-preload-data="hover">
+	<a href={resolve("/(app)/boardgames")} title="Boardgames list" data-sveltekit-preload-data="hover">
 		<img src="/images/icons/dice.svg" height="28" width="28" alt="Boardgames list" />
 	</a>
 
@@ -145,6 +154,7 @@
 					<div>
 						Log in with
 						<div class="mt-3 mb-1 flex flex-wrap justify-around">
+							<!-- OAuth endpoints, not app routes: off-site navigation (rel="external"). -->
 							<Button color="google" href="/api/account/auth/google" rel="external" class="w-[46%] mb-2">Google</Button>
 							<Button color="discord" href="/api/account/auth/discord" rel="external" class="w-[46%] mb-2"
 								>Discord</Button
@@ -156,14 +166,29 @@
 						or
 						<Form class="mt-3" onsubmit={handleSubmit}>
 							<FormGroup>
-								<Label hidden for="email">Email</Label>
-								<Input id="email" type="email" required bind:value={email} autofocus />
+								<Label hidden for="email">Email or username</Label>
+								<Input
+									id="email"
+									type="text"
+									name="email"
+									placeholder="Email address or username"
+									required
+									bind:value={email}
+									autofocus
+								/>
 							</FormGroup>
 							<FormGroup>
 								<Label hidden for="password">Password</Label>
-								<Input id="password" type="password" bind:value={password} required />
+								<Input
+									id="password"
+									type="password"
+									name="password"
+									placeholder="Password"
+									bind:value={password}
+									required
+								/>
 								<FormText class="mt-2 pt-2">
-									<a href="/forgotten-password">Forgotten password ?</a>
+									<a href={resolve("/(app)/forgotten-password")}>Forgotten password ?</a>
 								</FormText>
 							</FormGroup>
 							<FormGroup>
@@ -172,19 +197,19 @@
 						</Form>
 					</div>
 					<div class="mt-3 border-t border-gray-200 p-3.5 text-center dark:border-gray-700">
-						New ? <a href="/signup"><b>Join us</b></a>
+						New ? <a href={resolve("/(app)/signup")}><b>Join us</b></a>
 					</div>
 				</DropdownMenu>
 			</Dropdown>
 		{:else}
 			{#if admin}
-				<NavLink href={adminLink} class="flex items-center gap-2">
+				<NavLink href={adminLink} rel="external" class="flex items-center gap-2">
 					<IconGearFill size="1.25rem" />
 					<span class="hidden sm:inline">Admin</span>
 				</NavLink>
 			{/if}
 			<NavLink
-				href={`/user/${user.account.username}`}
+				href={resolve("/(app)/user/[username]", { username: user.account.username })}
 				data-sveltekit-preload-data="hover"
 				class="flex items-center gap-2 rounded-md px-2 py-1 no-underline hover:bg-white/10 hover:text-white"
 			>

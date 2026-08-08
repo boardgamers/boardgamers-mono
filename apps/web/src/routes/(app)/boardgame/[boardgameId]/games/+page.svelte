@@ -9,6 +9,8 @@
 
 	let { data }: PageProps = $props();
 
+	// boardgameId never changes on this page (per-boardgame route), so a one-shot read is fine.
+	// svelte-ignore state_referenced_locally
 	const gameInfo = useGameInfo(data.boardgameId, "latest");
 
 	import { untrack } from "svelte";

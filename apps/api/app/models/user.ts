@@ -31,7 +31,9 @@ export function makeDefaultUser(params: {
 			password: params.password,
 			karma: defaultKarma,
 			termsAndConditions: now,
-			social: params.social,
+			// Omit `social` when absent: the driver serializes `undefined` as null, and a
+			// stored `social: null` breaks later `$set: { "account.social.<provider>" }` updates.
+			...(params.social ? { social: params.social } : {}),
 			avatar: "avataaars",
 			bio: "",
 		},
