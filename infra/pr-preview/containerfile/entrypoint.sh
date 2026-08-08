@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Boots one preview env inside its container: check out the PR commit on top of the
-# image's cached repo, restore the per-env db from the sanitized template, then run
-# web + api + game-server as children of one PID 1 (the container is the unit —
-# `podman rm -f` tears the whole env down).
+# image's cached repo, seed the per-env db from the sanitized template on FIRST boot
+# only (later restarts/updates keep the db as-is), then run web + api + game-server
+# as children of one PID 1 (the container is the unit — `podman rm -f` tears the
+# whole env down).
 #
 # Required env: PR (pr number), SHA (commit to check out), MONGO_URL.
 # Optional:     WEB_PORT (8612), API_PORT (50801), WS_PORT (50802), GS_PORT (50803),
@@ -45,13 +46,20 @@ echo "[entrypoint] building admin"
 # is baked into the build.
 pnpm --filter @bgs/admin build
 
-echo "[entrypoint] restoring db ${DB} from ${TEMPLATE}"
 until mongosh --quiet "$MONGO_URL/admin" --eval 'db.runCommand({ping:1})' >/dev/null 2>&1; do sleep 1; done
-mongosh --quiet "$MONGO_URL/admin" --eval "db.getSiblingDB('${DB}').dropDatabase()" >/dev/null
-if [ -d "/dumps/template/${TEMPLATE}" ]; then
-  mongorestore --uri="$MONGO_URL" --db="$DB" --nsFrom="${TEMPLATE}.*" --nsTo="${DB}.*" "/dumps/template/${TEMPLATE}"
+# Seed only on first boot (db missing/empty). On a restart or code update the env
+# db already holds data — including anything added on the preview — so it must NOT
+# be dropped and re-imported from the template.
+if [ "$(/usr/local/bin/db-needs-seed.sh "$MONGO_URL" "$DB")" = "yes" ]; then
+  echo "[entrypoint] first boot: seeding db ${DB} from ${TEMPLATE}"
+  mongosh --quiet "$MONGO_URL/admin" --eval "db.getSiblingDB('${DB}').dropDatabase()" >/dev/null
+  if [ -d "/dumps/template/${TEMPLATE}" ]; then
+    mongorestore --uri="$MONGO_URL" --db="$DB" --nsFrom="${TEMPLATE}.*" --nsTo="${DB}.*" "/dumps/template/${TEMPLATE}"
+  else
+    echo "[entrypoint] no template dump yet, starting from an empty db"
+  fi
 else
-  echo "[entrypoint] no template dump yet, starting from an empty db"
+  echo "[entrypoint] db ${DB} already has data, skipping template restore"
 fi
 
 export NODE_ENV=production cron=false
