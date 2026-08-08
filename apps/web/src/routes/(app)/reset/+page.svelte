@@ -24,7 +24,7 @@
 	}
 </script>
 
-<SEO title="Reset password" />
+<SEO title="Reset password" noindex />
 <div class="container mx-auto px-4">
 	<h1>Reset password</h1>
 	<form

@@ -22,6 +22,9 @@
 			month: "long",
 		})} ${dateFromObjectId(userId).toLocaleString("en", { year: "numeric" })} and has ${data.user.account.karma} karma.`}
 	image={`${page.url.origin}/api/user/${userId}/avatar`}
+	imageWidth={256}
+	imageHeight={256}
+	type="profile"
 />
 
 <div class="container mx-auto px-4">

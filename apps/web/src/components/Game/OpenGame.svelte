@@ -37,6 +37,7 @@
 	import SEO from "../SEO.svelte";
 	import removeMarkdown from "remove-markdown";
 	import { gameLabel } from "@/utils/game-label";
+	import { defaultOgImage, ogImageUrl } from "@/lib/seo";
 	import type { UserFront } from "@bgs/models";
 	import type { JsonObject, JsonValue } from "type-fest";
 	import { debounce } from "lodash";
@@ -66,6 +67,16 @@
 			return "always active";
 		}
 	};
+
+	// Chips on the OG card: players joined + game pace (≥24h per player = asynchronous,
+	// same threshold as the short-duration warning below).
+	let ogPlayers = $derived(`${context.game?.players.length} / ${context.game?.options.setup.nbPlayers} players joined`);
+	let ogPace = $derived(
+		(context.game?.options.timing.timePerGame ?? 0) >= 24 * 3600
+			? `Asynchronous — ${duration(context.game?.options.timing.timePerGame ?? 0)} / player`
+			: `Live — ${duration(context.game?.options.timing.timePerGame ?? 0)} / player`
+	);
+	let ogSubtitle = $derived(`Join and play online! ${ogPace}`);
 
 	const leave = async () => {
 		if (await confirm("Are you sure you want to leave this game?")) {
@@ -192,7 +203,8 @@
 </script>
 
 <SEO
-	title="{gameId} - {gameLabel(context.gameInfo?.label ?? '')} game"
+	noindex
+	title="{gameLabel(context.gameInfo?.label ?? '')} game {gameId}"
 	description="{context.game?.players.length} / {context.game?.options.setup.nbPlayers} players. Timer of {duration(
 		context.game?.options.timing.timePerGame ?? 0
 	)} per player, with an additional {duration(context.game?.options.timing.timePerMove ?? 0)} per move.
@@ -211,6 +223,13 @@
 		.filter(Boolean)
 		.map((str) => `- ${removeMarkdown(str)}`)
 		.join('\\n')}"
+	image={ogImageUrl(defaultOgImage.path, {
+		title: `${gameLabel(context.gameInfo?.label ?? "")} — open game`,
+		subtitle: ogSubtitle,
+		game: gameLabel(context.gameInfo?.label ?? ""),
+		players: ogPlayers,
+		pace: ogPace,
+	})}
 />
 
 <div class="container mx-auto px-4 pb-3">

@@ -17,7 +17,7 @@
 	}
 </script>
 
-<SEO title="Login" />
+<SEO title="Login" description="Log in to Boardgamers to play boardgames online with other people." noindex />
 
 <div class="container mx-auto px-4">
 	<form

@@ -42,7 +42,10 @@
 	});
 </script>
 
-<SEO title="All games" description={`${featuredCount} ongoing games and ${lobbyCount} open games.`} />
+<SEO
+	title="All games"
+	description={`${featuredCount.total} ongoing games and ${lobbyCount.total} open games. Join one or create your own!`}
+/>
 
 <div class="container mx-auto px-4">
 	<div class="flex flex-wrap items-center gap-3">

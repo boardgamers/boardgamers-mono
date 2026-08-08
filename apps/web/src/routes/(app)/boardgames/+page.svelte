@@ -26,7 +26,10 @@
 	}
 </script>
 
-<SEO title="Game selection" />
+<SEO
+	title="Boardgames"
+	description="Choose a boardgame and play it online with other people: Gaia Project, Powergrid, 6nimmt, Container and more."
+/>
 
 <div class="container mx-auto px-4">
 	<h1 class="mb-4">Game selection</h1>
