@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { pluralize } from "@/utils";
 	import type { GamePreferencesFront } from "@bgs/models";
@@ -18,10 +19,12 @@
 {#if gamePreferences.some((pref) => pref.elo)}
 	<div>
 		<h3 class="flex items-center gap-1 font-semibold">
-			Elo <a href="/page/elo"><IconInfoCircleFill class="text-gray-500 text-xs dark:text-gray-400" /></a>
+			Elo <a href={resolve("/(app)/page/[part1]", { part1: "elo" })}
+				><IconInfoCircleFill class="text-gray-500 text-xs dark:text-gray-400" /></a
+			>
 		</h3>
 		<ul class="divide-y divide-accent/60 rounded-lg border border-accent text-start">
-			{#each gamePreferences.filter((pref) => !!pref.elo) as gamePref}
+			{#each gamePreferences.filter((pref) => !!pref.elo) as gamePref (gamePref.game)}
 				<div class="cursor-pointer px-4 py-2 hover:bg-accent/5">
 					<span>
 						{gameName(gamePref.game)} - <b>{gamePref.elo!.value}</b> in

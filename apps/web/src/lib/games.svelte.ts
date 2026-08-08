@@ -1,4 +1,5 @@
 import type { GameStatus, GameFront } from "@bgs/models";
+import { SvelteMap } from "svelte/reactivity";
 import { get as getStore } from "svelte/store";
 import { account } from "./stores.svelte";
 import { get } from "./api";
@@ -22,7 +23,7 @@ export type LoadGamesResult = {
 	total: number;
 };
 
-const gamesCache = new Map<string, LoadGamesResult>();
+const gamesCache = new SvelteMap<string, LoadGamesResult>();
 
 /** Clear cached game results. Called from +page.ts load functions to prevent
  *  stale data from a previous navigation being served on the new page. */

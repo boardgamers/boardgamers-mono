@@ -16,9 +16,20 @@ Internet ── coyo (62.210.93.85, the one public entry point)
               cron 03:17: dump-and-ship.sh  (sanitized prod dump → minipc)
                     │ WireGuard 10.90.0.1 ↔ 10.90.0.2 (no inbound ports at home)
 minipc ── preview-api :9900 (control plane, WireGuard IP only)
-          bgs-preview-mongo :27017 (WireGuard IP only, holds all preview dbs)
+          bgs-preview-mongo :27017 (holds all preview dbs; on the bgs-preview bridge)
           bgs-pr-<n> containers (rootless Podman): web+api+game-server
 ```
+
+## Network isolation
+
+Envs and mongo share a rootless Podman bridge network (`bgs-preview`); envs reach
+mongo **by container name** (`mongodb://bgs-preview-mongo:27017`). There is **no
+`allow_host_loopback`** — a compromised env cannot reach the minipc's host loopback
+(`127.0.0.1`) services. Outbound internet still works (bridge NAT) so the game-server
+can `npm install` engines. Caveat: services bound to the WireGuard IP `10.90.0.2`
+(preview-api :9900, other envs' ports) remain reachable from envs since that IP is
+routable from the bridge — preview-api is bearer-token authed, so this is acceptable;
+only host _loopback_ is firewalled off.
 
 ## Files here
 

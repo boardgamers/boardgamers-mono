@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
 	import { timerTime, defer, duration, niceDate, shortDuration, compactTiming } from "@/utils";
 	import type { GameFront } from "@bgs/models";
 	import { createWatcher } from "@/utils/watch";
@@ -141,9 +142,9 @@
 			<ul
 				class="divide-y divide-accent/80 rounded-lg border border-accent/80 bg-white text-start dark:divide-accent/60 dark:border-accent/60 dark:bg-gray-900 game-list"
 			>
-				{#each games as game}
+				{#each games as game (game._id)}
 					<a
-						href={`/game/${game._id}`}
+						href={resolve("/game/[gameId]", { gameId: game._id })}
 						class="no-link flex cursor-pointer items-center px-4 py-2 pe-1 ps-0 hover:bg-gray-50 dark:hover:bg-gray-800 game-item"
 						class:active-game={game.status === "active"}
 						class:current-turn={game.currentPlayers?.some((pl) => pl._id === userId)}
@@ -198,7 +199,7 @@
 
 						{#if game.status !== "open"}
 							<div class="factions flex shrink-0 flex-row">
-								{#each game.players as player}
+								{#each game.players as player (player._id)}
 									<PlayerGameAvatar
 										game={game.game.name}
 										isCurrent={game.currentPlayers?.some((pl) => pl._id === player._id)}

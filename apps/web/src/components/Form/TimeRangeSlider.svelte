@@ -123,7 +123,7 @@
 		{/if}
 
 		<!-- hour ticks -->
-		{#each ticks as h}
+		{#each ticks as h (h)}
 			<div class="absolute top-0 h-full w-px bg-gray-400/60 dark:bg-gray-500/60" style="left: {(h / 24) * 100}%"></div>
 			<span
 				class="absolute -bottom-4 -translate-x-1/2 text-[0.65rem] text-gray-500 dark:text-gray-400"

@@ -3,6 +3,7 @@
 	import { Card, Col, Row } from "@/modules/cdk";
 	import { GameList } from "../Game";
 	import { page } from "$app/state";
+	import { resolve } from "$app/paths";
 
 	let { userId }: { userId: string } = $props();
 
@@ -16,7 +17,10 @@
 		return query.toString();
 	};
 
-	let alternativeRoute = $derived("?" + generateAlternative(page));
+	let alternativeQuery = $derived("?" + generateAlternative(page));
+	let alternativeLink = $derived(
+		resolve("/(app)/user/[username]", { username: page.params.username! }) + alternativeQuery
+	);
 </script>
 
 <Card class="mt-4 border-secondary" header="Games">
@@ -35,7 +39,8 @@
 		{/if}
 	</Row>
 	{#snippet footer()}
-		<a href={alternativeRoute}>
+		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- path is resolve()d above; the rule can't trace resolve() + query-string concatenation -->
+		<a href={alternativeLink}>
 			{filter === "started" ? "Open games" : "Started games"}
 		</a>
 	{/snippet}

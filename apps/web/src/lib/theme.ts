@@ -14,12 +14,21 @@ function getStoredTheme(): Theme {
 
 function applyTheme(theme: Theme) {
 	if (!browser) return;
-	const isDark = theme === "dark" || (theme === "system" && getSystemPreference());
-	document.documentElement.classList.toggle("dark", isDark);
+	document.documentElement.classList.toggle("dark", isDark(theme));
+}
+
+export function isDark(theme: Theme): boolean {
+	return theme === "dark" || (theme === "system" && getSystemPreference());
 }
 
 // Use a store so components can subscribe with $currentTheme
 export const currentTheme: Writable<Theme> = writable(getStoredTheme());
+
+// Resolved dark boolean — updates both when the theme setting changes AND when the
+// system preference flips while the setting is "system". Iframes (which can't read
+// the host page's DOM class) must subscribe to this, not $currentTheme, or they go
+// stale on a system flip.
+export const isDarkMode: Writable<boolean> = writable(isDark(getStoredTheme()));
 
 // Apply on init
 applyTheme(getStoredTheme());
@@ -27,6 +36,7 @@ applyTheme(getStoredTheme());
 // Keep the DOM in sync whenever the store changes
 currentTheme.subscribe((theme) => {
 	applyTheme(theme);
+	isDarkMode.set(isDark(theme));
 });
 
 // Listen for system preference changes when in "system" mode
@@ -36,6 +46,7 @@ if (browser) {
 		currentTheme.subscribe((t) => (theme = t))();
 		if (theme === "system") {
 			applyTheme("system");
+			isDarkMode.set(getSystemPreference());
 		}
 	});
 }

@@ -4,6 +4,8 @@
 	import { fromPairs } from "lodash";
 	import { Button, Input, Checkbox } from "@/modules/cdk";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import SanitizedHtml from "@/components/SanitizedHtml.svelte";
 	import { randomGameName } from "@/data";
 	import { fade } from "svelte/transition";
 	import { untrack } from "svelte";
@@ -139,7 +141,7 @@
 		post("/game/new-game", dataObj)
 			.then(() => {
 				saveLastSetup();
-				goto("/game/" + gameId);
+				goto(resolve("/game/[gameId]", { gameId }));
 			}, handleError)
 			.finally(() => (submitting = false));
 	}
@@ -241,7 +243,7 @@
 					<div class="mb-4">
 						<span class="mb-1 block font-medium">Number of players</span>
 						<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Number of players">
-							{#each info.players as option}
+							{#each info.players as option, i (i)}
 								<button
 									type="button"
 									class="rounded-md border px-4 py-2 text-sm font-medium transition-colors {numPlayers === option
@@ -276,11 +278,13 @@
 
 					<!-- Important game selects (map / variant / etc.) promoted out of Advanced -->
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-						{#each (info.options ?? []).filter((opt) => opt.type === "select") as select}
+						{#each (info.options ?? []).filter((opt) => opt.type === "select") as select (select.name)}
 							<div>
-								<label for={select.name} class="mb-1 block font-medium">{@html oneLineMarked(select.label)}</label>
+								<label for={select.name} class="mb-1 block font-medium"
+									><SanitizedHtml html={oneLineMarked(select.label)} /></label
+								>
 								<Input type="select" bind:value={selects[select.name]} id={select.name} required>
-									{#each select.items || [] as item}
+									{#each select.items || [] as item (item.name)}
 										<option value={item.name}>{marked(item.label).replace(/<[^>]+>/g, "")}</option>
 									{/each}
 								</Input>
@@ -292,7 +296,7 @@
 						<div class="mt-4">
 							<h3>Expansions</h3>
 							<div class="flex flex-wrap gap-2">
-								{#each info.expansions ?? [] as expansion}
+								{#each info.expansions ?? [] as expansion (expansion.name)}
 									<label
 										class="cursor-pointer rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {expansions.includes(
 											expansion.name
@@ -301,7 +305,7 @@
 											: 'border-gray-300 text-gray-700 hover:border-accent hover:text-accent dark:border-gray-600 dark:text-gray-200 dark:hover:text-accent-lighter'}"
 									>
 										<input type="checkbox" class="sr-only" bind:group={expansions} value={expansion.name} />
-										{@html oneLineMarked(expansion.label)}
+										<SanitizedHtml html={oneLineMarked(expansion.label)} />
 									</label>
 								{/each}
 							</div>
@@ -333,7 +337,7 @@
 							<input type="checkbox" class="sr-only" bind:group={options} value="unlisted" />
 							Unlisted
 						</label>
-						{#each (info.options ?? []).filter((opt) => opt.type === "checkbox") as option}
+						{#each (info.options ?? []).filter((opt) => opt.type === "checkbox") as option (option.name)}
 							<label
 								class="cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {options.includes(
 									option.name
@@ -342,7 +346,7 @@
 									: 'border-gray-300 text-gray-700 hover:border-primary hover:text-primary dark:border-gray-600 dark:text-gray-200 dark:hover:text-primary-lighter'}"
 							>
 								<input type="checkbox" class="sr-only" bind:group={options} value={option.name} />
-								{@html oneLineMarked(option.label)}
+								<SanitizedHtml html={oneLineMarked(option.label)} />
 							</label>
 						{/each}
 					</div>
@@ -362,7 +366,7 @@
 						id="timePerGame"
 						class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
 					>
-						{#each [60, 180, 300, 600, 1800, 3600, 6 * 3600, 24 * 3600, 3 * 24 * 3600, 10 * 24 * 3600] as x}
+						{#each [60, 180, 300, 600, 1800, 3600, 6 * 3600, 24 * 3600, 3 * 24 * 3600, 10 * 24 * 3600] as x (x)}
 							<option value={x}>{duration(x)}</option>
 						{/each}
 					</select>
@@ -375,7 +379,7 @@
 						id="timePerMove"
 						class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
 					>
-						{#each [5, 10, 30, 60, 5 * 60, 15 * 60, 3600, 2 * 3600, 6 * 3600, 24 * 3600] as x}
+						{#each [5, 10, 30, 60, 5 * 60, 15 * 60, 3600, 2 * 3600, 6 * 3600, 24 * 3600] as x (x)}
 							<option value={x}>{duration(x)}</option>
 						{/each}
 					</select>
@@ -442,7 +446,7 @@
 							<div>
 								<label for="playerOrder">Player order</label>
 								<Input type="select" bind:value={playerOrder} id="playerOrder" required>
-									{#each playerOrders as item}
+									{#each playerOrders as item (item.name)}
 										<option value={item.name}>{item.label}</option>
 									{/each}
 								</Input>

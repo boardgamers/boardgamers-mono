@@ -1,4 +1,4 @@
-<script lang="ts" context="module">
+<script lang="ts" module>
 	// Minimal github-slugger (lowercase, spaces→hyphens, dedupe) for heading anchors.
 	class GithubSlugger {
 		private seen = new Map<string, number>();
@@ -21,6 +21,8 @@
 <script lang="ts">
 	import type { PageFront } from "@bgs/models";
 	import marked from "marked";
+
+	import SanitizedHtml from "./SanitizedHtml.svelte";
 
 	let { pageContent }: { pageContent: Partial<PageFront> } = $props();
 
@@ -62,7 +64,7 @@
 				{pageContent.title}
 			</div>
 			<ul class="space-y-1 border-s border-gray-200 text-sm dark:border-gray-700">
-				{#each headings as h}
+				{#each headings as h (h.slug)}
 					<li style:padding-inline-start="{(h.depth - 1) * 0.75}rem">
 						<a
 							href="#{h.slug}"
@@ -78,9 +80,7 @@
 
 	<article class="prose dark:prose-invert lg:prose-lg min-w-0 max-w-3xl page-article">
 		<h1>{pageContent.title}</h1>
-		<div>
-			{@html htmlWithIds}
-		</div>
+		<SanitizedHtml html={htmlWithIds} />
 	</article>
 </div>
 

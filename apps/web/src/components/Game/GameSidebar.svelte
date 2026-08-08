@@ -13,6 +13,7 @@
 	import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
 	import UsernameLink from "@/components/User/UsernameLink.svelte";
 	import SetupOptionBadge from "./SetupOptionBadge.svelte";
+	import SanitizedHtml from "../SanitizedHtml.svelte";
 	import { post } from "@/lib/api";
 	import { account } from "@/lib/account.svelte";
 	import { playerStatus, addActiveGame, removeActiveGame, devGameSettings } from "@/lib/stores.svelte";
@@ -114,8 +115,8 @@
 <div id="floating-controls"></div>
 {#if game && gameInfo}
 	<h3 class="mt-3">Players</h3>
-	{#each game.players as player}
-		<div class={"mb-1 flex items-center player-row"} class:active={isCurrentPlayer(player._id)}>
+	{#each game.players as player (player._id)}
+		<div class="mb-1 flex items-center player-row" class:active={isCurrentPlayer(player._id)}>
 			<PlayerGameAvatar game={game.game.name} {userId} {player} status={status(player._id)} class="me-2" />
 
 			<div>
@@ -171,7 +172,7 @@
 			{#if game.players.some((pl) => !!pl.dropped)}
 				<Button size="sm" class="ms-2" disabled={playerUser.dropped || playerUser.quit} onclick={quit}>Quit</Button>
 			{/if}
-			{#each game.players as player}
+			{#each game.players as player (player._id)}
 				{#if remainingTime(player) <= 0 && isCurrentPlayer(player._id) && !player.dropped && !player.quit}
 					<Button
 						size="sm"
@@ -196,9 +197,9 @@
 	{#if (game.game.expansions?.length ?? 0) > 0}
 		<div class="mt-3">
 			<h3>Expansions</h3>
-			{#each game.game.expansions as expansion}
+			{#each game.game.expansions as expansion, i (i)}
 				<Badge color="accent" class="me-1">
-					{@html oneLineMarked(gameInfo.expansions?.find((xp) => xp.name === expansion)?.label ?? "")}
+					<SanitizedHtml html={oneLineMarked(gameInfo.expansions?.find((xp) => xp.name === expansion)?.label ?? "")} />
 				</Badge>
 			{/each}
 		</div>
@@ -212,7 +213,7 @@
 		<div class="mt-3">
 			<h3 class="mb-1">Setup options</h3>
 			<div class="flex flex-wrap gap-1">
-				{#each (gameInfo.options ?? []).filter((x) => !!gameOptions()[x.name]) as pref}
+				{#each (gameInfo.options ?? []).filter((x) => !!gameOptions()[x.name]) as pref (pref.name)}
 					<SetupOptionBadge {pref} value={gameOptions()[pref.name]} />
 				{/each}
 			</div>

@@ -2,6 +2,7 @@
 	import { Card, CardText } from "@/modules/cdk";
 	import { confirm } from "@/utils";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import ExpandableMarkdown from "@/components/ExpandableMarkdown.svelte";
 	import { useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
@@ -13,12 +14,16 @@
 
 	let info = useLatestGameInfos();
 
-	if (data.gamePreferences) {
-		provideGamePreferences(data.gamePreferences);
+	// SSR: provide the SSR-fetched prefs map via context during init so the ownership
+	// classes render server-side (setContext must run at init; $effect does NOT run during
+	// SSR). On the client the store (seeded by the load's getter) is the reactive source.
+	const ssrPreferences = () => data.gamePreferences;
+	if (ssrPreferences()) {
+		provideGamePreferences(ssrPreferences()!);
 	}
 
 	function owns(gameId: string): boolean {
-		return !!($gamePreferences[gameId] ?? data.gamePreferences?.[gameId])?.access?.ownership;
+		return !!($gamePreferences[gameId] ?? ssrPreferences()?.[gameId])?.access?.ownership;
 	}
 
 	const onClick = async (gameInfo: IterableElement<typeof info>) => {
@@ -27,7 +32,7 @@
 				"You need to have game ownership to host a new game. You can set game ownership in your account settings."
 			);
 		} else {
-			goto(`/boardgame/${gameInfo._id.game}/new-game`);
+			goto(resolve("/(app)/boardgame/[boardgameId]/new-game", { boardgameId: gameInfo._id.game }));
 		}
 		return;
 	};
@@ -38,7 +43,7 @@
 <div class="container mx-auto px-4">
 	<h1 class="mb-4">Choose which game to play</h1>
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-		{#each info as game}
+		{#each info as game (game._id.game)}
 			<div role="button">
 				<Card
 					header={game.label}
