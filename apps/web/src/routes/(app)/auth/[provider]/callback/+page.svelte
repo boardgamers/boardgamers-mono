@@ -3,7 +3,7 @@
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
-	import { get } from "@/lib/api";
+	import { get, post } from "@/lib/api";
 	import { setAuthData, type AuthData } from "@/lib/account.svelte";
 
 	let error = $state<string | null>(null);
@@ -13,6 +13,26 @@
 	// (single-use) OAuth code and fail with 'Invalid "code" in request'.
 	onMount(async () => {
 		try {
+			// OAuth relay: prod completed the handshake and bounced back here with a
+			// single-use code (see api routes/account/auth.ts). Exchange it on THIS
+			// origin's API for the same payload the direct callback would return.
+			const relayCode = page.url.searchParams.get("oauthCode");
+			if (relayCode) {
+				const response = await post<{ createSocialAccount: boolean } & AuthData>(`/account/auth/relay/exchange-code`, {
+					code: relayCode,
+				});
+				if (response.createSocialAccount) {
+					// oxlint-disable-next-line typescript/no-explicit-any
+					const signupTarget = resolve("/(app)/signup") + "?" + new URLSearchParams(response as any).toString();
+					// eslint-disable-next-line svelte/no-navigation-without-resolve -- path is resolve()d above; the rule can't trace resolve() + query-string concatenation
+					await goto(signupTarget, { replaceState: true });
+					return;
+				}
+				await setAuthData(response);
+				await goto(resolve("/(app)/account"), { replaceState: true });
+				return;
+			}
+
 			const response = await get<{ createSocialAccount: boolean } & AuthData>(
 				`/account/auth/${page.params.provider}/callback`,
 				page.url.searchParams

@@ -30,3 +30,24 @@ The route inherits `router.use(isAdmin)` from the admin router (`app/routes/admi
 ### `fetch()` errors and the `isLokiDown` helper
 
 Node 18+ wraps network failures from `fetch()` as `TypeError("fetch failed")` with the real cause (`ECONNREFUSED`, `ENOTFOUND`, `EAI_AGAIN`, …) on `err.cause`, not on `err.message`. The `isLokiDown()` helper in `loki.ts` checks both layers so a down Loki surfaces as a 503 ("Loki is not running") instead of leaking through as a 500. If we ever drop the `fetch`-based proxy (e.g. switch to undici directly, or Node changes the error shape), revisit the helper.
+
+## OAuth redirect sharing via in-process relay (`app/routes/account/auth.ts`, `app/config/passport.ts`)
+
+Social OAuth apps are registered with a single redirect URI — prod's
+`https://www.boardgamers.space/auth/<provider>/callback` — so PR previews can't
+complete social login on their own origin. The **relay** lets every env share
+prod's registered callback:
+
+1. a preview starts HF login on prod: `GET /api/account/auth/huggingface?returnTo=https://pr-<n>.boardgamers.space`;
+2. prod's custom PKCE state store (replacing the session-based default — the app
+   has no session) carries the allowlisted `returnTo` through the handshake;
+3. prod's callback mints a single-use, 5-min in-memory code and 302s to
+   `<returnTo>/auth/huggingface/callback?oauthCode=…`;
+4. the preview's web exchanges it on its own api (`POST /api/account/auth/relay/exchange-code`)
+   and completes login/signup exactly as a direct callback would.
+
+Only **huggingface** (PKCE public client, no secret) is relayed — the other
+providers stay confidential-client and preview-only via their own OAuth apps if
+ever needed. The relay maps are per-process, in-memory: fine for a single prod
+api process, but a horizontally-scaled deployment would need sticky routing or a
+shared (redis/db) ticket store. Revisit if prod ever runs >1 api worker for auth.

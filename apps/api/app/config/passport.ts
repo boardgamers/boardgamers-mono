@@ -1,4 +1,5 @@
 import assert from "node:assert";
+import crypto from "node:crypto";
 import createError from "http-errors";
 import jwt from "jsonwebtoken";
 import passport from "koa-passport";
@@ -263,11 +264,23 @@ type SocialProfile = {
 
 // Extra strategy constructor options for providers configured on a generic strategy
 // (HF on passport-oauth2, which requires its endpoints at construction).
-const extraStrategyOptions: Partial<Record<SocialProvider, Record<string, string>>> = {
+const extraStrategyOptions: Partial<Record<SocialProvider, Record<string, unknown>>> = {
 	huggingface: {
 		authorizationURL: "https://huggingface.co/oauth/authorize",
 		tokenURL: "https://huggingface.co/oauth/token",
+		// PKCE public client (passport-oauth2 >= 1.7): S256 code challenge, no client
+		// secret needed. `state: true` is required by passport-oauth2 when pkce is on
+		// (it stores the code verifier against a CSRF state handle).
+		pkce: true,
+		state: true,
+		// New-user redirects on login-linking flows (HF may register a fresh app user).
+		scope: ["openid", "profile"],
 	},
+};
+
+// Providers using a PKCE public client may omit the client secret entirely.
+const secretOptional: Partial<Record<SocialProvider, true>> = {
+	huggingface: true,
 };
 
 // Default public profile URL per provider, for providers whose passport profile lacks
@@ -286,12 +299,18 @@ function socialMetaOf(provider: SocialProvider, profile: SocialProfile) {
 }
 
 function makeSocialStrategy<T extends Strategy>(provider: SocialProvider, SocialStrategy: SocialStrategyCtor<T>) {
+	const { id, secret } = env.social[provider];
+	assert(
+		secret || secretOptional[provider],
+		`${provider} OAuth secret is required (or the provider must opt into PKCE)`,
+	);
 	passport.use(
 		provider,
 		new SocialStrategy(
 			{
-				clientID: env.social[provider].id,
-				clientSecret: env.social[provider].secret,
+				clientID: id,
+				// PKCE public clients (HF) pass no secret; confidential clients require one.
+				clientSecret: secret,
 				passReqToCallback: true,
 				callbackURL: `https://${env.site}/auth/${provider}/callback`,
 				...extraStrategyOptions[provider],
@@ -373,6 +392,86 @@ makeSocialStrategy("huggingface", OAuth2Strategy);
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 	const oauth2 = (strategy as unknown as Record<"_oauth2", { useAuthorizationHeaderforGET(v: boolean): void }>)._oauth2;
 	oauth2.useAuthorizationHeaderforGET(true);
+
+	// The default PKCE state store keeps the code verifier in `req.session`, which
+	// this app doesn't have. This store keeps the same CSRF model (random handle in
+	// the OAuth `state` param, verified on callback) but persists server-side instead,
+	// and carries the relay `returnTo` origin along so the callback can bounce back to
+	// the requesting environment. See routes/account/auth.ts for the relay flow.
+	type RelayStatePayload = { codeVerifier: string; returnTo?: string };
+	const relayStates = new Map<string, { payload: RelayStatePayload; expiresAt: number }>();
+	// returnTo values of states that passed verification but whose callback route hasn't
+	// consumed them yet (passport-oauth2 doesn't surface the store's payload to the route).
+	const verifiedStates = new Map<string, { returnTo?: string; expiresAt: number }>();
+	const STATE_TTL_MS = 15 * 60 * 1000;
+
+	const pruneStates = () => {
+		const now = Date.now();
+		for (const [handle, entry] of relayStates) {
+			if (entry.expiresAt <= now) {
+				relayStates.delete(handle);
+			}
+		}
+		for (const [handle, entry] of verifiedStates) {
+			if (entry.expiresAt <= now) {
+				verifiedStates.delete(handle);
+			}
+		}
+	};
+
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- strategy internals
+	(strategy as unknown as Record<"_stateStore", unknown>)._stateStore = {
+		store(
+			req: unknown,
+			verifier: string,
+			_state: unknown,
+			_meta: unknown,
+			cb: (err: unknown, handle?: string) => void,
+		) {
+			try {
+				pruneStates();
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- koa-passport passes a query-bearing req mock
+				const { returnTo } = z
+					.object({ returnTo: z.string().url().optional() })
+					.parse((req as { query?: unknown }).query);
+				const handle = crypto.randomBytes(24).toString("base64url");
+				relayStates.set(handle, {
+					payload: { codeVerifier: verifier, returnTo },
+					expiresAt: Date.now() + STATE_TTL_MS,
+				});
+				cb(null, handle);
+			} catch (err) {
+				cb(err);
+			}
+		},
+		// passport-oauth2 branches on arity: 4 params → meta variant, which treats the 3rd
+		// callback arg as the info object passed to fail() — not our state payload. Declare 3.
+		// Single-use: an unknown/expired `state` handle fails verification.
+		verify(req: unknown, handle: string, cb: (err: unknown, ok?: unknown) => void) {
+			pruneStates();
+			const entry = typeof handle === "string" ? relayStates.get(handle) : undefined;
+			relayStates.delete(handle);
+			if (!entry || entry.expiresAt <= Date.now()) {
+				cb(null, false);
+				return;
+			}
+			verifiedStates.set(handle, { returnTo: entry.payload.returnTo, expiresAt: entry.expiresAt });
+			cb(null, entry.payload.codeVerifier);
+		},
+	};
+
+	// Consumed (single-use) by the callback route in routes/account/auth.ts.
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- augmenting the passport singleton
+	(passport as unknown as { consumeRelayReturnTo(h: unknown): string | undefined }).consumeRelayReturnTo = (
+		handle: unknown,
+	): string | undefined => {
+		if (typeof handle !== "string") {
+			return undefined;
+		}
+		const entry = verifiedStates.get(handle);
+		verifiedStates.delete(handle);
+		return entry && entry.expiresAt > Date.now() ? entry.returnTo : undefined;
+	};
 	strategy.userProfile = function (accessToken: string, done: (err?: unknown, profile?: unknown) => void) {
 		this._oauth2.get("https://huggingface.co/oauth/userinfo", accessToken, (err, body) => {
 			if (err) {
