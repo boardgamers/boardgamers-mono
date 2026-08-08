@@ -85,10 +85,13 @@ preview goes live (sentinel `<!-- pr-preview-deployed -->`, so later pushes don'
 and tears down on close/unlabel. Needs repo secret `PREVIEW_SECRET` = the minipc
 `~/.config/bgs-preview/secret`.
 
-The env's api gets `cookieDomain=boardgamers.space` (manager → container env) so the
-session cookie's `Domain` covers both sibling preview hosts — `pr-<n>.boardgamers.space`
-and `admin-pr-<n>.boardgamers.space` (neither is a subdomain of the other, so the api's
-`domain=pr-<n>.…` default would be rejected by the browser on the admin host).
+The session cookie is scoped host-only per preview host. The api stamps
+`Domain=domain` (`pr-<n>.boardgamers.space`), which the browser accepts on the player host
+(host == Domain) but rejects on the admin host — `admin-pr-<n>.boardgamers.space` is a
+sibling of `pr-<n>`, not a subdomain. The coyo vhost rewrites it with
+`proxy_cookie_domain pr-<n>.boardgamers.space $host;` in BOTH server blocks, so each host
+stores a host-only cookie (`pr-<n>` on the player, `admin-pr-<n>` on the admin) and no
+cookie ever carries the shared `boardgamers.space` ancestor (which would leak into prod).
 
 ## Ports (minipc, WireGuard IP only)
 

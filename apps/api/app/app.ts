@@ -245,7 +245,7 @@ async function listen(port = env.listen.port.api) {
 					env.jwt.keys.private,
 					{ expiresIn: "1h", algorithm: env.jwt.algorithm },
 				),
-				{ httpOnly: true, sameSite: true, domain: env.isProduction ? env.cookieDomain : undefined },
+				{ httpOnly: true, sameSite: true, domain: env.isProduction ? env.domain : undefined },
 			);
 		} else if (ctx.cookies.get("token")) {
 			// Remove cookie if logged out

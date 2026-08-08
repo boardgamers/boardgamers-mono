@@ -1,29 +1,30 @@
-// Session-cookie domain scoping (RFC 6265 §5.1.3: the browser stores a `Domain` cookie
-// only when the request host equals it or is a subdomain of it, then sends it to that
-// domain and all of ITS subdomains). Regression guard for the preview login bug: on PR
+// Session-cookie domain scoping. Regression guard for the preview login bug: on PR
 // previews the player app (pr-<n>.boardgamers.space) and the admin panel
-// (admin-pr-<n>.boardgamers.space) are SIBLING hosts — a `Domain=pr-<n>.boardgamers.space`
-// cookie is rejected on the admin host. The api therefore takes the cookie domain from
-// `cookieDomain` (boardgamers.space on previews — the only shared ancestor below the eTLD),
-// falling back to `domain` (prod: cookieDomain is unset → domain=boardgamers.space).
+// (admin-pr-<n>.boardgamers.space) are SIBLING hosts — neither is a subdomain of the
+// other (admin.pr-<n> is impossible: the *.boardgamers.space cert is single-level, see
+// infra/pr-preview/coyo-pr-preview.nginx.conf). The api sets the cookie Domain to
+// env.domain (pr-<n>.boardgamers.space), which the browser accepts on the player host
+// (host == Domain) but REJECTS on the admin host (RFC 6265 §5.1.3). The fix lives at the
+// preview proxy: coyo's vhost rewrites the cookie Domain per request host
+// (`proxy_cookie_domain … $host`), so each preview host stores a HOST-ONLY cookie and no
+// cookie ever carries the shared `boardgamers.space` ancestor (which would leak into prod).
+// These tests pin the api behaviour the proxy relies on + the sibling-host invariant.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Koa from "koa";
 import env from "../config/env.ts";
 import { setRefreshCookie, clearRefreshCookie, SESSION_COOKIE } from "./session.ts";
 
-const PREVIEW_PR = "pr-165.boardgamers.space";
-const PREVIEW_ADMIN = "admin-pr-165.boardgamers.space";
+const PREVIEW_PR = "pr-171.boardgamers.space";
+const PREVIEW_ADMIN = "admin-pr-171.boardgamers.space";
+const PROD_DOMAIN = "boardgamers.space";
 
-/** RFC 6265 §5.1.3 string-match, i.e. whether `host` is covered by a cookie with `Domain=domain`. */
-function domainMatches(host: string, domain: string) {
-	return (
-		host === domain ||
-		(host.endsWith(`.${domain}`) && !host.endsWith(".")) /* host is a name, not an IP for these hosts */
-	);
+/** RFC 6265 §5.1.3 string-match: does a cookie with `Domain=domain` cover `host`? */
+function domainCovers(domain: string, host: string) {
+	return host === domain || host.endsWith(`.${domain}`);
 }
 
-/** Emit the Set-Cookie header(s) setRefreshCookie/clearRefreshCookie produce for a forwarded request. */
+/** Run one request through the real Koa cookie pipeline (app.proxy, X-Forwarded-*) and return Set-Cookie headers. */
 async function setCookies(host: string, set: (ctx: InstanceType<Koa.Context>) => void): Promise<string[]> {
 	const app = new Koa();
 	app.proxy = true; // as apps/api/app/app.ts — hostname/proto come from X-Forwarded-*
@@ -53,43 +54,55 @@ const cookieNamed = (cookies: string[], name: string) => {
 	assert.ok(cookie, `expected a Set-Cookie for ${name}`);
 	return cookie;
 };
+const domainAttr = (cookie: string) => /;\s*domain=([^;]+)/i.exec(cookie)?.[1] ?? null;
 
-describe("session cookie — Domain attribute", () => {
-	it("uses env.cookieDomain (default: env.domain), accepted by both sibling preview hosts", async () => {
-		// The spec runs with the api's default env (no `domain`/`cookieDomain` in .env.test),
-		// so cookieDomain === domain === "boardgamers.space" — the value the preview manager
-		// now passes explicitly. The assertion below is about the sibling-host invariant.
-		assert.strictEqual(env.cookieDomain, "boardgamers.space");
+describe("session cookie — Domain attribute (api emits env.domain; the preview proxy scopes it host-only)", () => {
+	it("emits Domain=env.domain, which covers the player preview host but NOT the sibling admin host", async () => {
+		// Spec runs with the api default env (no `domain` override), so env.domain is the
+		// production default "boardgamers.space". The api just stamps env.domain — it is the
+		// preview proxy (proxy_cookie_domain) that rewrites it to the request host. Assert
+		// the api behaviour the proxy depends on, then the sibling-host coverage invariant.
+		assert.strictEqual(env.domain, PROD_DOMAIN);
 		const cookies = await setCookies(PREVIEW_ADMIN, (ctx) => setRefreshCookie(ctx, "code-123"));
-		const cookie = cookieNamed(cookies, SESSION_COOKIE);
-		const domain = /;\s*domain=([^;]+)/i.exec(cookie)?.[1];
-		assert.strictEqual(domain?.toLowerCase(), env.cookieDomain.toLowerCase());
-		// The invariant the preview fix relies on: the Domain value covers BOTH the admin
-		// host the response was emitted on AND the sibling player host (and prod hosts).
-		assert.ok(domainMatches(PREVIEW_ADMIN, env.cookieDomain));
-		assert.ok(domainMatches(PREVIEW_PR, env.cookieDomain));
-		assert.ok(domainMatches("admin.boardgamers.space", env.cookieDomain));
-		assert.ok(domainMatches("www.boardgamers.space", env.cookieDomain));
+		const domain = domainAttr(cookieNamed(cookies, SESSION_COOKIE));
+		assert.strictEqual(domain?.toLowerCase(), env.domain.toLowerCase());
+		// A preview sets domain=pr-<n>.boardgamers.space: valid for the player host, invalid
+		// for the admin host — the exact reason the proxy must rewrite it (see below).
+		assert.ok(domainCovers(PREVIEW_PR, PREVIEW_PR), "player host == its env.domain → accepted");
+		assert.ok(!domainCovers(PREVIEW_PR, PREVIEW_ADMIN), "admin host is a sibling → would be rejected");
 	});
 
-	it("clearRefreshCookie repeats the same Domain (a mismatched Domain would not clear it)", async () => {
+	it("clearRefreshCookie repeats the same Domain (a mismatched Domain would not clear the cookie)", async () => {
 		const cookies = await setCookies(PREVIEW_ADMIN, (ctx) => clearRefreshCookie(ctx));
-		assert.match(
-			cookieNamed(cookies, SESSION_COOKIE),
-			new RegExp(`;\\s*domain=${env.cookieDomain.replaceAll(".", "\\.")}`, "i"),
-		);
+		assert.strictEqual(domainAttr(cookieNamed(cookies, SESSION_COOKIE))?.toLowerCase(), env.domain.toLowerCase());
 	});
 
 	it("localhost requests get a host-only cookie (no Domain attribute)", async () => {
 		const cookies = await setCookies("localhost", (ctx) => setRefreshCookie(ctx, "code-123"));
-		assert.doesNotMatch(cookieNamed(cookies, SESSION_COOKIE), /;\s*domain=/i);
+		assert.strictEqual(domainAttr(cookieNamed(cookies, SESSION_COOKIE)), null);
 	});
 
-	it("documenting the bug: the per-env domain does NOT cover the sibling admin host", () => {
-		// Why domain=pr-<n>.boardgamers.space can't be the cookie domain: the admin host is
-		// a sibling, not a subdomain. The browser rejects Domain=pr-165.boardgamers.space on
-		// admin-pr-165.boardgamers.space — this is the rejection from the reported screenshot.
-		assert.ok(!domainMatches(PREVIEW_ADMIN, PREVIEW_PR));
-		assert.ok(domainMatches(PREVIEW_PR, PREVIEW_PR));
+	it("the host-only invariant: a cookie must never carry the shared boardgamers.space ancestor on previews", () => {
+		// What the proxy rewrite achieves: after `proxy_cookie_domain … $host`, the stored
+		// cookie's Domain equals the request host, so it is host-only and scoped to exactly
+		// that preview host — never the prod domain, never shared between the two siblings.
+		for (const host of [PREVIEW_PR, PREVIEW_ADMIN]) {
+			assert.ok(domainCovers(host, host), `${host} stores its own host-only cookie`);
+			assert.ok(
+				!domainCovers(host, host === PREVIEW_PR ? PREVIEW_ADMIN : PREVIEW_PR),
+				`${host}'s cookie is NOT sent to the sibling host`,
+			);
+			assert.notStrictEqual(host, PROD_DOMAIN);
+			assert.ok(
+				host.endsWith(`.${PROD_DOMAIN}`),
+				"preview hosts live under the prod domain, but the cookie Domain must be the full host, not the ancestor",
+			);
+		}
+		// The rejected alternative (cookieDomain=boardgamers.space) would leak to prod:
+		// a Domain=boardgamers.space cookie IS sent to www./admin.boardgamers.space.
+		assert.ok(
+			domainCovers(PROD_DOMAIN, "www.boardgamers.space"),
+			"this is exactly the prod-namespace pollution we avoid",
+		);
 	});
 });

@@ -40,13 +40,13 @@ export function setRefreshCookie(ctx: Context, code: string) {
 		expires: new Date(expiresAt),
 		secure: !local,
 		sameSite: true,
-		domain: local ? undefined : env.cookieDomain,
+		domain: local ? undefined : env.domain,
 	});
 }
 
 /** Clear the session cookie (logout) — same `domain` it was set with, or it won't be removed. */
 export function clearRefreshCookie(ctx: Context) {
-	ctx.cookies.set(SESSION_COOKIE, null, { maxAge: 0, domain: isLocalhost(ctx) ? undefined : env.cookieDomain });
+	ctx.cookies.set(SESSION_COOKIE, null, { maxAge: 0, domain: isLocalhost(ctx) ? undefined : env.domain });
 }
 
 /**
