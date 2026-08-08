@@ -26,6 +26,14 @@ Nginx (root) fronts all public traffic. Prod is **full IPv6**: app processes bin
 - `forum.boardgamers.space` → NodeBB
 - `grafana.boardgamers.space` → Grafana (`127.0.0.1:3030`)
 
+Every vhost that proxies `/api` (web, admin, resources, previews) must set
+`proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto $scheme;` (and
+`X-Forwarded-For`). The api (`app.proxy = true`) decides the session cookie's
+`secure`/`domain` from `X-Forwarded-Host` / `X-Forwarded-Proto`, and Koa throws
+"Cannot send secure cookie over unencrypted connection" on login when the proto is
+missing while the host is public — this was the admin-login prod bug. The preview
+vhosts (`infra/pr-preview/coyo-pr-preview.nginx.conf`) already do this.
+
 SSL certs managed by Certbot (Let's Encrypt), auto-renewed.
 
 ## Loki logging stack (`infra/loki/`)

@@ -48,7 +48,7 @@ export type { JwtRefreshTokenDoc } from "./jwtrefreshtoken.ts";
 export { jwtRefreshTokenSchema, JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenIndexes } from "./jwtrefreshtoken.ts";
 
 // --- Log ---
-export type { LogDoc } from "./log.ts";
+export type { LogDoc, LogFront } from "./log.ts";
 export { logSchema, LOGS_COLLECTION, logsCollectionOptions } from "./log.ts";
 
 // --- Page ---

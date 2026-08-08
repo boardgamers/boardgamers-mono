@@ -21,8 +21,9 @@
 <div class="space-y-5">
 	<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 		<div>
-			<label class="block text-sm font-medium mb-1.5">Name (slug)</label>
+			<label class="block text-sm font-medium mb-1.5" for="page-name">Name (slug)</label>
 			<input
+				id="page-name"
 				bind:value={value._id.name}
 				use:trim
 				disabled={mode === "edit"}
@@ -30,8 +31,9 @@
 			/>
 		</div>
 		<div>
-			<label class="block text-sm font-medium mb-1.5">Language</label>
+			<label class="block text-sm font-medium mb-1.5" for="page-lang">Language</label>
 			<input
+				id="page-lang"
 				bind:value={value._id.lang}
 				use:trim
 				disabled={mode === "edit"}
@@ -39,8 +41,9 @@
 			/>
 		</div>
 		<div>
-			<label class="block text-sm font-medium mb-1.5">Title</label>
+			<label class="block text-sm font-medium mb-1.5" for="page-title">Title</label>
 			<input
+				id="page-title"
 				bind:value={value.title}
 				class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 			/>

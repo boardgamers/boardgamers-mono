@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
@@ -10,15 +11,14 @@
 
 	let { data }: PageProps = $props();
 
-	let info = $state(data.info);
+	// Deleted locally after a successful DELETE; otherwise tracks the loaded data.
+	let deleted = $state(false);
 	let expandedError = $state<string | null>(null);
 	let replayTo = $state(0);
 	let editJson = $state("");
 	let showJsonEditor = $state(false);
 
-	$effect(() => {
-		info = data.info;
-	});
+	const info = $derived(deleted ? null : data.info);
 
 	const game = $derived(info?.game);
 	const gameLabel = $derived(
@@ -46,7 +46,7 @@
 		try {
 			await api.del(`/game/${encodeURIComponent(game._id)}`);
 			toast.success("Game deleted");
-			info = null;
+			deleted = true;
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed to delete");
 		}
@@ -124,7 +124,7 @@
 				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Creator</div>
 				<div class="text-sm font-medium mt-1 truncate">
 					<a
-						href={`/user/${info.usernames[game.creator] ?? ""}`}
+						href={resolve("/user/[username]", { username: info.usernames[game.creator] ?? "" })}
 						class="text-blue-600 dark:text-blue-400 hover:underline"
 					>
 						{playerName(game.creator)}
@@ -140,14 +140,14 @@
 					<h3 class="text-sm font-semibold">Players</h3>
 				</div>
 				<div class="divide-y divide-gray-100 dark:divide-gray-800">
-					{#each game.players as player}
+					{#each game.players as player (player._id)}
 						<div class="px-5 py-2.5 flex items-center gap-3 text-sm">
 							{#if game.currentPlayers?.some((p) => String(p._id) === player._id)}
 								<span class="inline-block w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" title="Current player"
 								></span>
 							{/if}
 							<a
-								href={`/user/${playerName(player._id)}`}
+								href={resolve("/user/[username]", { username: playerName(player._id) })}
 								class="text-blue-600 dark:text-blue-400 hover:underline font-medium truncate"
 							>
 								{playerName(player._id)}
@@ -195,7 +195,7 @@
 			</div>
 			{#if info.chat.length > 0}
 				<div class="divide-y divide-gray-100 dark:divide-gray-800 max-h-80 overflow-y-auto">
-					{#each info.chat as msg}
+					{#each info.chat as msg (msg._id)}
 						<div class="px-5 py-2 text-sm">
 							<span class="font-medium {msg.type === 'system' ? 'text-gray-400 italic' : ''}"
 								>{msg.author?.name ?? "system"}</span
@@ -218,7 +218,7 @@
 				<div class="overflow-x-auto">
 					<table class="w-full text-sm">
 						<tbody>
-							{#each info.errors as err}
+							{#each info.errors as err (err._id)}
 								<tr
 									class="border-b border-gray-50 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
 									onclick={() => (expandedError = expandedError === String(err._id) ? null : String(err._id))}
@@ -256,7 +256,7 @@
 					<h3 class="text-sm font-semibold">Logs ({info.logs.length})</h3>
 				</div>
 				<div class="divide-y divide-gray-100 dark:divide-gray-800">
-					{#each info.logs as log}
+					{#each info.logs as log (log.kind + ":" + (log.createdAt ?? "") + ":" + (log.data.player ?? ""))}
 						<div class="px-5 py-2 flex items-center gap-3 text-sm">
 							<span class="font-mono text-xs">{log.kind}</span>
 							{#if log.data.player}

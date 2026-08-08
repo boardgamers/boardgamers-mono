@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { ObjectId } from "mongodb";
+import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
@@ -102,6 +103,81 @@ describe("Account API — country", () => {
 		const entry = rankings.find((r) => r.user.name === "countryuser");
 		assert.ok(entry, "expected countryuser in rankings");
 		assert.strictEqual(entry.user.country, "BR");
+	});
+
+	after(() => db().dropDatabase());
+});
+
+describe("Account API — session cookie over a TLS-terminating proxy", () => {
+	// The api sits behind nginx (app.proxy = true) and decides the session cookie's
+	// `secure`/`domain` from X-Forwarded-Host / X-Forwarded-Proto. Regression test for
+	// the admin-panel login failure "Cannot send secure cookie over unencrypted
+	// connection": when the reverse proxy forwards the real (https) proto, setting the
+	// Secure session cookie must succeed; when the proto is missing, the request is
+	// (correctly) seen as plain http and must fail loudly rather than silently issuing
+	// a cookie the browser would reject.
+	const password = "hunter2-test";
+	let email = "";
+
+	before(async () => {
+		const user = testUser({
+			account: { username: "cookieuser", email: "cookie@test.com" },
+			security: { confirmed: true, slug: "cookieuser" },
+		});
+		user.account.password = await bcrypt.hash(password, 8);
+		email = user.account.email;
+		await colls.users.insertOne(user);
+	});
+
+	const proxyHeaders = {
+		"X-Forwarded-Host": `admin.${env.domain}`,
+		"X-Forwarded-Proto": "https",
+	};
+
+	it("login through an https proxy sets a Secure, domain-scoped session cookie", async () => {
+		const res = await fetch(`${baseURL()}/api/account/login`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json", ...proxyHeaders },
+			body: JSON.stringify({ email, password }),
+		});
+		assert.strictEqual(res.status, 200);
+		const setCookie = res.headers.get("set-cookie") ?? "";
+		assert.match(setCookie, /refreshToken=/);
+		assert.match(setCookie, /;\s*secure/i);
+		assert.match(setCookie, new RegExp(`;\\s*domain=${env.domain.replace(".", "\\.")}`, "i"));
+	});
+
+	it("the session cookie authenticates cookie-based calls (mint + /account)", async () => {
+		const login = await fetch(`${baseURL()}/api/account/login`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json", ...proxyHeaders },
+			body: JSON.stringify({ email, password }),
+		});
+		const setCookie = login.headers.get("set-cookie") ?? "";
+		const cookie = setCookie.split(";")[0];
+
+		const mint = await fetch(`${baseURL()}/api/account/mint`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json", cookie, ...proxyHeaders },
+			body: JSON.stringify({ scopes: ["all"] }),
+		});
+		assert.strictEqual(mint.status, 200);
+		const token = z.object({ code: z.string() }).parse(await mint.json());
+
+		const account = await fetch(`${baseURL()}/api/account`, {
+			headers: { authorization: `Bearer ${token.code}`, ...proxyHeaders },
+		});
+		assert.strictEqual(account.status, 200);
+	});
+
+	it("login over perceived plain http fails loudly (the reported 500)", async () => {
+		const res = await fetch(`${baseURL()}/api/account/login`, {
+			method: "POST",
+			// No X-Forwarded-Proto: the api sees an insecure connection for a public host.
+			headers: { "Content-Type": "application/json", "X-Forwarded-Host": `admin.${env.domain}` },
+			body: JSON.stringify({ email, password }),
+		});
+		assert.strictEqual(res.status, 500);
 	});
 
 	after(() => db().dropDatabase());

@@ -18,6 +18,20 @@ export default [
 		},
 	},
 	...eslintPluginSvelte.configs["flat/recommended"],
+	{
+		// flat/recommended parses .svelte files with svelte-eslint-parser but leaves the
+		// <script> to espree; delegate it (and .svelte.ts modules) to the TS parser so
+		// Svelte 5 runes + TS parse. Must come after the **/*.ts block, which would
+		// otherwise override the parser for *.svelte.ts files.
+		files: ["**/*.svelte", "**/*.svelte.ts"],
+		languageOptions: {
+			parserOptions: {
+				parser: tsparser,
+				sourceType: "module",
+				ecmaVersion: "latest",
+			},
+		},
+	},
 	eslintConfigPrettier,
-	{ ignores: [".svelte-kit/", "build/", "node_modules/"] },
+	{ ignores: [".svelte-kit/", "build/", "dist/", "node_modules/"] },
 ];

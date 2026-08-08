@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { loadGames } from "$lib/stores.svelte.ts";
@@ -57,7 +58,7 @@
 			await api.post(`/admin/gameinfo/${encodeURIComponent(game)}/${version}`, data);
 			toast.success("Game created");
 			await loadGames();
-			goto(`/game/${encodeURIComponent(game)}/${version}`);
+			goto(resolve("/game/[game]/[version]", { game, version: String(version) }));
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed to create");
 		}

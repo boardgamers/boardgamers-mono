@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import { untrack } from "svelte";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { loadGames } from "$lib/stores.svelte.ts";
@@ -9,10 +11,12 @@
 
 	let { data }: PageProps = $props();
 
-	const gameId = data.value?._id?.game ?? "";
-	const version = data.value?._id?.version ?? 0;
+	const gameId = $derived(data.value?._id?.game ?? "");
+	const version = $derived(data.value?._id?.version ?? 0);
 
-	let value = $state<GameInfoData | null>(data.value);
+	// Editable (bind:value into GameEdit); re-synced from load data by the $effect.
+	// eslint-disable-next-line svelte/prefer-writable-derived -- GameEdit mutates `value` via bind:value; it is not purely derived from `data`.
+	let value = $state<GameInfoData | null>(untrack(() => data.value));
 
 	$effect(() => {
 		value = data.value;
@@ -36,7 +40,7 @@
 			await api.post(`/admin/gameinfo/${gameId}/${newVersion}`, dup);
 			toast.success(`Duplicated as v${newVersion}`);
 			await loadGames();
-			goto(`/game/${gameId}/${newVersion}`);
+			goto(resolve("/game/[game]/[version]", { game: gameId, version: String(newVersion) }));
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed to duplicate");
 		}
@@ -48,7 +52,7 @@
 			await api.del(`/admin/gameinfo/${gameId}/${version}`);
 			toast.success("Deleted");
 			await loadGames();
-			goto("/");
+			goto(resolve("/"));
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed to delete");
 		}

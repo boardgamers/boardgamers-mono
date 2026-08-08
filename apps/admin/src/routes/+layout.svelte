@@ -2,6 +2,7 @@
 	import "../app.css";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import NavBar from "$components/NavBar.svelte";
 	import Sidebar from "$components/Sidebar.svelte";
 	import Toast from "$components/Toast.svelte";
@@ -15,7 +16,8 @@
 	// data.user comes from +layout.ts load; login/logout call invalidateAll() to refetch it.
 	$effect(() => {
 		if (!data.user && !isLoginPage) {
-			goto(`/login?redirect=${encodeURIComponent(page.url.pathname)}`);
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- path is resolve()d; the rule can't trace resolve() + query-string concatenation
+			goto(`${resolve("/login")}?redirect=${encodeURIComponent(page.url.pathname)}`);
 		}
 	});
 

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto, invalidateAll } from "$app/navigation";
-	import { clearTokens } from "$lib/auth.svelte.ts";
+	import { resolve } from "$app/paths";
+	import { clearMintedTokens } from "$lib/api.ts";
 	import type { UserFront } from "@bgs/models";
 
 	let { user }: { user: UserFront & { _id: string } } = $props();
@@ -11,9 +12,11 @@
 	}
 
 	async function handleLogout() {
-		clearTokens();
+		// Revoke the refresh token server-side and clear the session cookie.
+		await fetch("/api/account/signout", { method: "POST", credentials: "same-origin" }).catch(() => {});
+		clearMintedTokens();
 		await invalidateAll();
-		goto("/login");
+		goto(resolve("/login"));
 	}
 </script>
 
