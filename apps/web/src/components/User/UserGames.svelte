@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Page } from "@sveltejs/kit";
-	import { Card, Col, Row } from "@/modules/cdk";
+	import { Card } from "@/modules/cdk";
 	import { GameList } from "../Game";
 	import { page } from "$app/state";
 	import { resolve } from "$app/paths";
@@ -24,20 +24,14 @@
 </script>
 
 <Card class="mt-4 border-secondary" header="Games">
-	<Row class="gap-4">
+	<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 		{#if filter === "started"}
-			<Col lg={6}>
-				<GameList gameStatus="active" perPage={5} {userId} title="Active games" />
-			</Col>
-			<Col lg={6}>
-				<GameList gameStatus="ended" perPage={5} {userId} title="Finished games" />
-			</Col>
+			<GameList gameStatus="active" perPage={5} {userId} title="Active games" class="min-w-0" />
+			<GameList gameStatus="ended" perPage={5} {userId} title="Finished games" class="min-w-0" />
 		{:else}
-			<Col lg={6}>
-				<GameList gameStatus="open" perPage={5} {userId} title="Open games" />
-			</Col>
+			<GameList gameStatus="open" perPage={5} {userId} title="Open games" class="min-w-0" />
 		{/if}
-	</Row>
+	</div>
 	{#snippet footer()}
 		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- path is resolve()d above; the rule can't trace resolve() + query-string concatenation -->
 		<a href={alternativeLink}>

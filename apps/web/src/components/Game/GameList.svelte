@@ -22,6 +22,7 @@
 		minDuration = undefined,
 		maxDuration = undefined,
 		search = undefined,
+		class: className = "",
 	}: {
 		title?: string;
 		perPage?: number;
@@ -33,6 +34,7 @@
 		minDuration?: number | undefined;
 		maxDuration?: number | undefined;
 		search?: string | undefined;
+		class?: string;
 	} = $props();
 
 	let loadingGames = $state(true);
@@ -130,7 +132,7 @@
 	});
 </script>
 
-<Loading loading={loadingGames}>
+<Loading loading={loadingGames} class={className}>
 	<h3 class="font-semibold">
 		{title}
 		{#if !topRecords && !sample}

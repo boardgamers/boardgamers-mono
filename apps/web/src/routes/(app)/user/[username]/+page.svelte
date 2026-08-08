@@ -13,6 +13,13 @@
 	// The load function 404s if the user doesn't exist, so `_id` is always set here.
 	let userId = $derived(data.user._id!);
 	let joinDate = $derived(dateFromObjectId(userId));
+	// Ownership is computed server-side (data.isOwnProfile) so "Edit profile" is in the SSR
+	// HTML. On the client, prefer the live account store so the button reacts to login/logout
+	// without a reload; fall back to the SSR'd flag. Note `page.data.user` is the *profile*
+	// (this page's load returns `user`), not the viewer, so it can't be used for ownership.
+	let isOwnProfile = $derived(
+		$account !== null && $account !== undefined ? $account._id === userId : (data.isOwnProfile ?? false)
+	);
 </script>
 
 <SEO
@@ -48,7 +55,7 @@
 			{#if data.user.account.bio}<p class="mt-2" title={`${data.user.account.username}'s bio`}>
 					📝 {data.user.account.bio}
 				</p>{/if}
-			{#if data.user && $account?._id === data.user._id}
+			{#if isOwnProfile}
 				<Button color="primary" href="/account" class="mt-2">✏️ Edit profile</Button>
 				{#if !data.user.account.bio || !data.user.account.country}
 					<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
