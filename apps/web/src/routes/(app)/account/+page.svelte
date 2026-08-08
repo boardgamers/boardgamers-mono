@@ -15,12 +15,12 @@
 	import { useLoggedIn } from "@/lib/auth-guards.svelte";
 	import UserAvatar from "@/components/User/UserAvatar.svelte";
 	import CountrySelect from "@/components/Form/CountrySelect.svelte";
-	import { logoClick } from "@/lib/stores.svelte";
+	import { logoClick, live } from "@/lib/stores.svelte";
 
 	useLoggedIn();
 
-	// Client prefers the account store; SSR falls back to page.data.user.
-	let user = $derived(($account ?? page.data.user) as UserFront | null);
+	// SSR renders the snapshot; the client trusts the seeded account store (see stores.svelte.ts).
+	let user = $derived(live($account, (page.data.user as UserFront | null) ?? null));
 
 	// Editable form fields: seeded from `user` once, then mutated locally.
 	// untrack() marks the one-time capture as intentional (not a reactive-read bug).
