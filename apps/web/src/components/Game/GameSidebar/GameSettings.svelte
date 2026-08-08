@@ -3,62 +3,36 @@
 	import SanitizedHtml from "../../SanitizedHtml.svelte";
 	import { Checkbox, Label, Input, FormGroup } from "@/modules/cdk";
 	import IconInfoCircleFill from "@/components/icons/IconInfoCircleFill.svelte";
-	import { handleError, oneLineMarked } from "@/utils";
+	import { oneLineMarked } from "@/utils";
 	import type { GameContext } from "@/routes/game/[gameId]/game-context";
 	import { getContext } from "svelte";
-	import { account } from "@/lib/stores.svelte";
-	import { post, get } from "@/lib/api";
+	import { account, live } from "@/lib/stores.svelte";
+	import { post } from "@/lib/api";
 
 	const context: GameContext = getContext("game");
 	let game = $derived(context.game);
 	let gameInfo = $derived(context.gameInfo);
-	let settings = $state<Record<string, unknown> | null>(null);
+	// SSR'd in the game page's load (player-scoped settings need the SSR `user`, which a
+	// component can't read server-side — the `account` store is null there). Seeded into
+	// the game context, so this renders on first paint with no post-hydration pop-in.
+	let settings = $derived(context.settings);
 
-	let userId = $derived($account?._id);
+	// `live`: the SSR user id during server render / first hydration, the live account
+	// store after — so the Settings section SSRs (no flash) and stays correct client-side.
+	let userId = $derived(live($account?._id ?? null, context.settingsUserId));
 	let playerUser = $derived(game?.players.find((pl) => pl._id === userId));
-	let gameStatus = $derived(game?.status);
-	let gameId = $derived(game?._id);
-
-	async function loadSettings() {
-		if (gameStatus !== "active" || !playerUser || !gameInfo) {
-			settings = null;
-			return;
-		}
-		if ((gameInfo.settings?.length ?? 0) > 0) {
-			settings = (await get<typeof settings>(`/gameplay/${gameId}/settings`).catch(handleError)) ?? null;
-		} else {
-			settings = null;
-		}
-	}
-
-	// Initial load: run synchronously during component init so SSR has data.
-	loadSettings();
-
-	let firstRun = true;
-
-	$effect(() => {
-		gameStatus;
-		userId;
-		gameInfo;
-		// Skip the first run — initial load already happened synchronously above.
-		if (firstRun) {
-			firstRun = false;
-			return;
-		}
-		loadSettings();
-	});
 
 	async function postSettings() {
-		if (!$account) {
+		if (!game || !settings) {
 			return;
 		}
-		await post(`/gameplay/${gameId}/settings`, settings as any);
+		await post(`/gameplay/${game._id}/settings`, settings as any);
 	}
 </script>
 
 {#if game && gameInfo && (gameInfo.settings?.length ?? 0) > 0 && game.status === "active" && settings && playerUser}
 	<div class="mt-3">
-		<h3>
+		<h3 class="flex items-center gap-1">
 			Settings
 			<a href={resolve("/(app)/page/[part1]/[...part2]", { part1: game.game.name, part2: "settings" })}>
 				<IconInfoCircleFill class="text-xs" />
