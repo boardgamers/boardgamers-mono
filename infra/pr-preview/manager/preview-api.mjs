@@ -35,6 +35,14 @@ const POD_NETWORK = "bgs-preview";
 const IMAGE = "localhost/bgs-preview:latest";
 const MAX_ENVS = 12;
 const HOST_DOMAIN = (pr) => `pr-${pr}.boardgamers.space`;
+// Session-cookie Domain for the env's api (apps/api `cookieDomain` env). The player app
+// (pr-<n>.boardgamers.space) and the admin panel (admin-pr-<n>.boardgamers.space) are
+// SIBLING hosts — a Domain=pr-<n>.boardgamers.space cookie is rejected by the browser on
+// the admin host (RFC 6265 §5.1.3: the request host must equal the cookie domain or be a
+// subdomain of it). boardgamers.space is the only shared ancestor below the eTLD, and it
+// covers both hosts. Cross-preview leakage is a non-issue: each env has its own db, so a
+// foreign env's refresh code authenticates no one there.
+const COOKIE_DOMAIN = "boardgamers.space";
 
 const ports = (pr) => ({
 	web: 12000 + Number(pr),
@@ -142,6 +150,8 @@ async function createEnv(pr, sha) {
 		`SHA=${sha}`,
 		"-e",
 		`MONGO_URL=${MONGO_URL}`,
+		"-e",
+		`COOKIE_DOMAIN=${COOKIE_DOMAIN}`,
 		"-e",
 		`WEB_PORT=${p.web}`,
 		"-e",

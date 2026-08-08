@@ -7,7 +7,8 @@
 #
 # Required env: PR (pr number), SHA (commit to check out), MONGO_URL.
 # Optional:     WEB_PORT (8612), API_PORT (50801), WS_PORT (50802), GS_PORT (50803),
-#               RESOURCES_PORT (50804).
+#               RESOURCES_PORT (50804), COOKIE_DOMAIN (session-cookie Domain — unset
+#               falls back to the api's `domain` env).
 set -euo pipefail
 
 : "${PR:?}" "${SHA:?}" "${MONGO_URL:?}"
@@ -65,6 +66,12 @@ fi
 export NODE_ENV=production cron=false
 export dbUrl="$MONGO_URL" dbName="$DB" listenHost=0.0.0.0
 export domain="pr-${PR}.boardgamers.space"
+# Session-cookie Domain (apps/api `cookieDomain`): must cover BOTH preview hosts — the
+# player app (pr-<n>.boardgamers.space) and the admin panel (admin-pr-<n>.boardgamers.space)
+# are sibling hosts, so $domain (pr-<n>.…, correct for the derived site/email fields) is
+# rejected by the browser on the admin host. The manager passes COOKIE_DOMAIN=boardgamers.space,
+# the only shared ancestor; empty falls back to the api's default (cookieDomain || domain).
+[ -n "${COOKIE_DOMAIN:-}" ] && export cookieDomain="$COOKIE_DOMAIN"
 
 cd /repo/apps/api
 port="$API_PORT" wsPort="$WS_PORT" resourcesPort="$RESOURCES_PORT" node server.ts &

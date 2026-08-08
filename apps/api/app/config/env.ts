@@ -20,6 +20,19 @@ for (const name of [".env", `.env.${process.env.NODE_ENV ?? "development"}`]) {
 const domain = process.env.domain || "boardgamers.space";
 let dbName = process.env.dbName ?? "bgs";
 
+// Session-cookie scope, RFC 6265 §5.1.3: the browser stores a `Domain` cookie only when
+// the request host equals it or is a subdomain of it, and sends it to that domain and all
+// of ITS subdomains. On PR previews the player app (pr-<n>.boardgamers.space) and the
+// admin panel (admin-pr-<n>.boardgamers.space) are SIBLING hosts — neither is a subdomain
+// of the other (admin.pr-<n>.boardgamers.space is impossible: the *.boardgamers.space cert
+// is single-level, see infra/pr-preview/coyo-pr-preview.nginx.conf). So the api's
+// `domain=pr-<n>.boardgamers.space` yields `Domain=pr-<n>.boardgamers.space`, which the
+// browser rejects on the admin host (host is not a subdomain of the cookie domain).
+// The only shared ancestor below the eTLD is `boardgamers.space` — pass it explicitly per
+// preview env. Isolation between concurrent previews doesn't rely on the cookie domain:
+// every env has its own db, so a foreign env's refresh code resolves to no user there.
+const cookieDomain = process.env.cookieDomain || domain;
+
 if (process.env.NODE_ENV === "test") {
 	dbName += "-test";
 } else if (process.env.NODE_ENV !== "production") {
@@ -29,6 +42,7 @@ if (process.env.NODE_ENV === "test") {
 export default {
 	script: false,
 	domain,
+	cookieDomain,
 	site: process.env.site || `www.${domain}`,
 	noreply: process.env.noreply || `BGS <no-reply@${domain}>`,
 	contact: process.env.contact || `contact@${domain}`,

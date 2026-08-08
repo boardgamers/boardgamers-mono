@@ -79,9 +79,16 @@ only host _loopback_ is firewalled off.
 
 `.github/workflows/pr-preview.yml` (`pull_request_target`): gated on
 MEMBER/OWNER/COLLABORATOR or a `preview` label, calls
-`https://pr-preview-api.boardgamers.space` with the shared secret, comments the
-URL on the PR (updated on each push), tears down on close/unlabel. Needs repo
-secret `PREVIEW_SECRET` = the minipc `~/.config/bgs-preview/secret`.
+`https://pr-preview-api.boardgamers.space` with the shared secret, surfaces the URL as a
+GitHub Deployment per push, comments the player + admin URLs on the PR the first time a
+preview goes live (sentinel `<!-- pr-preview-deployed -->`, so later pushes don't spam),
+and tears down on close/unlabel. Needs repo secret `PREVIEW_SECRET` = the minipc
+`~/.config/bgs-preview/secret`.
+
+The env's api gets `cookieDomain=boardgamers.space` (manager → container env) so the
+session cookie's `Domain` covers both sibling preview hosts — `pr-<n>.boardgamers.space`
+and `admin-pr-<n>.boardgamers.space` (neither is a subdomain of the other, so the api's
+`domain=pr-<n>.…` default would be rejected by the browser on the admin host).
 
 ## Ports (minipc, WireGuard IP only)
 
