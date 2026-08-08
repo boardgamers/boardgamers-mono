@@ -23,6 +23,7 @@ import type { UserDoc } from "@bgs/models";
 import type { WithId } from "mongodb";
 import { colls } from "./config/db.ts";
 import { accessTokenPayloadSchema } from "./models/jwtrefreshtokens.ts";
+import { authenticateAdminToken } from "./models/admintokens.ts";
 import { notifyLogin, notifyLastIp } from "./models/user.ts";
 import { setRefreshCookie, parseRefreshCookie, clearAllRefreshCookieVariants } from "./models/session.ts";
 
@@ -101,6 +102,20 @@ async function listen(port = env.listen.port.api) {
 			const token = ctx.get("Authorization").slice("Bearer ".length);
 
 			await processToken(token);
+
+			// Admin token auth (issue #105): a Bearer credential that isn't a valid JWT
+			// is looked up by hash in `admintokens`. A hit authenticates as the owning
+			// admin — but only while the token is unexpired, unrevoked, and the owner
+			// still has authority === "admin". It is deliberately not a session: the
+			// adminToken flag lets session-only routes (mint/refresh/logout/account
+			// changes) reject it.
+			if (!ctx.state.user) {
+				const adminAuth = await authenticateAdminToken(token);
+				if (adminAuth) {
+					ctx.state.user = adminAuth.user;
+					ctx.state.adminToken = adminAuth.viaAdminToken;
+				}
+			}
 		} else {
 			const { token } = tokenQuerySchema.parse(ctx.query);
 			if (token) {
