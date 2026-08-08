@@ -18,6 +18,10 @@ sanitized dump of prod and never touches the live `bgs`.
   `mongosh "mongodb://10.90.0.2:27017/bgs-pr-<n>"` (minipc mongo over WireGuard).
 - Admin routes check `authority === "admin"` on the user loaded fresh from the db,
   so a stale API container still admin-auths correctly as long as the db is intact.
+- Env dbs (`bgs-pr-<n>`) persist across code updates and container restarts — the
+  entrypoint seeds from the template only on first boot (db empty), and `PUT` on an
+  existing PR swaps the container without touching the db. The db is dropped only on
+  env delete (`DELETE`, PR close) or janitor reap.
 
 ## Layout
 
@@ -47,15 +51,15 @@ only host _loopback_ is firewalled off.
 
 ## Files here
 
-- `containerfile/` — the env image + entrypoint (checkout PR sha, restore db,
-  run web/api/game-server). One container per env = the sandbox boundary:
+- `containerfile/` — the env image + entrypoint (checkout PR sha, seed db on first
+  boot, run web/api/game-server). One container per env = the sandbox boundary:
   rootless, no-new-privileges, cap-drop ALL, mem/cpu/pids caps. The game-server
   `npm install`s third-party engines at runtime (`apps/game-server/app/services/installer.ts`),
   which is exactly why envs are containers with no published ports except via nginx.
 - `manager/preview-api.mjs` — tiny Node control plane on minipc (10.90.0.2:9900).
-  Bearer-authed. `PUT /envs/:n {sha}` creates (cap 5), `DELETE /envs/:n` tears
-  down, `GET /envs` lists, `POST /seed` imports the newest dump. Runs under
-  `systemd --user` (`preview-api.service`).
+  Bearer-authed. `PUT /envs/:n {sha}` creates (cap 5) or updates to a new sha,
+  `DELETE /envs/:n` tears down, `GET /envs` lists, `POST /seed` imports the newest
+  dump. Runs under `systemd --user` (`preview-api.service`).
 - `seed/dump-and-ship.sh` + `seed/scrub-users.mjs` — nightly on coyo: mongodump
   of `bgs` minus private collections, users rebuilt from a **whitelist** of safe
   fields (emails → `@preview.invalid`, passwords/social/IPs dropped), shipped to
