@@ -1,5 +1,4 @@
 import assert from "node:assert";
-import crypto from "node:crypto";
 import createError from "http-errors";
 import jwt from "jsonwebtoken";
 import passport from "koa-passport";
@@ -7,17 +6,29 @@ import passport from "koa-passport";
 import type { Strategy } from "passport";
 import { Strategy as DiscordStrategy } from "passport-discord";
 import { Strategy as FacebookStrategy } from "passport-facebook";
-import { Strategy as GitHubStrategy } from "passport-github2";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as LocalStrategy } from "passport-local";
-// No maintained passport-huggingface package exists: the generic OAuth2 strategy works
-// because Hugging Face implements plain OAuth2/OIDC (userinfo endpoint is set below via
-// the strategy's userProfile override).
+// GitHub and Hugging Face both run on the generic OAuth2 strategy: GitHub implements
+// plain OAuth2 (its userinfo is https://api.github.com/user), and no maintained
+// passport-huggingface package exists (HF implements plain OAuth2/OIDC). Crucially,
+// passport-github2 has no PKCE support while passport-oauth2 >= 1.7 does — both
+// providers are configured as PKCE public clients below.
 import { Strategy as OAuth2Strategy } from "passport-oauth2";
 import { z } from "zod";
 import type { UserDoc } from "@bgs/models";
 import type { WithId } from "mongodb";
 import { colls } from "./db.ts";
+import { createOAuthState, takePendingSignup, verifyOAuthState } from "../models/oauthflows.ts";
+
+// Burn a pending-signup ticket (single-use, Mongo — models/oauthflows.ts) into the
+// payload the social-signup strategy consumes.
+async function resolvePendingSignup(ticket: string) {
+	const pending = await takePendingSignup(ticket);
+	if (!pending) {
+		throw createError(401, "Invalid or expired signup ticket");
+	}
+	return { provider: pending.provider, socialId: pending.socialId, socialMeta: pending.socialMeta };
+}
 import {
 	findByEmail,
 	findByUsername,
@@ -121,7 +132,9 @@ passport.use(
 		},
 		async (req, username, password, done) => {
 			try {
-				const { jwt: token } = req.body;
+				const { jwt: token, ticket } = z
+					.object({ jwt: z.string().optional(), ticket: z.string().optional() })
+					.parse(req.body);
 
 				if (!req.body.termsAndConditions) {
 					throw createError(422, "You need to read and agree to the terms and conditions");
@@ -139,18 +152,23 @@ passport.use(
 					throw createError(422, `Username ${username} is taken`);
 				}
 
-				const decoded = z
-					.object({
-						id: z.string(),
-						provider: z.enum(["google", "facebook", "discord", "github", "huggingface"]),
-						createSocialAccount: z.literal(true),
-						socialMeta: z.object({ username: z.string(), url: z.string() }).optional(),
-					})
-					.parse(jwt.verify(token, env.jwt.keys.public));
+				// New-style flows carry a single-use server-side ticket instead of a JWT.
+				assert(ticket || token, "Missing signup ticket");
+				const decoded = ticket
+					? await resolvePendingSignup(ticket)
+					: z
+							.object({
+								provider: z.enum(["google", "facebook", "discord", "github", "huggingface"]),
+								id: z.string(),
+								createSocialAccount: z.literal(true),
+								socialMeta: z.object({ username: z.string(), url: z.string() }).optional(),
+							})
+							.transform(({ id, ...rest }) => ({ ...rest, socialId: id }))
+							.parse(jwt.verify(String(token), env.jwt.keys.public));
 
 				// create the user
 				const slug = username.toLowerCase().replace(/\s+/g, "-");
-				const social = { [decoded.provider]: decoded.id };
+				const social = { [decoded.provider]: decoded.socialId };
 				const socialMeta = decoded.socialMeta ? { [decoded.provider]: decoded.socialMeta } : undefined;
 				const newUserDoc: UserDoc = makeDefaultUser({
 					username,
@@ -248,7 +266,9 @@ passport.use(
 	),
 );
 
-type SocialProvider = keyof typeof env.social;
+// The social providers (Hugging Face no longer lives in env.social — it uses CIMD, no
+// env/registration at all; see the huggingface block below).
+type SocialProvider = "discord" | "google" | "facebook" | "github" | "huggingface";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SocialStrategyCtor<T extends Strategy> = new (options: any, verify: any) => T;
@@ -262,25 +282,31 @@ type SocialProfile = {
 	profileUrl?: string;
 };
 
-// Extra strategy constructor options for providers configured on a generic strategy
-// (HF on passport-oauth2, which requires its endpoints at construction).
+// Extra strategy constructor options for GitHub (on the generic OAuth2 strategy, which
+// requires its endpoints at construction). Hugging Face is configured separately in its
+// own per-origin CIMD factory below.
 const extraStrategyOptions: Partial<Record<SocialProvider, Record<string, unknown>>> = {
-	huggingface: {
-		authorizationURL: "https://huggingface.co/oauth/authorize",
-		tokenURL: "https://huggingface.co/oauth/token",
+	github: {
+		authorizationURL: "https://github.com/login/oauth/authorize",
+		tokenURL: "https://github.com/login/oauth/access_token",
 		// PKCE public client (passport-oauth2 >= 1.7): S256 code challenge, no client
 		// secret needed. `state: true` is required by passport-oauth2 when pkce is on
 		// (it stores the code verifier against a CSRF state handle).
 		pkce: true,
 		state: true,
-		// New-user redirects on login-linking flows (HF may register a fresh app user).
-		scope: ["openid", "profile"],
+		scope: ["read:user"],
+		// passport-github2's default is `skipUserProfile: false` + an email fallback
+		// request; keep parity: profile comes straight from https://api.github.com/user
+		// (the userProfile override below), no extra /user/emails call.
+		skipUserProfile: false,
 	},
 };
 
 // Providers using a PKCE public client may omit the client secret entirely.
+// (Hugging Face is CIMD — always a public PKCE client, never a secret — and is built
+// in its own factory, so it isn't listed here.)
 const secretOptional: Partial<Record<SocialProvider, true>> = {
-	huggingface: true,
+	github: true,
 };
 
 // Default public profile URL per provider, for providers whose passport profile lacks
@@ -298,7 +324,10 @@ function socialMetaOf(provider: SocialProvider, profile: SocialProfile) {
 	return url ? { username, url } : undefined;
 }
 
-function makeSocialStrategy<T extends Strategy>(provider: SocialProvider, SocialStrategy: SocialStrategyCtor<T>) {
+function makeSocialStrategy<T extends Strategy>(
+	provider: Exclude<SocialProvider, "huggingface">,
+	SocialStrategy: SocialStrategyCtor<T>,
+) {
 	const { id, secret } = env.social[provider];
 	assert(
 		secret || secretOptional[provider],
@@ -309,169 +338,183 @@ function makeSocialStrategy<T extends Strategy>(provider: SocialProvider, Social
 		new SocialStrategy(
 			{
 				clientID: id,
-				// PKCE public clients (HF) pass no secret; confidential clients require one.
+				// PKCE public clients (github) pass no secret; confidential clients require one.
 				clientSecret: secret,
 				passReqToCallback: true,
 				callbackURL: `https://${env.site}/auth/${provider}/callback`,
 				...extraStrategyOptions[provider],
 			},
-			async function (
+			function (
 				req: { user?: WithId<UserDoc> },
 				_token: string,
 				_tokenSecret: string,
 				profile: SocialProfile,
 				done: (err: unknown, user?: unknown) => void,
 			) {
-				try {
-					const socialMeta = socialMetaOf(provider, profile);
-					const currentUser = req.user;
-					const existingUser = await colls.users.findOne({ [`account.social.${provider}`]: profile.id });
-
-					if (currentUser) {
-						if (existingUser && existingUser._id.equals(currentUser._id)) {
-							done(null, existingUser);
-							return;
-						}
-						assert(!currentUser.account.social?.[provider], `You already have a ${provider} account connected`);
-						assert(!existingUser, `Another user is already connected to that ${provider} account`);
-
-						await colls.users.updateOne(
-							{ _id: currentUser._id },
-							{
-								$set: {
-									[`account.social.${provider}`]: profile.id,
-									...(socialMeta ? { [`account.socialMeta.${provider}`]: socialMeta } : {}),
-								},
-							},
-						);
-						const updatedUser = await colls.users.findOne({ _id: currentUser._id });
-						done(null, updatedUser);
-					} else {
-						if (existingUser) {
-							// Backfill display meta for accounts linked before socialMeta existed.
-							if (socialMeta && !existingUser.account.socialMeta?.[provider]) {
-								await colls.users.updateOne(
-									{ _id: existingUser._id },
-									{ $set: { [`account.socialMeta.${provider}`]: socialMeta } },
-								);
-							}
-							done(null, existingUser);
-						} else {
-							// Create a new account (omit socialMeta when absent: it rides in a JWT and the
-							// signup body schema, where an explicit undefined would needlessly differ).
-							done(null, {
-								createSocialAccount: true,
-								provider,
-								id: profile.id,
-								...(socialMeta ? { socialMeta } : {}),
-							});
-						}
-					}
-				} catch (err) {
-					done(err);
-				}
+				verifySocialProfile(provider, req, profile).then((user) => done(null, user), done);
 			},
 		),
 	);
 }
 
+// Link-or-create logic shared by every social strategy (makeSocialStrategy's verify
+// callback and Hugging Face's per-origin CIMD strategy). Resolves the OAuth profile to
+// an existing user, links to the logged-in user, or yields a createSocialAccount
+// feedback object for the signup flow.
+async function verifySocialProfile(
+	provider: SocialProvider,
+	req: { user?: WithId<UserDoc> },
+	profile: SocialProfile,
+): Promise<unknown> {
+	const socialMeta = socialMetaOf(provider, profile);
+	const currentUser = req.user;
+	const existingUser = await colls.users.findOne({ [`account.social.${provider}`]: profile.id });
+
+	if (currentUser) {
+		if (existingUser && existingUser._id.equals(currentUser._id)) {
+			return existingUser;
+		}
+		assert(!currentUser.account.social?.[provider], `You already have a ${provider} account connected`);
+		assert(!existingUser, `Another user is already connected to that ${provider} account`);
+
+		await colls.users.updateOne(
+			{ _id: currentUser._id },
+			{
+				$set: {
+					[`account.social.${provider}`]: profile.id,
+					...(socialMeta ? { [`account.socialMeta.${provider}`]: socialMeta } : {}),
+				},
+			},
+		);
+		return colls.users.findOne({ _id: currentUser._id });
+	}
+
+	if (existingUser) {
+		// Backfill display meta for accounts linked before socialMeta existed.
+		if (socialMeta && !existingUser.account.socialMeta?.[provider]) {
+			await colls.users.updateOne(
+				{ _id: existingUser._id },
+				{ $set: { [`account.socialMeta.${provider}`]: socialMeta } },
+			);
+		}
+		return existingUser;
+	}
+
+	// Create a new account (omit socialMeta when absent: it rides in a JWT and the
+	// signup body schema, where an explicit undefined would needlessly differ).
+	return {
+		createSocialAccount: true,
+		provider,
+		id: profile.id,
+		...(socialMeta ? { socialMeta } : {}),
+	};
+}
+
 makeSocialStrategy("discord", DiscordStrategy);
 makeSocialStrategy("google", GoogleStrategy);
 makeSocialStrategy("facebook", FacebookStrategy);
-makeSocialStrategy("github", GitHubStrategy);
-makeSocialStrategy("huggingface", OAuth2Strategy);
+makeSocialStrategy("github", OAuth2Strategy);
+// Hugging Face is NOT registered here: it uses CIMD with a per-origin client_id (the
+// env's own /.well-known/oauth-cimd URL), so strategies are built lazily per origin —
+// see huggingfaceStrategy() below.
 
-// Hugging Face has no dedicated passport strategy: configure the generic OAuth2 strategy
-// with HF's endpoints and teach it to read the profile from the OIDC userinfo payload.
-{
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- koa-passport types don't expose _strategy
-	const strategy = (passport as unknown as { _strategy(name: string): unknown })._strategy(
-		"huggingface",
-	) as InstanceType<typeof OAuth2Strategy>;
-	// OAuth2Strategy types _oauth2 as protected; reach it via a structural cast.
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion
-	const oauth2 = (strategy as unknown as Record<"_oauth2", { useAuthorizationHeaderforGET(v: boolean): void }>)._oauth2;
-	oauth2.useAuthorizationHeaderforGET(true);
+type OAuth2StrategyInstance = InstanceType<typeof OAuth2Strategy>;
+type OAuth2Internals = {
+	_oauth2: { useAuthorizationHeaderforGET(v: boolean): void };
+	userProfile: (accessToken: string, done: (err?: unknown, profile?: unknown) => void) => void;
+};
 
-	// The default PKCE state store keeps the code verifier in `req.session`, which
-	// this app doesn't have. This store keeps the same CSRF model (random handle in
-	// the OAuth `state` param, verified on callback) but persists server-side instead,
-	// and carries the relay `returnTo` origin along so the callback can bounce back to
-	// the requesting environment. See routes/account/auth.ts for the relay flow.
-	type RelayStatePayload = { codeVerifier: string; returnTo?: string };
-	const relayStates = new Map<string, { payload: RelayStatePayload; expiresAt: number }>();
-	// returnTo values of states that passed verification but whose callback route hasn't
-	// consumed them yet (passport-oauth2 doesn't surface the store's payload to the route).
-	const verifiedStates = new Map<string, { returnTo?: string; expiresAt: number }>();
-	const STATE_TTL_MS = 15 * 60 * 1000;
-
-	const pruneStates = () => {
-		const now = Date.now();
-		for (const [handle, entry] of relayStates) {
-			if (entry.expiresAt <= now) {
-				relayStates.delete(handle);
-			}
-		}
-		for (const [handle, entry] of verifiedStates) {
-			if (entry.expiresAt <= now) {
-				verifiedStates.delete(handle);
-			}
-		}
-	};
-
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- koa-passport types don't expose _strategy
+const strategyOf = (name: SocialProvider) =>
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- strategy internals
-	(strategy as unknown as Record<"_stateStore", unknown>)._stateStore = {
-		store(
-			req: unknown,
-			verifier: string,
-			_state: unknown,
-			_meta: unknown,
-			cb: (err: unknown, handle?: string) => void,
-		) {
-			try {
-				pruneStates();
-				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- koa-passport passes a query-bearing req mock
-				const query = (req as { query?: unknown }).query;
-				const { returnTo } = z.object({ returnTo: z.string().url().optional() }).parse(query);
-				const handle = crypto.randomBytes(24).toString("base64url");
-				relayStates.set(handle, {
-					payload: { codeVerifier: verifier, returnTo },
-					expiresAt: Date.now() + STATE_TTL_MS,
-				});
-				cb(null, handle);
-			} catch (err) {
-				cb(err);
-			}
-		},
-		// passport-oauth2 branches on arity: 4 params → meta variant, which treats the 3rd
-		// callback arg as the info object passed to fail() — not our state payload. Declare 3.
-		// Single-use: an unknown/expired `state` handle fails verification.
-		verify(req: unknown, handle: string, cb: (err: unknown, ok?: unknown) => void) {
-			pruneStates();
-			const entry = typeof handle === "string" ? relayStates.get(handle) : undefined;
-			relayStates.delete(handle);
-			if (!entry || entry.expiresAt <= Date.now()) {
-				cb(null, false);
+	(passport as unknown as { _strategy(n: string): unknown })._strategy(name) as OAuth2StrategyInstance &
+		OAuth2Internals;
+
+// The default PKCE state store keeps the code verifier in `req.session`, which this app
+// doesn't have. This store keeps the same CSRF model (random handle in the OAuth `state`
+// param, verified on callback) but persists server-side in Mongo (models/oauthflows.ts),
+// so the flow survives restarts and works across processes. Shared by every PKCE strategy.
+const STATE_TTL_MS = 15 * 60 * 1000;
+
+const mongoStateStore = {
+	store(req: unknown, verifier: string, _state: unknown, _meta: unknown, cb: (err: unknown, handle?: string) => void) {
+		createOAuthState({
+			codeVerifier: verifier,
+			expiresAt: new Date(Date.now() + STATE_TTL_MS),
+		}).then((handle) => cb(null, handle), cb);
+	},
+	// passport-oauth2 branches on arity: 4 params → meta variant, which treats the 3rd
+	// callback arg as the info object passed to fail() — not our state payload. Declare 3.
+	// Single-use: an unknown/expired `state` handle fails verification.
+	verify(req: unknown, handle: string, cb: (err: unknown, ok?: unknown) => void) {
+		verifyOAuthState(handle).then((ok) => cb(null, ok), cb);
+	},
+};
+
+// GitHub userinfo: https://api.github.com/user (token in the Authorization header).
+{
+	const strategy = strategyOf("github");
+	strategy._oauth2.useAuthorizationHeaderforGET(true);
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- strategy internals
+	(strategy as unknown as Record<"_stateStore", unknown>)._stateStore = mongoStateStore;
+	strategy.userProfile = function (accessToken, done) {
+		this._oauth2.get("https://api.github.com/user", accessToken, (err, body) => {
+			if (err) {
+				done(err);
 				return;
 			}
-			verifiedStates.set(handle, { returnTo: entry.payload.returnTo, expiresAt: entry.expiresAt });
-			cb(null, entry.payload.codeVerifier);
-		},
+			try {
+				const json = z
+					.object({
+						id: z.union([z.string(), z.number()]).transform(String),
+						login: z.string().optional(),
+						html_url: z.string().optional(),
+					})
+					.parse(JSON.parse(typeof body === "string" ? body : "{}"));
+				done(null, { id: json.id, username: json.login, profileUrl: json.html_url });
+			} catch (e) {
+				done(e);
+			}
+		});
 	};
+}
 
-	// Consumed (single-use) by the callback route in routes/account/auth.ts.
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- augmenting the passport singleton
-	(passport as unknown as { consumeRelayReturnTo(h: unknown): string | undefined }).consumeRelayReturnTo = (
-		handle: unknown,
-	): string | undefined => {
-		if (typeof handle !== "string") {
-			return undefined;
-		}
-		const entry = verifiedStates.get(handle);
-		verifiedStates.delete(handle);
-		return entry && entry.expiresAt > Date.now() ? entry.returnTo : undefined;
-	};
-	strategy.userProfile = function (accessToken: string, done: (err?: unknown, profile?: unknown) => void) {
+// ---------------------------------------------------------------------------
+// Hugging Face via CIMD (Client ID Metadata Documents)
+//
+// HF advertises `client_id_metadata_document_supported: true`, so instead of a
+// pre-registered OAuth app the client_id is the env's OWN `/.well-known/oauth-cimd`
+// URL (served by the web app), which HF fetches+validates. CIMD mandates a public
+// PKCE client (token_endpoint_auth_method "none") — no secret, no env, no registered
+// redirect: each origin's doc names its own /auth/huggingface/callback, so previews
+// log in directly (no prod relay). Because the client_id is per-origin and passport
+// bakes it into the strategy, strategies are built lazily and cached per origin.
+// ---------------------------------------------------------------------------
+const hfStrategies = new Map<string, OAuth2StrategyInstance>();
+
+function buildHuggingFaceStrategy(origin: string): OAuth2StrategyInstance {
+	const strategy = new OAuth2Strategy(
+		{
+			authorizationURL: "https://huggingface.co/oauth/authorize",
+			tokenURL: "https://huggingface.co/oauth/token",
+			clientID: `${origin}/.well-known/oauth-cimd`,
+			// CIMD public client: no secret (token_endpoint_auth_method "none").
+			// @types/passport-oauth2 marks clientSecret required; undefined is correct at runtime.
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion
+			clientSecret: undefined as unknown as string,
+			pkce: true,
+			state: true,
+			scope: ["openid", "profile"],
+			passReqToCallback: true,
+		},
+		// @ts-expect-error -- our verify takes a minimal { user? } req (koa-passport's mock),
+		// not express' full Request; structurally incompatible with the declared VerifyFunction.
+		hfVerify,
+	) as OAuth2StrategyInstance & OAuth2Internals;
+	strategy._oauth2.useAuthorizationHeaderforGET(true);
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- strategy internals
+	(strategy as unknown as Record<"_stateStore", unknown>)._stateStore = mongoStateStore;
+	strategy.userProfile = function (accessToken, done) {
 		this._oauth2.get("https://huggingface.co/oauth/userinfo", accessToken, (err, body) => {
 			if (err) {
 				done(err);
@@ -494,4 +537,39 @@ makeSocialStrategy("huggingface", OAuth2Strategy);
 			}
 		});
 	};
+	return strategy;
+}
+
+/** The shared HF verify callback (link-or-create). Same logic as makeSocialStrategy's. */
+function hfVerify(
+	req: { user?: WithId<UserDoc> },
+	_token: string,
+	_tokenSecret: string,
+	profile: SocialProfile,
+	done: (err: unknown, user?: unknown) => void,
+): void {
+	void verifySocialProfile("huggingface", req, profile).then((user) => done(null, user), done);
+}
+
+/**
+ * The Hugging Face strategy for a given request origin (its client_id is that origin's
+ * CIMD URL). Used by routes/account/auth.ts via passport.authenticate(strategy, …).
+ */
+export function huggingfaceStrategy(origin: string): OAuth2StrategyInstance {
+	let strategy = hfStrategies.get(origin);
+	if (!strategy) {
+		strategy = buildHuggingFaceStrategy(origin);
+		hfStrategies.set(origin, strategy);
+	}
+	return strategy;
+}
+
+// The public origin the browser is talking to (the web app shares the API's origin via
+// the vite proxy in dev / nginx in prod). koa-passport's req mock exposes `protocol` and
+// `headers` but not `host`, so rebuild the origin from those. This origin determines the
+// CIMD client_id (and must match the web page's origin that serves the CIMD doc).
+export function requestOrigin(req: unknown): string {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- koa-passport req mock
+	const r = req as { protocol?: string; headers?: { host?: string } };
+	return `${r.protocol}://${r.headers?.host}`;
 }

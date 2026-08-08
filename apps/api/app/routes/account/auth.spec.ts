@@ -33,14 +33,20 @@ function isUserDoc(user: unknown): asserts user is WithId<UserDoc> {
 
 // Invokes the social strategy's verify callback (the function makeSocialStrategy passes to
 // passport) directly, without a real OAuth round-trip.
-function verifySocial(
+async function verifySocial(
 	provider: string,
 	profileId: string,
 	currentUser?: unknown,
 	profile?: { username?: string; profileUrl?: string },
 ): Promise<VerifyResult> {
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- koa-passport types don't expose the strategy's _verify
-	const strategy = passport._strategy(provider) as unknown as { _verify: (...args: unknown[]) => void };
+	// Hugging Face is a per-origin CIMD strategy, not a named passport strategy.
+	const raw: unknown =
+		provider === "huggingface"
+			? (await import("../../config/passport.ts")).huggingfaceStrategy("https://test.local")
+			: // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- koa-passport types don't expose the strategy's _verify
+				passport._strategy(provider);
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- strategy internals
+	const strategy = raw as { _verify: (...args: unknown[]) => void };
 	assert.ok(strategy, `passport strategy "${provider}" must be registered`);
 	return new Promise((resolve) => {
 		strategy._verify(
@@ -56,8 +62,23 @@ function verifySocial(
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
 
 describe("Account API — GitHub social auth", () => {
-	it("registers the github strategy", () => {
-		assert.ok(passport._strategy("github"));
+	it("registers the github strategy as a PKCE public client on GitHub's endpoints", () => {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- koa-passport types don't expose the strategy
+		const strategy = passport._strategy("github") as unknown as {
+			_oauth2: { _authorizeUrl: string; _accessTokenUrl: string; _clientSecret?: string };
+			_pkceMethod: string | false;
+			_stateStore: { store(...args: unknown[]): void; verify(...args: unknown[]): void };
+			userProfile: (accessToken: string, done: (err?: unknown, profile?: unknown) => void) => void;
+		};
+		assert.ok(strategy, "github strategy must be registered");
+		assert.strictEqual(strategy._oauth2._authorizeUrl, "https://github.com/login/oauth/authorize");
+		assert.strictEqual(strategy._oauth2._accessTokenUrl, "https://github.com/login/oauth/access_token");
+		// PKCE on (S256) — passport-oauth2 requires state:true alongside it.
+		assert.strictEqual(strategy._pkceMethod, "S256");
+		assert.ok(strategy._stateStore, "pkce requires a state store");
+		// No client secret configured: the strategy was built with undefined (not a placeholder).
+		assert.strictEqual(strategy._oauth2._clientSecret, undefined);
+		assert.strictEqual(typeof strategy.userProfile, "function");
 	});
 
 	it("creates a social account from a github OAuth profile (empty email tolerated)", async () => {
@@ -134,38 +155,44 @@ describe("Account API — GitHub social auth", () => {
 	after(() => db().dropDatabase());
 });
 
-describe("Account API — Hugging Face social auth", () => {
-	it("registers the huggingface strategy wired to HF's OAuth endpoints", () => {
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- koa-passport types don't expose the strategy
-		const strategy = passport._strategy("huggingface") as unknown as {
-			_oauth2: { _authorizeUrl: string; _accessTokenUrl: string; _clientSecret?: string };
+describe("Account API — Hugging Face social auth (CIMD)", () => {
+	// HF is no longer a named passport strategy: it's built per origin by
+	// huggingfaceStrategy() because the CIMD client_id is origin-specific.
+	it("builds the huggingface strategy per origin, with the CIMD URL as client_id", async () => {
+		const { huggingfaceStrategy } = await import("../../config/passport.ts");
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- strategy internals
+		const strategy = huggingfaceStrategy("https://www.boardgamers.space") as {
+			_oauth2: { _authorizeUrl: string; _accessTokenUrl: string; _clientId: string; _clientSecret?: string };
 			_pkceMethod: string | false;
 			_stateStore: { store(...args: unknown[]): void; verify(...args: unknown[]): void };
 			userProfile: (accessToken: string, done: (err?: unknown, profile?: unknown) => void) => void;
 		};
-		assert.ok(strategy, "huggingface strategy must be registered");
+		assert.ok(strategy, "huggingface strategy must be built");
 		assert.strictEqual(strategy._oauth2._authorizeUrl, "https://huggingface.co/oauth/authorize");
 		assert.strictEqual(strategy._oauth2._accessTokenUrl, "https://huggingface.co/oauth/token");
-		assert.strictEqual(typeof strategy.userProfile, "function");
-	});
-
-	it("configures the huggingface strategy as a PKCE public client (no secret)", () => {
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- koa-passport types don't expose the strategy
-		const strategy = passport._strategy("huggingface") as unknown as {
-			_oauth2: { _clientSecret?: string };
-			_pkceMethod: string | false;
-			_stateStore: { store(...args: unknown[]): void; verify(...args: unknown[]): void };
-		};
-		assert.ok(strategy);
+		// CIMD: the client_id IS the env's own metadata doc URL.
+		assert.strictEqual(strategy._oauth2._clientId, "https://www.boardgamers.space/.well-known/oauth-cimd");
 		// PKCE on (S256) — passport-oauth2 requires state:true alongside it.
 		assert.strictEqual(strategy._pkceMethod, "S256");
 		assert.ok(strategy._stateStore, "pkce requires a state store");
-		// No client secret configured: the strategy was built with undefined (not a placeholder).
+		// No client secret configured: CIMD is a public client (token_endpoint_auth_method "none").
 		assert.strictEqual(strategy._oauth2._clientSecret, undefined);
+		assert.strictEqual(typeof strategy.userProfile, "function");
 	});
 
-	it("other providers stay on the confidential-client flow (no PKCE)", () => {
-		for (const provider of ["google", "discord", "facebook", "github"] as const) {
+	it("caches one strategy per origin and keys the client_id off the origin", async () => {
+		const { huggingfaceStrategy } = await import("../../config/passport.ts");
+		const a = huggingfaceStrategy("https://pr-1.boardgamers.space");
+		const b = huggingfaceStrategy("https://pr-2.boardgamers.space");
+		assert.notStrictEqual(a, b, "different origins get different strategies (different client_id)");
+		assert.strictEqual(huggingfaceStrategy("https://pr-1.boardgamers.space"), a, "same origin is cached");
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- strategy internals
+		const bClientId = (b as { _oauth2: { _clientId: string } })._oauth2._clientId;
+		assert.strictEqual(bClientId, "https://pr-2.boardgamers.space/.well-known/oauth-cimd");
+	});
+
+	it("google/discord/facebook stay on the confidential-client flow (no PKCE)", () => {
+		for (const provider of ["google", "discord", "facebook"] as const) {
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- koa-passport types don't expose the strategy
 			const strategy = passport._strategy(provider) as unknown as { _pkceMethod?: string | false };
 			assert.ok(strategy, `${provider} strategy must be registered`);
@@ -210,7 +237,28 @@ describe("Account API — Hugging Face social auth", () => {
 		assert.deepStrictEqual(user._id, doc?._id);
 	});
 
-	it("the /huggingface entrypoint redirects to HF's authorize URL with a PKCE challenge", async () => {
+	after(() => db().dropDatabase());
+});
+
+describe("Account API — PKCE authorize redirects", () => {
+	it("the /github entrypoint redirects to GitHub's authorize URL with a PKCE challenge", async () => {
+		const res = await fetch(`${baseURL()}/api/account/auth/github`, { redirect: "manual" });
+		assert.strictEqual(res.status, 302);
+		const location = res.headers.get("location") ?? "";
+		assert.ok(
+			location.startsWith("https://github.com/login/oauth/authorize"),
+			`expected redirect to GitHub authorize, got ${location}`,
+		);
+		const url = new URL(location);
+		assert.ok(url.searchParams.get("client_id"), "client_id present");
+		assert.strictEqual(url.searchParams.get("scope"), "read:user");
+		// PKCE: S256 challenge + method, plus a server-side state handle.
+		assert.match(url.searchParams.get("code_challenge") ?? "", /^[A-Za-z0-9_-]{20,}$/);
+		assert.strictEqual(url.searchParams.get("code_challenge_method"), "S256");
+		assert.match(url.searchParams.get("state") ?? "", /^[A-Za-z0-9_-]{10,}$/);
+	});
+
+	it("the /huggingface entrypoint redirects to HF's authorize URL with a CIMD client_id + PKCE challenge", async () => {
 		const res = await fetch(`${baseURL()}/api/account/auth/huggingface`, { redirect: "manual" });
 		assert.strictEqual(res.status, 302);
 		const location = res.headers.get("location") ?? "";
@@ -219,138 +267,147 @@ describe("Account API — Hugging Face social auth", () => {
 			`expected redirect to HF authorize, got ${location}`,
 		);
 		const url = new URL(location);
-		assert.ok(url.searchParams.get("client_id"), "client_id present");
+		// CIMD: the client_id is THIS env's own metadata doc URL (derived from the request host).
+		assert.strictEqual(url.searchParams.get("client_id"), `${baseURL()}/.well-known/oauth-cimd`);
 		// PKCE: S256 challenge + method, plus a server-side state handle.
 		assert.match(url.searchParams.get("code_challenge") ?? "", /^[A-Za-z0-9_-]{20,}$/);
 		assert.strictEqual(url.searchParams.get("code_challenge_method"), "S256");
 		assert.match(url.searchParams.get("state") ?? "", /^[A-Za-z0-9_-]{10,}$/);
 	});
 
+	it("persists the HF PKCE state server-side in Mongo, single-use", async () => {
+		const res = await fetch(`${baseURL()}/api/account/auth/huggingface`, { redirect: "manual" });
+		const state = new URL(res.headers.get("location") ?? "").searchParams.get("state");
+		assert.ok(state, "state handle present on the authorize URL");
+
+		// The state is in Mongo (survives restarts / readable from any process).
+		const stored = await colls.oauthFlows.findOne({ _id: state });
+		assert.ok(stored, "state persisted in the oauthflows collection");
+		assert.strictEqual(stored.kind, "oauth-state");
+
+		// The stored verifier round-trips through verifyOAuthState exactly once.
+		const { verifyOAuthState } = await import("../../models/oauthflows.ts");
+		const verifier = await verifyOAuthState(state);
+		assert.ok(typeof verifier === "string" && verifier.length > 0, "code verifier recovered from state");
+		assert.strictEqual(await verifyOAuthState(state), false, "replayed state must fail");
+	});
+
+	it("the old relay routes are gone (no /relay/callback, no returnTo)", async () => {
+		const res = await fetch(`${baseURL()}/api/account/auth/relay/callback?code=nope`, { redirect: "manual" });
+		// koa-router matches /:provider/callback for "relay" → github-style callback without a
+		// code → passport fails → our custom callback 303s to /login?error=. Either way it must
+		// NOT be a relay exchange (401 with "relay code") anymore.
+		assert.notStrictEqual(res.status, 401, "no relay ticket exchange anymore");
+	});
+
 	after(() => db().dropDatabase());
 });
 
-describe("Account API — OAuth relay (redirect sharing)", () => {
-	it("rejects a non-allowlisted returnTo on the relay start", async () => {
+describe("Account API — Hugging Face CIMD (no relay)", () => {
+	it("the HF start ignores any legacy returnTo param (relay removed — CIMD is direct)", async () => {
+		// Before CIMD, ?returnTo= drove the prod→preview relay. Now every env serves its own
+		// CIMD doc and does HF login directly, so returnTo must NOT trigger any relay behavior —
+		// the flow just starts a normal direct handshake for this origin.
 		const res = await fetch(
-			`${baseURL()}/api/account/auth/huggingface?returnTo=${encodeURIComponent("https://evil.com")}`,
-			{
-				redirect: "manual",
-			},
-		);
-		assert.strictEqual(res.status, 400);
-		const body = await res.json();
-		assert.match(body.message, /returnTo origin is not allowed/);
-	});
-
-	it("rejects lookalike hosts (evil-boardgamers.space) even though they contain the suffix", async () => {
-		const res = await fetch(
-			`${baseURL()}/api/account/auth/huggingface?returnTo=${encodeURIComponent("https://evil-boardgamers.space")}`,
+			`${baseURL()}/api/account/auth/huggingface?returnTo=${encodeURIComponent("https://pr-42.boardgamers.space")}`,
 			{ redirect: "manual" },
 		);
-		assert.strictEqual(res.status, 400);
-	});
-
-	// Drive the state store + consumeRelayReturnTo exactly as the live flow does:
-	// start (capture returnTo+verifier) → verify (callback) → consume (bounce).
-	it("carries an allowlisted returnTo through the OAuth state store, single-use", async () => {
-		const returnTo = "https://pr-42.boardgamers.space";
-		const res = await fetch(`${baseURL()}/api/account/auth/huggingface?returnTo=${encodeURIComponent(returnTo)}`, {
-			redirect: "manual",
-		});
 		assert.strictEqual(res.status, 302);
-		const location = res.headers.get("location") ?? "";
-		const state = new URL(location).searchParams.get("state");
-		assert.ok(state, "state handle present on the authorize URL");
-
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- strategy internals
-		const strategy = passport._strategy("huggingface") as unknown as {
-			_stateStore: { verify(req: unknown, handle: string, cb: (err: unknown, ok?: unknown) => void): void };
-		};
-		const verifier = await new Promise((resolve, reject) => {
-			strategy._stateStore.verify({}, state, (err: unknown, ok?: unknown) => (err ? reject(err) : resolve(ok)));
-		});
-		assert.ok(typeof verifier === "string" && verifier.length > 0, "code verifier recovered from state");
-
-		// The verified state surfaces its returnTo exactly once.
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- augmented in config/passport.ts
-		const p = passport as unknown as { consumeRelayReturnTo(h: unknown): string | undefined };
-		assert.strictEqual(p.consumeRelayReturnTo(state), returnTo);
-		assert.strictEqual(p.consumeRelayReturnTo(state), undefined, "returnTo is single-use");
-
-		// A replayed state handle fails verification outright.
-		const replay = await new Promise((resolve) => {
-			strategy._stateStore.verify({}, state, (_err: unknown, ok?: unknown) => resolve(ok));
-		});
-		assert.strictEqual(replay, false, "replayed state must fail");
+		const url = new URL(res.headers.get("location") ?? "");
+		// The handshake is for THIS env's CIMD client, not a prod one.
+		assert.strictEqual(url.searchParams.get("client_id"), `${baseURL()}/.well-known/oauth-cimd`);
 	});
+});
 
-	it("exchange-code rejects an unknown code", async () => {
-		const res = await fetch(`${baseURL()}/api/account/auth/relay/exchange-code`, {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ code: "nope" }),
-		});
-		assert.strictEqual(res.status, 401);
-	});
+// A Koa ctx stub shaped for finishSocialAuth: cookie capture + redirect capture.
+function makeCtx(user: unknown) {
+	const jar: Record<string, string> = {};
+	return {
+		state: { user },
+		protocol: "http",
+		host: "bgs.test",
+		hostname: "bgs.test",
+		status: 0,
+		jar,
+		cookies: {
+			set(name: string, value: string | null) {
+				if (value === null) {
+					delete jar[name];
+				} else {
+					jar[name] = value;
+				}
+			},
+		},
+		redirectedTo: "",
+		redirect(location: string) {
+			this.redirectedTo = location;
+		},
+	};
+}
 
-	it("the callback redirects to the allowlisted returnTo with a one-time code, which exchanges to auth info", async () => {
-		// Seed a user the social login will resolve to.
+describe("Account API — redirect-only social flow (#155)", () => {
+	it("an existing user gets a session cookie and a 303 to /account — no interstitial, no JSON", async () => {
 		await colls.users.insertOne(
-			testUser({ account: { username: "relayuser", email: "relay@test.com", social: { huggingface: "hf-relay-1" } } }),
+			testUser({ account: { username: "directuser", email: "direct@test.com", social: { github: "gh-direct-1" } } }),
 		);
-
-		// Build the user the way the verify callback would for an existing social account.
-		const { user } = await verifySocial("huggingface", "hf-relay-1");
+		const { user } = await verifySocial("github", "gh-direct-1");
 		isUserDoc(user);
 
-		// Run the prod-side bounce directly (same function the callback route calls) and
-		// capture the redirect target it produces.
-		const { relayCallbackRedirect } = await import("./auth.ts");
-		const returnTo = "https://pr-7.boardgamers.space";
+		const { finishSocialAuth } = await import("./auth.ts");
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- minimal ctx stub
-		const ctx = {
-			state: { user },
-			redirectedTo: "",
-			redirect(location: string) {
-				this.redirectedTo = location;
-			},
-		} as unknown as Parameters<typeof relayCallbackRedirect>[0] & { redirectedTo: string };
-		await relayCallbackRedirect(ctx, "huggingface", returnTo);
-		const target = new URL(ctx.redirectedTo);
-		assert.strictEqual(target.origin, returnTo);
-		const code = target.searchParams.get("oauthCode");
-		assert.ok(code, "one-time code attached to the bounce URL");
+		const ctx = makeCtx(user) as unknown as Parameters<typeof finishSocialAuth>[0] & {
+			redirectedTo: string;
+			status: number;
+			jar: Record<string, string>;
+		};
+		await finishSocialAuth(ctx, "github");
 
-		// The preview exchanges the code on ITS OWN api (same process here) and gets auth info.
-		const exchange = await fetch(`${baseURL()}/api/account/auth/relay/exchange-code`, {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ code }),
-		});
-		assert.strictEqual(exchange.status, 200);
-		const auth = await exchange.json();
-		assert.strictEqual(auth.user.account.username, "relayuser");
-		assert.ok(auth.accessToken.code, "access token minted");
-
-		// The code is single-use.
-		const replay = await fetch(`${baseURL()}/api/account/auth/relay/exchange-code`, {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ code }),
-		});
-		assert.strictEqual(replay.status, 401);
+		assert.strictEqual(ctx.status, 303);
+		assert.strictEqual(ctx.redirectedTo, "http://bgs.test/account");
+		assert.match(ctx.jar.refreshToken ?? "", /"code"/, "session cookie set on the callback response");
+		// The session is real: the refresh code resolves in Mongo.
+		const code = JSON.parse(ctx.jar.refreshToken).code;
+		const rt = await colls.jwtRefreshTokens.findOne({ code });
+		assert.ok(rt, "refresh token persisted");
 	});
 
-	it("relayCallbackRedirect rejects a non-allowlisted returnTo", async () => {
-		const { relayCallbackRedirect } = await import("./auth.ts");
+	it("a new social user is redirected to /signup with a single-use ticket (no JWT in the URL)", async () => {
+		const { user } = await verifySocial("huggingface", "hf-new-1", undefined, { username: "newbie" });
+		isSocialFeedback(user);
+
+		const { finishSocialAuth } = await import("./auth.ts");
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- minimal ctx stub
-		const ctx = {
-			state: { user: { _id: "x" } },
-			redirect() {
-				throw new Error("must not redirect");
-			},
-		} as unknown as Parameters<typeof relayCallbackRedirect>[0];
-		await assert.rejects(() => relayCallbackRedirect(ctx, "huggingface", "https://evil.com"), /not allowed/);
+		const ctx = makeCtx(user) as unknown as Parameters<typeof finishSocialAuth>[0] & {
+			redirectedTo: string;
+			status: number;
+			jar: Record<string, string>;
+		};
+		await finishSocialAuth(ctx, "huggingface");
+
+		assert.strictEqual(ctx.status, 303);
+		assert.match(ctx.redirectedTo, /^http:\/\/bgs\.test\/signup\?ticket=/);
+		assert.ok(!ctx.redirectedTo.includes("jwt"), "no JWT leaks into the redirect URL");
+		assert.strictEqual(ctx.jar.refreshToken, undefined, "no session before signup completes");
+
+		// The ticket completes the social signup exactly once.
+		const ticket = new URL(ctx.redirectedTo).searchParams.get("ticket")!;
+		const signup = await fetch(`${baseURL()}/api/account/signup/social`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ ticket, username: "newbie", termsAndConditions: true }),
+		});
+		const text = await signup.text();
+		assert.strictEqual(signup.status, 200, `ticket signup failed: ${signup.status} ${text}`);
+		const doc = await colls.users.findOne({ "account.username": "newbie" });
+		assert.ok(doc);
+		assert.strictEqual(doc.account.social?.huggingface, "hf-new-1");
+
+		const replay = await fetch(`${baseURL()}/api/account/signup/social`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ ticket, username: "newbie2", termsAndConditions: true }),
+		});
+		assert.strictEqual(replay.status, 401, "ticket is single-use");
 	});
 
 	after(() => db().dropDatabase());

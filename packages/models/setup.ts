@@ -14,6 +14,7 @@ import { GAME_PREFERENCES_COLLECTION, gamePreferencesIndexes, gamePreferencesSch
 import { IMAGES_COLLECTION, imageIndexes, imageSchema } from "./image.ts";
 import { JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenIndexes, jwtRefreshTokenSchema } from "./jwtrefreshtoken.ts";
 import { LOGS_COLLECTION, logsCollectionOptions, logSchema } from "./log.ts";
+import { OAUTH_FLOWS_COLLECTION, oauthFlowIndexes, oauthFlowSchema } from "./oauthflow.ts";
 import { PAGES_COLLECTION, pageSchema } from "./page.ts";
 import { ROOM_METADATA_COLLECTION, roomMetaDataIndexes, roomMetaDataSchema } from "./roommetadata.ts";
 import { SETTINGS_COLLECTION, settingsSchema } from "./settings.ts";
@@ -43,6 +44,7 @@ export async function ensureIndexes(db: Db) {
 		[GAME_PREFERENCES_COLLECTION, gamePreferencesIndexes],
 		[IMAGES_COLLECTION, imageIndexes],
 		[JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenIndexes],
+		[OAUTH_FLOWS_COLLECTION, oauthFlowIndexes],
 		[ROOM_METADATA_COLLECTION, roomMetaDataIndexes],
 	];
 
@@ -62,6 +64,7 @@ export async function ensureValidation(db: Db) {
 		[IMAGES_COLLECTION, imageSchema],
 		[JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenSchema],
 		[LOGS_COLLECTION, logSchema],
+		[OAUTH_FLOWS_COLLECTION, oauthFlowSchema],
 		[PAGES_COLLECTION, pageSchema],
 		[ROOM_METADATA_COLLECTION, roomMetaDataSchema],
 		[SETTINGS_COLLECTION, settingsSchema],

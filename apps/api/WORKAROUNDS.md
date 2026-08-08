@@ -31,23 +31,23 @@ The route inherits `router.use(isAdmin)` from the admin router (`app/routes/admi
 
 Node 18+ wraps network failures from `fetch()` as `TypeError("fetch failed")` with the real cause (`ECONNREFUSED`, `ENOTFOUND`, `EAI_AGAIN`, …) on `err.cause`, not on `err.message`. The `isLokiDown()` helper in `loki.ts` checks both layers so a down Loki surfaces as a 503 ("Loki is not running") instead of leaking through as a 500. If we ever drop the `fetch`-based proxy (e.g. switch to undici directly, or Node changes the error shape), revisit the helper.
 
-## OAuth redirect sharing via in-process relay (`app/routes/account/auth.ts`, `app/config/passport.ts`)
+## Hugging Face login via CIMD — no registered app, no relay (`app/config/passport.ts`, `apps/web/src/routes/.well-known/oauth-cimd/+server.ts`)
 
-Social OAuth apps are registered with a single redirect URI — prod's
-`https://www.boardgamers.space/auth/<provider>/callback` — so PR previews can't
-complete social login on their own origin. The **relay** lets every env share
-prod's registered callback:
+Hugging Face supports CIMD (Client ID Metadata Documents): the OAuth `client_id` is the
+env's OWN `/.well-known/oauth-cimd` URL (served by the web app), which HF fetches and
+validates. That doc names the env's own `/auth/huggingface/callback` as the redirect, so
+every environment (prod + each PR preview) does HF login directly — the old prod
+redirect-**relay** (`/huggingface?returnTo=…` + `/relay/callback`) is gone entirely, and
+no `huggingfaceId`/`huggingfaceSecret` env or HF OAuth app registration is needed.
 
-1. a preview starts HF login on prod: `GET /api/account/auth/huggingface?returnTo=https://pr-<n>.boardgamers.space`;
-2. prod's custom PKCE state store (replacing the session-based default — the app
-   has no session) carries the allowlisted `returnTo` through the handshake;
-3. prod's callback mints a single-use, 5-min in-memory code and 302s to
-   `<returnTo>/auth/huggingface/callback?oauthCode=…`;
-4. the preview's web exchanges it on its own api (`POST /api/account/auth/relay/exchange-code`)
-   and completes login/signup exactly as a direct callback would.
+Because the client_id is per-origin and passport-oauth2 bakes it into the strategy, HF
+strategies are built lazily and cached per origin (`huggingfaceStrategy(origin)`).
+CIMD mandates a public PKCE client (`token_endpoint_auth_method: "none"`), so there is
+no secret by design. The PKCE state lives in Mongo `oauthflows` (`models/oauthflows.ts`)
+— single-use, TTL-expired, shared across processes.
 
-Only **huggingface** (PKCE public client, no secret) is relayed — the other
-providers stay confidential-client and preview-only via their own OAuth apps if
-ever needed. The relay maps are per-process, in-memory: fine for a single prod
-api process, but a horizontally-scaled deployment would need sticky routing or a
-shared (redis/db) ticket store. Revisit if prod ever runs >1 api worker for auth.
+The CIMD endpoint must be publicly reachable over HTTPS at
+`https://<host>/.well-known/oauth-cimd` (it's on the web app, which nginx routes the
+public origin to). The other providers (google/discord/facebook/github) have no CIMD
+support — they keep their pre-registered confidential-client (or, for github, PKCE) apps
+with prod's fixed callback, so on preview envs their social login simply isn't wired up.

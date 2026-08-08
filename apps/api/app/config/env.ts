@@ -106,28 +106,13 @@ export default {
 		},
 		github: {
 			id: process.env.githubId || "github-oauth-id",
-			secret: process.env.githubSecret || "github-oauth-secret",
-		},
-		huggingface: {
-			id: process.env.huggingfaceId || "huggingface-oauth-id",
 			// PKCE public client (see passport.ts): no secret needed. `undefined` (not a
 			// placeholder string) is the "no secret" signal — makeSocialStrategy omits it.
-			secret: process.env.huggingfaceSecret || undefined,
+			secret: process.env.githubSecret || undefined,
 		},
-	},
-	// OAuth redirect sharing (PR previews, etc.): with `oauthRelay` set, the social
-	// callback mints a short-lived one-time code and redirects to the allowlisted
-	// origin in `returnTo` instead of logging this instance in directly (see
-	// routes/account/auth.ts). Off/ignored locally, where the callback is a JSON API.
-	oauthRelay: {
-		codeTtlMs: Math.max(1000, Number(process.env.oauthRelayCodeTtlMs) || 5 * 60 * 1000),
-		// Hostname suffix allowlist for returnTo origins. Defaults to the root domain so
-		// prod (www.boardgamers.space) and every PR preview (pr-<n>.boardgamers.space)
-		// qualify, while lookalikes (evil-boardgamers.space) do not (exact or dot-suffix).
-		allowedOriginSuffixes: (process.env.oauthRelayAllowedOrigins || domain)
-			.split(",")
-			.map((s) => s.trim().toLowerCase())
-			.filter(Boolean),
+		// Hugging Face uses CIMD (Client ID Metadata Documents): the client_id is the
+		// env's own `/.well-known/oauth-cimd` URL (served by the web app), computed at
+		// request time in routes/account/auth.ts — no env/registration needed at all.
 	},
 	silent: false,
 };

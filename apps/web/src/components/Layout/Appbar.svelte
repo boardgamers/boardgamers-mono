@@ -60,6 +60,9 @@
 		logout().catch(handleError);
 	};
 
+	// Hugging Face uses CIMD (see api config/passport.ts): the env's own
+	// /.well-known/oauth-cimd doc is the client_id and names this origin's callback, so
+	// every environment — prod and PR previews alike — logs in directly, no prod relay.
 	const socialProviders = [
 		{ name: "Google", href: "/api/account/auth/google", icon: IconGoogle },
 		{ name: "Discord", href: "/api/account/auth/discord", icon: IconDiscord },
@@ -67,19 +70,6 @@
 		{ name: "GitHub", href: "/api/account/auth/github", icon: IconGithub },
 		{ name: "Hugging Face", href: "/api/account/auth/huggingface", icon: IconHuggingFace },
 	];
-
-	// HF is a PKCE public client, so its OAuth app can be registered to prod's single
-	// callback and relay the result back here (see api routes/account/auth.ts). On a
-	// non-prod origin (PR previews), start the handshake on prod with returnTo set to
-	// this origin; prod bounces back with a one-time code the local API exchanges.
-	let huggingFaceHref = $derived.by((): string => {
-		const { hostname, protocol } = page.url;
-		if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "www.boardgamers.space") {
-			return "/api/account/auth/huggingface";
-		}
-		const prod = `https://www.boardgamers.space/api/account/auth/huggingface`;
-		return `${prod}?returnTo=${encodeURIComponent(`${protocol}//${hostname}`)}`;
-	});
 
 	let admin = $derived(user?.authority === "admin");
 	// SSR fallback for active games so the count badge doesn't flicker after hydration.
@@ -184,7 +174,7 @@
 							<!-- OAuth endpoints, not app routes: off-site navigation (rel="external"). -->
 							{#each socialProviders as provider (provider.name)}
 								<a
-									href={provider.name === "Hugging Face" ? huggingFaceHref : provider.href}
+									href={provider.href}
 									rel="external"
 									title="Continue with {provider.name}"
 									aria-label="Continue with {provider.name}"
