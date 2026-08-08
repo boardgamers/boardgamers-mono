@@ -67,6 +67,10 @@ export { settingsSchema, SETTINGS_COLLECTION, SettingsKey, announcementSchema } 
 export type { UserDoc, UserFront } from "./user.ts";
 export { userSchema, USERS_COLLECTION, userIndexes } from "./user.ts";
 
+// --- Deleted User (soft-delete archive) ---
+export type { DeletedUserDoc } from "./deleteduser.ts";
+export { deletedUserSchema, DELETED_USERS_COLLECTION, deletedUserIndexes } from "./deleteduser.ts";
+
 // --- Helpers ---
 export { zObjectId, zDate } from "./helpers.ts";
 export { zodToMongoSchema } from "./mongo-schema.ts";

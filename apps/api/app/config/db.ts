@@ -4,6 +4,8 @@ import {
 	API_ERRORS_COLLECTION,
 	type ChatMessageDoc,
 	CHAT_MESSAGES_COLLECTION,
+	type DeletedUserDoc,
+	DELETED_USERS_COLLECTION,
 	type GameDoc,
 	GAMES_COLLECTION,
 	type GameInfoDoc,
@@ -49,6 +51,7 @@ export function db(): Db {
 export const colls = {} as {
 	apiErrors: Collection<ApiErrorDoc>;
 	chatMessages: Collection<ChatMessageDoc>;
+	deletedUsers: Collection<DeletedUserDoc>;
 	games: Collection<GameDoc>;
 	gameInfos: Collection<GameInfoDoc>;
 	gameNotifications: Collection<GameNotificationDoc>;
@@ -67,6 +70,7 @@ function initColls(database: Db) {
 	Object.assign(colls, {
 		apiErrors: withAutoUpdatedAt(database.collection<ApiErrorDoc>(API_ERRORS_COLLECTION)),
 		chatMessages: database.collection<ChatMessageDoc>(CHAT_MESSAGES_COLLECTION),
+		deletedUsers: database.collection<DeletedUserDoc>(DELETED_USERS_COLLECTION),
 		games: withAutoUpdatedAt(database.collection<GameDoc>(GAMES_COLLECTION)),
 		gameInfos: withAutoUpdatedAt(database.collection<GameInfoDoc>(GAME_INFOS_COLLECTION)),
 		gameNotifications: withAutoUpdatedAt(database.collection<GameNotificationDoc>(GAME_NOTIFICATIONS_COLLECTION)),

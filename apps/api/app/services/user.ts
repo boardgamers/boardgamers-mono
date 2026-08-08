@@ -9,7 +9,7 @@ const ACTIVITY_FIELDS = ["security.lastActive", "security.lastLogin.date", "secu
 
 // Conservative candidate pre-filter: very old account, no recorded activity of any kind
 // after the cutoff (or none at all), never an admin. The per-user activity checks below
-// (games, chat, …) run on top of this before anything is deleted.
+// (games, chat, …) run on top of this before anything is archived.
 export function deadUserCandidateFilter(cutoff: Date): Filter<UserDoc> {
 	return {
 		createdAt: { $lt: cutoff },
@@ -65,21 +65,31 @@ export async function cleanupDeadUsers() {
 	}
 
 	if (env.cleanupDeadUsers === "dry-run") {
-		console.log(`[cleanupDeadUsers] dry-run: ${dead.length} user(s) would be deleted: ${dead.map(label).join(", ")}`);
+		console.log(
+			`[cleanupDeadUsers] dry-run: ${dead.length} user(s) would be archived to deletedUsers: ${dead.map(label).join(", ")}`,
+		);
 		return;
 	}
 
 	for (const user of dead) {
 		const userId = user._id!;
-		// Re-verify right before deleting: a user who joined their first game or posted
+		// Re-verify right before archiving: a user who joined their first game or posted
 		// their first message between selection and now must be kept.
 		if (await hasActivity(userId)) {
 			console.log(`[cleanupDeadUsers] skipping ${label(user)}: activity appeared since selection`);
 			continue;
 		}
-		// Same cleanup as the admin "delete user" route: the user doc plus their now-useless
-		// per-user records. Games and chat messages are untouched (other players' games
-		// reference them) — selected users have none by definition.
+		// Soft-delete: archive the full user doc into the deletedUsers collection before
+		// removing it from users, so the account can be restored later. The original _id
+		// is stored as `userId` (the archive gets a fresh _id — its _id_ index is always
+		// unique, and a restored-then-re-archived user must not collide with the first
+		// archived copy). Restore = re-insert the archived doc into users with
+		// `_id: userId`, dropping `deletedAt`/`userId`. Their now-useless per-user
+		// records (tokens, preferences, …) are deleted for real; games and chat messages
+		// are untouched (other players' games reference them) — selected users have none
+		// by definition.
+		const { _id: _originalId, ...rest } = user;
+		await colls.deletedUsers.insertOne({ ...rest, userId, deletedAt: new Date() });
 		await Promise.all([
 			colls.users.deleteOne({ _id: userId }),
 			colls.jwtRefreshTokens.deleteMany({ user: userId }),
@@ -88,6 +98,6 @@ export async function cleanupDeadUsers() {
 			colls.gameNotifications.deleteMany({ user: userId }),
 			colls.roomMetaData.deleteMany({ user: userId }),
 		]);
-		console.log(`[cleanupDeadUsers] deleted user ${label(user)}`);
+		console.log(`[cleanupDeadUsers] archived user ${label(user)} to deletedUsers`);
 	}
 }

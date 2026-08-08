@@ -80,9 +80,10 @@ export default {
 	// single process must run it. PM2 workers opt out with cron=false so only the
 	// dedicated api-cron process runs it (see ecosystem.config.cjs).
 	cron: (process.env.cron ?? "true") !== "false",
-	// Deletion of never-used, long-inactive user accounts is DESTRUCTIVE, so it is off
-	// by default. Enable "dry-run" first to see what would be deleted in the logs, then
-	// flip to "delete" (see services/user.ts#cleanupDeadUsers).
+	// Archiving of never-used, long-inactive user accounts ("delete" mode moves them to
+	// the deletedUsers collection, from which they can be restored) is off by default.
+	// Enable "dry-run" first to see what would be archived in the logs, then flip to
+	// "delete" (see services/user.ts#cleanupDeadUsers).
 	cleanupDeadUsers:
 		process.env.cleanupDeadUsers === "dry-run" || process.env.cleanupDeadUsers === "delete"
 			? process.env.cleanupDeadUsers
