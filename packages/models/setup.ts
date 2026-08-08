@@ -1,5 +1,6 @@
 import type { Db, IndexDescription } from "mongodb";
 import type { ZodType } from "zod";
+import { ADMIN_TOKENS_COLLECTION, adminTokenIndexes, adminTokenSchema } from "./admintoken.ts";
 import { API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollectionOptions, apiErrorSchema } from "./api-error.ts";
 import {
 	CHAT_MESSAGES_COLLECTION,
@@ -35,6 +36,7 @@ export async function ensureCollections(db: Db) {
 
 export async function ensureIndexes(db: Db) {
 	const indexMap: [string, IndexDescription[]][] = [
+		[ADMIN_TOKENS_COLLECTION, adminTokenIndexes],
 		[GAMES_COLLECTION, gameIndexes],
 		[USERS_COLLECTION, userIndexes],
 		[API_ERRORS_COLLECTION, apiErrorIndexes],
@@ -53,6 +55,7 @@ export async function ensureIndexes(db: Db) {
 
 export async function ensureValidation(db: Db) {
 	const validationMap: [string, ZodType][] = [
+		[ADMIN_TOKENS_COLLECTION, adminTokenSchema],
 		[API_ERRORS_COLLECTION, apiErrorSchema],
 		[CHAT_MESSAGES_COLLECTION, chatMessageSchema],
 		[GAMES_COLLECTION, gameSchema],

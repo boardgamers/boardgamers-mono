@@ -27,7 +27,7 @@ MONGO_TOOLS="${dbUrl%/admin}"
 # gamenotifications (~25 MB). And games is dumped separately below with a status
 # filter (open+active only), because 99% of it is 2.8 GB of ended games.
 EXCLUDED=(
-  usersettings locks chats notifications sessions jwtrefreshtokens
+  usersettings locks chats notifications sessions jwtrefreshtokens admintokens
   apierrors logs gamenotifications
   games
 )

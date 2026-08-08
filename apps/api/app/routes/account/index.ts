@@ -20,7 +20,7 @@ import {
 	stripSensitiveFields,
 } from "../../models/user.ts";
 import type { ImageDoc } from "@bgs/models";
-import { loggedIn, loggedOut } from "../utils.ts";
+import { loggedIn, loggedOut, rejectAdminToken } from "../utils.ts";
 import auth from "./auth.ts";
 import { sendAuthInfo } from "./utils.ts";
 
@@ -41,7 +41,7 @@ router.get("/active-games", async (ctx) => {
 	}
 });
 
-router.post("/", loggedIn, async (ctx) => {
+router.post("/", loggedIn, rejectAdminToken, async (ctx) => {
 	const body = z
 		.object({
 			settings: z.any().optional(),
@@ -99,7 +99,7 @@ router.post("/", loggedIn, async (ctx) => {
 	ctx.body = updatedUser;
 });
 
-router.post("/avatar", loggedIn, async (ctx) => {
+router.post("/avatar", loggedIn, rejectAdminToken, async (ctx) => {
 	const parts = [];
 	for await (const chunk of ctx.req) {
 		parts.push(chunk);
@@ -139,7 +139,7 @@ router.post("/avatar", loggedIn, async (ctx) => {
 	ctx.status = 200;
 });
 
-router.post("/email", loggedIn, async (ctx) => {
+router.post("/email", loggedIn, rejectAdminToken, async (ctx) => {
 	const { email } = z.object({ email: z.string().email() }).parse(ctx.request.body);
 	const user = ctx.state.user!;
 
@@ -180,7 +180,7 @@ router.post("/email", loggedIn, async (ctx) => {
 	}
 });
 
-router.post("/terms-and-conditions", loggedIn, async (ctx) => {
+router.post("/terms-and-conditions", loggedIn, rejectAdminToken, async (ctx) => {
 	assert(!ctx.state.user!.account.termsAndConditions, "You already accepted the Terms and Conditions");
 	await colls.users.updateOne({ _id: ctx.state.user!._id }, { $set: { "account.termsAndConditions": new Date() } });
 	const updatedUser = await colls.users.findOne({ _id: ctx.state.user!._id });
@@ -218,7 +218,7 @@ router.get("/games/:game/settings", loggedIn, async (ctx) => {
 	ctx.body = pref;
 });
 
-router.post("/games/:game/ownership", loggedIn, async (ctx) => {
+router.post("/games/:game/ownership", loggedIn, rejectAdminToken, async (ctx) => {
 	const { access } = z.object({ access: z.object({ ownership: z.boolean() }) }).parse(ctx.request.body);
 	const count = await colls.gameInfos.countDocuments({ "_id.game": ctx.params.game });
 
@@ -244,7 +244,7 @@ router.post("/games/:game/ownership", loggedIn, async (ctx) => {
 	ctx.status = 200;
 });
 
-router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
+router.post("/games/:game/preferences/:version", loggedIn, rejectAdminToken, async (ctx) => {
 	const body = z
 		.record(z.string(), z.unknown())
 		.and(z.object({ alternateUI: z.boolean().optional() }))
@@ -305,7 +305,7 @@ router.post("/signup/social", loggedOut, passport.authenticate("social-signup", 
 
 router.post("/login", passport.authenticate("local-login", { session: false }), (ctx) => sendAuthInfo(ctx, "password"));
 
-router.post("/signout", async (ctx: Context) => {
+router.post("/signout", rejectAdminToken, async (ctx: Context) => {
 	// Revoke server-side too — otherwise a leaked cookie keeps working until its 120-day expiry.
 	const code = parseRefreshCookie(ctx.cookies.get("refreshToken"));
 	if (code) {
@@ -345,6 +345,10 @@ const mintBodySchema = z.object({ code: z.string().optional(), scopes: z.array(z
  * narrowly-scoped token (e.g. "gameplay") for the game-server.
  */
 async function mintAccessToken(ctx: Context) {
+	if (ctx.state.adminToken) {
+		throw createError(403, "Admin tokens cannot mint access tokens");
+	}
+
 	const { code: bodyCode, scopes } = mintBodySchema.parse(ctx.request.body);
 	const code = bodyCode ?? parseRefreshCookie(ctx.cookies.get("refreshToken"));
 
