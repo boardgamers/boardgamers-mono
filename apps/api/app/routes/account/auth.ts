@@ -17,15 +17,11 @@ function authenticateWith(
 	options: object,
 	callback?: (...args: unknown[]) => unknown,
 ): Middleware {
-	return (
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- strategy instances are valid at runtime
-		(
-			passport.authenticate as (
-				strategy: string | ReturnType<typeof huggingfaceStrategy>,
-				options: object,
-				callback?: (...args: unknown[]) => unknown,
-			) => Middleware
-		)(strategy, options, callback)
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- strategy instances are valid at runtime
+	return (passport as unknown as { authenticate(...args: unknown[]): Middleware }).authenticate(
+		strategy,
+		options,
+		callback,
 	);
 }
 
