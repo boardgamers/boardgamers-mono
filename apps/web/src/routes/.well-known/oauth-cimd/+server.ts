@@ -22,6 +22,9 @@ export const GET: RequestHandler = ({ url }) => {
 		{
 			client_id: clientId,
 			client_name: "Boardgamers",
+			// Shown on HF's consent screen. Depends on #140 (og-logo-icon), which adds
+			// apps/web/static/logo.png — until that lands on main this 404s (HF just skips it).
+			logo_uri: `${url.origin}/logo.png`,
 			redirect_uris: [`${url.origin}/auth/huggingface/callback`],
 			grant_types: ["authorization_code"],
 			response_types: ["code"],

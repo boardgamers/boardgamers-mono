@@ -47,7 +47,8 @@
 		discord: "bg-social-discord text-white hover:opacity-90",
 		facebook: "bg-social-facebook text-white hover:opacity-90",
 		github: "bg-social-github text-white hover:opacity-90",
-		huggingface: "bg-social-huggingface text-white hover:opacity-90",
+		// Brand yellow (#FFD21E) is too light for white text — dark text for contrast.
+		huggingface: "bg-social-huggingface text-gray-900 hover:opacity-90",
 	};
 
 	const outlineClasses: Record<string, string> = {
