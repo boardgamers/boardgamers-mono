@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
+	import { timeAgo } from "$lib/utils.ts";
 	import { trim } from "$lib/actions.ts";
 	import { goto, invalidateAll } from "$app/navigation";
+	import WebLink from "$components/WebLink.svelte";
 	import type { PageProps } from "./$types";
 	import type { UserInfo, ApiErrorItem } from "./+page.ts";
 
@@ -102,6 +104,25 @@
 		}
 	}
 
+	let showRevokeConfirm = $state(false);
+	let revoking = $state(false);
+
+	async function revokeSessions() {
+		if (!user) return;
+		revoking = true;
+		try {
+			const res = await api.del<{ deleted: number }>(`/admin/users/${user._id}/refresh-tokens`);
+			toast.success(
+				`Sessions revoked (${res.deleted} refresh token${res.deleted === 1 ? "" : "s"} deleted) — all devices logged out`
+			);
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed to revoke sessions");
+		} finally {
+			revoking = false;
+			showRevokeConfirm = false;
+		}
+	}
+
 	async function deleteUser() {
 		if (!user) return;
 		deleting = true;
@@ -115,21 +136,6 @@
 			deleting = false;
 			showDeleteConfirm = false;
 		}
-	}
-
-	function timeAgo(iso?: string): string {
-		if (!iso) return "never";
-		const diff = Date.now() - new Date(iso).getTime();
-		const sec = Math.floor(diff / 1000);
-		if (sec < 60) return `${sec}s ago`;
-		const min = Math.floor(sec / 60);
-		if (min < 60) return `${min}m ago`;
-		const hr = Math.floor(min / 60);
-		if (hr < 24) return `${hr}h ago`;
-		const day = Math.floor(hr / 24);
-		if (day < 30) return `${day}d ago`;
-		const mon = Math.floor(day / 30);
-		return `${mon}mo ago`;
 	}
 
 	const totalGames = $derived(user?.games ? Object.values(user.games).reduce((a, b) => a + (b ?? 0), 0) : 0);
@@ -178,6 +184,9 @@
 					{togglingAdmin ? "…" : "Demote to user"}
 				</button>
 			{/if}
+			<div class="ml-auto text-sm">
+				<WebLink path={`/user/${user.account.username}`} />
+			</div>
 		</div>
 
 		<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -245,6 +254,28 @@
 				>
 					Log in as
 				</button>
+				{#if !showRevokeConfirm}
+					<button
+						onclick={() => (showRevokeConfirm = true)}
+						class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium"
+					>
+						Clear sessions
+					</button>
+				{:else}
+					<button
+						onclick={revokeSessions}
+						disabled={revoking}
+						class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+					>
+						{revoking ? "Revoking…" : "Revoke all sessions?"}
+					</button>
+					<button
+						onclick={() => (showRevokeConfirm = false)}
+						class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-sm font-medium"
+					>
+						Cancel
+					</button>
+				{/if}
 			</div>
 		</div>
 

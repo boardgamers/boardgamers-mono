@@ -2,19 +2,21 @@ import tailwindcss from "@tailwindcss/vite";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig } from "vite";
 
+// VITE_backend locates the api service in multi-instance dev (one loopback IP per
+// instance — see AGENTS.md "Running instances"); the game-server is on the same host.
+const backend = (process.env.VITE_backend ?? "127.0.0.1").replace(/^https?:\/\//, "").replace(/:\d+$/, "");
+
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
 	server: {
 		port: 5180,
 		proxy: {
 			"/api/gameplay": {
-				// 127.0.0.1, not localhost: the dev servers bind 127.0.0.1 and on hosts
-				// where localhost → ::1 first, dialing localhost hits a refused IPv4 socket.
-				target: "http://127.0.0.1:50803",
+				target: `http://${backend}:50803`,
 				changeOrigin: true,
 			},
 			"/api": {
-				target: "http://127.0.0.1:50801",
+				target: `http://${backend}:50801`,
 				changeOrigin: true,
 			},
 		},

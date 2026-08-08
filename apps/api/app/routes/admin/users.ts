@@ -181,6 +181,152 @@ router.post("/:userId/access/grant", async (ctx) => {
 	ctx.status = 200;
 });
 
+const zeroMethodCounts = () => ({ password: 0, google: 0, facebook: 0, discord: 0 });
+
+// DELETE /api/admin/users/:userId/refresh-tokens — revoke all sessions (refresh tokens) of a user
+router.delete("/:userId/refresh-tokens", async (ctx) => {
+	const userId = new ObjectId(ctx.params.userId);
+
+	if (!(await colls.users.countDocuments({ _id: userId }))) {
+		ctx.status = 404;
+		return;
+	}
+
+	const { deletedCount } = await colls.jwtRefreshTokens.deleteMany({ user: userId });
+
+	ctx.body = { deleted: deletedCount };
+});
+
+// GET /api/admin/users/login-methods — users grouped by login mechanisms, split by recent activity
+router.get("/login-methods", async (ctx) => {
+	const recentDays = 90;
+	const since = new Date(Date.now() - recentDays * 24 * 60 * 60 * 1000);
+
+	const grouped = await colls.users
+		.aggregate<{
+			_id: { password: boolean; google: boolean; facebook: boolean; discord: boolean; recent: boolean };
+			count: number;
+		}>([
+			{
+				$group: {
+					_id: {
+						password: { $gt: [{ $strLenCP: { $ifNull: ["$account.password", ""] } }, 0] },
+						google: { $gt: ["$account.social.google", null] },
+						facebook: { $gt: ["$account.social.facebook", null] },
+						discord: { $gt: ["$account.social.discord", null] },
+						recent: { $gte: [{ $ifNull: ["$security.lastLogin.date", new Date(0)] }, since] },
+					},
+					count: { $sum: 1 },
+				},
+			},
+		])
+		.toArray();
+
+	const perMethod = { recent: zeroMethodCounts(), older: zeroMethodCounts() };
+	// The $group splits each method set into recent/older buckets — merge them back
+	// so every combination is a single row carrying both counts.
+	const comboMap = new Map<string, { methods: string[]; recent: number; older: number }>();
+
+	for (const { _id, count } of grouped) {
+		const bucket = _id.recent ? "recent" : "older";
+		if (_id.password) {
+			perMethod[bucket].password += count;
+		}
+		if (_id.google) {
+			perMethod[bucket].google += count;
+		}
+		if (_id.facebook) {
+			perMethod[bucket].facebook += count;
+		}
+		if (_id.discord) {
+			perMethod[bucket].discord += count;
+		}
+
+		const methods = (["password", "google", "facebook", "discord"] as const).filter((m) => _id[m]);
+		const key = methods.join("+");
+		const row = comboMap.get(key) ?? { methods, recent: 0, older: 0 };
+		if (_id.recent) {
+			row.recent += count;
+		} else {
+			row.older += count;
+		}
+		comboMap.set(key, row);
+	}
+
+	const combinations = [...comboMap.values()].sort((a, b) => b.recent + b.older - (a.recent + a.older));
+
+	// Real login trend: refresh tokens double as a login log (bounded by their 120-day TTL).
+	// Each token is stamped with the login method used to open the session.
+	const trendWeeks = 13;
+	const trendSince = new Date(Date.now() - trendWeeks * 7 * DAY_MS);
+
+	const [sessionsByMethod, loginsByMethodWeek] = await Promise.all([
+		colls.jwtRefreshTokens
+			.aggregate<{ _id: string | null; count: number }>([{ $group: { _id: "$loginMethod", count: { $sum: 1 } } }])
+			.toArray(),
+		colls.jwtRefreshTokens
+			.aggregate<{ _id: { week: string; method: string }; count: number }>([
+				{ $match: { createdAt: { $gte: trendSince } } },
+				{
+					$group: {
+						_id: {
+							week: { $dateToString: { format: "%G-W%V", date: "$createdAt" } },
+							method: { $ifNull: ["$loginMethod", "unknown"] },
+						},
+						count: { $sum: 1 },
+					},
+				},
+				{ $sort: { "_id.week": 1 } },
+			])
+			.toArray(),
+	]);
+
+	const sessions: Record<string, number> = {};
+	for (const { _id, count } of sessionsByMethod) {
+		sessions[_id ?? "unknown"] = count;
+	}
+
+	const methodSet = new Set<string>();
+	const countMap = new Map<string, number>();
+	for (const { _id, count } of loginsByMethodWeek) {
+		methodSet.add(_id.method);
+		countMap.set(`${_id.week}/${_id.method}`, count);
+	}
+	const methods = [...methodSet].sort();
+
+	// Fill missing weeks so the chart has a continuous x-axis (Mongo 8 sorts %G-W%V correctly).
+	const weekSet = new Set<string>();
+	for (let i = 0; i < trendWeeks; i++) {
+		weekSet.add(isoWeekString(new Date(Date.now() - (trendWeeks - 1 - i) * 7 * DAY_MS)));
+	}
+	for (const { _id } of loginsByMethodWeek) {
+		weekSet.add(_id.week);
+	}
+	const weeks = [...weekSet].sort();
+
+	const loginsByWeek = weeks.map((week) => {
+		const entry: Record<string, string | number> = { week };
+		for (const method of methods) {
+			entry[method] = countMap.get(`${week}/${method}`) ?? 0;
+		}
+		return entry;
+	});
+
+	ctx.body = { recentDays, perMethod, combinations, sessions, trend: { weeks: trendWeeks, methods, loginsByWeek } };
+});
+
+const DAY_MS = 24 * 3600 * 1000;
+
+function isoWeekString(date: Date): string {
+	const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+	// Move to the Thursday of the ISO week — the ISO year is the year that Thursday falls in.
+	d.setUTCDate(d.getUTCDate() + 3 - ((d.getUTCDay() + 6) % 7));
+	const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+	firstThursday.setUTCDate(firstThursday.getUTCDate() + 3 - ((firstThursday.getUTCDay() + 6) % 7));
+	const week = 1 + Math.round((d.getTime() - firstThursday.getTime()) / (7 * DAY_MS));
+	return `${d.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
 router.post("/:userId/confirm", async (ctx) => {
 	if (!(await colls.users.countDocuments({ _id: new ObjectId(ctx.params.userId) }))) {
 		return;

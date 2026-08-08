@@ -9,6 +9,9 @@ clients:
 
 scrape_configs:
   # Tail all PM2 out-logs (morgan + our JSON request logger) and error-logs.
+  # PM2 cluster mode appends the app id to filenames (api-out-24.log), so the
+  # globs use -out*/-error* to match both per-instance and legacy aggregate
+  # files (api-out.log).
   # The JSON pipeline extracts level/source/method/path/status/durationMs as
   # labels so they're queryable in Grafana without parsing in LogQL.
   - job_name: pm2
@@ -17,13 +20,13 @@ scrape_configs:
         labels:
           job: pm2
           host: coyo
-          __path__: /logs/*-out.log
+          __path__: /logs/*-out*.log
       - targets: [localhost]
         labels:
           job: pm2
           host: coyo
           stream: stderr
-          __path__: /logs/*-error.log
+          __path__: /logs/*-error*.log
     pipeline_stages:
       # Only parse lines that look like our JSON logger output. Non-JSON lines
       # (morgan dev format, console.log, stack traces) pass through unlabelled.

@@ -24,7 +24,7 @@ import type { WithId } from "mongodb";
 import { colls } from "./config/db.ts";
 import { accessTokenPayloadSchema } from "./models/jwtrefreshtokens.ts";
 import { notifyLogin, notifyLastIp } from "./models/user.ts";
-import { setRefreshCookie, parseRefreshCookie } from "./models/session.ts";
+import { setRefreshCookie, parseRefreshCookie, clearAllRefreshCookieVariants } from "./models/session.ts";
 
 // Throttle sliding-session cookie refreshes (per refresh code) so active users
 // don't rewrite the cookie / bump lastSeen on every single mutating request.
@@ -117,6 +117,11 @@ async function listen(port = env.listen.port.api) {
 			const code = parseRefreshCookie(raw);
 			if (code) {
 				const rt = await colls.jwtRefreshTokens.findOne({ code });
+				if (!rt) {
+					// Dead session cookie (revoked or expired server-side). Clear all variants so a
+					// stale pre-overhaul host-only cookie can't shadow future logins (see session.ts).
+					clearAllRefreshCookieVariants(ctx);
+				}
 				if (rt) {
 					ctx.state.user = (await colls.users.findOne({ _id: rt.user })) ?? undefined;
 
@@ -171,6 +176,9 @@ async function listen(port = env.listen.port.api) {
 						// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 						(body as Record<string, unknown>).password = "*******";
 					}
+					// Game-scoped requests carry the game id as a route param — record it so
+					// admin error listings can jump straight to the offending game.
+					const gameId: string | undefined = ctx.params?.gameId ?? ctx.params?.id ?? ctx.state.game?._id;
 					await colls.apiErrors.insertOne({
 						request: {
 							url: ctx.request.originalUrl,
@@ -187,6 +195,7 @@ async function listen(port = env.listen.port.api) {
 						user: ctx.state.user?._id,
 						meta: {
 							source: "api-node",
+							gameId,
 						},
 						createdAt: new Date(),
 					});

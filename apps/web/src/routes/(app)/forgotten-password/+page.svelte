@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
 	import { SEO } from "@/components";
 	import { Button } from "@/modules/cdk";
 	import { useLoggedOut } from "@/lib/auth-guards.svelte";
@@ -40,7 +41,7 @@
 	</form>
 	<hr />
 	<div class="mt-3 space-y-1">
-		<p>Need an account? <a href="/signup">Register</a></p>
-		<p>Or go back <a href="/">home</a>.</p>
+		<p>Need an account? <a href={resolve("/(app)/signup")}>Register</a></p>
+		<p>Or go back <a href={resolve("/(app)")}>home</a>.</p>
 	</div>
 </div>

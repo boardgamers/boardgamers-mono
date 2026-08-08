@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
+	import type { Pathname } from "$app/types";
+	import SanitizedHtml from "@/components/SanitizedHtml.svelte";
 	import { confirm, handleError } from "@/utils";
 	import marked from "marked";
 	import type { GameInfoFront } from "@bgs/models";
@@ -28,6 +31,8 @@
 	let needOwnership = $derived(boardgame?.meta?.needOwnership);
 
 	let rules = $state(false);
+	// Placeholder href for the rules/description toggle (click is intercepted).
+	const rulesToggleHref = "#";
 
 	async function newGame() {
 		if (needOwnership && !hasOwnership) {
@@ -35,7 +40,7 @@
 				"You need to have game ownership to host a new game. You can set game ownership in your account settings."
 			);
 		} else {
-			goto(`/boardgame/${boardgameId}/new-game`);
+			goto(resolve("/(app)/boardgame/[boardgameId]/new-game", { boardgameId }));
 		}
 	}
 </script>
@@ -52,11 +57,11 @@
 		<div>
 			<Card class="border-gray-400 h-full dark:border-gray-600" header={rules ? "Rules" : "Description"}>
 				<div class="prose dark:prose-invert max-w-none">
-					{@html marked((rules ? boardgame.rules : boardgame.description) ?? "")}
+					<SanitizedHtml html={marked((rules ? boardgame.rules : boardgame.description) ?? "")} />
 				</div>
 				{#snippet footer()}
 					<a
-						href={rules ? "#description" : "#rules"}
+						href={rulesToggleHref}
 						onclick={(e) => {
 							e.preventDefault();
 							rules = !rules;
@@ -89,9 +94,9 @@
 	</div>
 
 	<div class="mt-3 text-center">
-		<Button color="accent" href={`/boardgame/${boardgameId}/games`} class="text-base">All games</Button>
+		<Button color="accent" href={`/boardgame/${boardgameId}/games` as Pathname} class="text-base">All games</Button>
 		<Button color="primary" class="mx-3 text-base" onclick={newGame}>New Game</Button>
-		<Button color="accent" href={`/boardgame/${boardgameId}/rankings`} class="text-base">Rankings</Button>
+		<Button color="accent" href={`/boardgame/${boardgameId}/rankings` as Pathname} class="text-base">Rankings</Button>
 	</div>
 
 	<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">

@@ -31,7 +31,9 @@ export function makeDefaultUser(params: {
 			password: params.password,
 			karma: defaultKarma,
 			termsAndConditions: now,
-			social: params.social,
+			// Omit `social` when absent: the driver serializes `undefined` as null, and a
+			// stored `social: null` breaks later `$set: { "account.social.<provider>" }` updates.
+			...(params.social ? { social: params.social } : {}),
 			avatar: "avataaars",
 			bio: "",
 		},
@@ -62,6 +64,7 @@ export const publicInfoProjection = {
 	"account.username": 1,
 	"account.bio": 1,
 	"account.karma": 1,
+	"account.country": 1,
 	createdAt: 1,
 } as const;
 
@@ -95,7 +98,12 @@ export async function validPassword(user: WithId<UserDoc>, password: string) {
 
 export async function resetPassword(user: WithId<UserDoc>, password: string) {
 	const hash = await generateHash(password);
-	await colls.users.updateOne({ _id: user._id }, { $set: { "account.password": hash, "security.reset": null } });
+	await Promise.all([
+		colls.users.updateOne({ _id: user._id }, { $set: { "account.password": hash, "security.reset": null } }),
+		// A password change can mean the account was compromised — revoke all
+		// sessions; every device has to log in again with the new password.
+		colls.jwtRefreshTokens.deleteMany({ user: user._id }),
+	]);
 }
 
 export function generateConfirmKey(): string {
@@ -313,6 +321,7 @@ export function userPublicInfo(user: WithId<UserDoc>) {
 			username: user.account?.username,
 			bio: user.account?.bio,
 			karma: user.account?.karma,
+			country: user.account?.country,
 		},
 		createdAt: user.createdAt,
 	};

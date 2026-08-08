@@ -24,7 +24,60 @@ const iframeQuerySchema = z.object({ src: z.string().optional() });
 const gameIframeQuerySchema = z.object({
 	alternate: z.string().optional(),
 	customViewerUrl: z.string().optional(),
+	dark: z.string().optional(),
 });
+
+// Generic dark theme for engine viewers. Viewers are external packages whose own colors
+// (board fills, faction log rows…) are untouched; this only re-themes the page chrome
+// (background, default text, Bootstrap-ish tables/modals/forms) and only applies to
+// classless elements so viewer-specific styling wins. Toggled live via postMessage.
+const darkStylesheet = `
+html.dark body {
+  background: #030712;
+  color: #f3f4f6;
+  scrollbar-color: #4b5563 #1f2937;
+}
+html.dark a:not([class]) { color: #93c5fd; }
+html.dark h1:not([class]), html.dark h2:not([class]), html.dark h3:not([class]),
+html.dark h4:not([class]), html.dark h5:not([class]), html.dark h6:not([class]) { color: inherit; }
+html.dark table:not([class]), html.dark .table { color: inherit; }
+html.dark table:not([class]) td, html.dark table:not([class]) th,
+html.dark .table td, html.dark .table th, html.dark .table thead th { border-color: #374151; }
+/* Viewers that color log rows inline use white for neutral rows — re-theme those, but
+   leave faction/player-colored rows alone. */
+html.dark table tr[style*="background-color: white"],
+html.dark table tr[style*="background-color: rgb(255, 255, 255)"] { background-color: #1f2937 !important; }
+html.dark table tr[style*="background-color: white"] td,
+html.dark table tr[style*="background-color: rgb(255, 255, 255)"] td { color: #f3f4f6; }
+html.dark .table-striped tbody tr:nth-of-type(odd) { background-color: rgba(255, 255, 255, 0.04); }
+html.dark .table-hover tbody tr:hover { background-color: rgba(255, 255, 255, 0.08); }
+html.dark .modal-content, html.dark .dropdown-menu, html.dark .popover, html.dark .popover-body {
+  background-color: #111827;
+  color: #f3f4f6;
+  border-color: #374151;
+}
+html.dark .modal-header, html.dark .modal-footer { border-color: #374151; }
+html.dark .dropdown-item { color: #f3f4f6; }
+html.dark .dropdown-item:hover, html.dark .dropdown-item:focus { background-color: #1f2937; color: #ffffff; }
+html.dark .dropdown-divider { border-color: #374151; }
+html.dark .popover-header { background-color: #1f2937; color: inherit; border-color: #374151; }
+html.dark .close { color: #f3f4f6; text-shadow: none; }
+html.dark .form-control, html.dark .custom-select, html.dark .form-select,
+html.dark input:not([class]), html.dark select:not([class]), html.dark textarea:not([class]) {
+  background-color: #1f2937;
+  color: #f3f4f6;
+  border-color: #4b5563;
+}
+/* SVG labels rendered alongside HTML (player names under turn-order / current-player
+   circles) default to the SVG initial fill (black). Setting fill on the svg root and
+   letting it inherit recolors only bare text — an explicit fill on the text itself
+   (attribute, inline style or viewer CSS class — e.g. white text on faction-colored
+   circles) is a direct declaration and still wins. currentColor then follows the
+   light body text color. Note: fill:currentColor on the text rule itself would still
+   clobber CSS-class fills (Blink treats that declaration as higher-priority), so it
+   must live on the svg root. */
+html.dark svg:not([style]) { fill: currentColor; }
+html.dark svg:not([style]) text:not([fill]):not([style*="fill"]) { color: #f3f4f6; }`;
 
 router.get("/iframe", (ctx) => {
 	const { src } = iframeQuerySchema.parse(ctx.query);
@@ -32,7 +85,7 @@ router.get("/iframe", (ctx) => {
 });
 
 router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
-	const { alternate, customViewerUrl } = gameIframeQuerySchema.parse(ctx.query);
+	const { alternate, customViewerUrl, dark } = gameIframeQuerySchema.parse(ctx.query);
 	const gameInfo = await colls.gameInfos.findOne({
 		_id: { game: ctx.params.game_name, version: +ctx.params.game_version },
 	});
@@ -55,12 +108,23 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
 		.join("\n");
 	const viewerScript = `<${"script"} src='${viewerUrl}' type='text/javascript'></${"script"}>`;
 
+	const darkModeAssets = `
+      <style>${darkStylesheet}</style>
+      <${"script"} type='text/javascript'>
+        window.addEventListener('message', event => {
+          if (event.data.type === 'theme') {
+            document.documentElement.classList.toggle('dark', !!event.data.dark);
+          }
+        });
+      </${"script"}>`;
+
 	const template =
 		viewer.topLevelVariable === "clash"
 			? `
     <head>
       <meta charset="UTF-8">
       ${stylesheets}
+      ${darkModeAssets}
       </head>
     <body>
       <canvas id='glcanvas' style="margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; position: absolute; z-index: 0;"></canvas>
@@ -73,6 +137,7 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
       ${scripts}
       ${viewerScript}
       ${stylesheets}
+      ${darkModeAssets}
     </head>
     <body>
       <div id='app'>
@@ -80,6 +145,7 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
     </body>`;
 
 	ctx.body = `
+      ${dark === "1" ? `<html class='dark'>` : ``}
       ${template}
       <${"script"} type='text/javascript'>
         const gameObj = window.${viewer.topLevelVariable}.launch('#app');

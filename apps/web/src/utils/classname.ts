@@ -9,7 +9,9 @@ function toClassName(value: any) {
 		} else {
 			for (let key in value) {
 				if (value[key]) {
-					result && (result += " ");
+					if (result) {
+						result += " ";
+					}
 					result += key;
 				}
 			}

@@ -1,14 +1,25 @@
 import { goto } from "$app/navigation";
+import { resolve } from "$app/paths";
+import type { Pathname } from "$app/types";
 import { page } from "$app/state";
 import { skipOnce } from "@/utils";
-import { redirectLoggedIn, redirectLoggedOut } from "@/utils/redirect";
+import { loginRedirectQuery, redirectLoggedOut } from "@/utils/redirect";
 import { onMount } from "svelte";
 import { account } from "./stores.svelte";
 
 export function useLoggedIn(): void {
-	onMount(() => account.subscribe(skipOnce((val) => !val && goto(redirectLoggedIn(page.url)))));
+	onMount(() =>
+		account.subscribe(
+			skipOnce((val) => {
+				if (val) return;
+				const loginTarget = resolve("/(app)/login") + loginRedirectQuery(page.url);
+				// eslint-disable-next-line svelte/no-navigation-without-resolve -- path is resolve()d above; the rule can't trace resolve() + query-string concatenation
+				goto(loginTarget);
+			}),
+		),
+	);
 }
 
 export function useLoggedOut(): void {
-	onMount(() => account.subscribe(skipOnce((val) => val && goto(redirectLoggedOut(page.url)))));
+	onMount(() => account.subscribe(skipOnce((val) => val && goto(resolve(redirectLoggedOut(page.url) as Pathname)))));
 }

@@ -76,13 +76,15 @@
 		{@render children?.()}
 	</select>
 {:else if type === "textarea"}
+	<!-- Deliberate UX: callers use autofocus for the primary field of a form (e.g. login email). -->
+	<!-- svelte-ignore a11y_autofocus -->
 	<textarea
 		bind:value
 		{id}
 		{placeholder}
 		{required}
 		{disabled}
-		{autofocus}
+		autofocus={autofocus || undefined}
 		class={inputClass}
 		{onchange}
 		{oninput}
@@ -94,6 +96,8 @@
 		{...rest}
 	></textarea>
 {:else}
+	<!-- Deliberate UX: callers use autofocus for the primary field of a form (e.g. login email). -->
+	<!-- svelte-ignore a11y_autofocus -->
 	<input
 		{type}
 		bind:value
@@ -101,7 +105,7 @@
 		{placeholder}
 		{required}
 		{disabled}
-		{autofocus}
+		autofocus={autofocus || undefined}
 		class={inputClass}
 		{onchange}
 		{oninput}

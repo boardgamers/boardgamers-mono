@@ -14,8 +14,9 @@ const handleError = (err: Error) => {
 // game-server-cron process (cron=true) runs start/drop/quit processing and engine
 // installs and must NOT bind the port — it runs alongside a worker on the same host
 // (PM2 fork), so listening would hit EADDRINUSE. In dev, cron defaults on and the
-// single process does both (serve + cron).
-const serving = !env.cron || !env.isProduction;
+// single process does both (serve + cron). Preview envs run one process doing both
+// in production mode, so they force serving with serve=true.
+const serving = process.env.serve === "true" || !env.cron || !env.isProduction;
 
 let server: Server | undefined;
 let cron: Closable | undefined;

@@ -3,6 +3,7 @@ import type { PageLoad } from "./$types";
 import { loadGame, loadGamePlayers } from "@/lib/game.svelte";
 import { getGameInfo } from "@/lib/game-info.svelte";
 import { getGamePreferences } from "@/lib/game-preferences.svelte";
+import { ApiError } from "@/lib/api";
 
 export const load: PageLoad = async ({ params }) => {
 	const gameId = params.gameId;
@@ -10,9 +11,14 @@ export const load: PageLoad = async ({ params }) => {
 	let game, players;
 	try {
 		[game, players] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
-	} catch {
-		// loadGame rejects with Error("Not Found") (status 404) when the gameplay API returns 404.
-		throw error(404, "Game not found");
+	} catch (err) {
+		// Preserve the gameplay API's status: a 404 means the game doesn't exist, but a
+		// 500 (e.g. engine failed to load) is a server error and must render as such,
+		// not be masked as a "not found".
+		if (err instanceof ApiError && err.status === 404) {
+			throw error(404, "Game not found");
+		}
+		throw error(err instanceof ApiError ? err.status : 500, err instanceof Error ? err.message : "Failed to load game");
 	}
 
 	// game.game can be absent on legacy/corrupt docs — Mongo validation is "warn"/"moderate",

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SanitizedHtml from "../SanitizedHtml.svelte";
 	import { oneLineMarked } from "@/utils";
 	import { Badge } from "@/modules/cdk";
 	import type { GameInfoFront } from "@bgs/models";
@@ -32,5 +33,5 @@
 </script>
 
 {#if label}
-	<Badge {color} class="setup-badge">{@html oneLineMarked(label)}</Badge>
+	<Badge {color} class="setup-badge"><SanitizedHtml html={oneLineMarked(label)} /></Badge>
 {/if}
