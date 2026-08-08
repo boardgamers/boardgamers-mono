@@ -9,4 +9,11 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<OGCard title={data.title} subtitle={data.subtitle} game={data.game} players={data.players} pace={data.pace} />
+<OGCard
+	title={data.title}
+	subtitle={data.subtitle}
+	game={data.game}
+	description={data.description}
+	players={data.players}
+	pace={data.pace}
+/>

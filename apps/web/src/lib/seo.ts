@@ -16,6 +16,16 @@ export function stripMarkdown(markdown: string): string {
 	return removeMarkdown(markdown).replace(/\s+/g, " ").trim();
 }
 
+// First sentence of a (possibly markdown) text, for OG card sub-text.
+export function firstSentence(text: string, max = 140): string {
+	const clean = stripMarkdown(text);
+	if (!clean) {
+		return "";
+	}
+	const match = clean.match(/^(.+?[.!?])(?:\s|$)/);
+	return truncate(match?.[1] ?? clean, max);
+}
+
 export function truncate(text: string, max: number): string {
 	return text.length <= max ? text : text.slice(0, max - 1).trimEnd() + "…";
 }
@@ -25,6 +35,8 @@ export interface OgCardParams {
 	subtitle?: string;
 	/** Game label (e.g. "Gaia Project") — the card shows a monogram badge derived from it. */
 	game?: string;
+	/** First sentence of the game's description — shown under the title on boardgame cards. */
+	description?: string;
 	players?: string;
 	pace?: string;
 }
@@ -39,6 +51,9 @@ export function ogImageUrl(pathOrUrl: string, opts?: OgCardParams): string {
 	}
 	if (opts.game) {
 		params.set("game", opts.game.slice(0, 60));
+	}
+	if (opts.description) {
+		params.set("description", opts.description.slice(0, 140));
 	}
 	if (opts.players) {
 		params.set("players", opts.players.slice(0, 40));

@@ -16,11 +16,13 @@
 		subtitle?: string;
 		/** Game label (e.g. "Gaia Project") — renders a monogram badge derived from it. */
 		game?: string;
+		/** First sentence of the game's description — shown under the title on boardgame cards. */
+		description?: string;
 		players?: string;
 		pace?: string;
 	}
 
-	let { title, subtitle = "", game = "", players = "", pace = "" }: Props = $props();
+	let { title, subtitle = "", game = "", description = "", players = "", pace = "" }: Props = $props();
 
 	const background = `radial-gradient(ellipse 700px 520px at 96% -12%, ${colors.accent}a6 0%, transparent 58%),
 		radial-gradient(ellipse 620px 460px at -6% 112%, ${colors.accentLight}73 0%, transparent 55%),
@@ -43,16 +45,16 @@
 
 <div style="width: 1200px; height: 630px; position: relative; overflow: hidden; background: {background};">
 	<div style="position: absolute; inset: 0; {grid}"></div>
-	<!-- Decorative board-game pieces (ghost dice tiles, invert-tinted white) -->
+	<!-- Decorative ghost logos, invert-tinted white -->
 	<img
-		src="/images/icons/dice.svg"
+		src="/logo.svg"
 		width="640"
 		height="640"
 		alt=""
 		style="position: absolute; right: -170px; bottom: -190px; opacity: 0.12; transform: rotate(18deg); filter: invert(1);"
 	/>
 	<img
-		src="/images/icons/dice.svg"
+		src="/logo.svg"
 		width="340"
 		height="340"
 		alt=""
@@ -76,6 +78,13 @@
 					style="font-size: 34px; font-weight: 400; color: #d6e8f8; line-height: 1.32; text-shadow: 0 1px 6px rgba(9, 42, 77, 0.5);"
 				>
 					{subtitle}
+				</div>
+			{/if}
+			{#if description}
+				<div
+					style="font-size: 30px; font-weight: 400; color: #d6e8f8; opacity: 0.9; line-height: 1.35; text-shadow: 0 1px 6px rgba(9, 42, 77, 0.5); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;"
+				>
+					{description}
 				</div>
 			{/if}
 			{#if players || pace}
@@ -111,7 +120,7 @@
 			<div
 				style="width: 64px; height: 64px; border-radius: 16px; background: #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(9, 42, 77, 0.45);"
 			>
-				<img src="/images/icons/dice.svg" width="46" height="46" alt="" />
+				<img src="/logo.svg" width="46" height="46" alt="" />
 			</div>
 			<div
 				style="font-size: 32px; font-weight: 600; letter-spacing: 0.5px; text-shadow: 0 1px 6px rgba(9, 42, 77, 0.5);"

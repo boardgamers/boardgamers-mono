@@ -30,7 +30,7 @@
 				"Play Gaia Project, Powergrid, 6nimmt and Container online with other people. All games and the platform are open source!",
 		})
 	);
-	</script>
+</script>
 
 <SEO
 	title="Boardgamers — play boardgames online"
@@ -38,7 +38,8 @@
 />
 
 <svelte:head>
-	{@html `<script type="application/ld+json">${websiteJsonLd}</script>`}
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -- JSON-LD is built from static strings, no user input. -->
+	{@html `<script type="application/ld+json">${websiteJsonLd}</scr` + `ipt>`}
 </svelte:head>
 
 <div class="flex">

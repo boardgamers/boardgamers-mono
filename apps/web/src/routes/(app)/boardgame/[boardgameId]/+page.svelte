@@ -14,7 +14,7 @@
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { gameLabel } from "@/utils/game-label";
-	import { defaultOgImage, ogImageUrl, stripMarkdown, truncate } from "@/lib/seo";
+	import { defaultOgImage, firstSentence, ogImageUrl, stripMarkdown, truncate } from "@/lib/seo";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
 
@@ -57,6 +57,7 @@
 		title: gameLabel(boardgame.label),
 		subtitle: `Play ${gameLabel(boardgame.label)} online with other people!`,
 		game: gameLabel(boardgame.label),
+		description: firstSentence(boardgame.description ?? ""),
 	})}
 />
 

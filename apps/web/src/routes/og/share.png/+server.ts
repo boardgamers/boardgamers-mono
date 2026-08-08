@@ -38,7 +38,8 @@ async function renderPng(origin: string, card: Record<string, string>): Promise<
 	try {
 		const params = new URLSearchParams(Object.entries(card).filter(([, value]) => value));
 		await page.goto(`${origin}/og?${params}`, { waitUntil: "networkidle", timeout: 10_000 });
-		return await page.screenshot({ type: "png", timeout: 10_000 });
+		// Clip to the card exactly: any stray page margin must not leak into the image.
+		return await page.screenshot({ type: "png", timeout: 10_000, clip: { x: 0, y: 0, width: 1200, height: 630 } });
 	} finally {
 		await page.close().catch(() => {});
 	}
@@ -50,12 +51,13 @@ export const GET: RequestHandler = async ({ url }) => {
 	const title = (url.searchParams.get("title") ?? siteName).slice(0, 90) || siteName;
 	const subtitle = (url.searchParams.get("subtitle") ?? "").slice(0, 140);
 	const game = (url.searchParams.get("game") ?? "").slice(0, 60);
+	const description = (url.searchParams.get("description") ?? "").slice(0, 140);
 	const players = (url.searchParams.get("players") ?? "").slice(0, 40);
 	const pace = (url.searchParams.get("pace") ?? "").slice(0, 40);
 
-	// TODO: cache rendered PNGs to S3 keyed by title+subtitle+game+players+pace once S3 is
-	// available, so cards aren't recomputed per unique query string (see WORKAROUNDS.md).
-	const render = queue.then(() => renderPng(url.origin, { title, subtitle, game, players, pace }));
+	// TODO: cache rendered PNGs to S3 keyed by title+subtitle+game+description+players+pace once
+	// S3 is available, so cards aren't recomputed per unique query string (see WORKAROUNDS.md).
+	const render = queue.then(() => renderPng(url.origin, { title, subtitle, game, description, players, pace }));
 	queue = render.catch(() => {});
 
 	try {
