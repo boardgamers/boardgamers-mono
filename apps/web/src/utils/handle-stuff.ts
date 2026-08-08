@@ -28,8 +28,8 @@ export function handleSuccess(info: string): void {
 	notifier.success(info);
 }
 
-export function confirm(text: string): Promise<boolean> {
-	return notifier.confirm(text);
+export function confirm(text: string, link?: { url: string; label: string }): Promise<boolean> {
+	return notifier.confirm(text, link);
 }
 
 /**

@@ -6,7 +6,7 @@
 	import marked from "marked";
 	import type { GameInfoFront } from "@bgs/models";
 	import { Button, Card } from "@/modules/cdk";
-	import { UserGameSettings, GameList, BoardgameElo, SEO } from "@/components";
+	import { UserGameSettings, GameList, BoardgameElo, BoardgameLinks, SEO } from "@/components";
 	import { account } from "@/lib/account.svelte";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { gamePreferences, useGamePreferencesFallback } from "@/lib/game-preferences.svelte";
@@ -55,7 +55,16 @@
 
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 		<div>
-			<Card class="border-gray-400 h-full dark:border-gray-600" header={rules ? "Rules" : "Description"}>
+			<Card class="border-gray-400 h-full dark:border-gray-600">
+				{#snippet headerContent()}
+					<div class="flex items-center">
+						<span class="min-w-20 flex-1"></span>
+						<span class="font-semibold">{rules ? "Rules" : "Description"}</span>
+						<span class="min-w-20 flex flex-1 justify-end">
+							<BoardgameLinks links={boardgame.links} />
+						</span>
+					</div>
+				{/snippet}
 				<div class="prose dark:prose-invert max-w-none">
 					<SanitizedHtml html={marked((rules ? boardgame.rules : boardgame.description) ?? "")} />
 				</div>

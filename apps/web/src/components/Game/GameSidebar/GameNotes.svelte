@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from "$app/environment";
+	import { SvelteMap } from "svelte/reactivity";
 	import { debounce } from "lodash";
 	import { get, post } from "@/lib/api";
 	import { account } from "@/lib/stores.svelte";
@@ -60,7 +61,7 @@
 		}
 		// Capture the scroll position of every scrolled ancestor so it can be restored after
 		// the resize (growing/shrinking the textarea can make scroll containers re-anchor).
-		const scrollTops = new Map<Element, number>();
+		const scrollTops = new SvelteMap<Element, number>();
 		for (let el = textArea.parentElement; el; el = el.parentElement) {
 			if (el.scrollTop > 0) {
 				scrollTops.set(el, el.scrollTop);
