@@ -107,18 +107,20 @@ Rules for the agent:
 ### Admin tokens (agent-facing)
 
 To let an agent script `/api/admin/*` (prod or preview) without a password, **a
-human admin creates a token and hands you the raw value** — via one
-`POST /api/admin/tokens` (`{ name, ttlDays? }`) from their authenticated admin
-session; the raw token is shown exactly once in that response. You then simply:
+human admin creates a token and hands you the raw value** — via the admin
+panel's Admin Tokens page or one `POST /api/admin/tokens` (`{ name, ttlDays? }`)
+from their authenticated admin session; the raw token is shown exactly once at
+creation. You then simply:
 
 ```bash
 curl https://<host>/api/admin/<endpoint> -H "Authorization: Bearer <token>"
 ```
 
-Tokens are temporary (default 30d, max 90d) and revocable, and only work while
-their owner is still an admin — treat one as a credential, and ask the admin for
-a new one if it stops working. (Admins: list/revoke your own tokens via
-`GET`/`DELETE /api/admin/tokens`.)
+Tokens are scoped to `/api/admin/*` by construction (elsewhere the credential
+just doesn't authenticate), temporary (default 30d, max 90d) and revocable, and
+only work while their owner is still an admin — treat one as a credential, and
+ask the admin for a new one if it stops working. (Admins: list/revoke your own
+tokens on the Admin Tokens page or via `GET`/`DELETE /api/admin/tokens`.)
 
 ## Workarounds
 

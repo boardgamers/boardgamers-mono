@@ -50,6 +50,14 @@
 		>
 			Server Health
 		</a>
+		<a
+			href={resolve("/tokens")}
+			class="px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive('/tokens')
+				? 'bg-gray-100 dark:bg-gray-800 font-semibold'
+				: ''}"
+		>
+			Admin Tokens
+		</a>
 
 		<div class="mt-4">
 			<button

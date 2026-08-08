@@ -19,6 +19,11 @@ export const adminTokenSchema = z.object({
 
 export type AdminTokenDoc = z.output<typeof adminTokenSchema>;
 
+/** What GET /api/admin/tokens exposes (the hash never leaves the api). */
+export type AdminTokenFront = Pick<AdminTokenDoc, "name" | "createdAt" | "expiresAt" | "lastUsedAt" | "revokedAt"> & {
+	_id: string;
+};
+
 export const ADMIN_TOKENS_COLLECTION = "admintokens";
 
 export const adminTokenIndexes: IndexDescription[] = [

@@ -1,5 +1,5 @@
 // --- Admin Token ---
-export type { AdminTokenDoc } from "./admintoken.ts";
+export type { AdminTokenDoc, AdminTokenFront } from "./admintoken.ts";
 export { adminTokenSchema, ADMIN_TOKENS_COLLECTION, adminTokenIndexes } from "./admintoken.ts";
 
 // --- API Error ---

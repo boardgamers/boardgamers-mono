@@ -167,20 +167,37 @@ describe("Admin tokens API", () => {
 			assert.ok(!cookies.some((c) => c.startsWith("refreshToken=")), `no refresh cookie, got ${cookies.join()}`);
 		});
 
-		it("cannot mint access tokens (no session upgrade)", async () => {
-			const res = await api("POST", "/api/account/mint", { Authorization: `Bearer ${rawToken}` }, {});
-			assert.strictEqual(res.status, 403);
+		it("is scoped to /api/admin: outside it the credential resolves to no user", async () => {
+			// No reject-list middleware involved — the token simply never authenticates
+			// there, so the normal loggedIn checks answer 401.
+			const account = await api("GET", "/api/account", { Authorization: `Bearer ${rawToken}` });
+			assert.strictEqual(account.status, 401);
+
+			const mutation = await api("POST", "/api/account/", { Authorization: `Bearer ${rawToken}` }, { settings: {} });
+			assert.strictEqual(mutation.status, 401);
+
+			// Session bootstrap endpoints don't recognize it either.
+			const mint = await api("POST", "/api/account/mint", { Authorization: `Bearer ${rawToken}` }, {});
+			assert.strictEqual(mint.status, 401);
 		});
 
-		it("cannot mutate the account", async () => {
-			const res = await api("POST", "/api/account/", { Authorization: `Bearer ${rawToken}` }, { settings: {} });
-			assert.strictEqual(res.status, 403);
+		it("can manage the owner's own tokens (it lives under /api/admin)", async () => {
+			const res = await api("GET", "/api/admin/tokens", { Authorization: `Bearer ${rawToken}` });
+			assert.strictEqual(res.status, 200);
 		});
 
 		it("stops working when the owner is demoted from admin, works again if re-promoted", async () => {
 			await colls.users.updateOne({ _id: adminId }, { $set: { authority: "user" } });
 			const demoted = await api("GET", "/api/admin/users/stats", { Authorization: `Bearer ${rawToken}` });
 			assert.strictEqual(demoted.status, 403);
+
+			// Not even with a live session cookie: the scoped Bearer credential must
+			// not let cookie auth fall back into identifying the caller.
+			const cookieAuth = await api("GET", "/api/account", {
+				Authorization: `Bearer ${rawToken}`,
+				Cookie: `refreshToken=${(await colls.jwtRefreshTokens.findOne({ user: adminId }))!.code}`,
+			});
+			assert.strictEqual(cookieAuth.status, 401);
 
 			await colls.users.updateOne({ _id: adminId }, { $set: { authority: "admin" } });
 			const repromoted = await api("GET", "/api/admin/users/stats", { Authorization: `Bearer ${rawToken}` });

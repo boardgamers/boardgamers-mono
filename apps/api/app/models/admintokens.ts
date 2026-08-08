@@ -34,8 +34,6 @@ export async function createAdminToken(
 	return { doc: { _id: insertedId, ...doc }, token };
 }
 
-// `viaAdminToken` marks the auth as scoped: downstream session-only routes
-// (refresh, mint, account changes, logout) must reject it — see routes/utils.ts.
 export type AdminAuth = { user: WithId<UserDoc>; viaAdminToken: true };
 
 /**
@@ -44,6 +42,11 @@ export type AdminAuth = { user: WithId<UserDoc>; viaAdminToken: true };
  * (authority is re-checked against the live user doc on every request, so
  * demoting an admin kills their tokens immediately). `lastUsedAt` is touched
  * fire-and-forget so auth latency doesn't depend on the write.
+ *
+ * The caller scopes WHERE the token authenticates (app.ts only invokes this for
+ * requests under /api/admin) — everywhere else the credential is just a Bearer
+ * string that resolves to no user, so it can't act as a session on account or
+ * game routes by construction.
  */
 export async function authenticateAdminToken(rawToken: string): Promise<AdminAuth | null> {
 	const now = new Date();
