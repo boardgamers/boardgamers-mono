@@ -4,24 +4,19 @@
 	import { timeAgo } from "$lib/utils.ts";
 	import { trim } from "$lib/actions.ts";
 	import { goto, invalidateAll } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import WebLink from "$components/WebLink.svelte";
 	import type { PageProps } from "./$types";
 	import type { UserInfo, ArchivedUserInfo, ApiErrorItem } from "./+page.ts";
 
 	let { data }: PageProps = $props();
 
-	let user = $state<UserInfo | null>(data.user);
-	let archived = $state<ArchivedUserInfo | null>(data.archived);
-	let errors = $state<ApiErrorItem[]>(data.errors);
+	const user = $derived<UserInfo | null>(data.user);
+	const archived = $derived<ArchivedUserInfo | null>(data.archived);
+	const errors = $derived<ApiErrorItem[]>(data.errors);
 	let expandedError = $state<string | null>(null);
 	let gameName = $state("");
 	let elo = $state(0);
-
-	$effect(() => {
-		user = data.user;
-		archived = data.archived;
-		errors = data.errors;
-	});
 
 	// gameName is trimmed on paste/blur by the use:trim action.
 	async function grantAccess() {
@@ -131,7 +126,7 @@
 		try {
 			await api.del(`/admin/users/${user._id}`);
 			toast.success("User deleted");
-			goto("/users");
+			goto(resolve("/users"));
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed to delete user");
 		} finally {
@@ -238,12 +233,14 @@
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
 			<h3 class="text-sm font-semibold">User Management</h3>
 			<div class="flex items-center gap-3">
-				<label class="text-sm text-gray-500">Karma</label>
-				<input
-					type="number"
-					bind:value={user.account.karma}
-					class="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-				/>
+				<label class="text-sm text-gray-500 flex items-center gap-3"
+					>Karma
+					<input
+						type="number"
+						bind:value={user.account.karma}
+						class="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+					/>
+				</label>
 				<button
 					onclick={updateKarma}
 					class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">Update</button
@@ -286,20 +283,24 @@
 			<h3 class="text-sm font-semibold">Boardgame Management</h3>
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 				<div>
-					<label class="block text-xs font-medium text-gray-500 mb-1">Boardgame name</label>
-					<input
-						bind:value={gameName}
-						use:trim
-						class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-					/>
+					<label class="block text-xs font-medium text-gray-500 mb-1"
+						>Boardgame name
+						<input
+							bind:value={gameName}
+							use:trim
+							class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+						/>
+					</label>
 				</div>
 				<div>
-					<label class="block text-xs font-medium text-gray-500 mb-1">Elo</label>
-					<input
-						type="number"
-						bind:value={elo}
-						class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-					/>
+					<label class="block text-xs font-medium text-gray-500 mb-1"
+						>Elo
+						<input
+							type="number"
+							bind:value={elo}
+							class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+						/>
+					</label>
 				</div>
 			</div>
 			<div class="flex gap-2">
@@ -325,9 +326,9 @@
 					<h3 class="text-sm font-semibold">Recent Games ({user.recentGames.length})</h3>
 				</div>
 				<div class="divide-y divide-gray-100 dark:divide-gray-800">
-					{#each user.recentGames as game}
+					{#each user.recentGames as game (game._id)}
 						<a
-							href={`/game/${game._id}`}
+							href={resolve("/game/[gameId]", { gameId: game._id })}
 							class="px-5 py-2.5 flex items-center justify-between text-sm hover:bg-gray-50 dark:hover:bg-gray-800/50"
 						>
 							<span class="font-mono text-xs truncate flex-1">{game._id}</span>
@@ -365,10 +366,10 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each errors as err}
+							{#each errors as err (err._id)}
 								<tr
 									class="border-b border-gray-50 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
-									onclick={() => toggleError(err._id)}
+									onclick={() => toggleError(String(err._id))}
 								>
 									<td class="px-4 py-2 text-gray-400">
 										<svg
@@ -492,7 +493,7 @@
 			</div>
 		</div>
 
-		<a href="/users/deleted" class="inline-block text-sm text-blue-600 dark:text-blue-400 hover:underline">
+		<a href={resolve("/users/deleted")} class="inline-block text-sm text-blue-600 dark:text-blue-400 hover:underline">
 			← All deleted users
 		</a>
 	</div>

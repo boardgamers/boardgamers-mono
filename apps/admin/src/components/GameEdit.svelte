@@ -226,13 +226,10 @@
 				delete (setting as OptionItem).faction;
 			}
 		}
-		for (const key of Object.keys(value.links ?? {}) as (keyof NonNullable<GameInfoData["links"]>)[]) {
-			if (!value.links![key]) {
-				delete value.links![key];
-			}
-		}
-		if (Object.keys(value.links ?? {}).length === 0) {
-			delete value.links;
+		// Drop empty links; rebuild the object so tsgo is happy deleting optional keys.
+		if (value.links) {
+			const links = Object.fromEntries(Object.entries(value.links).filter(([, url]) => url));
+			value.links = Object.keys(links).length > 0 ? links : undefined;
 		}
 		onsave(value);
 	}
@@ -251,14 +248,15 @@
 	<!-- Basic Info -->
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 		<div>
-			<label class={labelClass}>Label</label>
-			<input bind:value={value.label} class={inputClass} />
+			<label for="game-label" class={labelClass}>Label</label>
+			<input id="game-label" bind:value={value.label} class={inputClass} />
 		</div>
 		{#if mode === "new"}
 			<div class="grid grid-cols-2 gap-4">
 				<div>
-					<label class={labelClass}>Game ID</label>
+					<label for="game-id" class={labelClass}>Game ID</label>
 					<input
+						id="game-id"
 						value={value._id?.game ?? ""}
 						use:trim
 						oninput={(e) => {
@@ -268,8 +266,9 @@
 					/>
 				</div>
 				<div>
-					<label class={labelClass}>Version</label>
+					<label for="game-version" class={labelClass}>Version</label>
 					<input
+						id="game-version"
 						type="number"
 						value={value._id?.version ?? 1}
 						oninput={(e) => {
@@ -288,11 +287,12 @@
 
 	<!-- Players -->
 	<div>
-		<label class={labelClass}>Players</label>
+		<label for="player-0" class={labelClass}>Players</label>
 		<div class="flex flex-wrap gap-2 items-center">
-			{#each value.players as _, i}
+			{#each value.players as _, i (i)}
 				<div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-1.5 text-sm">
 					<input
+						id={"player-" + i}
 						type="number"
 						bind:value={value.players[i]}
 						class="w-12 bg-transparent text-center focus:outline-none"
@@ -318,7 +318,7 @@
 			<div class="px-5 pb-4 space-y-3">
 				<div>
 					<div class="flex items-center justify-between mb-1">
-						<label class="{labelClass} mb-0">URL</label>
+						<label for={title === "Viewer" ? "viewer-url" : "alt-viewer-url"} class="{labelClass} mb-0">URL</label>
 						{#if upgrade[title]?.latest}
 							<button
 								onclick={() => applyViewerUpgrade(title, viewer)}
@@ -336,20 +336,29 @@
 							</button>
 						{/if}
 					</div>
-					<input bind:value={viewer.url} class={inputClass} />
+					<input id={title === "Viewer" ? "viewer-url" : "alt-viewer-url"} bind:value={viewer.url} class={inputClass} />
 				</div>
 				<div>
-					<label class={labelClass}>Top-level variable</label>
-					<input bind:value={viewer.topLevelVariable} class={inputClass} />
+					<label for={title === "Viewer" ? "viewer-toplevel" : "alt-viewer-toplevel"} class={labelClass}
+						>Top-level variable</label
+					>
+					<input
+						id={title === "Viewer" ? "viewer-toplevel" : "alt-viewer-toplevel"}
+						bind:value={viewer.topLevelVariable}
+						class={inputClass}
+					/>
 				</div>
 
 				<!-- Dependencies -->
-				{#each ["scripts", "stylesheets"] as depType}
+				{#each ["scripts", "stylesheets"] as depType (depType)}
 					<div>
-						<label class={labelClass}>{depType[0].toUpperCase()}{depType.slice(1)}</label>
-						{#each viewer.dependencies?.[depType as "scripts" | "stylesheets"] ?? [] as _, di}
+						<label for={(title === "Viewer" ? "viewer" : "alt-viewer") + "-" + depType + "-0"} class={labelClass}
+							>{depType[0].toUpperCase()}{depType.slice(1)}</label
+						>
+						{#each viewer.dependencies?.[depType as "scripts" | "stylesheets"] ?? [] as _, di (di)}
 							<div class="flex gap-2 mb-1">
 								<input
+									id={(title === "Viewer" ? "viewer" : "alt-viewer") + "-" + depType + "-" + di}
 									bind:value={viewer.dependencies![depType as "scripts" | "stylesheets"][di]}
 									class="{inputClass} flex-1"
 									placeholder="{depType.slice(0, -1)} URL"
@@ -412,8 +421,9 @@
 		<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">Engine</summary>
 		<div class="px-5 pb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
 			<div>
-				<label class={labelClass}>Package name</label>
+				<label for="engine-package-name" class={labelClass}>Package name</label>
 				<input
+					id="engine-package-name"
 					value={value.engine?.package.name ?? ""}
 					use:trim
 					oninput={(e) => {
@@ -424,7 +434,7 @@
 			</div>
 			<div>
 				<div class="flex items-center justify-between mb-1">
-					<label class="{labelClass} mb-0">Package version</label>
+					<label for="engine-package-version" class="{labelClass} mb-0">Package version</label>
 					{#if upgrade["engine"]?.latest}
 						<button
 							onclick={applyEngineUpgrade}
@@ -443,6 +453,7 @@
 					{/if}
 				</div>
 				<input
+					id="engine-package-version"
 					value={value.engine?.package.version ?? ""}
 					use:trim
 					oninput={(e) => {
@@ -452,8 +463,9 @@
 				/>
 			</div>
 			<div>
-				<label class={labelClass}>Entry point</label>
+				<label for="engine-entry-point" class={labelClass}>Entry point</label>
 				<input
+					id="engine-entry-point"
 					value={value.engine?.entryPoint ?? ""}
 					use:trim
 					oninput={(e) => {
@@ -482,10 +494,11 @@
 	<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
 		<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">Links</summary>
 		<div class="px-5 pb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-			{#each [{ key: "source" as const, label: "Source code URL", placeholder: "https://github.com/…" }, { key: "bgg" as const, label: "BoardGameGeek URL", placeholder: "https://boardgamegeek.com/boardgame/…" }, { key: "publisher" as const, label: "Publisher URL", placeholder: "https://…" }, { key: "buy" as const, label: "Buy URL (affiliate)", placeholder: "https://…" }] as field}
+			{#each [{ key: "source" as const, label: "Source code URL", placeholder: "https://github.com/…" }, { key: "bgg" as const, label: "BoardGameGeek URL", placeholder: "https://boardgamegeek.com/boardgame/…" }, { key: "publisher" as const, label: "Publisher URL", placeholder: "https://…" }, { key: "buy" as const, label: "Buy URL (affiliate)", placeholder: "https://…" }] as field (field.key)}
 				<div>
-					<label class={labelClass}>{field.label}</label>
+					<label for={"link-" + field.key} class={labelClass}>{field.label}</label>
 					<input
+						id={"link-" + field.key}
 						value={value.links?.[field.key] ?? ""}
 						use:trim
 						oninput={(e) => {
@@ -504,11 +517,11 @@
 	<MarkdownEditor bind:value={value.rules} label="Rules (Markdown)" rows={8} />
 
 	<!-- Expansions, Options, Preferences, Settings -->
-	{#each [{ key: "expansions" as const, label: "Expansions", showType: false, showFaction: false, showCategory: false }, { key: "options" as const, label: "Options", showType: true, showFaction: false, showCategory: false }, { key: "preferences" as const, label: "Preferences", showType: true, showFaction: false, showCategory: true }, { key: "settings" as const, label: "Settings", showType: true, showFaction: true, showCategory: false }] as section}
+	{#each [{ key: "expansions" as const, label: "Expansions", showType: false, showFaction: false, showCategory: false }, { key: "options" as const, label: "Options", showType: true, showFaction: false, showCategory: false }, { key: "preferences" as const, label: "Preferences", showType: true, showFaction: false, showCategory: true }, { key: "settings" as const, label: "Settings", showType: true, showFaction: true, showCategory: false }] as section (section.key)}
 		<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
 			<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">{section.label}</summary>
 			<div class="px-5 pb-4 space-y-3">
-				{#each value[section.key] ?? [] as item, i}
+				{#each value[section.key] ?? [] as item, i (i)}
 					{@const items = value[section.key] as OptionItem[]}
 					<div
 						data-draggable-card
@@ -525,18 +538,28 @@
 						<div class="flex gap-2 items-start">
 							<div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
 								<div>
-									<label class={labelClass}>{section.label.slice(0, -1)} ID</label>
-									<input bind:value={(item as OptionItem).name} class={inputClass} />
+									<label for={section.key + "-" + i + "-id"} class={labelClass}>{section.label.slice(0, -1)} ID</label>
+									<input id={section.key + "-" + i + "-id"} bind:value={(item as OptionItem).name} class={inputClass} />
 								</div>
 								<div>
-									<label class={labelClass}>{section.label.slice(0, -1)} name</label>
-									<input bind:value={(item as OptionItem).label} class={inputClass} />
+									<label for={section.key + "-" + i + "-name"} class={labelClass}
+										>{section.label.slice(0, -1)} name</label
+									>
+									<input
+										id={section.key + "-" + i + "-name"}
+										bind:value={(item as OptionItem).label}
+										class={inputClass}
+									/>
 								</div>
 
 								{#if section.showType}
 									<div>
-										<label class={labelClass}>Type</label>
-										<select bind:value={(item as OptionItem).type} class={inputClass}>
+										<label for={section.key + "-" + i + "-type"} class={labelClass}>Type</label>
+										<select
+											id={section.key + "-" + i + "-type"}
+											bind:value={(item as OptionItem).type}
+											class={inputClass}
+										>
 											<option value="checkbox">checkbox</option>
 											<option value="select">select</option>
 											<option value="hidden">hidden</option>
@@ -547,7 +570,6 @@
 
 								{#if section.showType && (item as OptionItem).type === "checkbox" && section.key !== "settings"}
 									<div>
-										<label class={labelClass}>Default</label>
 										<label class="flex items-center gap-2 text-sm mt-2">
 											<input type="checkbox" bind:checked={(item as OptionItem).default as boolean} class="rounded" /> Default
 											value
@@ -557,9 +579,13 @@
 
 								{#if section.showType && (item as OptionItem).type === "select" && section.key !== "settings"}
 									<div>
-										<label class={labelClass}>Default</label>
-										<select bind:value={(item as OptionItem).default} class={inputClass}>
-											{#each (item as OptionItem).items ?? [] as opt}
+										<label for={section.key + "-" + i + "-default"} class={labelClass}>Default</label>
+										<select
+											id={section.key + "-" + i + "-default"}
+											bind:value={(item as OptionItem).default}
+											class={inputClass}
+										>
+											{#each (item as OptionItem).items ?? [] as opt (opt.name)}
 												<option value={opt.name}>{opt.label}</option>
 											{/each}
 										</select>
@@ -568,10 +594,14 @@
 
 								{#if section.showCategory && (item as OptionItem).type !== "category"}
 									<div>
-										<label class={labelClass}>Category</label>
-										<select bind:value={(item as OptionItem).category} class={inputClass}>
+										<label for={section.key + "-" + i + "-category"} class={labelClass}>Category</label>
+										<select
+											id={section.key + "-" + i + "-category"}
+											bind:value={(item as OptionItem).category}
+											class={inputClass}
+										>
 											<option value={undefined}>None</option>
-											{#each items.filter((x) => x.type === "category") as cat}
+											{#each items.filter((x) => x.type === "category") as cat (cat.name)}
 												<option value={cat.name}>{cat.label}</option>
 											{/each}
 										</select>
@@ -580,8 +610,12 @@
 
 								{#if section.showFaction}
 									<div>
-										<label class={labelClass}>Faction</label>
-										<input bind:value={(item as OptionItem).faction} class={inputClass} />
+										<label for={section.key + "-" + i + "-faction"} class={labelClass}>Faction</label>
+										<input
+											id={section.key + "-" + i + "-faction"}
+											bind:value={(item as OptionItem).faction}
+											class={inputClass}
+										/>
 									</div>
 								{/if}
 							</div>
@@ -623,7 +657,7 @@
 							{@const subKey = `${section.key}#${i}`}
 							<div class="ml-4 mt-2 border-l-2 border-gray-200 dark:border-gray-700 pl-4 space-y-2">
 								<span class="text-xs font-semibold text-gray-500">Items for {(item as OptionItem).name || "..."}</span>
-								{#each (item as OptionItem).items ?? [] as subItem, j}
+								{#each (item as OptionItem).items ?? [] as subItem, j (j)}
 									<div
 										data-draggable-card
 										role="listitem"

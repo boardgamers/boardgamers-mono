@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { loadPages } from "$lib/stores.svelte.ts";
@@ -24,7 +25,7 @@
 			await api.post(`/admin/page/${encodeURIComponent(data._id.name)}/${encodeURIComponent(data._id.lang)}`, data);
 			toast.success("Page created");
 			await loadPages();
-			goto(`/page/${data._id.name}/${data._id.lang}`);
+			goto(resolve("/page/[name]/[lang]", { name: data._id.name, lang: data._id.lang }));
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed to create");
 		}

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import { untrack } from "svelte";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { loadPages } from "$lib/stores.svelte.ts";
@@ -10,10 +12,12 @@
 
 	let { data }: PageProps = $props();
 
-	const name = data.value?._id.name ?? "";
-	const lang = data.value?._id.lang ?? "";
+	const name = $derived(data.value?._id.name ?? "");
+	const lang = $derived(data.value?._id.lang ?? "");
 
-	let value = $state<PageData | null>(data.value);
+	// Editable (bind:value into PageEdit); re-synced from load data by the $effect.
+	// eslint-disable-next-line svelte/prefer-writable-derived -- PageEdit mutates `value` via bind:value; it is not purely derived from `data`.
+	let value = $state<PageData | null>(untrack(() => data.value));
 
 	$effect(() => {
 		value = data.value;
@@ -35,7 +39,7 @@
 			await api.del(`/admin/page/${name}/${lang}`);
 			toast.success("Deleted");
 			await loadPages();
-			goto("/");
+			goto(resolve("/"));
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed to delete");
 		}

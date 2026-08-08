@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { timeAgo } from "$lib/utils.ts";
@@ -73,8 +74,11 @@
 		return pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
 	}
 
+	let stats = $state<UserStats | null>(null);
+	let loginMethods = $state<LoginMethods | null>(null);
+
 	const trendMax = $derived(
-		Math.max(1, ...(loginMethods?.trend.loginsByWeek ?? []).flatMap((w) => Object.values(w).slice(1)))
+		Math.max(1, ...(loginMethods?.trend.loginsByWeek ?? []).flatMap((w) => Object.values(w).slice(1).map(Number)))
 	);
 	const totalSessions = $derived(Object.values(loginMethods?.sessions ?? {}).reduce((acc, n) => acc + n, 0));
 
@@ -96,9 +100,6 @@
 		comboFilter = comboFilter === method ? "all" : method;
 		comboPage = 0;
 	}
-
-	let stats = $state<UserStats | null>(null);
-	let loginMethods = $state<LoginMethods | null>(null);
 
 	async function loadLoginMethods() {
 		try {
@@ -147,7 +148,7 @@
 	}
 
 	function select(username: string) {
-		goto(`/user/${username}`);
+		goto(resolve("/user/[username]", { username }));
 	}
 
 	function onkeydown(e: KeyboardEvent) {
@@ -205,7 +206,9 @@
 <div class="space-y-6">
 	<div class="flex items-center justify-between gap-3 flex-wrap">
 		<h2 class="text-xl font-bold">Users</h2>
-		<a href="/users/deleted" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">Deleted users →</a>
+		<a href={resolve("/users/deleted")} class="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+			>Deleted users →</a
+		>
 	</div>
 
 	<!-- Metrics -->
@@ -242,7 +245,7 @@
 			<h3 class="text-sm font-semibold mb-4">New users — last 30 days</h3>
 			{#if stats.newUsersByDay.some((d) => d.count > 0)}
 				<div class="flex items-end gap-[2px] h-32">
-					{#each stats.newUsersByDay as d}
+					{#each stats.newUsersByDay as d (d.date)}
 						<div
 							class="flex-1 bg-blue-500 dark:bg-blue-400 rounded-t-sm hover:bg-blue-600 dark:hover:bg-blue-300 transition-colors relative group"
 							style="height: {Math.max((d.count / maxCount) * 100, 2)}%"
@@ -285,7 +288,7 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each Object.keys(methodLabels) as method}
+							{#each Object.keys(methodLabels) as method (method)}
 								<tr
 									class="border-b border-gray-50 dark:border-gray-800/50 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50 {comboFilter ===
 									method
@@ -307,11 +310,11 @@
 							class="px-2.5 py-1 text-xs font-medium rounded-full transition-colors {comboFilter === 'all'
 								? 'bg-blue-600 text-white'
 								: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}"
-							onclick={() => toggleComboFilter(comboFilter)}
+							onclick={() => (comboFilter = "all")}
 						>
 							All
 						</button>
-						{#each Object.keys(methodLabels) as method}
+						{#each Object.keys(methodLabels) as method (method)}
 							<button
 								class="px-2.5 py-1 text-xs font-medium rounded-full transition-colors {comboFilter === method
 									? 'bg-blue-600 text-white'
@@ -331,7 +334,7 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each pagedCombos as combo}
+							{#each pagedCombos as combo (combo.methods.join("+"))}
 								<tr class="border-b border-gray-50 dark:border-gray-800/50">
 									<td class="py-2 pr-4 font-medium">
 										{combo.methods.length ? combo.methods.map((m) => methodLabels[m]).join(" + ") : "None"}
@@ -378,10 +381,10 @@
 			</p>
 			{#if loginMethods.trend.loginsByWeek.length > 0 && loginMethods.trend.methods.length > 0}
 				<svg viewBox="0 0 400 100" preserveAspectRatio="none" class="w-full h-40">
-					{#each loginMethods.trend.methods as method}
+					{#each loginMethods.trend.methods as method (method)}
 						<path
 							d={linePath(
-								loginMethods.trend.loginsByWeek.map((w) => w[method]),
+								loginMethods.trend.loginsByWeek.map((w) => Number(w[method])),
 								trendMax,
 								400,
 								100
@@ -398,7 +401,7 @@
 					<span>{loginMethods.trend.loginsByWeek[loginMethods.trend.loginsByWeek.length - 1]?.week ?? ""}</span>
 				</div>
 				<div class="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs">
-					{#each loginMethods.trend.methods as method}
+					{#each loginMethods.trend.methods as method (method)}
 						<span class="flex items-center gap-1.5">
 							<span class="inline-block w-2.5 h-2.5 rounded-full" style="background: {trendColor(method)}"></span>
 							{methodLabels[method as Method] ?? method}
@@ -421,7 +424,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each Object.entries(loginMethods.sessions).sort((a, b) => b[1] - a[1]) as [method, count]}
+						{#each Object.entries(loginMethods.sessions).sort((a, b) => b[1] - a[1]) as [method, count] (method)}
 							<tr class="border-b border-gray-50 dark:border-gray-800/50">
 								<td class="py-2 pr-4 font-medium">{methodLabels[method as Method] ?? method}</td>
 								<td class="py-2 pr-4 text-right">{count}</td>
@@ -471,7 +474,7 @@
 			<div
 				class="absolute z-10 mt-2 w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-lg overflow-hidden"
 			>
-				{#each results as user, i}
+				{#each results as user, i (user._id)}
 					<button
 						class="w-full px-4 py-3 text-left flex items-center gap-3 transition-colors {i === selected
 							? 'bg-blue-50 dark:bg-blue-900/30'
@@ -524,7 +527,7 @@
 		</div>
 		{#if admins.length > 0}
 			<div class="divide-y divide-gray-100 dark:divide-gray-800">
-				{#each admins as admin}
+				{#each admins as admin (admin._id)}
 					<div class="px-5 py-3 flex items-center gap-3">
 						<div
 							class="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-sm font-medium text-purple-600 dark:text-purple-400 flex-shrink-0"
@@ -575,7 +578,7 @@
 				<h3 class="text-sm font-semibold">Search Results — Promote to Admin</h3>
 			</div>
 			<div class="divide-y divide-gray-100 dark:divide-gray-800">
-				{#each results as user}
+				{#each results as user (user._id)}
 					<div class="px-5 py-3 flex items-center gap-3">
 						<div
 							class="w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-sm font-medium text-gray-500 dark:text-gray-400 flex-shrink-0"

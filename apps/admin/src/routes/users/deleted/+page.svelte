@@ -74,7 +74,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each response.users as user}
+						{#each response.users as user (user.userId)}
 							<tr class="border-b border-gray-50 dark:border-gray-800/50">
 								<td class="px-5 py-2.5 font-medium">
 									{user.account.username}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Jsonify } from "type-fest";
 import { zObjectId, zDate } from "./helpers.ts";
 
 export const logSchema = z.object({
@@ -12,6 +13,7 @@ export const logSchema = z.object({
 });
 
 export type LogDoc = z.output<typeof logSchema>;
+export type LogFront = Jsonify<LogDoc>;
 
 export const LOGS_COLLECTION = "logs";
 

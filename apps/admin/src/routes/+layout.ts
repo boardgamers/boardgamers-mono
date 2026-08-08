@@ -1,5 +1,4 @@
 import { api } from "$lib/api.ts";
-import { tokens } from "$lib/auth.svelte.ts";
 import type { UserFront, GameInfoFront, PageFront } from "@bgs/models";
 
 export const ssr = false;
@@ -12,10 +11,7 @@ export interface LayoutData {
 }
 
 export async function load(): Promise<LayoutData> {
-	if (!tokens.refresh) {
-		return { user: null, games: [], pages: [] };
-	}
-
+	// Auth is the session cookie: /account 401s when logged out — no client-side token check.
 	const [user, games, pages] = await Promise.all([
 		api.get<UserFront & { _id: string }>("/account").catch(() => null),
 		api.get<GameInfoFront[]>("/admin/gameinfo").catch(() => []),
