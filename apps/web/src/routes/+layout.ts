@@ -10,6 +10,11 @@ import { initNProgress } from "@/lib/nprogress.svelte";
 import { initErrorReporting } from "@/lib/report-error.svelte";
 import "@/lib/theme";
 
+// Module-level guard so the store seed happens exactly once per session (first
+// hydration), not on every re-run of this layout load. Module scope is per-browser-tab
+// on the client, which is exactly the lifetime we want.
+let storesSeeded = false;
+
 export const load: LayoutLoad = async ({ data }) => {
 	// Sidebar open is a non-sensitive UI preference — safe to set during SSR.
 	if (data?.sidebarOpen !== undefined) {
@@ -33,8 +38,11 @@ export const load: LayoutLoad = async ({ data }) => {
 			.catch(() => []);
 	}
 
-	if (browser) {
-		// Seed stores from the initial SSR data (client only).
+	// Seed stores once from the first (hydration) SSR data. After that the websocket /
+	// auth flows own them — re-seeding on a later re-run (an auth change triggers
+	// `invalidateAll()`) would clobber live websocket state with a stale snapshot.
+	if (browser && !storesSeeded) {
+		storesSeeded = true;
 		setAccount(data?.user ?? null);
 		if (data?.activeGames) {
 			activeGames.set(data.activeGames);

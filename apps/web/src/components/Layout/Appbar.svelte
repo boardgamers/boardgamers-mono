@@ -56,8 +56,11 @@
 	};
 
 	let admin = $derived(user?.authority === "admin");
-	// SSR fallback for active games so the count badge doesn't flicker after hydration.
-	let myActiveGames = $derived($activeGames.length > 0 ? $activeGames : ((page.data.activeGames as string[]) ?? []));
+	// The layout load seeds the store from SSR data on first paint (no flicker); after
+	// that the websocket keeps it live. Don't fall back to `page.data.activeGames` here:
+	// it's a snapshot that goes stale, and it must never shadow a fresh (possibly empty)
+	// store update — that was the "badge stuck after a move" bug.
+	let myActiveGames = $derived($activeGames);
 
 	// Derive the admin panel URL from the current host: local dev → local admin port,
 	// production → admin.<root-domain>, PR preview → admin-pr-<n>.<root-domain>.

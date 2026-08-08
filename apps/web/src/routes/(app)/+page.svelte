@@ -15,10 +15,12 @@
 	let { data }: PageProps = $props();
 	let announcement = $derived(data.announcement);
 
-	// Client prefers the stores (seeded by the layout); SSR falls back to page.data so
-	// the homepage doesn't flicker between "My games" and "Featured games".
+	// Client prefers the account store (seeded by the layout); SSR falls back to
+	// page.data so the homepage doesn't flicker between "My games" and "Featured games".
+	// activeGames has no such fallback: the layout seeds the store from SSR data, and
+	// falling back to the stale page.data snapshot would shadow live (empty) updates.
 	let user = $derived(($account ?? page.data.user) as UserFront | null);
-	let myGames = $derived($activeGames.length > 0 ? $activeGames : ((page.data.activeGames as string[]) ?? []));
+	let myGames = $derived($activeGames);
 </script>
 
 <SEO />
