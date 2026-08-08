@@ -32,14 +32,11 @@ async function getBrowser(): Promise<Browser> {
 	}
 }
 
-async function renderPng(origin: string, title: string, subtitle: string): Promise<Buffer> {
+async function renderPng(origin: string, card: Record<string, string>): Promise<Buffer> {
 	const b = await getBrowser();
 	const page = await b.newPage({ viewport: { width: 1200, height: 630 } });
 	try {
-		const params = new URLSearchParams({ title });
-		if (subtitle) {
-			params.set("subtitle", subtitle);
-		}
+		const params = new URLSearchParams(Object.entries(card).filter(([, value]) => value));
 		await page.goto(`${origin}/og?${params}`, { waitUntil: "networkidle", timeout: 10_000 });
 		return await page.screenshot({ type: "png", timeout: 10_000 });
 	} finally {
@@ -52,8 +49,13 @@ export const GET: RequestHandler = async ({ url }) => {
 	// would just overflow the card.
 	const title = (url.searchParams.get("title") ?? siteName).slice(0, 90) || siteName;
 	const subtitle = (url.searchParams.get("subtitle") ?? "").slice(0, 140);
+	const game = (url.searchParams.get("game") ?? "").slice(0, 60);
+	const players = (url.searchParams.get("players") ?? "").slice(0, 40);
+	const pace = (url.searchParams.get("pace") ?? "").slice(0, 40);
 
-	const render = queue.then(() => renderPng(url.origin, title, subtitle));
+	// TODO: cache rendered PNGs to S3 keyed by title+subtitle+game+players+pace once S3 is
+	// available, so cards aren't recomputed per unique query string (see WORKAROUNDS.md).
+	const render = queue.then(() => renderPng(url.origin, { title, subtitle, game, players, pace }));
 	queue = render.catch(() => {});
 
 	try {
