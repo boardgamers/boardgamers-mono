@@ -25,8 +25,10 @@
 				throw new Error(data?.message ?? "Login failed");
 			}
 
+			// The redirect param is an already-resolved same-origin path (set by +layout).
 			const redirect = page.url.searchParams.get("redirect") || "/";
 			await invalidateAll();
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- dynamic same-origin redirect target, not a static route id.
 			goto(redirect);
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Login failed");

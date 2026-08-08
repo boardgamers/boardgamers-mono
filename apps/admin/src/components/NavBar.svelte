@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { clearMintedTokens } from "$lib/api.ts";
 	import type { UserFront } from "@bgs/models";
 
@@ -15,7 +16,7 @@
 		await fetch("/api/account/signout", { method: "POST", credentials: "same-origin" }).catch(() => {});
 		clearMintedTokens();
 		await invalidateAll();
-		goto("/login");
+		goto(resolve("/login"));
 	}
 </script>
 

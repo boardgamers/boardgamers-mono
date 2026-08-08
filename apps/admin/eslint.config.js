@@ -32,16 +32,6 @@ export default [
 			},
 		},
 	},
-	{
-		// The admin codebase predates these rules (web satisfies them; admin should be
-		// migrated fix-forward — until then keep lint usable instead of 60+ errors).
-		rules: {
-			"svelte/require-each-key": "off",
-			"svelte/no-navigation-without-resolve": "off",
-			"svelte/prefer-writable-derived": "off",
-			"svelte/no-at-html-tags": "off",
-		},
-	},
 	eslintConfigPrettier,
 	{ ignores: [".svelte-kit/", "build/", "dist/", "node_modules/"] },
 ];

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto, invalidateAll } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
@@ -51,7 +52,7 @@
 	// gameId is trimmed on paste/blur by the use:trim action; the game page has the full tooling.
 	function loadGame() {
 		if (!gameId) return;
-		goto(`/game/${encodeURIComponent(gameId)}`);
+		goto(resolve("/game/[gameId]", { gameId }));
 	}
 
 	async function batchReplay() {
@@ -90,9 +91,6 @@
 			toast.error(err instanceof Error ? err.message : "Failed to update");
 		}
 	}
-
-	// Same-origin GET — the browser attaches the session cookie, no token needed.
-	const backupUrl = "/api/admin/backup/games";
 </script>
 
 <div class="space-y-6">
@@ -116,7 +114,7 @@
 			down: { dot: "bg-gray-400", text: "text-gray-500 dark:text-gray-400", label: "Loki unavailable" },
 		}[healthStatus.level]}
 		<a
-			href="/health"
+			href={resolve("/health")}
 			class="flex items-center gap-3 px-4 py-2.5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition-colors"
 		>
 			<span class="inline-block w-2.5 h-2.5 rounded-full {healthConfig.dot}"></span>
@@ -150,7 +148,10 @@
 					</span>
 				</div>
 				{#if serverInfo.nbAdmins}
-					<a href="/users" class="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1 inline-block">
+					<a
+						href={resolve("/users")}
+						class="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1 inline-block"
+					>
 						{serverInfo.nbAdmins} admin{serverInfo.nbAdmins > 1 ? "s" : ""}
 					</a>
 				{/if}
@@ -159,7 +160,7 @@
 				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Games</div>
 				<div class="text-2xl font-bold mt-1">{totalGames.toLocaleString()}</div>
 				<div class="flex gap-3 mt-1.5 text-xs">
-					{#each gameStatuses as s}
+					{#each gameStatuses as s (s.key)}
 						<span class={s.color}>
 							{serverInfo.games[s.key] ?? 0}
 							{s.label.toLowerCase()}
@@ -172,7 +173,7 @@
 				<div class="text-2xl font-bold mt-1">{totalQueue.toLocaleString()}</div>
 				{#if queueEntries.length}
 					<div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-						{#each queueEntries as [kind, count]}
+						{#each queueEntries as [kind, count] (kind)}
 							<span>{count} {kind}</span>
 						{/each}
 					</div>
@@ -202,10 +203,10 @@
 				<h3 class="text-sm font-semibold mb-3">Recent users</h3>
 				{#if serverInfo.recentUsers?.length}
 					<ul class="space-y-2">
-						{#each serverInfo.recentUsers as u}
+						{#each serverInfo.recentUsers as u (u._id)}
 							<li class="flex items-center justify-between text-sm">
 								<a
-									href={`/user/${u.account.username}`}
+									href={resolve("/user/[username]", { username: u.account.username })}
 									class="text-blue-600 dark:text-blue-400 hover:underline font-medium"
 								>
 									{u.account.username}
@@ -223,11 +224,11 @@
 				<h3 class="text-sm font-semibold mb-3">Recent games</h3>
 				{#if serverInfo.recentGames?.length}
 					<ul class="space-y-2">
-						{#each serverInfo.recentGames as g}
+						{#each serverInfo.recentGames as g (g._id)}
 							<li class="flex items-center justify-between gap-2 text-sm">
 								<span class="flex items-center gap-1.5 min-w-0">
 									<a
-										href={`/game/${g._id}`}
+										href={resolve("/game/[gameId]", { gameId: g._id })}
 										class="text-blue-600 dark:text-blue-400 hover:underline font-medium truncate"
 									>
 										<span class="mr-1">{gameEmojiByName[g.game.name] ?? ""}</span>
@@ -254,8 +255,9 @@
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-4">
 			<h3 class="text-sm font-semibold">Announcement</h3>
 			<div class="space-y-2">
-				<label class="block text-xs font-medium text-gray-500">Title</label>
+				<label class="block text-xs font-medium text-gray-500" for="announcement-title">Title</label>
 				<input
+					id="announcement-title"
 					bind:value={announcement.title}
 					class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 				/>
@@ -272,22 +274,24 @@
 		<!-- Backups -->
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
 			<h3 class="text-sm font-semibold">Backups</h3>
+			<!-- eslint-disable svelte/no-navigation-without-resolve -- /api file-download endpoint, not an app route -->
 			<a
-				href={backupUrl}
+				href="/api/admin/backup/games"
 				target="_blank"
 				rel="noopener"
 				class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 font-medium underline"
+				>Download games backup</a
 			>
-				Download games backup
-			</a>
+			<!-- eslint-enable svelte/no-navigation-without-resolve -->
 		</div>
 
 		<!-- Game Management -->
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
 			<h3 class="text-sm font-semibold">Game Management</h3>
 			<div>
-				<label class="block text-xs font-medium text-gray-500 mb-1">Game ID</label>
+				<label class="block text-xs font-medium text-gray-500 mb-1" for="game-id">Game ID</label>
 				<input
+					id="game-id"
 					bind:value={gameId}
 					use:trim
 					class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -306,8 +310,9 @@
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">
 			<h3 class="text-sm font-semibold">Mass Game Management</h3>
 			<div>
-				<label class="block text-xs font-medium text-gray-500 mb-1">Game IDs (one per line)</label>
+				<label class="block text-xs font-medium text-gray-500 mb-1" for="batch-game-ids">Game IDs (one per line)</label>
 				<textarea
+					id="batch-game-ids"
 					bind:value={batchGameIds}
 					rows="4"
 					class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
