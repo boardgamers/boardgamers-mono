@@ -6,7 +6,7 @@ export const adminTokenSchema = z.object({
 	_id: zObjectId().optional(),
 	// Owning admin. The token only authenticates while this user still has
 	// authority === "admin" — checked against the live user doc on every request.
-	user: zObjectId(),
+	userId: zObjectId(),
 	name: z.string(),
 	// sha256 hex of the raw token. The raw token is 256 bits of randomness (shown
 	// once at creation, never stored), so a fast unsalted hash is safe.
@@ -28,7 +28,7 @@ export const ADMIN_TOKENS_COLLECTION = "admintokens";
 
 export const adminTokenIndexes: IndexDescription[] = [
 	// api: list an admin's own tokens
-	{ key: { user: 1 } },
+	{ key: { userId: 1 } },
 	// api: auth lookup by token hash
 	{ key: { tokenHash: 1 }, unique: true },
 	// mongo: hard-delete tokens a grace period after expiry (auth never relies on

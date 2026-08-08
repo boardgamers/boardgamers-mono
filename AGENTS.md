@@ -116,11 +116,13 @@ creation. You then simply:
 curl https://<host>/api/admin/<endpoint> -H "Authorization: Bearer <token>"
 ```
 
-Tokens are scoped to `/api/admin/*` by construction (elsewhere the credential
-just doesn't authenticate), temporary (default 30d, max 90d) and revocable, and
-only work while their owner is still an admin — treat one as a credential, and
-ask the admin for a new one if it stops working. (Admins: list/revoke your own
-tokens on the Admin Tokens page or via `GET`/`DELETE /api/admin/tokens`.)
+Raw tokens carry a `bgs_admin_` prefix so the token type is identifiable (and
+flaggable by secret scanners) in logs and code. Tokens are scoped to
+`/api/admin/*` by construction (elsewhere the credential just doesn't
+authenticate), temporary (default 30d, max 90d) and revocable, and only work
+while their owner is still an admin — treat one as a credential, and ask the
+admin for a new one if it stops working. (Admins: list/revoke your own tokens on
+the Admin Tokens page or via `GET`/`DELETE /api/admin/tokens`.)
 
 ## Workarounds
 

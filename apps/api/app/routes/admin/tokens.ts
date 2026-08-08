@@ -43,7 +43,7 @@ router.post("/", async (ctx) => {
 router.get("/", async (ctx) => {
 	ctx.body = await colls.adminTokens
 		.find(
-			{ user: ctx.state.user!._id },
+			{ userId: ctx.state.user!._id },
 			{ projection: { name: 1, createdAt: 1, expiresAt: 1, lastUsedAt: 1, revokedAt: 1 } },
 		)
 		.sort({ createdAt: -1 })
@@ -53,7 +53,7 @@ router.get("/", async (ctx) => {
 // DELETE /api/admin/tokens/:id — revoke one of the caller's own tokens
 router.delete("/:id", async (ctx) => {
 	const { matchedCount } = await colls.adminTokens.updateOne(
-		{ _id: new ObjectId(ctx.params.id), user: ctx.state.user!._id, revokedAt: { $exists: false } },
+		{ _id: new ObjectId(ctx.params.id), userId: ctx.state.user!._id, revokedAt: { $exists: false } },
 		{ $set: { revokedAt: new Date() } },
 	);
 

@@ -8,8 +8,11 @@ import { isAdmin } from "./user.ts";
 // pass sub-day TTLs directly to this function.
 export const MAX_ADMIN_TOKEN_TTL_MS = 90 * 24 * 3600 * 1000;
 
+// Prefixed so the token type is identifiable in logs and by secret scanners
+// (like GitHub's ghp_*). The prefix is part of the raw token — the stored hash
+// covers the full prefixed value.
 export function generateAdminToken(): string {
-	return crypto.randomBytes(32).toString("base64url");
+	return `bgs_admin_${crypto.randomBytes(32).toString("base64url")}`;
 }
 
 export function hashAdminToken(token: string): string {
@@ -17,14 +20,14 @@ export function hashAdminToken(token: string): string {
 }
 
 export async function createAdminToken(
-	userId: AdminTokenDoc["user"],
+	userId: AdminTokenDoc["userId"],
 	name: string,
 	ttlMs: number,
 ): Promise<{ doc: WithId<AdminTokenDoc>; token: string }> {
 	const token = generateAdminToken();
 	const now = new Date();
 	const doc = {
-		user: userId,
+		userId,
 		name,
 		tokenHash: hashAdminToken(token),
 		createdAt: now,
@@ -58,7 +61,7 @@ export async function authenticateAdminToken(rawToken: string): Promise<AdminAut
 		return null;
 	}
 
-	const user = await colls.users.findOne({ _id: adminToken.user });
+	const user = await colls.users.findOne({ _id: adminToken.userId });
 	if (!user || !isAdmin(user)) {
 		return null;
 	}

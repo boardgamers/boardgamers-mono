@@ -79,6 +79,7 @@ describe("Admin tokens API", () => {
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
 			const body = res.data as CreatedTokenBody;
 			assert.equal(body.name, "ci script");
+			assert.ok(body.token.startsWith("bgs_admin_"), "raw token carries the identifiable prefix");
 			assert.ok(body.token.length >= 40);
 			const ttl = new Date(body.expiresAt).getTime() - new Date(body.createdAt).getTime();
 			assert.ok(Math.abs(ttl - 7 * DAY_MS) < 5000, `ttl ~7 days, got ${ttl}ms`);
@@ -86,7 +87,7 @@ describe("Admin tokens API", () => {
 			const stored = await colls.adminTokens.findOne({ _id: new ObjectId(body._id) });
 			assert.ok(stored);
 			assert.equal(stored.tokenHash, sha256(body.token));
-			assert.equal(stored.user.toHexString(), adminId.toHexString());
+			assert.equal(stored.userId.toHexString(), adminId.toHexString());
 			// The raw token is stored nowhere.
 			assert.ok(!JSON.stringify(stored).includes(body.token));
 		});
@@ -115,7 +116,7 @@ describe("Admin tokens API", () => {
 				const keys = Object.keys(t);
 				assert.ok(!keys.includes("tokenHash"), "list must not expose the hash");
 				assert.ok(!keys.includes("token"));
-				assert.ok(!keys.includes("user"));
+				assert.ok(!keys.includes("userId"));
 				assert.ok(t.name && t.createdAt && t.expiresAt);
 			}
 			// Other admins' tokens are not visible.
@@ -249,7 +250,7 @@ describe("Admin tokens API", () => {
 		});
 
 		it("cannot revoke another admin's token", async () => {
-			const other = await colls.adminTokens.findOne({ user: otherAdminId, revokedAt: { $exists: false } });
+			const other = await colls.adminTokens.findOne({ userId: otherAdminId, revokedAt: { $exists: false } });
 			assert.ok(other);
 			const res = await api("DELETE", `/api/admin/tokens/${other._id.toHexString()}`, adminHeaders);
 			assert.strictEqual(res.status, 404);
