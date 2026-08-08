@@ -55,23 +55,29 @@
 
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 		<div>
-			<Card class="border-gray-400 h-full dark:border-gray-600" header={rules ? "Rules" : "Description"}>
+			<Card class="border-gray-400 h-full dark:border-gray-600">
+				{#snippet headerContent()}
+					<div class="flex items-center">
+						<span class="min-w-20 flex-1"></span>
+						<span class="font-semibold">{rules ? "Rules" : "Description"}</span>
+						<span class="min-w-20 flex flex-1 justify-end">
+							<BoardgameLinks links={boardgame.links} />
+						</span>
+					</div>
+				{/snippet}
 				<div class="prose dark:prose-invert max-w-none">
 					<SanitizedHtml html={marked((rules ? boardgame.rules : boardgame.description) ?? "")} />
 				</div>
 				{#snippet footer()}
-					<div class="flex flex-col gap-2">
-						<a
-							href={rulesToggleHref}
-							onclick={(e) => {
-								e.preventDefault();
-								rules = !rules;
-							}}
-						>
-							{rules ? "See description" : "See rules"}
-						</a>
-						<BoardgameLinks links={boardgame.links} />
-					</div>
+					<a
+						href={rulesToggleHref}
+						onclick={(e) => {
+							e.preventDefault();
+							rules = !rules;
+						}}
+					>
+						{rules ? "See description" : "See rules"}
+					</a>
 				{/snippet}
 			</Card>
 		</div>
