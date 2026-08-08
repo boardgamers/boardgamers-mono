@@ -5,6 +5,20 @@ served at `https://pr-<n>.boardgamers.space`. Follows the issue: replicate,
 don't share — every env restores its own `bgs-pr-<n>` db from a nightly
 sanitized dump of prod and never touches the live `bgs`.
 
+## Access & credentials
+
+- **Every preview user's password is `password`** (`seed/scrub-users.mjs` rewrites
+  all password hashes to the bcrypt of `password`, emails to `<username>@preview.invalid`).
+  You can log in as anyone — e.g. admin user `coyotte508` / `password`.
+- Via the API: `POST https://pr-<n>.boardgamers.space/api/account/login` with
+  `{"email": "<username-or-email>", "password": "password"}` →
+  `{ accessToken: {code, ...}, refreshToken, user }`; then
+  `Authorization: Bearer <accessToken.code>` on API calls.
+- Direct db access from the prod box: `ssh bgs` →
+  `mongosh "mongodb://10.90.0.2:27017/bgs-pr-<n>"` (minipc mongo over WireGuard).
+- Admin routes check `authority === "admin"` on the user loaded fresh from the db,
+  so a stale API container still admin-auths correctly as long as the db is intact.
+
 ## Layout
 
 ```

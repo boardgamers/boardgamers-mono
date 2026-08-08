@@ -76,6 +76,34 @@ Rules for the agent:
   published port (`127.0.0.1:27517`). Note `docker` is **not** on PATH inside the
   devcontainer, so don't try to start Mongo from here — use the `mongo` hostname.
 
+## Preview environments & test credentials
+
+- Each open PR can get an ephemeral preview at `https://pr-<N>.boardgamers.space`,
+  deployed by `.github/workflows/pr-preview.yml` when a MEMBER/OWNER/COLLABORATOR
+  pushes (or the PR has the `preview` label). The preview db is a **sanitized prod
+  dump** — full architecture in `infra/pr-preview/README.md`.
+- **Every preview user's password is `password`**
+  (`infra/pr-preview/seed/scrub-users.mjs` rewrites every password hash and sets
+  emails to `<username>@preview.invalid`), so you can log in as anyone on a preview —
+  e.g. admin user `coyotte508` / `password`.
+- Script against a preview API:
+
+  ```bash
+  curl -X POST https://pr-<N>.boardgamers.space/api/account/login \
+    -H 'content-type: application/json' \
+    -d '{"email":"coyotte508","password":"password"}'
+  # → { accessToken: {code, expiresAt}, refreshToken: {code, expiresAt}, user }
+  # (the "email" field also accepts a username); then:
+  curl https://pr-<N>.boardgamers.space/api/... -H "Authorization: Bearer <accessToken.code>"
+  ```
+
+  Admin routes check `authority === "admin"` on the user reloaded from the db per
+  request. If a preview's API container is stale, the db still has the data — reach
+  the preview mongo from the prod box: `ssh bgs` → `mongosh "mongodb://10.90.0.2:27017/bgs-pr-<N>"`.
+
+- Local seeded db (`apps/api/scripts/seed.ts`): every fixture user's password is
+  also `password` (e.g. `admin@test.com` / `password`).
+
 ## Workarounds
 
 Each project keeps a `WORKAROUNDS.md` (e.g. `apps/web/WORKAROUNDS.md`, `apps/api/WORKAROUNDS.md`) listing temporary shims and deferred cleanups — things intentional for now but to revisit later. When you add such a thing, log a short entry there; when you touch related code, check whether an entry can be removed.
