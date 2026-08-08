@@ -1,11 +1,11 @@
 import { error } from "@sveltejs/kit";
 import type { PageLoad } from "./$types";
-import { loadGame, loadGamePlayers } from "@/lib/game.svelte";
+import { loadGame, loadGamePlayers, loadGameSettings } from "@/lib/game.svelte";
 import { getGameInfo } from "@/lib/game-info.svelte";
 import { getGamePreferences } from "@/lib/game-preferences.svelte";
 import { ApiError } from "@/lib/api";
 
-export const load: PageLoad = async ({ params }) => {
+export const load: PageLoad = async ({ params, parent }) => {
 	const gameId = params.gameId;
 
 	let game, players;
@@ -32,10 +32,27 @@ export const load: PageLoad = async ({ params }) => {
 		getGamePreferences(game.game.name),
 	]);
 
+	// Per-player in-game settings (e.g. Gaia Project's faction-specific toggles). SSR'd so
+	// the sidebar's Settings section renders on first paint — no post-hydration pop-in.
+	// Awaited after loadGame() so the two /gameplay/* mints don't race on the shared
+	// module-level token cache (api.ts#mintToken has no in-flight dedup). `user` comes
+	// from the SSR root layout — the request-scoped account, unavailable to a component
+	// during SSR (the client store is null there), which is why this lives in the load.
+	const { user } = await parent();
+	const settings =
+		user && game.status === "active" && (gameInfo?.settings?.length ?? 0) > 0
+			? await loadGameSettings(gameId).catch(() => null)
+			: null;
+
 	return {
 		game,
 		players,
 		gameInfo,
 		preferences,
+		settings,
+		// The SSR request's user (the viewer). The `account` store is null server-side, so
+		// components resolve their viewer-gated UI ("Your turn!", "Vote to cancel", the
+		// settings panel's playerUser) against this during SSR via `live($account?._id, viewerUserId)`.
+		viewerUserId: user?._id ?? null,
 	};
 };
