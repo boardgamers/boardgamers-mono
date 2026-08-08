@@ -266,7 +266,11 @@
 						<div>
 							<span class="text-gray-500 dark:text-gray-400">{link.label}:</span>
 							{#if link.url}
-								<a href={link.url} target="_blank" rel="noopener noreferrer" class="ml-1 text-blue-600 dark:text-blue-400 hover:underline"
+								<a
+									href={link.url}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="ml-1 text-blue-600 dark:text-blue-400 hover:underline"
 									>{link.username ? `@${link.username}` : link.url} ↗</a
 								>
 							{:else}
