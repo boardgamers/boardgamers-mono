@@ -18,6 +18,10 @@ export const jwtRefreshTokenSchema = z.object({
 	loginMethod: z.string().optional(),
 	createdAt: zDate(),
 	updatedAt: zDate().optional(),
+	// During the transition a doc carries either the new `codeHash` or the legacy
+	// plaintext `code` — never both, never neither.
+}).refine((doc) => (doc.codeHash ? !doc.code : !!doc.code), {
+	message: "expected exactly one of codeHash (new) or code (legacy)",
 });
 
 export type JwtRefreshTokenDoc = z.output<typeof jwtRefreshTokenSchema>;
