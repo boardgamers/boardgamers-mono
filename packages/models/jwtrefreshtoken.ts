@@ -6,9 +6,9 @@ export const jwtRefreshTokenSchema = z.object({
 	_id: zObjectId().optional(),
 	user: zObjectId(),
 	// sha256 hex of the raw refresh code (the session-cookie credential). The raw
-	// code is 256 bits of randomness, so a fast unsalted hash is safe. Only present
-	// on codes stored plaintext before hashing was introduced — a db read must not
-	// hand out live sessions (issue #164, same pattern as admintoken.ts).
+	// code is 256 bits of randomness, so a fast unsalted hash is safe. Absent only on
+	// legacy docs still holding the plaintext `code` — a db read must not hand out
+	// live sessions (issue #164, same pattern as admintoken.ts).
 	codeHash: z.string().optional(),
 	// Legacy plaintext code — being phased out (migration 1.4.0 + rehash-on-lookup).
 	code: z.string().optional(),

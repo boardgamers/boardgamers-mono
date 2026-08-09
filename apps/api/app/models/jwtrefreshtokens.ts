@@ -24,7 +24,9 @@ export async function createAccessToken(token: JwtRefreshTokenDoc, scopes: strin
 }
 
 export function generateRefreshCode() {
-	return crypto.randomBytes(15).toString("base64");
+	// 256 bits of randomness — the credential is unguessable, so storing only its
+	// sha256 (unsalted, fast) is safe.
+	return crypto.randomBytes(32).toString("base64");
 }
 
 // The raw code is a 256-bit-random session credential (never stored), so a fast
@@ -45,9 +47,12 @@ export function refreshCodeIndexes(code: string) {
 export async function lookupRefreshToken(code: string) {
 	const rt = await colls.jwtRefreshTokens.findOne({ $or: refreshCodeIndexes(code) });
 	if (rt?.code) {
+		// Fire-and-forget rehash of a legacy plaintext code — auth latency must not
+		// depend on the write, and a failure just leaves the rehash to the next
+		// lookup / migration 1.4.0. Never log the code itself.
 		colls.jwtRefreshTokens
 			.updateOne({ _id: rt._id }, { $set: { codeHash: rt.codeHash ?? hashRefreshCode(rt.code) }, $unset: { code: "" } })
-			.catch(() => {});
+			.catch((err) => console.error(`failed to rehash legacy refresh token ${rt._id.toString()}:`, err));
 	}
 	return rt;
 }
