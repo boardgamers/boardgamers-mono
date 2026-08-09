@@ -8,6 +8,9 @@ declare global {
 			// Set when the request was authenticated with an admin token (issue #105)
 			// rather than a session/JWT — used to block session-only routes.
 			adminToken?: true;
+			// Set by the signout route after clearing the forum SSO cookie, so the
+			// post-response middleware doesn't re-clear it (issue #152).
+			forumSsoCookieCleared?: true;
 			game?: GameDoc;
 			foundUser?: WithId<UserDoc>;
 			foundBoardgame?: GameInfoDoc;
