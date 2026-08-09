@@ -18,10 +18,18 @@ export function parseRefreshCookie(raw: string | undefined): string | null {
 	if (!raw) {
 		return null;
 	}
+	// Try the raw value first: a valid JSON containing a literal `%` (e.g. in the
+	// refresh code) would throw in decodeURIComponent and be wrongly rejected.
+	// Fall back to decode+parse for percent-encoded values — ctx.cookies.get decodes
+	// only leniently, so values with cookie-invalid characters come back still encoded.
 	try {
 		return refreshCookieSchema.parse(JSON.parse(raw)).code;
 	} catch {
-		return null;
+		try {
+			return refreshCookieSchema.parse(JSON.parse(decodeURIComponent(raw))).code;
+		} catch {
+			return null;
+		}
 	}
 }
 

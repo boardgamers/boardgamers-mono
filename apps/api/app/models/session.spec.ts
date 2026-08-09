@@ -13,7 +13,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Koa from "koa";
 import env from "../config/env.ts";
-import { setRefreshCookie, clearRefreshCookie, SESSION_COOKIE } from "./session.ts";
+import { setRefreshCookie, clearRefreshCookie, parseRefreshCookie, SESSION_COOKIE } from "./session.ts";
 
 const PREVIEW_PR = "pr-171.boardgamers.space";
 const PREVIEW_ADMIN = "admin-pr-171.boardgamers.space";
@@ -104,5 +104,32 @@ describe("session cookie — Domain attribute (api emits env.domain; the preview
 			domainCovers(PROD_DOMAIN, "www.boardgamers.space"),
 			"this is exactly the prod-namespace pollution we avoid",
 		);
+	});
+});
+
+describe("parseRefreshCookie", () => {
+	it("parses a raw JSON cookie value", () => {
+		assert.strictEqual(parseRefreshCookie(JSON.stringify({ code: "abc123" })), "abc123");
+	});
+
+	it("parses a percent-encoded value (browsers echo the cookie back encoded)", () => {
+		// The api stores JSON in the cookie; Koa's lenient decode can leave the value
+		// percent-encoded when it contains cookie-invalid characters, so the parser falls
+		// back to decodeURIComponent — otherwise the session silently fails (401 + cleared cookie).
+		const encoded = encodeURIComponent(JSON.stringify({ code: "abc+/123=", expiresAt: 123 }));
+		assert.strictEqual(parseRefreshCookie(encoded), "abc+/123=");
+	});
+
+	it("parses a raw JSON value containing a literal % (decode-first would reject it)", () => {
+		// decodeURIComponent on a raw JSON string with a literal '%' throws URIError; the
+		// raw parse must succeed first so such a cookie isn't treated as missing.
+		assert.strictEqual(parseRefreshCookie(JSON.stringify({ code: "100%legit" })), "100%legit");
+	});
+
+	it("returns null for missing or malformed values", () => {
+		assert.strictEqual(parseRefreshCookie(undefined), null);
+		assert.strictEqual(parseRefreshCookie(""), null);
+		assert.strictEqual(parseRefreshCookie("not json"), null);
+		assert.strictEqual(parseRefreshCookie(JSON.stringify({ noCode: true })), null);
 	});
 });

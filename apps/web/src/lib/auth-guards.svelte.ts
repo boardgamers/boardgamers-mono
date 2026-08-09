@@ -1,6 +1,5 @@
 import { goto } from "$app/navigation";
 import { resolve } from "$app/paths";
-import type { Pathname } from "$app/types";
 import { page } from "$app/state";
 import { skipOnce } from "@/utils";
 import { loginRedirectQuery, redirectLoggedOut } from "@/utils/redirect";
@@ -25,9 +24,11 @@ export function useLoggedOut(): void {
 		account.subscribe(
 			skipOnce((val) => {
 				if (!val) return;
-				// Parameters<>-typed tuple pins resolve()'s single-string overload; tsgo doesn't
-				// distribute a Pathname union over the tuple-union overloads (typescript-go#2125).
-				goto(resolve(...([redirectLoggedOut(page.url) as Pathname] as Parameters<typeof resolve>)));
+				// redirectLoggedOut returns a same-origin path (possibly with a query string)
+				// that's already been through the safe-target check — navigate directly; it is
+				// NOT a route ID, so resolve() would mangle any '?query' into the pathname.
+				// eslint-disable-next-line svelte/no-navigation-without-resolve -- safe same-origin path from redirectLoggedOut, not a route ID
+				goto(redirectLoggedOut(page.url));
 			}),
 		),
 	);

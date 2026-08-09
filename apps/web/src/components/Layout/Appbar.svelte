@@ -7,7 +7,6 @@
 		DropdownMenu,
 		Button,
 		Input,
-		Form,
 		FormGroup,
 		Label,
 		FormText,
@@ -24,6 +23,7 @@
 	import IconMoonFill from "@/components/icons/IconMoonFill.svelte";
 	import IconCircleHalf from "@/components/icons/IconCircleHalf.svelte";
 	import { handleError } from "@/utils";
+	import { enhance } from "$app/forms";
 	import { account, login, logout } from "@/lib/account.svelte";
 	import { logoClick, live, activeGames, avatarVersion } from "@/lib/stores.svelte";
 	import { browser } from "$app/environment";
@@ -48,15 +48,26 @@
 	// truth once hydrated) — see the "seed once per identity" invariant in stores.svelte.ts.
 	let user = $derived(live($account, (page.data.user as UserFront | null) ?? null));
 
-	const handleSubmit = (event: Event) => {
-		event.preventDefault();
-
+	/**
+	 * Progressive enhancement (issue #151): both auth forms below are plain HTML form
+	 * POSTs (to /login's and /logout's form actions) so they work with JS disabled.
+	 * `use:enhance` intercepts the submit for JS users and keeps the fetch-based flow
+	 * (no navigation, instant store seed); without JS the server actions relay the
+	 * API's session-cookie set/clear to the browser and redirect.
+	 */
+	const enhanceLogin = ({ cancel }: { cancel: () => void }) => {
+		cancel();
 		login(email, password).catch(handleError);
 	};
 
-	const logOut = () => {
+	const enhanceLogout = ({ cancel }: { cancel: () => void }) => {
+		cancel();
 		logout().catch(handleError);
 	};
+
+	// No-JS: the appbar login form bounces back here once authenticated (the server
+	// action only honours same-origin redirects).
+	const loginRedirect = $derived(page.url.pathname + page.url.search);
 
 	// Hugging Face uses CIMD (see api config/passport.ts): the env's own
 	// /.well-known/oauth-cimd doc is the client_id and names this origin's callback, so
@@ -165,6 +176,10 @@
 			<span class="hidden text-white sm:inline">Have an account?</span>
 			<Dropdown nav inNavbar>
 				<DropdownToggle nav caret>Login</DropdownToggle>
+				<!-- No-JS (#151): dropdowns need JS — render a plain link to the login page. -->
+				<noscript>
+					<a href={resolve("/(app)/login")} class="px-3 py-2 rounded-md text-white no-underline">Login page</a>
+				</noscript>
 				<!-- text-gray-900: the navbar paints its text white, reset it so the menu is readable in light mode -->
 				<DropdownMenu right class="dropdown-menu mt-4 min-w-[250px] p-3.5 pb-0 text-gray-900 dark:text-gray-100">
 					<div>
@@ -184,7 +199,8 @@
 							{/each}
 						</div>
 						or
-						<Form class="mt-3" onsubmit={handleSubmit}>
+						<form class="mt-3" method="POST" action={resolve("/(app)/login")} use:enhance={enhanceLogin}>
+							<input type="hidden" name="redirect" value={loginRedirect} />
 							<FormGroup>
 								<Label hidden for="email">Email or username</Label>
 								<Input
@@ -214,7 +230,7 @@
 							<FormGroup>
 								<Button type="submit" color="primary" block>Log in</Button>
 							</FormGroup>
-						</Form>
+						</form>
 					</div>
 					<div class="mt-3 border-t border-gray-200 p-3.5 text-center dark:border-gray-700">
 						New ? <a href={resolve("/(app)/signup")}><b>Join us</b></a>
@@ -236,14 +252,17 @@
 				<UserAvatar username={user.account.username} userId={user._id} size="1.75rem" v={$avatarVersion} />
 				<span class="hidden sm:inline">{user.account.username}</span>
 			</NavLink>
-			<NavLink
-				onclick={logOut}
-				title="Log out"
-				class="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-white/10 hover:text-white"
-			>
-				<IconPower size="1.25rem" />
-				<span class="hidden sm:inline">Log out</span>
-			</NavLink>
+			<!-- Plain form POST so logout works without JS (#151); JS intercepts via use:enhance. -->
+			<form method="POST" action={resolve("/(app)/logout")} use:enhance={enhanceLogout} class="flex">
+				<button
+					type="submit"
+					title="Log out"
+					class="flex items-center gap-2 rounded-md px-2 py-1 text-white hover:bg-white/10 hover:text-white"
+				>
+					<IconPower size="1.25rem" />
+					<span class="hidden sm:inline">Log out</span>
+				</button>
+			</form>
 		{/if}
 	</Nav>
 </Navbar>

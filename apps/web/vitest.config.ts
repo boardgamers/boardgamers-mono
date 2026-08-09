@@ -13,6 +13,7 @@ export default defineConfig({
 		conditions: ["browser"],
 		alias: {
 			"$app/environment": r("./src/lib/__mocks__/app-environment.ts"),
+			"$app/paths": r("./src/lib/__mocks__/app-paths.ts"),
 			"@": r("./src"),
 			"@cdk": r("./src/modules/cdk"),
 			$lib: r("./src/lib"),
