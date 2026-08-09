@@ -19,6 +19,25 @@ import { queryCount, skipCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
+// Serves avatar bytes with a content-hash ETag + `Cache-Control: no-cache`:
+// the browser always revalidates (If-None-Match) → 304 when unchanged (no
+// re-download), the fresh image the moment the style or upload changes.
+// Returns true when it short-circuited with a 304.
+function serveAvatar(ctx: Context, contentType: string, body: Buffer | string): boolean {
+	const etag = `"${createHash("sha256").update(body).digest("hex").slice(0, 16)}"`;
+	ctx.set("ETag", etag);
+	ctx.set("Cache-Control", "no-cache");
+
+	if (ctx.request.headers["if-none-match"] === etag) {
+		ctx.status = 304;
+		return true;
+	}
+
+	ctx.set("Content-Type", contentType);
+	ctx.body = body;
+	return false;
+}
+
 router.param("userId", async (userId, ctx, next) => {
 	ctx.state.foundUser = (await colls.users.findOne({ _id: new ObjectId(userId) })) ?? undefined;
 
@@ -81,16 +100,13 @@ router.get("/byName/:userName/avatar", async (ctx) => {
 		}
 
 		const imageData = item.images[format];
-		ctx.set("Content-Type", imageData.mime);
-		ctx.body = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from((imageData.raw as Binary).buffer);
+		const buf = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from((imageData.raw as Binary).buffer);
+		serveAvatar(ctx, imageData.mime, buf);
 		return;
 	}
 
 	const svg = generateAvatar(style ?? account.avatar, account.username, size && size <= 256 ? size : undefined);
-
-	ctx.set("Content-Type", "image/svg+xml");
-	ctx.set("Cache-Control", "public, max-age=86400");
-	ctx.body = svg;
+	serveAvatar(ctx, "image/svg+xml", svg);
 });
 
 router.get("/:userId/avatar", async (ctx) => {
@@ -115,32 +131,14 @@ router.get("/:userId/avatar", async (ctx) => {
 
 		const imageData = item.images[format];
 		const buf = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from((imageData.raw as Binary).buffer);
-
-		// ETag from content hash — browser revalidates with If-None-Match → 304 if unchanged.
-		const etag = `"${createHash("sha256").update(buf).digest("hex").slice(0, 16)}"`;
-		ctx.set("ETag", etag);
-		ctx.set("Cache-Control", "no-cache");
-
-		if (ctx.request.headers["if-none-match"] === etag) {
-			ctx.status = 304;
-			return;
-		}
-
-		ctx.set("Content-Type", imageData.mime);
-		ctx.body = buf;
+		serveAvatar(ctx, imageData.mime, buf);
 		return;
 	}
 
-	// DiceBear avatars are generated locally — deterministic (seeded by username + style).
-	// Cache aggressively — the SVG only changes if the user picks a new style,
-	// which updates account.avatar, and the URL stays the same so the browser
-	// will serve the cached version. That's acceptable: style changes are rare,
-	// and a hard refresh or cache clear will pick it up.
+	// DiceBear avatars are generated locally — deterministic (seeded by username + style),
+	// so the ETag only changes when the style does. Revalidation picks that up immediately.
 	const svg = generateAvatar(account.avatar, account.username, size && size <= 256 ? size : undefined);
-
-	ctx.set("Content-Type", "image/svg+xml");
-	ctx.set("Cache-Control", "public, max-age=86400");
-	ctx.body = svg;
+	serveAvatar(ctx, "image/svg+xml", svg);
 });
 
 router.get("/:userId/games/open", async (ctx) => {

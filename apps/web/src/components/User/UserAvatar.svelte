@@ -4,6 +4,7 @@
 		username,
 		art = "pixel-art",
 		size = "4rem",
+		v = null,
 		class: className = "",
 		onclick,
 		onerror,
@@ -14,6 +15,10 @@
 		username: string;
 		art?: string;
 		size?: string;
+		// Optional local cache-buster appended as ?v=… — the account page passes its
+		// avatarReload counter to force the just-changed avatar to show instantly.
+		// Elsewhere it's omitted: ETag + no-cache revalidation keeps avatars fresh.
+		v?: string | number | null;
 		class?: string;
 		onclick?: (e: MouseEvent) => void;
 		onerror?: (e: Event) => void;
@@ -21,24 +26,31 @@
 		[key: string]: any;
 	} = $props();
 
-	// All avatars are served by our api (nothing external):
-	//  - uploaded avatars (with ETag for conditional requests → 304 if unchanged)
-	//  - dicebear avatars generated locally (cached for 24h, deterministic by username+style)
+	// All avatars are served by our api (nothing external), with ETag + `no-cache`
+	// so the browser always revalidates: 304 when unchanged (no re-download), the
+	// fresh image as soon as the style or upload changes — no hard refresh needed.
 	// With a userId the user's chosen style applies; otherwise `art` picks the style
 	// (used by the account-page style picker, which only knows the username).
-	// No cache busters, no tokens, no updatedAt — the browser handles caching.
 	let src = $derived(
-		userId
-			? `/api/user/${userId}/avatar`
-			: `/api/user/byName/${encodeURIComponent(username)}/avatar?style=${encodeURIComponent(art)}`
+		withParams(
+			userId
+				? `/api/user/${userId}/avatar`
+				: `/api/user/byName/${encodeURIComponent(username)}/avatar?style=${encodeURIComponent(art)}`,
+			v != null ? { v: String(v) } : {}
+		)
 	);
-	// Sized variants for srcset — `?size=` on the raw src would produce
-	// "…?style=x?size=64" (unparseable), so build each variant with URL.
-	let sized = $derived((size: number) => {
-		const url = new URL(src, "http://local");
-		url.searchParams.set("size", String(size));
+
+	function withParams(path: string, params: Record<string, string>): string {
+		const url = new URL(path, "http://local");
+		for (const [key, value] of Object.entries(params)) {
+			url.searchParams.set(key, value);
+		}
 		return url.pathname + url.search;
-	});
+	}
+
+	// Sized variants for srcset — build with URL so `?size=` is well-formed even
+	// when the src already has a query (e.g. ?style=).
+	let sized = $derived((size: number) => withParams(src, { size: String(size) }));
 </script>
 
 <img

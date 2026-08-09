@@ -196,12 +196,13 @@
 						onclick={() => (editingAvatar = true)}
 						userId={user._id}
 						username={user.account.username}
+						v={avatarReload}
 					/>
 				{/key}
 			{:else}
 				<input type="file" bind:this={fileUpload} onchange={uploadAvatar} accept="image/*" class="hidden" />
 				<div class="mb-2">
-					<Button color="primary" outline onclick={() => fileUpload?.click()}>Upload a custom avatar</Button>
+					<Button color="primary" onclick={() => fileUpload?.click()}>Upload a custom avatar</Button>
 				</div>
 				<div class="flex flex-wrap items-center gap-2">
 					<div class:hidden={customAvatarError}>
@@ -209,6 +210,7 @@
 							userId={user._id}
 							username="Custom avatar"
 							role="button"
+							v={avatarReload}
 							onerror={() => (customAvatarError = true)}
 							onload={() => (customAvatarError = false)}
 							onclick={() => selectArt("upload")}

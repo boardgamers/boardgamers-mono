@@ -75,10 +75,31 @@ describe("User API — avatar", () => {
 
 		assert.strictEqual(res.status, 200);
 		assert.strictEqual(res.headers.get("content-type"), "image/svg+xml");
-		assert.ok(res.headers.get("cache-control")?.includes("max-age"), "expected cache headers");
 		assert.ok(body.startsWith("<svg"), `expected an SVG body, got: ${body.slice(0, 80)}`);
 		assert.ok(body.includes("</svg>"), "expected well-formed SVG markup");
 		assert.ok(body.includes('width="64"'), "expected the requested size");
+	});
+
+	it("revalidates via ETag — 304 if unchanged, fresh SVG when the style changes", async () => {
+		const url = `${baseURL()}/api/user/${dicebearUserId.toHexString()}/avatar`;
+
+		const first = await fetch(url);
+		assert.strictEqual(first.headers.get("cache-control"), "no-cache");
+		const etag = first.headers.get("etag");
+		assert.ok(etag, "expected an ETag");
+
+		// Same content → 304, no body re-download
+		const revalidate = await fetch(url, { headers: { "if-none-match": etag } });
+		assert.strictEqual(revalidate.status, 304);
+
+		// Style change → new content hash → new ETag (so the browser picks it up)
+		await colls.users.updateOne({ _id: dicebearUserId }, { $set: { "account.avatar": "micah" } });
+		const changed = await fetch(url, { headers: { "if-none-match": etag } });
+		assert.strictEqual(changed.status, 200);
+		assert.strictEqual(changed.headers.get("content-type"), "image/svg+xml");
+		assert.notStrictEqual(changed.headers.get("etag"), etag);
+
+		await colls.users.updateOne({ _id: dicebearUserId }, { $set: { "account.avatar": "bottts" } });
 	});
 
 	it("is deterministic per username + style", async () => {
@@ -152,12 +173,19 @@ describe("User API — avatar", () => {
 	});
 
 	it("returns the stored bytes for an uploaded avatar by username", async () => {
-		const res = await fetch(`${baseURL()}/api/user/byName/${encodeURIComponent(uploadUsername)}/avatar?size=64`);
+		const url = `${baseURL()}/api/user/byName/${encodeURIComponent(uploadUsername)}/avatar?size=64`;
+		const res = await fetch(url);
 		const body = Buffer.from(await res.arrayBuffer());
 
 		assert.strictEqual(res.status, 200);
 		assert.strictEqual(res.headers.get("content-type"), "image/png");
 		assert.deepStrictEqual(body, rawPng);
+
+		// Uploaded-by-name also revalidates via ETag (was missing before).
+		const etag = res.headers.get("etag");
+		assert.ok(etag, "expected an ETag");
+		const revalidate = await fetch(url, { headers: { "if-none-match": etag } });
+		assert.strictEqual(revalidate.status, 304);
 	});
 
 	it("404s for an unknown user", async () => {
