@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import { browser } from "$app/environment";
 	import { timerTime, defer, duration, niceDate, shortDuration, compactDuration, timerWindow } from "@/utils";
 	import type { GameFront } from "@bgs/models";
 	import { createWatcher } from "@/utils/watch";
@@ -117,22 +116,15 @@
 	// text on a 390px-wide screen with a 6-player game.
 	const MOBILE_AVATARS_LIMIT = 5;
 
-	// Re-render every 30s so "⏱ Xh left" / the amber state stay fresh while the
-	// list is open (Date.now() below is otherwise frozen at render). Client-only;
-	// SSR renders once with the value at request time.
-	let nowTick = $state(Date.now());
-	$effect(() => {
-		if (!browser) {
-			return;
-		}
-		const id = setInterval(() => (nowTick = Date.now()), 30_000);
-		return () => clearInterval(id);
-	});
+	// No live re-render: "⏱ Xh left" / "last activity" are computed once per load
+	// and go stale while the list stays open. Revisit with a 1s ticker (cheap but
+	// re-renders constantly) or backend-pushed refreshes.
+	const now = Date.now();
 
 	// lastMove/createdAt are optional — fall back to "just now" when both are missing.
 	function lastActivity(game: GameFront): string {
-		const ts = new Date(game.lastMove ?? game.createdAt ?? nowTick).getTime() || nowTick;
-		return shortDuration(Math.max(30, Math.floor((nowTick - ts) / 1000))) ?? "";
+		const ts = new Date(game.lastMove ?? game.createdAt ?? now).getTime() || now;
+		return shortDuration(Math.max(30, Math.floor((now - ts) / 1000))) ?? "";
 	}
 
 	// Time left on the current turn (seconds), from the per-player deadline the API
@@ -140,7 +132,6 @@
 	// the earliest current player's. Negative when the deadline has passed. Null when
 	// the game has no per-turn clock.
 	function turnTimeLeft(game: GameFront): number | null {
-		nowTick; // recompute on the 30s tick
 		const current = game.currentPlayers ?? [];
 		const own = userId ? current.find((pl) => pl._id === userId) : undefined;
 		const candidates = own ? [own] : current;
