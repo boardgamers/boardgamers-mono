@@ -10,6 +10,13 @@ import user from "./user/index.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
+// Liveness probe for the watchdog (scripts/watchdog.ts): 200 as long as the event
+// loop serves HTTP. Deliberately does NOT touch the DB — a slow db must not read as
+// "hung" and trigger a restart.
+router.get("/health", (ctx) => {
+	ctx.body = { ok: true, uptime: process.uptime() };
+});
+
 router.use("/api/account", account.routes(), account.allowedMethods());
 router.use("/api/admin", admin.routes(), admin.allowedMethods());
 router.use("/api/game", game.routes(), game.allowedMethods());

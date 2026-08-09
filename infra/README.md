@@ -6,14 +6,46 @@ Production runs on a single bare-metal server (**coyo**, Debian 12, 31 GB RAM, 9
 
 All apps run under PM2 as the `bgs` user, managed via `ecosystem.config.cjs` at the repo root.
 
-| PM2 name        | App                | Mode    | Notes                                    |
-| --------------- | ------------------ | ------- | ---------------------------------------- |
-| `api`           | `apps/api`         | fork    | Koa REST API, `npm start`                |
-| `game-server`   | `apps/game-server` | fork    | Game engine runner, `npm start`          |
-| `web`           | `apps/web`         | cluster | SvelteKit SSR, 2 instances               |
-| `pm2-logrotate` | (module)           | fork    | Rotates PM2 logs at 10 MB, 30-day retain |
+| PM2 name        | App                | Mode    | Notes                                                  |
+| --------------- | ------------------ | ------- | ------------------------------------------------------ |
+| `api`           | `apps/api`         | cluster | Koa REST API, 2 workers (+ `api-cron`)                 |
+| `game-server`   | `apps/game-server` | cluster | Gameplay API, 2 workers (+ `game-server-cron`)         |
+| `web`           | `apps/web`         | cluster | SvelteKit SSR, 2 instances                             |
+| `watchdog`      | `apps/game-server` | fork    | Hang detector — restarts unresponsive apps (see below) |
+| `pm2-logrotate` | (module)           | fork    | Rotates PM2 logs at 10 MB, 30-day retain               |
 
 PM2 is managed as the `bgs` user (not root). Logs are in `~/.pm2/logs/`.
+
+## Watchdog (hang detection + auto-restart)
+
+PM2 only restarts a process when it **exits**. A process whose event loop is **wedged**
+(a synchronous infinite loop — e.g. a runaway game engine) stays alive but stops
+answering HTTP, so PM2 never restarts it. This caused a ~25 min production outage on
+2026-08-09 (game-server hung, nginx 502'd `/api/gameplay/*`, nothing restarted it until
+a coincidental deploy).
+
+The **`watchdog`** PM2 app (`apps/game-server/scripts/watchdog.ts`) closes that gap:
+
+- Every `WATCHDOG_INTERVAL_MS` (default 15s) it GETs `/health` on `game-server`
+  (`:50803`) and `api` (`:50801`).
+- `/health` is a cheap liveness probe that returns 200 as long as the event loop serves
+  HTTP. It deliberately does **not** touch the DB — a slow database must not read as a
+  hang and cause a restart loop. A wedged event loop fails the check because the request
+  is never answered (`WATCHDOG_TIMEOUT_MS`, default 5s).
+- After `WATCHDOG_FAIL_THRESHOLD` (default 4) consecutive failures it runs
+  `pm2 restart <name>`, bounding any hang to roughly `interval × threshold` (~60s with
+  defaults). A `WATCHDOG_RESTART_COOLDOWN_MS` (default 60s) prevents restart loops.
+- The watchdog runs **under PM2 itself**, so PM2 keeps the watchdog alive; the watchdog
+  only ever _restarts_ the other apps (PM2 remains the supervisor that brings them back).
+
+Prod binds apps to `::1` (full IPv6), so set `WATCHDOG_HOST=::1` in the watchdog's
+environment there (default is `127.0.0.1`). It is part of `ecosystem.config.cjs`, so a
+normal `pm2 reload ecosystem.config.cjs` deploy starts it.
+
+The watchdog bounds the blast radius of **any** hang. Separately, the game-server runs
+engine `move` calls inside a `worker_thread` with a hard timeout
+(`apps/game-server/app/services/engine-runner.ts`), so a runaway engine fails that one
+move instead of wedging the process in the first place.
 
 ## Nginx
 

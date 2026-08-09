@@ -1,4 +1,5 @@
 import { keyBy } from "@bgs/utils/array";
+import { logEvent } from "@bgs/utils/log";
 import { omit, pick } from "@bgs/utils/object";
 import assert from "node:assert";
 import Router from "koa-router";
@@ -6,7 +7,8 @@ import { z } from "zod";
 import { colls } from "../config/db.ts";
 import locks from "../config/locks.ts";
 import { batchReplay } from "../services/batch.ts";
-import { getEngine } from "../services/engines.ts";
+import { enginePath, getEngine } from "../services/engines.ts";
+import { engineRunner, EngineTimeoutError } from "../services/engine-runner.ts";
 import { afterMove } from "../services/game.ts";
 import { isAdmin, loggedIn } from "./utils.ts";
 
@@ -92,7 +94,36 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 		const initialLogIndex = engine.logLength(gameData);
 
 		const { move } = z.object({ move: z.unknown() }).parse(ctx.request.body);
-		gameData = await engine.move(gameData, move, playerIndex);
+
+		// Run the move in a worker thread with a hard timeout: a runaway engine (an
+		// infinite loop in move/available-moves) would otherwise wedge the whole
+		// game-server event loop (the 2026-08-09 outage). The worker is terminated on
+		// timeout and the move fails; the server stays responsive. See engine-runner.ts.
+		try {
+			const path = await enginePath(game.game.name, game.game.version);
+			gameData = await engineRunner.call(game.game.name, game.game.version, path, "move", [
+				gameData,
+				move,
+				playerIndex,
+			]);
+		} catch (err) {
+			if (err instanceof EngineTimeoutError) {
+				// Log loudly (structured error → Loki) so an engine that keeps timing out
+				// is visible and can be flagged/fixed — a one-off timeout shouldn't be silent.
+				logEvent("error", "engineTimeout", {
+					source: "game-server",
+					game: game.game.name,
+					version: game.game.version,
+					gameId: ctx.params.gameId,
+					error: err.message,
+				});
+				// 422 (not 500): the move couldn't be applied — same surface as an illegal move.
+				ctx.status = 422;
+				ctx.body = { message: "The game engine took too long to process this move and was stopped. Please try again." };
+				return;
+			}
+			throw err;
+		}
 
 		const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 
