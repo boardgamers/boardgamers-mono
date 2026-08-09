@@ -13,9 +13,13 @@ export function redirectLoggedIn(url: URL): string {
 	return resolve("/(app)/login?redirect=") + url.href;
 }
 
-export function redirectLoggedOut(url: URL): string {
-	// Form actions honour this for no-JS logins — only same-origin absolute paths, so
-	// it can't be abused as an open redirect (protocol-relative //host included).
-	const target = url.searchParams.get("redirect");
-	return target?.startsWith("/") && !target.startsWith("//") ? target : resolve("/(app)");
+/** Same-origin absolute path check, so a caller-supplied target can't be an open redirect (protocol-relative //host included). */
+function safeRedirectTarget(target: string | null | undefined): string | null {
+	return target?.startsWith("/") && !target.startsWith("//") ? target : null;
+}
+
+export function redirectLoggedOut(url: URL, formRedirect?: string | null): string {
+	// Form actions honour this for no-JS logins: the appbar posts a hidden `redirect`
+	// field, the login page's own flow uses the ?redirect= query string.
+	return safeRedirectTarget(formRedirect) ?? safeRedirectTarget(url.searchParams.get("redirect")) ?? resolve("/(app)");
 }

@@ -44,6 +44,19 @@ export function forwardSessionCookies(event: RequestEvent, response: Response) {
 				case "samesite":
 					opts.sameSite = val.toLowerCase() as "lax" | "strict" | "none";
 					break;
+				case "domain": {
+					// Forward the API's Domain only if it covers the host the browser is
+					// actually talking to — otherwise the browser would reject the cookie
+					// outright (RFC 6265 §5.1.3). On PR previews the API's Domain is the
+					// preview host itself (or a sibling for the admin host, where nginx's
+					// proxy_cookie_domain rewrite doesn't reach form-action responses), so
+					// fall back to host-only when it doesn't cover us.
+					const domain = val?.replace(/^\./, "");
+					if (domain && (event.url.hostname === domain || event.url.hostname.endsWith(`.${domain}`))) {
+						opts.domain = domain;
+					}
+					break;
+				}
 			}
 		}
 		event.cookies.set(name, value, opts);

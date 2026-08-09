@@ -48,6 +48,11 @@ export const actions: Actions = {
 		}
 
 		forwardSessionCookies(event, response);
-		redirect(303, redirectLoggedOut(event.url));
+
+		// The appbar's no-JS login form carries the return page as a hidden `redirect`
+		// field (the login page's own flow uses the ?redirect= query string); both go
+		// through redirectLoggedOut's same-origin check.
+		const formRedirect = form.get("redirect");
+		redirect(303, redirectLoggedOut(event.url, typeof formRedirect === "string" ? formRedirect : null));
 	},
 };
