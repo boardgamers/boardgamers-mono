@@ -19,8 +19,9 @@ export const jwtRefreshTokenSchema = z.object({
 	createdAt: zDate(),
 	updatedAt: zDate().optional(),
 	// During the transition a doc carries either the new `codeHash` or the legacy
-	// plaintext `code` — never both, never neither.
-}).refine((doc) => (doc.codeHash ? !doc.code : !!doc.code), {
+	// plaintext `code` — never both, never neither. Presence via !== undefined (not
+	// truthiness) so an empty-string codeHash doesn't count as a valid hash.
+}).refine((doc) => (doc.codeHash !== undefined) !== (doc.code !== undefined), {
 	message: "expected exactly one of codeHash (new) or code (legacy)",
 });
 
