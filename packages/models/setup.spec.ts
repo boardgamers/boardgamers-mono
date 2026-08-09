@@ -124,7 +124,9 @@ describe("reconcileIndexes", () => {
 		assert.deepEqual(await reconcileIndexes(collection, declared), []);
 		const live = (await collection.indexes()).find((i) => i.name === "loc_2dsphere");
 		assert.ok(live);
-		assert.strictEqual(live["2dsphereIndexVersion"], 4);
+		// The exact version is server-dependent (4 on mongo 8.x) — assert it's set,
+		// not a specific number, so the spec passes across server versions.
+		assert.strictEqual(typeof live["2dsphereIndexVersion"], "number");
 	});
 
 	it("converges on a text index with PARTIAL declared weights", async () => {
