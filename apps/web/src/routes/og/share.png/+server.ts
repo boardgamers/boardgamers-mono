@@ -7,6 +7,10 @@ import { chromium, type Browser } from "playwright";
 // shared across requests and renders are serialized through a one-slot queue (a render is
 // fast, and cards are cached downstream); failures just 503 — callers fall back to no
 // image rather than a broken preview.
+//
+// --no-sandbox: the preview container runs rootless with --cap-drop ALL +
+// no-new-privileges, so Chromium's setuid sandbox helper can't work. Chromium is only
+// given same-origin localhost URLs (the /og card), so the sandbox buys nothing here.
 let browser: Browser | null = null;
 let browserLaunch: Promise<Browser> | null = null;
 let queue: Promise<unknown> = Promise.resolve();
@@ -15,7 +19,7 @@ async function getBrowser(): Promise<Browser> {
 	if (browser?.isConnected()) {
 		return browser;
 	}
-	browserLaunch ??= chromium.launch().then((b) => {
+	browserLaunch ??= chromium.launch({ args: ["--no-sandbox"] }).then((b) => {
 		browser = b;
 		b.on("disconnected", () => {
 			browser = null;
