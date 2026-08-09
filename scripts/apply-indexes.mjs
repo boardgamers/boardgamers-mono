@@ -27,6 +27,14 @@ const { ensureIndexes } = setup;
 const planIndexChanges = setup.planIndexChanges ?? ((db) => ensureIndexes(db, { dryRun: true }));
 const declaredIndexList = setup.declaredIndexes ?? [];
 const droppedIndexList = setup.droppedIndexes ?? [];
+// Map-safe default-name derivation shared with boot; absent on the base branch.
+const declaredIndexName =
+	setup.declaredIndexName ??
+	((spec) =>
+		spec.name ??
+		Object.entries(spec.key)
+			.map(([f, d]) => `${f}_${String(d)}`)
+			.join("_"));
 
 const dbUrl = process.env.dbUrl ?? "mongodb://localhost:27017/admin";
 const dbName = process.env.dbName ?? "bgs-index-drift";
@@ -36,10 +44,17 @@ const client = new MongoClient(dbUrl);
 try {
 	await client.connect();
 	const db = client.db(dbName);
-	const actions = (await (planOnly ? planIndexChanges(db) : ensureIndexes(db))) ?? [];
+	const result = await (planOnly ? planIndexChanges(db) : ensureIndexes(db));
+	// Base-branch ensureIndexes returns undefined (bare createIndexes loop); the
+	// reconcile version returns the actions it took.
+	const actions = result ?? [];
 	console.log(JSON.stringify(actions, null, 2));
 	if (!planOnly) {
-		console.log(`Applied indexes: ${actions.length} change(s).`);
+		console.log(
+			result === undefined
+				? "Applied indexes (base branch's ensureIndexes reports no action list)."
+				: `Applied indexes: ${actions.length} change(s).`,
+		);
 	}
 	if (planOnly) {
 		const drops = actions.filter((a) => a.type === "drop");
@@ -54,14 +69,12 @@ try {
 		// it still relies on, so the removal must be a separate follow-up PR.
 		// See AGENTS.md "Removing an index". (Checked structurally from the declared
 		// sets, independent of the live db state.)
+		// Name derivation must match boot exactly (Map keys included), so reuse the
+		// same helper rather than re-implementing it here.
 		const declaredNames = new Map();
 		for (const [collection, specs] of declaredIndexList) {
 			for (const spec of specs) {
-				const name =
-					spec.name ??
-					Object.entries(spec.key)
-						.map(([f, d]) => `${f}_${String(d)}`)
-						.join("_");
+				const name = declaredIndexName(spec);
 				declaredNames.set(`${collection}.${name}`, { collection, name });
 			}
 		}

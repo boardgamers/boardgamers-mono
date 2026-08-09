@@ -115,6 +115,18 @@ describe("reconcileIndexes", () => {
 		assert.strictEqual(live?.collation?.strength, 2);
 	});
 
+	it("converges on a 2dsphere index (server stamps 2dsphereIndexVersion)", async () => {
+		const collection = db.collection("reconcile-test");
+		const declared = [{ key: { loc: "2dsphere" as const } }];
+		await reconcileIndexes(collection, declared);
+		// The server stores 2dsphereIndexVersion: 4 which no declared spec carries;
+		// a second run must be a no-op, not a perpetual rebuild.
+		assert.deepEqual(await reconcileIndexes(collection, declared), []);
+		const live = (await collection.indexes()).find((i) => i.name === "loc_2dsphere");
+		assert.ok(live);
+		assert.strictEqual(live["2dsphereIndexVersion"], 4);
+	});
+
 	it("converges on a text index with PARTIAL declared weights", async () => {
 		const collection = db.collection("reconcile-test");
 		const declared = [{ key: { a: "text" as const, b: "text" as const }, weights: { a: 10 } }];

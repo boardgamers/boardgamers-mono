@@ -176,8 +176,8 @@ function sameIndexShape(existing: IndexDescriptionInfo, declared: IndexDescripti
 	const oldShape = indexShape(existing);
 	const newShape = indexShape(declared);
 	for (const field of new Set([...Object.keys(oldShape), ...Object.keys(newShape)])) {
-		if (field === "textIndexVersion") {
-			continue; // server-version-dependent
+		if (field === "textIndexVersion" || field === "2dsphereIndexVersion") {
+			continue; // server-stamped, version-dependent — never part of the declared shape
 		}
 		let before = oldShape[field];
 		let after = newShape[field];
@@ -212,8 +212,8 @@ function describeShapeDifferences(existing: IndexDescriptionInfo, declared: Inde
 	const oldShape = indexShape(existing);
 	const newShape = indexShape(declared);
 	for (const field of new Set([...Object.keys(oldShape), ...Object.keys(newShape)])) {
-		if (field === "textIndexVersion") {
-			continue;
+		if (field === "textIndexVersion" || field === "2dsphereIndexVersion") {
+			continue; // server-stamped, version-dependent
 		}
 		const before = stableStringify(oldShape[field]);
 		const after = stableStringify(newShape[field]);
@@ -242,7 +242,7 @@ async function listIndexes(collection: Collection): Promise<IndexDescriptionInfo
 	}
 }
 
-function declaredIndexName(spec: IndexDescription): string {
+export function declaredIndexName(spec: IndexDescription): string {
 	return (
 		spec.name ??
 		// Mongo derives the default name from the key pattern ("user_1"). The driver
@@ -269,7 +269,9 @@ export async function reconcileIndexes(
 	// alias of it (renamed in code, or an explicit name added to a previously
 	// default-named index). Creating the declared name would fail with
 	// IndexKeySpecsConflict ("already exists with a different name"), so the alias
-	// must be dropped first.
+	// must be dropped first. Only same-shaped aliases are treated as renames — a
+	// same-key-different-options index under another name is left in place (an
+	// orphan, matching createIndexes parity) rather than silently dropped.
 	const findKeyAlias = (existing: Map<string, IndexDescriptionInfo>, spec: IndexDescription, name: string) =>
 		[...existing.values()].find(
 			(live) =>
