@@ -14,5 +14,8 @@ export function redirectLoggedIn(url: URL): string {
 }
 
 export function redirectLoggedOut(url: URL): string {
-	return url.searchParams.get("redirect") ?? resolve("/(app)");
+	// Form actions honour this for no-JS logins — only same-origin absolute paths, so
+	// it can't be abused as an open redirect (protocol-relative //host included).
+	const target = url.searchParams.get("redirect");
+	return target?.startsWith("/") && !target.startsWith("//") ? target : resolve("/(app)");
 }

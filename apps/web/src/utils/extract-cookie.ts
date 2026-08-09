@@ -5,5 +5,9 @@ export function extractCookie(name: string, cookie: string): any {
 
 	const val = extracted?.slice(name.length + 1);
 
-	return val && JSON.parse(val);
+	// Cookie values arrive percent-encoded (e.g. the API's refreshToken JSON) — decode
+	// before parsing, but fall back to the raw value for plain (non-encoded) cookies.
+	const decoded = val && decodeURIComponent(val);
+
+	return decoded && JSON.parse(decoded);
 }
