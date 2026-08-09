@@ -40,46 +40,50 @@ router.use("/users", usersRouter.routes(), usersRouter.allowedMethods());
 const errorsQuerySchema = z.object({
 	page: z.coerce.number().int().min(1).default(1),
 	limit: z.coerce.number().int().min(1).max(100).default(20),
+	// Filter by error name — e.g. name=EngineTimeoutError lists game-engine hangs/timeouts.
+	name: z.string().optional(),
 });
 
 // GET /api/admin/errors — genuine errors from the apierrors DB collection
 // (uncaught exceptions, assertion failures — not routine 4xx HTTP responses).
 // Supports pagination: ?page=1&limit=20 → { errors: [...], total, page, limit }
 router.get("/errors", async (ctx) => {
-	const { page, limit } = errorsQuerySchema.parse(ctx.query);
+	const { page, limit, name } = errorsQuerySchema.parse(ctx.query);
+	const filter = name ? { "error.name": name } : {};
 	const [errors, total] = await Promise.all([
 		colls.apiErrors
-			.find(
-				{},
-				{
-					projection: {
-						"error.name": 1,
-						"error.message": 1,
-						"request.method": 1,
-						"request.url": 1,
-						"request.status": 1,
-						"request.id": 1,
-						// Diagnostic context (secure-cookie-over-insecure): how the request
-						// reached the api — proto/host/ip and the forwarding headers.
-						"request.protocol": 1,
-						"request.hostname": 1,
-						"request.secure": 1,
-						"request.ip": 1,
-						"request.ips": 1,
-						"request.headers": 1,
-						"meta.source": 1,
-						"meta.release": 1,
-						"meta.proxy": 1,
-						user: 1,
-						createdAt: 1,
-					},
+			.find(filter, {
+				projection: {
+					"error.name": 1,
+					"error.message": 1,
+					"request.method": 1,
+					"request.url": 1,
+					"request.status": 1,
+					"request.id": 1,
+					// Diagnostic context (secure-cookie-over-insecure): how the request
+					// reached the api — proto/host/ip and the forwarding headers.
+					"request.protocol": 1,
+					"request.hostname": 1,
+					"request.secure": 1,
+					"request.ip": 1,
+					"request.ips": 1,
+					"request.headers": 1,
+					"meta.source": 1,
+					"meta.release": 1,
+					"meta.proxy": 1,
+					"meta.gameId": 1,
+					"meta.game": 1,
+					"meta.version": 1,
+					"meta.action": 1,
+					user: 1,
+					createdAt: 1,
 				},
-			)
+			})
 			.sort({ createdAt: -1 })
 			.skip((page - 1) * limit)
 			.limit(limit)
 			.toArray(),
-		colls.apiErrors.countDocuments({}),
+		colls.apiErrors.countDocuments(filter),
 	]);
 	ctx.body = { errors, total, page, limit };
 });

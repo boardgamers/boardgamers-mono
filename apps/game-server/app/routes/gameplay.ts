@@ -1,12 +1,15 @@
 import { keyBy } from "@bgs/utils/array";
+import { logEvent } from "@bgs/utils/log";
 import { omit, pick } from "@bgs/utils/object";
 import assert from "node:assert";
+import { ObjectId } from "mongodb";
 import Router from "koa-router";
 import { z } from "zod";
 import { colls } from "../config/db.ts";
 import locks from "../config/locks.ts";
 import { batchReplay } from "../services/batch.ts";
-import { getEngine } from "../services/engines.ts";
+import { enginePath, getEngine } from "../services/engines.ts";
+import { engineRunner, EngineTimeoutError } from "../services/engine-runner.ts";
 import { afterMove } from "../services/game.ts";
 import { isAdmin, loggedIn } from "./utils.ts";
 
@@ -92,7 +95,64 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 		const initialLogIndex = engine.logLength(gameData);
 
 		const { move } = z.object({ move: z.unknown() }).parse(ctx.request.body);
-		gameData = await engine.move(gameData, move, playerIndex);
+
+		// Run the move in a worker thread with a hard timeout: a runaway engine (an
+		// infinite loop in move/available-moves) would otherwise wedge the whole
+		// game-server event loop (the 2026-08-09 outage). The worker is terminated on
+		// timeout and the move fails; the server stays responsive. See engine-runner.ts.
+		try {
+			const path = await enginePath(game.game.name, game.game.version);
+			gameData = await engineRunner.call(game.game.name, game.game.version, path, "move", [
+				gameData,
+				move,
+				playerIndex,
+			]);
+		} catch (err) {
+			if (err instanceof EngineTimeoutError) {
+				// Attribute the hang to the exact game/engine/action: log loudly (→ Loki)
+				// AND record an apiErrors entry (meta.gameId + source) so it surfaces on the
+				// admin errors page and the per-game admin page — an engine that keeps
+				// timing out must be findable and flaggable, not silent.
+				logEvent("error", "engineTimeout", {
+					source: "game-server",
+					game: game.game.name,
+					version: game.game.version,
+					gameId: ctx.params.gameId,
+					error: err.message,
+				});
+				colls.apiErrors
+					.insertOne({
+						request: {
+							url: ctx.request.originalUrl,
+							method: ctx.request.method,
+							body: JSON.stringify(ctx.request.body),
+							status: 422,
+							id: ctx.state.requestId,
+						},
+						error: {
+							name: "EngineTimeoutError",
+							message: err.message,
+							stack: err.stack ? err.stack.split("\n") : [],
+						},
+						user: ctx.state.user?.id ? new ObjectId(ctx.state.user.id) : undefined,
+						meta: {
+							source: "game-server",
+							gameId: ctx.params.gameId,
+							// Extra attribution fields (meta is .loose()): pin the exact engine.
+							game: game.game.name,
+							version: game.game.version,
+							action: "move",
+						},
+						createdAt: new Date(),
+					})
+					.catch(() => {});
+				// 422 (not 500): the move couldn't be applied — same surface as an illegal move.
+				ctx.status = 422;
+				ctx.body = { message: "The game engine took too long to process this move and was stopped. Please try again." };
+				return;
+			}
+			throw err;
+		}
 
 		const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 

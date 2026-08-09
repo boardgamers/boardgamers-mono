@@ -2,6 +2,7 @@ import { listen } from "./app/app.ts";
 import initDb from "./app/config/db.ts";
 import env from "./app/config/env.ts";
 import { gracefulShutdown, installProcessHandlers, logEvent, pm2Ready, type Closable } from "@bgs/utils/log";
+import { startEventLoopGuard } from "@bgs/utils/watchdog";
 import { listen as listenResources } from "./app/resources.ts";
 import type { Server } from "node:http";
 import type { WebSocketServer } from "ws";
@@ -30,6 +31,9 @@ if (serving) {
 	apiServer = await listen().catch(handleError);
 	resourcesServer = await listenResources().catch(handleError);
 	({ wss } = await import("./app/ws.ts"));
+	// In-process hang detector (see @bgs/utils/watchdog): each cluster worker exits on a
+	// wedged event loop so PM2 restarts it — the case the external watchdog can miss.
+	startEventLoopGuard("api");
 }
 
 // Cron (game notifications, scheduled games, emails) runs when env.cron is set —

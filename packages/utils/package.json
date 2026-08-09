@@ -8,7 +8,8 @@
 		"./object": "./object.ts",
 		"./remove-falsy": "./remove-falsy.ts",
 		"./time": "./time.ts",
-		"./log": "./log.ts"
+		"./log": "./log.ts",
+		"./watchdog": "./watchdog.ts"
 	},
 	"scripts": {
 		"test": "node --test *.spec.ts",

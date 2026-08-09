@@ -81,6 +81,14 @@
 					>
 						+ New game
 					</a>
+					<a
+						href={resolve("/game/hangs")}
+						class="px-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive('/game/hangs')
+							? 'bg-gray-100 dark:bg-gray-800 font-semibold'
+							: ''}"
+					>
+						Hangs / timeouts
+					</a>
 					{#each data.games as g (`${g._id.game}/${g._id.version}`)}
 						{@const href = resolve("/game/[game]/[version]", { game: g._id.game, version: String(g._id.version) })}
 						{@const { emoji, name } = gameLabelParts(g.label)}

@@ -1,6 +1,7 @@
 import { listen } from "./app/app.ts";
 import env from "./app/config/env.ts";
 import { gracefulShutdown, installProcessHandlers, logEvent, pm2Ready, type Closable } from "@bgs/utils/log";
+import { startEventLoopGuard } from "@bgs/utils/watchdog";
 import type { Server } from "node:http";
 
 installProcessHandlers("game-server");
@@ -23,6 +24,11 @@ let cron: Closable | undefined;
 
 if (serving) {
 	server = await listen().catch(handleError);
+	// In-process hang detector: each cluster worker monitors its own event loop and
+	// exits (so PM2 restarts it) if the loop is wedged — the case the external HTTP
+	// watchdog can miss when a healthy sibling answers /health on the shared socket.
+	// See @bgs/utils/watchdog.
+	startEventLoopGuard("game-server");
 }
 
 if (env.cron) {

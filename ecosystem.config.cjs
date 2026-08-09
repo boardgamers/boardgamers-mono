@@ -88,5 +88,22 @@ module.exports = {
 			kill_timeout: 10000,
 			wait_ready: true,
 		},
+		{
+			// Hang watchdog: polls game-server/api GET /health and `pm2 restart`s any app
+			// that stops answering (event-loop wedge — PM2 alone only restarts on exit).
+			// Runs under PM2 so the watchdog itself is supervised. See scripts/watchdog.ts
+			// and infra/README.md#watchdog. Prod binds ::1, so set WATCHDOG_HOST=::1 there.
+			name: "watchdog",
+			script: "./scripts/watchdog.ts",
+			cwd: "./apps/game-server",
+			env: {
+				NODE_ENV: "production",
+			},
+			exec_mode: "fork",
+			instances: 1,
+			interpreter: NODE,
+			kill_timeout: 5000,
+			// No wait_ready: the watchdog never sends the PM2 "ready" signal.
+		},
 	],
 };

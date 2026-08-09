@@ -19,6 +19,15 @@ async function requirePath(name: string, version: number) {
 	return `../../games/node_modules/${engineKey(name, version, info.engine.package)}/${info.engine.entryPoint}`;
 }
 
+/**
+ * Absolute file URL for an engine's entry point — the form a worker_thread must
+ * import (relative `../../games/...` only resolves against this module, not a worker).
+ */
+export async function enginePath(name: string, version: number): Promise<string> {
+	const rel = await requirePath(name, version);
+	return new URL(rel, import.meta.url).href;
+}
+
 export async function getEngine(name: string, version: number): Promise<Engine> {
 	const key = `${name}_${version}`;
 
