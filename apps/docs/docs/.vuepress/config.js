@@ -53,7 +53,7 @@ module.exports = {
 				{
 					title: "Guide",
 					collapsable: false,
-					children: ["", "architecture", "engine-api", "viewer-api", "tictactoe"],
+					children: ["", "architecture", "engine-api", "viewer-api", "tictactoe", "forum-oauth-design"],
 				},
 			],
 		},
