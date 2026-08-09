@@ -148,7 +148,7 @@ async function listen(port = env.listen.port.api) {
 						const last = refreshSlideThrottle.get(code) ?? 0;
 						if (Date.now() - last > REFRESH_SLIDE_INTERVAL_MS) {
 							refreshSlideThrottle.set(code, Date.now());
-							setRefreshCookie(ctx, code);
+							setRefreshCookie(ctx, code, "sliding-session");
 							colls.users.updateOne({ _id: rt.user }, { $set: { "security.lastSeen": new Date() } }).catch(() => {});
 						}
 					}

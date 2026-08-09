@@ -2,6 +2,10 @@
 
 Things that are intentional for now but should be revisited / removed later. Add an entry when you leave a temporary shim, a deferred migration, or anything a future reader might mistake for a permanent decision. Keep entries short and link the code.
 
+## secure-cookie-over-insecure diagnostic (`app/models/session.ts`)
+
+Prod logs a chronic "Cannot send secure cookie over unencrypted connection" from `setRefreshCookie` (~25–56/day + bursts): some requests reach the api with `ctx.secure === false` even though prod is HTTPS-only and nginx sets `X-Forwarded-Proto` on the api vhost. The source is **unknown** (internal caller? crawler over http? a route/XFP gap?), and a "drop Secure on http" fix was rejected — the cookie must stay `Secure`. Until the culprit is found, `setRefreshCookie` records the full request context (secure/protocol/hostname/ip/ips, X-Forwarded-*/host/user-agent/referer/origin headers, `app.proxy`) as a `secure-cookie-over-insecure` warn log line **and** an `apierrors` record (`meta.source: "secure-cookie"`, surfaced by `GET /api/admin/errors` → admin health page). Behavior is unchanged — the cookie set still throws, still 500s. Once the root cause is identified and fixed, this diagnostic can be removed.
+
 ## Dead-session cookie clearing also clears the legacy host-only variant (`app/app.ts`, `app/models/session.ts`)
 
 Pre-overhaul (#112) deployments set the `refreshToken` cookie host-only (no `domain`); the current code sets `domain=env.domain`. Browsers treat those as two distinct cookies, and the older host-only one sorts first in the `Cookie` header, shadowing the fresh cookie — affected users can't log in at all. When the cookie-session middleware sees a code that no longer exists in `jwtrefreshtokens`, it clears **both** variants (`clearAllRefreshCookieVariants`). Safe to reduce back to `clearRefreshCookie` once pre-overhaul cookies have aged out (120-day expiry from the last pre-#112 deploy).
