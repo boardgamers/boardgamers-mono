@@ -17,11 +17,29 @@ function makeEngines() {
 	);
 	fs.writeFileSync(path.join(dir, "loop.mjs"), `export async function move() { for (;;) {} }`);
 	fs.writeFileSync(path.join(dir, "throw.mjs"), `export async function move() { throw new Error("bad move"); }`);
+	// Mimics engines like gaia-project whose move() returns a LIVE class instance with
+	// closures / EventEmitters in it — not structured-cloneable as-is. The worker must
+	// serialize the result to plain JSON before posting (else postMessage throws
+	// DataCloneError), so the caller receives clean JSON, not the class.
+	fs.writeFileSync(
+		path.join(dir, "classy.mjs"),
+		`class State {
+		   constructor(prev) {
+		     this.n = (prev?.n ?? 0) + 1;
+		     this.board = {};
+		     // A closure capturing \`this\` — the exact shape that made gaia-project's
+		     // move() result fail to structured-clone (DataCloneError).
+		     this.handler = (...args) => this.board.handlers?.(...args);
+		   }
+		 }
+		 export async function move(data) { return new State(data); }`,
+	);
 	return {
 		dir,
 		ok: path.join(dir, "ok.mjs"),
 		loop: path.join(dir, "loop.mjs"),
 		throw: path.join(dir, "throw.mjs"),
+		classy: path.join(dir, "classy.mjs"),
 	};
 }
 
@@ -70,5 +88,24 @@ describe("EngineRunner (worker_thread isolation)", () => {
 
 	it("propagates engine-thrown errors (not timeouts)", async () => {
 		await assert.rejects(runner.call("throw", 1, engines.throw, "move", [{}, "x", 0]), /bad move/);
+	});
+
+	it("serializes an engine result holding closures / an EventEmitter (gaia-style) instead of throwing DataCloneError", async () => {
+		// Regression test for the gaia-project DataCloneError: move() returns a live
+		// class instance with listener closures; the worker must strip it to plain JSON
+		// before posting, so the caller gets JSON — not a structured-clone failure.
+		const out = await runner.call("classy", 1, engines.classy, "move", [{ n: 3 }, "x", 0]);
+		assert.deepEqual(out, { n: 4, board: {} });
+		// The returned value must be a plain object (no prototype / class), ready for
+		// Mongo persistence and re-clone.
+		assert.equal(Object.getPrototypeOf(out), Object.prototype);
+	});
+
+	it("a worker survives a call whose result needed serialization and still serves the next call", async () => {
+		// The serialization happens inside the worker, so a result that can't be
+		// structured-cloned must not kill the worker — the same worker stays usable.
+		await runner.call("classy", 1, engines.classy, "move", [{ n: 0 }, "x", 0]);
+		const out = await runner.call("classy", 1, engines.classy, "move", [{ n: 10 }, "x", 0]);
+		assert.deepEqual(out, { n: 11, board: {} });
 	});
 });
