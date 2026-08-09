@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import { timerTime, defer, duration, niceDate, shortDuration, compactTiming } from "@/utils";
+	import { timerTime, defer, duration, niceDate, shortDuration, compactDuration, timerWindow } from "@/utils";
 	import type { GameFront } from "@bgs/models";
 	import { createWatcher } from "@/utils/watch";
 	import { Badge, Pagination, Loading } from "@/modules/cdk";
@@ -109,6 +109,11 @@
 		return game?.label.trim().slice(0, game?.label.trim().indexOf(" "));
 	}
 
+	// On narrow screens the avatar cluster would otherwise eat the name/timing
+	// text — cap how many avatars are shown and collapse the rest into a "+k"
+	// chip. CSS-based (max-width media query) so SSR/hydration agree.
+	const MOBILE_AVATARS_LIMIT = 3;
+
 	const onCurrentPageChanged = createWatcher(() => load(false));
 
 	let firstRun = true;
@@ -185,15 +190,29 @@
 										class="flex items-center gap-1 whitespace-nowrap text-xs"
 										title={`${playTime(game)} ${duration(game.options.timing.timePerGame ?? 0)} + ${duration(
 											game.options.timing.timePerMove ?? 0
-										)}`}
+										)} · ${timerWindow(game.options.timing.timer)}`}
 									>
 										{#if game.status === "ended"}
 											<span class="text-gray-500 dark:text-gray-400">finished · {niceDate(game.lastMove ?? "")}</span>
+										{:else if game.status === "active"}
+											<!-- Ongoing games: last activity matters more than the timer window (full timing stays on hover) -->
+											<span class="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+												<IconClockHistory class="text-[0.8em]" />
+												{shortDuration(
+													Math.max(
+														30,
+														Math.floor((Date.now() - new Date(game.lastMove ?? game.createdAt ?? "").getTime()) / 1000)
+													)
+												)}
+												ago
+											</span>
 										{:else}
 											<IconClockHistory class="text-[0.8em]" />
-											{compactTiming(game)}
+											{compactDuration(game.options.timing.timePerGame ?? 0)}+{compactDuration(
+												game.options.timing.timePerMove ?? 0
+											)}
 											{#if game.options.timing.scheduledStart}
-												starts on {niceDate(game.options.timing.scheduledStart)} at
+												· starts on {niceDate(game.options.timing.scheduledStart)} at
 												{new Date(game.options.timing.scheduledStart)
 													.getHours()
 													.toString()
@@ -207,16 +226,21 @@
 								</div>
 
 								{#if game.status !== "open"}
-									<div class="factions flex shrink-0 flex-row">
-										{#each game.players as player (player._id)}
+									<div class="factions flex min-w-0 shrink flex-row items-center">
+										{#each game.players as player, i (player._id)}
 											<PlayerGameAvatar
 												game={game.game.name}
 												isCurrent={game.currentPlayers?.some((pl) => pl._id === player._id)}
 												userId={userId ?? undefined}
 												{player}
-												class="me-1"
+												class={i >= MOBILE_AVATARS_LIMIT ? "mobile-hidden-avatar me-1" : "me-1"}
 											/>
 										{/each}
+										{#if game.players.length > MOBILE_AVATARS_LIMIT}
+											<span class="mobile-avatar-more shrink-0 text-xs font-semibold text-gray-500 dark:text-gray-400">
+												+{game.players.length - MOBILE_AVATARS_LIMIT}
+											</span>
+										{/if}
 									</div>
 								{:else}
 									<div class="me-3 text-right" style="line-height: 1.1;">
@@ -271,6 +295,56 @@
 	/* On mobile, if multiple lines, I want items to be aligned to the right */
 	.game-list .game-item.active-game .factions {
 		justify-content: flex-end;
+	}
+
+	/* Mobile (#163): with ~6 players the avatars used to take their full width and
+	   squeeze the name/timing text to nothing. Cap the cluster at the first few
+	   avatars (rest collapse into a "+k" chip), shrink and overlap them a bit. */
+	@media (max-width: 639.98px) {
+		.game-list .game-item .factions {
+			flex-wrap: nowrap;
+		}
+
+		/* :global: svelte-check can't see the class on the child component's root node */
+		.game-list .game-item .factions :global(.player-avatar.mobile-hidden-avatar) {
+			display: none;
+		}
+
+		.game-list .game-item .factions .mobile-avatar-more {
+			display: inline;
+		}
+
+		.game-list .game-item .factions :global(.player-avatar) {
+			width: 1.5rem;
+			height: 1.5rem;
+			min-width: 1.5rem;
+			min-height: 1.5rem;
+		}
+
+		.game-list .game-item .factions :global(.player-avatar) + :global(.player-avatar) {
+			margin-inline-start: -0.35rem;
+		}
+
+		.game-list .game-item .factions :global(.player-avatar) {
+			box-shadow: 0 0 0 1.5px white;
+		}
+
+		:global(.dark) .game-list .game-item .factions :global(.player-avatar) {
+			box-shadow: 0 0 0 1.5px #111827; /* gray-900, the list's dark background */
+		}
+
+		.game-list .game-item .factions :global(.player-avatar .vp) {
+			font-size: 0.55rem;
+			width: 15px;
+			right: -4px;
+			bottom: -4px;
+		}
+	}
+
+	@media (min-width: 640px) {
+		.game-list .game-item .factions .mobile-avatar-more {
+			display: none;
+		}
 	}
 
 	.game-list .game-item .game-kind {

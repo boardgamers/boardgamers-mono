@@ -70,7 +70,9 @@ function backendUrl(override: string | undefined, defaultPort: number): string {
 	const host = isBareIpv6 || idx === -1 ? raw : raw.slice(0, idx);
 	const port = isBareIpv6 || idx === -1 ? undefined : raw.slice(idx + 1);
 	const ip = host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
-	return `http://${ip}:${port ?? defaultPort}`;
+	// Port 443 means TLS — lets SSR fetch a preview/prod API over https.
+	const proto = (port ?? String(defaultPort)) === "443" ? "https" : "http";
+	return `${proto}://${ip}:${port ?? defaultPort}`;
 }
 
 /**

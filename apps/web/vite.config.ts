@@ -10,8 +10,14 @@ import { execSync } from "node:child_process";
 // VITE_backend_ws / VITE_backend_resources (each host or host:port).
 // Proxy targets always need explicit ports.
 const withPort = (hostPort: string, port: number) => {
-	const [host, p] = hostPort.replace(/^https?:\/\//, "").split(":");
-	return `http://${host.includes(":") ? `[${host}]` : host}:${p ?? port}`;
+	// Non-greedy host so an optional :port suffix is captured — a greedy split on
+	// ":" would shred bare IPv6 literals. Port 443 means TLS (e.g. proxying to a
+	// preview/prod host).
+	const m = hostPort.replace(/^https?:\/\//, "").match(/^(.+?)(?::(\d+))?$/);
+	const host = m?.[1] ?? hostPort;
+	const p = m?.[2];
+	const proto = p === "443" ? "https" : "http";
+	return `${proto}://${host.includes(":") ? `[${host}]` : host}:${p ?? port}`;
 };
 
 const backend = withPort(process.env.VITE_backend_api ?? process.env.VITE_backend ?? "127.0.0.1", 50801);
