@@ -47,9 +47,11 @@ export async function ensureIndexes(db: Db) {
 	// doesn't exist yet (fresh/test db) — dropIndex would throw "ns does not exist".
 	const collectionExists = (await db.listCollections({ name: JWT_REFRESH_TOKENS_COLLECTION }).toArray()).length > 0;
 	if (collectionExists) {
-		const refreshTokens = db.collection(JWT_REFRESH_TOKENS_COLLECTION);
-		if ((await refreshTokens.indexes()).some((index) => index.name === "code_1")) {
-			await refreshTokens.dropIndex("code_1");
+		try {
+			await db.collection(JWT_REFRESH_TOKENS_COLLECTION).dropIndex("code_1");
+		} catch {
+			// Already gone — either never existed, or a sibling api/cron process dropped
+			// it first (PM2 starts several at once). Either way the goal state holds.
 		}
 	}
 
