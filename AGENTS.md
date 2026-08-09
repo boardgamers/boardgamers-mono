@@ -181,6 +181,7 @@ Switch **back** to your working branch/worktree afterward — or do this in a se
   ```
 
   It exits when the review is done and prints new inline comments plus the latest review's **suppressed comments** — real suggestions Copilot collapsed in its review body, which can persist on unchanged lines; check them too. Iterate (fix → push → re-run) until both are clean.
+
 - **Fix the valid comments (inline and suppressed alike).** For false positives, reply on the PR thread explaining why, rather than changing the code.
 
 ## Conventions
