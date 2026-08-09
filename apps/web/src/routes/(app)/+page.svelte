@@ -8,6 +8,7 @@
 	import GameList from "@/components/Game/GameList.svelte";
 	import { account } from "@/lib/account.svelte";
 	import { activeGames, live } from "@/lib/stores.svelte";
+	import { defaultOgImage, ogImageUrl } from "@/lib/seo";
 	import { page } from "$app/state";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
@@ -35,6 +36,11 @@
 <SEO
 	title="Boardgamers — play boardgames online"
 	description="Play Gaia Project, Powergrid, 6nimmt and Container online with other people, live or asynchronously. All games and the platform are open source!"
+	image={ogImageUrl(defaultOgImage.path, {
+		title: "Boardgamers",
+		subtitle:
+			"Play Gaia Project, Powergrid, 6nimmt and Container online — all games and the platform are open source!",
+	})}
 />
 
 <svelte:head>
