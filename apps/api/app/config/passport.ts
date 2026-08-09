@@ -34,6 +34,7 @@ import {
 	findByUsername,
 	generateConfirmKey,
 	generateHash,
+	hashUserSecret,
 	makeDefaultUser,
 	sendConfirmationEmail,
 	validPassword,
@@ -101,16 +102,20 @@ passport.use(
 					email: email.toLowerCase().trim(),
 					slug,
 					password: await generateHash(password),
-					confirmKey,
+					// Only the hash is stored (#164); the plaintext lives in the emailed link.
+					confirmKey: hashUserSecret(confirmKey),
 					confirmed: false,
 					newsletter: req.body.newsletter === true || req.body.newsletter === "true",
 				});
 
 				const result = await colls.users.insertOne(newUserDoc);
+				// Keep newUser.confirmKey as the stored HASH. The confirmation email embeds
+				// the plaintext key, so hand the mailer a one-off copy carrying it rather
+				// than mutating the doc passport returns downstream.
 				const newUser: WithId<UserDoc> = { ...newUserDoc, _id: result.insertedId };
 
 				if (!newUser.security.confirmed) {
-					await sendConfirmationEmail(newUser);
+					await sendConfirmationEmail({ ...newUser, security: { ...newUser.security, confirmKey } });
 				}
 
 				return done(null, newUser);

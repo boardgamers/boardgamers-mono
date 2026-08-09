@@ -13,6 +13,8 @@ import {
 	findGamesWithPlayersTurn,
 	isAvatarStyle,
 	isUserAdmin,
+	lookupRefreshToken,
+	revokeRefreshToken,
 } from "../../models/index.ts";
 import { parseRefreshCookie, clearRefreshCookie } from "../../models/session.ts";
 import { clearForumSsoCookie } from "../../models/forumsso.ts";
@@ -21,6 +23,7 @@ import {
 	findByEmail,
 	generateConfirmKey,
 	generateResetLink,
+	hashUserSecret,
 	sendConfirmationEmail,
 	sendMailChangeEmail,
 	sendResetEmail,
@@ -170,13 +173,17 @@ router.post("/email", loggedIn, async (ctx) => {
 			$set: {
 				"account.email": email,
 				"security.confirmed": false,
-				"security.confirmKey": confirmKey,
+				// Only the hash is stored (#164); the plaintext goes in the emailed link.
+				"security.confirmKey": hashUserSecret(confirmKey),
 			},
 		},
 	);
 
 	const updatedUser = await colls.users.findOne({ _id: user._id });
 	if (updatedUser) {
+		// sendConfirmationEmail reads security.confirmKey to build the link — hand it
+		// the plaintext (the db holds only the hash).
+		updatedUser.security.confirmKey = confirmKey;
 		await sendConfirmationEmail(updatedUser);
 		ctx.body = stripSensitiveFields(updatedUser);
 	}
@@ -311,7 +318,7 @@ router.post("/signout", async (ctx: Context) => {
 	// Revoke server-side too — otherwise a leaked cookie keeps working until its 120-day expiry.
 	const code = parseRefreshCookie(ctx.cookies.get("refreshToken"));
 	if (code) {
-		await colls.jwtRefreshTokens.deleteOne({ code });
+		await revokeRefreshToken(code);
 	}
 	ctx.logout();
 	clearRefreshCookie(ctx);
@@ -360,7 +367,7 @@ async function mintAccessToken(ctx: Context) {
 		throw createError(401, "No refresh token (body or session cookie)");
 	}
 
-	const rt = await colls.jwtRefreshTokens.findOne({ code });
+	const rt = await lookupRefreshToken(code);
 
 	if (!rt) {
 		throw createError(404, "Can't find refresh token");

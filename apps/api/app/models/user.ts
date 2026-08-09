@@ -11,7 +11,8 @@ import { findGamesWithPlayersTurn } from "./game.ts";
 export const defaultKarma = 75;
 export const maxKarma = 100;
 
-const secureId = () => crypto.randomBytes(12).toString("base64").replace(/\+/g, "_").replace(/\//g, "-");
+// 256 bits of randomness, URL-safe (base64url) — these become emailed link secrets.
+const secureId = () => crypto.randomBytes(32).toString("base64url");
 
 export function makeDefaultUser(params: {
 	username: string;
@@ -112,11 +113,38 @@ export function generateConfirmKey(): string {
 	return secureId();
 }
 
+// Single-use emailed secrets (confirm link, reset link) are 256 bits of randomness
+// compared against user input then nulled on use, so a fast unsalted hash is safe —
+// same pattern as admintokens.ts / refresh-token codes (#164).
+export function hashUserSecret(secret: string): string {
+	return crypto.createHash("sha256").update(secret).digest("hex");
+}
+
+export function isSha256Hex(value: string): boolean {
+	return /^[0-9a-f]{64}$/.test(value);
+}
+
+// The emailed link carries the plaintext; only the hash is stored. Legacy users
+// (pre-#164) still have the plaintext at rest — accept it so in-flight links keep
+// working (migration 1.4.0 hashes the stragglers). A legacy plaintext that happens
+// to look like a sha256 hex would be ambiguous, but generated secrets are base64
+// (secureId) so that can't occur for real values.
+function secretMatches(stored: string | null | undefined, incoming: string): boolean {
+	if (!stored) {
+		return false;
+	}
+	if (isSha256Hex(stored)) {
+		return stored === hashUserSecret(incoming);
+	}
+	// Legacy plaintext at rest.
+	return stored === incoming;
+}
+
 export function validateResetKey(user: WithId<UserDoc>, key: string) {
 	if (!user.security.reset || !user.security.reset.key) {
 		throw new Error("This user didn't ask for a password reset.");
 	}
-	if (user.security.reset.key !== key) {
+	if (!key || !secretMatches(user.security.reset.key, key)) {
 		throw new Error("The reset password link is wrong.");
 	}
 	const resetIssued = new Date(user.security.reset.issued);
@@ -126,14 +154,17 @@ export function validateResetKey(user: WithId<UserDoc>, key: string) {
 }
 
 export async function confirm(user: WithId<UserDoc>, key: string) {
-	assert(key && user.security.confirmKey === key, "Wrong confirm link.");
+	assert(key && secretMatches(user.security.confirmKey, key), "Wrong confirm link.");
 	await colls.users.updateOne({ _id: user._id }, { $set: { "security.confirmed": true, "security.confirmKey": null } });
 }
 
 export async function generateResetLink(user: WithId<UserDoc>) {
-	const reset = { key: secureId(), issued: new Date() };
+	const key = secureId();
+	const reset = { key: hashUserSecret(key), issued: new Date() };
 	await colls.users.updateOne({ _id: user._id }, { $set: { "security.reset": reset } });
-	user.security.reset = reset;
+	// The in-memory doc keeps the PLAINTEXT key so sendResetEmail can put it in the
+	// link — only the stored value is hashed.
+	user.security.reset = { key, issued: reset.issued };
 }
 
 export async function recalculateKarma(user: WithId<UserDoc>, since = new Date(0)) {

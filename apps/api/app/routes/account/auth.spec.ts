@@ -8,6 +8,7 @@ import "../../config/passport.ts";
 import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { testUser } from "../../config/test-helpers.ts";
+import { lookupRefreshToken } from "../../models/jwtrefreshtokens.ts";
 
 type VerifyResult = { err?: unknown; user?: unknown };
 type SocialFeedback = {
@@ -395,9 +396,9 @@ describe("Account API — redirect-only social flow (#155)", () => {
 		assert.strictEqual(ctx.status, 303);
 		assert.strictEqual(ctx.redirectedTo, "http://bgs.test/account");
 		assert.match(ctx.jar.refreshToken ?? "", /"code"/, "session cookie set on the callback response");
-		// The session is real: the refresh code resolves in Mongo.
+		// The session is real: the refresh code resolves in Mongo (stored hashed, #164).
 		const code = JSON.parse(ctx.jar.refreshToken).code;
-		const rt = await colls.jwtRefreshTokens.findOne({ code });
+		const rt = await lookupRefreshToken(code);
 		assert.ok(rt, "refresh token persisted");
 	});
 

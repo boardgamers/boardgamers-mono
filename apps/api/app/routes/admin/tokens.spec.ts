@@ -9,7 +9,7 @@ import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { testUser } from "../../config/test-helpers.ts";
 import { createAdminToken } from "../../models/admintokens.ts";
-import { createAccessToken, generateRefreshCode } from "../../models/jwtrefreshtokens.ts";
+import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
 
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
 
@@ -192,13 +192,27 @@ describe("Admin tokens API", () => {
 			const demoted = await api("GET", "/api/admin/users/stats", { Authorization: `Bearer ${rawToken}` });
 			assert.strictEqual(demoted.status, 403);
 
-			// Not even with a live session cookie: the scoped Bearer credential must
-			// not let cookie auth fall back into identifying the caller.
+			// Not even with a live session cookie: the demoted user's session authenticates
+			// /api/account, but must not pass the admin gate on /api/admin. The db stores
+			// only the hash, so the test mints a fresh session to know the raw code.
+			const sessionCode = generateRefreshCode();
+			await colls.jwtRefreshTokens.insertOne({
+				user: adminId,
+				codeHash: hashRefreshCode(sessionCode),
+				createdAt: new Date(),
+			});
+			const sessionCookie = `refreshToken=${JSON.stringify({ code: sessionCode })}`;
 			const cookieAuth = await api("GET", "/api/account", {
 				Authorization: `Bearer ${rawToken}`,
-				Cookie: `refreshToken=${(await colls.jwtRefreshTokens.findOne({ user: adminId }))!.code}`,
+				Cookie: sessionCookie,
 			});
-			assert.strictEqual(cookieAuth.status, 401);
+			assert.strictEqual(cookieAuth.status, 200, "the session cookie itself is valid");
+
+			const cookieOnAdmin = await api("GET", "/api/admin/users/stats", {
+				Authorization: `Bearer ${rawToken}`,
+				Cookie: sessionCookie,
+			});
+			assert.strictEqual(cookieOnAdmin.status, 403);
 
 			await colls.users.updateOne({ _id: adminId }, { $set: { authority: "admin" } });
 			const repromoted = await api("GET", "/api/admin/users/stats", { Authorization: `Bearer ${rawToken}` });

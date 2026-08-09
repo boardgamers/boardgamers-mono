@@ -16,6 +16,9 @@ export {
 	accessTokenPayloadSchema,
 	createAccessToken,
 	generateRefreshCode,
+	hashRefreshCode,
+	lookupRefreshToken,
+	revokeRefreshToken,
 } from "./jwtrefreshtokens.ts";
 export { createOAuthState, verifyOAuthState, createPendingSignup, takePendingSignup } from "./oauthflows.ts";
 export type { JwtRefreshTokenDoc } from "@bgs/models";
@@ -37,5 +40,7 @@ export {
 	userPublicInfo,
 	recalculateKarma,
 	sendConfirmationEmail,
+	generateConfirmKey,
+	hashUserSecret,
 } from "./user.ts";
 export type { UserDoc } from "@bgs/models";

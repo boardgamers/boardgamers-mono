@@ -20,7 +20,7 @@ import env from "./config/env.ts";
 /* Configure passport */
 import "./config/passport.ts";
 import { colls } from "./config/db.ts";
-import { accessTokenPayloadSchema } from "./models/jwtrefreshtokens.ts";
+import { accessTokenPayloadSchema, lookupRefreshToken } from "./models/jwtrefreshtokens.ts";
 import { authenticateAdminToken } from "./models/admintokens.ts";
 import { notifyLogin, notifyLastIp } from "./models/user.ts";
 import { setRefreshCookie, parseRefreshCookie, clearAllRefreshCookieVariants } from "./models/session.ts";
@@ -131,19 +131,20 @@ async function listen(port = env.listen.port.api) {
 			const raw = ctx.cookies.get("refreshToken");
 			const code = parseRefreshCookie(raw);
 			if (code) {
-				const rt = await colls.jwtRefreshTokens.findOne({ code });
+				const rt = await lookupRefreshToken(code);
 				if (!rt) {
 					// Dead session cookie (revoked or expired server-side). Clear all variants so a
 					// stale pre-overhaul host-only cookie can't shadow future logins (see session.ts).
 					clearAllRefreshCookieVariants(ctx);
 				}
 				if (rt) {
-					ctx.state.user = (await colls.users.findOne({ _id: rt.user })) ?? undefined;
+					const sessionUser = await colls.users.findOne({ _id: rt.user });
+					ctx.state.user = sessionUser ?? undefined;
 
 					// Sliding session: extend the cookie + bump lastSeen on mutating activity,
 					// throttled so we don't rewrite the cookie / hit the DB on every request.
 					const isMutating = !["GET", "HEAD", "OPTIONS"].includes(ctx.method);
-					if (ctx.state.user && isMutating) {
+					if (sessionUser && isMutating) {
 						const last = refreshSlideThrottle.get(code) ?? 0;
 						if (Date.now() - last > REFRESH_SLIDE_INTERVAL_MS) {
 							refreshSlideThrottle.set(code, Date.now());
