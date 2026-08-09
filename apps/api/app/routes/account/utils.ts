@@ -1,6 +1,12 @@
 import type { Context, Next } from "koa";
 import { colls } from "../../config/db.ts";
-import { accessTokenDuration, createAccessToken, generateRefreshCode, isUserAdmin } from "../../models/index.ts";
+import {
+	accessTokenDuration,
+	createAccessToken,
+	generateRefreshCode,
+	hashRefreshCode,
+	isUserAdmin,
+} from "../../models/index.ts";
 import { refreshTokenDuration, setRefreshCookie } from "../../models/session.ts";
 
 // Usable as route middleware (ctx, next) — the next param doubles as loginMethod in internal calls.
@@ -11,22 +17,17 @@ export async function sendAuthInfo(ctx: Context, loginMethodOrNext?: string | Ne
 	// The social-signup strategy stashes the OAuth provider on the user it returns.
 	const method = loginMethod ?? ctx.state.user?.loginMethod;
 
-	const result = await colls.jwtRefreshTokens.insertOne({
+	// Only the code's hash is stored — the raw code is the session credential (cookie
+	// + response body below) and a db read must not hand out live sessions (#164).
+	await colls.jwtRefreshTokens.insertOne({
 		user: ctx.state.user._id,
-		code,
+		codeHash: hashRefreshCode(code),
 		loginMethod: method,
 		createdAt,
 	});
 
-	const refreshToken = {
-		_id: result.insertedId,
-		user: ctx.state.user._id,
-		code,
-		createdAt,
-	};
-
 	const json = {
-		code: refreshToken.code,
+		code,
 		expiresAt: createdAt.getTime() + refreshTokenDuration(),
 	};
 
@@ -36,7 +37,7 @@ export async function sendAuthInfo(ctx: Context, loginMethodOrNext?: string | Ne
 		user: ctx.state.user,
 		refreshToken: json,
 		accessToken: {
-			code: await createAccessToken(refreshToken, ["all"], isUserAdmin(ctx.state.user)),
+			code: await createAccessToken({ user: ctx.state.user._id, createdAt }, ["all"], isUserAdmin(ctx.state.user)),
 			expiresAt: Date.now() + accessTokenDuration(),
 		},
 	};
