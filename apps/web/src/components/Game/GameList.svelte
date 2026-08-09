@@ -114,6 +114,12 @@
 	// chip. CSS-based (max-width media query) so SSR/hydration agree.
 	const MOBILE_AVATARS_LIMIT = 3;
 
+	// lastMove/createdAt are optional — fall back to "just now" when both are missing.
+	function lastActivity(game: GameFront): string {
+		const ts = new Date(game.lastMove ?? game.createdAt ?? Date.now()).getTime() || Date.now();
+		return shortDuration(Math.max(30, Math.floor((Date.now() - ts) / 1000))) ?? "";
+	}
+
 	const onCurrentPageChanged = createWatcher(() => load(false));
 
 	let firstRun = true;
@@ -198,13 +204,7 @@
 											<!-- Ongoing games: last activity matters more than the timer window (full timing stays on hover) -->
 											<span class="flex items-center gap-1 text-gray-500 dark:text-gray-400">
 												<IconClockHistory class="text-[0.8em]" />
-												{shortDuration(
-													Math.max(
-														30,
-														Math.floor((Date.now() - new Date(game.lastMove ?? game.createdAt ?? "").getTime()) / 1000)
-													)
-												)}
-												ago
+												{lastActivity(game)} ago
 											</span>
 										{:else}
 											<IconClockHistory class="text-[0.8em]" />

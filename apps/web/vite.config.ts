@@ -17,7 +17,8 @@ const withPort = (hostPort: string, port: number) => {
 	const host = m?.[1] ?? hostPort;
 	const p = m?.[2];
 	const proto = p === "443" ? "https" : "http";
-	return `${proto}://${host.includes(":") ? `[${host}]` : host}:${p ?? port}`;
+	const needsBrackets = host.includes(":") && !host.startsWith("["); // bare IPv6 literal
+	return `${proto}://${needsBrackets ? `[${host}]` : host}:${p ?? port}`;
 };
 
 const backend = withPort(process.env.VITE_backend_api ?? process.env.VITE_backend ?? "127.0.0.1", 50801);
