@@ -9,7 +9,7 @@ import type { GameFront, UserFront } from "@bgs/models";
 // Card content for the /thumbnail/* pages, derived server-side from the db (via the API)
 // and the route params — never from the query string, so a share image can only ever
 // render real entity data. Each loader also returns the raw inputs so the matching
-// /share.png endpoint can build a content ETag from them (see share-image.server.ts).
+// /share.webp endpoint can build a content ETag from them (see share-image.server.ts).
 
 export interface OgCardData {
 	title: string;

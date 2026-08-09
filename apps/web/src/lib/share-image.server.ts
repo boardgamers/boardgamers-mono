@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import { error } from "@sveltejs/kit";
 import { chromium, type Browser } from "playwright";
+import sharp from "sharp";
 
-// Screenshot renderer for the route-driven OG share images (/share.png/<kind>/...). The
+// Screenshot renderer for the route-driven OG share images (/share.webp/<kind>/...). The
 // browser is shared across requests and renders are serialized through a one-slot queue
 // (a render is fast, and responses revalidate cheaply via ETag); failures just 503 —
 // pages fall back to no image rather than a broken preview.
@@ -35,13 +36,16 @@ async function getBrowser(): Promise<Browser> {
 	}
 }
 
-async function renderPng(origin: string, path: string): Promise<Buffer> {
+// Chromium's screenshot is PNG-only; the cards are a CSS gradient + logo + text, which
+// WebP compresses far better (~460KB PNG → ~40KB WebP at q80) with no visible loss.
+async function renderWebp(origin: string, path: string): Promise<Buffer> {
 	const b = await getBrowser();
 	const page = await b.newPage({ viewport: { width: 1200, height: 630 } });
 	try {
 		await page.goto(`${origin}${path}`, { waitUntil: "networkidle", timeout: 10_000 });
 		// Clip to the card exactly: any stray page margin must not leak into the image.
-		return await page.screenshot({ type: "png", timeout: 10_000, clip: { x: 0, y: 0, width: 1200, height: 630 } });
+		const png = await page.screenshot({ type: "png", timeout: 10_000, clip: { x: 0, y: 0, width: 1200, height: 630 } });
+		return await sharp(png).webp({ quality: 80 }).toBuffer();
 	} finally {
 		await page.close().catch(() => {});
 	}
@@ -71,13 +75,13 @@ export async function shareImageResponse(
 		return new Response(null, { status: 304, headers });
 	}
 
-	const render = queue.then(() => renderPng(origin, thumbnailPath));
+	const render = queue.then(() => renderWebp(origin, thumbnailPath));
 	queue = render.catch(() => {});
 
 	try {
-		const png = await render;
-		return new Response(new Uint8Array(png), {
-			headers: { ...headers, "Content-Type": "image/png" },
+		const webp = await render;
+		return new Response(new Uint8Array(webp), {
+			headers: { ...headers, "Content-Type": "image/webp" },
 		});
 	} catch (err) {
 		console.error("share image render failed", err);

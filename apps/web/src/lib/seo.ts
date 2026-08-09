@@ -5,9 +5,9 @@ export const siteName = "Boardgamers";
 export const defaultDescription =
 	"Play Gaia Project, 6nimmt, Powergrid and Container online. All games and the platform are open source!";
 
-// Rendered at request time by /share.png/* (route-driven; card text comes from the db,
+// Rendered at request time by /share.webp/* (route-driven; card text comes from the db,
 // never the query string, so share images can't be abused to host arbitrary text).
-export const defaultOgImage = { path: "/share.png", width: 1200, height: 630 };
+export const defaultOgImage = { path: "/share.webp", width: 1200, height: 630 };
 
 export function absoluteUrl(origin: string, pathOrUrl: string): string {
 	return pathOrUrl.startsWith("http") ? pathOrUrl : `${origin}${pathOrUrl}`;
@@ -39,7 +39,7 @@ export type ShareImageTarget =
 
 /**
  * Route-based OG share-image URL. The card content is derived server-side from the
- * entity in the db (see /thumbnail/* and /share.png/*), so callers only name the entity —
+ * entity in the db (see /thumbnail/* and /share.webp/*), so callers only name the entity —
  * they can't inject arbitrary text into a branded thumbnail.
  */
 export function shareImageUrl(target: ShareImageTarget): string {
