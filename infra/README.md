@@ -33,8 +33,8 @@ Every vhost that proxies `/api` (web, admin, resources, previews) must set
 missing while the host is public, the api now sets the cookie WITHOUT the Secure
 attribute instead of throwing "Cannot send secure cookie over unencrypted
 connection" (the admin-login prod bug) — the cookie is only Secure when the
-connection is actually seen as https. The preview
-vhosts (`infra/pr-preview/coyo-pr-preview.nginx.conf`) already do this.
+connection is actually seen as https. The preview vhosts
+(`infra/pr-preview/coyo-pr-preview.nginx.conf`) already do this.
 
 SSL certs managed by Certbot (Let's Encrypt), auto-renewed.
 
