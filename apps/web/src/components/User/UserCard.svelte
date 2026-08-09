@@ -45,8 +45,9 @@
 		<UserAvatar {username} {userId} size="3rem" />
 		<div class="min-w-0">
 			<div class="truncate font-semibold">{username}</div>
-			<a href={resolve("/(app)/user/[username]", { username })} class="text-sm text-primary hover:underline"
-				>View profile</a
+			<a
+				href={resolve("/(app)/user/[username]", { username })}
+				class="text-sm text-primary hover:underline dark:text-primary-lighter">View profile</a
 			>
 		</div>
 	</div>
@@ -55,13 +56,13 @@
 	<div class="p-4">
 		<div class="flex items-start gap-3">
 			<UserAvatar username={user.account.username} userId={user._id ?? userId} size="3rem" class="shrink-0" />
-			<div class="min-w-0">
-				<div class="truncate font-semibold">{user.account.username}</div>
-				<div class="text-sm text-gray-500 dark:text-gray-400">
+			<div class="min-w-0 space-y-0.5">
+				<div class="truncate text-base font-semibold leading-snug">{user.account.username}</div>
+				<div class="text-sm leading-snug text-gray-500 dark:text-gray-400">
 					☯️ {user.account.karma} karma
 				</div>
 				{#if user.account.country}
-					<div class="text-sm text-gray-500 dark:text-gray-400">
+					<div class="text-sm leading-snug text-gray-500 dark:text-gray-400">
 						{countryFlag(user.account.country)}
 						{countryName(user.account.country)}
 					</div>
@@ -69,10 +70,10 @@
 			</div>
 		</div>
 		{#if user.account.bio}
-			<p class="mt-2 line-clamp-2 text-sm text-gray-700 dark:text-gray-300">{user.account.bio}</p>
+			<p class="mt-2.5 line-clamp-2 text-sm leading-snug text-gray-700 dark:text-gray-300">{user.account.bio}</p>
 		{/if}
 		{#if eloRatings.length > 0}
-			<div class="mt-2 flex flex-wrap gap-1">
+			<div class="mt-2.5 flex flex-wrap gap-1.5">
 				{#each eloRatings as pref (pref.game)}
 					<span
 						class="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary dark:bg-primary/20 dark:text-primary-lighter"
@@ -82,8 +83,11 @@
 				{/each}
 			</div>
 		{/if}
-		<div class="mt-3 flex items-center justify-between border-t border-gray-200 pt-2 dark:border-gray-700">
-			<a href={resolve("/(app)/user/[username]", { username })} class="text-sm text-primary hover:underline">
+		<div class="mt-3 flex items-center justify-between border-t border-gray-200 pt-2.5 dark:border-gray-700">
+			<a
+				href={resolve("/(app)/user/[username]", { username })}
+				class="text-sm font-medium text-primary hover:underline dark:text-primary-lighter"
+			>
 				View profile →
 			</a>
 			{#if isSelf}
