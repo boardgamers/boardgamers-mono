@@ -4,10 +4,9 @@ import { shareImageEtag, shareImageResponse } from "@/lib/share-image.server";
 
 // User share image: card content (and ETag) comes from the public user doc — username,
 // bio, karma. A karma/bio change re-renders on revalidation; nothing else does.
-export const GET: RequestHandler = async ({ params, url, request }) => {
+export const GET: RequestHandler = async ({ params, request }) => {
 	const { etagData } = await loadUserCard(params.username);
 	return shareImageResponse(
-		url.origin,
 		`/thumbnail/user/${encodeURIComponent(params.username)}`,
 		shareImageEtag(etagData),
 		request.headers.get("if-none-match"),

@@ -11,5 +11,13 @@ export const load: PageLoad = async () => {
 		loadGames({ gameStatus: "open", boardgameId, store: true }),
 	]);
 
-	return { featured, lobby, boardgameId };
+	return {
+		featured,
+		lobby,
+		boardgameId,
+		seo: {
+			title: "All games",
+			description: `${featured.total} ongoing games and ${lobby.total} open games. Join one or create your own!`,
+		},
+	};
 };

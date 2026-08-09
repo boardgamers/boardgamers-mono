@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { fade } from "svelte/transition";
-	import { GameList, SEO } from "@/components";
+	import { GameList } from "@/components";
 	import { Nav, NavItem, NavLink, Input } from "@/modules/cdk";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
@@ -41,11 +41,6 @@
 		applySearch(searchInput);
 	});
 </script>
-
-<SEO
-	title="All games"
-	description={`${featuredCount.total} ongoing games and ${lobbyCount.total} open games. Join one or create your own!`}
-/>
 
 <div class="container mx-auto px-4">
 	<div class="flex flex-wrap items-center gap-3">

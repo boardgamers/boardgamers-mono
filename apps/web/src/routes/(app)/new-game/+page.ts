@@ -5,5 +5,11 @@ export const load: PageLoad = async () => {
 	// Store-cached: browser returns the cached store when present (no refetch), else fetches
 	// and populates the store; SSR fetches and returns (no store write). Returned so the page
 	// can provide it via context for SSR ownership styling.
-	return { gamePreferences: await getAllGamePreferences() };
+	return {
+		gamePreferences: await getAllGamePreferences(),
+		seo: {
+			title: "Choose which game to play",
+			description: "Play a boardgame of your choice online with other people!",
+		},
+	};
 };

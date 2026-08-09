@@ -1,9 +1,11 @@
 import type { PageLoad } from "./$types";
 import { loadGames, clearGamesCache } from "@/lib/games.svelte";
 import { loadEloRankings } from "@/lib/elo-rankings.svelte";
+import { shareImageUrl, stripMarkdown, truncate } from "@/lib/seo";
+import { gameLabel } from "@/utils/game-label";
 
 export const load: PageLoad = async ({ params, parent }) => {
-	const { user } = await parent();
+	const { user, gameInfo } = await parent();
 
 	// Clear stale cache from previous navigation so GameList components always
 	// see fresh data from this page's pre-fetched results.
@@ -48,5 +50,17 @@ export const load: PageLoad = async ({ params, parent }) => {
 		}
 	}
 
-	return { rankings, myGamesStatus: myGamesFallback };
+	return {
+		rankings,
+		myGamesStatus: myGamesFallback,
+		seo: {
+			title: gameLabel(gameInfo?.label ?? boardgameId),
+			description: truncate(
+				stripMarkdown(gameInfo?.description ?? "") ||
+					`Play ${gameLabel(gameInfo?.label ?? boardgameId)} online with other people!`,
+				200,
+			),
+			image: shareImageUrl({ kind: "boardgame", id: boardgameId }),
+		},
+	};
 };

@@ -9,5 +9,5 @@ export const load: PageServerLoad = async ({ parent, url }) => {
 		throw redirect(302, redirectLoggedIn(url));
 	}
 
-	return {};
+	return { seo: { title: "Account settings", noindex: true } };
 };

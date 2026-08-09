@@ -7,7 +7,6 @@
 	import { useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
 	import type { IterableElement } from "type-fest";
-	import { SEO } from "@/components";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -37,8 +36,6 @@
 		return;
 	};
 </script>
-
-<SEO title="Choose which game to play" description="Play a boardgame of your choice online with other people!" />
 
 <div class="container mx-auto px-4">
 	<h1 class="mb-4">Choose which game to play</h1>

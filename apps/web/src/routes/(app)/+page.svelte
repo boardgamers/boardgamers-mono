@@ -2,13 +2,12 @@
 	import { resolve } from "$app/paths";
 	import type { Pathname } from "$app/types";
 	import SanitizedHtml from "@/components/SanitizedHtml.svelte";
-	import { SEO, GameListSidebar } from "@/components";
+	import { GameListSidebar } from "@/components";
 	import { Button } from "@/modules/cdk";
 	import marked from "marked";
 	import GameList from "@/components/Game/GameList.svelte";
 	import { account } from "@/lib/account.svelte";
 	import { activeGames, live } from "@/lib/stores.svelte";
-	import { shareImageUrl } from "@/lib/seo";
 	import { page } from "$app/state";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
@@ -32,12 +31,6 @@
 		})
 	);
 </script>
-
-<SEO
-	title="Boardgamers — play boardgames online"
-	description="Play Gaia Project, Powergrid, 6nimmt and Container online with other people, live or asynchronously. All games and the platform are open source!"
-	image={shareImageUrl({ kind: "home" })}
-/>
 
 <svelte:head>
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -- JSON-LD is built from static strings, no user input. -->

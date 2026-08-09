@@ -34,10 +34,6 @@
 	import { goto } from "$app/navigation";
 	import { loginRedirectQuery } from "@/utils/redirect";
 	import { page } from "$app/state";
-	import SEO from "../SEO.svelte";
-	import removeMarkdown from "remove-markdown";
-	import { gameLabel } from "@/utils/game-label";
-	import { shareImageUrl } from "@/lib/seo";
 	import type { UserFront } from "@bgs/models";
 	import type { JsonObject, JsonValue } from "type-fest";
 	import { debounce } from "lodash";
@@ -191,30 +187,6 @@
 		updateGameWatcher();
 	});
 </script>
-
-<SEO
-	noindex
-	title="{gameLabel(context.gameInfo?.label ?? '')} game {gameId}"
-	description="{context.game?.players.length} / {context.game?.options.setup.nbPlayers} players. Timer of {duration(
-		context.game?.options.timing.timePerGame ?? 0
-	)} per player, with an additional {duration(context.game?.options.timing.timePerMove ?? 0)} per move.
-{(context.game?.game.expansions?.length ?? 0) > 0 &&
-		`
-      Expansions: ${context.game?.game.expansions.join(',')}\\n`}
-{(context.gameInfo?.options ?? [])
-		.filter((x) => !!gameOptions(context.game)[x.name])
-		.map((pref) =>
-			pref.type === 'checkbox'
-				? pref.label
-				: pref.type === 'select' && pref.items
-					? pref.label + ': ' + pref.items.find((x) => x.name === gameOptions(context.game)[pref.name])?.label
-					: ''
-		)
-		.filter(Boolean)
-		.map((str) => `- ${removeMarkdown(str)}`)
-		.join('\\n')}"
-	image={shareImageUrl({ kind: "game", id: gameId ?? "" })}
-/>
 
 <div class="container mx-auto px-4 pb-3">
 	<!-- Title: boardgame link (breadcrumb-style) + status -->
