@@ -29,9 +29,11 @@ Nginx (root) fronts all public traffic. Prod is **full IPv6**: app processes bin
 Every vhost that proxies `/api` (web, admin, resources, previews) must set
 `proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto $scheme;` (and
 `X-Forwarded-For`). The api (`app.proxy = true`) decides the session cookie's
-`secure`/`domain` from `X-Forwarded-Host` / `X-Forwarded-Proto`, and Koa throws
-"Cannot send secure cookie over unencrypted connection" on login when the proto is
-missing while the host is public — this was the admin-login prod bug. The preview
+`secure`/`domain` from `X-Forwarded-Host` / `X-Forwarded-Proto`. When the proto is
+missing while the host is public, the api now sets the cookie WITHOUT the Secure
+attribute instead of throwing "Cannot send secure cookie over unencrypted
+connection" (the admin-login prod bug) — the cookie is only Secure when the
+connection is actually seen as https. The preview
 vhosts (`infra/pr-preview/coyo-pr-preview.nginx.conf`) already do this.
 
 SSL certs managed by Certbot (Let's Encrypt), auto-renewed.

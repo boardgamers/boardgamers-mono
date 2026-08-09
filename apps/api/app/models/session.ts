@@ -42,11 +42,19 @@ function isLocalhost(ctx: Context): boolean {
 export function setRefreshCookie(ctx: Context, code: string) {
 	const expiresAt = Date.now() + refreshTokenDuration();
 	const value = JSON.stringify({ code, expiresAt });
+
 	const local = isLocalhost(ctx);
+	// Never ask for Secure over a perceived-plain-http connection: the cookies lib
+	// throws "Cannot send secure cookie over unencrypted connection" (a 500) when
+	// `secure` is set but ctx.secure is false. ctx.secure tracks X-Forwarded-Proto
+	// (app.proxy = true), so genuine https traffic still gets the Secure attribute;
+	// requests that reach the api without the https indicator (a proxy hop dropping
+	// X-Forwarded-Proto, internal/direct calls) get the cookie without it instead of
+	// an error. Over real https nothing changes.
 	ctx.cookies.set(SESSION_COOKIE, value, {
 		httpOnly: true,
 		expires: new Date(expiresAt),
-		secure: !local,
+		secure: !local && ctx.secure,
 		sameSite: true,
 		domain: local ? undefined : env.domain,
 	});

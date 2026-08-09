@@ -195,11 +195,10 @@ describe("Account API — avatar upload", () => {
 describe("Account API — session cookie over a TLS-terminating proxy", () => {
 	// The api sits behind nginx (app.proxy = true) and decides the session cookie's
 	// `secure`/`domain` from X-Forwarded-Host / X-Forwarded-Proto. Regression test for
-	// the admin-panel login failure "Cannot send secure cookie over unencrypted
-	// connection": when the reverse proxy forwards the real (https) proto, setting the
-	// Secure session cookie must succeed; when the proto is missing, the request is
-	// (correctly) seen as plain http and must fail loudly rather than silently issuing
-	// a cookie the browser would reject.
+	// the prod 500 "Cannot send secure cookie over unencrypted connection": when the
+	// reverse proxy forwards the real (https) proto, setting the Secure session cookie
+	// must succeed; when the proto is missing, the request is seen as plain http and
+	// the cookie is set WITHOUT the Secure attribute rather than throwing.
 	const password = "hunter2-test";
 	let email = "";
 
@@ -278,14 +277,40 @@ describe("Account API — session cookie over a TLS-terminating proxy", () => {
 		assert.strictEqual(clears.length, 1, `expected a single forum-cookie clear, got: ${clears.join(" | ")}`);
 	});
 
-	it("login over perceived plain http fails loudly (the reported 500)", async () => {
+	it("login over perceived plain http succeeds with a non-Secure cookie (no more 500)", async () => {
 		const res = await fetch(`${baseURL()}/api/account/login`, {
 			method: "POST",
 			// No X-Forwarded-Proto: the api sees an insecure connection for a public host.
 			headers: { "Content-Type": "application/json", "X-Forwarded-Host": `admin.${env.domain}` },
 			body: JSON.stringify({ email, password }),
 		});
-		assert.strictEqual(res.status, 500);
+		assert.strictEqual(res.status, 200);
+		const setCookie = res.headers.get("set-cookie") ?? "";
+		assert.match(setCookie, /refreshToken=/);
+		assert.doesNotMatch(setCookie, /;\s*secure/i);
+	});
+
+	it("a mutating cookie-authed call over perceived plain http slides the session without throwing", async () => {
+		// Covers the app.ts:151 sliding-session path from the prod stack trace: the
+		// cookie middleware re-sets the refresh cookie on mutating requests.
+		const login = await fetch(`${baseURL()}/api/account/login`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json", ...proxyHeaders },
+			body: JSON.stringify({ email, password }),
+		});
+		const session = (login.headers.getSetCookie().find((c) => c.startsWith("refreshToken=")) ?? "").split(";")[0];
+		assert.ok(session, "login must set the session cookie");
+
+		const res = await fetch(`${baseURL()}/api/account/mint`, {
+			method: "POST",
+			// Session cookie, but no X-Forwarded-Proto → ctx.secure === false on a public host.
+			headers: { "Content-Type": "application/json", cookie: session, "X-Forwarded-Host": `admin.${env.domain}` },
+			body: JSON.stringify({ scopes: ["all"] }),
+		});
+		assert.strictEqual(res.status, 200);
+		const slid = res.headers.getSetCookie().find((c) => c.startsWith("refreshToken=")) ?? "";
+		assert.ok(slid, "the sliding session must re-set the refresh cookie");
+		assert.doesNotMatch(slid, /;\s*secure/i);
 	});
 
 	after(() => db().dropDatabase());

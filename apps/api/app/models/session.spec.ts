@@ -25,7 +25,11 @@ function domainCovers(domain: string, host: string) {
 }
 
 /** Run one request through the real Koa cookie pipeline (app.proxy, X-Forwarded-*) and return Set-Cookie headers. */
-async function setCookies(host: string, set: (ctx: InstanceType<Koa.Context>) => void): Promise<string[]> {
+async function setCookies(
+	host: string,
+	set: (ctx: InstanceType<Koa.Context>) => void,
+	proto = "https",
+): Promise<string[]> {
 	const app = new Koa();
 	app.proxy = true; // as apps/api/app/app.ts — hostname/proto come from X-Forwarded-*
 	app.keys = ["test-secret"];
@@ -40,7 +44,7 @@ async function setCookies(host: string, set: (ctx: InstanceType<Koa.Context>) =>
 	const port = typeof addr === "object" && addr ? addr.port : 0;
 	try {
 		const res = await fetch(`http://127.0.0.1:${port}/`, {
-			headers: { "x-forwarded-host": host, "x-forwarded-proto": "https" },
+			headers: { "x-forwarded-host": host, "x-forwarded-proto": proto },
 		});
 		assert.strictEqual(res.status, 200);
 		return res.headers.getSetCookie();
@@ -55,6 +59,7 @@ const cookieNamed = (cookies: string[], name: string) => {
 	return cookie;
 };
 const domainAttr = (cookie: string) => /;\s*domain=([^;]+)/i.exec(cookie)?.[1] ?? null;
+const hasSecureAttr = (cookie: string) => /;\s*secure(;|$)/i.test(cookie);
 
 describe("session cookie — Domain attribute (api emits env.domain; the preview proxy scopes it host-only)", () => {
 	it("emits Domain=env.domain, which covers the player preview host but NOT the sibling admin host", async () => {
@@ -82,6 +87,11 @@ describe("session cookie — Domain attribute (api emits env.domain; the preview
 		assert.strictEqual(domainAttr(cookieNamed(cookies, SESSION_COOKIE)), null);
 	});
 
+	it("localhost requests never get the Secure attribute (dev runs plain http)", async () => {
+		const cookies = await setCookies("localhost", (ctx) => setRefreshCookie(ctx, "code-123"));
+		assert.strictEqual(hasSecureAttr(cookieNamed(cookies, SESSION_COOKIE)), false);
+	});
+
 	it("the host-only invariant: a cookie must never carry the shared boardgamers.space ancestor on previews", () => {
 		// What the proxy rewrite achieves: after `proxy_cookie_domain … $host`, the stored
 		// cookie's Domain equals the request host, so it is host-only and scoped to exactly
@@ -104,6 +114,26 @@ describe("session cookie — Domain attribute (api emits env.domain; the preview
 			domainCovers(PROD_DOMAIN, "www.boardgamers.space"),
 			"this is exactly the prod-namespace pollution we avoid",
 		);
+	});
+});
+
+describe("session cookie — Secure attribute tracks the connection, never throws", () => {
+	// Regression guard for the prod 500 "Cannot send secure cookie over unencrypted
+	// connection": the cookies lib throws when `secure` is requested on a connection
+	// Koa sees as plain http (ctx.secure === false). That happens for requests that
+	// reach the api without the https indicator (a proxy hop dropping
+	// X-Forwarded-Proto, internal/direct calls). The cookie must then be set WITHOUT
+	// Secure instead of erroring; genuine https traffic keeps the attribute.
+	it("https request (X-Forwarded-Proto: https) → Secure attribute set", async () => {
+		const cookies = await setCookies(PREVIEW_PR, (ctx) => setRefreshCookie(ctx, "code-123"), "https");
+		assert.strictEqual(hasSecureAttr(cookieNamed(cookies, SESSION_COOKIE)), true);
+	});
+
+	it("plain-http request (X-Forwarded-Proto: http) → no Secure attribute, no throw", async () => {
+		// setCookies asserts status 200 — pre-fix this request threw inside cookies.set
+		// and Koa answered 500.
+		const cookies = await setCookies(PREVIEW_PR, (ctx) => setRefreshCookie(ctx, "code-123"), "http");
+		assert.strictEqual(hasSecureAttr(cookieNamed(cookies, SESSION_COOKIE)), false);
 	});
 });
 
