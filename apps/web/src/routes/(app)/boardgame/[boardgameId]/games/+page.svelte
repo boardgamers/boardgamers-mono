@@ -1,31 +1,18 @@
 <!-- This file is copied from ../../games/index.svelte-->
 <script lang="ts">
 	import { fade } from "svelte/transition";
-	import { GameList, SEO } from "@/components";
+	import { GameList } from "@/components";
 	import { Nav, NavItem, NavLink } from "@/modules/cdk";
-	import { useGameInfo } from "@/lib/game-info.svelte";
-	import { gameLabel } from "@/utils/game-label";
+	import { untrack } from "svelte";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
 
-	// boardgameId never changes on this page (per-boardgame route), so a one-shot read is fine.
-	// svelte-ignore state_referenced_locally
-	const gameInfo = useGameInfo(data.boardgameId, "latest");
-
-	import { untrack } from "svelte";
 	// One-shot init from SSR data — firstTab is a user-toggled local state
 	let firstTab = $state(untrack(() => data.firstTab));
 
 	let animating = $state(false);
-	let featuredCount = $derived(data.featured?.games ?? []);
-	let lobbyCount = $derived(data.lobby?.total ?? 0);
 </script>
-
-<SEO
-	title={`${gameLabel(gameInfo?.label ?? data.boardgameId)} games`}
-	description={`${featuredCount.length} ongoing games and ${lobbyCount} open games of ${gameLabel(gameInfo?.label ?? data.boardgameId)}.`}
-/>
 
 <div class="container mx-auto px-4">
 	<Nav pills>

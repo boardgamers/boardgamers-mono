@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { UserGames, UserElo, SEO, UserAvatar } from "@/components";
+	import { UserGames, UserElo, UserAvatar } from "@/components";
 	import { Button, Card } from "@/modules/cdk";
 	import { dateFromObjectId } from "@/utils";
 	import { countryFlag, countryName } from "@/lib/countries";
-	import { shareImageUrl } from "@/lib/seo";
 	import { page } from "$app/state";
 	import { resolve } from "$app/paths";
 	import type { PageProps } from "./$types";
@@ -14,16 +13,6 @@
 	let userId = $derived(data.user._id!);
 	let joinDate = $derived(dateFromObjectId(userId));
 </script>
-
-<SEO
-	title={`${username}'s profile`}
-	description={data.user.account.bio ||
-		`${username} joined in ${dateFromObjectId(userId).toLocaleString("en", {
-			month: "long",
-		})} ${dateFromObjectId(userId).toLocaleString("en", { year: "numeric" })} and has ${data.user.account.karma} karma.`}
-	image={shareImageUrl({ kind: "user", id: username })}
-	type="profile"
-/>
 
 <div class="container mx-auto px-4">
 	<div class="flex flex-col gap-2 md:flex-row">

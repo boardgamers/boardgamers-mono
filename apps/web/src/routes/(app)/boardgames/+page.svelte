@@ -5,7 +5,6 @@
 	import ExpandableMarkdown from "@/components/ExpandableMarkdown.svelte";
 	import { useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
-	import { SEO } from "@/components";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -25,11 +24,6 @@
 		return !!($gamePreferences[gameId] ?? ssrPreferences()?.[gameId])?.access?.ownership;
 	}
 </script>
-
-<SEO
-	title="Boardgames"
-	description="Choose a boardgame and play it online with other people: Gaia Project, Powergrid, 6nimmt, Container and more."
-/>
 
 <div class="container mx-auto px-4">
 	<h1 class="mb-4">Game selection</h1>

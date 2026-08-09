@@ -1,22 +1,9 @@
 <script lang="ts">
-	import { BoardgameElo, SEO } from "@/components";
-	import { useGameInfo } from "@/lib/game-info.svelte";
-	import { gameLabel } from "@/utils/game-label";
+	import { BoardgameElo } from "@/components";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
-
-	// boardgameId never changes on this page (per-boardgame route), so a one-shot read is fine.
-	// svelte-ignore state_referenced_locally
-	const gameInfo = useGameInfo(data.boardgameId, "latest");
 </script>
-
-<SEO
-	title={`${gameLabel(gameInfo?.label ?? data.boardgameId)} rankings`}
-	description={data.rankings.rankings.length > 0
-		? data.rankings.rankings.map((x, i) => `${data.skip + i + 1}° ${x.user.name} (${x.elo.value} elo)`).join("\n")
-		: `Top ${gameLabel(gameInfo?.label ?? data.boardgameId)} players on Boardgamers.`}
-/>
 
 <div class="container mx-auto px-4">
 	<h1>Rankings</h1>
