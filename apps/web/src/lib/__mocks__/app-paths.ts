@@ -6,7 +6,9 @@ const routes: Record<string, string> = {
 	"/(app)/login": "/login",
 };
 
-export function resolve(id: string): string {
+// Matches the real resolve() shape (accepts optional route params, ignored here).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- params part of the real signature
+export function resolve(id: string, _params?: Record<string, string>): string {
 	return routes[id] ?? id;
 }
 export const base = "";

@@ -29,7 +29,6 @@ export function safeRedirectTarget(target: string | null | undefined): string | 
 	if (!target || !target.startsWith("/") || target.startsWith("//") || target.includes("\\")) {
 		return null;
 	}
-	// eslint-disable-next-line no-control-regex -- intentionally matching control chars to reject them
 	return /[\x00-\x1f\x7f]/.test(target) ? null : target;
 }
 

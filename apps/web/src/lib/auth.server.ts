@@ -38,21 +38,27 @@ export function forwardSessionCookies(event: RequestEvent, response: Response) {
 		const opts: Parameters<typeof event.cookies.set>[2] = { path: "/", secure };
 		for (const attr of attrs) {
 			const [key, val] = attr.split("=");
+			const value = val?.trim(); // valueless attribute (e.g. a bare "SameSite") → undefined
 			switch (key.toLowerCase()) {
 				case "path":
-					opts.path = val;
+					if (value) opts.path = value;
 					break;
 				case "expires":
-					opts.expires = new Date(val);
+					if (value) {
+						const date = new Date(value);
+						if (!Number.isNaN(date.getTime())) opts.expires = date;
+					}
 					break;
-				case "max-age":
-					opts.maxAge = Number(val);
+				case "max-age": {
+					const maxAge = Number(value);
+					if (value !== undefined && !Number.isNaN(maxAge)) opts.maxAge = maxAge;
 					break;
+				}
 				case "httponly":
 					opts.httpOnly = true;
 					break;
 				case "samesite":
-					opts.sameSite = val.toLowerCase() as "lax" | "strict" | "none";
+					if (value) opts.sameSite = value.toLowerCase() as "lax" | "strict" | "none";
 					break;
 				case "domain": {
 					// Forward the API's Domain only if it covers the host the browser is
@@ -61,7 +67,7 @@ export function forwardSessionCookies(event: RequestEvent, response: Response) {
 					// preview host itself (or a sibling for the admin host, where nginx's
 					// proxy_cookie_domain rewrite doesn't reach form-action responses), so
 					// fall back to host-only when it doesn't cover us.
-					const domain = val?.replace(/^\./, "");
+					const domain = value?.replace(/^\./, "");
 					if (domain && (event.url.hostname === domain || event.url.hostname.endsWith(`.${domain}`))) {
 						opts.domain = domain;
 					}
