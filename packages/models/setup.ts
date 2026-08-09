@@ -47,16 +47,23 @@ export async function ensureIndexes(db: Db) {
 	// throw "ns does not exist".
 	const collectionExists = (await db.listCollections({ name: JWT_REFRESH_TOKENS_COLLECTION }).toArray()).length > 0;
 	if (collectionExists) {
-		try {
-			await db.collection(JWT_REFRESH_TOKENS_COLLECTION).dropIndex("code_1");
-		} catch (err) {
-			// Tolerate only "index not found" (codeName IndexNotFound, code 27): the index
-			// is already gone — never existed, or a sibling api/cron process dropped it
-			// first (PM2 starts several at once). Any other failure (permissions,
-			// transient) leaves the legacy index in place and must fail startup loudly.
-			const code = (err as { code?: number })?.code;
-			if (code !== 27) {
-				throw err;
+		const refreshTokens = db.collection(JWT_REFRESH_TOKENS_COLLECTION);
+		// Only drop the legacy NON-sparse code_1. Once it's been recreated sparse, leave
+		// it alone — re-dropping every boot would churn the index and briefly remove the
+		// legacy-lookup index. (indexes() throws "ns does not exist" if the collection
+		// has no indexes yet, but collectionExists covers that.)
+		const codeIndex = (await refreshTokens.indexes()).find((index) => index.name === "code_1");
+		if (codeIndex && codeIndex.sparse !== true) {
+			try {
+				await refreshTokens.dropIndex("code_1");
+			} catch (err) {
+				// Tolerate only "index not found" (code 27): a sibling api/cron process
+				// dropped it first (PM2 starts several at once). Any other failure leaves
+				// the legacy index in place and must fail startup loudly.
+				const code = (err as { code?: number })?.code;
+				if (code !== 27) {
+					throw err;
+				}
 			}
 		}
 	}
