@@ -20,10 +20,16 @@
 		description?: string;
 		players?: string;
 		pace?: string;
-		/** Username on user cards — renders a monogram avatar derived from it. */
+		/** Username on user cards — fallback monogram if no avatar image. */
 		username?: string;
 		/** Karma chip on user cards. */
 		karma?: string;
+		/** User card: inlined avatar image (data URL); falls back to the username monogram. */
+		avatar?: string;
+		/** User card: "🇫🇷 France" chip. */
+		country?: string;
+		/** User card: top boardgame by games played, with elo. */
+		topGame?: string;
 	}
 
 	let {
@@ -35,6 +41,9 @@
 		pace = "",
 		username = "",
 		karma = "",
+		avatar = "",
+		country = "",
+		topGame = "",
 	}: Props = $props();
 
 	const background = `radial-gradient(ellipse 700px 520px at 96% -12%, ${colors.accent}a6 0%, transparent 58%),
@@ -101,7 +110,7 @@
 					{description}
 				</div>
 			{/if}
-			{#if players || pace || karma}
+			{#if players || pace || karma || country || topGame}
 				<div style="display: flex; align-items: center; gap: 16px;">
 					{#if players}
 						<div
@@ -124,6 +133,20 @@
 							{karma}
 						</div>
 					{/if}
+					{#if country}
+						<div
+							style="font-size: 26px; font-weight: 600; color: #e7f3ff; border: 2px solid rgba(255,255,255,0.4); border-radius: 999px; padding: 9px 24px; text-shadow: 0 1px 4px rgba(9, 42, 77, 0.5);"
+						>
+							{country}
+						</div>
+					{/if}
+					{#if topGame}
+						<div
+							style="font-size: 26px; font-weight: 600; color: #e7f3ff; border: 2px solid rgba(255,255,255,0.4); border-radius: 999px; padding: 9px 24px; text-shadow: 0 1px 4px rgba(9, 42, 77, 0.5);"
+						>
+							{topGame}
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>
@@ -136,12 +159,22 @@
 				{monogram}
 			</div>
 		{:else if username}
-			<!-- User avatar placeholder: username monogram (avatar style/id are not public data) -->
-			<div
-				style="position: absolute; top: 96px; right: 96px; width: 210px; height: 210px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 100px; font-weight: 800; color: #ffffff; box-sizing: border-box; background: linear-gradient(140deg, {colors.primaryLighter} 0%, {colors.primary} 100%); border: 2px solid rgba(255,255,255,0.28); box-shadow: 0 14px 44px rgba(9, 42, 77, 0.5);"
-			>
-				{userMonogram}
-			</div>
+			<!-- Real avatar (inlined data URL) when available; otherwise the username monogram. -->
+			{#if avatar}
+				<img
+					src={avatar}
+					width="210"
+					height="210"
+					alt=""
+					style="position: absolute; top: 96px; right: 96px; width: 210px; height: 210px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.28); box-shadow: 0 14px 44px rgba(9, 42, 77, 0.5);"
+				/>
+			{:else}
+				<div
+					style="position: absolute; top: 96px; right: 96px; width: 210px; height: 210px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 100px; font-weight: 800; color: #ffffff; box-sizing: border-box; background: linear-gradient(140deg, {colors.primaryLighter} 0%, {colors.primary} 100%); border: 2px solid rgba(255,255,255,0.28); box-shadow: 0 14px 44px rgba(9, 42, 77, 0.5);"
+				>
+					{userMonogram}
+				</div>
+			{/if}
 		{/if}
 
 		<div style="display: flex; align-items: center; gap: 20px;">

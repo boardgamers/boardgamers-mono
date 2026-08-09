@@ -4,7 +4,7 @@ import { chromium, type Browser } from "playwright";
 import sharp from "sharp";
 
 // Screenshot renderer for the route-driven OG share images (/share.webp/<kind>/...). The
-// browser is shared across requests and renders are serialized through a one-slot queue
+// browser is shared across requests and renders are bounded to 2 concurrent
 // (a render is fast, and responses revalidate cheaply via ETag); failures just 503 —
 // pages fall back to no image rather than a broken preview.
 //
@@ -13,7 +13,28 @@ import sharp from "sharp";
 // given same-origin URLs (our own /thumbnail cards), so the sandbox buys nothing here.
 let browser: Browser | null = null;
 let browserLaunch: Promise<Browser> | null = null;
-let queue: Promise<unknown> = Promise.resolve();
+// At most CONCURRENCY renders run at once — a screenshot is mostly waiting on Chromium,
+// so 2 lanes overlap nicely, but we stay bounded to avoid resource spikes on the
+// (small) preview container. A tiny semaphore: each render takes a permit, releases on
+// done; waiters queue on the next free permit.
+const CONCURRENCY = 2;
+let free = CONCURRENCY;
+const waiters: Array<() => void> = [];
+function acquire(): Promise<void> {
+	if (free > 0) {
+		free--;
+		return Promise.resolve();
+	}
+	return new Promise((resolve) => waiters.push(resolve));
+}
+function release(): void {
+	const next = waiters.shift();
+	if (next) {
+		next();
+	} else {
+		free++;
+	}
+}
 
 async function getBrowser(): Promise<Browser> {
 	if (browser?.isConnected()) {
@@ -75,16 +96,20 @@ export async function shareImageResponse(
 		return new Response(null, { status: 304, headers });
 	}
 
-	const render = queue.then(() => renderWebp(origin, thumbnailPath));
-	queue = render.catch(() => {});
-
+	let webp: Buffer;
 	try {
-		const webp = await render;
-		return new Response(new Uint8Array(webp), {
-			headers: { ...headers, "Content-Type": "image/webp" },
-		});
+		await acquire();
+		try {
+			webp = await renderWebp(origin, thumbnailPath);
+		} finally {
+			release();
+		}
 	} catch (err) {
 		console.error("share image render failed", err);
 		throw error(503, "Share image unavailable");
 	}
+
+	return new Response(new Uint8Array(webp), {
+		headers: { ...headers, "Content-Type": "image/webp" },
+	});
 }

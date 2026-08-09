@@ -2,12 +2,14 @@
 	{
 		"_id": "604508365769e01a781f9538",
 		"account": {
-			"karma": 75,
+			"karma": 128,
 			"email": "admin@test.com",
 			"username": "admin",
 			"avatar": "bottts",
 			"termsAndConditions": "2021-03-07T17:07:02.202Z",
-			"password": "$2a$08$Sks1Maugi8qImAVMrv6K/ew6iNKKsyowG0ZC4ZL5LfNlt7MD3nDpW"
+			"password": "$2a$08$Sks1Maugi8qImAVMrv6K/ew6iNKKsyowG0ZC4ZL5LfNlt7MD3nDpW",
+			"bio": "Boardgame addict. Gaia Project main — see you in the lobby! 🎲",
+			"country": "fr"
 		},
 		"settings": {
 			"mailing": {
@@ -35,12 +37,14 @@
 	{
 		"_id": "6045084f9e8a692e38661f5a",
 		"account": {
-			"karma": 75,
+			"karma": 42,
 			"email": "user@test.com",
 			"username": "user",
 			"avatar": "avataaars",
 			"termsAndConditions": "2021-03-07T17:07:27.300Z",
-			"password": "$2a$08$yEfkAXKAA7UMaj8vASckb.1u2/D/lSVy6OZf89Y6cTMPixcVi7G5i"
+			"password": "$2a$08$yEfkAXKAA7UMaj8vASckb.1u2/D/lSVy6OZf89Y6cTMPixcVi7G5i",
+			"bio": "Here for Powergrid and long asynchronous games.",
+			"country": "de"
 		},
 		"settings": {
 			"mailing": {
@@ -67,12 +71,13 @@
 	{
 		"_id": "6045084f9e8a692e38661f5d",
 		"account": {
-			"karma": 75,
+			"karma": 7,
 			"email": "user2@test.com",
 			"username": "user2",
 			"avatar": "pixel-art",
 			"termsAndConditions": "2021-03-07T17:07:27.300Z",
-			"password": "$2a$08$yEfkAXKAA7UMaj8vASckb.1u2/D/lSVy6OZf89Y6cTMPixcVi7G5i"
+			"password": "$2a$08$yEfkAXKAA7UMaj8vASckb.1u2/D/lSVy6OZf89Y6cTMPixcVi7G5i",
+			"country": "jp"
 		},
 		"settings": {
 			"mailing": {
