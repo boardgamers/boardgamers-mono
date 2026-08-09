@@ -32,9 +32,11 @@ export function forwardSessionCookies(event: RequestEvent, response: Response) {
 
 		// SvelteKit's cookies API defaults `secure` to true on any non-"localhost" host
 		// (e.g. 127.0.0.1), which would drop the session cookie over plain http in dev —
-		// so always set it explicitly. The API only sends Secure when it sits behind
-		// https; forward the flag only when the browser talks to this server over https.
-		const secure = event.url.protocol === "https:";
+		// so always set it explicitly. Determine https from X-Forwarded-Proto first: behind
+		// the TLS-terminating nginx the node adapter serves plain HTTP, so event.url.protocol
+		// is http: even though the browser connection is HTTPS (and nginx sets the header).
+		const forwardedProto = event.request.headers.get("x-forwarded-proto");
+		const secure = (forwardedProto ?? event.url.protocol.replace(/:$/, "")) === "https";
 		const opts: Parameters<typeof event.cookies.set>[2] = { path: "/", secure };
 		for (const attr of attrs) {
 			const [key, attrVal] = attr.split("=");

@@ -4,10 +4,13 @@ import { forwardSessionCookies } from "./auth.server";
 
 type SetCall = { name: string; value: string; opts: Record<string, unknown> };
 
-function makeEvent(hostname: string, https = false) {
+function makeEvent(hostname: string, https = false, forwardedProto?: string) {
 	const set: SetCall[] = [];
 	const event = {
 		url: new URL(`${https ? "https" : "http"}://${hostname}/login`),
+		request: {
+			headers: { get: (h: string) => (h.toLowerCase() === "x-forwarded-proto" ? (forwardedProto ?? null) : null) },
+		},
 		cookies: {
 			set: (name: string, value: string, opts: Record<string, unknown>) => set.push({ name, value, opts }),
 		},
@@ -44,6 +47,14 @@ describe("forwardSessionCookies", () => {
 
 	it("forces secure on over https", () => {
 		const { event, set } = makeEvent("boardgamers.space", true);
+		forwardSessionCookies(event, makeResponse(["refreshToken=x; path=/; httponly"]));
+		expect(set[0].opts.secure).toBe(true);
+	});
+
+	it("prefers X-Forwarded-Proto over event.url.protocol (TLS-terminating proxy)", () => {
+		// Behind nginx the node adapter serves plain http, so event.url.protocol is http:
+		// even though the browser connection is HTTPS — the header reflects the real scheme.
+		const { event, set } = makeEvent("boardgamers.space", false, "https");
 		forwardSessionCookies(event, makeResponse(["refreshToken=x; path=/; httponly"]));
 		expect(set[0].opts.secure).toBe(true);
 	});
