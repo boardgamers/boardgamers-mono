@@ -5,6 +5,7 @@
 // the token's life remains) and the dual-variant clear (a Set-Cookie clear only
 // matches identical name+domain+path, so both variants must be expired).
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import { after, describe, it } from "node:test";
 import jwt from "jsonwebtoken";
 import Koa from "koa";
@@ -125,6 +126,23 @@ describe("forum SSO cookie — re-issue window (#152)", () => {
 		// Payload drift (username changed since the cookie was minted)
 		const staleName = signSsoToken(makeUser({ username: "oldname", email: "new@test.com" }));
 		assert.strictEqual(ssoCookies(await runMiddleware({ user, cookie: staleName })).length, 1);
+	});
+
+	it("survives a crafted null/scalar-payload JWT without crashing (typeof null === 'object')", async () => {
+		const user = makeUser();
+		const craft = (payload: string) => {
+			const h = Buffer.from(JSON.stringify({ alg: env.jwt.algorithm, typ: "JWT" })).toString("base64url");
+			const p = Buffer.from(payload).toString("base64url");
+			const sig = createHmac("sha256", env.jwt.keys.public).update(`${h}.${p}`).digest("base64url");
+			return `${h}.${p}.${sig}`;
+		};
+		// jwt.verify itself throws a sync TypeError on a null payload (jsonwebtoken#8
+		// reads payload.nbf) — and without the `decoded !== null` guard the claim read
+		// would throw too. Both must stay inside the catch: 200 + a re-issued cookie.
+		for (const payload of ["null", "42", '"str"', "true"]) {
+			const cookies = ssoCookies(await runMiddleware({ user, cookie: craft(payload) }));
+			assert.strictEqual(cookies.length, 1, `payload ${payload} must trigger a clean re-issue`);
+		}
 	});
 });
 

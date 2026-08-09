@@ -316,7 +316,10 @@ router.post("/signout", async (ctx: Context) => {
 	ctx.logout();
 	clearRefreshCookie(ctx);
 	// Clear the forum SSO cookie on the spot — both the domain and host-only variants,
-	// or a stale one shadows future logins on the forum (#152).
+	// or a stale one shadows future logins on the forum (#152). The flag keeps the
+	// post-response middleware from re-clearing it (it can't see our Set-Cookie
+	// headers, and its host-only variant would shrink the dual-domain clear).
+	ctx.state.forumSsoCookieCleared = true;
 	clearForumSsoCookie(ctx);
 	ctx.status = 200;
 });

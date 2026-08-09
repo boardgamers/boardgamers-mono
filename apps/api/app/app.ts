@@ -250,7 +250,13 @@ async function listen(port = env.listen.port.api) {
 			reissueForumSsoCookieIfNeeded(ctx, ctx.state.user);
 		} else if (ctx.cookies.get(FORUM_SSO_COOKIE)) {
 			// Logged out with a lingering forum cookie — clear both domain variants.
-			clearForumSsoCookie(ctx);
+			// Skip when the request handler already cleared it (signout): clears don't
+			// update the parsed request-cookie store, so the getter above still sees
+			// the pre-request value — a second clear here would be redundant, and
+			// host-only-only off prod would shrink the dual-domain clear signout sent.
+			if (!ctx.state.forumSsoCookieCleared) {
+				clearForumSsoCookie(ctx);
+			}
 		}
 	});
 

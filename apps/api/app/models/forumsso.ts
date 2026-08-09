@@ -57,7 +57,10 @@ export function reissueForumSsoCookieIfNeeded(
 		try {
 			const decoded = jwt.verify(raw, env.jwt.keys.public, { algorithms: [env.jwt.algorithm] });
 			if (
+				// typeof null === "object", and verify() can return it for a crafted
+				// null-payload JWT — guard explicitly before reading claims.
 				typeof decoded === "object" &&
+				decoded !== null &&
 				decoded.id === payload.id &&
 				decoded.username === payload.username &&
 				decoded.email === payload.email &&
