@@ -246,20 +246,19 @@
 										{#if game.status === "ended"}
 											<span class="text-gray-500 dark:text-gray-400">finished · {niceDate(game.lastMove ?? "")}</span>
 										{:else if game.status === "active"}
-											<!-- Ongoing games: lead with time left on the current turn; fall back to
-											     last activity when the game has no per-turn clock (full timing on hover) -->
+											<!-- Ongoing games: last activity first, then time left on the current turn
+											     when the game has a per-turn clock (full timing on hover) -->
+											<span class="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+												<IconClockHistory class="text-[0.8em]" />
+												{lastActivity(game)} ago
+											</span>
 											{#if timeLeft !== null}
 												<span
 													class="flex items-center gap-0.5 {turnUrgent(game, timeLeft)
 														? 'font-semibold text-amber-600 dark:text-amber-400'
 														: 'text-gray-500 dark:text-gray-400'}"
 												>
-													⏱ {timeLeft <= 0 ? "overdue" : `${compactDuration(timeLeft)} left`}
-												</span>
-											{:else}
-												<span class="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-													<IconClockHistory class="text-[0.8em]" />
-													{lastActivity(game)} ago
+													· ⏱ {timeLeft <= 0 ? "overdue" : `${compactDuration(timeLeft)} left`}
 												</span>
 											{/if}
 										{:else}
