@@ -4,6 +4,7 @@ import { loadGame, loadGamePlayers, loadGameSettings } from "@/lib/game.svelte";
 import { getGameInfo } from "@/lib/game-info.svelte";
 import { getGamePreferences } from "@/lib/game-preferences.svelte";
 import { ApiError } from "@/lib/api";
+import { gameSeo } from "@/lib/game-seo";
 
 export const load: PageLoad = async ({ params, parent }) => {
 	const gameId = params.gameId;
@@ -54,5 +55,7 @@ export const load: PageLoad = async ({ params, parent }) => {
 		// components resolve their viewer-gated UI ("Your turn!", "Vote to cancel", the
 		// settings panel's playerUser) against this during SSR via `live($account?._id, viewerUserId)`.
 		viewerUserId: user?._id ?? null,
+		// SSR head snapshot; the game layout overrides it client-side as the game evolves.
+		seo: gameSeo(game, gameInfo),
 	};
 };

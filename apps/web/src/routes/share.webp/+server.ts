@@ -4,7 +4,7 @@ import { shareImageEtag, shareImageResponse } from "@/lib/share-image.server";
 
 // Home share image. Card text is fixed site copy — no input accepted, so the ETag is
 // stable until the tagline text itself changes in a deploy.
-export const GET: RequestHandler = async ({ url, request }) => {
+export const GET: RequestHandler = async ({ request }) => {
 	const { etagData } = await loadHomeCard();
-	return shareImageResponse(url.origin, "/thumbnail", shareImageEtag(etagData), request.headers.get("if-none-match"));
+	return shareImageResponse("/thumbnail", shareImageEtag(etagData), request.headers.get("if-none-match"));
 };

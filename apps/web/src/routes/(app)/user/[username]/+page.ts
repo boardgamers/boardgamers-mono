@@ -2,6 +2,8 @@ import { error } from "@sveltejs/kit";
 import type { PageLoad } from "./$types";
 import { get } from "@/lib/api";
 import { loadGames, clearGamesCache } from "@/lib/games.svelte";
+import { shareImageUrl } from "@/lib/seo";
+import { dateFromObjectId } from "@/utils/time";
 import type { GamePreferencesFront, UserFront } from "@bgs/models";
 
 export const load: PageLoad = async ({ params, parent }) => {
@@ -26,5 +28,20 @@ export const load: PageLoad = async ({ params, parent }) => {
 		get<GamePreferencesFront[]>(`/user/${user._id}/games/elo`).catch(() => []),
 	]);
 
-	return { user, elo, isOwnProfile: viewer?._id === user._id };
+	const username = params.username;
+	// The 404 above guarantees the user exists, so `_id` is always set.
+	const joinDate = dateFromObjectId(user._id!);
+	const joined = `${joinDate.toLocaleString("en", { month: "long" })} ${joinDate.toLocaleString("en", { year: "numeric" })}`;
+
+	return {
+		user,
+		elo,
+		isOwnProfile: viewer?._id === user._id,
+		seo: {
+			title: `${username}'s profile`,
+			description: user.account.bio || `${username} joined in ${joined} and has ${user.account.karma} karma.`,
+			image: shareImageUrl({ kind: "user", id: username }),
+			type: "profile",
+		},
+	};
 };

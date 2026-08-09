@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import { SEO } from "@/components";
 	import { Button } from "@/modules/cdk";
 	import { useLoggedOut } from "@/lib/auth-guards.svelte";
 	import { post } from "@/lib/api";
@@ -13,7 +12,6 @@
 	}
 </script>
 
-<SEO title="Forgotten password" noindex />
 <div class="container mx-auto px-4">
 	<h1>Forgotten password</h1>
 	<form

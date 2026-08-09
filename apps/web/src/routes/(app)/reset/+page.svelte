@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { page } from "$app/state";
-	import { SEO } from "@/components";
 	import { Button } from "@/modules/cdk";
 	import { setAuthData, type AuthData } from "@/lib/account.svelte";
 	import { post } from "@/lib/api";
@@ -24,7 +23,6 @@
 	}
 </script>
 
-<SEO title="Reset password" noindex />
 <div class="container mx-auto px-4">
 	<h1>Reset password</h1>
 	<form

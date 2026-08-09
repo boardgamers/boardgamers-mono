@@ -11,6 +11,8 @@
 	import type { GameFront, GameInfoFront, PlayerInfoFront } from "@bgs/models";
 	import type { GameContext } from "./[gameId]/game-context";
 	import { currentGameId, room as currentRoom } from "@/lib/stores.svelte";
+	import { gameSeo } from "@/lib/game-seo";
+	import { seoOverride } from "@/lib/seo";
 
 	initNProgress();
 
@@ -54,7 +56,16 @@
 		context.viewerUserId = viewerUserId;
 	});
 
+	// Client-side: the head's og:title/og:description track the live game (status, round,
+	// scores). SSR uses page.data.seo (set in the page load); this override only takes
+	// effect in the browser ($effect doesn't run during SSR), so it can't affect the SSR
+	// head or leak across requests.
+	$effect(() => {
+		seoOverride.current = gameSeo(context.game, context.gameInfo);
+	});
+
 	onDestroy(() => {
+		seoOverride.current = undefined;
 		if (browser) {
 			currentGameId.set(null);
 			currentRoom.set(null);

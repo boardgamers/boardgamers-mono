@@ -70,13 +70,43 @@ async function getBrowser(): Promise<Browser> {
 	}
 }
 
+// Loopback base for the internal screenshot navigation — NOT the public request
+// origin. In prod the node server speaks plain http on 127.0.0.1:8612 (TLS terminates
+// at the nginx upstream), so navigating headless Chromium to the public
+// `https://<host>` dies with ERR_SSL_PROTOCOL_ERROR. Always render over our own http
+// server instead: OG_RENDER_ORIGIN overrides (envs with an unusual internal setup),
+// otherwise reuse the adapter-node listen HOST/PORT (default 127.0.0.1:8612, matching
+// ecosystem.config.cjs). Only the screenshot uses this — the public og:image URL keeps
+// the request's https origin (see routes/+layout.svelte).
+export function renderOrigin(): string {
+	const override = process.env.OG_RENDER_ORIGIN;
+	if (override) {
+		return override.replace(/\/+$/, "");
+	}
+	return `http://${loopbackAddress(process.env.HOST)}:${process.env.PORT ?? 8612}`;
+}
+
+// A connectable loopback address for the server's own listen HOST. Wildcards
+// (0.0.0.0 / ::) aren't connectable — map them to the matching loopback. IPv6 hosts
+// must be bracketed in a URL.
+function loopbackAddress(host: string | undefined): string {
+	const h = (host ?? "127.0.0.1").trim().toLowerCase();
+	if (h === "0.0.0.0" || h === "::" || h === "[::]" || h === "") {
+		// Wildcard: connect via the IPv4 loopback unless explicitly an IPv6 wildcard.
+		return h === "::" || h === "[::]" ? "[::1]" : "127.0.0.1";
+	}
+	// Strip existing brackets, then re-add for IPv6 (anything with a colon).
+	const bare = h.replace(/^\[|\]$/g, "");
+	return bare.includes(":") ? `[${bare}]` : bare;
+}
+
 // Chromium's screenshot is PNG-only; the cards are a CSS gradient + logo + text, which
 // WebP compresses far better (~460KB PNG → ~40KB WebP at q80) with no visible loss.
-async function renderWebp(origin: string, path: string): Promise<Buffer> {
+async function renderWebp(path: string): Promise<Buffer> {
 	const b = await getBrowser();
 	const page = await b.newPage({ viewport: { width: 1200, height: 630 } });
 	try {
-		await page.goto(`${origin}${path}`, { waitUntil: "networkidle", timeout: 10_000 });
+		await page.goto(`${renderOrigin()}${path}`, { waitUntil: "networkidle", timeout: 10_000 });
 		// Clip to the card exactly: any stray page margin must not leak into the image.
 		const png = await page.screenshot({ type: "png", timeout: 10_000, clip: { x: 0, y: 0, width: 1200, height: 630 } });
 		return await sharp(png).webp({ quality: 80 }).toBuffer();
@@ -93,7 +123,6 @@ export function shareImageEtag(data: unknown): string {
 }
 
 export async function shareImageResponse(
-	origin: string,
 	thumbnailPath: string,
 	etag: string,
 	ifNoneMatch: string | null,
@@ -113,7 +142,7 @@ export async function shareImageResponse(
 	try {
 		await acquire();
 		try {
-			webp = await renderWebp(origin, thumbnailPath);
+			webp = await renderWebp(thumbnailPath);
 		} finally {
 			release();
 		}

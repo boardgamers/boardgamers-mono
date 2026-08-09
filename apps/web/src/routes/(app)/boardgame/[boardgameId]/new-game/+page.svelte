@@ -20,10 +20,7 @@
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { useGamePreferencesFallback, gamePreferences } from "@/lib/game-preferences.svelte";
 	import { page } from "$app/state";
-	import { SEO } from "@/components";
 	import TimeRangeSlider from "@/components/Form/TimeRangeSlider.svelte";
-	import { stripMarkdown, truncate } from "@/lib/seo";
-	import { gameLabel } from "@/utils/game-label";
 
 	useLoggedIn();
 
@@ -224,11 +221,6 @@
 </script>
 
 {#if info}
-	<SEO
-		title={`Create a ${gameLabel(info.label)} game`}
-		description={truncate(stripMarkdown(info.description ?? ""), 200)}
-	/>
-
 	<div class="container mx-auto px-4">
 		<h1 class="mb-2">{info.label}</h1>
 		<p class="mb-6 text-gray-500 dark:text-gray-400">

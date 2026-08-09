@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import { resolve } from "$app/paths";
-	import { SEO } from "@/components";
 	import { Button } from "@/modules/cdk";
 	import { setAuthData, type AuthData } from "@/lib/account.svelte";
 	import { useLoggedOut } from "@/lib/auth-guards.svelte";
@@ -64,11 +63,6 @@
 		}
 	}
 </script>
-
-<SEO
-	title="Create an account"
-	description="Create a free account and play Gaia Project, Powergrid, 6nimmt and more online."
-/>
 
 <div class="container mx-auto px-4">
 	<h1>Create an account</h1>

@@ -17,5 +17,11 @@ export const load: PageLoad = async ({ url, parent }) => {
 		throw redirect(302, redirectLoggedOut(url));
 	}
 
-	return {};
+	return {
+		seo: {
+			title: "Login",
+			description: "Log in to Boardgamers to play boardgames online with other people.",
+			noindex: true,
+		},
+	};
 };

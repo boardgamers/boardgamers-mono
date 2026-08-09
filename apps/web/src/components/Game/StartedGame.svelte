@@ -17,10 +17,6 @@
 	import { account as user } from "@/lib/account.svelte";
 	import { devGameSettings, developerSettings, lastGameUpdate } from "@/lib/stores.svelte";
 	import { page } from "$app/state";
-	import SEO from "../SEO.svelte";
-	import { gameLabel } from "@/utils/game-label";
-	import { shareImageUrl } from "@/lib/seo";
-	import { minBy, sortBy } from "lodash";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 
@@ -235,34 +231,7 @@
 	onMount(() => {
 		gameIframe?.contentWindow?.postMessage({ type: "askReady" }, "*");
 	});
-
-	let title = $derived.by(() => {
-		if (context.game?.status === "active") {
-			return `${gameLabel(context.gameInfo?.label ?? "")} game ${gameId}`;
-		} else if (context.game?.cancelled) {
-			return `Cancelled - ${gameLabel(context.gameInfo?.label ?? "")} game`;
-		} else if (context.game) {
-			const victor = minBy(context.game.players, "ranking")!;
-			return `${victor.name}'s victory! - ${gameLabel(context.gameInfo?.label ?? "")} game`;
-		}
-		return undefined;
-	});
-
-	let description = $derived.by(() => {
-		if (context.game?.status === "active") {
-			return `Round ${context.game.context?.round ?? 0}
-
-${context.game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
-		} else if (context.game && !context.game?.cancelled) {
-			return sortBy(context.game.players, "ranking")
-				.map((player) => `${player.ranking}° ${player.name} (${player.score}pts)`)
-				.join("\n");
-		}
-		return undefined;
-	});
 </script>
-
-<SEO noindex {title} {description} image={shareImageUrl({ kind: "game", id: gameId ?? "" })} />
 
 <svelte:window onmessage={handleGameMessage} />
 

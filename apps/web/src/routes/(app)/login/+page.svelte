@@ -5,7 +5,6 @@
 	import { handleError } from "@/utils";
 	import { useLoggedOut } from "@/lib/auth-guards.svelte";
 	import { redirectLoggedOut } from "@/utils/redirect";
-	import { SEO } from "@/components";
 	import { login } from "@/lib/account.svelte";
 
 	useLoggedOut();
@@ -20,8 +19,6 @@
 		login(email, password).catch(handleError);
 	}
 </script>
-
-<SEO title="Login" description="Log in to Boardgamers to play boardgames online with other people." noindex />
 
 <div class="container mx-auto px-4">
 	{#if socialError}
