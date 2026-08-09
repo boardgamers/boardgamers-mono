@@ -65,6 +65,17 @@ fi
 export NODE_ENV=production cron=false
 export dbUrl="$MONGO_URL" dbName="$DB" listenHost=0.0.0.0
 export domain="pr-${PR}.boardgamers.space"
+# Containerfile installs Chromium here for /og/share.png; re-export in case the
+# image was started with a sanitized env (docker run -i, systemd, …).
+export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-/opt/ms-playwright}"
+
+# If a lockfile change above pulled a playwright version whose browser isn't in the
+# image, fetch it now (additive — existing revisions in the shared path are kept).
+apps_web_bin=/repo/apps/web/node_modules/.bin/playwright
+if [ -x "$apps_web_bin" ] && ! "$apps_web_bin" install chromium --dry-run >/dev/null 2>&1; then
+  echo "[entrypoint] installing chromium for the current playwright version"
+  "$apps_web_bin" install chromium || echo "[entrypoint] chromium install failed; /og/share.png will 503"
+fi
 
 cd /repo/apps/api
 port="$API_PORT" wsPort="$WS_PORT" resourcesPort="$RESOURCES_PORT" node server.ts &

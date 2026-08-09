@@ -19,6 +19,7 @@
 	import { page } from "$app/state";
 	import SEO from "../SEO.svelte";
 	import { gameLabel } from "@/utils/game-label";
+	import { shareImageUrl } from "@/lib/seo";
 	import { minBy, sortBy } from "lodash";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
@@ -237,7 +238,7 @@
 
 	let title = $derived.by(() => {
 		if (context.game?.status === "active") {
-			return `${gameId} - ${gameLabel(context.gameInfo?.label ?? "")} game`;
+			return `${gameLabel(context.gameInfo?.label ?? "")} game ${gameId}`;
 		} else if (context.game?.cancelled) {
 			return `Cancelled - ${gameLabel(context.gameInfo?.label ?? "")} game`;
 		} else if (context.game) {
@@ -261,7 +262,7 @@ ${context.game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}
 	});
 </script>
 
-<SEO {title} {description} />
+<SEO noindex {title} {description} image={shareImageUrl({ kind: "game", id: gameId ?? "" })} />
 
 <svelte:window onmessage={handleGameMessage} />
 

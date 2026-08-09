@@ -3,6 +3,7 @@
 	import { Button, Card } from "@/modules/cdk";
 	import { dateFromObjectId } from "@/utils";
 	import { countryFlag, countryName } from "@/lib/countries";
+	import { shareImageUrl } from "@/lib/seo";
 	import { page } from "$app/state";
 	import { resolve } from "$app/paths";
 	import type { PageProps } from "./$types";
@@ -20,7 +21,8 @@
 		`${username} joined in ${dateFromObjectId(userId).toLocaleString("en", {
 			month: "long",
 		})} ${dateFromObjectId(userId).toLocaleString("en", { year: "numeric" })} and has ${data.user.account.karma} karma.`}
-	image={`${page.url.origin}/api/user/${userId}/avatar`}
+	image={shareImageUrl({ kind: "user", id: username })}
+	type="profile"
 />
 
 <div class="container mx-auto px-4">

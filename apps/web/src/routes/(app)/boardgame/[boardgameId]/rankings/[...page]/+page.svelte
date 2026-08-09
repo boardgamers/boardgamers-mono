@@ -12,10 +12,10 @@
 </script>
 
 <SEO
-	title={`Page ${data.currentPage} - ${gameLabel(gameInfo?.label ?? data.boardgameId)} rankings`}
-	description={data.rankings.rankings
-		.map((x, i) => `${data.skip + i + 1}° ${x.user.name} (${x.elo.value} elo)`)
-		.join("\n")}
+	title={`${gameLabel(gameInfo?.label ?? data.boardgameId)} rankings`}
+	description={data.rankings.rankings.length > 0
+		? data.rankings.rankings.map((x, i) => `${data.skip + i + 1}° ${x.user.name} (${x.elo.value} elo)`).join("\n")
+		: `Top ${gameLabel(gameInfo?.label ?? data.boardgameId)} players on Boardgamers.`}
 />
 
 <div class="container mx-auto px-4">
