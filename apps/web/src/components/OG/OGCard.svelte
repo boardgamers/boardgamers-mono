@@ -34,6 +34,8 @@
 		topGame?: string;
 		/** Call-to-action line/chip (e.g. "Play boardgames online" / "Challenge me"). */
 		cta?: string;
+		/** Game card: crucial setup options (map, expansions, …) as chip strings. */
+		gameOptions?: string[];
 	}
 
 	let {
@@ -50,6 +52,7 @@
 		country = "",
 		topGame = "",
 		cta = "",
+		gameOptions = [],
 	}: Props = $props();
 
 	const background = `radial-gradient(ellipse 700px 520px at 96% -12%, ${colors.accent}a6 0%, transparent 58%),
@@ -74,16 +77,17 @@
 
 <div style="width: 1200px; height: 630px; position: relative; overflow: hidden; background: {background};">
 	<div style="position: absolute; inset: 0; {grid}"></div>
-	<!-- Decorative ghost logos, invert-tinted white -->
+	<!-- Decorative ghost impressions: dice, invert-tinted white (the dice.svg strokes are
+	green, so invert(1) makes them read as faint pink-white; low opacity keeps it a watermark) -->
 	<img
-		src="/logo.svg"
+		src="/images/icons/dice.svg"
 		width="640"
 		height="640"
 		alt=""
 		style="position: absolute; right: -170px; bottom: -190px; opacity: 0.12; transform: rotate(18deg); filter: invert(1);"
 	/>
 	<img
-		src="/logo.svg"
+		src="/images/icons/dice.svg"
 		width="340"
 		height="340"
 		alt=""
@@ -116,7 +120,7 @@
 					{description}
 				</div>
 			{/if}
-			{#if players || pace || karma || country || topGame || cta}
+			{#if players || pace || karma || country || topGame || cta || gameOptions.length > 0}
 				<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 16px; max-width: 880px;">
 					{#if players}
 						<div
@@ -160,6 +164,13 @@
 							{cta}
 						</div>
 					{/if}
+					{#each gameOptions as option (option)}
+						<div
+							style="font-size: 24px; font-weight: 600; color: #e7f3ff; border: 2px solid rgba(255,255,255,0.4); border-radius: 999px; padding: 7px 20px; text-shadow: 0 1px 4px rgba(9, 42, 77, 0.5);"
+						>
+							{option}
+						</div>
+					{/each}
 				</div>
 			{/if}
 		</div>
