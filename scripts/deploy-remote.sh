@@ -9,11 +9,17 @@ echo ":: installing dependencies"
 CI=true pnpm install --frozen-lockfile
 
 # The OG share-image renderer (apps/web /share.webp/*) drives Chromium via Playwright.
-# `pnpm install` does not fetch the browser, so install it here — idempotent (no-op once
-# present) and it lands in the default PLAYWRIGHT_BROWSERS_PATH (~/.cache/ms-playwright),
-# which the PM2 web process reads. Without it /share.webp/* 503s (the site keeps running).
+# `pnpm install` does not fetch the browser, so install it here — user-level only
+# (no --with-deps: that runs sudo, which can't work non-interactively over SSH and
+# would abort this `set -e` script). It lands in the default PLAYWRIGHT_BROWSERS_PATH
+# (~/.cache/ms-playwright), which the PM2 web process reads. OS-level deps are a
+# one-time root step done out-of-band on the host:
+#   sudo pnpm --filter @bgs/web exec playwright install-deps chromium
+# The renderer degrades gracefully: /share.webp/* 503s until browser+deps are present,
+# and the rest of the site keeps running — so never fail the deploy over this.
 echo ":: installing Playwright Chromium (OG share-image renderer)"
-pnpm --filter @bgs/web exec playwright install --with-deps chromium
+pnpm --filter @bgs/web exec playwright install chromium ||
+  echo ":: WARNING: Chromium install failed — /share.webp/* will 503 until browser+deps are present (see comment above)"
 
 echo ":: building web (SvelteKit SSR)"
 # Build into a temp dir so the live build/ is never half-written.
