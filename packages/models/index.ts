@@ -85,4 +85,5 @@ export { zodToMongoSchema } from "./mongo-schema.ts";
 export { withAutoUpdatedAt } from "./auto-updated-at.ts";
 
 // --- Backend DB setup (import from "./setup.ts" to avoid pulling mongodb into frontend bundles) ---
-export { ensureCollections, ensureIndexes, ensureValidation } from "./setup.ts";
+export type { IndexAction } from "./setup.ts";
+export { ensureCollections, ensureIndexes, ensureValidation, planIndexChanges, reconcileIndexes } from "./setup.ts";
