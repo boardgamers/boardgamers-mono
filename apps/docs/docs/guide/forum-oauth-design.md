@@ -105,7 +105,7 @@ first-party clients**, with the forum as the first (and initially only) client:
 | `GET /api/oauth/authorize`               | Consent/redirect entry point. Requires a signed-in BGS session.                |
 | `POST /api/oauth/token`                  | `authorization_code` grant (+ optional `refresh_token` grant), secret auth.    |
 | `GET /api/oauth/userinfo`                | OIDC-flavored claims for a bearer access token.                                |
-| `GET /api/oauth/.well-known/…` (optional) | OIDC discovery metadata, purely for the NodeBB ACP autofill UX.               |
+| `GET /.well-known/openid-configuration` (optional) | OIDC discovery metadata at the **standard** well-known path, purely for the NodeBB ACP autofill UX (the ACP fetches `https://{domain}/.well-known/openid-configuration`). Served by the web app or nginx pointing at the API — it must live at the site root, not under `/api/oauth`. |
 
 Why this is the right call:
 
@@ -205,9 +205,10 @@ All under `/api/oauth`, new router `apps/api/app/routes/oauth.ts`:
 
 **`GET /api/oauth/userinfo`**
 
-- `Authorization: Bearer <access_token>`. Verify with the existing public key; require
-  `aud`/scope `forum` (see §4.4) — a token minted for the forum must not authenticate as a full
-  API session and vice versa.
+- `Authorization: Bearer <access_token>`. Verify with the existing public key, parse with the
+  existing `accessTokenPayloadSchema` (`{ userId, scopes }` — there is **no `aud` claim** in the
+  current token shape and none is added), and require scope `"forum"` (see §4.4): a token minted
+  for the forum must not authenticate as a full API session and vice versa.
 - Response (flat claims, exactly what `nodebb-plugin-sso-oauth2-multiple` parses):
 
 ```json
@@ -222,9 +223,16 @@ All under `/api/oauth`, new router `apps/api/app/routes/oauth.ts`:
 }
 ```
 
-`email_verified: true` is honest: BGS accounts confirm their email at signup (confirmKey flow), and
-social signups come from providers with verified emails. This flag is what lets NodeBB link a
-pre-existing forum account by email (`trustEmailVerified`), which matters for the migration (§4.6).
+`email_verified` must be **derived from `user.security.confirmed`**, not hardcoded: local signups
+start with `security.confirmed: false` until they complete the emailed confirmKey flow (social
+signups are created with `confirmed: true`). Implementation options, in order of preference:
+(a) gate `/api/oauth/authorize` on `security.confirmed` (same `isConfirmed` check the game routes
+already use) and always emit `email_verified: true` — an unconfirmed user can't do anything on the
+site anyway, so bouncing them to "confirm your email first" is correct; or (b) emit the claim
+verbatim and leave NodeBB's `trustEmailVerified` to refuse linking for unconfirmed emails (NodeBB
+then creates a separate, unlinked forum account — messy). Go with (a). This flag is what lets
+NodeBB link a pre-existing forum account by email (`trustEmailVerified`), which matters for the
+migration (§4.6) — so it must never be `true` for an address the user hasn't proven they own.
 
 ### 4.3 Data model additions
 
@@ -234,7 +242,7 @@ single-use, TTL-indexed collection, same `findOneAndDelete` redemption:
 ```ts
 z.object({
   kind: z.literal("oauth-code"),
-  _id: z.string(),              // the code itself: crypto.randomBytes(24).base64url
+  _id: z.string(),              // the code itself: crypto.randomBytes(24).toString("base64url")
   clientId: z.string(),
   redirectUri: z.string(),      // stored to re-check at token time (mix-up defense)
   user: zObjectId,              // the consenting user
