@@ -1,11 +1,12 @@
 import { error } from "@sveltejs/kit";
+import removeMarkdown from "remove-markdown";
+import type { JsonObject } from "type-fest";
 import { apiFetch, get } from "@/lib/api";
 import { fetchGameInfo, fetchGameInfos } from "@/lib/game-info.svelte";
 import { countryFlag, countryName } from "@/lib/countries";
 import { firstSentence, siteName, truncate } from "@/lib/seo";
 import { gameEmoji, gameLabel } from "@/utils/game-label";
-import { duration } from "@/utils/time";
-import type { GameFront, GamePreferencesFront, UserFront } from "@bgs/models";
+import type { GameFront, GameInfoFront, GamePreferencesFront, UserFront } from "@bgs/models";
 
 // Card content for the /thumbnail/* pages, derived server-side from the db (via the API)
 // and the route params — never from the query string, so a share image can only ever
@@ -31,6 +32,8 @@ export interface OgCardData {
 	topGame?: string;
 	/** Call-to-action chip (e.g. "Play boardgames online"). */
 	cta?: string;
+	/** Game card: crucial setup options (map, expansions, …) as chip strings. */
+	gameOptions?: string[];
 }
 
 export interface CardData {
@@ -74,28 +77,29 @@ export async function loadGameCard(gameId: string): Promise<CardData> {
 	const rawLabel = info?.label ?? game.game.name;
 	const label = gameLabel(rawLabel);
 	const emoji = gameEmoji(rawLabel);
+	const gameOptions = crucialGameOptions(game, info);
 
 	let card: OgCardData;
 	if (game.status === "open") {
 		// Chips mirror OpenGame.svelte: players joined + pace (≥24h/player = asynchronous).
+		// Subtitle stays short (the full pace is a chip) so it doesn't wrap; the pace chip is
+		// compact ("Asynchronous" / "Live") to leave room for the option chips on one row.
 		const timePerGame = game.options.timing.timePerGame ?? 0;
-		const pace =
-			timePerGame >= 24 * 3600
-				? `Asynchronous — ${duration(timePerGame)} / player`
-				: `Live — ${duration(timePerGame)} / player`;
+		const pace = timePerGame >= 24 * 3600 ? "Asynchronous" : "Live";
 		card = {
-			title: `${label} — open game`,
-			subtitle: `Join and play online! ${pace}`,
+			title: label,
+			subtitle: "Join and play online!",
 			game: label,
 			emoji,
 			players: `${game.players.length} / ${game.options.setup.nbPlayers} players joined`,
 			pace,
+			gameOptions,
 		};
 	} else {
 		// Mirrors StartedGame.svelte: title + players chip, round as pace chip.
 		const round = game.status === "active" ? (game.context?.round ?? 0) : 0;
 		card = {
-			title: `${label} game`,
+			title: label,
 			subtitle:
 				game.status === "active"
 					? `Round ${round} — ${game.players.length} players`
@@ -104,12 +108,48 @@ export async function loadGameCard(gameId: string): Promise<CardData> {
 			emoji,
 			players: `${game.players.length} players`,
 			pace: game.status === "active" && round ? `Round ${round}` : undefined,
+			gameOptions,
 		};
 	}
 
-	// The ETag tracks exactly what the card shows (status/players/round), so any change
-	// busts downstream caches on revalidation without a re-render when nothing changed.
+	// The ETag tracks exactly what the card shows (status/players/round/options), so any
+	// change busts downstream caches on revalidation without a re-render when nothing changed.
 	return { card, etagData: card };
+}
+
+// Cap on option chips so the card stays readable next to the players/pace chips;
+// anything beyond it is summarized as a "+N more" chip.
+const MAX_OPTION_CHIPS = 3;
+
+/**
+ * The setup choices that define the game — same heuristic as the og:description in
+ * game-seo.ts: selected checkbox labels, select choices as "Label: value", and expansions
+ * (resolved to their labels, like the lobby does). Returns at most MAX_OPTION_CHIPS
+ * strings; when more options exist the last chip is "+N more".
+ */
+function crucialGameOptions(game: GameFront, info: GameInfoFront | null | undefined): string[] | undefined {
+	const values = (game.game.options ?? {}) as JsonObject;
+	const chips = (info?.options ?? [])
+		.filter((pref) => !!values[pref.name])
+		.map((pref) =>
+			pref.type === "checkbox"
+				? pref.label
+				: pref.type === "select" && pref.items
+					? pref.label + ": " + pref.items.find((item) => item.name === values[pref.name])?.label
+					: "",
+		)
+		.filter(Boolean);
+
+	for (const expansion of game.game.expansions ?? []) {
+		chips.push(`+ ${info?.expansions?.find((xp) => xp.name === expansion)?.label ?? expansion} expansion`);
+	}
+
+	if (chips.length === 0) {
+		return undefined;
+	}
+	const kept = chips.slice(0, MAX_OPTION_CHIPS).map((chip) => removeMarkdown(chip));
+	const hidden = chips.length - kept.length;
+	return hidden > 0 ? [...kept, `+${hidden} more`] : kept;
 }
 
 export async function loadUserCard(username: string): Promise<CardData> {
