@@ -155,7 +155,7 @@
 						>
 							<a
 								href={resolve("/game/[gameId]", { gameId: game._id })}
-								class="no-link flex cursor-pointer items-center px-4 py-2 pe-1 ps-0 hover:bg-gray-50 dark:hover:bg-gray-800"
+								class="no-link flex w-full cursor-pointer items-center px-4 py-2 pe-1 ps-0 hover:bg-gray-50 dark:hover:bg-gray-800"
 							>
 								<span class="game-kind mx-3">
 									{gameIcon(game.game.name)}

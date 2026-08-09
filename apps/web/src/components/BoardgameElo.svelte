@@ -81,7 +81,7 @@
 				<li>
 					<a
 						href={resolve("/(app)/user/[username]#elo", { username: bgElo.user.name })}
-						class="flex items-center px-4 py-2 no-underline text-inherit hover:bg-gray-100 dark:hover:bg-gray-800"
+						class="flex w-full items-center px-4 py-2 no-underline text-inherit hover:bg-gray-100 dark:hover:bg-gray-800"
 					>
 						<UserAvatar username={bgElo.user.name} userId={bgElo.user._id} size="2rem" />
 						<span class="ms-2">
