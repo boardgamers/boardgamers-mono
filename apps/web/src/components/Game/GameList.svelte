@@ -112,12 +112,38 @@
 	// On narrow screens the avatar cluster would otherwise eat the name/timing
 	// text — cap how many avatars are shown and collapse the rest into a "+k"
 	// chip. CSS-based (max-width media query) so SSR/hydration agree.
-	const MOBILE_AVATARS_LIMIT = 3;
+	// 5 shrunk+overlapped avatars ≈ 4.4rem, still leaves room for the name/timing
+	// text on a 390px-wide screen with a 6-player game.
+	const MOBILE_AVATARS_LIMIT = 5;
 
 	// lastMove/createdAt are optional — fall back to "just now" when both are missing.
 	function lastActivity(game: GameFront): string {
 		const ts = new Date(game.lastMove ?? game.createdAt ?? Date.now()).getTime() || Date.now();
 		return shortDuration(Math.max(30, Math.floor((Date.now() - ts) / 1000))) ?? "";
+	}
+
+	// Time left on the current turn, from the per-player deadline the API already
+	// sends on the list payload. Prefers the viewer's own deadline; otherwise the
+	// earliest current player's. Null when the game has no deadline info.
+	function turnTimeLeft(game: GameFront): number | null {
+		const current = game.currentPlayers ?? [];
+		const own = userId ? current.find((pl) => pl._id === userId) : undefined;
+		const candidates = own ? [own] : current;
+		const deadlines = candidates.filter((pl) => pl.deadline).map((pl) => new Date(pl.deadline!).getTime());
+		if (deadlines.length === 0) {
+			return null;
+		}
+		return Math.max(0, Math.floor((Math.min(...deadlines) - Date.now()) / 1000));
+	}
+
+	// "Act soon": it's the viewer's turn and less than a quarter of the per-move
+	// budget remains before the turn deadline.
+	function turnUrgent(game: GameFront, secondsLeft: number): boolean {
+		if (!userId || !game.currentPlayers?.some((pl) => pl._id === userId)) {
+			return false;
+		}
+		const budget = game.options.timing.timePerMove ?? game.options.timing.timePerGame ?? 0;
+		return budget > 0 && secondsLeft <= budget / 4;
 	}
 
 	const onCurrentPageChanged = createWatcher(() => load(false));
@@ -159,10 +185,12 @@
 					class="divide-y divide-accent/80 rounded-lg border border-accent/80 bg-white text-start dark:divide-accent/60 dark:border-accent/60 dark:bg-gray-900 game-list"
 				>
 					{#each games as game (game._id)}
+						{@const timeLeft = game.status === "active" ? turnTimeLeft(game) : null}
 						<li
 							class="game-item"
 							class:active-game={game.status === "active"}
 							class:current-turn={game.currentPlayers?.some((pl) => pl._id === userId)}
+							class:turn-urgent={timeLeft !== null && turnUrgent(game, timeLeft)}
 						>
 							<a
 								href={resolve("/game/[gameId]", { gameId: game._id })}
@@ -201,11 +229,20 @@
 										{#if game.status === "ended"}
 											<span class="text-gray-500 dark:text-gray-400">finished · {niceDate(game.lastMove ?? "")}</span>
 										{:else if game.status === "active"}
-											<!-- Ongoing games: last activity matters more than the timer window (full timing stays on hover) -->
+											<!-- Ongoing games: last activity + time left on the current turn (full timing stays on hover) -->
 											<span class="flex items-center gap-1 text-gray-500 dark:text-gray-400">
 												<IconClockHistory class="text-[0.8em]" />
 												{lastActivity(game)} ago
 											</span>
+											{#if timeLeft !== null}
+												<span
+													class="flex items-center gap-0.5 {turnUrgent(game, timeLeft)
+														? 'font-semibold text-amber-600 dark:text-amber-400'
+														: 'text-gray-500 dark:text-gray-400'}"
+												>
+													· ⏱ {compactDuration(timeLeft)} left
+												</span>
+											{/if}
 										{:else}
 											<IconClockHistory class="text-[0.8em]" />
 											{compactDuration(game.options.timing.timePerGame ?? 0)}+{compactDuration(
@@ -344,6 +381,18 @@
 	@media (min-width: 640px) {
 		.game-list .game-item .factions .mobile-avatar-more {
 			display: none;
+		}
+	}
+
+	/* Mobile: "act soon" — your turn and the turn deadline is close. Amber left
+	   border, distinct from the green current-turn background. */
+	@media (max-width: 639.98px) {
+		.game-list .game-item.turn-urgent {
+			border-inline-start: 3px solid rgb(217 119 6); /* amber-600 */
+		}
+
+		:global(.dark) .game-list .game-item.turn-urgent {
+			border-inline-start-color: rgb(251 191 36); /* amber-400 */
 		}
 	}
 
