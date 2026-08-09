@@ -30,7 +30,7 @@ describe("redirectLoggedOut", () => {
 
 	it("rejects ASCII control characters (invalid/injectable Location header)", () => {
 		expect(redirectLoggedOut(url("http://localhost/"), "/foo\r\nSet-Cookie: x=1")).toBe("/");
-		expect(redirectLoggedOut(url("http://localhost/"), "/foo")).toBe("/"); // DEL
-		expect(redirectLoggedOut(url("http://localhost/"), "/foo")).toBe("/"); // NUL
+		expect(redirectLoggedOut(url("http://localhost/"), "/foo\x7Fbar")).toBe("/"); // DEL
+		expect(redirectLoggedOut(url("http://localhost/"), "/foo\x00bar")).toBe("/"); // NUL
 	});
 });

@@ -4,7 +4,6 @@
 const routes: Record<string, string> = {
 	"/(app)": "/",
 	"/(app)/login": "/login",
-	"/(app)/login?redirect=": "/login?redirect=",
 };
 
 export function resolve(id: string): string {
