@@ -42,10 +42,12 @@ export const actions: Actions = {
 			// which the page's error banner already renders. Preserve the existing query
 			// (e.g. ?redirect=/somewhere) so a retry still returns to the original page.
 			// (With JS, use:enhance intercepts the submit and shows fetch errors via handleError.)
-			const message = await response
-				?.json()
-				.then((body) => body?.message)
-				.catch(() => null);
+			const message = response
+				? await response
+						.json()
+						.then((body) => body?.message)
+						.catch(() => null)
+				: null;
 			const target = new URL(event.url);
 			target.search = "";
 			target.searchParams.set("error", message ?? "Login failed");
