@@ -38,8 +38,7 @@
 	description="Play Gaia Project, Powergrid, 6nimmt and Container online with other people, live or asynchronously. All games and the platform are open source!"
 	image={ogImageUrl(defaultOgImage.path, {
 		title: "Boardgamers",
-		subtitle:
-			"Play Gaia Project, Powergrid, 6nimmt and Container online — all games and the platform are open source!",
+		subtitle: "Play Gaia Project, Powergrid, 6nimmt and Container online — all games and the platform are open source!",
 	})}
 />
 
