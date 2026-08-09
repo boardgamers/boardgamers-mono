@@ -6,7 +6,6 @@
 	import { createWatcher, handleError, pluralize } from "@/utils";
 	import { untrack } from "svelte";
 	import UserAvatar from "./User/UserAvatar.svelte";
-	import UsernameLink from "./User/UsernameLink.svelte";
 
 	let {
 		boardgameId,
@@ -79,20 +78,22 @@
 			class="divide-y divide-accent/80 rounded-lg border border-accent/80 bg-white text-left dark:divide-accent/60 dark:border-accent/60 dark:bg-gray-900"
 		>
 			{#each boardgameElo as bgElo, pos (bgElo.user._id)}
-				<a
-					href={resolve("/(app)/user/[username]#elo", { username: bgElo.user.name })}
-					class="flex items-center px-4 py-2 no-underline text-inherit hover:bg-gray-100 dark:hover:bg-gray-800"
-				>
-					<UserAvatar username={bgElo.user.name} userId={bgElo.user._id} size="2rem" />
-					<span class="ms-2">
-						<b>{pos + 1 + currentPage * perPage}</b> -
-						<UsernameLink username={bgElo.user.name} userId={bgElo.user._id} class="text-inherit no-underline" />
-						{#if bgElo.user.country}<span title={countryName(bgElo.user.country)}
-								>{countryFlag(bgElo.user.country)}</span
-							>{/if}
-						- <b>{bgElo.elo.value}</b> elo in {pluralize(bgElo.elo.games, "game")}
-					</span>
-				</a>
+				<li>
+					<a
+						href={resolve("/(app)/user/[username]#elo", { username: bgElo.user.name })}
+						class="flex items-center px-4 py-2 no-underline text-inherit hover:bg-gray-100 dark:hover:bg-gray-800"
+					>
+						<UserAvatar username={bgElo.user.name} userId={bgElo.user._id} size="2rem" />
+						<span class="ms-2">
+							<b>{pos + 1 + currentPage * perPage}</b> -
+							{bgElo.user.name}
+							{#if bgElo.user.country}<span title={countryName(bgElo.user.country)}
+									>{countryFlag(bgElo.user.country)}</span
+								>{/if}
+							- <b>{bgElo.elo.value}</b> elo in {pluralize(bgElo.elo.games, "game")}
+						</span>
+					</a>
+				</li>
 			{/each}
 		</ul>
 		{#if !top}

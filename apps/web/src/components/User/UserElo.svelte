@@ -25,12 +25,12 @@
 		</h3>
 		<ul class="divide-y divide-accent/60 rounded-lg border border-accent text-start">
 			{#each gamePreferences.filter((pref) => !!pref.elo) as gamePref (gamePref.game)}
-				<div class="cursor-pointer px-4 py-2 hover:bg-accent/5">
+				<li class="cursor-pointer px-4 py-2 hover:bg-accent/5">
 					<span>
 						{gameName(gamePref.game)} - <b>{gamePref.elo!.value}</b> in
 						{pluralize(gamePref.elo!.games, "game")}
 					</span>
-				</div>
+				</li>
 			{/each}
 		</ul>
 	</div>

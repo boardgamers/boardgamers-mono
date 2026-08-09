@@ -21,5 +21,14 @@ export function useLoggedIn(): void {
 }
 
 export function useLoggedOut(): void {
-	onMount(() => account.subscribe(skipOnce((val) => val && goto(resolve(redirectLoggedOut(page.url) as Pathname)))));
+	onMount(() =>
+		account.subscribe(
+			skipOnce((val) => {
+				if (!val) return;
+				// Parameters<>-typed tuple pins resolve()'s single-string overload; tsgo doesn't
+				// distribute a Pathname union over the tuple-union overloads (typescript-go#2125).
+				goto(resolve(...([redirectLoggedOut(page.url) as Pathname] as Parameters<typeof resolve>)));
+			}),
+		),
+	);
 }
