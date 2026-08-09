@@ -35,9 +35,14 @@ export function hashRefreshCode(code: string): string {
 	return crypto.createHash("sha256").update(code).digest("hex");
 }
 
-export function refreshCodeIndexes(code: string) {
-	return [{ code }, { codeHash: hashRefreshCode(code) }];
-}
+// Legacy codes were 15 random bytes base64-encoded (length 20). New codes are 32
+// bytes (length 44) and only ever match the indexed codeHash. Gating the legacy
+// `{code}` lookup on the old length keeps the hot auth path on the codeHash index
+// — after migration 1.4.0 drops `code_1`, an unconditional `{code}` branch would
+// collection-scan on every lookup.
+const LEGACY_CODE_LENGTH = 20;
+
+const isLegacyCode = (code: string) => code.length === LEGACY_CODE_LENGTH;
 
 /**
  * Resolve a raw refresh code to its token doc. Accepts legacy plaintext-stored
@@ -45,7 +50,13 @@ export function refreshCodeIndexes(code: string) {
  * sessions keep working without waiting for migration 1.4.0.
  */
 export async function lookupRefreshToken(code: string) {
-	const rt = await colls.jwtRefreshTokens.findOne({ $or: refreshCodeIndexes(code) });
+	// Indexed path first.
+	const byHash = await colls.jwtRefreshTokens.findOne({ codeHash: hashRefreshCode(code) });
+	if (byHash) {
+		return byHash;
+	}
+	// Legacy fallback: only pre-#164 codes (length 20) can match a plaintext `code`.
+	const rt = isLegacyCode(code) ? await colls.jwtRefreshTokens.findOne({ code }) : null;
 	if (rt?.code) {
 		// Fire-and-forget rehash of a legacy plaintext code — auth latency must not
 		// depend on the write, and a failure just leaves the rehash to the next
@@ -59,5 +70,8 @@ export async function lookupRefreshToken(code: string) {
 
 /** Revoke a session by its raw code (handles both hashed and legacy plaintext storage). */
 export async function revokeRefreshToken(code: string) {
-	await colls.jwtRefreshTokens.deleteOne({ $or: refreshCodeIndexes(code) });
+	const { deletedCount } = await colls.jwtRefreshTokens.deleteOne({ codeHash: hashRefreshCode(code) });
+	if (deletedCount === 0 && isLegacyCode(code)) {
+		await colls.jwtRefreshTokens.deleteOne({ code });
+	}
 }
