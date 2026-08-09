@@ -15,6 +15,7 @@ import {
 	isUserAdmin,
 } from "../../models/index.ts";
 import { parseRefreshCookie, clearRefreshCookie } from "../../models/session.ts";
+import { clearForumSsoCookie } from "../../models/forumsso.ts";
 import {
 	confirm,
 	findByEmail,
@@ -314,6 +315,9 @@ router.post("/signout", async (ctx: Context) => {
 	}
 	ctx.logout();
 	clearRefreshCookie(ctx);
+	// Clear the forum SSO cookie on the spot — both the domain and host-only variants,
+	// or a stale one shadows future logins on the forum (#152).
+	clearForumSsoCookie(ctx);
 	ctx.status = 200;
 });
 
