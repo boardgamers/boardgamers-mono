@@ -87,7 +87,7 @@ export async function loadGameCard(gameId: string): Promise<CardData> {
 		const timePerGame = game.options.timing.timePerGame ?? 0;
 		const pace = timePerGame >= 24 * 3600 ? "Asynchronous" : "Live";
 		card = {
-			title: `${label} — open game`,
+			title: label,
 			subtitle: "Join and play online!",
 			game: label,
 			emoji,
@@ -99,7 +99,7 @@ export async function loadGameCard(gameId: string): Promise<CardData> {
 		// Mirrors StartedGame.svelte: title + players chip, round as pace chip.
 		const round = game.status === "active" ? (game.context?.round ?? 0) : 0;
 		card = {
-			title: `${label} game`,
+			title: label,
 			subtitle:
 				game.status === "active"
 					? `Round ${round} — ${game.players.length} players`
