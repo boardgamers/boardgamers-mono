@@ -10,4 +10,24 @@ describe("extract-cookie", () => {
 			),
 		).toEqual({ code: "r+YVQ/5AZPOXAfubxDTXC", expiresAt: 1650143334413 });
 	});
+
+	it("should extract a percent-encoded JSON cookie value", () => {
+		// The api stores JSON in the cookie; browsers echo it back percent-encoded.
+		expect(
+			extractCookie("refreshToken", `refreshToken=${encodeURIComponent('{"code":"abc+/=","expiresAt":123}')}`),
+		).toEqual({ code: "abc+/=", expiresAt: 123 });
+	});
+
+	it("should not throw on malformed percent-encoding (URIError) — returns undefined", () => {
+		expect(extractCookie("refreshToken", "refreshToken=%%%")).toBeUndefined();
+		expect(extractCookie("refreshToken", "refreshToken=%7B%22truncated")).toBeUndefined();
+	});
+
+	it("should not throw on a non-JSON value — returns undefined", () => {
+		expect(extractCookie("sidebarOpen", "sidebarOpen=not-json")).toBeUndefined();
+	});
+
+	it("should parse a plain (non-encoded) value as a fallback", () => {
+		expect(extractCookie("sidebarOpen", "sidebarOpen=true")).toBe(true);
+	});
 });

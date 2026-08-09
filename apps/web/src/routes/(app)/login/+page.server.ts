@@ -38,13 +38,20 @@ export const actions: Actions = {
 
 		if (!response.ok) {
 			// No-JS path: bounce back to the login page with the error in the query string,
-			// which the page's error banner already renders. (With JS, use:enhance
-			// intercepts the submit and shows fetch errors via handleError instead.)
+			// which the page's error banner already renders. Preserve the existing query
+			// (e.g. ?redirect=/somewhere) so a retry still returns to the original page.
+			// (With JS, use:enhance intercepts the submit and shows fetch errors via handleError.)
 			const message = await response
 				.json()
 				.then((body) => body?.message)
 				.catch(() => null);
-			redirect(303, `${event.url.pathname}?error=${encodeURIComponent(message ?? "Login failed")}`);
+			const target = new URL(event.url);
+			target.search = "";
+			target.searchParams.set("error", message ?? "Login failed");
+			if (event.url.searchParams.get("redirect")) {
+				target.searchParams.set("redirect", event.url.searchParams.get("redirect")!);
+			}
+			redirect(303, target.pathname + target.search);
 		}
 
 		forwardSessionCookies(event, response);

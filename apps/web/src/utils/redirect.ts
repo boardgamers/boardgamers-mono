@@ -19,9 +19,17 @@ export function redirectLoggedIn(url: URL): string {
 	return resolve("/(app)/login") + loginRedirectQuery(url);
 }
 
-/** Same-origin absolute path check, so a caller-supplied target can't be an open redirect (protocol-relative //host included). */
+/**
+ * Same-origin absolute path check, so a caller-supplied target can't be an open
+ * redirect (protocol-relative //host included). ASCII control chars (\r, \n, …) are
+ * rejected too — they'd produce an invalid / injectable Location header.
+ */
 function safeRedirectTarget(target: string | null | undefined): string | null {
-	return target?.startsWith("/") && !target.startsWith("//") ? target : null;
+	if (!target || !target.startsWith("/") || target.startsWith("//")) {
+		return null;
+	}
+	// eslint-disable-next-line no-control-regex -- intentionally matching control chars to reject them
+	return /[\x00-\x1f\x7f]/.test(target) ? null : target;
 }
 
 export function redirectLoggedOut(url: URL, formRedirect?: string | null): string {
