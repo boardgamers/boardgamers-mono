@@ -16,6 +16,8 @@
 		subtitle?: string;
 		/** Game label (e.g. "Gaia Project") — renders a monogram badge derived from it. */
 		game?: string;
+		/** Game emoji (e.g. "🌏") — shown as the badge instead of the monogram when present. */
+		emoji?: string;
 		/** First sentence of the game's description — shown under the title on boardgame cards. */
 		description?: string;
 		players?: string;
@@ -38,6 +40,7 @@
 		title,
 		subtitle = "",
 		game = "",
+		emoji = "",
 		description = "",
 		players = "",
 		pace = "",
@@ -162,11 +165,15 @@
 		</div>
 
 		{#if game}
-			<!-- Per-game "icon": monogram derived from the game's label (no per-game art exists) -->
+			<!-- Per-game "icon": the game's emoji, else a monogram derived from its label (no per-game art exists) -->
 			<div
-				style="position: absolute; top: 96px; right: 96px; width: 210px; height: 210px; border-radius: 44px; display: flex; align-items: center; justify-content: center; font-size: 100px; font-weight: 800; color: #ffffff; letter-spacing: 4px; padding-right: 4px; box-sizing: border-box; background: linear-gradient(140deg, {colors.accentLight} 0%, {colors.accent} 100%); border: 2px solid rgba(255,255,255,0.28); box-shadow: 0 14px 44px rgba(9, 42, 77, 0.5); transform: rotate(5deg);"
+				style="position: absolute; top: 96px; right: 96px; width: 210px; height: 210px; border-radius: 44px; display: flex; align-items: center; justify-content: center; font-size: {emoji
+					? 120
+					: 100}px; font-weight: 800; color: #ffffff; {emoji
+					? ''
+					: 'letter-spacing: 4px; padding-right: 4px;'} box-sizing: border-box; background: linear-gradient(140deg, {colors.accentLight} 0%, {colors.accent} 100%); border: 2px solid rgba(255,255,255,0.28); box-shadow: 0 14px 44px rgba(9, 42, 77, 0.5); transform: rotate(5deg);"
 			>
-				{monogram}
+				{emoji || monogram}
 			</div>
 		{:else if username}
 			<!-- Real avatar (inlined data URL) when available; otherwise the username monogram. -->
