@@ -1,16 +1,22 @@
 import { resolve } from "$app/paths";
 
+/** The redirect target carried to /login and back: same-origin path+query (never a full URL). */
+function toRedirectTarget(url: URL): string {
+	// No url.hash: it never reaches the server, and SvelteKit forbids reading it there.
+	return url.pathname + url.search;
+}
+
 /**
  * Query string carrying the post-login redirect target. Kept separate from the
  * login path so callers can resolve() the path and append this verbatim —
  * resolve() only accepts plain pathnames, not query strings or full URLs.
  */
 export function loginRedirectQuery(url: URL): string {
-	return "?redirect=" + encodeURIComponent(url.href);
+	return "?redirect=" + encodeURIComponent(toRedirectTarget(url));
 }
 
 export function redirectLoggedIn(url: URL): string {
-	return resolve("/(app)/login?redirect=") + url.href;
+	return resolve("/(app)/login") + loginRedirectQuery(url);
 }
 
 /** Same-origin absolute path check, so a caller-supplied target can't be an open redirect (protocol-relative //host included). */

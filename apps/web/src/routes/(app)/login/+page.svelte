@@ -14,7 +14,7 @@
 
 	// Login failures (social OAuth, #155, or a no-JS bad-credentials post from the
 	// form action) bounce back here as /login?error=….
-	const socialError = page.url.searchParams.get("error");
+	const loginError = page.url.searchParams.get("error");
 
 	/**
 	 * Progressive enhancement: JS intercepts the native POST to this page's action and
@@ -28,12 +28,12 @@
 </script>
 
 <div class="container mx-auto px-4">
-	{#if socialError}
+	{#if loginError}
 		<div
 			class="mb-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
 			role="alert"
 		>
-			Login failed: {socialError}
+			Login failed: {loginError}
 		</div>
 	{/if}
 	<form method="POST" use:enhance={enhanceLogin}>
