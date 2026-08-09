@@ -11,7 +11,8 @@ import { findGamesWithPlayersTurn } from "./game.ts";
 export const defaultKarma = 75;
 export const maxKarma = 100;
 
-const secureId = () => crypto.randomBytes(12).toString("base64").replace(/\+/g, "_").replace(/\//g, "-");
+// 256 bits of randomness, URL-safe (base64url) — these become emailed link secrets.
+const secureId = () => crypto.randomBytes(32).toString("base64url");
 
 export function makeDefaultUser(params: {
 	username: string;
@@ -112,7 +113,7 @@ export function generateConfirmKey(): string {
 	return secureId();
 }
 
-// Single-use emailed secrets (confirm link, reset link) are 96 bits of randomness
+// Single-use emailed secrets (confirm link, reset link) are 256 bits of randomness
 // compared against user input then nulled on use, so a fast unsalted hash is safe —
 // same pattern as admintokens.ts / refresh-token codes (#164).
 export function hashUserSecret(secret: string): string {
