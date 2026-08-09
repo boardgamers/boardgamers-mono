@@ -22,6 +22,10 @@ The avatar route's uploaded-avatar branch coerces the stored upload to a Node `B
 
 Covered by `app/routes/user/index.spec.ts`. Keep this note until we migrate off Koa to a framework that handles binary bodies natively (Hono, etc.), then revisit the call site.
 
+## Uploaded-avatar ETag hash is only stored for new uploads (`app/routes/account/index.ts`, `packages/models/image.ts`)
+
+`POST /account/avatar` stores a per-format `hash` (sha256 of the webp) on the images doc, which the avatar route uses as the ETag without re-hashing the blob per request. Avatars uploaded **before** this field was added have no `hash`; the route falls back to computing it from the body on the fly (same value, just per-request). No backfill migration — existing avatars get the stored hash the next time the user re-uploads. Add a one-off migration only if the per-request hashing ever shows up in profiles.
+
 ## Loki proxy route hardcodes localhost URL (`app/routes/admin/loki.ts`)
 
 `/api/admin/loki/query/:key` proxies pre-built LogQL queries to Loki at `process.env.lokiUrl || "http://127.0.0.1:3100"`. This works because the Loki container and the API run on the same host (coyo). If Loki ever moves to a separate host, set `lokiUrl` in the env. The route is intentionally query-key-only (no raw LogQL from the client) to prevent LogQL injection — the `QUERIES` map in `loki.ts` is the allow-list. New dashboard queries should be added there.

@@ -11,6 +11,11 @@ export const imageSchema = z.object({
 			mime: z.string(),
 			raw: z.instanceof(Buffer),
 			size: z.number(),
+			// sha256 of `raw` (hex), computed once at upload. Used as the avatar ETag
+			// so the api doesn't re-hash the whole blob on every request. Optional:
+			// avatars uploaded before this field was added don't have it (the route
+			// falls back to hashing on the fly).
+			hash: z.string().optional(),
 		}),
 	),
 	key: z.string(),

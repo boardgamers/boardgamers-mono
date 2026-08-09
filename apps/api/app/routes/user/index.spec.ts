@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { after, before, describe, it } from "node:test";
 import { ObjectId } from "mongodb";
 import { colls, db } from "../../config/db.ts";
@@ -14,6 +15,7 @@ describe("User API — avatar", () => {
 	let uploadUsername = "";
 	const jpegUserId = new ObjectId();
 	const webpUserId = new ObjectId();
+	const hashedUserId = new ObjectId();
 	// Pre-webp avatars are stored as JPEG/PNG with their mime — they must keep serving as-is.
 	const rawPng = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 	const rawJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
@@ -25,6 +27,8 @@ describe("User API — avatar", () => {
 		0x00,
 		...Buffer.from("WEBP", "ascii"),
 	]);
+	// The sha256 the upload route would compute for rawWebp (16 hex chars).
+	const webpHash = createHash("sha256").update(rawWebp).digest("hex").slice(0, 16);
 
 	before(async () => {
 		const dicebearUser = testUser({ _id: dicebearUserId, account: { avatar: "bottts" } });
@@ -37,6 +41,7 @@ describe("User API — avatar", () => {
 
 		await colls.users.insertOne(testUser({ _id: jpegUserId, account: { avatar: "upload" } }));
 		await colls.users.insertOne(testUser({ _id: webpUserId, account: { avatar: "upload" } }));
+		await colls.users.insertOne(testUser({ _id: hashedUserId, account: { avatar: "upload" } }));
 
 		await colls.images.insertOne({
 			ref: uploadUserId,
@@ -66,6 +71,14 @@ describe("User API — avatar", () => {
 				"128x128": { mime: "image/webp", raw: rawWebp, size: rawWebp.length },
 				"64x64": { mime: "image/webp", raw: rawWebp, size: rawWebp.length },
 			},
+		});
+		// Avatar with the hash stored at upload time (the new-field path).
+		await colls.images.insertOne({
+			ref: hashedUserId,
+			refType: "User",
+			key: "avatar",
+			formats: ["64x64"],
+			images: { "64x64": { mime: "image/webp", raw: rawWebp, size: rawWebp.length, hash: webpHash } },
 		});
 	});
 
@@ -186,6 +199,20 @@ describe("User API — avatar", () => {
 		assert.ok(etag, "expected an ETag");
 		const revalidate = await fetch(url, { headers: { "if-none-match": etag } });
 		assert.strictEqual(revalidate.status, 304);
+	});
+
+	it("uses the upload-time stored hash as the ETag (no re-hash per request)", async () => {
+		const url = `${baseURL()}/api/user/${hashedUserId.toHexString()}/avatar?size=64`;
+		const res = await fetch(url);
+
+		assert.strictEqual(res.status, 200);
+		assert.strictEqual(res.headers.get("content-type"), "image/webp");
+		assert.strictEqual(res.headers.get("etag"), `"${webpHash}"`);
+
+		// Avatars without a stored hash (uploaded before the field existed) fall back
+		// to computing it from the body — same value, just computed per request.
+		const legacy = await fetch(`${baseURL()}/api/user/${webpUserId.toHexString()}/avatar?size=64`);
+		assert.strictEqual(legacy.headers.get("etag"), `"${webpHash}"`);
 	});
 
 	it("404s for an unknown user", async () => {

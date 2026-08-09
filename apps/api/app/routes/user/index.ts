@@ -22,13 +22,15 @@ const router = new Router<Application.DefaultState, Context>();
 // Serves avatar bytes with a content-hash ETag + `Cache-Control: no-cache`:
 // the browser always revalidates (If-None-Match) → 304 when unchanged (no
 // re-download), the fresh image the moment the style or upload changes.
+// `etag` lets callers pass a hash stored at upload time, avoiding a re-hash of
+// the (potentially large) blob on every request; otherwise it's computed here.
 // Returns true when it short-circuited with a 304.
-function serveAvatar(ctx: Context, contentType: string, body: Buffer | string): boolean {
-	const etag = `"${createHash("sha256").update(body).digest("hex").slice(0, 16)}"`;
-	ctx.set("ETag", etag);
+function serveAvatar(ctx: Context, contentType: string, body: Buffer | string, etag?: string): boolean {
+	const etagValue = `"${etag ?? createHash("sha256").update(body).digest("hex").slice(0, 16)}"`;
+	ctx.set("ETag", etagValue);
 	ctx.set("Cache-Control", "no-cache");
 
-	if (ctx.request.headers["if-none-match"] === etag) {
+	if (ctx.request.headers["if-none-match"] === etagValue) {
 		ctx.status = 304;
 		return true;
 	}
@@ -101,7 +103,7 @@ router.get("/byName/:userName/avatar", async (ctx) => {
 
 		const imageData = item.images[format];
 		const buf = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from((imageData.raw as Binary).buffer);
-		serveAvatar(ctx, imageData.mime, buf);
+		serveAvatar(ctx, imageData.mime, buf, imageData.hash);
 		return;
 	}
 
@@ -131,7 +133,7 @@ router.get("/:userId/avatar", async (ctx) => {
 
 		const imageData = item.images[format];
 		const buf = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from((imageData.raw as Binary).buffer);
-		serveAvatar(ctx, imageData.mime, buf);
+		serveAvatar(ctx, imageData.mime, buf, imageData.hash);
 		return;
 	}
 
