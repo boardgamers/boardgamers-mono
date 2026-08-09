@@ -42,10 +42,14 @@ describe("resolveSeo (single <svelte:head> source)", () => {
 		expect(resolveSeo({ title: "All games" }).image).toBe(defaultOgImage.path);
 	});
 
-	it("noindex pages emit no image at all", () => {
-		const s = resolveSeo({ title: "Login", noindex: true });
+	it("noindex only gates the robots meta — the share image still unfurls (game pages are noindex)", () => {
+		// Regression: noindex used to also drop the image, wiping og:image from every game
+		// page (they're all noindex) even though /share.webp/game/<id> renders fine.
+		const s = resolveSeo({ title: "Gaia Project game xyz", noindex: true, image: "/share.webp/game/xyz" });
 		expect(s.noindex).toBe(true);
-		expect(s.image).toBeUndefined();
+		expect(s.image).toBe("/share.webp/game/xyz");
+		// A noindex page with no explicit image keeps the default share image.
+		expect(resolveSeo({ title: "Login", noindex: true }).image).toBe(defaultOgImage.path);
 	});
 
 	it("custom image carries its own dimensions; default image carries default dimensions", () => {
@@ -71,7 +75,8 @@ describe("request isolation (no cross-request bleed)", () => {
 		expect(a1.title).toBe("Gaia Project");
 		expect(a1.image).toBe("/share.webp/boardgame/gaia-project");
 		expect(b1.title).toBe("Powergrid");
-		expect(b1.image).toBeUndefined(); // noindex
+		expect(b1.noindex).toBe(true);
+		expect(b1.image).toBe("/share.webp/boardgame/powergrid"); // noindex keeps its image
 		expect(a2).toEqual(a1);
 		// No module-global mutable state: resolving A never touched shared storage.
 		expect(seoOverride.current).toBeUndefined();

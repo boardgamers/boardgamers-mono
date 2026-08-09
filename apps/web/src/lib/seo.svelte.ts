@@ -102,7 +102,9 @@ function resolve(data: SeoData | undefined | null): ResolvedSeo {
 	return {
 		title: d.title ?? siteName,
 		description: d.description ?? defaultDescription,
-		image: noindex ? undefined : (d.image ?? defaultOgImage.path),
+		// noindex only gates the robots meta — og:image is orthogonal: a noindex page (e.g.
+		// a game page) must still unfurl its share image when linked in Discord & co.
+		image: d.image ?? defaultOgImage.path,
 		imageWidth: d.image ? d.imageWidth : defaultOgImage.width,
 		imageHeight: d.image ? d.imageHeight : defaultOgImage.height,
 		type: d.type ?? "website",
