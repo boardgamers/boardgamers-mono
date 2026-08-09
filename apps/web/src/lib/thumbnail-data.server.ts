@@ -6,7 +6,6 @@ import { fetchGameInfo, fetchGameInfos } from "@/lib/game-info.svelte";
 import { countryFlag, countryName } from "@/lib/countries";
 import { firstSentence, siteName, truncate } from "@/lib/seo";
 import { gameEmoji, gameLabel } from "@/utils/game-label";
-import { duration } from "@/utils/time";
 import type { GameFront, GameInfoFront, GamePreferencesFront, UserFront } from "@bgs/models";
 
 // Card content for the /thumbnail/* pages, derived server-side from the db (via the API)
@@ -83,14 +82,13 @@ export async function loadGameCard(gameId: string): Promise<CardData> {
 	let card: OgCardData;
 	if (game.status === "open") {
 		// Chips mirror OpenGame.svelte: players joined + pace (≥24h/player = asynchronous).
+		// Subtitle stays short (the full pace is a chip) so it doesn't wrap; the pace chip is
+		// compact ("Asynchronous" / "Live") to leave room for the option chips on one row.
 		const timePerGame = game.options.timing.timePerGame ?? 0;
-		const pace =
-			timePerGame >= 24 * 3600
-				? `Asynchronous — ${duration(timePerGame)} / player`
-				: `Live — ${duration(timePerGame)} / player`;
+		const pace = timePerGame >= 24 * 3600 ? "Asynchronous" : "Live";
 		card = {
 			title: `${label} — open game`,
-			subtitle: `Join and play online! ${pace}`,
+			subtitle: "Join and play online!",
 			game: label,
 			emoji,
 			players: `${game.players.length} / ${game.options.setup.nbPlayers} players joined`,

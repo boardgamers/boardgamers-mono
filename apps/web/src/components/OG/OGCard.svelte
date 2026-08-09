@@ -121,7 +121,10 @@
 				</div>
 			{/if}
 			{#if players || pace || karma || country || topGame || cta || gameOptions.length > 0}
-				<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 16px; max-width: 880px;">
+				<!-- Chips sit below the top-right badge, so they can span the full card width
+				(~1072px) instead of the 840px the title/subtitle need to clear the badge — keeps
+				players + pace + option chips on one horizontal row instead of stacking. -->
+				<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 14px; max-width: 1072px;">
 					{#if players}
 						<div
 							style="font-size: 26px; font-weight: 600; color: #ffffff; background: {colors.accent}; border: 1px solid rgba(255,255,255,0.35); border-radius: 999px; padding: 10px 26px; box-shadow: 0 2px 10px rgba(9, 42, 77, 0.4);"
