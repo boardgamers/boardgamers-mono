@@ -178,7 +178,6 @@ Switch **back** to your working branch/worktree afterward — or do this in a se
 
 Note: there's a wait-on-copilot script, ignore itCopilot)
 
-
 ## Conventions
 
 - **Formatting** is enforced (see `.prettierrc`: 120 cols, 2-space, `trailingComma: es5`). Don't hand-format; let the formatter run.
