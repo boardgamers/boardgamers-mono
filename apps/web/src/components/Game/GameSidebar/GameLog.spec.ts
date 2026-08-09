@@ -27,6 +27,8 @@ function makeContext(log: string[]): GameContext {
 		game: null,
 		players: [],
 		gameInfo: null,
+		settings: null,
+		viewerUserId: null,
 		replayData: null,
 		// GameLog never subscribes to the emitter; a stub satisfies the type.
 		emitter: { on() {}, off() {}, emit() {} } as unknown as GameContext["emitter"],

@@ -1,6 +1,5 @@
 import assert from "node:assert";
 import createError from "http-errors";
-import Jimp from "jimp";
 import type { Context } from "koa";
 import passport from "koa-passport";
 import Router from "koa-router";
@@ -20,6 +19,7 @@ import {
 	stripSensitiveFields,
 } from "../../models/user.ts";
 import type { ImageDoc } from "@bgs/models";
+import sharp from "sharp";
 import { loggedIn, loggedOut } from "../utils.ts";
 import auth from "./auth.ts";
 import { sendAuthInfo } from "./utils.ts";
@@ -106,21 +106,12 @@ router.post("/avatar", loggedIn, async (ctx) => {
 	}
 
 	const input = Buffer.concat(parts);
-	const image = await Jimp.read(input);
+	const image = sharp(input);
 
-	const supportedMimes: readonly ("image/jpeg" | "image/png")[] = [Jimp.MIME_JPEG, Jimp.MIME_PNG];
-	const detectedMime = image.getMIME();
-	const mime: "image/jpeg" | "image/png" =
-		supportedMimes.find((m) => m === detectedMime) ?? (image.hasAlpha() ? Jimp.MIME_PNG : Jimp.MIME_JPEG);
-
+	const mime = "image/webp";
 	const imagesObj: ImageDoc["images"] = {};
 	for (const size of [256, 128, 64]) {
-		if (image.getWidth() > size || image.getHeight() > size) {
-			image.cover(size, size);
-		} else if (image.getWidth() !== image.getHeight()) {
-			image.cover(Math.max(image.getWidth(), image.getHeight()), Math.max(image.getWidth(), image.getHeight()));
-		}
-		const converted = await image.quality(85).getBufferAsync(mime);
+		const converted = await image.clone().resize(size, size, { fit: "cover" }).webp({ quality: 80 }).toBuffer();
 		imagesObj[`${size}x${size}`] = { mime, raw: converted, size: converted.length };
 	}
 

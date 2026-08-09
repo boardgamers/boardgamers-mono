@@ -21,6 +21,7 @@ import gameInfo from "./gameinfo.ts";
 import gamesRouter from "./games.ts";
 import loki from "./loki.ts";
 import pagesRouter from "./pages.ts";
+import tokensRouter from "./tokens.ts";
 import usersRouter from "./users.ts";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -31,6 +32,7 @@ router.use("/gameinfo", gameInfo.routes(), gameInfo.allowedMethods());
 router.use("/games", gamesRouter.routes(), gamesRouter.allowedMethods());
 router.use("/loki", loki.routes(), loki.allowedMethods());
 router.use("/page", pagesRouter.routes(), pagesRouter.allowedMethods());
+router.use("/tokens", tokensRouter.routes(), tokensRouter.allowedMethods());
 router.use("/users", usersRouter.routes(), usersRouter.allowedMethods());
 
 const errorsQuerySchema = z.object({
