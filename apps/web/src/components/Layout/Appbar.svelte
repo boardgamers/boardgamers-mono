@@ -25,7 +25,7 @@
 	import IconCircleHalf from "@/components/icons/IconCircleHalf.svelte";
 	import { handleError } from "@/utils";
 	import { account, login, logout } from "@/lib/account.svelte";
-	import { logoClick, live, activeGames } from "@/lib/stores.svelte";
+	import { logoClick, live, activeGames, avatarVersion } from "@/lib/stores.svelte";
 	import { browser } from "$app/environment";
 	import { resolve } from "$app/paths";
 	import type { Pathname } from "$app/types";
@@ -233,7 +233,7 @@
 				data-sveltekit-preload-data="hover"
 				class="flex items-center gap-2 rounded-md px-2 py-1 no-underline hover:bg-white/10 hover:text-white"
 			>
-				<UserAvatar username={user.account.username} userId={user._id} size="1.75rem" />
+				<UserAvatar username={user.account.username} userId={user._id} size="1.75rem" v={$avatarVersion} />
 				<span class="hidden sm:inline">{user.account.username}</span>
 			</NavLink>
 			<NavLink

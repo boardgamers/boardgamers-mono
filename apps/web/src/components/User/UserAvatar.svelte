@@ -15,9 +15,9 @@
 		username: string;
 		art?: string;
 		size?: string;
-		// Optional local cache-buster appended as ?v=… — the account page passes its
-		// avatarReload counter to force the just-changed avatar to show instantly.
-		// Elsewhere it's omitted: ETag + no-cache revalidation keeps avatars fresh.
+		// Optional cache-buster appended as ?v=… — pass the shared `avatarVersion`
+		// store so the avatar refetches the moment it changes (style switch/upload).
+		// When omitted, ETag + no-cache revalidation on the api keeps it fresh.
 		v?: string | number | null;
 		class?: string;
 		onclick?: (e: MouseEvent) => void;

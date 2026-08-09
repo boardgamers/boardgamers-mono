@@ -15,7 +15,7 @@
 	import { useLoggedIn } from "@/lib/auth-guards.svelte";
 	import UserAvatar from "@/components/User/UserAvatar.svelte";
 	import CountrySelect from "@/components/Form/CountrySelect.svelte";
-	import { logoClick, live } from "@/lib/stores.svelte";
+	import { logoClick, live, avatarVersion, bumpAvatarVersion } from "@/lib/stores.svelte";
 
 	useLoggedIn();
 
@@ -33,7 +33,6 @@
 	let gameNotificationDelay = $state(untrack(() => user?.settings?.mailing?.game?.delay ?? 30 * 60));
 	let tc = $state(false);
 	let editingAvatar = $state(false);
-	let avatarReload = $state(0);
 	let fileUpload = $state<HTMLInputElement>();
 
 	let bio = $derived(user?.account.bio ?? "");
@@ -84,7 +83,7 @@
 		})
 			.then((r) => {
 				account.set(r);
-				avatarReload++;
+				bumpAvatarVersion();
 			}, handleError)
 			.finally(() => {
 				editingAvatar = false;
@@ -162,7 +161,7 @@
 		}
 		editingAvatar = false;
 		customAvatarError = false;
-		avatarReload++;
+		bumpAvatarVersion();
 		await invalidateAll();
 	}
 
@@ -189,14 +188,14 @@
 
 		<Card class="mt-4 border-accent" header="User Settings">
 			{#if !editingAvatar}
-				{#key avatarReload}
+				{#key $avatarVersion}
 					<UserAvatar
 						--avatar-border="1px solid gray"
 						role="button"
 						onclick={() => (editingAvatar = true)}
 						userId={user._id}
 						username={user.account.username}
-						v={avatarReload}
+						v={$avatarVersion}
 					/>
 				{/key}
 			{:else}
@@ -210,7 +209,7 @@
 							userId={user._id}
 							username="Custom avatar"
 							role="button"
-							v={avatarReload}
+							v={$avatarVersion}
 							onerror={() => (customAvatarError = true)}
 							onload={() => (customAvatarError = false)}
 							onclick={() => selectArt("upload")}
