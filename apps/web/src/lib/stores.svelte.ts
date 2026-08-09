@@ -192,6 +192,16 @@ export function logoClick(): void {
 	logoClicks.update((n) => n + 1);
 }
 
+// Bumped when the user changes their avatar (style switch or upload) so every
+// <UserAvatar> that passes it as `v` gets a new `?v=` URL and refetches —
+// the api URL is otherwise stable. Read via `$avatarVersion`; bump via
+// `bumpAvatarVersion()`. (ETag + no-cache on the api already revalidates for
+// avatars that don't pass `v`; this is for instant feedback on the change.)
+export const avatarVersion = writable<number>(0);
+export function bumpAvatarVersion(): void {
+	avatarVersion.update((n) => n + 1);
+}
+
 export type DevGameSettings = {
 	viewerUrl: string;
 };

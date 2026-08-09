@@ -1,4 +1,5 @@
 import assert from "node:assert";
+import { createHash } from "node:crypto";
 import createError from "http-errors";
 import type { Context } from "koa";
 import passport from "koa-passport";
@@ -6,7 +7,13 @@ import Router from "koa-router";
 import type { GamePreferencesDoc } from "@bgs/models";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
-import { accessTokenDuration, createAccessToken, findGamesWithPlayersTurn, isUserAdmin } from "../../models/index.ts";
+import {
+	accessTokenDuration,
+	createAccessToken,
+	findGamesWithPlayersTurn,
+	isAvatarStyle,
+	isUserAdmin,
+} from "../../models/index.ts";
 import { parseRefreshCookie, clearRefreshCookie } from "../../models/session.ts";
 import {
 	confirm,
@@ -61,7 +68,7 @@ router.post("/", loggedIn, async (ctx) => {
 		.parse(ctx.request.body);
 
 	const avatar = body.account?.avatar;
-	assert(!avatar?.includes("/") && !avatar?.includes("."), "Invalid avatar");
+	assert(avatar == null || avatar === "upload" || isAvatarStyle(avatar), "Invalid avatar");
 
 	const updateFields: Record<string, unknown> = {};
 	if (body.settings != null) {
@@ -112,7 +119,10 @@ router.post("/avatar", loggedIn, async (ctx) => {
 	const imagesObj: ImageDoc["images"] = {};
 	for (const size of [256, 128, 64]) {
 		const converted = await image.clone().resize(size, size, { fit: "cover" }).webp({ quality: 80 }).toBuffer();
-		imagesObj[`${size}x${size}`] = { mime, raw: converted, size: converted.length };
+		// Hash once here so the avatar route can use it as the ETag without
+		// re-reading/re-hashing the blob on every request.
+		const hash = createHash("sha256").update(converted).digest("hex").slice(0, 16);
+		imagesObj[`${size}x${size}`] = { mime, raw: converted, size: converted.length, hash };
 	}
 
 	await colls.images.updateOne(

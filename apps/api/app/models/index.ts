@@ -1,4 +1,5 @@
 export { MAX_ADMIN_TOKEN_TTL_MS, authenticateAdminToken, createAdminToken, hashAdminToken } from "./admintokens.ts";
+export { DEFAULT_AVATAR_STYLE, generateAvatar, isAvatarStyle } from "./avatar.ts";
 export type { AdminTokenDoc } from "@bgs/models";
 export type { ApiErrorDoc } from "@bgs/models";
 export type { ChatMessageDoc } from "@bgs/models";

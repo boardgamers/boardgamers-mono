@@ -1,4 +1,3 @@
-import assert from "node:assert";
 import { createHash } from "node:crypto";
 import createError from "http-errors";
 import type { Context } from "koa";
@@ -6,6 +5,7 @@ import Router from "koa-router";
 import { type Binary, ObjectId } from "mongodb";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
+import { generateAvatar } from "../../models/avatar.ts";
 import {
 	eloProjection,
 	findGamesWithPlayersTurn,
@@ -18,6 +18,27 @@ import { zIntQuery } from "../../utils/zod.ts";
 import { queryCount, skipCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
+
+// Serves avatar bytes with a content-hash ETag + `Cache-Control: no-cache`:
+// the browser always revalidates (If-None-Match) → 304 when unchanged (no
+// re-download), the fresh image the moment the style or upload changes.
+// `etag` lets callers pass a hash stored at upload time, avoiding a re-hash of
+// the (potentially large) blob on every request; otherwise it's computed here.
+// Returns true when it short-circuited with a 304.
+function serveAvatar(ctx: Context, contentType: string, body: Buffer | string, etag?: string): boolean {
+	const etagValue = `"${etag ?? createHash("sha256").update(body).digest("hex").slice(0, 16)}"`;
+	ctx.set("ETag", etagValue);
+	ctx.set("Cache-Control", "no-cache");
+
+	if (ctx.request.headers["if-none-match"] === etagValue) {
+		ctx.status = 304;
+		return true;
+	}
+
+	ctx.set("Content-Type", contentType);
+	ctx.body = body;
+	return false;
+}
 
 router.param("userId", async (userId, ctx, next) => {
 	ctx.state.foundUser = (await colls.users.findOne({ _id: new ObjectId(userId) })) ?? undefined;
@@ -57,6 +78,39 @@ router.get("/infoByName/:userName", (ctx) => {
 	ctx.body = userPublicInfo(ctx.state.foundUser!);
 });
 
+// Same as /:userId/avatar but by username — used when the client knows the
+// name but not the id (e.g. the avatar-style picker on the account page).
+// Generated avatars are style-stable, so this also previews a style via ?style=.
+router.get("/byName/:userName/avatar", async (ctx) => {
+	const foundUser = ctx.state.foundUser!;
+	const account = foundUser.account;
+	const { size, style } = z.object({ size: zIntQuery().optional(), style: z.string().optional() }).parse(ctx.query);
+
+	if (!style && account.avatar === "upload") {
+		const format = !size || size > 128 ? "256x256" : size > 64 ? "128x128" : "64x64";
+		const item = await colls.images.findOne(
+			{
+				ref: foundUser._id,
+				refType: "User",
+				key: "avatar",
+				[`images.${format}`]: { $exists: true },
+			},
+			{ projection: { [`images.${format}`]: 1 } },
+		);
+		if (!item) {
+			return;
+		}
+
+		const imageData = item.images[format];
+		const buf = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from((imageData.raw as Binary).buffer);
+		serveAvatar(ctx, imageData.mime, buf, imageData.hash);
+		return;
+	}
+
+	const svg = generateAvatar(style ?? account.avatar, account.username, size && size <= 256 ? size : undefined);
+	serveAvatar(ctx, "image/svg+xml", svg);
+});
+
 router.get("/:userId/avatar", async (ctx) => {
 	const foundUser = ctx.state.foundUser!;
 	const account = foundUser.account;
@@ -79,38 +133,14 @@ router.get("/:userId/avatar", async (ctx) => {
 
 		const imageData = item.images[format];
 		const buf = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from((imageData.raw as Binary).buffer);
-
-		// ETag from content hash — browser revalidates with If-None-Match → 304 if unchanged.
-		const etag = `"${createHash("sha256").update(buf).digest("hex").slice(0, 16)}"`;
-		ctx.set("ETag", etag);
-		ctx.set("Cache-Control", "no-cache");
-
-		if (ctx.request.headers["if-none-match"] === etag) {
-			ctx.status = 304;
-			return;
-		}
-
-		ctx.set("Content-Type", imageData.mime);
-		ctx.body = buf;
+		serveAvatar(ctx, imageData.mime, buf, imageData.hash);
 		return;
 	}
 
-	// DiceBear avatars are deterministic (seeded by username + style).
-	// Cache aggressively — the SVG only changes if the user picks a new style,
-	// which updates account.avatar, and the URL stays the same so the browser
-	// will serve the cached version. That's acceptable: style changes are rare,
-	// and a hard refresh or cache clear will pick it up.
-	const response = await fetch(
-		`https://api.dicebear.com/9.x/${encodeURIComponent(account.avatar ?? "avataaars")}/svg?seed=${encodeURIComponent(
-			account.username,
-		)}`,
-	);
-
-	assert(response.ok, "Error when loading image");
-
-	ctx.set("Content-Type", "image/svg+xml");
-	ctx.set("Cache-Control", "public, max-age=86400");
-	ctx.body = Buffer.from(await response.arrayBuffer());
+	// DiceBear avatars are generated locally — deterministic (seeded by username + style),
+	// so the ETag only changes when the style does. Revalidation picks that up immediately.
+	const svg = generateAvatar(account.avatar, account.username, size && size <= 256 ? size : undefined);
+	serveAvatar(ctx, "image/svg+xml", svg);
 });
 
 router.get("/:userId/games/open", async (ctx) => {

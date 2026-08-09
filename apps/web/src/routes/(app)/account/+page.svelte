@@ -16,7 +16,7 @@
 	import UserAvatar from "@/components/User/UserAvatar.svelte";
 	import CountrySelect from "@/components/Form/CountrySelect.svelte";
 	import { SEO } from "@/components";
-	import { logoClick, live } from "@/lib/stores.svelte";
+	import { logoClick, live, avatarVersion, bumpAvatarVersion } from "@/lib/stores.svelte";
 
 	useLoggedIn();
 
@@ -34,12 +34,13 @@
 	let gameNotificationDelay = $state(untrack(() => user?.settings?.mailing?.game?.delay ?? 30 * 60));
 	let tc = $state(false);
 	let editingAvatar = $state(false);
-	let avatarReload = $state(0);
 	let fileUpload = $state<HTMLInputElement>();
 
 	let bio = $derived(user?.account.bio ?? "");
 	let country = $derived(user?.account.country ?? "");
 
+	// Keep in sync with the whitelist in apps/api/app/models/avatar.ts.
+	// ("gridy"/"jdenticon" were dropped: DiceBear v9 removed them.)
 	const avatarStyles = [
 		"adventurer",
 		"adventurer-neutral",
@@ -50,10 +51,8 @@
 		"bottts",
 		"croodles",
 		"croodles-neutral",
-		"gridy",
 		"identicon",
 		"initials",
-		"jdenticon",
 		"micah",
 		"miniavs",
 		"open-peeps",
@@ -85,7 +84,7 @@
 		})
 			.then((r) => {
 				account.set(r);
-				avatarReload++;
+				bumpAvatarVersion();
 			}, handleError)
 			.finally(() => {
 				editingAvatar = false;
@@ -163,7 +162,7 @@
 		}
 		editingAvatar = false;
 		customAvatarError = false;
-		avatarReload++;
+		bumpAvatarVersion();
 		await invalidateAll();
 	}
 
@@ -188,39 +187,37 @@
 
 		<Card class="mt-4 border-accent" header="User Settings">
 			{#if !editingAvatar}
-				{#key avatarReload}
+				{#key $avatarVersion}
 					<UserAvatar
 						--avatar-border="1px solid gray"
 						role="button"
 						onclick={() => (editingAvatar = true)}
 						userId={user._id}
 						username={user.account.username}
+						v={$avatarVersion}
 					/>
 				{/key}
 			{:else}
 				<input type="file" bind:this={fileUpload} onchange={uploadAvatar} accept="image/*" class="hidden" />
-				<a
-					href="#upload"
-					style="width: 100%"
-					role="button"
-					onclick={(e) => {
-						e.preventDefault();
-						fileUpload?.click();
-					}}>Upload</a
-				>
-				<div style="display: contents" class:hidden={customAvatarError}>
-					<UserAvatar
-						userId={user._id}
-						username="Custom avatar"
-						role="button"
-						onerror={() => (customAvatarError = true)}
-						onload={() => (customAvatarError = false)}
-						onclick={() => selectArt("upload")}
-					/>
+				<div class="mb-2">
+					<Button color="primary" onclick={() => fileUpload?.click()}>Upload a custom avatar</Button>
 				</div>
-				{#each avatarStyles as art (art)}
-					<UserAvatar {art} username={user.account.username} role="button" onclick={() => selectArt(art)} />
-				{/each}
+				<div class="flex flex-wrap items-center gap-2">
+					<div class:hidden={customAvatarError}>
+						<UserAvatar
+							userId={user._id}
+							username="Custom avatar"
+							role="button"
+							v={$avatarVersion}
+							onerror={() => (customAvatarError = true)}
+							onload={() => (customAvatarError = false)}
+							onclick={() => selectArt("upload")}
+						/>
+					</div>
+					{#each avatarStyles as art (art)}
+						<UserAvatar {art} username={user.account.username} role="button" onclick={() => selectArt(art)} />
+					{/each}
+				</div>
 			{/if}
 			<FormGroup class="mt-2">
 				<label for="bio">Bio</label>
