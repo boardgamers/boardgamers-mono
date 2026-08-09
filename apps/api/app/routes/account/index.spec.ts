@@ -3,8 +3,9 @@
 // the API server.
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { ObjectId } from "mongodb";
+import { Binary, ObjectId } from "mongodb";
 import bcrypt from "bcryptjs";
+import sharp from "sharp";
 import { z } from "zod";
 import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
@@ -27,6 +28,15 @@ async function api(method: string, path: string, body?: unknown, headers?: Recor
 
 const countryOf = (data: unknown) =>
 	z.object({ account: z.object({ country: z.string().nullish() }) }).parse(data).account.country;
+
+const isWebp = (buf: Buffer) =>
+	buf.subarray(0, 4).toString("ascii") === "RIFF" && buf.subarray(8, 12).toString("ascii") === "WEBP";
+
+// 300x200 — wider than tall, so "cover" must crop to a square.
+const makeAvatarUpload = (format: "jpeg" | "png") => {
+	const image = sharp({ create: { width: 300, height: 200, channels: 3, background: { r: 200, g: 40, b: 40 } } });
+	return format === "jpeg" ? image.jpeg().toBuffer() : image.png().toBuffer();
+};
 
 describe("Account API — country", () => {
 	const userId = new ObjectId();
@@ -103,6 +113,80 @@ describe("Account API — country", () => {
 		const entry = rankings.find((r) => r.user.name === "countryuser");
 		assert.ok(entry, "expected countryuser in rankings");
 		assert.strictEqual(entry.user.country, "BR");
+	});
+
+	after(() => db().dropDatabase());
+});
+
+describe("Account API — avatar upload", () => {
+	const userId = new ObjectId();
+	let authHeaders: Record<string, string> = {};
+
+	before(async () => {
+		await colls.users.insertOne(
+			testUser({
+				_id: userId,
+				account: { username: "avataruser", email: "avatar@test.com" },
+				security: { confirmed: true, slug: "avataruser" },
+			}),
+		);
+		const code = generateRefreshCode();
+		const tokenDoc = { user: userId, code, createdAt: new Date() };
+		await colls.jwtRefreshTokens.insertOne(tokenDoc);
+		const token = await createAccessToken(tokenDoc, ["all"], false);
+		authHeaders = { Authorization: `Bearer ${token}` };
+	});
+
+	for (const format of ["jpeg", "png"] as const) {
+		it(`encodes an uploaded ${format.toUpperCase()} as webp in all three sizes`, async () => {
+			const upload = await makeAvatarUpload(format);
+			const res = await fetch(`${baseURL()}/api/account/avatar`, {
+				method: "POST",
+				headers: authHeaders,
+				body: upload,
+			});
+			assert.strictEqual(res.status, 200);
+
+			const doc = await colls.images.findOne({ ref: userId, key: "avatar", refType: "User" });
+			assert.ok(doc, "expected an images doc");
+			assert.deepStrictEqual([...doc.formats].sort(), ["128x128", "256x256", "64x64"]);
+
+			for (const size of [256, 128, 64]) {
+				const entry = doc.images[`${size}x${size}`];
+				assert.ok(entry, `missing ${size}x${size}`);
+				assert.strictEqual(entry.mime, "image/webp");
+				// The driver returns BSON binary as `Binary`, not a Node Buffer.
+				const raw = entry.raw instanceof Binary ? entry.raw.buffer : entry.raw;
+				assert.strictEqual(entry.size, raw.length);
+				assert.ok(isWebp(raw), `expected RIFF…WEBP magic bytes for ${size}x${size}`);
+				const meta = await sharp(raw).metadata();
+				assert.strictEqual(meta.format, "webp");
+				assert.strictEqual(meta.width, size);
+				assert.strictEqual(meta.height, size);
+			}
+
+			const user = await colls.users.findOne({ _id: userId });
+			assert.strictEqual(user?.account.avatar, "upload");
+
+			// The uploaded avatar serves as webp, in the requested size bucket.
+			const served = await fetch(`${baseURL()}/api/user/${userId.toHexString()}/avatar?size=64`);
+			assert.strictEqual(served.status, 200);
+			assert.strictEqual(served.headers.get("content-type"), "image/webp");
+			const body = Buffer.from(await served.arrayBuffer());
+			assert.ok(isWebp(body), "expected RIFF…WEBP magic bytes on the served avatar");
+			const servedMeta = await sharp(body).metadata();
+			assert.strictEqual(servedMeta.width, 64);
+			assert.strictEqual(servedMeta.height, 64);
+		});
+	}
+
+	it("rejects a non-image body", async () => {
+		const res = await fetch(`${baseURL()}/api/account/avatar`, {
+			method: "POST",
+			headers: authHeaders,
+			body: Buffer.from("definitely not an image"),
+		});
+		assert.strictEqual(res.ok, false);
 	});
 
 	after(() => db().dropDatabase());
