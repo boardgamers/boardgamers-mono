@@ -114,10 +114,16 @@ describe("parseRefreshCookie", () => {
 
 	it("parses a percent-encoded value (browsers echo the cookie back encoded)", () => {
 		// The api stores JSON in the cookie; Koa's lenient decode can leave the value
-		// percent-encoded when it contains cookie-invalid characters, so the parser must
-		// decodeURIComponent first — otherwise the session silently fails (401 + cleared cookie).
+		// percent-encoded when it contains cookie-invalid characters, so the parser falls
+		// back to decodeURIComponent — otherwise the session silently fails (401 + cleared cookie).
 		const encoded = encodeURIComponent(JSON.stringify({ code: "abc+/123=", expiresAt: 123 }));
 		assert.strictEqual(parseRefreshCookie(encoded), "abc+/123=");
+	});
+
+	it("parses a raw JSON value containing a literal % (decode-first would reject it)", () => {
+		// decodeURIComponent on a raw JSON string with a literal '%' throws URIError; the
+		// raw parse must succeed first so such a cookie isn't treated as missing.
+		assert.strictEqual(parseRefreshCookie(JSON.stringify({ code: "100%legit" })), "100%legit");
 	});
 
 	it("returns null for missing or malformed values", () => {
