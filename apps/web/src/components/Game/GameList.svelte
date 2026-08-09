@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import { timerTime, defer, duration, niceDate, shortDuration, compactTiming } from "@/utils";
+	import { browser } from "$app/environment";
+	import { timerTime, defer, duration, niceDate, shortDuration, compactDuration, timerWindow } from "@/utils";
 	import type { GameFront } from "@bgs/models";
 	import { createWatcher } from "@/utils/watch";
 	import { Badge, Pagination, Loading } from "@/modules/cdk";
@@ -109,6 +110,59 @@
 		return game?.label.trim().slice(0, game?.label.trim().indexOf(" "));
 	}
 
+	// On narrow screens the avatar cluster would otherwise eat the name/timing
+	// text — cap how many avatars are shown and collapse the rest into a "+k"
+	// chip. CSS-based (max-width media query) so SSR/hydration agree.
+	// 5 shrunk+overlapped avatars ≈ 4.4rem, still leaves room for the name/timing
+	// text on a 390px-wide screen with a 6-player game.
+	const MOBILE_AVATARS_LIMIT = 5;
+
+	// Re-render every 30s so "⏱ Xh left" / the amber state stay fresh while the
+	// list is open (Date.now() below is otherwise frozen at render). Client-only;
+	// SSR renders once with the value at request time.
+	let nowTick = $state(Date.now());
+	$effect(() => {
+		if (!browser) {
+			return;
+		}
+		const id = setInterval(() => (nowTick = Date.now()), 30_000);
+		return () => clearInterval(id);
+	});
+
+	// lastMove/createdAt are optional — fall back to "just now" when both are missing.
+	function lastActivity(game: GameFront): string {
+		const ts = new Date(game.lastMove ?? game.createdAt ?? nowTick).getTime() || nowTick;
+		return shortDuration(Math.max(30, Math.floor((nowTick - ts) / 1000))) ?? "";
+	}
+
+	// Time left on the current turn (seconds), from the per-player deadline the API
+	// already sends on the list payload. Prefers the viewer's own deadline; otherwise
+	// the earliest current player's. Negative when the deadline has passed. Null when
+	// the game has no per-turn clock.
+	function turnTimeLeft(game: GameFront): number | null {
+		nowTick; // recompute on the 30s tick
+		const current = game.currentPlayers ?? [];
+		const own = userId ? current.find((pl) => pl._id === userId) : undefined;
+		const candidates = own ? [own] : current;
+		const deadlines = candidates.filter((pl) => pl.deadline).map((pl) => new Date(pl.deadline!).getTime());
+		if (deadlines.length === 0) {
+			return null;
+		}
+		return Math.floor((Math.min(...deadlines) - Date.now()) / 1000);
+	}
+
+	// "Act soon": it's the viewer's turn and the turn deadline is close. Only when
+	// timePerMove is set — the deadline derives from the remaining *game* clock, so
+	// without a per-move budget we can't tell a genuine "about to time out" from a
+	// long game that's simply past 3/4 of its total clock.
+	function turnUrgent(game: GameFront, secondsLeft: number): boolean {
+		const timePerMove = game.options.timing.timePerMove;
+		if (!userId || !timePerMove || !game.currentPlayers?.some((pl) => pl._id === userId)) {
+			return false;
+		}
+		return secondsLeft <= timePerMove / 4;
+	}
+
 	const onCurrentPageChanged = createWatcher(() => load(false));
 
 	let firstRun = true;
@@ -148,10 +202,12 @@
 					class="divide-y divide-accent/80 rounded-lg border border-accent/80 bg-white text-start dark:divide-accent/60 dark:border-accent/60 dark:bg-gray-900 game-list"
 				>
 					{#each games as game (game._id)}
+						{@const timeLeft = game.status === "active" ? turnTimeLeft(game) : null}
 						<li
 							class="game-item"
 							class:active-game={game.status === "active"}
 							class:current-turn={game.currentPlayers?.some((pl) => pl._id === userId)}
+							class:turn-urgent={timeLeft !== null && turnUrgent(game, timeLeft)}
 						>
 							<a
 								href={resolve("/game/[gameId]", { gameId: game._id })}
@@ -185,15 +241,34 @@
 										class="flex items-center gap-1 whitespace-nowrap text-xs"
 										title={`${playTime(game)} ${duration(game.options.timing.timePerGame ?? 0)} + ${duration(
 											game.options.timing.timePerMove ?? 0
-										)}`}
+										)} · ${timerWindow(game.options.timing.timer)}`}
 									>
 										{#if game.status === "ended"}
 											<span class="text-gray-500 dark:text-gray-400">finished · {niceDate(game.lastMove ?? "")}</span>
+										{:else if game.status === "active"}
+											<!-- Ongoing games: lead with time left on the current turn; fall back to
+											     last activity when the game has no per-turn clock (full timing on hover) -->
+											{#if timeLeft !== null}
+												<span
+													class="flex items-center gap-0.5 {turnUrgent(game, timeLeft)
+														? 'font-semibold text-amber-600 dark:text-amber-400'
+														: 'text-gray-500 dark:text-gray-400'}"
+												>
+													⏱ {timeLeft <= 0 ? "overdue" : `${compactDuration(timeLeft)} left`}
+												</span>
+											{:else}
+												<span class="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+													<IconClockHistory class="text-[0.8em]" />
+													{lastActivity(game)} ago
+												</span>
+											{/if}
 										{:else}
 											<IconClockHistory class="text-[0.8em]" />
-											{compactTiming(game)}
+											{compactDuration(game.options.timing.timePerGame ?? 0)}+{compactDuration(
+												game.options.timing.timePerMove ?? 0
+											)}
 											{#if game.options.timing.scheduledStart}
-												starts on {niceDate(game.options.timing.scheduledStart)} at
+												· starts on {niceDate(game.options.timing.scheduledStart)} at
 												{new Date(game.options.timing.scheduledStart)
 													.getHours()
 													.toString()
@@ -207,16 +282,25 @@
 								</div>
 
 								{#if game.status !== "open"}
-									<div class="factions flex shrink-0 flex-row">
-										{#each game.players as player (player._id)}
+									<div class="factions flex min-w-0 shrink flex-row items-center">
+										{#each game.players as player, i (player._id)}
 											<PlayerGameAvatar
 												game={game.game.name}
 												isCurrent={game.currentPlayers?.some((pl) => pl._id === player._id)}
 												userId={userId ?? undefined}
 												{player}
-												class="me-1"
+												class={i >= MOBILE_AVATARS_LIMIT ? "mobile-hidden-avatar me-1" : "me-1"}
 											/>
 										{/each}
+										{#if game.players.length > MOBILE_AVATARS_LIMIT}
+											<span
+												class="mobile-avatar-more shrink-0 text-xs font-semibold text-gray-500 dark:text-gray-400"
+												title="{game.players.length - MOBILE_AVATARS_LIMIT} more players"
+												aria-label="{game.players.length - MOBILE_AVATARS_LIMIT} more players"
+											>
+												+{game.players.length - MOBILE_AVATARS_LIMIT}
+											</span>
+										{/if}
 									</div>
 								{:else}
 									<div class="me-3 text-right" style="line-height: 1.1;">
@@ -271,6 +355,68 @@
 	/* On mobile, if multiple lines, I want items to be aligned to the right */
 	.game-list .game-item.active-game .factions {
 		justify-content: flex-end;
+	}
+
+	/* Mobile (#163): with ~6 players the avatars used to take their full width and
+	   squeeze the name/timing text to nothing. Cap the cluster at the first few
+	   avatars (rest collapse into a "+k" chip), shrink and overlap them a bit. */
+	@media (max-width: 639.98px) {
+		.game-list .game-item .factions {
+			flex-wrap: nowrap;
+		}
+
+		/* :global: svelte-check can't see the class on the child component's root node */
+		.game-list .game-item .factions :global(.player-avatar.mobile-hidden-avatar) {
+			display: none;
+		}
+
+		.game-list .game-item .factions .mobile-avatar-more {
+			display: inline;
+		}
+
+		.game-list .game-item .factions :global(.player-avatar) {
+			width: 1.5rem;
+			height: 1.5rem;
+			min-width: 1.5rem;
+			min-height: 1.5rem;
+		}
+
+		.game-list .game-item .factions :global(.player-avatar) + :global(.player-avatar) {
+			margin-inline-start: -0.35rem;
+		}
+
+		.game-list .game-item .factions :global(.player-avatar) {
+			box-shadow: 0 0 0 1.5px white;
+		}
+
+		:global(.dark) .game-list .game-item .factions :global(.player-avatar) {
+			box-shadow: 0 0 0 1.5px #111827; /* gray-900, the list's dark background */
+		}
+
+		.game-list .game-item .factions :global(.player-avatar .vp) {
+			font-size: 0.55rem;
+			width: 15px;
+			right: -4px;
+			bottom: -4px;
+		}
+	}
+
+	@media (min-width: 640px) {
+		.game-list .game-item .factions .mobile-avatar-more {
+			display: none;
+		}
+	}
+
+	/* Mobile: "act soon" — your turn and the turn deadline is close. Amber left
+	   border, distinct from the green current-turn background. */
+	@media (max-width: 639.98px) {
+		.game-list .game-item.turn-urgent {
+			border-inline-start: 3px solid rgb(217 119 6); /* amber-600 */
+		}
+
+		:global(.dark) .game-list .game-item.turn-urgent {
+			border-inline-start-color: rgb(251 191 36); /* amber-400 */
+		}
 	}
 
 	.game-list .game-item .game-kind {

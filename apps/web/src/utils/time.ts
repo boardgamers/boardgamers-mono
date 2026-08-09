@@ -123,15 +123,10 @@ export function compactDuration(seconds: number): string {
 }
 
 /**
- * Compact timing summary for a game, e.g. "3d+2h · 19:00–08:00" or "3d+2h · 24h".
+ * Daily timer window for a game, e.g. "19h–08h" or "24h".
  */
-export function compactTiming(game: {
-	options: { timing: { timer?: { start: number; end: number }; timePerGame?: number; timePerMove?: number } };
-}): string {
-	const { timer, timePerGame, timePerMove } = game.options.timing;
-	const base = `${compactDuration(timePerGame ?? 0)}+${compactDuration(timePerMove ?? 0)}`;
-	const window = timer?.start !== timer?.end ? `${timerTime(timer?.start ?? 0)}–${timerTime(timer?.end ?? 0)}` : "24h";
-	return `${base} · ${window}`;
+export function timerWindow(timer?: { start: number; end: number }): string {
+	return timer?.start !== timer?.end ? `${timerTime(timer?.start ?? 0)}–${timerTime(timer?.end ?? 0)}` : "24h";
 }
 
 export function dateTime(date: Date): string {
