@@ -147,6 +147,30 @@ fields by default — you only need to act if you _want_ the field kept, or if i
 a new collection that isn't covered). The whitelist is the safety net: a field you
 don't mention never reaches a preview.
 
+## Screenshots on PRs/issues
+
+To attach a screenshot to a PR or issue:
+
+- **Do NOT use** GitHub's asset upload (drag-drop / `/assets/` URLs) from an agent token — it fails with "Asset upload is not working with this token type".
+- **Do NOT** commit screenshots to the PR's own branch (they'd get merged into main and bloat the repo), and do NOT create throwaway draft releases to host them (deleting the release breaks the images).
+- **The convention**: push the file to the dedicated long-lived **`pr-assets`** branch (an orphan-ish branch we never delete, so the raw URLs stay valid), under a per-PR folder `pr-<N>/`:
+
+```bash
+# from a clone of the repo, on the pr-assets branch (fetch it first if you don't have it):
+git fetch origin pr-assets && git checkout pr-assets
+mkdir -p pr-<N>
+cp /path/to/screenshot.png pr-<N>/
+git add pr-<N> && git commit -m "PR <N>: <what>" && git push origin pr-assets
+```
+
+Then embed it in the PR body or a comment:
+
+```
+![alt](https://raw.githubusercontent.com/boardgamers/boardgamers-mono/pr-assets/pr-<N>/<name>.png)
+```
+
+Switch **back** to your working branch/worktree afterward — or do this in a separate throwaway clone — so the assets commit never lands on your working branch.
+
 ## Conventions
 
 - **Formatting** is enforced (see `.prettierrc`: 120 cols, 2-space, `trailingComma: es5`). Don't hand-format; let the formatter run.
