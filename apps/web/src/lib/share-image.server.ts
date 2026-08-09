@@ -8,6 +8,11 @@ import sharp from "sharp";
 // (a render is fast, and responses revalidate cheaply via ETag); failures just 503 —
 // pages fall back to no image rather than a broken preview.
 //
+// Requires a Playwright Chromium on the host — `pnpm install` does NOT fetch one.
+// Prod (PM2 on the host) gets it via scripts/deploy-remote.sh; previews bake it into
+// the image. If Chromium is missing, the launch below fails and we 503 with a clear
+// log instead of crashing — the rest of the app keeps serving normally.
+//
 // --no-sandbox: the preview container runs rootless with --cap-drop ALL +
 // no-new-privileges, so Chromium's setuid sandbox helper can't work. Chromium is only
 // given same-origin URLs (our own /thumbnail cards), so the sandbox buys nothing here.
@@ -50,6 +55,14 @@ async function getBrowser(): Promise<Browser> {
 	});
 	try {
 		return await browserLaunch;
+	} catch (err) {
+		// Missing/unrunnable browser is an operator problem, not a request bug — surface a
+		// clear, actionable message and let the caller turn it into a 503.
+		console.error(
+			"OG image renderer unavailable: Chromium failed to launch (not installed?). Run `pnpm --filter @bgs/web exec playwright install --with-deps chromium`.",
+			err instanceof Error ? err.message : err,
+		);
+		throw err;
 	} finally {
 		if (!browser) {
 			browserLaunch = null;
