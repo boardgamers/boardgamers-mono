@@ -39,7 +39,7 @@ export interface CardData {
 export async function loadHomeCard(): Promise<CardData> {
 	const card: OgCardData = {
 		title: siteName,
-		subtitle: "Play Gaia Project, Powergrid, 6nimmt and Container online — all games and the platform are open source!",
+		subtitle: "Play Gaia Project, Powergrid, 6nimmt and Container online. All games and the platform are open source!",
 	};
 	return { card, etagData: card };
 }
