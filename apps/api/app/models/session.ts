@@ -19,7 +19,10 @@ export function parseRefreshCookie(raw: string | undefined): string | null {
 		return null;
 	}
 	try {
-		return refreshCookieSchema.parse(JSON.parse(raw)).code;
+		// ctx.cookies.get decodes percent-encoding, but only leniently — values with
+		// characters invalid in a cookie (e.g. `%` from the JSON) come back still
+		// encoded, so decode explicitly before JSON.parse.
+		return refreshCookieSchema.parse(JSON.parse(decodeURIComponent(raw))).code;
 	} catch {
 		return null;
 	}
