@@ -283,7 +283,10 @@
 				<p class="text-sm text-gray-400">No recent errors</p>
 			{:else}
 				<div class="space-y-1.5 max-h-96 overflow-y-auto">
-					{#each recentErrors.slice(0, 50) as err (err.requestId ?? `${err.timestamp}:${err.line}`)}
+					<!-- Index in key: the same requestId can appear twice (two PM2 workers log the
+					     same request, or a request logs both a warn and an error line), which would
+					     throw Svelte's each_key_duplicate. -->
+					{#each recentErrors.slice(0, 50) as err, i (`${i}:${err.requestId ?? `${err.timestamp}:${err.line}`}`)}
 						<div class="flex items-start gap-2 text-xs py-1.5 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800/50">
 							<span
 								class="px-1.5 py-0.5 rounded font-mono text-[10px] font-medium flex-shrink-0 {err.level === 'error'
