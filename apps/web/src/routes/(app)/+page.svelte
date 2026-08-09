@@ -8,6 +8,7 @@
 	import GameList from "@/components/Game/GameList.svelte";
 	import { account } from "@/lib/account.svelte";
 	import { activeGames, live } from "@/lib/stores.svelte";
+	import { shareImageUrl } from "@/lib/seo";
 	import { page } from "$app/state";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
@@ -19,9 +20,29 @@
 	// stores.svelte.ts), so the homepage doesn't flicker between "My games" and "Featured".
 	let user = $derived(live($account, (page.data.user as UserFront | null) ?? null));
 	let myGames = $derived(live($activeGames, (page.data.activeGames as string[]) ?? []));
+
+	let websiteJsonLd = $derived(
+		JSON.stringify({
+			"@context": "https://schema.org",
+			"@type": "WebSite",
+			name: "Boardgamers",
+			url: page.url.origin,
+			description:
+				"Play Gaia Project, Powergrid, 6nimmt and Container online with other people. All games and the platform are open source!",
+		})
+	);
 </script>
 
-<SEO />
+<SEO
+	title="Boardgamers — play boardgames online"
+	description="Play Gaia Project, Powergrid, 6nimmt and Container online with other people, live or asynchronously. All games and the platform are open source!"
+	image={shareImageUrl({ kind: "home" })}
+/>
+
+<svelte:head>
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -- JSON-LD is built from static strings, no user input. -->
+	{@html `<script type="application/ld+json">${websiteJsonLd}</scr` + `ipt>`}
+</svelte:head>
 
 <div class="flex">
 	<GameListSidebar />

@@ -2,14 +2,15 @@
 	import type { PageFront } from "@bgs/models";
 	import Page from "@/components/Page.svelte";
 	import { SEO } from "@/components";
-	import removeMarkdown from "remove-markdown";
+	import { stripMarkdown, truncate } from "@/lib/seo";
 
 	let { data }: { data: { pageContent: Partial<PageFront> } } = $props();
 </script>
 
 <SEO
 	title={data.pageContent.title}
-	description={removeMarkdown(`${data.pageContent.content}`.match(/((\s*\S+){0,40})([\s\S]*)/)?.[1] ?? "") + "..."}
+	description={truncate(stripMarkdown(`${data.pageContent.content ?? ""}`), 200)}
+	type="article"
 />
 
 <Page pageContent={data.pageContent} />

@@ -7,5 +7,28 @@
 		"access": {
 			"ownership": true
 		}
+	},
+	{
+		"_id": "611907c6b353eb3a4a71fcb0",
+		"user": "604508365769e01a781f9538",
+		"game": "gaia-project",
+		"__v": 0,
+		"access": {
+			"ownership": true
+		},
+		"elo": {
+			"value": 1523,
+			"games": 87
+		}
+	},
+	{
+		"_id": "611907c6b353eb3a4a71fcb1",
+		"user": "6045084f9e8a692e38661f5a",
+		"game": "powergrid",
+		"__v": 0,
+		"elo": {
+			"value": 1480,
+			"games": 31
+		}
 	}
 ]
