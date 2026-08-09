@@ -38,23 +38,22 @@ export const actions: Actions = {
 		}).catch(() => null);
 
 		if (!response?.ok) {
-			// No-JS path: bounce back to the login page with the error in the query string,
-			// which the page's error banner already renders. Preserve the existing query
-			// (e.g. ?redirect=/somewhere) so a retry still returns to the original page.
-			// (With JS, use:enhance intercepts the submit and shows fetch errors via handleError.)
-			// Don't reflect the API's credential-failure message into the URL: for 401/404
-			// the API embeds the submitted email (e.g. "<email> isn't registered"), which would
-			// leak PII into URLs/logs and enable account enumeration. Use a generic message.
-			const credentialFailure = !response || response.status === 401 || response.status === 404;
-			const message = credentialFailure
-				? null
-				: await response!
+			// No-JS path: bounce back to the login page with an error in the query string, which
+			// the page's error banner renders. Only the redirect target is carried over (other
+			// query params are dropped). With JS, use:enhance intercepts and shows fetch errors.
+			// The API's message is forwarded verbatim (a 404's "<email> isn't registered" is
+			// intentional — emails are already enumerable at account creation, and it's more
+			// helpful). A network/transport failure (no response) gets a service-error message
+			// instead of a credential one.
+			const message = response
+				? ((await response
 						.json()
 						.then((body) => body?.message)
-						.catch(() => null);
+						.catch(() => null)) ?? "Login failed")
+				: "Couldn't reach the server — please try again.";
 			const target = new URL(event.url);
 			target.search = "";
-			target.searchParams.set("error", message ?? "Invalid email or password");
+			target.searchParams.set("error", message);
 			// Preserve the return page for a retry: from the query string (login page flow)
 			// or the hidden form field (appbar login form). Apply the same strict same-origin
 			// validation as the post-login redirect so an unsafe target isn't carried across retries.

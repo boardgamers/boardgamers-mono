@@ -1,4 +1,4 @@
-import { redirect } from "@sveltejs/kit";
+import { error, redirect } from "@sveltejs/kit";
 import type { Actions } from "./$types";
 import { resolve } from "$app/paths";
 import { apiFetch } from "@/lib/api";
@@ -19,9 +19,13 @@ export const actions: Actions = {
 			body: "{}",
 			headers: { "Content-Type": "application/json" },
 		}).catch(() => null);
-		if (response) {
-			forwardSessionCookies(event, response);
+		// On a network/transport failure the API never revoked the session — don't pretend
+		// logout succeeded by redirecting home (the cookie would still be valid). Surface a
+		// 503 so the no-JS user sees a real failure instead of silently staying logged in.
+		if (!response) {
+			throw error(503, "Couldn't reach the server to log out — please try again.");
 		}
+		forwardSessionCookies(event, response);
 		throw redirect(303, resolve("/(app)"));
 	},
 };
