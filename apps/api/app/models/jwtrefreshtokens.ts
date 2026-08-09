@@ -68,8 +68,9 @@ export async function lookupRefreshToken(code: string) {
 		// depend on the write, and a failure just leaves the rehash to the next
 		// lookup / migration 1.4.0. Never log the code itself.
 		colls.jwtRefreshTokens
-			// `||` not `??`: a malformed empty-string codeHash must be recomputed, not kept.
-			.updateOne({ _id: rt._id }, { $set: { codeHash: rt.codeHash || hashRefreshCode(rt.code) }, $unset: { code: "" } })
+			// Always recompute from the plaintext code — a legacy doc's existing codeHash
+			// could be stale/malformed, and we're about to unset `code`, so it must be right.
+			.updateOne({ _id: rt._id }, { $set: { codeHash: hashRefreshCode(rt.code) }, $unset: { code: "" } })
 			.catch((err) => console.error(`failed to rehash legacy refresh token ${rt._id.toString()}:`, err));
 	}
 	return rt;

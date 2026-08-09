@@ -25,14 +25,13 @@ export const migration: Migration = {
 			if (!token.code) {
 				continue;
 			}
-			// Preserve an existing hash, but not a malformed empty one — a legacy doc with
-			// codeHash: "" would otherwise keep it and then lose its plaintext `code`,
-			// leaving an unresolvable session.
-			const codeHash = token.codeHash || hashRefreshCode(token.code);
+			// Always recompute the hash from the plaintext code (present on every matched
+			// doc) before unsetting it — an existing codeHash could be stale/malformed and
+			// would otherwise leave the session unresolvable once `code` is gone.
 			ops.push({
 				updateOne: {
 					filter: { _id: token._id },
-					update: { $set: { codeHash }, $unset: { code: "" } },
+					update: { $set: { codeHash: hashRefreshCode(token.code) }, $unset: { code: "" } },
 				},
 			});
 			if (ops.length >= BATCH_SIZE) {
