@@ -49,9 +49,15 @@ export async function ensureIndexes(db: Db) {
 	if (collectionExists) {
 		try {
 			await db.collection(JWT_REFRESH_TOKENS_COLLECTION).dropIndex("code_1");
-		} catch {
-			// Already gone — either never existed, or a sibling api/cron process dropped
-			// it first (PM2 starts several at once). Either way the goal state holds.
+		} catch (err) {
+			// Tolerate only "index not found" (codeName IndexNotFound, code 27): the index
+			// is already gone — never existed, or a sibling api/cron process dropped it
+			// first (PM2 starts several at once). Any other failure (permissions,
+			// transient) leaves the legacy index in place and must fail startup loudly.
+			const code = (err as { code?: number })?.code;
+			if (code !== 27) {
+				throw err;
+			}
 		}
 	}
 
