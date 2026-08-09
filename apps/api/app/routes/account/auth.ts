@@ -118,6 +118,11 @@ function authenticateCallback(ctx: Context, next: Next, provider: string): Promi
 				redirectAfterAuth(ctx, `/login?error=${encodeURIComponent("Social login failed")}`);
 				return;
 			}
+			// With a custom callback passport does NOT run its default success() (which would
+			// req.logIn(user) → set ctx.state.user) — it delegates entirely to us. So assign the
+			// verified user/feedback onto ctx.state.user for finishSocialAuth to read. (On main,
+			// where there's no custom callback, passport's logIn sets ctx.state.user; here we must.)
+			ctx.state.user = user;
 			await next();
 		},
 	)(ctx, next);

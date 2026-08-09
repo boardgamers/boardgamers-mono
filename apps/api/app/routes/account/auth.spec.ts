@@ -442,3 +442,103 @@ describe("Account API — redirect-only social flow (#155)", () => {
 
 	after(() => db().dropDatabase());
 });
+
+describe("Account API — HF OAuth round-trip (#138 ctx.state.user)", () => {
+	// Regression for the pr-138 500: with a custom callback passport does NOT logIn the
+	// user (it delegates), so the callback itself must assign ctx.state.user for
+	// finishSocialAuth. These tests drive the REAL Koa app + passport middleware over HTTP
+	// against a mocked HF token/userinfo endpoint, and assert ctx.state.user drove
+	// finishSocialAuth (session cookie set / signup ticket issued — never a 500).
+
+	type OAuth2Proto = {
+		getOAuthAccessToken: (
+			code: string,
+			params: object,
+			cb: (e: unknown, at?: string, rt?: string, p?: object) => void,
+		) => void;
+		get: (url: string, token: string, cb: (e: unknown, body?: string) => void) => void;
+	};
+
+	// Stub HF's two outbound HTTP calls on the cached HF strategy instance for the test
+	// origin (huggingfaceStrategy(origin) caches per origin; the api app reads the request
+	// Host — 127.0.0.1 here — so stub THAT origin's instance). Restored in a finally.
+	async function withHfProfile<T>(profile: object, run: () => Promise<T>): Promise<T> {
+		const { huggingfaceStrategy } = await import("../../config/passport.ts");
+		const origin = `http://${new URL(baseURL()).host}`;
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- strategy internals
+		const strategy = huggingfaceStrategy(origin) as unknown as { _oauth2: OAuth2Proto };
+		const target = strategy._oauth2;
+		const origGet = target.getOAuthAccessToken;
+		const origGet2 = target.get;
+		target.getOAuthAccessToken = (_code, _params, cb) => cb(null, "hf-access-token", "hf-refresh", {});
+		target.get = (_url, _token, cb) => cb(null, JSON.stringify(profile));
+		try {
+			return await run();
+		} finally {
+			target.getOAuthAccessToken = origGet;
+			target.get = origGet2;
+		}
+	}
+
+	// Hit the real callback route. `state` must be a live PKCE handle (createOAuthState).
+	async function hfCallback(state: string) {
+		return fetch(`${baseURL()}/api/account/auth/huggingface/callback?code=hf-code&state=${state}`, {
+			redirect: "manual",
+		});
+	}
+
+	it("a NEW HF user completes the handshake → 303 to /signup?ticket= (ctx.state.user set, no 500)", async () => {
+		const { createOAuthState } = await import("../../models/oauthflows.ts");
+		const state = await createOAuthState({ codeVerifier: "v", expiresAt: new Date(Date.now() + 60000) });
+
+		const res = await withHfProfile({ sub: "hf-e2e-new", preferred_username: "hugger" }, () => hfCallback(state));
+
+		assert.strictEqual(res.status, 303, `expected 303, got ${res.status}`);
+		const location = res.headers.get("location") ?? "";
+		assert.match(location, /\/signup\?ticket=/, `new HF user should be sent to signup with a ticket, got ${location}`);
+		assert.ok(!res.headers.get("set-cookie"), "no session cookie before signup completes");
+	});
+
+	it("an EXISTING HF user gets a session cookie + 303 to /account (no 500)", async () => {
+		await colls.users.insertOne(
+			testUser({
+				account: { username: "existinghf", email: "existinghf@test.com", social: { huggingface: "hf-e2e-old" } },
+			}),
+		);
+		const { createOAuthState } = await import("../../models/oauthflows.ts");
+		const state = await createOAuthState({ codeVerifier: "v", expiresAt: new Date(Date.now() + 60000) });
+
+		const res = await withHfProfile({ sub: "hf-e2e-old", preferred_username: "hugger" }, () => hfCallback(state));
+
+		assert.strictEqual(res.status, 303, `expected 303, got ${res.status}`);
+		assert.match(res.headers.get("location") ?? "", /\/account$/, "existing user should land on /account");
+		assert.match(res.headers.get("set-cookie") ?? "", /refreshToken=/, "session cookie set on the callback response");
+	});
+
+	it("PKCE state is single-use: replaying the callback state → clean 303 to /login?error= (no 500)", async () => {
+		await colls.users.insertOne(
+			testUser({
+				account: { username: "replayhf", email: "replayhf@test.com", social: { huggingface: "hf-e2e-replay" } },
+			}),
+		);
+		const { createOAuthState } = await import("../../models/oauthflows.ts");
+		const state = await createOAuthState({ codeVerifier: "v", expiresAt: new Date(Date.now() + 60000) });
+
+		await withHfProfile({ sub: "hf-e2e-replay", preferred_username: "hugger" }, async () => {
+			const first = await hfCallback(state);
+			assert.strictEqual(first.status, 303);
+			assert.match(first.headers.get("location") ?? "", /\/account$/, "first handshake succeeds");
+		});
+
+		// Replay the same state: verifyOAuthState already consumed it → strategy.fail → /login.
+		const second = await hfCallback(state);
+		assert.strictEqual(second.status, 303);
+		assert.match(
+			second.headers.get("location") ?? "",
+			/\/login\?error=/,
+			"replayed state must bounce to /login, not 500",
+		);
+	});
+
+	after(() => db().dropDatabase());
+});
