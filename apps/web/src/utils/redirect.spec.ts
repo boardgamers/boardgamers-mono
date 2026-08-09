@@ -33,4 +33,12 @@ describe("redirectLoggedOut", () => {
 		expect(redirectLoggedOut(url("http://localhost/"), "/foo\x7Fbar")).toBe("/"); // DEL
 		expect(redirectLoggedOut(url("http://localhost/"), "/foo\x00bar")).toBe("/"); // NUL
 	});
+
+	it("collapses a redirect back to the login page (avoids an infinite redirect loop)", () => {
+		// A logged-in user hitting /login?redirect=/login would otherwise bounce to /login
+		// and loop; the login guard sends it to the default route instead.
+		expect(redirectLoggedOut(url("http://localhost/login?redirect=%2Flogin"), null)).toBe("/");
+		expect(redirectLoggedOut(url("http://localhost/login"), "/login")).toBe("/");
+		expect(redirectLoggedOut(url("http://localhost/login"), "/login?error=x")).toBe("/");
+	});
 });

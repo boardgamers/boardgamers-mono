@@ -36,5 +36,11 @@ function safeRedirectTarget(target: string | null | undefined): string | null {
 export function redirectLoggedOut(url: URL, formRedirect?: string | null): string {
 	// Form actions honour this for no-JS logins: the appbar posts a hidden `redirect`
 	// field, the login page's own flow uses the ?redirect= query string.
-	return safeRedirectTarget(formRedirect) ?? safeRedirectTarget(url.searchParams.get("redirect")) ?? resolve("/(app)");
+	const target = safeRedirectTarget(formRedirect) ?? safeRedirectTarget(url.searchParams.get("redirect"));
+	// Collapse a redirect back to the login page itself to the default — otherwise the
+	// logged-in login guard bounces to /login, which bounces to /login, looping forever.
+	if (target && new URL(target, url).pathname === resolve("/(app)/login")) {
+		return resolve("/(app)");
+	}
+	return target ?? resolve("/(app)");
 }
