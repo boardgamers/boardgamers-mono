@@ -25,7 +25,7 @@ export function redirectLoggedIn(url: URL): string {
  * as a path separator when parsing redirects, so `/\evil.com` is an open redirect),
  * and ASCII control chars (\r, \n, …) which would make an invalid/injectable Location.
  */
-function safeRedirectTarget(target: string | null | undefined): string | null {
+export function safeRedirectTarget(target: string | null | undefined): string | null {
 	if (!target || !target.startsWith("/") || target.startsWith("//") || target.includes("\\")) {
 		return null;
 	}

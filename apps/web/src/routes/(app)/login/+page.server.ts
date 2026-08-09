@@ -2,7 +2,7 @@ import { redirect } from "@sveltejs/kit";
 import type { Actions, PageServerLoad } from "./$types";
 import { apiFetch } from "@/lib/api";
 import { forwardSessionCookies } from "@/lib/auth.server";
-import { redirectLoggedOut } from "@/utils/redirect";
+import { redirectLoggedOut, safeRedirectTarget } from "@/utils/redirect";
 
 /**
  * Server-side mirror of the client-side guard in +page.ts: without JS (e.g. after a
@@ -52,10 +52,12 @@ export const actions: Actions = {
 			target.search = "";
 			target.searchParams.set("error", message ?? "Login failed");
 			// Preserve the return page for a retry: from the query string (login page flow)
-			// or the hidden form field (appbar login form).
+			// or the hidden form field (appbar login form). Apply the same strict same-origin
+			// validation as the post-login redirect so an unsafe target isn't carried across retries.
 			const returnTo = event.url.searchParams.get("redirect") ?? form.get("redirect");
-			if (typeof returnTo === "string" && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
-				target.searchParams.set("redirect", returnTo);
+			const safeReturnTo = typeof returnTo === "string" ? safeRedirectTarget(returnTo) : null;
+			if (safeReturnTo) {
+				target.searchParams.set("redirect", safeReturnTo);
 			}
 			throw redirect(303, target.pathname + target.search);
 		}

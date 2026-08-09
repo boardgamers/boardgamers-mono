@@ -71,6 +71,15 @@ describe("forwardSessionCookies", () => {
 		expect((set[0].opts.expires as Date).getTime()).toBeLessThanOrEqual(0);
 	});
 
+	it("forwards Max-Age (logout clears often use Max-Age=0 without Expires)", () => {
+		const { event, set } = makeEvent("localhost");
+		forwardSessionCookies(event, makeResponse(["refreshToken=; path=/; max-age=0; httponly"]));
+		expect(set[0].opts.maxAge).toBe(0);
+		const { event: e2, set: s2 } = makeEvent("localhost");
+		forwardSessionCookies(e2, makeResponse(["refreshToken=x; path=/; max-age=3600"]));
+		expect(s2[0].opts.maxAge).toBe(3600);
+	});
+
 	it("skips malformed header entries without throwing", () => {
 		const { event, set } = makeEvent("localhost");
 		forwardSessionCookies(event, makeResponse(["no-equals-sign"]));
