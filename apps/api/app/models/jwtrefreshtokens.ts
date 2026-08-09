@@ -14,7 +14,13 @@ export function accessTokenDuration() {
 	return 3600 * 1000;
 }
 
-export async function createAccessToken(token: JwtRefreshTokenDoc, scopes: string[] | undefined, isAdmin: boolean) {
+// Only `user` is read — accept a bare reference, not a full JwtRefreshTokenDoc
+// (callers mint from a just-created session that has no code/codeHash yet).
+export async function createAccessToken(
+	token: Pick<JwtRefreshTokenDoc, "user">,
+	scopes: string[] | undefined,
+	isAdmin: boolean,
+) {
 	const user = await colls.users.findOne({ _id: token.user });
 	if (!user) {
 		throw new Error(`User not found for refresh token: ${token.user.toString()}`);
@@ -62,7 +68,8 @@ export async function lookupRefreshToken(code: string) {
 		// depend on the write, and a failure just leaves the rehash to the next
 		// lookup / migration 1.4.0. Never log the code itself.
 		colls.jwtRefreshTokens
-			.updateOne({ _id: rt._id }, { $set: { codeHash: rt.codeHash ?? hashRefreshCode(rt.code) }, $unset: { code: "" } })
+			// `||` not `??`: a malformed empty-string codeHash must be recomputed, not kept.
+			.updateOne({ _id: rt._id }, { $set: { codeHash: rt.codeHash || hashRefreshCode(rt.code) }, $unset: { code: "" } })
 			.catch((err) => console.error(`failed to rehash legacy refresh token ${rt._id.toString()}:`, err));
 	}
 	return rt;

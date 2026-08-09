@@ -2,28 +2,37 @@ import { z } from "zod";
 import type { IndexDescription } from "mongodb";
 import { zObjectId, zDate } from "./helpers.ts";
 
-export const jwtRefreshTokenSchema = z.object({
+// Shared fields. During the transition a doc carries either the new `codeHash`
+// or the legacy plaintext `code` — never both, never neither. Modeled as a union
+// (not a .refine) so the invariant also survives zodToMongoSchema into the
+// Mongo $jsonSchema validator; min(1) rejects empty-string "hashes".
+const jwtRefreshTokenBase = {
 	_id: zObjectId().optional(),
 	user: zObjectId(),
-	// sha256 hex of the raw refresh code (the session-cookie credential). The raw
-	// code is 256 bits of randomness, so a fast unsalted hash is safe. Absent only on
-	// legacy docs still holding the plaintext `code` — a db read must not hand out
-	// live sessions (issue #164, same pattern as admintoken.ts).
-	codeHash: z.string().optional(),
-	// Legacy plaintext code — being phased out (migration 1.4.0 + rehash-on-lookup).
-	code: z.string().optional(),
 	// How the session was opened: "password", a social provider ("google" | "facebook" |
 	// "discord"), or "admin" (impersonation). Missing on tokens created before the field
 	// existed — aggregate those as "unknown".
 	loginMethod: z.string().optional(),
 	createdAt: zDate(),
 	updatedAt: zDate().optional(),
-	// During the transition a doc carries either the new `codeHash` or the legacy
-	// plaintext `code` — never both, never neither. Presence via !== undefined (not
-	// truthiness) so an empty-string codeHash doesn't count as a valid hash.
-}).refine((doc) => (doc.codeHash !== undefined) !== (doc.code !== undefined), {
-	message: "expected exactly one of codeHash (new) or code (legacy)",
-});
+};
+
+export const jwtRefreshTokenSchema = z.union([
+	z.object({
+		...jwtRefreshTokenBase,
+		// sha256 hex of the raw refresh code (the session-cookie credential). The raw
+		// code is 256 bits of randomness, so a fast unsalted hash is safe (issue #164,
+		// same pattern as admintoken.ts).
+		codeHash: z.string().min(1),
+		code: z.undefined().optional(),
+	}),
+	z.object({
+		...jwtRefreshTokenBase,
+		codeHash: z.undefined().optional(),
+		// Legacy plaintext code — being phased out (migration 1.4.0 + rehash-on-lookup).
+		code: z.string().min(1),
+	}),
+]);
 
 export type JwtRefreshTokenDoc = z.output<typeof jwtRefreshTokenSchema>;
 

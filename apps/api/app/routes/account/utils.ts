@@ -41,7 +41,7 @@ export async function sendAuthInfo(ctx: Context, loginMethodOrNext?: string | Ne
 		user: stripSensitiveFields(ctx.state.user),
 		refreshToken: json,
 		accessToken: {
-			code: await createAccessToken({ user: ctx.state.user._id, createdAt }, ["all"], isUserAdmin(ctx.state.user)),
+			code: await createAccessToken({ user: ctx.state.user._id }, ["all"], isUserAdmin(ctx.state.user)),
 			expiresAt: Date.now() + accessTokenDuration(),
 		},
 	};
