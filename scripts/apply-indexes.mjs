@@ -90,8 +90,7 @@ try {
 		// race, not real drift — exclude it.
 		const destructive = actions.filter(
 			(a) =>
-				(a.type === "rebuild" && !droppedNames.has(`${a.collection}.${a.name}`)) ||
-				(a.type === "drop" && !a.declared),
+				(a.type === "rebuild" && !droppedNames.has(`${a.collection}.${a.name}`)) || (a.type === "drop" && !a.declared),
 		);
 		if (destructive.length > 0) {
 			console.error(
