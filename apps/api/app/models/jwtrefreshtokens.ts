@@ -68,10 +68,13 @@ export async function lookupRefreshToken(code: string) {
 	return rt;
 }
 
-/** Revoke a session by its raw code (handles both hashed and legacy plaintext storage). */
+/**
+ * Revoke a session by its raw code (handles both hashed and legacy plaintext
+ * storage). A single $or delete: atomic with respect to the fire-and-forget
+ * rehash in lookupRefreshToken (a two-step delete could miss both shapes if the
+ * doc flips from {code} to {codeHash} mid-revoke). Revokes are rare (logout /
+ * signout-all), so the unindexed legacy {code} branch is fine here.
+ */
 export async function revokeRefreshToken(code: string) {
-	const { deletedCount } = await colls.jwtRefreshTokens.deleteOne({ codeHash: hashRefreshCode(code) });
-	if (deletedCount === 0 && isLegacyCode(code)) {
-		await colls.jwtRefreshTokens.deleteOne({ code });
-	}
+	await colls.jwtRefreshTokens.deleteOne({ $or: [{ codeHash: hashRefreshCode(code) }, { code }] });
 }
