@@ -14,15 +14,19 @@
 // filtered install (`pnpm install --filter @bgs/models...`), where the
 // workspace root has no dependency on @bgs/models or mongodb.
 import { createRequire } from "node:module";
-import { ensureIndexes } from "../packages/models/setup.ts";
+import * as setup from "../packages/models/setup.ts";
 
 const modelsRequire = createRequire(new URL("../packages/models/package.json", import.meta.url));
 const { MongoClient } = modelsRequire("mongodb");
 
-// planIndexChanges is introduced by the change that adds this script; the base
-// branch's setup.ts doesn't have it. Fall back to the dryRun option so the
-// workflow can apply the base's indexes with its own code.
-const planIndexChanges = async (db) => ensureIndexes(db, { dryRun: true });
+const { ensureIndexes } = setup;
+// planIndexChanges / declaredIndexes / droppedIndexes are introduced by the
+// change that adds this script; the base branch's setup.ts doesn't have them.
+// Fall back to the dryRun option so the workflow can apply the base's indexes
+// with its own code.
+const planIndexChanges = setup.planIndexChanges ?? ((db) => ensureIndexes(db, { dryRun: true }));
+const declaredIndexList = setup.declaredIndexes ?? [];
+const droppedIndexList = setup.droppedIndexes ?? [];
 
 const dbUrl = process.env.dbUrl ?? "mongodb://localhost:27017/admin";
 const dbName = process.env.dbName ?? "bgs-index-drift";
@@ -38,7 +42,57 @@ try {
 		console.log(`Applied indexes: ${actions.length} change(s).`);
 	}
 	if (planOnly) {
-		const destructive = actions.filter((a) => a.type === "drop" || a.type === "rebuild");
+		const drops = actions.filter((a) => a.type === "drop");
+		const declaredDrops = drops.filter((a) => a.declared);
+		const droppedNames = new Set(declaredDrops.map((a) => `${a.collection}.${a.name}`));
+		const creates = actions.filter((a) => a.type === "create");
+
+		// A drop must never ship in the same PR as the code that uses the index:
+		// deploys ship code before migrations run, and a same-PR drop can race the
+		// new index build / sibling PM2 processes. Detect a name that is in BOTH the
+		// PR's declared index set AND its droppedIndexes — that PR removes an index
+		// it still relies on, so the removal must be a separate follow-up PR.
+		// See AGENTS.md "Removing an index". (Checked structurally from the declared
+		// sets, independent of the live db state.)
+		const declaredNames = new Map();
+		for (const [collection, specs] of declaredIndexList) {
+			for (const spec of specs) {
+				const name =
+					spec.name ??
+					Object.entries(spec.key)
+						.map(([f, d]) => `${f}_${String(d)}`)
+						.join("_");
+				declaredNames.set(`${collection}.${name}`, { collection, name });
+			}
+		}
+		const selfConflicting = [];
+		for (const [collection, names] of droppedIndexList) {
+			for (const name of names) {
+				if (declaredNames.has(`${collection}.${name}`)) {
+					selfConflicting.push(`${collection}.${name}`);
+				}
+			}
+		}
+		if (selfConflicting.length > 0) {
+			console.error(
+				`\nIndex drop sequencing violation: this PR declares a drop for an index it also declares:\n` +
+					selfConflicting.map((n) => `  - ${n}`).join("\n") +
+					`\n\nRemove the index from the declared set and ship that first; declare the drop in a ` +
+					`SEPARATE follow-up PR (see AGENTS.md "Removing an index").`,
+			);
+			process.exit(1);
+		}
+
+		// Declared drops (droppedIndexes in setup.ts) are the sanctioned way to
+		// remove an index — the case this guard exists to allow (#191). Undeclared
+		// drops and rebuilds are the destructive, crash-loop-prone ones. A rebuild
+		// of a name that's also being declared-dropped is just the drop winning the
+		// race, not real drift — exclude it.
+		const destructive = actions.filter(
+			(a) =>
+				(a.type === "rebuild" && !droppedNames.has(`${a.collection}.${a.name}`)) ||
+				(a.type === "drop" && !a.declared),
+		);
 		if (destructive.length > 0) {
 			console.error(
 				`\nIndex drift: applying this PR's index definitions on top of the base branch's ` +
@@ -56,7 +110,10 @@ try {
 			);
 			process.exit(1);
 		}
-		console.log(`No destructive index changes (${actions.length} create(s) pending).`);
+		console.log(
+			`No destructive index changes (${creates.length} create(s), ` +
+				`${declaredDrops.length} declared drop(s) pending).`,
+		);
 	}
 } finally {
 	await client.close();

@@ -100,6 +100,61 @@ describe("reconcileIndexes", () => {
 		assert.deepEqual(await reconcileIndexes(collection, [{ key: { a: -1 } }, { key: { t: "text" } }]), []);
 	});
 
+	// --- Regression: the four latent non-convergence bugs (each used to spin then
+	// throw at the convergence check → the exact PM2 crash-loop this fixes). ---
+
+	it("converges on a declared collation (server back-fills + stamps a version)", async () => {
+		const collection = db.collection("reconcile-test");
+		const declared = [{ key: { name: 1 }, collation: { locale: "en", strength: 2 } }];
+		await reconcileIndexes(collection, declared);
+		// The live collation doc has every default + a server version; a second run
+		// must be a no-op, not a perpetual rebuild.
+		assert.deepEqual(await reconcileIndexes(collection, declared), []);
+		const live = (await collection.indexes()).find((i) => i.name === "name_1");
+		assert.strictEqual(live?.collation?.locale, "en");
+		assert.strictEqual(live?.collation?.strength, 2);
+	});
+
+	it("converges on a text index with PARTIAL declared weights", async () => {
+		const collection = db.collection("reconcile-test");
+		const declared = [{ key: { a: "text" as const, b: "text" as const }, weights: { a: 10 } }];
+		await reconcileIndexes(collection, declared);
+		// Stored as the complete {a:10, b:1}; a second run must not rebuild.
+		assert.deepEqual(await reconcileIndexes(collection, declared), []);
+		const live = (await collection.indexes()).find((i) => i.name === "a_text_b_text");
+		assert.deepEqual(live?.weights, { a: 10, b: 1 });
+	});
+
+	it("converges on Map keys (default name derivation is Map-safe)", async () => {
+		const collection = db.collection("reconcile-test");
+		const declared = [{ key: new Map<string, 1>([["m", 1]]) }];
+		const actions = await reconcileIndexes(collection, declared);
+		assert.deepEqual(actionSummaries(actions), ["create:reconcile-test.m_1"]);
+		assert.deepEqual(await reconcileIndexes(collection, declared), []);
+	});
+
+	it("heals a same-key index under a different (stale) name instead of crash-looping", async () => {
+		const collection = db.collection("reconcile-test");
+		// Live db has the key under the old default name...
+		await collection.createIndex({ a: 1 });
+		// ...but the code now declares the same key with an explicit name.
+		const actions = await reconcileIndexes(collection, [{ key: { a: 1 }, name: "by_a" }]);
+		assert.ok(actionSummaries(actions).includes("drop:reconcile-test.a_1"));
+		assert.ok(actionSummaries(actions).includes("create:reconcile-test.by_a"));
+		const names = (await collection.indexes()).map((i) => i.name ?? "").toSorted((a, b) => a.localeCompare(b));
+		assert.deepEqual(names, ["_id_", "by_a"]);
+		// And it converges: a second run is a no-op.
+		assert.deepEqual(await reconcileIndexes(collection, [{ key: { a: 1 }, name: "by_a" }]), []);
+	});
+
+	it("treats compound key ORDER as significant ({a,b} ≠ {b,a})", async () => {
+		const collection = db.collection("reconcile-test");
+		await collection.createIndex({ a: 1, b: 1 });
+		// Same fields, different order → different index → must rebuild, not no-op.
+		const actions = await reconcileIndexes(collection, [{ key: { b: 1, a: 1 } }]);
+		assert.deepEqual(actionSummaries(actions), ["create:reconcile-test.b_1_a_1"]);
+	});
+
 	it("drops an index listed in drops", async () => {
 		const collection = db.collection("reconcile-test");
 		await collection.createIndex({ legacy: 1 });

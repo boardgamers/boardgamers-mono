@@ -103,7 +103,11 @@ function normalizeCollation(collation: unknown): Record<string, unknown> | undef
 	if (typeof collation !== "object" || collation === null) {
 		return undefined;
 	}
-	return { ...COLLATION_DEFAULTS, ...collation };
+	const normalized: Record<string, unknown> = { ...COLLATION_DEFAULTS, ...collation };
+	// The server stamps its own collation version ("57.1" on mongo 8); a declared
+	// spec never carries it, and it isn't part of the declared shape.
+	delete normalized.version;
+	return normalized;
 }
 
 export function indexShape(spec: IndexDescription | IndexDescriptionInfo): Record<string, unknown> {
@@ -126,11 +130,11 @@ export function indexShape(spec: IndexDescription | IndexDescriptionInfo): Recor
 	return shape;
 }
 
-// Declared keys may be Maps; live keys are always plain objects. Sort entries so
-// key comparison doesn't depend on declaration order.
+// Declared keys may be Maps; live keys are always plain objects. Field ORDER is
+// significant for compound indexes ({a:1,b:1} ≠ {b:1,a:1}), so entries are kept
+// in declaration order — which both plain objects and Maps preserve.
 function normalizedEntries(key: IndexDescription["key"]): [string, IndexDirection][] {
-	const entries: [string, IndexDirection][] = key instanceof Map ? [...key.entries()] : Object.entries(key);
-	return entries.toSorted(([a], [b]) => a.localeCompare(b));
+	return key instanceof Map ? [...key.entries()] : Object.entries(key);
 }
 
 function normalizedKey(key: IndexDescription["key"]): string {
@@ -178,13 +182,16 @@ function sameIndexShape(existing: IndexDescriptionInfo, declared: IndexDescripti
 		let before = oldShape[field];
 		let after = newShape[field];
 		if (isText) {
-			// A declared { t: "text" } means weight 1, stored as weights: { t: 1 }.
 			if (field === "weights") {
-				after ??= Object.fromEntries(
+				// The server stores a COMPLETE weights map: declared text fields it
+				// finds missing default to 1 ({key:{a,b:"text"}, weights:{a:10}} is
+				// stored as {a:10, b:1}). Merge implicit 1s under the declared weights.
+				const implicitOnes = Object.fromEntries(
 					normalizedEntries(declared.key)
 						.filter(([, direction]) => direction === "text")
 						.map(([fieldName]) => [fieldName, 1]),
 				);
+				after = { ...implicitOnes, ...(typeof after === "object" && after !== null ? after : {}) };
 			}
 			if (field in TEXT_INDEX_DEFAULTS) {
 				after ??= TEXT_INDEX_DEFAULTS[field];
@@ -239,8 +246,8 @@ function declaredIndexName(spec: IndexDescription): string {
 	return (
 		spec.name ??
 		// Mongo derives the default name from the key pattern ("user_1"). The driver
-		// computes it lazily, so replicate it here for name-based comparisons.
-		Object.entries(spec.key)
+		// computes it lazily, so replicate it here — Map-safe — for name comparisons.
+		normalizedEntries(spec.key)
 			.map(([field, direction]) => `${field}_${String(direction)}`)
 			.join("_")
 	);
@@ -254,11 +261,32 @@ export async function reconcileIndexes(
 ): Promise<IndexAction[]> {
 	const collectionName = collection.collectionName;
 	const actions: IndexAction[] = [];
-	const declaredByName = new Map(declared.map((spec) => [declaredIndexName(spec), spec]));
+	const declaredByName: Map<string, IndexDescription> = new Map(
+		declared.map((spec) => [declaredIndexName(spec), spec]),
+	);
+
+	// A live index whose key matches a declared index but whose NAME doesn't is an
+	// alias of it (renamed in code, or an explicit name added to a previously
+	// default-named index). Creating the declared name would fail with
+	// IndexKeySpecsConflict ("already exists with a different name"), so the alias
+	// must be dropped first.
+	const findKeyAlias = (existing: Map<string, IndexDescriptionInfo>, spec: IndexDescription, name: string) =>
+		[...existing.values()].find(
+			(live) =>
+				live.name !== undefined &&
+				live.name !== name &&
+				live.name !== "_id_" &&
+				!declaredByName.has(live.name) &&
+				!drops.includes(live.name) &&
+				normalizedKey(live.key) === normalizedKey(spec.key) &&
+				sameIndexShape(live, spec),
+		);
 
 	for (let attempt = 0; attempt < 5; attempt++) {
 		const first = attempt === 0;
-		const existing = new Map((await listIndexes(collection)).map((index) => [index.name, index]));
+		const existing: Map<string, IndexDescriptionInfo> = new Map(
+			(await listIndexes(collection)).map((index) => [index.name ?? "", index]),
+		);
 		let raced = false;
 
 		// Phase 1 — drops. Declared drops (indexes removed from the code) and
@@ -315,6 +343,32 @@ export async function reconcileIndexes(
 				existing.delete(name);
 			}
 		}
+		// Same key under a different name (rename / explicit name added): creating
+		// the declared name would conflict (code 85), so drop the stale alias.
+		for (const [name, spec] of declaredByName) {
+			const alias = existing.get(name) ? undefined : findKeyAlias(existing, spec, name);
+			if (!alias) {
+				continue;
+			}
+			const aliasName = alias.name ?? "";
+			if (first) {
+				console.error(
+					`[ensureIndexes] ${collectionName}: index "${aliasName}" has the declared key of "${name}" ` +
+						`under a stale name — dropping it to recreate as "${name}"`,
+				);
+				actions.push({ type: "drop", collection: collectionName, name: aliasName, declared: false });
+			}
+			if (!options.dryRun) {
+				try {
+					await collection.dropIndex(aliasName);
+				} catch (err) {
+					if (errorCode(err) !== INDEX_NOT_FOUND) {
+						throw err;
+					}
+				}
+				existing.delete(aliasName);
+			}
+		}
 
 		// Phase 2 — creates. `existing` is up to date unless a sibling interfered;
 		// a 85/86 on createIndex means it did, so re-read and start over.
@@ -357,7 +411,9 @@ export async function reconcileIndexes(
 
 		// Convergence check: re-read the live indexes; if a concurrent process
 		// left a different shape behind, loop again instead of throwing.
-		const final = new Map((await listIndexes(collection)).map((index) => [index.name, index]));
+		const final: Map<string, IndexDescriptionInfo> = new Map(
+			(await listIndexes(collection)).map((index) => [index.name ?? "", index]),
+		);
 		const converged =
 			drops.every((name) => !final.has(name)) &&
 			[...declaredByName].every(([name, spec]) => {
@@ -369,13 +425,33 @@ export async function reconcileIndexes(
 		}
 	}
 
-	throw new Error(
-		`[ensureIndexes] ${collectionName}: indexes did not converge after 5 passes — ` +
-			"another process keeps creating conflicting index shapes",
+	// Report the actual residual mismatch — not a phantom "sibling racer" — so
+	// on-call can see which index/option never settled.
+	const residual: Map<string, IndexDescriptionInfo> = new Map(
+		(await listIndexes(collection)).map((index) => [index.name ?? "", index]),
 	);
+	const details: string[] = [];
+	for (const name of drops) {
+		if (residual.has(name)) {
+			details.push(`drop "${name}" never went away`);
+		}
+	}
+	for (const [name, spec] of declaredByName) {
+		const live = residual.get(name);
+		if (!live) {
+			details.push(`"${name}" was never created (declared ${JSON.stringify({ key: spec.key, ...indexShape(spec) })})`);
+		} else if (!sameIndexShape(live, spec)) {
+			details.push(
+				`"${name}" stuck in a different shape (${describeShapeDifferences(live, spec)})\n` +
+					`  live:     ${JSON.stringify({ key: live.key, ...indexShape(live) })}\n` +
+					`  declared: ${JSON.stringify({ key: spec.key, ...indexShape(spec) })}`,
+			);
+		}
+	}
+	throw new Error(`[ensureIndexes] ${collectionName}: indexes did not converge after 5 passes:\n${details.join("\n")}`);
 }
 
-const declaredIndexes: [string, IndexDescription[]][] = [
+export const declaredIndexes: [string, IndexDescription[]][] = [
 	[ADMIN_TOKENS_COLLECTION, adminTokenIndexes],
 	[GAMES_COLLECTION, gameIndexes],
 	[USERS_COLLECTION, userIndexes],
@@ -394,7 +470,7 @@ const declaredIndexes: [string, IndexDescription[]][] = [
 // createIndexes only creates — it never drops — so anything renamed, replaced
 // or simply deleted must be listed here (once) to be removed at boot. Dropping
 // tolerates "index not found": several PM2 processes run this concurrently.
-const droppedIndexes: [string, string[]][] = [
+export const droppedIndexes: [string, string[]][] = [
 	// jwtrefreshtokens.code was the session credential in plaintext (#164);
 	// migration 1.4.0 hashed every row and the `code` field is gone from the
 	// schema, so the old `code_1` index (original non-sparse or transitional
@@ -403,6 +479,23 @@ const droppedIndexes: [string, string[]][] = [
 ];
 
 export async function ensureIndexes(db: Db, options: { dryRun?: boolean } = {}): Promise<IndexAction[]> {
+	// Safety net for the drop-sequencing rule (see AGENTS.md "Removing an index"):
+	// a name must never be in BOTH the declared set and droppedIndexes — that would
+	// drop an index the same code recreates, racing on boot. Fail fast and loudly.
+	for (const [collection, drops] of droppedIndexes) {
+		const declared = new Set(
+			(declaredIndexes.find(([c]) => c === collection)?.[1] ?? []).map((spec) => declaredIndexName(spec)),
+		);
+		for (const name of drops) {
+			if (declared.has(name)) {
+				throw new Error(
+					`[ensureIndexes] ${collection}: "${name}" is both declared and dropped. ` +
+						`Remove it from the declared indexes and ship that first; declare the drop in a follow-up PR.`,
+				);
+			}
+		}
+	}
+
 	const actions: IndexAction[] = [];
 	const dropsByCollection = new Map(droppedIndexes);
 	for (const [name, drops] of droppedIndexes) {

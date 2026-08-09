@@ -189,3 +189,14 @@ Switch **back** to your working branch/worktree afterward — or do this in a se
 - **Formatting** is enforced (see `.prettierrc`: 120 cols, 2-space, `trailingComma: es5`). Don't hand-format; let the formatter run.
 - **Document shapes live in `@bgs/models`** as Zod schemas. They define the types with `z.infer` and are also inserted in DB as validation schemas (`"warn"`).
 - **Tests** are colocated `*.spec.ts` using `node:test` (api/game-server). API tests run with `NODE_ENV=test` against a `…-test` database. Build fixtures inline via `app/config/test-helpers.ts` rather than relying on shared seed data.
+
+### Removing an index
+
+Indexes are reconciled against the declared set at boot (`ensureIndexes` in `packages/models/setup.ts`). A drop must **never** ship in the same PR as the change that stops using the index — deploys ship code before any migration runs, and a same-PR drop can race the new index build or sibling PM2 processes.
+
+The safe sequence is two PRs:
+
+1. **PR A** removes the code/usage and the index from the declared `*Indexes` list, but keeps the index itself (no drop yet). Merge + deploy.
+2. **PR B** (follow-up, after A is deployed) adds the index name to `droppedIndexes` in `packages/models/setup.ts`. Merge + deploy — the boot reconcile drops it.
+
+Never do both at once. The index-drift CI guard (`scripts/apply-indexes.mjs`) fails if a PR declares a drop for a name it also still declares/creates, and `ensureIndexes` throws on the same self-contradiction. Example: `jwtrefreshtokens.code_1` — usage removed by #191/#193 (field gone from the schema), dropped later in `droppedIndexes`.
