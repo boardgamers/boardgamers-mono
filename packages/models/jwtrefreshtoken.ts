@@ -27,12 +27,15 @@ export const JWT_REFRESH_TOKENS_COLLECTION = "jwtrefreshtokens";
 export const jwtRefreshTokenIndexes: IndexDescription[] = [
 	// api: lookup tokens by user
 	{ key: { user: 1 } },
-	// api: unique plaintext refresh code (legacy — migration 1.4.0 drops this index).
-	// Sparse so hash-only docs (which have no `code`) don't collide on a null value.
-	{ key: { code: 1 }, unique: true, sparse: true },
 	// api: auth lookup by refresh-code hash. Sparse so legacy docs (plaintext
 	// `code`, no `codeHash`) don't collide on the missing field.
 	{ key: { codeHash: 1 }, unique: true, sparse: true },
 	// api: auto-expire after 120 days
 	{ key: { createdAt: 1 }, expireAfterSeconds: 120 * 24 * 3600 },
 ];
+
+// The legacy unique `code_1` index is intentionally NOT declared above: dropping
+// it is what lets hash-only docs (no `code`) coexist. It must be removed BEFORE
+// createIndexes runs — a non-sparse `code_1` rejects the second code-less insert
+// (duplicate null), and createIndexes can't swap it (same name, different options
+// → IndexKeySpecsConflict). See ensureIndexes in ./setup.ts.

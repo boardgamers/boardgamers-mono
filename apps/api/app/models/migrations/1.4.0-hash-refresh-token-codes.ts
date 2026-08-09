@@ -1,7 +1,6 @@
 import type { AnyBulkWriteOperation } from "mongodb";
 import type { JwtRefreshTokenDoc, UserDoc } from "@bgs/models";
-import { JWT_REFRESH_TOKENS_COLLECTION } from "@bgs/models";
-import { colls, db } from "../../config/db.ts";
+import { colls } from "../../config/db.ts";
 import { hashRefreshCode } from "../jwtrefreshtokens.ts";
 import { hashUserSecret, isSha256Hex } from "../user.ts";
 import type { Migration } from "./index.ts";
@@ -9,12 +8,12 @@ import type { Migration } from "./index.ts";
 // Refresh-token codes (the session-cookie credential) plus the single-use emailed
 // secrets on the user doc (security.confirmKey, security.reset.key) were stored in
 // plaintext — a db read/leak would hand out live sessions and working
-// confirm/reset links (#164). Hash every existing plaintext value in place, then
-// swap the unique refresh-token index from `code` to `codeHash`.
+// confirm/reset links (#164). Hash every existing plaintext value in place.
 // lookupRefreshToken() and the confirm/reset validators also accept the legacy
-// plaintext at rest, so this is the batch cleanup (and the only place the legacy
-// `code_1` index gets dropped). Docs are streamed (cursor) and written in batches
-// — no whole-collection toArray() on a large prod db.
+// plaintext at rest, so this is the batch cleanup. (The legacy `code_1` index is
+// dropped earlier, in ensureIndexes — it must go before createIndexes, not here.)
+// Docs are streamed (cursor) and written in batches — no whole-collection
+// toArray() on a large prod db.
 const BATCH_SIZE = 1000;
 
 export const migration: Migration = {
@@ -74,12 +73,6 @@ export const migration: Migration = {
 		}
 		if (userOps.length > 0) {
 			await colls.users.bulkWrite(userOps);
-		}
-
-		const collection = db().collection(JWT_REFRESH_TOKENS_COLLECTION);
-		const indexes = await collection.indexes();
-		if (indexes.some((index) => index.name === "code_1")) {
-			await collection.dropIndex("code_1");
 		}
 	},
 };
