@@ -30,6 +30,8 @@
 		country?: string;
 		/** User card: top boardgame by games played, with elo. */
 		topGame?: string;
+		/** Call-to-action line/chip (e.g. "Play boardgames online" / "Challenge me"). */
+		cta?: string;
 	}
 
 	let {
@@ -44,6 +46,7 @@
 		avatar = "",
 		country = "",
 		topGame = "",
+		cta = "",
 	}: Props = $props();
 
 	const background = `radial-gradient(ellipse 700px 520px at 96% -12%, ${colors.accent}a6 0%, transparent 58%),
@@ -110,8 +113,8 @@
 					{description}
 				</div>
 			{/if}
-			{#if players || pace || karma || country || topGame}
-				<div style="display: flex; align-items: center; gap: 16px;">
+			{#if players || pace || karma || country || topGame || cta}
+				<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 16px; max-width: 880px;">
 					{#if players}
 						<div
 							style="font-size: 26px; font-weight: 600; color: #ffffff; background: {colors.accent}; border: 1px solid rgba(255,255,255,0.35); border-radius: 999px; padding: 10px 26px; box-shadow: 0 2px 10px rgba(9, 42, 77, 0.4);"
@@ -145,6 +148,13 @@
 							style="font-size: 26px; font-weight: 600; color: #e7f3ff; border: 2px solid rgba(255,255,255,0.4); border-radius: 999px; padding: 9px 24px; text-shadow: 0 1px 4px rgba(9, 42, 77, 0.5);"
 						>
 							{topGame}
+						</div>
+					{/if}
+					{#if cta}
+						<div
+							style="font-size: 26px; font-weight: 600; color: #ffffff; background: {colors.accent}; border: 1px solid rgba(255,255,255,0.35); border-radius: 999px; padding: 10px 26px; box-shadow: 0 2px 10px rgba(9, 42, 77, 0.4);"
+						>
+							{cta}
 						</div>
 					{/if}
 				</div>

@@ -27,6 +27,8 @@ export interface OgCardData {
 	country?: string;
 	/** User card: top boardgame by games played — "Gaia Project · 1520 elo · 87 games". */
 	topGame?: string;
+	/** Call-to-action chip (e.g. "Play boardgames online"). */
+	cta?: string;
 }
 
 export interface CardData {
@@ -134,6 +136,7 @@ export async function loadUserCard(username: string): Promise<CardData> {
 			: undefined,
 		avatar,
 		topGame: top && topLabel ? `${topLabel} · ${top.elo!.value} elo · ${top.elo!.games} games` : undefined,
+		cta: "Play online",
 	};
 	// ETag covers every field the card renders (avatar image bytes too), so a new avatar,
 	// a karma change, or a new top game busts the cache on revalidation.
