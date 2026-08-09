@@ -270,7 +270,7 @@
 				Connect with
 
 				<!-- OAuth endpoints are not app routes: off-site navigation (rel="external"). -->
-				{#each ["google", "discord", "facebook"] as const as social (social)}
+				{#each ["google", "discord", "facebook", "github", "huggingface"] as const as social (social)}
 					<Button
 						color={social}
 						disabled={!!(user.account.social && user.account.social[social])}

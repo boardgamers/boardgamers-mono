@@ -15,6 +15,11 @@
 	} from "@/modules/cdk";
 	import IconGearFill from "@/components/icons/IconGearFill.svelte";
 	import IconPower from "@/components/icons/IconPower.svelte";
+	import IconGithub from "@/components/icons/IconGithub.svelte";
+	import IconGoogle from "@/components/icons/IconGoogle.svelte";
+	import IconDiscord from "@/components/icons/IconDiscord.svelte";
+	import IconFacebook from "@/components/icons/IconFacebook.svelte";
+	import IconHuggingFace from "@/components/icons/IconHuggingFace.svelte";
 	import IconSunFill from "@/components/icons/IconSunFill.svelte";
 	import IconMoonFill from "@/components/icons/IconMoonFill.svelte";
 	import IconCircleHalf from "@/components/icons/IconCircleHalf.svelte";
@@ -52,6 +57,17 @@
 	const logOut = () => {
 		logout().catch(handleError);
 	};
+
+	// Hugging Face uses CIMD (see api config/passport.ts): the env's own
+	// /.well-known/oauth-cimd doc is the client_id and names this origin's callback, so
+	// every environment — prod and PR previews alike — logs in directly, no prod relay.
+	const socialProviders = [
+		{ name: "Google", href: "/api/account/auth/google", icon: IconGoogle },
+		{ name: "Discord", href: "/api/account/auth/discord", icon: IconDiscord },
+		{ name: "Facebook", href: "/api/account/auth/facebook", icon: IconFacebook },
+		{ name: "GitHub", href: "/api/account/auth/github", icon: IconGithub },
+		{ name: "Hugging Face", href: "/api/account/auth/huggingface", icon: IconHuggingFace },
+	];
 
 	let admin = $derived(user?.authority === "admin");
 	// SSR renders the snapshot; the client trusts the websocket-fed store, so an empty
@@ -149,18 +165,23 @@
 			<span class="hidden text-white sm:inline">Have an account?</span>
 			<Dropdown nav inNavbar>
 				<DropdownToggle nav caret>Login</DropdownToggle>
-				<DropdownMenu right class="mt-4 min-w-[250px] p-3.5 pb-0">
+				<!-- text-gray-900: the navbar paints its text white, reset it so the menu is readable in light mode -->
+				<DropdownMenu right class="dropdown-menu mt-4 min-w-[250px] p-3.5 pb-0 text-gray-900 dark:text-gray-100">
 					<div>
 						Log in with
-						<div class="mt-3 mb-1 flex flex-wrap justify-around">
+						<div class="mt-3 mb-1 flex justify-around">
 							<!-- OAuth endpoints, not app routes: off-site navigation (rel="external"). -->
-							<Button color="google" href="/api/account/auth/google" rel="external" class="w-[46%] mb-2">Google</Button>
-							<Button color="discord" href="/api/account/auth/discord" rel="external" class="w-[46%] mb-2"
-								>Discord</Button
-							>
-							<Button color="facebook" href="/api/account/auth/facebook" rel="external" class="w-[46%] mb-2"
-								>Facebook</Button
-							>
+							{#each socialProviders as provider (provider.name)}
+								<a
+									href={provider.href}
+									rel="external"
+									title="Continue with {provider.name}"
+									aria-label="Continue with {provider.name}"
+									class="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-800 no-underline transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+								>
+									<provider.icon size="1.25rem" />
+								</a>
+							{/each}
 						</div>
 						or
 						<Form class="mt-3" onsubmit={handleSubmit}>

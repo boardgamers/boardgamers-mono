@@ -22,6 +22,8 @@ import {
 	JWT_REFRESH_TOKENS_COLLECTION,
 	type LogDoc,
 	LOGS_COLLECTION,
+	type OAuthFlowDoc,
+	OAUTH_FLOWS_COLLECTION,
 	type PageDoc,
 	PAGES_COLLECTION,
 	type RoomMetaDataDoc,
@@ -62,6 +64,7 @@ export const colls = {} as {
 	images: Collection<ImageDoc>;
 	jwtRefreshTokens: Collection<JwtRefreshTokenDoc>;
 	logs: Collection<LogDoc>;
+	oauthFlows: Collection<OAuthFlowDoc>;
 	pages: Collection<PageDoc>;
 	roomMetaData: Collection<RoomMetaDataDoc>;
 	settings: Collection<SettingsDoc>;
@@ -82,6 +85,7 @@ function initColls(database: Db) {
 		images: withAutoUpdatedAt(database.collection<ImageDoc>(IMAGES_COLLECTION)),
 		jwtRefreshTokens: withAutoUpdatedAt(database.collection<JwtRefreshTokenDoc>(JWT_REFRESH_TOKENS_COLLECTION)),
 		logs: database.collection<LogDoc>(LOGS_COLLECTION),
+		oauthFlows: database.collection<OAuthFlowDoc>(OAUTH_FLOWS_COLLECTION),
 		pages: withAutoUpdatedAt(database.collection<PageDoc>(PAGES_COLLECTION)),
 		roomMetaData: database.collection<RoomMetaDataDoc>(ROOM_METADATA_COLLECTION),
 		settings: withAutoUpdatedAt(database.collection<SettingsDoc>(SETTINGS_COLLECTION)),

@@ -114,6 +114,15 @@ export default {
 			id: process.env.googleId || "google-oauth-id",
 			secret: process.env.googleSecret || "google-oauth-secret",
 		},
+		github: {
+			id: process.env.githubId || "github-oauth-id",
+			// PKCE public client (see passport.ts): no secret needed. `undefined` (not a
+			// placeholder string) is the "no secret" signal — makeSocialStrategy omits it.
+			secret: process.env.githubSecret || undefined,
+		},
+		// Hugging Face uses CIMD (Client ID Metadata Documents): the client_id is the
+		// env's own `/.well-known/oauth-cimd` URL (served by the web app), computed at
+		// request time in routes/account/auth.ts — no env/registration needed at all.
 	},
 	silent: false,
 };

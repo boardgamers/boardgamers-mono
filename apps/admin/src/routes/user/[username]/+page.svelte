@@ -6,6 +6,7 @@
 	import { goto, invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import WebLink from "$components/WebLink.svelte";
+	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
 	import type { UserInfo, ArchivedUserInfo, ApiErrorItem } from "./+page.ts";
 
@@ -135,6 +136,30 @@
 		}
 	}
 
+	const providerLabel: Record<string, string> = {
+		google: "Google",
+		discord: "Discord",
+		facebook: "Facebook",
+		github: "GitHub",
+		huggingface: "Hugging Face",
+	};
+
+	const socialLinks = $derived(
+		user?.account.social
+			? Object.entries(user.account.social)
+					.filter(([, id]) => !!id)
+					.map(([provider]) => {
+						const meta = user?.account.socialMeta?.[provider as keyof NonNullable<UserFront["account"]["socialMeta"]>];
+						return {
+							provider,
+							label: providerLabel[provider] ?? provider,
+							username: meta?.username,
+							url: meta?.url,
+						};
+					})
+			: []
+	);
+
 	const totalGames = $derived(user?.games ? Object.values(user.games).reduce((a, b) => a + (b ?? 0), 0) : 0);
 	const isOnline = $derived(
 		user?.security?.lastOnline && Date.now() - new Date(user.security.lastOnline).getTime() < 60000
@@ -228,6 +253,31 @@
 				{/if}
 			</div>
 		</div>
+
+		<!-- Social Accounts (read-only, non-sensitive display info) -->
+		{#if socialLinks.length > 0}
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-2">
+				<h3 class="text-sm font-semibold">Social Accounts</h3>
+				<div class="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+					{#each socialLinks as link (link.provider)}
+						<div>
+							<span class="text-gray-500 dark:text-gray-400">{link.label}:</span>
+							{#if link.url}
+								<a
+									href={link.url}
+									target="_blank"
+									rel="noopener noreferrer"
+									class="ml-1 text-blue-600 dark:text-blue-400 hover:underline"
+									>{link.username ? `@${link.username}` : link.url} ↗</a
+								>
+							{:else}
+								<span class="ml-1">{link.username ? `@${link.username}` : "linked"}</span>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
 
 		<!-- User Management -->
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">

@@ -51,6 +51,10 @@ export { imageSchema, IMAGES_COLLECTION, imageIndexes } from "./image.ts";
 export type { JwtRefreshTokenDoc } from "./jwtrefreshtoken.ts";
 export { jwtRefreshTokenSchema, JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenIndexes } from "./jwtrefreshtoken.ts";
 
+// --- OAuth Flow (server-side social-login state) ---
+export type { OAuthFlowDoc } from "./oauthflow.ts";
+export { oauthFlowSchema, OAUTH_FLOWS_COLLECTION, oauthFlowIndexes } from "./oauthflow.ts";
+
 // --- Log ---
 export type { LogDoc, LogFront } from "./log.ts";
 export { logSchema, LOGS_COLLECTION, logsCollectionOptions } from "./log.ts";
