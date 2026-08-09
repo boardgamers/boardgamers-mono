@@ -263,6 +263,7 @@
 						<div>
 							<span class="text-gray-500 dark:text-gray-400">{link.label}:</span>
 							{#if link.url}
+								<!-- eslint-disable svelte/no-navigation-without-resolve -- external social-profile URL, not an app route -->
 								<a
 									href={link.url}
 									target="_blank"
@@ -270,6 +271,7 @@
 									class="ml-1 text-blue-600 dark:text-blue-400 hover:underline"
 									>{link.username ? `@${link.username}` : link.url} ↗</a
 								>
+								<!-- eslint-enable svelte/no-navigation-without-resolve -->
 							{:else}
 								<span class="ml-1">{link.username ? `@${link.username}` : "linked"}</span>
 							{/if}

@@ -85,7 +85,7 @@
 	<li class="group relative">
 		<a
 			class="block px-4 py-2 font-semibold no-underline text-inherit hover:bg-gray-100 dark:hover:bg-gray-800"
-			href={resolve(gameRoute(id))}
+			href={resolve(...([gameRoute(id)] as Parameters<typeof resolve>))}
 			class:bg-primary={boardgameId === id}
 			class:text-white={boardgameId === id}
 			data-sveltekit-preload-data="hover"
