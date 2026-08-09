@@ -29,17 +29,24 @@ describe("watchdog", () => {
 		healthy.close();
 	});
 
-	it("checkHealth returns true for a responsive server", async () => {
-		assert.equal(await checkHealth({ name: "ok", port: healthyPort }), true);
+	it("checkHealth is ok for a responsive server", async () => {
+		assert.deepEqual(await checkHealth({ name: "ok", port: healthyPort }), { ok: true });
 	});
 
-	it("checkHealth returns false for a dead port (connection refused)", async () => {
-		// Port 1 is never listening.
-		assert.equal(await checkHealth({ name: "dead", port: 1 }, 500), false);
+	it("checkHealth reports a dead port (connection refused) as down", async () => {
+		// Bind then close a server to get a real, guaranteed-refused port.
+		const tmp = createServer();
+		const deadPort = await listen(tmp);
+		tmp.close();
+		await new Promise((r) => setTimeout(r, 50));
+		assert.deepEqual(await checkHealth({ name: "dead", port: deadPort }, 500), { ok: false, kind: "down" });
 	});
 
 	it("does not restart before the failure threshold", async () => {
-		const target: WatchdogTarget = { name: "dead", port: 1 };
+		const tmp = createServer();
+		const deadPort = await listen(tmp);
+		tmp.close();
+		const target: WatchdogTarget = { name: "dead", port: deadPort };
 		const state = new Map();
 		// failThreshold 3: two ticks → two failures, no restart (pm2Restart would spawn
 		// a missing pm2 binary in tests, so reaching it would surface an error here).
@@ -76,7 +83,7 @@ describe("watchdog", () => {
 
 			const target: WatchdogTarget = { name: "wedged", port };
 			// Responsive before the hang.
-			assert.equal(await checkHealth(target, 1000), true);
+			assert.deepEqual(await checkHealth(target, 1000), { ok: true });
 
 			// Wedge it: fire the /hang request but don't await its (never-coming) response.
 			const hangReq = fetch(`http://127.0.0.1:${port}/hang`).catch(() => {});
@@ -84,8 +91,9 @@ describe("watchdog", () => {
 			// Give the child a moment to enter the busy loop.
 			await new Promise((r) => setTimeout(r, 200));
 
-			// The health check must now time out → false (this is what triggers a restart).
-			assert.equal(await checkHealth(target, 500), false);
+			// The health check must now time out → unresponsive (the wedge signature that
+			// triggers a restart).
+			assert.deepEqual(await checkHealth(target, 500), { ok: false, kind: "unresponsive" });
 
 			// And tick() counts it as a failure.
 			const state = new Map();

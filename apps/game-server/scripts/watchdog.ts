@@ -47,16 +47,37 @@ function log(level: "info" | "warn" | "error", msg: string, fields: Record<strin
 	(level === "error" ? process.stderr : process.stdout).write(line + "\n");
 }
 
-/** One liveness probe. Resolves true on any 200; false on timeout/refused/non-200. Never throws. */
-export async function checkHealth(target: WatchdogTarget, timeoutMs = TIMEOUT_MS): Promise<boolean> {
+/** Outcome of one liveness probe. */
+export type HealthStatus =
+	| { ok: true }
+	// No HTTP response in time / non-200 — the signature of a wedged event loop (the
+	// process is up, the socket accepts, but the request is never answered).
+	| { ok: false; kind: "unresponsive" }
+	// Connection refused — process down or still booting (port not bound yet).
+	| { ok: false; kind: "down" };
+
+/** One liveness probe. Never throws. Distinguishes a wedge (unresponsive) from a down/booting process. */
+export async function checkHealth(target: WatchdogTarget, timeoutMs = TIMEOUT_MS): Promise<HealthStatus> {
 	const url = `http://${HOST}:${target.port}/health`;
 	try {
 		const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
 		// Drain so the socket is released; we only care about the status.
 		await res.text().catch(() => {});
-		return res.status === 200;
-	} catch {
-		return false;
+		return res.status === 200 ? { ok: true } : { ok: false, kind: "unresponsive" };
+	} catch (err) {
+		// AbortSignal.timeout → TimeoutError (loop too busy to answer). A refused
+		// connection surfaces as a TypeError whose cause carries code ECONNREFUSED.
+		const code =
+			err instanceof Error && err.cause && typeof err.cause === "object" && "code" in err.cause
+				? (err.cause as { code?: unknown }).code
+				: undefined;
+		const kind =
+			err instanceof Error && err.name === "TimeoutError"
+				? "unresponsive"
+				: code === "ECONNREFUSED"
+					? "down"
+					: "unresponsive";
+		return { ok: false, kind };
 	}
 }
 
@@ -87,10 +108,10 @@ export async function tick(
 ): Promise<void> {
 	await Promise.all(
 		targets.map(async (target) => {
-			const ok = await checkHealth(target);
+			const result = await checkHealth(target);
 			const s = state.get(target.name) ?? { failures: 0, lastRestart: 0 };
 
-			if (ok) {
+			if (result.ok) {
 				if (s.failures > 0) {
 					log("info", "recovered", { name: target.name, afterFailures: s.failures });
 				}
@@ -101,7 +122,18 @@ export async function tick(
 
 			s.failures += 1;
 			state.set(target.name, s);
-			log("warn", "healthCheckFailed", { name: target.name, port: target.port, failures: s.failures, failThreshold });
+			// kind=unresponsive (timeout/non-200) points at a wedged loop; kind=down
+			// (refused) at a crashed/booting process. Both warrant a restart once they
+			// persist past the threshold — a "down" that lasts ~60s isn't coming back on
+			// its own (PM2 already restarts crashes instantly, so persistent down means
+			// crash-looping or a boot hang, both of which a restart can clear).
+			log("warn", "healthCheckFailed", {
+				name: target.name,
+				port: target.port,
+				kind: result.kind,
+				failures: s.failures,
+				failThreshold,
+			});
 
 			if (s.failures < failThreshold) {
 				return;

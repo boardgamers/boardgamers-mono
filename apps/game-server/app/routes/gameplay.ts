@@ -2,6 +2,7 @@ import { keyBy } from "@bgs/utils/array";
 import { logEvent } from "@bgs/utils/log";
 import { omit, pick } from "@bgs/utils/object";
 import assert from "node:assert";
+import { ObjectId } from "mongodb";
 import Router from "koa-router";
 import { z } from "zod";
 import { colls } from "../config/db.ts";
@@ -108,8 +109,10 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 			]);
 		} catch (err) {
 			if (err instanceof EngineTimeoutError) {
-				// Log loudly (structured error → Loki) so an engine that keeps timing out
-				// is visible and can be flagged/fixed — a one-off timeout shouldn't be silent.
+				// Attribute the hang to the exact game/engine/action: log loudly (→ Loki)
+				// AND record an apiErrors entry (meta.gameId + source) so it surfaces on the
+				// admin errors page and the per-game admin page — an engine that keeps
+				// timing out must be findable and flaggable, not silent.
 				logEvent("error", "engineTimeout", {
 					source: "game-server",
 					game: game.game.name,
@@ -117,6 +120,32 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 					gameId: ctx.params.gameId,
 					error: err.message,
 				});
+				colls.apiErrors
+					.insertOne({
+						request: {
+							url: ctx.request.originalUrl,
+							method: ctx.request.method,
+							body: JSON.stringify(ctx.request.body),
+							status: 422,
+							id: ctx.state.requestId,
+						},
+						error: {
+							name: "EngineTimeoutError",
+							message: err.message,
+							stack: err.stack ? err.stack.split("\n") : [],
+						},
+						user: ctx.state.user?.id ? new ObjectId(ctx.state.user.id) : undefined,
+						meta: {
+							source: "game-server",
+							gameId: ctx.params.gameId,
+							// Extra attribution fields (meta is .loose()): pin the exact engine.
+							game: game.game.name,
+							version: game.game.version,
+							action: "move",
+						},
+						createdAt: new Date(),
+					})
+					.catch(() => {});
 				// 422 (not 500): the move couldn't be applied — same surface as an illegal move.
 				ctx.status = 422;
 				ctx.body = { message: "The game engine took too long to process this move and was stopped. Please try again." };

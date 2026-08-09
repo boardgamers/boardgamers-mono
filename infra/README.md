@@ -35,6 +35,10 @@ The **`watchdog`** PM2 app (`apps/game-server/scripts/watchdog.ts`) closes that 
 - After `WATCHDOG_FAIL_THRESHOLD` (default 4) consecutive failures it runs
   `pm2 restart <name>`, bounding any hang to roughly `interval × threshold` (~60s with
   defaults). A `WATCHDOG_RESTART_COOLDOWN_MS` (default 60s) prevents restart loops.
+- Each failure is classified `unresponsive` (timeout / non-200 — the wedged-loop
+  signature; the timeout fires at the socket level even for a fully blocked loop) vs
+  `down` (connection refused — crashed or still booting) for triage; both restart once
+  they persist past the threshold.
 - The watchdog runs **under PM2 itself**, so PM2 keeps the watchdog alive; the watchdog
   only ever _restarts_ the other apps (PM2 remains the supervisor that brings them back).
 
@@ -42,10 +46,24 @@ Prod binds apps to `::1` (full IPv6), so set `WATCHDOG_HOST=::1` in the watchdog
 environment there (default is `127.0.0.1`). It is part of `ecosystem.config.cjs`, so a
 normal `pm2 reload ecosystem.config.cjs` deploy starts it.
 
-The watchdog bounds the blast radius of **any** hang. Separately, the game-server runs
-engine `move` calls inside a `worker_thread` with a hard timeout
-(`apps/game-server/app/services/engine-runner.ts`), so a runaway engine fails that one
-move instead of wedging the process in the first place.
+**Complementary in-process guard** (`packages/utils/watchdog.ts`, started in each serving
+worker): measures event-loop _scheduling lag_ and exits (so PM2 restarts the process)
+when the loop is severely degraded but still technically answering — e.g. an engine doing
+multi-second synchronous bursts. It runs per cluster worker, so it also catches one
+degraded worker while a sibling keeps `/health` green. A **fully** blocked loop can't run
+its own `process.exit()`, so the hard `while(true)` wedge is the external watchdog's job
+(its timeout doesn't depend on the target's loop); the guard covers the laggy-but-alive
+case.
+
+**Prevention (the root cause):** the game-server runs engine `move` calls inside a
+`worker_thread` with a hard timeout (`apps/game-server/app/services/engine-runner.ts`,
+default 10s via `ENGINE_CALL_TIMEOUT_MS`). A `Promise.race` can't preempt a synchronous
+infinite loop on the same thread, so the worker is `terminate()`d on timeout — the move
+fails with 422 and the server stays responsive. A timeout also writes an `apiErrors`
+record (`meta.gameId` + game/version/action) so the culprit game/engine is findable on
+the admin errors page. Other engine entry points (`init`/`dropPlayer`/`replay`/
+`logSlice`) still run in-process — see `apps/game-server/WORKAROUNDS.md`; the watchdog +
+guard are the net for those.
 
 ## Nginx
 

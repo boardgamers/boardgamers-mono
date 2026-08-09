@@ -7,14 +7,24 @@
  * there: JS can't preempt a synchronous busy loop on the same thread. A worker thread
  * can, because `worker.terminate()` kills the thread from outside.
  *
- * Model: one worker per engine (keyed by game+version), lazily spawned and reused
- * across calls (engines are stateless — all state is the GameData passed in/out).
- * A call that exceeds `timeoutMs` terminates the worker (so a wedged loop actually
- * dies), rejects with an EngineTimeoutError, and discards the worker so the next call
- * gets a fresh thread. The main process stays responsive throughout.
+ * Model: one worker per engine, keyed by the resolved entry-point path (which embeds
+ * the engine package version — see engines.ts engineKey), so an engine bump spawns a
+ * fresh worker for the new module instead of reusing a worker still running the old
+ * one. Workers are lazily spawned and reused across calls (engines are stateless — all
+ * state is the GameData passed in/out). A call that exceeds `timeoutMs` terminates the
+ * worker (so a wedged loop actually dies), rejects with an EngineTimeoutError, and
+ * discards the worker so the next call gets a fresh thread. The main process stays
+ * responsive throughout.
+ *
+ * Constraint: engine inputs/outputs cross the thread boundary by structured clone,
+ * which round-trips plain JSON but mangles BSON/host objects (an ObjectId clones into a
+ * plain {buffer} object, not an ObjectId). GameData must therefore be JSON-safe — which
+ * it already is by contract: game.data is `z.unknown()` persisted via
+ * `JSON.parse(JSON.stringify(...))` in game.ts afterMove. An engine that stashes a
+ * non-plain value (ObjectId/Long/Map/Set) in its data would get it back corrupted.
  */
 import { Worker } from "node:worker_threads";
-import type { Engine, GameData } from "../types/engine.ts";
+import type { Engine } from "../types/engine.ts";
 
 export class EngineTimeoutError extends Error {
 	readonly engineName: string;
@@ -103,9 +113,10 @@ export class EngineRunner {
 		return entry;
 	}
 
-	/** Run one engine method in the worker, with a hard timeout. */
+	/** Run one engine method in the worker, with a hard timeout. Keyed by `path` (unique
+	 * per engine package version) so an engine bump always gets a fresh worker. */
 	async call(name: string, version: number, path: string, method: keyof Engine, args: unknown[]): Promise<unknown> {
-		const key = `${name}_${version}`;
+		const key = path;
 		let entry = this.workers.get(key);
 		if (!entry || entry.dead) {
 			entry = this.spawn(key, path);
@@ -137,19 +148,6 @@ export class EngineRunner {
 		this.workers.clear();
 		await Promise.all(entries.map((e) => e.worker.terminate()));
 	}
-}
-
-/** Convenience wrapper presenting an Engine-like surface backed by the runner. */
-export function runEngineMethod(
-	runner: EngineRunner,
-	name: string,
-	version: number,
-	path: string,
-	method: keyof Engine,
-	...args: unknown[]
-): Promise<GameData> {
-	// GameData is `unknown`, and runner.call resolves unknown — no assertion needed.
-	return runner.call(name, version, path, method, args);
 }
 
 /**

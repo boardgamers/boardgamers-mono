@@ -54,10 +54,18 @@ describe("EngineRunner (worker_thread isolation)", () => {
 	});
 
 	it("recovers: a fresh worker serves the next call after its worker was terminated", async () => {
-		// The looping worker was terminated above; a new call on the same key respawns.
-		// (Use the healthy engine under the looping key's name to prove respawn works.)
-		const out = await runner.call("loop", 1, engines.ok, "move", [{ n: 5 }, "d4", 1]);
+		// The looping worker (keyed by the engines.loop path) was terminated above. The
+		// healthy engine keeps working on its own worker, unaffected by the kill.
+		const out = await runner.call("ok", 1, engines.ok, "move", [{ n: 5 }, "d4", 1]);
 		assert.deepEqual(out, { n: 6, last: "d4" });
+	});
+
+	it("an engine bump (new path, same game+version) spawns a fresh worker, not the stale one", async () => {
+		// Workers are keyed by resolved path, which embeds the engine package version.
+		// Two paths for the "same" game+version must not share a worker.
+		fs.writeFileSync(path.join(engines.dir, "v2.mjs"), `export async function move() { return { v: 2 }; }`);
+		const out = await runner.call("ok", 1, path.join(engines.dir, "v2.mjs"), "move", [{}, "x", 0]);
+		assert.deepEqual(out, { v: 2 }); // served by the v2 module, not the cached ok.mjs worker
 	});
 
 	it("propagates engine-thrown errors (not timeouts)", async () => {
