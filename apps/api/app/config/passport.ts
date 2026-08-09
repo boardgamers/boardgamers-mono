@@ -341,7 +341,10 @@ function makeSocialStrategy<T extends Strategy>(
 				// PKCE public clients (github) pass no secret; confidential clients require one.
 				clientSecret: secret,
 				passReqToCallback: true,
-				callbackURL: `https://${env.site}/auth/${provider}/callback`,
+				// The api serves the callback at /api/account/auth/<provider>/callback
+				// (router mounted /api/account → /auth). nginx routes only /api/* to the api;
+				// a bare /auth/... hits the web SPA and 404s.
+				callbackURL: `https://${env.site}/api/account/auth/${provider}/callback`,
 				...extraStrategyOptions[provider],
 			},
 			function (

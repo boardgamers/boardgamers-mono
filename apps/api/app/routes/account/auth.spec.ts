@@ -275,6 +275,36 @@ describe("Account API — PKCE authorize redirects", () => {
 		assert.match(url.searchParams.get("state") ?? "", /^[A-Za-z0-9_-]{10,}$/);
 	});
 
+	it("the HF handshake advertises the api-mounted callback (nginx routes /api/* to the api)", async () => {
+		// Regression: the callback must be /api/account/auth/huggingface/callback, NOT the bare
+		// /auth/huggingface/callback (which nginx routes to the web SPA → 404). #138 bug.
+		const res = await fetch(`${baseURL()}/api/account/auth/huggingface`, { redirect: "manual" });
+		const url = new URL(res.headers.get("location") ?? "");
+		// The strategy builds the callback from ctx.hostname (no port) — the same origin the
+		// CIMD doc names in redirect_uris. Assert the path, the routing-critical part.
+		const redirectUri = new URL(url.searchParams.get("redirect_uri") ?? "");
+		assert.strictEqual(
+			redirectUri.pathname,
+			"/api/account/auth/huggingface/callback",
+			"redirect_uri must be the api-mounted callback that nginx routes to the api (not bare /auth/…)",
+		);
+		assert.strictEqual(redirectUri.hostname, new URL(baseURL()).hostname);
+	});
+
+	it("the api-mounted callback route exists (a bad code fails the handshake, not 404)", async () => {
+		// Hitting the real callback path must reach the api router. With an invalid/unknown
+		// code+state the OAuth handshake fails → our custom callback 303s to /login?error=
+		// (it must NOT be a 404 from an unmounted route).
+		const res = await fetch(`${baseURL()}/api/account/auth/huggingface/callback?code=nope&state=nope`, {
+			redirect: "manual",
+		});
+		assert.notStrictEqual(res.status, 404, "callback route must be mounted (not 404)");
+		// A bad/expired code+state fails the handshake → strategy.fail() → our custom callback
+		// 303s to /login?error= (it must NOT crash into a 500 on the undefined user).
+		assert.strictEqual(res.status, 303, "failed handshake should 303 to /login, got " + res.status);
+		assert.match(res.headers.get("location") ?? "", /\/login\?error=/);
+	});
+
 	it("persists the HF PKCE state server-side in Mongo, single-use", async () => {
 		const res = await fetch(`${baseURL()}/api/account/auth/huggingface`, { redirect: "manual" });
 		const state = new URL(res.headers.get("location") ?? "").searchParams.get("state");

@@ -49,7 +49,7 @@ const socialFeedbackSchema = z.object({
 //
 // Hugging Face needs NO registered callback at all: it uses CIMD, where the
 // client_id is the env's own /.well-known/oauth-cimd URL (served by the web app) and
-// that doc names the env's own /auth/huggingface/callback as the redirect. So each
+// that doc names the env's own /api/account/auth/huggingface/callback as the redirect. So each
 // environment (prod + every PR preview) does HF login directly — there is no prod
 // redirect-relay. The other providers (google/discord/facebook/github) still require
 // pre-registered OAuth apps with fixed callbacks, so on preview envs their social
@@ -63,8 +63,15 @@ const webUrl = (ctx: Context, path: string) => `${ctx.protocol}://${ctx.host}${p
 function socialStartOptions(ctx: Context, provider: string, scope: string[]) {
 	return {
 		scope,
-		callbackURL: `${ctx.protocol}://${ctx.hostname}/auth/${provider}/callback`,
+		callbackURL: socialCallbackUrl(ctx, provider),
 	};
+}
+
+// The provider callback must point at the api-mounted route (this router is mounted at
+// /api/account/auth). nginx routes only /api/* to the api — a bare /auth/... falls
+// through to the web SPA and 404s. This must also match the CIMD doc's redirect_uris.
+function socialCallbackUrl(ctx: Context, provider: string): string {
+	return `${ctx.protocol}://${ctx.hostname}/api/account/auth/${provider}/callback`;
 }
 
 router.get("/google", async (ctx, next) => {
@@ -87,7 +94,7 @@ router.get("/huggingface", async (ctx, next) => {
 	// CIMD: the strategy (and its client_id) is specific to this request's origin.
 	await authenticateWith(huggingfaceStrategy(requestOrigin(ctx)), {
 		scope: ["openid", "profile"],
-		callbackURL: `${ctx.protocol}://${ctx.hostname}/auth/huggingface/callback`,
+		callbackURL: socialCallbackUrl(ctx, "huggingface"),
 	})(ctx, next);
 });
 
@@ -99,11 +106,15 @@ function authenticateCallback(ctx: Context, next: Next, provider: string): Promi
 	return authenticateWith(
 		strategy,
 		{
-			callbackURL: `${ctx.protocol}://${ctx.hostname}/auth/${provider}/callback`,
+			callbackURL: socialCallbackUrl(ctx, provider),
 			session: false,
 		},
-		async (err: unknown) => {
-			if (err) {
+		async (err: unknown, user: unknown) => {
+			// koa-passport signals failure two ways: an err (exception) OR a falsy user with
+			// err=null (strategy.fail() — bad/expired code, unknown state, user denied). Both
+			// must bounce to /login?error=; a falsy user that falls through to finishSocialAuth
+			// would crash on ctx.state.user being undefined (500 instead of a clean redirect).
+			if (err || !user) {
 				redirectAfterAuth(ctx, `/login?error=${encodeURIComponent("Social login failed")}`);
 				return;
 			}
