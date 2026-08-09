@@ -5,7 +5,7 @@ import { ObjectId } from "mongodb";
 import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { testUser } from "../../config/test-helpers.ts";
-import { createAccessToken, generateRefreshCode } from "../../models/jwtrefreshtokens.ts";
+import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
 import { generateHash, resetPassword } from "../../models/user.ts";
 
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
@@ -20,7 +20,7 @@ async function api(method: string, path: string, headers?: Record<string, string
 
 async function makeAuthHeaders(userId: ObjectId) {
 	const code = generateRefreshCode();
-	const tokenDoc = { user: userId, code, createdAt: new Date() };
+	const tokenDoc = { user: userId, codeHash: hashRefreshCode(code), createdAt: new Date() };
 	await colls.jwtRefreshTokens.insertOne(tokenDoc);
 	const token = await createAccessToken(tokenDoc, ["all"], true);
 	return { Authorization: `Bearer ${token}` };
@@ -76,9 +76,17 @@ describe("Admin users API", () => {
 			await colls.users.insertOne(testUser({ _id: userId }));
 			await colls.users.insertOne(testUser({ _id: otherUserId }));
 			for (let i = 0; i < 3; i++) {
-				await colls.jwtRefreshTokens.insertOne({ user: userId, code: `code-${i}`, createdAt: new Date() });
+				await colls.jwtRefreshTokens.insertOne({
+					user: userId,
+					codeHash: hashRefreshCode(`code-${i}`),
+					createdAt: new Date(),
+				});
 			}
-			await colls.jwtRefreshTokens.insertOne({ user: otherUserId, code: "other-code", createdAt: new Date() });
+			await colls.jwtRefreshTokens.insertOne({
+				user: otherUserId,
+				codeHash: hashRefreshCode("other-code"),
+				createdAt: new Date(),
+			});
 		});
 
 		it("rejects non-admin callers", async () => {
@@ -211,7 +219,7 @@ describe("Admin users API", () => {
 				await colls.users.insertOne(testUser({ _id: trendUserId }));
 				const token = (loginMethod: string | undefined, createdAt: Date, code: string) => ({
 					user: trendUserId,
-					code,
+					codeHash: hashRefreshCode(code),
 					createdAt,
 					...(loginMethod ? { loginMethod } : {}),
 				});

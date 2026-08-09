@@ -9,7 +9,7 @@ import { db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { colls } from "../../config/db.ts";
 import { testUser, testGame, testGamePrefs } from "../../config/test-helpers.ts";
-import { createAccessToken, generateRefreshCode } from "../../models/jwtrefreshtokens.ts";
+import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
 
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
 
@@ -44,7 +44,7 @@ function errorMessage(data: unknown): string | undefined {
 
 async function makeAuthHeaders(userId: ObjectId) {
 	const code = generateRefreshCode();
-	const tokenDoc = { user: userId, code, createdAt: new Date() };
+	const tokenDoc = { user: userId, codeHash: hashRefreshCode(code), createdAt: new Date() };
 	await colls.jwtRefreshTokens.insertOne(tokenDoc);
 	const token = await createAccessToken(tokenDoc, ["all"], false);
 	return { Authorization: `Bearer ${token}` };
@@ -226,7 +226,7 @@ describe("Game API", () => {
 				testGamePrefs({ user: capUserId, game: "test", access: { ownership: true } }),
 			);
 			const code = generateRefreshCode();
-			const tokenDoc = { user: capUserId, code, createdAt: new Date() };
+			const tokenDoc = { user: capUserId, codeHash: hashRefreshCode(code), createdAt: new Date() };
 			await colls.jwtRefreshTokens.insertOne(tokenDoc);
 			const token = await createAccessToken(tokenDoc, ["all"], false);
 			capAuthHeaders = { Authorization: `Bearer ${token}` };

@@ -10,7 +10,7 @@ import { z } from "zod";
 import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { testUser, testGamePrefs } from "../../config/test-helpers.ts";
-import { createAccessToken, generateRefreshCode } from "../../models/jwtrefreshtokens.ts";
+import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
 
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
 
@@ -51,7 +51,7 @@ describe("Account API — country", () => {
 			}),
 		);
 		const code = generateRefreshCode();
-		const tokenDoc = { user: userId, code, createdAt: new Date() };
+		const tokenDoc = { user: userId, codeHash: hashRefreshCode(code), createdAt: new Date() };
 		await colls.jwtRefreshTokens.insertOne(tokenDoc);
 		const token = await createAccessToken(tokenDoc, ["all"], false);
 		authHeaders = { Authorization: `Bearer ${token}` };
@@ -131,7 +131,7 @@ describe("Account API — avatar upload", () => {
 			}),
 		);
 		const code = generateRefreshCode();
-		const tokenDoc = { user: userId, code, createdAt: new Date() };
+		const tokenDoc = { user: userId, codeHash: hashRefreshCode(code), createdAt: new Date() };
 		await colls.jwtRefreshTokens.insertOne(tokenDoc);
 		const token = await createAccessToken(tokenDoc, ["all"], false);
 		authHeaders = { Authorization: `Bearer ${token}` };

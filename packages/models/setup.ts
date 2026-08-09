@@ -37,29 +37,26 @@ export async function ensureCollections(db: Db) {
 }
 
 export async function ensureIndexes(db: Db) {
-	// jwtrefreshtokens.code was the session credential in plaintext (#164). New docs
-	// carry only `codeHash`, and the legacy unique non-sparse `code_1` index rejects
-	// the second code-less doc (duplicate null) — but createIndexes can't alter it in
-	// place (same name, different options → IndexKeySpecsConflict). Drop it here so
-	// createIndexes can rebuild it sparse (legacy docs still carry `code`; the sparse
-	// index keeps the legacy plaintext lookup indexed while hash-only docs coexist).
-	// Skip when the collection doesn't exist yet (fresh/test db) — dropIndex would
-	// throw "ns does not exist".
+	// jwtrefreshtokens.code was the session credential in plaintext (#164); migration
+	// 1.4.0 hashed every row and the `code` field is gone from the schema, so the old
+	// `code_1` index (in either its original non-sparse or its transitional sparse
+	// form) is dead weight. Drop it — createIndexes can't remove it (it only creates
+	// what's declared) and can't alter an index in place either (same name, different
+	// options → IndexKeySpecsConflict). Skip when the collection doesn't exist yet
+	// (fresh/test db) — dropIndex would throw "ns does not exist".
 	const collectionExists = (await db.listCollections({ name: JWT_REFRESH_TOKENS_COLLECTION }).toArray()).length > 0;
 	if (collectionExists) {
 		const refreshTokens = db.collection(JWT_REFRESH_TOKENS_COLLECTION);
-		// Only drop the legacy NON-sparse code_1. Once it's been recreated sparse, leave
-		// it alone — re-dropping every boot would churn the index and briefly remove the
-		// legacy-lookup index. (indexes() throws "ns does not exist" if the collection
-		// has no indexes yet, but collectionExists covers that.)
-		const codeIndex = (await refreshTokens.indexes()).find((index) => index.name === "code_1");
-		if (codeIndex && codeIndex.sparse !== true) {
+		// indexes() throws "ns does not exist" if the collection has no indexes yet,
+		// but collectionExists covers that.
+		if ((await refreshTokens.indexes()).some((index) => index.name === "code_1")) {
 			try {
 				await refreshTokens.dropIndex("code_1");
 			} catch (err) {
 				// Tolerate only "index not found" (code 27): a sibling api/cron process
-				// dropped it first (PM2 starts several at once). Any other failure leaves
-				// the legacy index in place and must fail startup loudly.
+				// dropped it first (PM2 starts several at once). Any other failure must
+				// fail startup loudly.
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- caught errors are untyped; the driver sets `code`
 				const code = (err as { code?: number })?.code;
 				if (code !== 27) {
 					throw err;

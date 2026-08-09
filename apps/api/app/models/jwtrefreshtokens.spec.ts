@@ -36,46 +36,19 @@ describe("refresh-token codes — stored hashed, not plaintext (#164)", () => {
 		assert.ok(!JSON.stringify(rt).includes(code), "raw code is stored nowhere");
 	});
 
-	it("a legacy plaintext-stored code still resolves, and is rehashed in place", async () => {
-		// Pre-#164 codes were 15 random bytes base64 (e.g. "AQEB...AQEB"). The legacy
-		// lookup path is gated on that exact format, so use a matching code.
-		const code = "AQEBAQEBAQEBAQEBAQEB";
-		await colls.jwtRefreshTokens.insertOne({ user: userId, code, createdAt: new Date() });
-
-		const rt = await lookupRefreshToken(code);
-		assert.ok(rt, "legacy plaintext code still authenticates");
-		assert.strictEqual(rt.code, code);
-
-		// Rehash fires fire-and-forget — poll briefly for it to land.
-		let doc;
-		for (let i = 0; i < 50; i++) {
-			doc = await colls.jwtRefreshTokens.findOne({ _id: rt._id });
-			if (doc && !("code" in doc)) {
-				break;
-			}
-			await new Promise((resolve) => setTimeout(resolve, 20));
-		}
-		assert.ok(doc && !("code" in doc), "plaintext code was removed");
-		assert.strictEqual(doc.codeHash, hashRefreshCode(code), "hash stored in its place");
-	});
-
 	it("a wrong code resolves to nothing", async () => {
 		assert.strictEqual(await lookupRefreshToken(generateRefreshCode()), null);
 	});
 
-	it("revokeRefreshToken deletes by raw code (hashed and legacy)", async () => {
-		const hashed = generateRefreshCode();
+	it("revokeRefreshToken deletes by raw code", async () => {
+		const code = generateRefreshCode();
 		await colls.jwtRefreshTokens.insertOne({
 			user: userId,
-			codeHash: hashRefreshCode(hashed),
+			codeHash: hashRefreshCode(code),
 			createdAt: new Date(),
 		});
-		const legacy = "AgICAgICAgICAgICAgIC"; // valid pre-#164 format (15-byte base64)
-		await colls.jwtRefreshTokens.insertOne({ user: userId, code: legacy, createdAt: new Date() });
 
-		await revokeRefreshToken(hashed);
-		await revokeRefreshToken(legacy);
-		assert.strictEqual(await lookupRefreshToken(hashed), null);
-		assert.strictEqual(await lookupRefreshToken(legacy), null);
+		await revokeRefreshToken(code);
+		assert.strictEqual(await lookupRefreshToken(code), null);
 	});
 });

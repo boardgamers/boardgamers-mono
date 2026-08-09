@@ -1,17 +1,32 @@
 import type { AnyBulkWriteOperation } from "mongodb";
+import { JWT_REFRESH_TOKENS_COLLECTION } from "@bgs/models";
 import type { JwtRefreshTokenDoc, UserDoc } from "@bgs/models";
-import { colls } from "../../config/db.ts";
+import { colls, db } from "../../config/db.ts";
 import { hashRefreshCode } from "../jwtrefreshtokens.ts";
-import { hashUserSecret, isSha256Hex } from "../user.ts";
+import { hashUserSecret } from "../user.ts";
 import type { Migration } from "./index.ts";
+
+// A migration is a historical artifact: it must keep compiling against the row
+// shapes it operates on even after the live schema moves on. The legacy
+// plaintext `code` field and the isSha256Hex helper were dropped from
+// @bgs/models / user.ts once this migration had run in prod, so the migration
+// carries its own copies.
+type LegacyJwtRefreshTokenDoc = Omit<JwtRefreshTokenDoc, "codeHash"> & {
+	codeHash?: string;
+	// Pre-#164 plaintext session code, present on every doc this migration matches.
+	code?: string;
+};
+
+function isSha256Hex(value: string): boolean {
+	return /^[0-9a-f]{64}$/.test(value);
+}
 
 // Refresh-token codes (the session-cookie credential) plus the single-use emailed
 // secrets on the user doc (security.confirmKey, security.reset.key) were stored in
 // plaintext — a db read/leak would hand out live sessions and working
 // confirm/reset links (#164). Hash every existing plaintext value in place.
-// lookupRefreshToken() and the confirm/reset validators also accept the legacy
-// plaintext at rest, so this is the batch cleanup. (The legacy `code_1` index is
-// dropped earlier, in ensureIndexes — it must go before createIndexes, not here.)
+// (The legacy `code_1` index is dropped separately, in ensureIndexes — it must go
+// before createIndexes, not here.)
 // Docs are streamed (cursor) and written in batches — no whole-collection
 // toArray() on a large prod db.
 const BATCH_SIZE = 1000;
@@ -20,8 +35,10 @@ export const migration: Migration = {
 	async up() {
 		// Legacy docs are the only ones carrying `code`, so every doc matched here is
 		// plaintext by construction — no already-hashed guard needed on this pass.
-		let ops: AnyBulkWriteOperation<JwtRefreshTokenDoc>[] = [];
-		for await (const token of colls.jwtRefreshTokens.find({ code: { $exists: true } })) {
+		// Read through a legacy-typed handle: `code` is no longer on the live schema.
+		const legacyTokens = db().collection<LegacyJwtRefreshTokenDoc>(JWT_REFRESH_TOKENS_COLLECTION);
+		let ops: AnyBulkWriteOperation<LegacyJwtRefreshTokenDoc>[] = [];
+		for await (const token of legacyTokens.find({ code: { $exists: true } })) {
 			if (!token.code) {
 				continue;
 			}
@@ -35,12 +52,12 @@ export const migration: Migration = {
 				},
 			});
 			if (ops.length >= BATCH_SIZE) {
-				await colls.jwtRefreshTokens.bulkWrite(ops);
+				await legacyTokens.bulkWrite(ops);
 				ops = [];
 			}
 		}
 		if (ops.length > 0) {
-			await colls.jwtRefreshTokens.bulkWrite(ops);
+			await legacyTokens.bulkWrite(ops);
 		}
 
 		// Users created after this change deployed already store hashes — skip any

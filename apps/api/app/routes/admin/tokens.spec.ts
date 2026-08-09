@@ -27,7 +27,7 @@ async function api(method: string, path: string, headers?: Record<string, string
 
 async function makeAuthHeaders(userId: ObjectId) {
 	const code = generateRefreshCode();
-	const tokenDoc = { user: userId, code, createdAt: new Date() };
+	const tokenDoc = { user: userId, codeHash: hashRefreshCode(code), createdAt: new Date() };
 	await colls.jwtRefreshTokens.insertOne(tokenDoc);
 	const token = await createAccessToken(tokenDoc, ["all"], true);
 	return { Authorization: `Bearer ${token}` };

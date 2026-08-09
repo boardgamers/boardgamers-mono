@@ -120,24 +120,10 @@ export function hashUserSecret(secret: string): string {
 	return crypto.createHash("sha256").update(secret).digest("hex");
 }
 
-export function isSha256Hex(value: string): boolean {
-	return /^[0-9a-f]{64}$/.test(value);
-}
-
-// The emailed link carries the plaintext; only the hash is stored. Legacy users
-// (pre-#164) still have the plaintext at rest — accept it so in-flight links keep
-// working (migration 1.4.0 hashes the stragglers). A legacy plaintext that happens
-// to look like a sha256 hex would be ambiguous, but generated secrets are base64
-// (secureId) so that can't occur for real values.
+// The emailed link carries the plaintext; only its hash is stored (migration
+// 1.4.0 hashed the pre-#164 plaintext rows).
 function secretMatches(stored: string | null | undefined, incoming: string): boolean {
-	if (!stored) {
-		return false;
-	}
-	if (isSha256Hex(stored)) {
-		return stored === hashUserSecret(incoming);
-	}
-	// Legacy plaintext at rest.
-	return stored === incoming;
+	return !!stored && stored === hashUserSecret(incoming);
 }
 
 export function validateResetKey(user: WithId<UserDoc>, key: string) {

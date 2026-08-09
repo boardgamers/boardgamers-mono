@@ -7,6 +7,7 @@ import { db, colls } from "../config/db.ts";
 import { testUser, testGame } from "../config/test-helpers.ts";
 import env from "../config/env.ts";
 import { cleanupDeadUsers, deadUserCandidateFilter, findDeadUsers } from "./user.ts";
+import { hashRefreshCode } from "../models/jwtrefreshtokens.ts";
 
 describe("cleanupDeadUsers", () => {
 	const cutoff = subDays(Date.now(), 365);
@@ -101,9 +102,17 @@ describe("cleanupDeadUsers", () => {
 	});
 
 	it("delete mode moves the dead user to deletedUsers and deletes their refresh tokens / game preferences", async () => {
-		await colls.jwtRefreshTokens.insertOne({ user: deadUserId, code: "dead-code", createdAt: old });
+		await colls.jwtRefreshTokens.insertOne({
+			user: deadUserId,
+			codeHash: hashRefreshCode("dead-code"),
+			createdAt: old,
+		});
 		await colls.gamePreferences.insertOne({ user: deadUserId, game: "gaia-project" });
-		await colls.jwtRefreshTokens.insertOne({ user: chatUserId, code: "chat-code", createdAt: old });
+		await colls.jwtRefreshTokens.insertOne({
+			user: chatUserId,
+			codeHash: hashRefreshCode("chat-code"),
+			createdAt: old,
+		});
 
 		env.cleanupDeadUsers = "delete";
 		await cleanupDeadUsers();
