@@ -6,6 +6,7 @@ import {
 	generateRefreshCode,
 	hashRefreshCode,
 	isUserAdmin,
+	stripSensitiveFields,
 } from "../../models/index.ts";
 import { refreshTokenDuration, setRefreshCookie } from "../../models/session.ts";
 
@@ -34,7 +35,10 @@ export async function sendAuthInfo(ctx: Context, loginMethodOrNext?: string | Ne
 	setRefreshCookie(ctx, code);
 
 	ctx.body = {
-		user: ctx.state.user,
+		// Redact before sending: ctx.state.user comes straight from passport/Mongo and
+		// can carry the password hash and (on signup) the plaintext confirmKey that was
+		// only meant for the email link.
+		user: stripSensitiveFields(ctx.state.user),
 		refreshToken: json,
 		accessToken: {
 			code: await createAccessToken({ user: ctx.state.user._id, createdAt }, ["all"], isUserAdmin(ctx.state.user)),

@@ -109,13 +109,13 @@ passport.use(
 				});
 
 				const result = await colls.users.insertOne(newUserDoc);
+				// Keep newUser.confirmKey as the stored HASH. The confirmation email embeds
+				// the plaintext key, so hand the mailer a one-off copy carrying it rather
+				// than mutating the doc passport returns downstream.
 				const newUser: WithId<UserDoc> = { ...newUserDoc, _id: result.insertedId };
-				// The confirmation email embeds the plaintext key — swap it back into the
-				// in-memory doc (sendConfirmationEmail reads security.confirmKey).
-				newUser.security.confirmKey = confirmKey;
 
 				if (!newUser.security.confirmed) {
-					await sendConfirmationEmail(newUser);
+					await sendConfirmationEmail({ ...newUser, security: { ...newUser.security, confirmKey } });
 				}
 
 				return done(null, newUser);
