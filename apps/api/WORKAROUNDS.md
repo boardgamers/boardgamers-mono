@@ -14,16 +14,13 @@ The api always stamps the session cookie `Domain=env.domain`; it has no per-host
 
 `env.listen.host` defaults to `127.0.0.1` (local dev, `scripts/instance-ip.sh` multi-instance). Prod is full IPv6: `listenHost=::1` in the prod env, and the nginx upstreams dial `::1`. Override via the `listenHost` env var. One rule: server bind and whoever dials it (nginx, vite proxy) must use the **same address family** — on coyo `localhost` binds only `::1`, so an IPv4 dial is refused (and vice versa). Revisit if we move to dual-stack listen or a hostname-based upstream. Game-server (`apps/game-server/app/config/env.ts`) mirrors this.
 
-## Koa doesn't recognise web streams or BSON `Binary` as response bodies (`app/routes/user/index.ts`)
+## Koa doesn't recognise BSON `Binary` as a response body (`app/routes/user/index.ts`)
 
-Koa 2.x only treats Node streams / `Buffer` / string / object as `ctx.body`. Two non-obvious values fall through to `JSON.stringify`:
+Koa 2.x only treats Node streams / `Buffer` / string / object as `ctx.body`. A BSON `Binary` (how the Mongo driver returns binary fields) falls through to `JSON.stringify` and serializes as a base64 JSON string.
 
-- a WHATWG `ReadableStream` (what `fetch().body` returns) serializes as `{}`;
-- a BSON `Binary` (how the Mongo driver returns binary fields) serializes as a base64 JSON string.
+The avatar route's uploaded-avatar branch coerces the stored upload to a Node `Buffer` for this reason. Avatars are tiny so buffering is fine. (The dicebear branch used to hit the same issue with `fetch()`'s WHATWG `ReadableStream` — gone since #175 made generation local: it now sets a plain string.)
 
-Both bit the avatar route. It now buffers the dicebear SVG via `Buffer.from(await response.arrayBuffer())` and coerces the stored upload to a Node `Buffer`. SVGs/avatars are tiny so buffering is fine, but any future endpoint proxying a large `fetch()` body should convert with `Readable.fromWeb(...)` (mind the DOM-vs-`node:stream/web` `ReadableStream` type mismatch) rather than passing the web stream straight through.
-
-Covered by `app/routes/user/index.spec.ts`. Keep this note until we migrate off Koa to a framework that handles web streams / binary bodies natively (Hono, etc.), then revisit both call sites.
+Covered by `app/routes/user/index.spec.ts`. Keep this note until we migrate off Koa to a framework that handles binary bodies natively (Hono, etc.), then revisit the call site.
 
 ## Loki proxy route hardcodes localhost URL (`app/routes/admin/loki.ts`)
 

@@ -39,6 +39,8 @@
 	let bio = $derived(user?.account.bio ?? "");
 	let country = $derived(user?.account.country ?? "");
 
+	// Keep in sync with the whitelist in apps/api/app/models/avatar.ts.
+	// ("gridy"/"jdenticon" were dropped: DiceBear v9 removed them.)
 	const avatarStyles = [
 		"adventurer",
 		"adventurer-neutral",
@@ -49,10 +51,8 @@
 		"bottts",
 		"croodles",
 		"croodles-neutral",
-		"gridy",
 		"identicon",
 		"initials",
-		"jdenticon",
 		"micah",
 		"miniavs",
 		"open-peeps",
@@ -200,28 +200,24 @@
 				{/key}
 			{:else}
 				<input type="file" bind:this={fileUpload} onchange={uploadAvatar} accept="image/*" class="hidden" />
-				<a
-					href="#upload"
-					style="width: 100%"
-					role="button"
-					onclick={(e) => {
-						e.preventDefault();
-						fileUpload?.click();
-					}}>Upload</a
-				>
-				<div style="display: contents" class:hidden={customAvatarError}>
-					<UserAvatar
-						userId={user._id}
-						username="Custom avatar"
-						role="button"
-						onerror={() => (customAvatarError = true)}
-						onload={() => (customAvatarError = false)}
-						onclick={() => selectArt("upload")}
-					/>
+				<div class="mb-2">
+					<Button color="primary" outline onclick={() => fileUpload?.click()}>Upload a custom avatar</Button>
 				</div>
-				{#each avatarStyles as art (art)}
-					<UserAvatar {art} username={user.account.username} role="button" onclick={() => selectArt(art)} />
-				{/each}
+				<div class="flex flex-wrap items-center gap-2">
+					<div class:hidden={customAvatarError}>
+						<UserAvatar
+							userId={user._id}
+							username="Custom avatar"
+							role="button"
+							onerror={() => (customAvatarError = true)}
+							onload={() => (customAvatarError = false)}
+							onclick={() => selectArt("upload")}
+						/>
+					</div>
+					{#each avatarStyles as art (art)}
+						<UserAvatar {art} username={user.account.username} role="button" onclick={() => selectArt(art)} />
+					{/each}
+				</div>
 			{/if}
 			<FormGroup class="mt-2">
 				<label for="bio">Bio</label>

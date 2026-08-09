@@ -21,18 +21,29 @@
 		[key: string]: any;
 	} = $props();
 
-	// Single URL for all avatars. The backend handles:
+	// All avatars are served by our api (nothing external):
 	//  - uploaded avatars (with ETag for conditional requests → 304 if unchanged)
-	//  - dicebear generated avatars (cached for 24h, deterministic by username+style)
+	//  - dicebear avatars generated locally (cached for 24h, deterministic by username+style)
+	// With a userId the user's chosen style applies; otherwise `art` picks the style
+	// (used by the account-page style picker, which only knows the username).
 	// No cache busters, no tokens, no updatedAt — the browser handles caching.
 	let src = $derived(
-		userId ? `/api/user/${userId}/avatar` : `https://avatars.dicebear.com/api/${art}/${username}.svg?r=0`
+		userId
+			? `/api/user/${userId}/avatar`
+			: `/api/user/byName/${encodeURIComponent(username)}/avatar?style=${encodeURIComponent(art)}`
 	);
+	// Sized variants for srcset — `?size=` on the raw src would produce
+	// "…?style=x?size=64" (unparseable), so build each variant with URL.
+	let sized = $derived((size: number) => {
+		const url = new URL(src, "http://local");
+		url.searchParams.set("size", String(size));
+		return url.pathname + url.search;
+	});
 </script>
 
 <img
 	{src}
-	srcset="{src}?size=256 256w, {src}?size=128 128w, {src}?size=64 64w"
+	srcset="{sized(256)} 256w, {sized(128)} 128w, {sized(64)} 64w"
 	sizes={size}
 	style="height: {size}; width: {size}"
 	alt={`${username}'s avatar`}

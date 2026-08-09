@@ -20,6 +20,8 @@
 		"@bgs/models": "workspace:*",
 		"@bgs/utils": "workspace:*",
 		"@coyotte508/mongo-query": "^3.4.0",
+		"@dicebear/collection": "^9.4.2",
+		"@dicebear/core": "^9.4.3",
 		"bcryptjs": "^2.4.3",
 		"check-disk-space": "^2.1.0",
 		"cookie-parser": "^1.4.3",

@@ -6,7 +6,13 @@ import Router from "koa-router";
 import type { GamePreferencesDoc } from "@bgs/models";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
-import { accessTokenDuration, createAccessToken, findGamesWithPlayersTurn, isUserAdmin } from "../../models/index.ts";
+import {
+	accessTokenDuration,
+	createAccessToken,
+	findGamesWithPlayersTurn,
+	isAvatarStyle,
+	isUserAdmin,
+} from "../../models/index.ts";
 import { parseRefreshCookie, clearRefreshCookie } from "../../models/session.ts";
 import {
 	confirm,
@@ -61,7 +67,7 @@ router.post("/", loggedIn, async (ctx) => {
 		.parse(ctx.request.body);
 
 	const avatar = body.account?.avatar;
-	assert(!avatar?.includes("/") && !avatar?.includes("."), "Invalid avatar");
+	assert(avatar == null || avatar === "upload" || isAvatarStyle(avatar), "Invalid avatar");
 
 	const updateFields: Record<string, unknown> = {};
 	if (body.settings != null) {
