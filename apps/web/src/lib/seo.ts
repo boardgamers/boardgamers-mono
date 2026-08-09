@@ -5,8 +5,9 @@ export const siteName = "Boardgamers";
 export const defaultDescription =
 	"Play Gaia Project, 6nimmt, Powergrid and Container online. All games and the platform are open source!";
 
-// Rendered at request time by /og/share.png — kept in sync with its +server.ts.
-export const defaultOgImage = { path: "/og/share.png", width: 1200, height: 630 };
+// Rendered at request time by /share.png/* (route-driven; card text comes from the db,
+// never the query string, so share images can't be abused to host arbitrary text).
+export const defaultOgImage = { path: "/share.png", width: 1200, height: 630 };
 
 export function absoluteUrl(origin: string, pathOrUrl: string): string {
 	return pathOrUrl.startsWith("http") ? pathOrUrl : `${origin}${pathOrUrl}`;
@@ -30,36 +31,26 @@ export function truncate(text: string, max: number): string {
 	return text.length <= max ? text : text.slice(0, max - 1).trimEnd() + "…";
 }
 
-export interface OgCardParams {
-	title?: string;
-	subtitle?: string;
-	/** Game label (e.g. "Gaia Project") — the card shows a monogram badge derived from it. */
-	game?: string;
-	/** First sentence of the game's description — shown under the title on boardgame cards. */
-	description?: string;
-	players?: string;
-	pace?: string;
-}
+export type ShareImageTarget =
+	| { kind: "home" }
+	| { kind: "boardgame"; id: string }
+	| { kind: "game"; id: string }
+	| { kind: "user"; id: string };
 
-export function ogImageUrl(pathOrUrl: string, opts?: OgCardParams): string {
-	if (pathOrUrl.startsWith("http") || !opts?.title) {
-		return pathOrUrl;
+/**
+ * Route-based OG share-image URL. The card content is derived server-side from the
+ * entity in the db (see /thumbnail/* and /share.png/*), so callers only name the entity —
+ * they can't inject arbitrary text into a branded thumbnail.
+ */
+export function shareImageUrl(target: ShareImageTarget): string {
+	switch (target.kind) {
+		case "home":
+			return defaultOgImage.path;
+		case "boardgame":
+			return `${defaultOgImage.path}/boardgame/${encodeURIComponent(target.id)}`;
+		case "game":
+			return `${defaultOgImage.path}/game/${encodeURIComponent(target.id)}`;
+		case "user":
+			return `${defaultOgImage.path}/user/${encodeURIComponent(target.id)}`;
 	}
-	const params = new URLSearchParams({ title: opts.title.slice(0, 90) });
-	if (opts.subtitle) {
-		params.set("subtitle", opts.subtitle.slice(0, 140));
-	}
-	if (opts.game) {
-		params.set("game", opts.game.slice(0, 60));
-	}
-	if (opts.description) {
-		params.set("description", opts.description.slice(0, 140));
-	}
-	if (opts.players) {
-		params.set("players", opts.players.slice(0, 40));
-	}
-	if (opts.pace) {
-		params.set("pace", opts.pace.slice(0, 40));
-	}
-	return `${pathOrUrl}?${params}`;
 }

@@ -5,6 +5,7 @@
 </script>
 
 <svelte:head>
+	<meta name="robots" content="noindex" />
 	<!-- The OG card is a fixed 1200x630 canvas that must bleed to the viewport edges;
 	     the app's global stylesheet lives on the (app) layout, so body keeps its default
 	     8px margin here unless we reset it. -->

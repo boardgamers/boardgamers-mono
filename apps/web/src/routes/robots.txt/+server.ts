@@ -12,8 +12,8 @@ const disallowed = [
 	"/forgotten-password",
 	"/game/",
 	"/next-game",
-	"/og",
 	"/reset",
+	"/thumbnail",
 	"/ws",
 ];
 

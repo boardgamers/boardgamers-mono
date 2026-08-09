@@ -19,7 +19,7 @@
 	import { page } from "$app/state";
 	import SEO from "../SEO.svelte";
 	import { gameLabel } from "@/utils/game-label";
-	import { defaultOgImage, ogImageUrl } from "@/lib/seo";
+	import { shareImageUrl } from "@/lib/seo";
 	import { minBy, sortBy } from "lodash";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
@@ -260,29 +260,9 @@ ${context.game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}
 		}
 		return undefined;
 	});
-
-	let ogSubtitle = $derived(
-		context.game?.status === "active"
-			? `Round ${context.game.context?.round ?? 0} — ${context.game.players.length} players`
-			: undefined
-	);
 </script>
 
-<SEO
-	noindex
-	{title}
-	{description}
-	image={ogImageUrl(defaultOgImage.path, {
-		title: `${gameLabel(context.gameInfo?.label ?? "")} game`,
-		subtitle: ogSubtitle,
-		game: gameLabel(context.gameInfo?.label ?? ""),
-		players: context.game ? `${context.game.players.length} players` : undefined,
-		pace:
-			context.game?.status === "active" && context.game.context?.round
-				? `Round ${context.game.context.round}`
-				: undefined,
-	})}
-/>
+<SEO noindex {title} {description} image={shareImageUrl({ kind: "game", id: gameId ?? "" })} />
 
 <svelte:window onmessage={handleGameMessage} />
 

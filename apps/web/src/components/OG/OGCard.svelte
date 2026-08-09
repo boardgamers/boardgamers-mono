@@ -20,9 +20,22 @@
 		description?: string;
 		players?: string;
 		pace?: string;
+		/** Username on user cards — renders a monogram avatar derived from it. */
+		username?: string;
+		/** Karma chip on user cards. */
+		karma?: string;
 	}
 
-	let { title, subtitle = "", game = "", description = "", players = "", pace = "" }: Props = $props();
+	let {
+		title,
+		subtitle = "",
+		game = "",
+		description = "",
+		players = "",
+		pace = "",
+		username = "",
+		karma = "",
+	}: Props = $props();
 
 	const background = `radial-gradient(ellipse 700px 520px at 96% -12%, ${colors.accent}a6 0%, transparent 58%),
 		radial-gradient(ellipse 620px 460px at -6% 112%, ${colors.accentLight}73 0%, transparent 55%),
@@ -40,6 +53,7 @@
 			[...game.trim()][0]?.toUpperCase() ||
 			"🎲"
 	);
+	let userMonogram = $derived([...username.trim()][0]?.toUpperCase() || "?");
 	let titleSize = $derived(title.length > 40 ? 56 : title.length > 22 ? 72 : game ? 84 : 92);
 </script>
 
@@ -67,7 +81,7 @@
 	<div
 		style="position: relative; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; padding: 60px 64px 52px; color: #ffffff; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;"
 	>
-		<div style="display: flex; flex-direction: column; gap: 26px; max-width: {game ? '840px' : '100%'};">
+		<div style="display: flex; flex-direction: column; gap: 26px; max-width: {game || username ? '840px' : '100%'};">
 			<div
 				style="font-size: {titleSize}px; font-weight: 700; line-height: 1.08; overflow-wrap: break-word; text-shadow: 0 2px 10px rgba(9, 42, 77, 0.55);"
 			>
@@ -87,7 +101,7 @@
 					{description}
 				</div>
 			{/if}
-			{#if players || pace}
+			{#if players || pace || karma}
 				<div style="display: flex; align-items: center; gap: 16px;">
 					{#if players}
 						<div
@@ -103,6 +117,13 @@
 							{pace}
 						</div>
 					{/if}
+					{#if karma}
+						<div
+							style="font-size: 26px; font-weight: 600; color: #e7f3ff; border: 2px solid rgba(255,255,255,0.4); border-radius: 999px; padding: 9px 24px; text-shadow: 0 1px 4px rgba(9, 42, 77, 0.5);"
+						>
+							{karma}
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>
@@ -113,6 +134,13 @@
 				style="position: absolute; top: 96px; right: 96px; width: 210px; height: 210px; border-radius: 44px; display: flex; align-items: center; justify-content: center; font-size: 100px; font-weight: 800; color: #ffffff; letter-spacing: 4px; padding-right: 4px; box-sizing: border-box; background: linear-gradient(140deg, {colors.accentLight} 0%, {colors.accent} 100%); border: 2px solid rgba(255,255,255,0.28); box-shadow: 0 14px 44px rgba(9, 42, 77, 0.5); transform: rotate(5deg);"
 			>
 				{monogram}
+			</div>
+		{:else if username}
+			<!-- User avatar placeholder: username monogram (avatar style/id are not public data) -->
+			<div
+				style="position: absolute; top: 96px; right: 96px; width: 210px; height: 210px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 100px; font-weight: 800; color: #ffffff; box-sizing: border-box; background: linear-gradient(140deg, {colors.primaryLighter} 0%, {colors.primary} 100%); border: 2px solid rgba(255,255,255,0.28); box-shadow: 0 14px 44px rgba(9, 42, 77, 0.5);"
+			>
+				{userMonogram}
 			</div>
 		{/if}
 
