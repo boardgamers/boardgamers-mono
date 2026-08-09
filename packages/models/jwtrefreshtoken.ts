@@ -30,12 +30,12 @@ export const jwtRefreshTokenIndexes: IndexDescription[] = [
 	// api: auth lookup by refresh-code hash. Sparse so legacy docs (plaintext
 	// `code`, no `codeHash`) don't collide on the missing field.
 	{ key: { codeHash: 1 }, unique: true, sparse: true },
+	// api: legacy plaintext-code lookup during the transition. Sparse so hash-only
+	// docs (no `code`) don't collide on null. The legacy NON-sparse `code_1` can't be
+	// recreated in place (same name, different options → IndexKeySpecsConflict), so
+	// ensureIndexes drops it first (see ./setup.ts); this sparse replacement keeps
+	// the legacy lookup indexed.
+	{ key: { code: 1 }, unique: true, sparse: true },
 	// api: auto-expire after 120 days
 	{ key: { createdAt: 1 }, expireAfterSeconds: 120 * 24 * 3600 },
 ];
-
-// The legacy unique `code_1` index is intentionally NOT declared above: dropping
-// it is what lets hash-only docs (no `code`) coexist. It must be removed BEFORE
-// createIndexes runs — a non-sparse `code_1` rejects the second code-less insert
-// (duplicate null), and createIndexes can't swap it (same name, different options
-// → IndexKeySpecsConflict). See ensureIndexes in ./setup.ts.

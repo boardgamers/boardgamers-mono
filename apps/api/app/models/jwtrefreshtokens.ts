@@ -35,14 +35,14 @@ export function hashRefreshCode(code: string): string {
 	return crypto.createHash("sha256").update(code).digest("hex");
 }
 
-// Legacy codes were 15 random bytes base64-encoded (length 20). New codes are 32
-// bytes (length 44) and only ever match the indexed codeHash. Gating the legacy
-// `{code}` lookup on the old length keeps the hot auth path on the codeHash index
-// — after migration 1.4.0 drops `code_1`, an unconditional `{code}` branch would
-// collection-scan on every lookup.
-const LEGACY_CODE_LENGTH = 20;
+// Legacy codes were 15 random bytes base64-encoded (20 chars, standard base64
+// charset incl. +/, no padding since 15 is a multiple of 3). New codes are 32 bytes (44 chars base64) and
+// only ever match the indexed codeHash. Gating the legacy `{code}` lookup on the
+// exact pre-#164 format keeps the hot auth path on the codeHash index and avoids
+// a legacy lookup for arbitrary attacker-controlled strings.
+const LEGACY_CODE = /^[A-Za-z0-9+/]{20}$/;
 
-const isLegacyCode = (code: string) => code.length === LEGACY_CODE_LENGTH;
+const isLegacyCode = (code: string) => LEGACY_CODE.test(code);
 
 /**
  * Resolve a raw refresh code to its token doc. Accepts legacy plaintext-stored

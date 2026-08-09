@@ -37,11 +37,9 @@ describe("refresh-token codes — stored hashed, not plaintext (#164)", () => {
 	});
 
 	it("a legacy plaintext-stored code still resolves, and is rehashed in place", async () => {
-		// Pre-#164 codes were 15 random bytes base64 (length 20) — the legacy lookup path
-		// is gated on that format, so use a matching code, not generateRefreshCode().
-		const code = "legacy-plaintext-c0d";
-		assert.strictEqual(code.length, 20);
-		// Pre-#164 storage shape.
+		// Pre-#164 codes were 15 random bytes base64 (e.g. "AQEB...AQEB"). The legacy
+		// lookup path is gated on that exact format, so use a matching code.
+		const code = "AQEBAQEBAQEBAQEBAQEB";
 		await colls.jwtRefreshTokens.insertOne({ user: userId, code, createdAt: new Date() });
 
 		const rt = await lookupRefreshToken(code);
@@ -72,7 +70,7 @@ describe("refresh-token codes — stored hashed, not plaintext (#164)", () => {
 			codeHash: hashRefreshCode(hashed),
 			createdAt: new Date(),
 		});
-		const legacy = "legacy-plaintext-c0e"; // length 20, pre-#164 format
+		const legacy = "AgICAgICAgICAgICAgIC"; // valid pre-#164 format (15-byte base64)
 		await colls.jwtRefreshTokens.insertOne({ user: userId, code: legacy, createdAt: new Date() });
 
 		await revokeRefreshToken(hashed);

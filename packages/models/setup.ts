@@ -37,14 +37,14 @@ export async function ensureCollections(db: Db) {
 }
 
 export async function ensureIndexes(db: Db) {
-	// jwtrefreshtokens.code was the session credential in plaintext (#164): new docs
-	// carry only `codeHash`, so the legacy unique `code_1` index must go before
-	// createIndexes — it would reject the second code-less doc (duplicate null), and
-	// createIndexes cannot alter an existing index in place (IndexKeySpecsConflict).
-	// Dropping is safe: every doc still has `code` at this point (hashing happens in
-	// api migration 1.4.0 + rehash-on-lookup), and the plaintext path is gone from
-	// the code — nothing queries `code` directly anymore. Skip when the collection
-	// doesn't exist yet (fresh/test db) — dropIndex would throw "ns does not exist".
+	// jwtrefreshtokens.code was the session credential in plaintext (#164). New docs
+	// carry only `codeHash`, and the legacy unique non-sparse `code_1` index rejects
+	// the second code-less doc (duplicate null) — but createIndexes can't alter it in
+	// place (same name, different options → IndexKeySpecsConflict). Drop it here so
+	// createIndexes can rebuild it sparse (legacy docs still carry `code`; the sparse
+	// index keeps the legacy plaintext lookup indexed while hash-only docs coexist).
+	// Skip when the collection doesn't exist yet (fresh/test db) — dropIndex would
+	// throw "ns does not exist".
 	const collectionExists = (await db.listCollections({ name: JWT_REFRESH_TOKENS_COLLECTION }).toArray()).length > 0;
 	if (collectionExists) {
 		try {
