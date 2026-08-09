@@ -3,7 +3,7 @@ import { apiFetch, get } from "@/lib/api";
 import { fetchGameInfo, fetchGameInfos } from "@/lib/game-info.svelte";
 import { countryFlag, countryName } from "@/lib/countries";
 import { firstSentence, siteName, truncate } from "@/lib/seo";
-import { gameLabel } from "@/utils/game-label";
+import { gameEmoji, gameLabel } from "@/utils/game-label";
 import { duration } from "@/utils/time";
 import type { GameFront, GamePreferencesFront, UserFront } from "@bgs/models";
 
@@ -16,6 +16,8 @@ export interface OgCardData {
 	title: string;
 	subtitle?: string;
 	game?: string;
+	/** Game emoji extracted from the label (e.g. "🌏") — the badge; falls back to a monogram when absent. */
+	emoji?: string;
 	description?: string;
 	players?: string;
 	pace?: string;
@@ -54,6 +56,7 @@ export async function loadBoardgameCard(boardgameId: string): Promise<CardData> 
 		title: label,
 		subtitle: `Play ${label} online with other people!`,
 		game: label,
+		emoji: gameEmoji(info.label),
 		description: firstSentence(info.description ?? ""),
 	};
 	return { card, etagData: { ...card, version: info._id.version } };
@@ -68,7 +71,9 @@ export async function loadGameCard(gameId: string): Promise<CardData> {
 	}
 
 	const info = await fetchGameInfo(game.game.name, game.game.version);
-	const label = gameLabel(info?.label ?? game.game.name);
+	const rawLabel = info?.label ?? game.game.name;
+	const label = gameLabel(rawLabel);
+	const emoji = gameEmoji(rawLabel);
 
 	let card: OgCardData;
 	if (game.status === "open") {
@@ -82,6 +87,7 @@ export async function loadGameCard(gameId: string): Promise<CardData> {
 			title: `${label} — open game`,
 			subtitle: `Join and play online! ${pace}`,
 			game: label,
+			emoji,
 			players: `${game.players.length} / ${game.options.setup.nbPlayers} players joined`,
 			pace,
 		};
@@ -95,6 +101,7 @@ export async function loadGameCard(gameId: string): Promise<CardData> {
 					? `Round ${round} — ${game.players.length} players`
 					: `Finished — ${game.players.length} players`,
 			game: label,
+			emoji,
 			players: `${game.players.length} players`,
 			pace: game.status === "active" && round ? `Round ${round}` : undefined,
 		};
