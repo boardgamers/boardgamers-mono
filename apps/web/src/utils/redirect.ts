@@ -21,11 +21,12 @@ export function redirectLoggedIn(url: URL): string {
 
 /**
  * Same-origin absolute path check, so a caller-supplied target can't be an open
- * redirect (protocol-relative //host included). ASCII control chars (\r, \n, …) are
- * rejected too — they'd produce an invalid / injectable Location header.
+ * redirect. Rejects: protocol-relative //host, backslashes (user agents treat `\`
+ * as a path separator when parsing redirects, so `/\evil.com` is an open redirect),
+ * and ASCII control chars (\r, \n, …) which would make an invalid/injectable Location.
  */
 function safeRedirectTarget(target: string | null | undefined): string | null {
-	if (!target || !target.startsWith("/") || target.startsWith("//")) {
+	if (!target || !target.startsWith("/") || target.startsWith("//") || target.includes("\\")) {
 		return null;
 	}
 	// eslint-disable-next-line no-control-regex -- intentionally matching control chars to reject them
