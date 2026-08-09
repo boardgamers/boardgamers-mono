@@ -171,6 +171,19 @@ Then embed it in the PR body or a comment:
 
 Switch **back** to your working branch/worktree afterward — or do this in a separate throwaway clone — so the assets commit never lands on your working branch.
 
+## PR review (Copilot)
+
+- **Open one PR per worker** (each worker opens its own). Copilot auto-review is enabled — it reviews on PR open and on every new push.
+- After pushing, wait for the in-flight review and list its new inline comments:
+
+  ```bash
+  git push; bash scripts/wait-copilot-review.sh <PR> "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  ```
+
+  It exits when the review is done and prints new inline comments plus the latest review's **suppressed comments** — real suggestions Copilot collapsed in its review body, which can persist on unchanged lines; check them too. Iterate (fix → push → re-run) until both are clean.
+
+- **Fix the valid comments (inline and suppressed alike).** For false positives, reply on the PR thread explaining why, rather than changing the code.
+
 ## Conventions
 
 - **Formatting** is enforced (see `.prettierrc`: 120 cols, 2-space, `trailingComma: es5`). Don't hand-format; let the formatter run.
