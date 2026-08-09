@@ -49,11 +49,15 @@
 	}
 
 	function scheduleOpen() {
+		// Clear any pending close first: when the card is already open, the early
+		// return below must not leave a closeTimer running — e.g. card → trigger
+		// re-entry within CLOSE_DELAY would otherwise close the card under the
+		// pointer.
+		clearTimeout(closeTimer);
+		closeTimer = undefined;
 		if (open || openTimer) {
 			return;
 		}
-		clearTimeout(closeTimer);
-		closeTimer = undefined;
 		openTimer = setTimeout(show, OPEN_DELAY);
 	}
 
