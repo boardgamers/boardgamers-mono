@@ -10,6 +10,8 @@ import {
 	announcementSchema,
 	findByEmail,
 	findByUsername,
+	generateConfirmKey,
+	hashUserSecret,
 	recalculateKarma,
 	sendConfirmationEmail,
 	SettingsKey,
@@ -155,6 +157,11 @@ router.post("/resend-confirmation", async (ctx) => {
 		throw createError(404, "User not found: " + email);
 	}
 
+	// The db holds only the hash of the confirm key (#164) — mint a fresh one, store
+	// its hash, and hand the plaintext to the mailer (the emailed link needs it).
+	const confirmKey = generateConfirmKey();
+	await colls.users.updateOne({ _id: user._id }, { $set: { "security.confirmKey": hashUserSecret(confirmKey) } });
+	user.security.confirmKey = confirmKey;
 	await sendConfirmationEmail(user);
 	ctx.status = 200;
 });

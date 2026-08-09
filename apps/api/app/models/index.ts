@@ -40,5 +40,7 @@ export {
 	userPublicInfo,
 	recalculateKarma,
 	sendConfirmationEmail,
+	generateConfirmKey,
+	hashUserSecret,
 } from "./user.ts";
 export type { UserDoc } from "@bgs/models";
