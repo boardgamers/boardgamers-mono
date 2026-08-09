@@ -37,8 +37,8 @@ export function forwardSessionCookies(event: RequestEvent, response: Response) {
 		const secure = event.url.protocol === "https:";
 		const opts: Parameters<typeof event.cookies.set>[2] = { path: "/", secure };
 		for (const attr of attrs) {
-			const [key, val] = attr.split("=");
-			const value = val?.trim(); // valueless attribute (e.g. a bare "SameSite") → undefined
+			const [key, attrVal] = attr.split("=");
+			const value = attrVal?.trim(); // valueless attribute (e.g. a bare "SameSite") → undefined
 			switch (key.toLowerCase()) {
 				case "path":
 					if (value) opts.path = value;

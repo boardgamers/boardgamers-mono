@@ -42,15 +42,19 @@ export const actions: Actions = {
 			// which the page's error banner already renders. Preserve the existing query
 			// (e.g. ?redirect=/somewhere) so a retry still returns to the original page.
 			// (With JS, use:enhance intercepts the submit and shows fetch errors via handleError.)
-			const message = response
-				? await response
+			// Don't reflect the API's credential-failure message into the URL: for 401/404
+			// the API embeds the submitted email (e.g. "<email> isn't registered"), which would
+			// leak PII into URLs/logs and enable account enumeration. Use a generic message.
+			const credentialFailure = !response || response.status === 401 || response.status === 404;
+			const message = credentialFailure
+				? null
+				: await response!
 						.json()
 						.then((body) => body?.message)
-						.catch(() => null)
-				: null;
+						.catch(() => null);
 			const target = new URL(event.url);
 			target.search = "";
-			target.searchParams.set("error", message ?? "Login failed");
+			target.searchParams.set("error", message ?? "Invalid email or password");
 			// Preserve the return page for a retry: from the query string (login page flow)
 			// or the hidden form field (appbar login form). Apply the same strict same-origin
 			// validation as the post-login redirect so an unsafe target isn't carried across retries.
