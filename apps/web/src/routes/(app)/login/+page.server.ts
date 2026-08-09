@@ -51,7 +51,7 @@ export const actions: Actions = {
 			if (event.url.searchParams.get("redirect")) {
 				target.searchParams.set("redirect", event.url.searchParams.get("redirect")!);
 			}
-			redirect(303, target.pathname + target.search);
+			throw redirect(303, target.pathname + target.search);
 		}
 
 		forwardSessionCookies(event, response);
@@ -60,6 +60,6 @@ export const actions: Actions = {
 		// field (the login page's own flow uses the ?redirect= query string); both go
 		// through redirectLoggedOut's same-origin check.
 		const formRedirect = form.get("redirect");
-		redirect(303, redirectLoggedOut(event.url, typeof formRedirect === "string" ? formRedirect : null));
+		throw redirect(303, redirectLoggedOut(event.url, typeof formRedirect === "string" ? formRedirect : null));
 	},
 };

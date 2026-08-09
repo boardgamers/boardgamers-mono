@@ -22,6 +22,6 @@ export const actions: Actions = {
 		if (response) {
 			forwardSessionCookies(event, response);
 		}
-		redirect(303, resolve("/(app)"));
+		throw redirect(303, resolve("/(app)"));
 	},
 };

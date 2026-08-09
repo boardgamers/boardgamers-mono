@@ -18,7 +18,17 @@ export function forwardSessionCookies(event: RequestEvent, response: Response) {
 		const eq = pair.indexOf("=");
 		if (eq === -1) continue;
 		const name = pair.slice(0, eq);
-		const value = pair.slice(eq + 1);
+		// Decode the value before handing it to the cookies API: cookie.serialize encodes
+		// on write (default encodeURIComponent), so passing an already-encoded value would
+		// double-encode it (breaking later JSON.parse in hooks.server.ts). Koa emits the
+		// refreshToken JSON raw today, but can percent-encode depending on config — decode
+		// defensively so the browser always stores a single-encoded value.
+		let value = pair.slice(eq + 1);
+		try {
+			value = decodeURIComponent(value);
+		} catch {
+			// malformed encoding — keep the raw value
+		}
 
 		// SvelteKit's cookies API defaults `secure` to true on any non-"localhost" host
 		// (e.g. 127.0.0.1), which would drop the session cookie over plain http in dev —
