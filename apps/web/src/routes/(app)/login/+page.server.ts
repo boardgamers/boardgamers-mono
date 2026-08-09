@@ -29,20 +29,21 @@ export const actions: Actions = {
 		const password = String(form.get("password") ?? "");
 
 		// apiFetch returns the raw Response (no throw on 4xx — that path is the form's
-		// error feedback), so branch on the status.
+		// error feedback), but a network/transport failure rejects the promise; catch it
+		// and treat it like a failed login (response stays null) rather than a 500.
 		const response = await apiFetch("/account/login", {
 			method: "POST",
 			body: JSON.stringify({ email, password }),
 			headers: { "Content-Type": "application/json" },
-		});
+		}).catch(() => null);
 
-		if (!response.ok) {
+		if (!response?.ok) {
 			// No-JS path: bounce back to the login page with the error in the query string,
 			// which the page's error banner already renders. Preserve the existing query
 			// (e.g. ?redirect=/somewhere) so a retry still returns to the original page.
 			// (With JS, use:enhance intercepts the submit and shows fetch errors via handleError.)
 			const message = await response
-				.json()
+				?.json()
 				.then((body) => body?.message)
 				.catch(() => null);
 			const target = new URL(event.url);
