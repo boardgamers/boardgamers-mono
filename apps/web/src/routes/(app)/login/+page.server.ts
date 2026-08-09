@@ -51,8 +51,11 @@ export const actions: Actions = {
 			const target = new URL(event.url);
 			target.search = "";
 			target.searchParams.set("error", message ?? "Login failed");
-			if (event.url.searchParams.get("redirect")) {
-				target.searchParams.set("redirect", event.url.searchParams.get("redirect")!);
+			// Preserve the return page for a retry: from the query string (login page flow)
+			// or the hidden form field (appbar login form).
+			const returnTo = event.url.searchParams.get("redirect") ?? form.get("redirect");
+			if (typeof returnTo === "string" && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
+				target.searchParams.set("redirect", returnTo);
 			}
 			throw redirect(303, target.pathname + target.search);
 		}
