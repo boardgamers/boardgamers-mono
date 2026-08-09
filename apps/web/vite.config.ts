@@ -10,15 +10,25 @@ import { execSync } from "node:child_process";
 // VITE_backend_ws / VITE_backend_resources (each host or host:port).
 // Proxy targets always need explicit ports.
 const withPort = (hostPort: string, port: number) => {
-	// Non-greedy host so an optional :port suffix is captured — a greedy split on
-	// ":" would shred bare IPv6 literals. Port 443 means TLS (e.g. proxying to a
-	// preview/prod host).
-	const m = hostPort.replace(/^https?:\/\//, "").match(/^(.+?)(?::(\d+))?$/);
-	const host = m?.[1] ?? hostPort;
-	const p = m?.[2];
-	const proto = p === "443" ? "https" : "http";
-	const needsBrackets = host.includes(":") && !host.startsWith("["); // bare IPv6 literal
-	return `${proto}://${needsBrackets ? `[${host}]` : host}:${p ?? port}`;
+	const raw = hostPort.replace(/^https?:\/\//, "");
+	// Bare IPv6 (multiple colons, no brackets) has no port — a naive split on ":"
+	// would shred it. Otherwise split host:port on the last colon only. Mirrors
+	// backendUrl() in src/hooks.server.ts.
+	const isBareIpv6 = !raw.startsWith("[") && (raw.match(/:/g)?.length ?? 0) > 1;
+	// A bracketed IPv6 literal keeps its brackets; only a "]:" suffix is a port.
+	const idx = isBareIpv6
+		? -1
+		: raw.startsWith("[")
+			? raw.indexOf("]:") === -1
+				? -1
+				: raw.indexOf("]:") + 1
+			: raw.lastIndexOf(":");
+	const host = idx === -1 ? raw : raw.slice(0, idx);
+	const p = idx === -1 ? undefined : raw.slice(idx + 1);
+	// Port 443 means TLS (e.g. proxying to a preview/prod host).
+	const proto = (p ?? String(port)) === "443" ? "https" : "http";
+	const ip = host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
+	return `${proto}://${ip}:${p ?? port}`;
 };
 
 const backend = withPort(process.env.VITE_backend_api ?? process.env.VITE_backend ?? "127.0.0.1", 50801);

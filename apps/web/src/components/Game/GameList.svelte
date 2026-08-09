@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
+	import { browser } from "$app/environment";
 	import { timerTime, defer, duration, niceDate, shortDuration, compactDuration, timerWindow } from "@/utils";
 	import type { GameFront } from "@bgs/models";
 	import { createWatcher } from "@/utils/watch";
@@ -116,16 +117,30 @@
 	// text on a 390px-wide screen with a 6-player game.
 	const MOBILE_AVATARS_LIMIT = 5;
 
+	// Re-render every 30s so "⏱ Xh left" / the amber state stay fresh while the
+	// list is open (Date.now() below is otherwise frozen at render). Client-only;
+	// SSR renders once with the value at request time.
+	let nowTick = $state(Date.now());
+	$effect(() => {
+		if (!browser) {
+			return;
+		}
+		const id = setInterval(() => (nowTick = Date.now()), 30_000);
+		return () => clearInterval(id);
+	});
+
 	// lastMove/createdAt are optional — fall back to "just now" when both are missing.
 	function lastActivity(game: GameFront): string {
-		const ts = new Date(game.lastMove ?? game.createdAt ?? Date.now()).getTime() || Date.now();
-		return shortDuration(Math.max(30, Math.floor((Date.now() - ts) / 1000))) ?? "";
+		const ts = new Date(game.lastMove ?? game.createdAt ?? nowTick).getTime() || nowTick;
+		return shortDuration(Math.max(30, Math.floor((nowTick - ts) / 1000))) ?? "";
 	}
 
-	// Time left on the current turn, from the per-player deadline the API already
-	// sends on the list payload. Prefers the viewer's own deadline; otherwise the
-	// earliest current player's. Null when the game has no deadline info.
+	// Time left on the current turn (seconds), from the per-player deadline the API
+	// already sends on the list payload. Prefers the viewer's own deadline; otherwise
+	// the earliest current player's. Negative when the deadline has passed. Null when
+	// the game has no per-turn clock.
 	function turnTimeLeft(game: GameFront): number | null {
+		nowTick; // recompute on the 30s tick
 		const current = game.currentPlayers ?? [];
 		const own = userId ? current.find((pl) => pl._id === userId) : undefined;
 		const candidates = own ? [own] : current;
@@ -133,17 +148,19 @@
 		if (deadlines.length === 0) {
 			return null;
 		}
-		return Math.max(0, Math.floor((Math.min(...deadlines) - Date.now()) / 1000));
+		return Math.floor((Math.min(...deadlines) - Date.now()) / 1000);
 	}
 
-	// "Act soon": it's the viewer's turn and less than a quarter of the per-move
-	// budget remains before the turn deadline.
+	// "Act soon": it's the viewer's turn and the turn deadline is close. Only when
+	// timePerMove is set — the deadline derives from the remaining *game* clock, so
+	// without a per-move budget we can't tell a genuine "about to time out" from a
+	// long game that's simply past 3/4 of its total clock.
 	function turnUrgent(game: GameFront, secondsLeft: number): boolean {
-		if (!userId || !game.currentPlayers?.some((pl) => pl._id === userId)) {
+		const timePerMove = game.options.timing.timePerMove;
+		if (!userId || !timePerMove || !game.currentPlayers?.some((pl) => pl._id === userId)) {
 			return false;
 		}
-		const budget = game.options.timing.timePerMove ?? game.options.timing.timePerGame ?? 0;
-		return budget > 0 && secondsLeft <= budget / 4;
+		return secondsLeft <= timePerMove / 4;
 	}
 
 	const onCurrentPageChanged = createWatcher(() => load(false));
@@ -229,18 +246,20 @@
 										{#if game.status === "ended"}
 											<span class="text-gray-500 dark:text-gray-400">finished · {niceDate(game.lastMove ?? "")}</span>
 										{:else if game.status === "active"}
-											<!-- Ongoing games: last activity + time left on the current turn (full timing stays on hover) -->
-											<span class="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-												<IconClockHistory class="text-[0.8em]" />
-												{lastActivity(game)} ago
-											</span>
+											<!-- Ongoing games: lead with time left on the current turn; fall back to
+											     last activity when the game has no per-turn clock (full timing on hover) -->
 											{#if timeLeft !== null}
 												<span
 													class="flex items-center gap-0.5 {turnUrgent(game, timeLeft)
 														? 'font-semibold text-amber-600 dark:text-amber-400'
 														: 'text-gray-500 dark:text-gray-400'}"
 												>
-													· ⏱ {compactDuration(timeLeft)} left
+													⏱ {timeLeft <= 0 ? "overdue" : `${compactDuration(timeLeft)} left`}
+												</span>
+											{:else}
+												<span class="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+													<IconClockHistory class="text-[0.8em]" />
+													{lastActivity(game)} ago
 												</span>
 											{/if}
 										{:else}
@@ -274,7 +293,11 @@
 											/>
 										{/each}
 										{#if game.players.length > MOBILE_AVATARS_LIMIT}
-											<span class="mobile-avatar-more shrink-0 text-xs font-semibold text-gray-500 dark:text-gray-400">
+											<span
+												class="mobile-avatar-more shrink-0 text-xs font-semibold text-gray-500 dark:text-gray-400"
+												title="{game.players.length - MOBILE_AVATARS_LIMIT} more players"
+												aria-label="{game.players.length - MOBILE_AVATARS_LIMIT} more players"
+											>
 												+{game.players.length - MOBILE_AVATARS_LIMIT}
 											</span>
 										{/if}
