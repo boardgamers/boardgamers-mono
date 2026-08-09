@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { testUser } from "../../config/test-helpers.ts";
-import { createAccessToken, generateRefreshCode } from "../../models/jwtrefreshtokens.ts";
+import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
 
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
 
@@ -30,7 +30,7 @@ describe("Admin Loki proxy", () => {
 	before(async () => {
 		const adminId = new ObjectId();
 		await colls.users.insertOne(testUser({ _id: adminId, authority: "admin" }));
-		const tokenDoc = { user: adminId, code: generateRefreshCode(), createdAt: new Date() };
+		const tokenDoc = { user: adminId, codeHash: hashRefreshCode(generateRefreshCode()), createdAt: new Date() };
 		await colls.jwtRefreshTokens.insertOne(tokenDoc);
 		const token = await createAccessToken(tokenDoc, ["all"], true);
 		adminHeaders = { Authorization: `Bearer ${token}` };
