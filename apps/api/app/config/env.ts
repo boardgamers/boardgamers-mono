@@ -30,6 +30,15 @@ export default {
 	script: false,
 	domain,
 	site: process.env.site || `www.${domain}`,
+	// Base URL of the web app (login page, consent page). The OAuth2 authorize
+	// endpoint redirects there when the caller has no session or no recorded consent.
+	webAppUrl:
+		process.env.webAppUrl || (process.env.NODE_ENV === "production" ? `https://${domain}` : "http://localhost:8612"),
+	oauth2: {
+		// OIDC issuer identifier. In production it MUST be the canonical site origin so
+		// it matches the discovery doc served at /.well-known/openid-configuration.
+		issuer: process.env.oauth2Issuer || (process.env.NODE_ENV === "production" ? `https://${domain}` : ""),
+	},
 	noreply: process.env.noreply || `BGS <no-reply@${domain}>`,
 	contact: process.env.contact || `contact@${domain}`,
 	title: process.env.title || "BGS",

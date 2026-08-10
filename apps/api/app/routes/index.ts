@@ -4,6 +4,7 @@ import account from "./account/index.ts";
 import admin from "./admin/index.ts";
 import boardgame from "./boardgame/index.ts";
 import game from "./game/index.ts";
+import oauth2 from "./oauth2/index.ts";
 import page from "./pages/index.ts";
 import site from "./site/index.ts";
 import user from "./user/index.ts";
@@ -19,6 +20,7 @@ router.get("/health", (ctx) => {
 
 router.use("/api/account", account.routes(), account.allowedMethods());
 router.use("/api/admin", admin.routes(), admin.allowedMethods());
+router.use("/api/oauth2", oauth2.routes(), oauth2.allowedMethods());
 router.use("/api/game", game.routes(), game.allowedMethods());
 router.use("/api/user", user.routes(), user.allowedMethods());
 router.use("/api/site", site.routes(), site.allowedMethods());

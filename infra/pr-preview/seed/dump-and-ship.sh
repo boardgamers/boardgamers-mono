@@ -25,12 +25,14 @@ MONGO_TOOLS="${dbUrl%/admin}"
 # Collections to exclude entirely. Private: sessions, tokens, private comms, cron
 # state. Debug/transient bulk that previews don't need: apierrors, logs,
 # gamenotifications (~25 MB). deletedUsers is the soft-delete archive — it holds
-# full user docs (emails etc.) and must never reach preview dumps. And games is
-# dumped separately below with a status filter (open+active only), because 99% of
-# it is 2.8 GB of ended games.
+# full user docs (emails etc.) and must never reach preview dumps. oauthflows and
+# oauthconsents are the OAuth2/OIDC provider state (#76): short-lived codes and
+# per-user client consent grants don't belong in a shared preview snapshot. And
+# games is dumped separately below with a status filter (open+active only),
+# because 99% of it is 2.8 GB of ended games.
 EXCLUDED=(
   usersettings locks chats notifications sessions jwtrefreshtokens admintokens
-  apierrors logs gamenotifications deletedUsers
+  apierrors logs gamenotifications deletedUsers oauthflows oauthconsents
   games
 )
 EXCLUDE_ARGS=()
