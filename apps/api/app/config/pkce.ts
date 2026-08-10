@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { z } from "zod";
+import { logEvent } from "@bgs/utils/log";
 import { createOAuthState, verifyOAuthState } from "../models/oauthflows.ts";
 
 /**
@@ -82,9 +83,12 @@ export async function pkceCallback(
 	code: string,
 	state: string,
 ): Promise<{ id: string; username?: string; profileUrl?: string } | null> {
+	const provider = config.authorizationUrl.includes("github") ? "github" : "huggingface";
+
 	// Single-use state verification (deletes the doc).
 	const verifier = await verifyOAuthState(state);
 	if (!verifier) {
+		logEvent("warn", "pkce-state-invalid", { source: "api", provider, state });
 		return null;
 	}
 
@@ -102,12 +106,24 @@ export async function pkceCallback(
 	});
 
 	if (!tokenRes.ok) {
+		const body = await tokenRes.text().catch(() => "");
+		logEvent("warn", "pkce-token-exchange-failed", {
+			source: "api",
+			provider,
+			status: tokenRes.status,
+			body: body.slice(0, 500),
+		});
 		return null;
 	}
 
 	const tokenJson: unknown = await tokenRes.json();
 	const parsed = tokenResponseSchema.safeParse(tokenJson);
 	if (!parsed.success) {
+		logEvent("warn", "pkce-token-parse-failed", {
+			source: "api",
+			provider,
+			body: JSON.stringify(tokenJson).slice(0, 500),
+		});
 		return null;
 	}
 
@@ -117,11 +133,28 @@ export async function pkceCallback(
 	});
 
 	if (!userinfoRes.ok) {
+		const body = await userinfoRes.text().catch(() => "");
+		logEvent("warn", "pkce-userinfo-failed", {
+			source: "api",
+			provider,
+			status: userinfoRes.status,
+			body: body.slice(0, 500),
+		});
 		return null;
 	}
 
 	const userinfoJson: unknown = await userinfoRes.json();
-	return config.parseUserinfo(userinfoJson);
+	try {
+		return config.parseUserinfo(userinfoJson);
+	} catch (err) {
+		logEvent("warn", "pkce-userinfo-parse-failed", {
+			source: "api",
+			provider,
+			error: err instanceof Error ? err.message : String(err),
+			body: JSON.stringify(userinfoJson).slice(0, 500),
+		});
+		return null;
+	}
 }
 
 // --- Provider configs ---
