@@ -1,4 +1,5 @@
-import { json } from "@sveltejs/kit";
+import { json, error } from "@sveltejs/kit";
+import { building } from "$app/environment";
 import type { RequestHandler } from "./$types";
 
 /**
@@ -6,14 +7,23 @@ import type { RequestHandler } from "./$types";
  * it (https://<host>/.well-known/openid-configuration) — it cannot live under
  * /api, so the web app serves it.
  *
- * Issuer/endpoints point at the OAuth2 provider on the API
- * (apps/api/app/routes/oauth2): `oauth2Issuer` when set, else this origin (in
- * prod nginx routes /api/* to the API on the same origin). The api's own copy
- * (GET /api/oauth2/.well-known/openid-configuration) uses its `oauth2Issuer` env
- * and only answers when configured.
+ * S3: the issuer is a CACHED security document, so it must NOT be derived from the
+ * request's Host header (a spoofed `Host: evil.com` would otherwise mint
+ * `issuer: https://evil.com` and get cached `public`). The issuer comes only from
+ * configuration: `oauth2Issuer`, else the site domain (`domain` env, default
+ * boardgamers.space). Set `oauth2Issuer` explicitly in any non-prod env whose
+ * public origin differs (PR previews, local multi-instance dev).
+ *
+ * The api's own copy (GET /api/oauth2/.well-known/openid-configuration) uses its
+ * `oauth2Issuer` env and only answers when configured.
  */
-export const GET: RequestHandler = ({ url }) => {
-	const issuer = process.env.oauth2Issuer || url.origin;
+export const GET: RequestHandler = () => {
+	if (building) {
+		error(404, "OIDC discovery is not available while prerendering");
+	}
+	const domain = process.env.domain || "boardgamers.space";
+	const issuer =
+		process.env.oauth2Issuer || (process.env.NODE_ENV === "production" ? `https://${domain}` : "http://localhost:8612");
 	const base = `${issuer}/api/oauth2`;
 	return json(
 		{

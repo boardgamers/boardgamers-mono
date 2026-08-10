@@ -166,6 +166,8 @@ router.get("/consent", async (ctx) => {
 });
 
 /** Approve or deny. On approve: record consent and hand back the authorize URL to resume. */
+// CSRF: covered by the global cookie-CSRF middleware in app.ts (cookie-authed
+// mutations must be JSON + not cross-site) — no per-route gate needed here.
 router.post("/consent", async (ctx) => {
 	if (!ctx.state.user) {
 		throw createError(401, "You need to be logged in");

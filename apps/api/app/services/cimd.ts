@@ -1,6 +1,7 @@
 import dns from "node:dns";
 import { isIP } from "node:net";
 import NodeCache from "node-cache";
+import { Agent, request } from "undici";
 import { z } from "zod";
 import { env } from "../config/index.ts";
 
@@ -159,7 +160,12 @@ export function isSpecialUseIP(ip: string): boolean {
 	return true;
 }
 
-async function assertFetchableHost(hostname: string): Promise<void> {
+/**
+ * Resolve a hostname and return its addresses after the §8.6 special-use check.
+ * §8.6: the loopback exception only applies to dev/test deployments where the AS
+ * itself runs on loopback. In production any special-use target is refused.
+ */
+async function resolveAllowedAddresses(hostname: string): Promise<string[]> {
 	let addresses: string[];
 	if (isIP(hostname) !== 0) {
 		addresses = [hostname];
@@ -170,14 +176,40 @@ async function assertFetchableHost(hostname: string): Promise<void> {
 	if (addresses.length === 0) {
 		throw new Error(`could not resolve ${hostname}`);
 	}
-	// §8.6: the loopback exception only applies to dev/test deployments where the
-	// AS itself runs on loopback. In production any special-use target is refused.
 	const blocked = env.isProduction ? isSpecialUseIP : (ip: string) => isSpecialUseIP(ip) && !isIPV4OrV6Loopback(ip);
 	for (const address of addresses) {
 		if (blocked(address)) {
 			throw new Error(`${hostname} resolves to a special-use IP address`);
 		}
 	}
+	return addresses;
+}
+
+/**
+ * DNS pinning against DNS-rebinding TOCTOU. Validating a hostname via dns.lookup
+ * and then letting the HTTP client re-resolve it independently is a well-known
+ * bypass: an attacker-controlled DNS server hands a public IP to the validation
+ * lookup and 127.0.0.1/internal to the fetch's re-resolution. To close it, the
+ * request runs through an undici Agent whose connect.lookup replays the
+ * ALREADY-VALIDATED addresses (node lookup signature, all-mode array), so the
+ * socket can only ever connect to an IP that passed the special-use check. TLS
+ * SNI / cert verification and the HTTP Host header still use the real hostname.
+ *
+ * (We use undici.request + a custom Agent rather than global fetch: the standalone
+ * undici v8 Agent's dispatcher protocol is incompatible with Node's built-in
+ * fetch, which then throws "invalid onRequestStart method".)
+ */
+function pinnedLookup(addresses: string[]) {
+	return (
+		_hostname: string,
+		options: { all?: boolean },
+		callback: (err: null, addresses: { address: string; family: 4 | 6 }[]) => void,
+	) => {
+		callback(
+			null,
+			addresses.map((address) => ({ address, family: isIP(address) === 6 ? (6 as const) : (4 as const) })),
+		);
+	};
 }
 
 function isIPV4OrV6Loopback(ip: string): boolean {
@@ -243,6 +275,13 @@ function isLoopbackHostname(hostname: string): boolean {
 
 const redirectUriRule = z.string().refine(isValidRedirectUri, "redirect_uris entries must be https URLs");
 
+/**
+ * N5: https-only for URLs that a consent UI may later render or the AS may fetch
+ * (§8.8/§9.2). z.url() accepts javascript:/data:, which would be stored-XSS or
+ * cross-domain tracking if logo_uri & co. were ever rendered — pin the scheme now.
+ */
+const httpsUrlRule = z.url().refine((u) => new URL(u).protocol === "https:", "must be an https URL");
+
 const cimdDocumentSchema = z
 	.object({
 		client_id: z.string(),
@@ -256,10 +295,10 @@ const cimdDocumentSchema = z
 		grant_types: z.array(z.string()).optional(),
 		response_types: z.array(z.string()).optional(),
 		scope: z.string().optional(),
-		logo_uri: z.url().optional(),
-		client_uri: z.url().optional(),
-		policy_uri: z.url().optional(),
-		tos_uri: z.url().optional(),
+		logo_uri: httpsUrlRule.optional(),
+		client_uri: httpsUrlRule.optional(),
+		policy_uri: httpsUrlRule.optional(),
+		tos_uri: httpsUrlRule.optional(),
 	})
 	.strict();
 
@@ -273,48 +312,65 @@ export type CimdDocument = z.infer<typeof cimdDocumentSchema>;
 export async function fetchClientMetadata(clientId: string): Promise<CimdDocument> {
 	validateClientIdUrl(clientId);
 	const { hostname } = new URL(clientId);
-	await assertFetchableHost(hostname);
+	const addresses = await resolveAllowedAddresses(hostname);
+
+	// S2 (DNS-rebinding TOCTOU): pin the connection to the already-validated
+	// addresses — an Agent whose connect.lookup replays them, so the request can
+	// never connect to an IP that didn't pass the special-use check.
+	const dispatcher = new Agent({ connect: { lookup: pinnedLookup(addresses) } });
 
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-	let response: Response;
+	let statusCode: number;
+	let headers: Record<string, string | string[] | undefined>;
+	let bodyStream: AsyncIterable<Uint8Array>;
 	try {
 		// §5: redirects MUST NOT be followed (a redirect would smuggle metadata from
-		// a different origin than the validated client_id).
-		response = await fetch(clientId, {
+		// a different origin than the validated client_id) — undici.request does not
+		// follow them.
+		const response = await request(clientId, {
+			method: "GET",
 			headers: { Accept: "application/json" },
-			redirect: "manual",
+			dispatcher,
 			signal: controller.signal,
 		});
-	} finally {
+		statusCode = response.statusCode;
+		headers = response.headers;
+		bodyStream = response.body;
+	} catch (err) {
 		clearTimeout(timer);
+		await dispatcher.close().catch(() => {});
+		throw err instanceof Error ? err : new Error(String(err));
 	}
 
-	if (response.status !== 200) {
-		throw new Error(`client metadata fetch returned ${response.status}`);
+	if (statusCode !== 200) {
+		clearTimeout(timer);
+		await dispatcher.close().catch(() => {});
+		throw new Error(`client metadata fetch returned ${statusCode}`);
 	}
 
 	// §8.7: read at most ~5 kB — enforce on the advertised length AND the stream
 	// (a missing/lying content-length must not bypass the cap).
-	const contentLength = Number(response.headers.get("content-length"));
+	const contentLengthHeader = headers["content-length"];
+	const contentLength = Number(Array.isArray(contentLengthHeader) ? contentLengthHeader[0] : contentLengthHeader);
 	if (Number.isFinite(contentLength) && contentLength > MAX_METADATA_BYTES) {
+		clearTimeout(timer);
+		await dispatcher.close().catch(() => {});
 		throw new Error("client metadata document too large");
-	}
-	if (!response.body) {
-		throw new Error("client metadata response has no body");
 	}
 	const chunks: Uint8Array[] = [];
 	let total = 0;
 	try {
-		for await (const chunk of response.body) {
-			total += (chunk as Uint8Array).length;
+		for await (const chunk of bodyStream) {
+			total += chunk.length;
 			if (total > MAX_METADATA_BYTES) {
 				throw new Error("client metadata document too large");
 			}
-			chunks.push(chunk as Uint8Array);
+			chunks.push(chunk);
 		}
 	} finally {
-		await response.body.cancel().catch(() => {});
+		clearTimeout(timer);
+		await dispatcher.close().catch(() => {});
 	}
 
 	let raw: unknown;

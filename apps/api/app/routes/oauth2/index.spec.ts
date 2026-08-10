@@ -224,6 +224,22 @@ describe("special-use IP detection (CIMD §8.6)", () => {
 		assert.equal(isSpecialUseIP("::ffff:5db8:d822"), false); // mapped 93.184.216.34
 		assert.equal(isSpecialUseIP("2606:4700:4700::1111"), false);
 	});
+
+	// S2: the fetch pins its connection to the already-validated address instead of
+	// re-resolving the hostname. Proving a full DNS-rebinding flip needs a custom
+	// DNS server; what we can pin down cheaply is that (a) a client on a domain that
+	// resolves nowhere is rejected before any connection, and (b) the connector is
+	// handed the validated IP (it connects to an address, never re-resolving).
+	it("rejects a client_id whose hostname does not resolve (no silent fetch fallback)", async () => {
+		const user = await insertUser();
+		const cookie = await makeSessionCookie(user._id);
+		const res = await authorize(
+			authorizeParams(codeVerifier(), { client_id: "https://nonexistent.invalid.example/cimd.json" }),
+			cookie,
+		);
+		assert.strictEqual(res.status, 400);
+		assert.match(res.body, /invalid_client/);
+	});
 });
 
 // --- authorize ---------------------------------------------------------------
@@ -261,6 +277,18 @@ describe("GET /api/oauth2/authorize", () => {
 		const res = await authorize(authorizeParams(codeVerifier()), cookie);
 		assert.strictEqual(res.status, 400);
 		assert.match(res.body, /invalid_client/);
+	});
+
+	it("rejects non-https logo_uri / client_uri (N5: stored-XSS / tracking, §8.8)", async () => {
+		for (const field of ["logo_uri", "client_uri"]) {
+			resetClient({ ...defaultClientDocument(), [field]: "javascript:alert(1)" });
+			const res = await authorize(authorizeParams(codeVerifier()), cookie);
+			assert.strictEqual(res.status, 400, `${field}=javascript: must be rejected`);
+			assert.match(res.body, /invalid_client/);
+		}
+		// A data: logo is likewise refused.
+		resetClient({ ...defaultClientDocument(), logo_uri: "data:image/svg+xml,<svg/>" });
+		assert.strictEqual((await authorize(authorizeParams(codeVerifier()), cookie)).status, 400);
 	});
 
 	it("rejects a document whose client_id does not match the requested URL (§4)", async () => {
@@ -345,6 +373,20 @@ describe("GET /api/oauth2/authorize", () => {
 		const again = await authorize(authorizeParams(codeVerifier()), cookie);
 		assert.strictEqual(again.status, 303);
 		assert.ok(new URL(again.location!).searchParams.get("code"), `expected a code, got ${again.location}`);
+	});
+
+	it("rejects a form-urlencoded consent POST (CSRF — a cross-site HTML form is form-encoded)", async () => {
+		resetClient();
+		const formBody = new URLSearchParams({
+			...Object.fromEntries(authorizeParams(codeVerifier())),
+			decision: "approve",
+		}).toString();
+		const res = await fetch(`${baseURL()}/api/oauth2/consent`, {
+			method: "POST",
+			headers: { "content-type": "application/x-www-form-urlencoded", cookie },
+			body: formBody,
+		});
+		assert.strictEqual(res.status, 415, await res.text());
 	});
 
 	it("deny redirects the client with error=access_denied and records no consent", async () => {
