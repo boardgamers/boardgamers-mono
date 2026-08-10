@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import { Readable } from "node:stream";
+// Side-effect import first: loads apps/web/.env into process.env (no-op when absent),
+// so the S3_* vars are set before s3Config() reads them — regardless of cwd.
+import "./server-env";
+import { GetObjectCommand, PutObjectCommand, S3Client, type S3ClientConfig } from "@aws-sdk/client-s3";
 import { error } from "@sveltejs/kit";
 import { chromium, type Browser } from "playwright";
 import sharp from "sharp";
@@ -122,6 +127,92 @@ export function shareImageEtag(data: unknown): string {
 	return `"${createHash("sha256").update(JSON.stringify(data)).digest("hex").slice(0, 16)}"`;
 }
 
+// -- S3 cache ------------------------------------------------------------------
+//
+// Rendered thumbnails are cached in an S3 bucket (Scaleway in prod) keyed by ETag —
+// see shareImageCacheKey. A cold request renders once via Chromium and the webp is
+// stored; later requests (any process, after restarts) re-serve the stored object
+// without re-rendering. The cache is best-effort: it is only active when the S3_*
+// env vars are set, and any S3 error falls back to a plain render. The S3_* secrets
+// live in the gitignored apps/web/.env on prod, auto-loaded by ./server-env (real
+// process.env values win, so PM2-injected env still takes precedence). Never commit
+// them to ecosystem.config.cjs, which is git-tracked.
+// Enabled when ALL three are set; otherwise exactly today's render-every-time behavior.
+function s3Config(): S3ClientConfig | null {
+	const { S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY } = process.env;
+	if (!S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
+		return null;
+	}
+	return {
+		region: process.env.S3_REGION || "fr-par",
+		endpoint: process.env.S3_ENDPOINT || "https://s3.fr-par.scw.cloud",
+		// Scaleway (and most S3-compatible stores) want path-style URLs.
+		forcePathStyle: true,
+		credentials: { accessKeyId: S3_ACCESS_KEY_ID, secretAccessKey: S3_SECRET_ACCESS_KEY },
+	};
+}
+
+let s3Client: S3Client | null = null;
+// Exported for tests — spec files can't set env vars before module import reliably,
+// so they inject a mock client (or null to reset).
+export function setS3ClientForTests(client: S3Client | null): void {
+	s3Client = client;
+}
+
+export function s3CacheEnabled(): boolean {
+	const config = s3Config();
+	if (!config) {
+		return false;
+	}
+	s3Client ??= new S3Client(config);
+	return true;
+}
+
+// Deterministic key per (route, etag): the etag already changes when the underlying
+// entity changes, so a changed entity renders to a NEW key and no stale object is ever
+// served. e.g. share/thumbnail/game/abc123.d41d8cd98f00b204.webp — old keys are left
+// for the bucket's lifecycle rules to expire.
+export function shareImageCacheKey(thumbnailPath: string, etag: string): string {
+	const path = thumbnailPath.replace(/\/+$/, "").replace(/[^\w.-]+/g, "_");
+	const tag = etag.replace(/[^\w.-]+/g, "");
+	return `share${path}.${tag}.webp`;
+}
+
+function client(): S3Client {
+	if (!s3Client) {
+		throw new Error("S3 cache accessed while disabled");
+	}
+	return s3Client;
+}
+
+// Stored webp for this key, or null on a miss. S3 failures are logged and treated as a
+// miss — the cache must never break a request.
+async function cachedThumbnail(key: string): Promise<Buffer | null> {
+	try {
+		const res = await client().send(new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }));
+		if (!res.Body) {
+			return null;
+		}
+		const body = res.Body as Readable & { transformToByteArray(): Promise<Uint8Array> };
+		return Buffer.from(await body.transformToByteArray());
+	} catch (err) {
+		if ((err as { name?: string })?.name !== "NoSuchKey") {
+			console.warn("share image cache read failed, rendering instead:", (err as Error)?.message ?? err);
+		}
+		return null;
+	}
+}
+
+async function storeThumbnail(key: string, webp: Buffer): Promise<void> {
+	try {
+		await client().send(
+			new PutObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key, Body: webp, ContentType: "image/webp" }),
+		);
+	} catch (err) {
+		console.warn("share image cache write failed:", (err as Error)?.message ?? err);
+	}
+}
+
 export async function shareImageResponse(
 	thumbnailPath: string,
 	etag: string,
@@ -138,11 +229,32 @@ export async function shareImageResponse(
 		return new Response(null, { status: 304, headers });
 	}
 
-	let webp: Buffer;
+	const body = (webp: Buffer) =>
+		new Response(new Uint8Array(webp), {
+			headers: { ...headers, "Content-Type": "image/webp" },
+		});
+
+	if (s3CacheEnabled()) {
+		const key = shareImageCacheKey(thumbnailPath, etag);
+		const cached = await cachedThumbnail(key);
+		if (cached) {
+			return body(cached);
+		}
+		const webp = await render(thumbnailPath);
+		// Awaited rather than fire-and-forget so callers (and tests) can rely on the
+		// write being issued; storeThumbnail never throws.
+		await storeThumbnail(key, webp);
+		return body(webp);
+	}
+
+	return body(await render(thumbnailPath));
+}
+
+async function render(thumbnailPath: string): Promise<Buffer> {
 	try {
 		await acquire();
 		try {
-			webp = await renderWebp(thumbnailPath);
+			return await renderWebp(thumbnailPath);
 		} finally {
 			release();
 		}
@@ -150,8 +262,4 @@ export async function shareImageResponse(
 		console.error("share image render failed", err);
 		throw error(503, "Share image unavailable");
 	}
-
-	return new Response(new Uint8Array(webp), {
-		headers: { ...headers, "Content-Type": "image/webp" },
-	});
 }
