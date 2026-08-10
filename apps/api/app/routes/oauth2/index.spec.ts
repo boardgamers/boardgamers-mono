@@ -598,6 +598,42 @@ describe("GET /api/oauth2/userinfo", () => {
 		assert.match(String(body.picture), /\/api\/user\/[a-f\d]{24}\/avatar$/);
 	});
 
+	it("omits the email claims entirely for a user with no email (social signup, #211)", async () => {
+		const noEmail = await insertUser();
+		// A social signup stores NO account.email (#211) — not even "".
+		const { modifiedCount } = await colls.users.updateOne({ _id: noEmail._id }, { $unset: { "account.email": "" } });
+		assert.strictEqual(modifiedCount, 1);
+
+		const noEmailCookie = await makeSessionCookie(noEmail._id);
+		const verifier = codeVerifier();
+		const { code } = await runAuthorizeFlow(noEmailCookie, verifier);
+		const res = await tokenRequest({
+			grant_type: "authorization_code",
+			code,
+			redirect_uri: clientRedirectUri(),
+			client_id: clientId(),
+			code_verifier: verifier,
+		});
+		assert.strictEqual(res.status, 200, JSON.stringify(res.body));
+
+		// The id_token must not assert a verified address that doesn't exist.
+		const idToken = jwt.verify(String(res.body!.id_token), env.jwt.keys.public);
+		assert.ok(typeof idToken === "object");
+		assert.ok(!("email" in idToken), `id_token must omit email, got ${JSON.stringify(idToken)}`);
+		assert.ok(!("email_verified" in idToken), "id_token must omit email_verified");
+		assert.strictEqual(idToken.preferred_username, noEmail.account.username);
+
+		const info = await fetch(`${baseURL()}/api/oauth2/userinfo`, {
+			headers: { authorization: `Bearer ${String(res.body!.access_token)}` },
+		});
+		const body: unknown = await json(info);
+		assert.strictEqual(info.status, 200, JSON.stringify(body));
+		assert.ok(body && typeof body === "object");
+		assert.ok(!("email" in body), `userinfo must omit email, got ${JSON.stringify(body)}`);
+		assert.ok(!("email_verified" in body), "userinfo must omit email_verified");
+		assert.strictEqual(body.preferred_username, noEmail.account.username);
+	});
+
 	it("an oauth token cannot act as a full API session (no /api/account access)", async () => {
 		const res = await fetch(`${baseURL()}/api/account`, {
 			headers: { authorization: `Bearer ${oauthToken}` },

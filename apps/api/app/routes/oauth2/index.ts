@@ -278,7 +278,9 @@ function signIdToken(user: WithId<UserDoc>, clientId: string, scopes: string[]) 
 		claims.preferred_username = user.account.username;
 		claims.name = user.account.username;
 	}
-	if (scopes.includes("email")) {
+	// Social signups (#211) can have no email: never emit email_verified for an
+	// absent address.
+	if (scopes.includes("email") && user.account.email) {
 		claims.email = user.account.email;
 		// authorize is gated on security.confirmed — a token only exists for a
 		// proven address.
@@ -315,15 +317,22 @@ router.get("/userinfo", async (ctx) => {
 	}
 
 	// Flat claims, exactly what nodebb-plugin-sso-oauth2-multiple / Grafana parse.
-	// id + display name + email must all be truthy for those clients, so email is
-	// always included (authorize guarantees a confirmed account).
+	// id + display name + email must all be truthy for those clients. Email claims
+	// are emitted only when the user actually HAS an email (social signups from
+	// #211 may not) — emitting email_verified for an absent address would be a
+	// lie; email-less users will simply not authenticate on those clients.
 	ctx.body = {
 		sub: user._id.toString(),
 		id: user._id.toString(),
 		preferred_username: user.account.username,
 		name: user.account.username,
-		email: user.account.email,
-		email_verified: true,
+		...(user.account.email
+			? {
+					// authorize is gated on security.confirmed — a present address is proven.
+					email: user.account.email,
+					email_verified: true,
+				}
+			: {}),
 		picture: `${env.oauth2.issuer}/api/user/${user._id.toString()}/avatar`,
 	};
 });
