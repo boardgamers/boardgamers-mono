@@ -321,8 +321,15 @@ describe("secure-cookie-over-insecure diagnostic", () => {
 	});
 
 	async function waitForDiagnostic() {
+		// Filter by path AND user: describes within this file run concurrently,
+		// and other requests that slide a Secure cookie over perceived http also
+		// trigger the diagnostic. Only this describe's POST has this userId.
 		for (let i = 0; i < 50; i++) {
-			const doc = await colls.apiErrors.findOne({ "meta.source": "secure-cookie" });
+			const doc = await colls.apiErrors.findOne({
+				"meta.source": "secure-cookie",
+				"request.path": "/api/account",
+				user: userId,
+			});
 			if (doc) {
 				return doc;
 			}

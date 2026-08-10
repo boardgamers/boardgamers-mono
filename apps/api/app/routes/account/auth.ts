@@ -1,4 +1,5 @@
 import type { Context, Next } from "koa";
+import createError from "http-errors";
 import passport from "koa-passport";
 import Router from "koa-router";
 import { z } from "zod";
@@ -115,24 +116,25 @@ function authenticateCallback(ctx: Context, next: Next, provider: string): Promi
 }
 
 // PKCE callback: github/huggingface. Verifies state, exchanges code, fetches profile.
+// pkceCallback throws descriptive errors — they propagate to the global error handler
+// which records them in apierrors (admin health page) and returns the message to the
+// browser. No silent redirect-to-login; the user sees what actually went wrong.
 async function pkceCallbackHandler(ctx: Context, next: Next, provider: "github" | "huggingface"): Promise<void> {
-	const query = z.object({ code: z.string(), state: z.string() }).safeParse(ctx.query);
-	if (!query.success) {
-		redirectAfterAuth(ctx, `/login?error=${encodeURIComponent("Social login failed")}`);
-		return;
+	// OAuth providers redirect with ?error=…&error_description=… when the user
+	// denies consent or something goes wrong provider-side (RFC 6749 §4.1.2.1).
+	const errorQuery = z.object({ error: z.string(), error_description: z.string().optional() }).safeParse(ctx.query);
+	if (errorQuery.success) {
+		throw createError(403, `${provider}: ${errorQuery.data.error_description ?? errorQuery.data.error}`);
 	}
+
+	const query = z.object({ code: z.string(), state: z.string() }).parse(ctx.query);
 
 	const config = provider === "github" ? githubConfig : huggingfaceConfig;
 	const clientId =
 		provider === "github" ? env.social.github.id : `${ctx.protocol}://${ctx.host}/.well-known/oauth-cimd`;
 	const redirectUri = socialCallbackUrl(ctx, provider);
 
-	const profile = await pkceCallback(config, clientId, redirectUri, query.data.code, query.data.state);
-	if (!profile) {
-		redirectAfterAuth(ctx, `/login?error=${encodeURIComponent("Social login failed")}`);
-		return;
-	}
-
+	const profile = await pkceCallback(config, clientId, redirectUri, query.code, query.state);
 	// Reuse the same link-or-create logic as the passport strategies.
 	const user = await verifySocialProfile(provider, { user: ctx.state.user }, profile);
 	ctx.state.user = user;

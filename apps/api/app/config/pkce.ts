@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import createError from "http-errors";
 import { z } from "zod";
 import { createOAuthState, verifyOAuthState } from "../models/oauthflows.ts";
 
@@ -81,11 +82,13 @@ export async function pkceCallback(
 	redirectUri: string,
 	code: string,
 	state: string,
-): Promise<{ id: string; username?: string; profileUrl?: string } | null> {
+): Promise<{ id: string; username?: string; profileUrl?: string }> {
+	const provider = config.authorizationUrl.includes("github") ? "github" : "huggingface";
+
 	// Single-use state verification (deletes the doc).
 	const verifier = await verifyOAuthState(state);
 	if (!verifier) {
-		return null;
+		throw createError(403, `PKCE state invalid or expired for ${provider}`);
 	}
 
 	// Exchange the authorization code for an access token (PKCE: no client_secret).
@@ -102,13 +105,17 @@ export async function pkceCallback(
 	});
 
 	if (!tokenRes.ok) {
-		return null;
+		const body = await tokenRes.text().catch(() => "");
+		throw createError(502, `${provider} token exchange failed (${tokenRes.status}): ${body.slice(0, 500)}`);
 	}
 
 	const tokenJson: unknown = await tokenRes.json();
 	const parsed = tokenResponseSchema.safeParse(tokenJson);
 	if (!parsed.success) {
-		return null;
+		throw createError(
+			502,
+			`${provider} token response missing access_token: ${JSON.stringify(tokenJson).slice(0, 500)}`,
+		);
 	}
 
 	// Fetch the user profile with the access token.
@@ -117,7 +124,8 @@ export async function pkceCallback(
 	});
 
 	if (!userinfoRes.ok) {
-		return null;
+		const body = await userinfoRes.text().catch(() => "");
+		throw createError(502, `${provider} userinfo failed (${userinfoRes.status}): ${body.slice(0, 500)}`);
 	}
 
 	const userinfoJson: unknown = await userinfoRes.json();
