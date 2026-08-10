@@ -32,9 +32,10 @@ export function forwardSessionCookies(event: RequestEvent, response: Response) {
 
 		// SvelteKit's cookies API defaults `secure` to true on any non-"localhost" host
 		// (e.g. 127.0.0.1), which would drop the session cookie over plain http in dev —
-		// so always set it explicitly. Determine https from X-Forwarded-Proto first: behind
-		// the TLS-terminating nginx the node adapter serves plain HTTP, so event.url.protocol
-		// is http: even though the browser connection is HTTPS (and nginx sets the header).
+		// so always set it explicitly. Determine https from X-Forwarded-Proto first, then
+		// fall back to event.url.protocol — the browser-facing origin (https under
+		// adapter-node's prod default — PROTOCOL_HEADER is unset so it does NOT read
+		// nginx's x-forwarded-proto — http in vite dev). Either source marks prod https.
 		const forwardedProto = event.request.headers.get("x-forwarded-proto");
 		const secure = (forwardedProto ?? event.url.protocol.replace(/:$/, "")) === "https";
 		const opts: Parameters<typeof event.cookies.set>[2] = { path: "/", secure };

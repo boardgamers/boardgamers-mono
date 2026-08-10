@@ -125,6 +125,16 @@ export const handleFetch: HandleFetch = async ({ request, fetch, event }) => {
 				request.headers.set("x-forwarded-for", existing ? `${existing}, ${ctx.clientIp}` : ctx.clientIp);
 			}
 		}
+
+		// Tell the api the protocol of the browser→web hop (https in prod). The SSR hop
+		// itself is plain http on loopback, so without this the api (app.proxy = true)
+		// computes ctx.secure === false and its sliding-session middleware throws
+		// "Cannot send secure cookie over unencrypted connection" (secure-cookie-over-insecure).
+		// Use event.url.protocol — the browser-facing origin (https under adapter-node's
+		// prod default, http in vite dev) — and overwrite rather than append so a
+		// client-supplied spoof can't win. (adapter-node doesn't read nginx's
+		// x-forwarded-proto — PROTOCOL_HEADER is unset in prod so it defaults to https.)
+		request.headers.set("x-forwarded-proto", event.url.protocol.replace(/:$/, ""));
 	}
 
 	const response = await fetch(request);
