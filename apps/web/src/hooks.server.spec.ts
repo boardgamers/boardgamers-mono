@@ -61,4 +61,19 @@ describe("handleFetch (SSR /api proxy)", () => {
 		expect(captured).toHaveLength(1);
 		expect(captured[0].headers.get("x-forwarded-proto")).toBeNull();
 	});
+
+	it("overwrites a client-spoofed X-Forwarded-Proto (authoritative origin wins)", async () => {
+		// A client can send any x-forwarded-proto it likes; the proxy must not let that
+		// spoof through to the api — the browser-facing origin (https here) wins.
+		const origin = "https://boardgamers.space";
+		const request = makeRequest(`${origin}/api/account`);
+		request.headers.set("x-forwarded-proto", "http"); // spoofed
+		const captured: Captured[] = [];
+		await handleFetch({
+			request,
+			fetch: makeFetch(captured),
+			event: makeEvent(origin),
+		} as unknown as Parameters<HandleFetch>[0]);
+		expect(captured[0].headers.get("x-forwarded-proto")).toBe("https");
+	});
 });
