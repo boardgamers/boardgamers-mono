@@ -295,9 +295,9 @@ function signIdToken(user: WithId<UserDoc>, clientId: string, scopes: OAuthScope
 		// proven address.
 		claims.email_verified = true;
 	}
+	// Role signal for first-party tooling (Grafana role mapping), NOT an
+	// admin grant: admin API access stays gated on the session-token family.
 	if (scopes.includes("role") && user.authority) {
-		// Role signal for first-party tooling (Grafana role mapping), NOT an
-		// admin grant: admin API access stays gated on the session-token family.
 		claims.authority = user.authority;
 	}
 	return jwt.sign(claims, env.jwt.keys.private, { algorithm: env.jwt.algorithm });
@@ -352,7 +352,8 @@ router.get("/userinfo", async (ctx) => {
 		// Role signal for first-party tooling (Grafana role_attribute_path), NOT an
 		// admin grant: admin API access stays gated on the session-token family.
 		// The grant's scopes ride the access token (minted at /token) so userinfo
-		// gates the claim on them, like signIdToken does.
+		// gates the claim on them, like signIdToken does. Regular users have no
+		// authority field (migration 1.4.2 $unset the legacy "user" placeholder).
 		...(scopes.includes("role") && user.authority ? { authority: user.authority } : {}),
 		picture: `${env.oauth2.issuer}/api/user/${user._id.toString()}/avatar`,
 	};

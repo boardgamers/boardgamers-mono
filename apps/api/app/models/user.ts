@@ -61,7 +61,7 @@ export function makeDefaultUser(params: {
 			slug: params.slug,
 		},
 		meta: { nextGameNotification: new Date(0), lastGameNotification: new Date(0) },
-		// Regular users carry no authority value (legacy docs may still have "user").
+		// Regular users carry no authority value (migration 1.4.2 $unset the legacy "user").
 		...(params.authority ? { authority: params.authority } : {}),
 		createdAt: now,
 		updatedAt: now,

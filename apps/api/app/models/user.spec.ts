@@ -3,6 +3,7 @@ import { after, describe, it } from "node:test";
 import { colls, db } from "../config/db.ts";
 import { testUser } from "../config/test-helpers.ts";
 import { migration as unsetEmptyUserEmails } from "./migrations/1.4.1-unset-empty-user-emails.ts";
+import { migration as unsetDefaultAuthority } from "./migrations/1.4.2-unset-default-authority.ts";
 import { confirm, generateResetLink, hashUserSecret, validateResetKey } from "./user.ts";
 
 // Regression: makeDefaultUser used to hardcode social: { google: "", facebook: "", discord: "", github: "" }
@@ -73,6 +74,28 @@ describe("makeDefaultUser", () => {
 		assert.ok(!("email" in cleaned.account), 'the "" email must be $unset');
 		const untouched = await colls.users.findOne({ _id: realId });
 		assert.strictEqual(untouched?.account.email, "real@test.com");
+	});
+
+	it('migration 1.4.2 $unsets the legacy authority: "user" placeholder and leaves real roles alone', async () => {
+		const { insertedId: legacyId } = await colls.users.insertOne(testUser({ authority: "user" }));
+		const { insertedId: absentId } = await colls.users.insertOne(testUser());
+		const { insertedId: adminId } = await colls.users.insertOne(testUser({ authority: "admin" }));
+
+		await unsetDefaultAuthority.up();
+
+		const legacy = await colls.users.findOne({ _id: legacyId });
+		assert.ok(legacy);
+		assert.ok(!("authority" in legacy), '"user" must be $unset, not kept');
+		const absent = await colls.users.findOne({ _id: absentId });
+		assert.ok(absent && !("authority" in absent));
+		const admin = await colls.users.findOne({ _id: adminId });
+		assert.strictEqual(admin?.authority, "admin");
+
+		// Idempotent: a second run is a no-op.
+		const { modifiedCount } = await colls.users.updateMany({ _id: adminId }, { $set: { updatedAt: new Date() } });
+		assert.strictEqual(modifiedCount, 1);
+		await unsetDefaultAuthority.up();
+		assert.strictEqual((await colls.users.findOne({ _id: adminId }))?.authority, "admin");
 	});
 
 	it("stores only whitelisted display fields in account.socialMeta", async () => {
