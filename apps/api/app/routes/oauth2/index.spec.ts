@@ -489,7 +489,7 @@ describe("POST /api/oauth2/token", () => {
 
 		const access = jwt.verify(String(res.body!.access_token), env.jwt.keys.public);
 		assert.ok(typeof access === "object");
-		assert.deepStrictEqual(access.scopes, ["oauth"]);
+		assert.deepStrictEqual(access.scopes, ["oauth", "openid", "profile", "email"]);
 		assert.strictEqual(access.isAdmin, false);
 
 		const idToken = jwt.verify(String(res.body!.id_token), env.jwt.keys.public);
@@ -499,6 +499,8 @@ describe("POST /api/oauth2/token", () => {
 		assert.strictEqual(idToken.email, mainUser.account.email);
 		assert.strictEqual(idToken.email_verified, true);
 		assert.strictEqual(idToken.preferred_username, mainUser.account.username);
+		// mainUser is a regular user with no role scope: no authority claim.
+		assert.ok(!("authority" in idToken), `id_token must omit authority, got ${JSON.stringify(idToken)}`);
 	});
 
 	it("codes are single-use: replaying one fails with invalid_grant", async () => {
@@ -641,8 +643,8 @@ describe("GET /api/oauth2/userinfo", () => {
 		assert.strictEqual(res.status, 401);
 	});
 
-	it("a full-session ('all') token is refused by userinfo", async () => {
-		const fullToken = await createAccessToken({ user: userId }, ["all"], false);
+	it("a full-session ('all') token is refused by userinfo (even when crafted with OIDC scopes)", async () => {
+		const fullToken = await createAccessToken({ user: userId }, ["all", "openid", "email", "role"], false);
 		const res = await fetch(`${baseURL()}/api/oauth2/userinfo`, {
 			headers: { authorization: `Bearer ${fullToken}` },
 		});
@@ -653,6 +655,80 @@ describe("GET /api/oauth2/userinfo", () => {
 		assert.strictEqual((await fetch(`${baseURL()}/api/oauth2/userinfo`)).status, 401);
 		const res = await fetch(`${baseURL()}/api/oauth2/userinfo`, { headers: { authorization: "Bearer garbage" } });
 		assert.strictEqual(res.status, 401);
+	});
+});
+
+// --- authority claim (role scope) ---------------------------------------------
+
+describe("authority claim under the role scope", () => {
+	before(() => {
+		resetClient();
+	});
+
+	async function exchangeForUser(cookie: string, scope: string) {
+		const verifier = codeVerifier();
+		const { code } = await runAuthorizeFlow(cookie, verifier, { scope });
+		const res = await tokenRequest({
+			grant_type: "authorization_code",
+			code,
+			redirect_uri: clientRedirectUri(),
+			client_id: clientId(),
+			code_verifier: verifier,
+		});
+		assert.strictEqual(res.status, 200, JSON.stringify(res.body));
+		return res.body!;
+	}
+
+	async function userinfo(accessToken: string) {
+		const res = await fetch(`${baseURL()}/api/oauth2/userinfo`, {
+			headers: { authorization: `Bearer ${accessToken}` },
+		});
+		const body: unknown = await json(res);
+		assert.strictEqual(res.status, 200, JSON.stringify(body));
+		assert.ok(body && typeof body === "object");
+		return body;
+	}
+
+	it('emits authority: "admin" in id_token + userinfo for an admin granted the role scope', async () => {
+		const admin = await insertUser({ authority: "admin" });
+		const cookie = await makeSessionCookie(admin._id);
+		const body = await exchangeForUser(cookie, "openid profile email role");
+		assert.strictEqual(body.scope, "openid profile email role");
+
+		const idToken = jwt.verify(String(body.id_token), env.jwt.keys.public);
+		assert.ok(typeof idToken === "object");
+		assert.strictEqual(idToken.authority, "admin");
+
+		const info = await userinfo(String(body.access_token));
+		assert.strictEqual(info.authority, "admin");
+	});
+
+	it("omits the authority claim for a regular user granted the role scope", async () => {
+		const regular = await insertUser();
+		assert.strictEqual(regular.authority, undefined);
+		const cookie = await makeSessionCookie(regular._id);
+		const body = await exchangeForUser(cookie, "openid profile email role");
+
+		const idToken = jwt.verify(String(body.id_token), env.jwt.keys.public);
+		assert.ok(typeof idToken === "object");
+		assert.ok(!("authority" in idToken), `id_token must omit authority, got ${JSON.stringify(idToken)}`);
+
+		const info = await userinfo(String(body.access_token));
+		assert.ok(!("authority" in info), `userinfo must omit authority, got ${JSON.stringify(info)}`);
+	});
+
+	it("omits the authority claim for an admin when the role scope is not granted", async () => {
+		const admin = await insertUser({ authority: "admin" });
+		const cookie = await makeSessionCookie(admin._id);
+		const body = await exchangeForUser(cookie, "openid profile email");
+		assert.strictEqual(body.scope, "openid profile email");
+
+		const idToken = jwt.verify(String(body.id_token), env.jwt.keys.public);
+		assert.ok(typeof idToken === "object");
+		assert.ok(!("authority" in idToken), `id_token must omit authority, got ${JSON.stringify(idToken)}`);
+
+		const info = await userinfo(String(body.access_token));
+		assert.ok(!("authority" in info), `userinfo must omit authority, got ${JSON.stringify(info)}`);
 	});
 });
 
@@ -675,6 +751,10 @@ describe("GET /api/oauth2/.well-known/openid-configuration", () => {
 			assert.deepStrictEqual(body.code_challenge_methods_supported, ["S256"]);
 			assert.deepStrictEqual(body.token_endpoint_auth_methods_supported, ["none"]);
 			assert.deepStrictEqual(body.response_types_supported, ["code"]);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- tests read ad-hoc fields off the response
+			assert.ok((body.scopes_supported as string[]).includes("role"));
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- tests read ad-hoc fields off the response
+			assert.ok((body.claims_supported as string[]).includes("authority"));
 		} finally {
 			env.oauth2.issuer = "";
 		}

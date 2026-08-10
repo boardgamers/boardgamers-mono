@@ -2,6 +2,10 @@ import { z } from "zod";
 import type { IndexDescription } from "mongodb";
 import { zDate, zObjectId } from "./helpers.ts";
 
+/** OIDC scopes a CIMD client may request. `role` exposes the user's authority (e.g. admin) as a claim. */
+export const oauthScopeSchema = z.enum(["openid", "profile", "email", "role"]);
+export type OAuthScope = z.infer<typeof oauthScopeSchema>;
+
 /**
  * Recorded user consent for an OAuth2/OIDC client (issue #76): the user approved
  * this client to receive the listed scopes. Checked at authorize time; since CIMD
@@ -17,7 +21,7 @@ export const oauthConsentSchema = z.object({
 	userId: zObjectId(),
 	/** The client's Client Identifier URL (exact string). */
 	clientId: z.string(),
-	scopes: z.array(z.string()),
+	scopes: z.array(oauthScopeSchema),
 	/** First-party trusted clients skip the consent screen (nothing is trusted yet). */
 	trusted: z.boolean().optional(),
 	createdAt: zDate(),

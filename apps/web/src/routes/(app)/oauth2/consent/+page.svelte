@@ -30,6 +30,11 @@
 			description: "Read the email address registered on your account",
 			icon: "email",
 		},
+		role: {
+			title: "Your account role",
+			description: "See your account role (e.g. admin)",
+			icon: "identity",
+		},
 	};
 
 	const scopeInfo = (scope: string): ScopeDescription =>
