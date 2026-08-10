@@ -74,7 +74,12 @@ const tokenResponseSchema = z.object({
 
 /**
  * Complete a PKCE flow: verify the state, exchange the code for a token,
- * fetch the user profile. Returns the SocialProfile on success, null on failure.
+ * fetch the user profile. Returns the SocialProfile on success.
+ * Throws a descriptive http-error on any failure.
+ *
+ * `clientSecret` is optional: GitHub OAuth Apps require it even with PKCE
+ * (they're confidential clients), while Hugging Face CIMD apps are public
+ * clients that must NOT send one.
  */
 export async function pkceCallback(
 	config: PkceProviderConfig,
@@ -82,6 +87,7 @@ export async function pkceCallback(
 	redirectUri: string,
 	code: string,
 	state: string,
+	clientSecret?: string,
 ): Promise<{ id: string; username?: string; profileUrl?: string }> {
 	const provider = config.authorizationUrl.includes("github") ? "github" : "huggingface";
 
@@ -91,17 +97,21 @@ export async function pkceCallback(
 		throw createError(403, `PKCE state invalid or expired for ${provider}`);
 	}
 
-	// Exchange the authorization code for an access token (PKCE: no client_secret).
+	// Exchange the authorization code for an access token.
+	const tokenParams = new URLSearchParams({
+		grant_type: "authorization_code",
+		client_id: clientId,
+		redirect_uri: redirectUri,
+		code,
+		code_verifier: verifier,
+	});
+	if (clientSecret) {
+		tokenParams.set("client_secret", clientSecret);
+	}
 	const tokenRes = await fetch(config.tokenUrl, {
 		method: "POST",
 		headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
-		body: new URLSearchParams({
-			grant_type: "authorization_code",
-			client_id: clientId,
-			redirect_uri: redirectUri,
-			code,
-			code_verifier: verifier,
-		}),
+		body: tokenParams,
 	});
 
 	if (!tokenRes.ok) {
