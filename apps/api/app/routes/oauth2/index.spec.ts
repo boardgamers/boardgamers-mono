@@ -50,10 +50,20 @@ function defaultClientDocument() {
 	};
 }
 
+/**
+ * A second client identity hosted on the same server, for tests that mutate the
+ * document: getClientMetadata caches per client_id for 5 min, so a mutated doc at
+ * the SAME client_id would be invisible to later requests (and poison them).
+ */
+const altClientId = () => `http://127.0.0.1:${client.port}/client2`;
+const altClientDocument = () => ({ ...defaultClientDocument(), client_id: altClientId() });
+
 before(async () => {
 	client.server = createServer((req, res) => {
 		const url = new URL(req.url ?? "/", "http://127.0.0.1");
-		if (url.pathname === "/client") {
+		// /client is the default identity; /client2 hosts the mutated-document tests
+		// (a distinct client_id, so the metadata cache can't cross-contaminate).
+		if (url.pathname === "/client" || url.pathname === "/client2") {
 			client.fetches++;
 			if (client.redirectTo) {
 				res.writeHead(302, { location: client.redirectTo }).end();
@@ -352,6 +362,37 @@ describe("GET /api/oauth2/authorize", () => {
 		const unconfirmed = await insertUser({ security: { confirmed: false } });
 		const res = await authorize(authorizeParams(codeVerifier()), await makeSessionCookie(unconfirmed._id));
 		assert.strictEqual(res.status, 403);
+	});
+
+	it("previews the client for the consent page, including the https logo", async () => {
+		resetClient({ ...altClientDocument(), logo_uri: "https://example.com/logo.png" });
+		const user = await insertUser();
+		const userCookie = await makeSessionCookie(user._id);
+		const res = await fetch(
+			`${baseURL()}/api/oauth2/consent?${authorizeParams(codeVerifier(), { client_id: altClientId() })}`,
+			{ headers: { cookie: userCookie } },
+		);
+		const body: unknown = await json(res);
+		assert.strictEqual(res.status, 200, JSON.stringify(body));
+		assert.deepStrictEqual(body, {
+			clientId: altClientId(),
+			clientName: "Test App",
+			clientHost: `127.0.0.1:${client.port}`,
+			logoUri: "https://example.com/logo.png",
+			scopes: ["openid", "profile", "email"],
+		});
+	});
+
+	it("omits the logo from the consent preview when the client declares none", async () => {
+		resetClient();
+		const user = await insertUser();
+		const userCookie = await makeSessionCookie(user._id);
+		const res = await fetch(`${baseURL()}/api/oauth2/consent?${authorizeParams(codeVerifier())}`, {
+			headers: { cookie: userCookie },
+		});
+		const body: unknown = await json(res);
+		assert.strictEqual(res.status, 200, JSON.stringify(body));
+		assert.ok(body && typeof body === "object" && !("logoUri" in body));
 	});
 
 	it("requires consent, then remembers it: second authorize issues the code directly", async () => {
