@@ -20,7 +20,16 @@ export {
 	lookupRefreshToken,
 	revokeRefreshToken,
 } from "./jwtrefreshtokens.ts";
-export { createOAuthState, verifyOAuthState, createPendingSignup, takePendingSignup } from "./oauthflows.ts";
+export {
+	createOAuthState,
+	verifyOAuthState,
+	createPendingSignup,
+	takePendingSignup,
+	createOAuthCode,
+	redeemOAuthCode,
+} from "./oauthflows.ts";
+export type { OAuthCode } from "./oauthflows.ts";
+export { recordConsent, missingConsentScopes } from "./oauthconsents.ts";
 export type { JwtRefreshTokenDoc } from "@bgs/models";
 export type { LogDoc } from "@bgs/models";
 export type { PageDoc } from "@bgs/models";

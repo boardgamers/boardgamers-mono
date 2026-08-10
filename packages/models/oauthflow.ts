@@ -1,9 +1,11 @@
 import { z } from "zod";
 import type { IndexDescription } from "mongodb";
+import { zObjectId } from "./helpers.ts";
 
 /**
- * Server-side state for an in-flight social OAuth flow (PKCE handshake or pending
- * social signup). Single-use, short-lived.
+ * Server-side state for an in-flight OAuth flow: the social-login PKCE handshake,
+ * pending social signups, and the OAuth2/OIDC provider's authorization codes
+ * (issue #76). Single-use, short-lived.
  *
  * Deliberately server-side rather than a cookie: the PKCE code_verifier is a bearer
  * secret, so keeping it out of the browser entirely beats even an httpOnly cookie
@@ -31,6 +33,20 @@ export const oauthFlowSchema = z.discriminatedUnion("kind", [
 		provider: z.string(),
 		socialId: z.string(),
 		socialMeta: z.object({ username: z.string(), url: z.string() }).optional(),
+		expiresAt: z.date(),
+	}),
+	z.object({
+		kind: z.literal("oauth-code"),
+		/** The authorization code itself: a 192-bit random value. */
+		_id: z.string(),
+		/** Client Identifier URL (CIMD) the code was issued to. */
+		clientId: z.string(),
+		/** Stored to re-check at token redemption (mix-up defense). */
+		redirectUri: z.string(),
+		user: zObjectId(),
+		scopes: z.array(z.string()),
+		codeChallenge: z.string(),
+		codeChallengeMethod: z.literal("S256"),
 		expiresAt: z.date(),
 	}),
 ]);

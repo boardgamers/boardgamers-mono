@@ -30,6 +30,32 @@ import { FORUM_SSO_COOKIE, clearForumSsoCookie, reissueForumSsoCookieIfNeeded } 
 // don't rewrite the cookie / bump lastSeen on every single mutating request.
 const REFRESH_SLIDE_INTERVAL_MS = 60 * 1000;
 const refreshSlideThrottle = new Map<string, number>();
+
+// Mutating endpoints that legitimately take a non-JSON body, exempt from the CSRF
+// JSON gate (still covered by the cross-site Origin/Sec-Fetch-Site check):
+//  - /api/oauth2/token — application/x-www-form-urlencoded per RFC6749, called
+//    server-to-server by OAuth clients (no cookie), form is mandatory.
+//  - /api/account/avatar — raw image bytes (the web app POSTs a File).
+const CSRF_JSON_EXEMPT = /^\/api\/(oauth2\/token|account\/avatar)\/?$/;
+
+/** True when `origin` is same-site with the request host (subdomains of env.domain count). Exported for tests. */
+export function isSameSiteOrigin(ctx: { hostname: string }, origin: string): boolean {
+	let host: string;
+	try {
+		host = new URL(origin).hostname.toLowerCase();
+	} catch {
+		return false;
+	}
+	const requestHost = ctx.hostname.toLowerCase();
+	if (host === requestHost) {
+		return true;
+	}
+	// Behind nginx the api may see the bare domain while the browser's Origin is the
+	// www/app subdomain (or vice versa) — treat the whole site domain as same-site.
+	const domain = env.domain.toLowerCase();
+	const inDomain = (h: string) => h === domain || h.endsWith(`.${domain}`);
+	return inDomain(host) && inDomain(requestHost);
+}
 /* Local stuff */
 import router from "./routes/index.ts";
 
@@ -78,6 +104,44 @@ async function listen(port = env.listen.port.api) {
 
 	/* Required for passport */
 	app.use(passport.initialize());
+
+	// CSRF guard for cookie-authenticated state changes. The session cookie is
+	// SameSite=Lax, so it rides top-level cross-site POST navigations (a plain HTML
+	// form), and koa-bodyparser accepts any content type — so without this a
+	// cross-site auto-submitted form could mutate the victim's account (e.g. record
+	// OAuth consent). Defence in depth, applied only when a session cookie actually
+	// authenticated the request (bearer-token API clients are not CSRF-able and are
+	// left alone):
+	//  1. Cross-site marker: if the request is explicitly marked cross-site
+	//     (Sec-Fetch-Site: cross-site, or a foreign Origin), reject — fail-open only
+	//     when the client sends no marker at all (older browsers, non-browser tools).
+	//  2. Body gate: mutating requests must carry application/json, which forces a
+	//     CORS preflight a cross-origin HTML form can't pass. Exempted: the
+	//     genuinely form-encoded / binary endpoints (OAuth2 token, per RFC6749, and
+	//     the raw avatar upload) — those are protected by the cross-site check above.
+	app.use(async (ctx, next) => {
+		if (["GET", "HEAD", "OPTIONS"].includes(ctx.method)) {
+			return next();
+		}
+		// Only cookie-auth is CSRF-able; a Bearer caller never relies on ambient cookies.
+		if (!ctx.cookies.get("refreshToken") || ctx.get("Authorization")) {
+			return next();
+		}
+		const fetchSite = ctx.get("sec-fetch-site");
+		if (fetchSite === "cross-site") {
+			throw createError(403, "cross-site request rejected");
+		}
+		// Origin present-but-foreign is a cross-site signal (Sec-Fetch-Site absent on
+		// some clients); no Origin at all is left to the JSON gate below.
+		const origin = ctx.get("origin");
+		if (origin && !isSameSiteOrigin(ctx, origin)) {
+			throw createError(403, "cross-site origin rejected");
+		}
+		if (!ctx.is("application/json") && !CSRF_JSON_EXEMPT.test(ctx.path)) {
+			throw createError(415, "mutating requests require a JSON body");
+		}
+		return next();
+	});
 
 	// JWT auth
 	const tokenQuerySchema = z.object({ token: z.string().optional() });

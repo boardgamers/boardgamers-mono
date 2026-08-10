@@ -15,6 +15,7 @@ import { GAME_PREFERENCES_COLLECTION, gamePreferencesIndexes, gamePreferencesSch
 import { IMAGES_COLLECTION, imageIndexes, imageSchema } from "./image.ts";
 import { JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenIndexes, jwtRefreshTokenSchema } from "./jwtrefreshtoken.ts";
 import { LOGS_COLLECTION, logsCollectionOptions, logSchema } from "./log.ts";
+import { OAUTH_CONSENTS_COLLECTION, oauthConsentIndexes, oauthConsentSchema } from "./oauthconsent.ts";
 import { OAUTH_FLOWS_COLLECTION, oauthFlowIndexes, oauthFlowSchema } from "./oauthflow.ts";
 import { PAGES_COLLECTION, pageSchema } from "./page.ts";
 import { ROOM_METADATA_COLLECTION, roomMetaDataIndexes, roomMetaDataSchema } from "./roommetadata.ts";
@@ -463,6 +464,7 @@ export const declaredIndexes: [string, IndexDescription[]][] = [
 	[GAME_PREFERENCES_COLLECTION, gamePreferencesIndexes],
 	[IMAGES_COLLECTION, imageIndexes],
 	[JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenIndexes],
+	[OAUTH_CONSENTS_COLLECTION, oauthConsentIndexes],
 	[OAUTH_FLOWS_COLLECTION, oauthFlowIndexes],
 	[ROOM_METADATA_COLLECTION, roomMetaDataIndexes],
 	[DELETED_USERS_COLLECTION, deletedUserIndexes],
@@ -530,6 +532,7 @@ export async function ensureValidation(db: Db) {
 		[IMAGES_COLLECTION, imageSchema],
 		[JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenSchema],
 		[LOGS_COLLECTION, logSchema],
+		[OAUTH_CONSENTS_COLLECTION, oauthConsentSchema],
 		[OAUTH_FLOWS_COLLECTION, oauthFlowSchema],
 		[PAGES_COLLECTION, pageSchema],
 		[ROOM_METADATA_COLLECTION, roomMetaDataSchema],

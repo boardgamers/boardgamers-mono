@@ -12,6 +12,8 @@ import { colls } from "../config/db.ts";
  * Lifecycle per flow kind (all single-use, all TTL-expired):
  *  - `oauth-state`    createOAuthState → verifyOAuthState (deletes)
  *  - `pending-signup` createPendingSignup → takePendingSignup (deletes)
+ *  - `oauth-code`     createOAuthCode → redeemOAuthCode (deletes) — OAuth2/OIDC
+ *    provider authorization codes (issue #76)
  */
 
 const randomHandle = () => crypto.randomBytes(24).toString("base64url");
@@ -48,6 +50,26 @@ export async function createPendingSignup(entry: Omit<PendingSignup, "kind" | "_
 export async function takePendingSignup(ticket: string): Promise<Omit<PendingSignup, "kind" | "_id"> | undefined> {
 	const doc = await colls.oauthFlows.findOneAndDelete({ _id: ticket, kind: "pending-signup" });
 	if (!doc || doc.kind !== "pending-signup" || doc.expiresAt.getTime() <= Date.now()) {
+		return undefined;
+	}
+	return doc;
+}
+
+export type OAuthCode = OAuthFlowDoc & { kind: "oauth-code" };
+
+export async function createOAuthCode(entry: Omit<OAuthCode, "kind" | "_id">): Promise<string> {
+	const code = randomHandle();
+	await colls.oauthFlows.insertOne({ kind: "oauth-code", _id: code, ...entry });
+	return code;
+}
+
+/**
+ * Single-use redemption: deletes the code and returns it, or undefined when the
+ * code is unknown/expired — a replayed code fails here.
+ */
+export async function redeemOAuthCode(code: string): Promise<Omit<OAuthCode, "kind" | "_id"> | undefined> {
+	const doc = await colls.oauthFlows.findOneAndDelete({ _id: code, kind: "oauth-code" });
+	if (!doc || doc.kind !== "oauth-code" || doc.expiresAt.getTime() <= Date.now()) {
 		return undefined;
 	}
 	return doc;

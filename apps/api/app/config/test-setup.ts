@@ -8,14 +8,16 @@ import { ensureIndexes } from "@bgs/models";
 assert.strictEqual(process.env.NODE_ENV, "test");
 
 let server: Server;
-let initialized = false;
+let setupPromise: Promise<void> | null = null;
 
-export async function setup() {
-	if (initialized) {
-		return;
-	}
-	initialized = true;
+// Idempotent + re-entrant: the root test-hooks before() and any spec's own
+// before() may both call setup() concurrently; they share the one promise.
+export function setup(): Promise<void> {
+	setupPromise ??= doSetup();
+	return setupPromise;
+}
 
+async function doSetup() {
 	assert.ok(env.database.bgs.name.endsWith("-test"));
 	await initDb(env.database.bgs.url, false);
 

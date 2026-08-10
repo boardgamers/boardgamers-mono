@@ -4,6 +4,17 @@ import { z } from "zod";
 import { createOAuthState, verifyOAuthState } from "../models/oauthflows.ts";
 
 /**
+ * PKCE S256 verification, for the OAuth2/OIDC *provider* side (#76): the API
+ * verifies the client's verifier against the challenge it stored at authorize
+ * time. timingSafeEqual so the comparison doesn't leak the challenge prefix.
+ */
+export function verifyPkceS256(codeVerifier: string, codeChallenge: string): boolean {
+	const computed = crypto.createHash("sha256").update(codeVerifier, "utf8").digest();
+	const expected = Buffer.from(codeChallenge, "base64url");
+	return computed.length === expected.length && crypto.timingSafeEqual(computed, expected);
+}
+
+/**
  * Hand-rolled PKCE OAuth 2.0 for public clients (GitHub, Hugging Face).
  *
  * No passport, no client secret — just two HTTP calls and a redirect:
