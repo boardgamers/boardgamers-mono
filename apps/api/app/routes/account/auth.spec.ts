@@ -227,14 +227,16 @@ describe("Account API — PKCE authorize redirects", () => {
 
 	it("the api-mounted callback route exists (a bad code fails the handshake, not 404)", async () => {
 		// Hitting the real callback path must reach the api router. With an invalid/unknown
-		// code+state the PKCE flow fails → 303s to /login?error= (it must NOT be a 404 from
-		// an unmounted route, and must NOT crash into a 500).
+		// state the PKCE flow throws → the global error handler records it and returns
+		// the error message (it must NOT be a 404 from an unmounted route).
 		const res = await fetch(`${baseURL()}/api/account/auth/huggingface/callback?code=nope&state=nope`, {
 			redirect: "manual",
 		});
 		assert.notStrictEqual(res.status, 404, "callback route must be mounted (not 404)");
-		assert.strictEqual(res.status, 303, "failed handshake should 303 to /login, got " + res.status);
-		assert.match(res.headers.get("location") ?? "", /\/login\?error=/);
+		assert.strictEqual(res.status, 403, "invalid state → 403, got " + res.status);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const body = (await res.json()) as { message: string };
+		assert.match(body.message, /PKCE state invalid or expired/);
 	});
 
 	it("persists the PKCE state server-side in Mongo, single-use", async () => {
@@ -448,7 +450,7 @@ describe("Account API — PKCE OAuth round-trip", () => {
 		}
 	});
 
-	it("PKCE state is single-use: replaying the callback state → clean 303 to /login?error=", async () => {
+	it("PKCE state is single-use: replaying the callback state → 403 with a clear message", async () => {
 		await colls.users.insertOne(
 			testUser({
 				account: { username: "replayhf", email: "replayhf@test.com", social: { huggingface: "hf-e2e-replay" } },
@@ -465,14 +467,12 @@ describe("Account API — PKCE OAuth round-trip", () => {
 			restoreFetch();
 		}
 
-		// Replay the same state: verifyOAuthState already consumed it → fails → /login.
+		// Replay the same state: verifyOAuthState already consumed it → 403.
 		const second = await pkceCallbackReq("huggingface", state);
-		assert.strictEqual(second.status, 303);
-		assert.match(
-			second.headers.get("location") ?? "",
-			/\/login\?error=/,
-			"replayed state must bounce to /login, not 500",
-		);
+		assert.strictEqual(second.status, 403);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const body = (await second.json()) as { message: string };
+		assert.match(body.message, /PKCE state invalid or expired/);
 	});
 
 	it("an EXISTING GitHub user gets a session cookie + 303 to /account", async () => {
@@ -513,7 +513,7 @@ describe("Account API — PKCE OAuth round-trip", () => {
 		}
 	});
 
-	it("a bad token exchange → clean 303 to /login?error= (no 500)", async () => {
+	it("a bad token exchange → 502 with the provider's error message", async () => {
 		const state = await createOAuthState({ codeVerifier: "v", expiresAt: new Date(Date.now() + 60000) });
 
 		// Mock the token endpoint to return an error
@@ -526,11 +526,34 @@ describe("Account API — PKCE OAuth round-trip", () => {
 		};
 		try {
 			const res = await pkceCallbackReq("huggingface", state);
-			assert.strictEqual(res.status, 303);
-			assert.match(res.headers.get("location") ?? "", /\/login\?error=/);
+			assert.strictEqual(res.status, 502);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			const body = (await res.json()) as { message: string };
+			assert.match(body.message, /huggingface token exchange failed/);
 		} finally {
 			restoreFetch();
 		}
+	});
+
+	it("a provider error redirect (?error=access_denied) → 403 with the description", async () => {
+		const res = await fetch(
+			`${baseURL()}/api/account/auth/github/callback?error=access_denied&error_description=The+user+denied+access`,
+			{ redirect: "manual" },
+		);
+		assert.strictEqual(res.status, 403);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const body = (await res.json()) as { message: string };
+		assert.match(body.message, /github: The user denied access/);
+	});
+
+	it("a provider error redirect without description → 403 with the error code", async () => {
+		const res = await fetch(`${baseURL()}/api/account/auth/github/callback?error=server_error`, {
+			redirect: "manual",
+		});
+		assert.strictEqual(res.status, 403);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const body = (await res.json()) as { message: string };
+		assert.match(body.message, /github: server_error/);
 	});
 
 	after(() => db().dropDatabase());

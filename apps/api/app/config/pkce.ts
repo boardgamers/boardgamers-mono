@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
+import createError from "http-errors";
 import { z } from "zod";
-import { logEvent } from "@bgs/utils/log";
 import { createOAuthState, verifyOAuthState } from "../models/oauthflows.ts";
 
 /**
@@ -82,14 +82,13 @@ export async function pkceCallback(
 	redirectUri: string,
 	code: string,
 	state: string,
-): Promise<{ id: string; username?: string; profileUrl?: string } | null> {
+): Promise<{ id: string; username?: string; profileUrl?: string }> {
 	const provider = config.authorizationUrl.includes("github") ? "github" : "huggingface";
 
 	// Single-use state verification (deletes the doc).
 	const verifier = await verifyOAuthState(state);
 	if (!verifier) {
-		logEvent("warn", "pkce-state-invalid", { source: "api", provider, state });
-		return null;
+		throw createError(403, `PKCE state invalid or expired for ${provider}`);
 	}
 
 	// Exchange the authorization code for an access token (PKCE: no client_secret).
@@ -107,24 +106,16 @@ export async function pkceCallback(
 
 	if (!tokenRes.ok) {
 		const body = await tokenRes.text().catch(() => "");
-		logEvent("warn", "pkce-token-exchange-failed", {
-			source: "api",
-			provider,
-			status: tokenRes.status,
-			body: body.slice(0, 500),
-		});
-		return null;
+		throw createError(502, `${provider} token exchange failed (${tokenRes.status}): ${body.slice(0, 500)}`);
 	}
 
 	const tokenJson: unknown = await tokenRes.json();
 	const parsed = tokenResponseSchema.safeParse(tokenJson);
 	if (!parsed.success) {
-		logEvent("warn", "pkce-token-parse-failed", {
-			source: "api",
-			provider,
-			body: JSON.stringify(tokenJson).slice(0, 500),
-		});
-		return null;
+		throw createError(
+			502,
+			`${provider} token response missing access_token: ${JSON.stringify(tokenJson).slice(0, 500)}`,
+		);
 	}
 
 	// Fetch the user profile with the access token.
@@ -134,27 +125,11 @@ export async function pkceCallback(
 
 	if (!userinfoRes.ok) {
 		const body = await userinfoRes.text().catch(() => "");
-		logEvent("warn", "pkce-userinfo-failed", {
-			source: "api",
-			provider,
-			status: userinfoRes.status,
-			body: body.slice(0, 500),
-		});
-		return null;
+		throw createError(502, `${provider} userinfo failed (${userinfoRes.status}): ${body.slice(0, 500)}`);
 	}
 
 	const userinfoJson: unknown = await userinfoRes.json();
-	try {
-		return config.parseUserinfo(userinfoJson);
-	} catch (err) {
-		logEvent("warn", "pkce-userinfo-parse-failed", {
-			source: "api",
-			provider,
-			error: err instanceof Error ? err.message : String(err),
-			body: JSON.stringify(userinfoJson).slice(0, 500),
-		});
-		return null;
-	}
+	return config.parseUserinfo(userinfoJson);
 }
 
 // --- Provider configs ---
