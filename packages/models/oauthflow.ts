@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { IndexDescription } from "mongodb";
 import { zObjectId } from "./helpers.ts";
+import { oauthScopeSchema } from "./oauthconsent.ts";
 
 /**
  * Server-side state for an in-flight OAuth flow: the social-login PKCE handshake,
@@ -44,7 +45,7 @@ export const oauthFlowSchema = z.discriminatedUnion("kind", [
 		/** Stored to re-check at token redemption (mix-up defense). */
 		redirectUri: z.string(),
 		user: zObjectId(),
-		scopes: z.array(z.string()),
+		scopes: z.array(oauthScopeSchema),
 		codeChallenge: z.string(),
 		codeChallengeMethod: z.literal("S256"),
 		expiresAt: z.date(),

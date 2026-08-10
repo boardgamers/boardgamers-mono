@@ -56,8 +56,13 @@ export type { OAuthFlowDoc } from "./oauthflow.ts";
 export { oauthFlowSchema, OAUTH_FLOWS_COLLECTION, oauthFlowIndexes } from "./oauthflow.ts";
 
 // --- OAuth Consent (recorded user consent for OAuth2/OIDC clients) ---
-export type { OAuthConsentDoc } from "./oauthconsent.ts";
-export { oauthConsentSchema, OAUTH_CONSENTS_COLLECTION, oauthConsentIndexes } from "./oauthconsent.ts";
+export type { OAuthConsentDoc, OAuthScope } from "./oauthconsent.ts";
+export {
+	oauthConsentSchema,
+	oauthScopeSchema,
+	OAUTH_CONSENTS_COLLECTION,
+	oauthConsentIndexes,
+} from "./oauthconsent.ts";
 
 // --- Log ---
 export type { LogDoc, LogFront } from "./log.ts";

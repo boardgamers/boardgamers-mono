@@ -4,7 +4,7 @@ import Router from "koa-router";
 import { z } from "zod";
 import jwt from "jsonwebtoken";
 import { ObjectId, type WithId } from "mongodb";
-import type { UserDoc } from "@bgs/models";
+import type { OAuthScope, UserDoc } from "@bgs/models";
 import { colls } from "../../config/db.ts";
 import { env } from "../../config/index.ts";
 import { verifyPkceS256 } from "../../config/pkce.ts";
@@ -28,7 +28,7 @@ import { getClientMetadata, isRegisteredRedirectUri } from "../../services/cimd.
 const CODE_TTL_MS = 10 * 60 * 1000;
 
 /** Scopes a CIMD client may request. */
-const SUPPORTED_SCOPES = ["openid", "profile", "email"];
+const SUPPORTED_SCOPES: OAuthScope[] = ["openid", "profile", "email", "role"];
 
 // Scope minted into OAuth access tokens. Never "all": the app bearer middleware
 // only authenticates scope-"all" tokens as users, so a leaked OAuth token can't
@@ -36,16 +36,20 @@ const SUPPORTED_SCOPES = ["openid", "profile", "email"];
 // access token can't be replayed against userinfo either.
 const OAUTH_TOKEN_SCOPE = "oauth";
 
-function parseScopes(scope: string): string[] {
+function parseScopes(scope: string): OAuthScope[] {
 	const scopes = [...new Set(scope.split(/\s+/).filter(Boolean))];
 	if (!scopes.includes("openid")) {
 		throw createError(400, 'invalid_scope: the "openid" scope is required');
 	}
-	const unsupported = scopes.filter((s) => !SUPPORTED_SCOPES.includes(s));
+	const unsupported = scopes.filter(
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- membership test IS the validation
+		(s) => !SUPPORTED_SCOPES.includes(s as OAuthScope),
+	);
 	if (unsupported.length > 0) {
 		throw createError(400, `invalid_scope: unsupported scope(s): ${unsupported.join(", ")}`);
 	}
-	return scopes;
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- every element was validated against SUPPORTED_SCOPES above
+	return scopes as OAuthScope[];
 }
 
 // client_id/redirect_uri stay bare strings here: their real validation is the
@@ -89,7 +93,12 @@ function redirectToWeb(ctx: Context, path: string) {
 	ctx.redirect(`${env.webAppUrl}${path}`);
 }
 
-async function issueCodeAndRedirect(ctx: Context, params: AuthorizeParams, user: WithId<UserDoc>, scopes: string[]) {
+async function issueCodeAndRedirect(
+	ctx: Context,
+	params: AuthorizeParams,
+	user: WithId<UserDoc>,
+	scopes: OAuthScope[],
+) {
 	const code = await createOAuthCode({
 		clientId: params.client_id,
 		redirectUri: params.redirect_uri,
@@ -250,7 +259,7 @@ router.post("/token", async (ctx) => {
 	// Not user.isAdmin on purpose: the OAuth token is an identity credential for
 	// third-party clients, not an admin credential — keep admin gating on the
 	// session-token family (the admin UI never accepts oauth-scoped tokens anyway).
-	const accessToken = await createAccessToken({ user: user._id }, [OAUTH_TOKEN_SCOPE], false);
+	const accessToken = await createAccessToken({ user: user._id }, [OAUTH_TOKEN_SCOPE, ...code.scopes], false);
 	const idToken = signIdToken(user, body.client_id, code.scopes);
 
 	ctx.set("Cache-Control", "no-store");
@@ -265,7 +274,7 @@ router.post("/token", async (ctx) => {
 });
 
 /** OIDC ID token: same signing key/algorithm as the rest of the API (RS256 in prod, HS256 in dev). */
-function signIdToken(user: WithId<UserDoc>, clientId: string, scopes: string[]) {
+function signIdToken(user: WithId<UserDoc>, clientId: string, scopes: OAuthScope[]) {
 	const nowS = Math.floor(Date.now() / 1000);
 	const claims: Record<string, unknown> = {
 		iss: env.oauth2.issuer,
@@ -286,6 +295,11 @@ function signIdToken(user: WithId<UserDoc>, clientId: string, scopes: string[]) 
 		// proven address.
 		claims.email_verified = true;
 	}
+	// Role signal for first-party tooling (Grafana role mapping), NOT an
+	// admin grant: admin API access stays gated on the session-token family.
+	if (scopes.includes("role") && user.authority) {
+		claims.authority = user.authority;
+	}
 	return jwt.sign(claims, env.jwt.keys.private, { algorithm: env.jwt.algorithm });
 }
 
@@ -298,6 +312,7 @@ router.get("/userinfo", async (ctx) => {
 	}
 
 	let userId: string;
+	let scopes: string[];
 	try {
 		const decoded = jwt.verify(token, env.jwt.keys.public, { algorithms: [env.jwt.algorithm] });
 		const payload = z.object({ userId: z.string(), scopes: z.array(z.string()) }).parse(decoded);
@@ -306,6 +321,7 @@ router.get("/userinfo", async (ctx) => {
 			throw new Error("wrong token scope");
 		}
 		userId = payload.userId;
+		scopes = payload.scopes;
 	} catch {
 		ctx.set("WWW-Authenticate", 'Bearer realm="userinfo", error="invalid_token"');
 		throw createError(401, "invalid access token");
@@ -333,6 +349,12 @@ router.get("/userinfo", async (ctx) => {
 					email_verified: true,
 				}
 			: {}),
+		// Role signal for first-party tooling (Grafana role_attribute_path), NOT an
+		// admin grant: admin API access stays gated on the session-token family.
+		// The grant's scopes ride the access token (minted at /token) so userinfo
+		// gates the claim on them, like signIdToken does. Regular users have no
+		// authority field (migration 1.4.2 $unset the legacy "user" placeholder).
+		...(scopes.includes("role") && user.authority ? { authority: user.authority } : {}),
 		picture: `${env.oauth2.issuer}/api/user/${user._id.toString()}/avatar`,
 	};
 });
@@ -366,7 +388,7 @@ export function openidConfiguration() {
 		token_endpoint_auth_methods_supported: ["none"],
 		subject_types_supported: ["public"],
 		id_token_signing_alg_values_supported: [env.jwt.algorithm],
-		claims_supported: ["sub", "id", "preferred_username", "name", "email", "email_verified", "picture"],
+		claims_supported: ["sub", "id", "preferred_username", "name", "email", "email_verified", "picture", "authority"],
 		// §6: signal CIMD support (current draft name — the older
 		// "client_id_metadata_supported" is from an outdated draft revision).
 		client_id_metadata_document_supported: true,

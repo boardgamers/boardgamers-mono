@@ -1,4 +1,5 @@
 import type { ObjectId } from "mongodb";
+import type { OAuthScope } from "@bgs/models";
 import { colls } from "../config/db.ts";
 
 /**
@@ -7,7 +8,7 @@ import { colls } from "../config/db.ts";
  */
 
 /** Record (or refresh) the user's consent for a client. Returns the stored doc. */
-export async function recordConsent(userId: ObjectId, clientId: string, scopes: string[]) {
+export async function recordConsent(userId: ObjectId, clientId: string, scopes: OAuthScope[]) {
 	const doc = {
 		userId,
 		clientId,
@@ -27,8 +28,8 @@ export async function recordConsent(userId: ObjectId, clientId: string, scopes: 
 export async function missingConsentScopes(
 	userId: ObjectId,
 	clientId: string,
-	scopes: string[],
-): Promise<string[] | null> {
+	scopes: OAuthScope[],
+): Promise<OAuthScope[] | null> {
 	const consent = await colls.oauthConsents.findOne({ userId, clientId });
 	if (consent?.trusted) {
 		return null;
