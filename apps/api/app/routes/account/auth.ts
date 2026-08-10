@@ -132,9 +132,12 @@ async function pkceCallbackHandler(ctx: Context, next: Next, provider: "github" 
 	const config = provider === "github" ? githubConfig : huggingfaceConfig;
 	const clientId =
 		provider === "github" ? env.social.github.id : `${ctx.protocol}://${ctx.host}/.well-known/oauth-cimd`;
+	// GitHub OAuth Apps are confidential clients: they require client_secret even
+	// with PKCE. HF CIMD apps are public clients and must NOT send one.
+	const clientSecret = provider === "github" ? env.social.github.secret : undefined;
 	const redirectUri = socialCallbackUrl(ctx, provider);
 
-	const profile = await pkceCallback(config, clientId, redirectUri, query.code, query.state);
+	const profile = await pkceCallback(config, clientId, redirectUri, query.code, query.state, clientSecret);
 	// Reuse the same link-or-create logic as the passport strategies.
 	const user = await verifySocialProfile(provider, { user: ctx.state.user }, profile);
 	ctx.state.user = user;
