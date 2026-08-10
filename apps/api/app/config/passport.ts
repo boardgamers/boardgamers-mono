@@ -8,17 +8,11 @@ import { Strategy as DiscordStrategy } from "passport-discord";
 import { Strategy as FacebookStrategy } from "passport-facebook";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as LocalStrategy } from "passport-local";
-// GitHub and Hugging Face both run on the generic OAuth2 strategy: GitHub implements
-// plain OAuth2 (its userinfo is https://api.github.com/user), and no maintained
-// passport-huggingface package exists (HF implements plain OAuth2/OIDC). Crucially,
-// passport-github2 has no PKCE support while passport-oauth2 >= 1.7 does — both
-// providers are configured as PKCE public clients below.
-import { Strategy as OAuth2Strategy } from "passport-oauth2";
 import { z } from "zod";
 import type { UserDoc } from "@bgs/models";
 import type { WithId } from "mongodb";
 import { colls } from "./db.ts";
-import { createOAuthState, takePendingSignup, verifyOAuthState } from "../models/oauthflows.ts";
+import { takePendingSignup } from "../models/oauthflows.ts";
 
 // Burn a pending-signup ticket (single-use, Mongo — models/oauthflows.ts) into the
 // payload the social-signup strategy consumes.
@@ -271,47 +265,19 @@ passport.use(
 	),
 );
 
-// The social providers (Hugging Face no longer lives in env.social — it uses CIMD, no
-// env/registration at all; see the huggingface block below).
+// The social providers. GitHub and Hugging Face use hand-rolled PKCE (config/pkce.ts)
+// and are NOT registered as passport strategies.
 type SocialProvider = "discord" | "google" | "facebook" | "github" | "huggingface";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SocialStrategyCtor<T extends Strategy> = new (options: any, verify: any) => T;
 
 // Passport profile shape is a superset; we only ever read these fields. `username` /
-// `profileUrl` are optional because not every provider supplies them (HF supplies neither,
-// so its strategy fills them in from the userinfo payload — see its userProfile override).
-type SocialProfile = {
+// `profileUrl` are optional because not every provider supplies them.
+export type SocialProfile = {
 	id: string;
 	username?: string;
 	profileUrl?: string;
-};
-
-// Extra strategy constructor options for GitHub (on the generic OAuth2 strategy, which
-// requires its endpoints at construction). Hugging Face is configured separately in its
-// own per-origin CIMD factory below.
-const extraStrategyOptions: Partial<Record<SocialProvider, Record<string, unknown>>> = {
-	github: {
-		authorizationURL: "https://github.com/login/oauth/authorize",
-		tokenURL: "https://github.com/login/oauth/access_token",
-		// PKCE public client (passport-oauth2 >= 1.7): S256 code challenge, no client
-		// secret needed. `state: true` is required by passport-oauth2 when pkce is on
-		// (it stores the code verifier against a CSRF state handle).
-		pkce: true,
-		state: true,
-		scope: ["read:user"],
-		// passport-github2's default is `skipUserProfile: false` + an email fallback
-		// request; keep parity: profile comes straight from https://api.github.com/user
-		// (the userProfile override below), no extra /user/emails call.
-		skipUserProfile: false,
-	},
-};
-
-// Providers using a PKCE public client may omit the client secret entirely.
-// (Hugging Face is CIMD — always a public PKCE client, never a secret — and is built
-// in its own factory, so it isn't listed here.)
-const secretOptional: Partial<Record<SocialProvider, true>> = {
-	github: true,
 };
 
 // Default public profile URL per provider, for providers whose passport profile lacks
@@ -330,27 +296,21 @@ function socialMetaOf(provider: SocialProvider, profile: SocialProfile) {
 }
 
 function makeSocialStrategy<T extends Strategy>(
-	provider: Exclude<SocialProvider, "huggingface">,
+	provider: Exclude<SocialProvider, "huggingface" | "github">,
 	SocialStrategy: SocialStrategyCtor<T>,
 ) {
 	const { id, secret } = env.social[provider];
-	assert(
-		secret || secretOptional[provider],
-		`${provider} OAuth secret is required (or the provider must opt into PKCE)`,
-	);
 	passport.use(
 		provider,
 		new SocialStrategy(
 			{
 				clientID: id,
-				// PKCE public clients (github) pass no secret; confidential clients require one.
 				clientSecret: secret,
 				passReqToCallback: true,
 				// The api serves the callback at /api/account/auth/<provider>/callback
 				// (router mounted /api/account → /auth). nginx routes only /api/* to the api;
 				// a bare /auth/... hits the web SPA and 404s.
 				callbackURL: `https://${env.site}/api/account/auth/${provider}/callback`,
-				...extraStrategyOptions[provider],
 			},
 			function (
 				req: { user?: WithId<UserDoc> },
@@ -365,11 +325,11 @@ function makeSocialStrategy<T extends Strategy>(
 	);
 }
 
-// Link-or-create logic shared by every social strategy (makeSocialStrategy's verify
-// callback and Hugging Face's per-origin CIMD strategy). Resolves the OAuth profile to
-// an existing user, links to the logged-in user, or yields a createSocialAccount
-// feedback object for the signup flow.
-async function verifySocialProfile(
+// Link-or-create logic shared by every social login (passport strategies for
+// discord/google/facebook, hand-rolled PKCE for github/huggingface). Resolves the
+// OAuth profile to an existing user, links to the logged-in user, or yields a
+// createSocialAccount feedback object for the signup flow.
+export async function verifySocialProfile(
 	provider: SocialProvider,
 	req: { user?: WithId<UserDoc> },
 	profile: SocialProfile,
@@ -421,177 +381,3 @@ async function verifySocialProfile(
 makeSocialStrategy("discord", DiscordStrategy);
 makeSocialStrategy("google", GoogleStrategy);
 makeSocialStrategy("facebook", FacebookStrategy);
-makeSocialStrategy("github", OAuth2Strategy);
-// Hugging Face is NOT registered here: it uses CIMD with a per-origin client_id (the
-// env's own /.well-known/oauth-cimd URL), so strategies are built lazily per origin —
-// see huggingfaceStrategy() below.
-
-type OAuth2StrategyInstance = InstanceType<typeof OAuth2Strategy>;
-type OAuth2Internals = {
-	_oauth2: { useAuthorizationHeaderforGET(v: boolean): void };
-	userProfile: (accessToken: string, done: (err?: unknown, profile?: unknown) => void) => void;
-};
-
-// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- koa-passport types don't expose _strategy
-const strategyOf = (name: SocialProvider) =>
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- strategy internals
-	(passport as unknown as { _strategy(n: string): unknown })._strategy(name) as OAuth2StrategyInstance &
-		OAuth2Internals;
-
-// The default PKCE state store keeps the code verifier in `req.session`, which this app
-// doesn't have. This store keeps the same CSRF model (random handle in the OAuth `state`
-// param, verified on callback) but persists server-side in Mongo (models/oauthflows.ts).
-// Why not an httpOnly cookie instead? The verifier is a bearer secret: server-side it
-// never enters the browser at all, while a cookie travels with every request; deletion
-// on first callback makes it genuinely single-use server-side (a cookie clears only when
-// the response reaches the browser); and it survives restarts / works across PM2 workers
-// with no sticky routing. The collection also backs the pending-signup ticket, which is
-// redeemed on the web origin after the callback — that one can't be a cookie regardless.
-// Shared by every PKCE strategy.
-const STATE_TTL_MS = 15 * 60 * 1000;
-
-const mongoStateStore = {
-	store(req: unknown, verifier: string, _state: unknown, _meta: unknown, cb: (err: unknown, handle?: string) => void) {
-		createOAuthState({
-			codeVerifier: verifier,
-			expiresAt: new Date(Date.now() + STATE_TTL_MS),
-		}).then((handle) => cb(null, handle), cb);
-	},
-	// passport-oauth2 branches on arity: 4 params → meta variant, which treats the 3rd
-	// callback arg as the info object passed to fail() — not our state payload. Declare 3.
-	// Single-use: an unknown/expired `state` handle fails verification.
-	verify(req: unknown, handle: string, cb: (err: unknown, ok?: unknown) => void) {
-		verifyOAuthState(handle).then((ok) => cb(null, ok), cb);
-	},
-};
-
-// GitHub userinfo: https://api.github.com/user (token in the Authorization header).
-{
-	const strategy = strategyOf("github");
-	strategy._oauth2.useAuthorizationHeaderforGET(true);
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- strategy internals
-	(strategy as unknown as Record<"_stateStore", unknown>)._stateStore = mongoStateStore;
-	strategy.userProfile = function (accessToken, done) {
-		this._oauth2.get("https://api.github.com/user", accessToken, (err, body) => {
-			if (err) {
-				done(err);
-				return;
-			}
-			try {
-				const json = z
-					.object({
-						id: z.union([z.string(), z.number()]).transform(String),
-						login: z.string().optional(),
-						html_url: z.string().optional(),
-					})
-					.parse(JSON.parse(typeof body === "string" ? body : "{}"));
-				done(null, { id: json.id, username: json.login, profileUrl: json.html_url });
-			} catch (e) {
-				done(e);
-			}
-		});
-	};
-}
-
-// ---------------------------------------------------------------------------
-// Hugging Face via CIMD (Client ID Metadata Documents)
-//
-// CIMD is the elegant part of this login, not a workaround: HF advertises
-// `client_id_metadata_document_supported: true`, so instead of a pre-registered
-// OAuth app the client_id is the env's OWN `/.well-known/oauth-cimd` URL (served
-// by the web app), which HF fetches+validates. CIMD mandates a public PKCE client
-// (token_endpoint_auth_method "none") — no secret, no env, no registered redirect:
-// each origin's doc names its own /auth/huggingface/callback, so prod AND every PR
-// preview log in directly (no prod relay). Only constraint: the CIMD endpoint must
-// be publicly reachable over HTTPS at `https://<host>/.well-known/oauth-cimd` (it
-// is — nginx routes the public origin to the web app).
-//
-// Because the client_id is per-origin and passport bakes it into the strategy,
-// strategies are built lazily and cached per origin. The other providers
-// (google/discord/facebook/github) have no CIMD support — they keep their
-// pre-registered apps with prod's fixed callback, so on preview envs their social
-// login simply isn't wired up.
-// ---------------------------------------------------------------------------
-const hfStrategies = new Map<string, OAuth2StrategyInstance>();
-
-function buildHuggingFaceStrategy(origin: string): OAuth2StrategyInstance {
-	const strategy = new OAuth2Strategy(
-		{
-			authorizationURL: "https://huggingface.co/oauth/authorize",
-			tokenURL: "https://huggingface.co/oauth/token",
-			clientID: `${origin}/.well-known/oauth-cimd`,
-			// CIMD public client: no secret (token_endpoint_auth_method "none").
-			// @types/passport-oauth2 marks clientSecret required; undefined is correct at runtime.
-			// oxlint-disable-next-line typescript/no-unsafe-type-assertion
-			clientSecret: undefined as unknown as string,
-			pkce: true,
-			state: true,
-			scope: ["openid", "profile"],
-			passReqToCallback: true,
-		},
-		// @ts-expect-error -- our verify takes a minimal { user? } req (koa-passport's mock),
-		// not express' full Request; structurally incompatible with the declared VerifyFunction.
-		hfVerify,
-	) as OAuth2StrategyInstance & OAuth2Internals;
-	strategy._oauth2.useAuthorizationHeaderforGET(true);
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- strategy internals
-	(strategy as unknown as Record<"_stateStore", unknown>)._stateStore = mongoStateStore;
-	strategy.userProfile = function (accessToken, done) {
-		this._oauth2.get("https://huggingface.co/oauth/userinfo", accessToken, (err, body) => {
-			if (err) {
-				done(err);
-				return;
-			}
-			try {
-				const json = z
-					.object({
-						sub: z.union([z.string(), z.number()]).transform(String),
-						preferred_username: z.string().optional(),
-					})
-					.parse(JSON.parse(typeof body === "string" ? body : "{}"));
-				done(null, {
-					id: json.sub,
-					username: json.preferred_username,
-					profileUrl: json.preferred_username ? `https://huggingface.co/${json.preferred_username}` : undefined,
-				});
-			} catch (e) {
-				done(e);
-			}
-		});
-	};
-	return strategy;
-}
-
-/** The shared HF verify callback (link-or-create). Same logic as makeSocialStrategy's. */
-function hfVerify(
-	req: { user?: WithId<UserDoc> },
-	_token: string,
-	_tokenSecret: string,
-	profile: SocialProfile,
-	done: (err: unknown, user?: unknown) => void,
-): void {
-	void verifySocialProfile("huggingface", req, profile).then((user) => done(null, user), done);
-}
-
-/**
- * The Hugging Face strategy for a given request origin (its client_id is that origin's
- * CIMD URL). Used by routes/account/auth.ts via passport.authenticate(strategy, …).
- */
-export function huggingfaceStrategy(origin: string): OAuth2StrategyInstance {
-	let strategy = hfStrategies.get(origin);
-	if (!strategy) {
-		strategy = buildHuggingFaceStrategy(origin);
-		hfStrategies.set(origin, strategy);
-	}
-	return strategy;
-}
-
-// The public origin the browser is talking to (the web app shares the API's origin via
-// the vite proxy in dev / nginx in prod). koa-passport's req mock exposes `protocol` and
-// `headers` but not `host`, so rebuild the origin from those. This origin determines the
-// CIMD client_id (and must match the web page's origin that serves the CIMD doc).
-export function requestOrigin(req: unknown): string {
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- koa-passport req mock
-	const r = req as { protocol?: string; headers?: { host?: string } };
-	return `${r.protocol}://${r.headers?.host}`;
-}
