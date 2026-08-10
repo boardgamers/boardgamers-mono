@@ -171,7 +171,8 @@ passport.use(
 				const socialMeta = decoded.socialMeta ? { [decoded.provider]: decoded.socialMeta } : undefined;
 				const newUserDoc: UserDoc = makeDefaultUser({
 					username,
-					email: "",
+					// No email: providers may return none, and account.email must stay ABSENT
+					// (never "") so the unique sparse index doesn't collide on "" (E11000).
 					slug,
 					password: "",
 					confirmKey: "",

@@ -16,7 +16,7 @@ const secureId = () => crypto.randomBytes(32).toString("base64url");
 
 export function makeDefaultUser(params: {
 	username: string;
-	email: string;
+	email?: string;
 	slug: string;
 	password: string;
 	confirmKey: string;
@@ -29,7 +29,11 @@ export function makeDefaultUser(params: {
 	return {
 		account: {
 			username: params.username,
-			email: params.email,
+			// Omit `email` when there is none (social signup without a provider email): the
+			// unique sparse index on account.email only skips docs where the field is
+			// ABSENT — a stored "" is indexed, so a second no-email signup collides
+			// (E11000). Also, the driver serializes `undefined` as null.
+			...(params.email ? { email: params.email } : {}),
 			password: params.password,
 			karma: defaultKarma,
 			termsAndConditions: now,

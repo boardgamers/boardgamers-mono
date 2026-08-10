@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, describe, it } from "node:test";
 import { colls, db } from "../config/db.ts";
 import { testUser } from "../config/test-helpers.ts";
+import { migration as unsetEmptyUserEmails } from "./migrations/1.4.1-unset-empty-user-emails.ts";
 import { confirm, generateResetLink, hashUserSecret, validateResetKey } from "./user.ts";
 
 // Regression: makeDefaultUser used to hardcode social: { google: "", facebook: "", discord: "", github: "" }
@@ -12,6 +13,28 @@ describe("makeDefaultUser", () => {
 	it("lets two users with no connected social account coexist", async () => {
 		const { insertedCount } = await colls.users.insertMany([testUser(), testUser()]);
 		assert.strictEqual(insertedCount, 2);
+	});
+
+	it("lets two users with NO email coexist (no E11000 on the sparse account.email index)", async () => {
+		// delete, not `email: undefined`: the driver serializes an explicit undefined as
+		// null, and the sparse index indexes null — only an ABSENT field is skipped.
+		// (This is how a social signup with no provider email builds its doc.)
+		const noEmail = [testUser(), testUser()];
+		for (const user of noEmail) {
+			delete user.account.email;
+		}
+		const { insertedCount } = await colls.users.insertMany(noEmail);
+		assert.strictEqual(insertedCount, 2);
+
+		// The collection is NOT empty here (earlier tests in this describe added users)
+		// and after() only runs at the end — filter to the docs this test inserted.
+		const users = await colls.users
+			.find({ "account.username": { $in: noEmail.map((u) => u.account.username) } })
+			.toArray();
+		assert.strictEqual(users.length, 2);
+		for (const user of users) {
+			assert.ok(!("email" in user.account), 'account.email must be absent, not "" or null');
+		}
 	});
 
 	it("lets a social account be linked later ($set on account.social.<provider>)", async () => {
@@ -34,6 +57,22 @@ describe("makeDefaultUser", () => {
 				);
 			}
 		}
+	});
+
+	it("migration 1.4.1 $unsets legacy empty-string emails and leaves real ones alone", async () => {
+		const legacy = testUser();
+		delete legacy.account.email;
+		legacy.account.email = "";
+		const { insertedId: emptyId } = await colls.users.insertOne(legacy);
+		const { insertedId: realId } = await colls.users.insertOne(testUser({ account: { email: "real@test.com" } }));
+
+		await unsetEmptyUserEmails.up();
+
+		const cleaned = await colls.users.findOne({ _id: emptyId });
+		assert.ok(cleaned);
+		assert.ok(!("email" in cleaned.account), 'the "" email must be $unset');
+		const untouched = await colls.users.findOne({ _id: realId });
+		assert.strictEqual(untouched?.account.email, "real@test.com");
 	});
 
 	it("stores only whitelisted display fields in account.socialMeta", async () => {

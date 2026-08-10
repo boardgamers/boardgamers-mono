@@ -7,6 +7,7 @@ import { migration as recalculateUserKarma } from "./1.2.0-recalculate-user-karm
 import { migration as addCurrentPlayers } from "./1.3.0-add-current-players.ts";
 import { migration as addUserSlugs } from "./1.3.1-add-user-slugs.ts";
 import { migration as hashRefreshTokenCodes } from "./1.4.0-hash-refresh-token-codes.ts";
+import { migration as unsetEmptyUserEmails } from "./1.4.1-unset-empty-user-emails.ts";
 
 export type Migration = {
 	up(): Promise<void>;
@@ -21,6 +22,7 @@ const migrationMap: Record<string, Migration> = {
 	"1.3.0": addCurrentPlayers,
 	"1.3.1": addUserSlugs,
 	"1.4.0": hashRefreshTokenCodes,
+	"1.4.1": unsetEmptyUserEmails,
 };
 
 export const migrations: [string, Migration][] = Object.entries(migrationMap).sort(([a], [b]) => semver.compare(a, b));
