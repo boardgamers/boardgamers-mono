@@ -22,17 +22,22 @@ const setOptions = () => ({
 	domain: env.isProduction ? env.domain : undefined,
 });
 
+// Social signups (#211) can have no email: omit the claim entirely rather than
+// signing `email: undefined` into the JWT.
+function ssoPayload(user: WithId<UserDoc>) {
+	return {
+		id: user._id.toString(),
+		username: user.account.username,
+		...(user.account.email ? { email: user.account.email } : {}),
+	};
+}
+
 /** Set the forum SSO cookie (fresh 1h JWT). Also re-signs when the payload changed. */
 export function setForumSsoCookie(ctx: Context, user: WithId<UserDoc>) {
-	const token = jwt.sign(
-		{
-			id: user._id.toString(),
-			username: user.account.username,
-			email: user.account.email,
-		},
-		env.jwt.keys.private,
-		{ expiresIn: FORUM_SSO_TOKEN_DURATION_S, algorithm: env.jwt.algorithm },
-	);
+	const token = jwt.sign(ssoPayload(user), env.jwt.keys.private, {
+		expiresIn: FORUM_SSO_TOKEN_DURATION_S,
+		algorithm: env.jwt.algorithm,
+	});
 	ctx.cookies.set(FORUM_SSO_COOKIE, token, setOptions());
 }
 
@@ -47,11 +52,7 @@ export function reissueForumSsoCookieIfNeeded(
 	user: WithId<UserDoc>,
 	nowS = Math.floor(Date.now() / 1000),
 ) {
-	const payload = {
-		id: user._id.toString(),
-		username: user.account.username,
-		email: user.account.email,
-	};
+	const payload = ssoPayload(user);
 
 	const raw = ctx.cookies.get(FORUM_SSO_COOKIE);
 	if (raw) {
