@@ -52,6 +52,28 @@ services:
       # Current password is stored out-of-band at /home/bgs/.grafana-admin-password (chmod 600).
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
+      # OAuth (OIDC via www.boardgamers.space, CIMD + PKCE — no real client secret) is the
+      # login. Role comes from the `authority` claim (JMESPath below), which requires the
+      # API authority-claim PR deployed on www.boardgamers.space first. nginx serves the
+      # client metadata at /client-metadata.json (see infra/loki/grafana.boardgamers.space).
+      - GF_SERVER_ROOT_URL=https://grafana.boardgamers.space
+      - GF_AUTH_GENERIC_OAUTH_ENABLED=true
+      - GF_AUTH_GENERIC_OAUTH_NAME=Boardgamers
+      - GF_AUTH_GENERIC_OAUTH_CLIENT_ID=https://grafana.boardgamers.space/client-metadata.json
+      - GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET=unused
+      - GF_AUTH_GENERIC_OAUTH_USE_PKCE=true
+      - GF_AUTH_GENERIC_OAUTH_AUTH_URL=https://www.boardgamers.space/api/oauth2/authorize
+      - GF_AUTH_GENERIC_OAUTH_TOKEN_URL=https://www.boardgamers.space/api/oauth2/token
+      - GF_AUTH_GENERIC_OAUTH_API_URL=https://www.boardgamers.space/api/oauth2/userinfo
+      - GF_AUTH_GENERIC_OAUTH_SCOPES=openid profile email role
+      - GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH=sub
+      # JMESPath — keep exact. No mapped role (non-admin) => login denied (strict below).
+      - GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=authority == 'admin' && 'GrafanaAdmin' || 'Viewer'
+      - GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN=true
+      - GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_STRICT=true
+      # TODO: enable once OAuth login is confirmed working — removes the password form.
+      # The admin/password envs above stay as an emergency backdoor (reset via grafana-cli).
+      # - GF_AUTH_DISABLE_LOGIN_FORM=true
     depends_on:
       - loki
 
