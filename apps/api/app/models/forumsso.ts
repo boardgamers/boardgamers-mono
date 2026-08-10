@@ -17,7 +17,8 @@ const REISSUE_THRESHOLD_S = FORUM_SSO_TOKEN_DURATION_S / 2;
 
 const setOptions = () => ({
 	httpOnly: true,
-	sameSite: true as const,
+	// Lax (not Strict): same reason as the session cookie — see session.ts.
+	sameSite: "lax" as const,
 	domain: env.isProduction ? env.domain : undefined,
 });
 

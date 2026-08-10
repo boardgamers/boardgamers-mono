@@ -120,7 +120,12 @@ export function setRefreshCookie(ctx: Context, code: string, trigger: "sliding-s
 		httpOnly: true,
 		expires: new Date(expiresAt),
 		secure: !local,
-		sameSite: true,
+		// Lax (not Strict): the OAuth callback sets this cookie mid-redirect-chain from
+		// the provider's origin, and browsers treat the follow-up navigation to /account
+		// as cross-site-initiated — Strict withholds the cookie on that first same-site
+		// hop, so the SSR sees an anonymous user and bounces to /login. Lax still blocks
+		// cross-site subrequests (fetch/XHR/iframe), only top-level navigations are allowed.
+		sameSite: "lax",
 		domain: local ? undefined : env.domain,
 	});
 }
