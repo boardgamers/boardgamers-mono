@@ -125,6 +125,14 @@ export const handleFetch: HandleFetch = async ({ request, fetch, event }) => {
 				request.headers.set("x-forwarded-for", existing ? `${existing}, ${ctx.clientIp}` : ctx.clientIp);
 			}
 		}
+
+		// Tell the api the protocol of the browser→web hop (https in prod). The SSR hop
+		// itself is plain http on loopback, so without this the api (app.proxy = true)
+		// computes ctx.secure === false and its sliding-session middleware throws
+		// "Cannot send secure cookie over unencrypted connection" (secure-cookie-over-insecure).
+		// event.url.protocol — not an inbound x-forwarded-proto header — is the value the
+		// node adapter already resolved from nginx for the browser connection.
+		request.headers.set("x-forwarded-proto", event.url.protocol.replace(/:$/, ""));
 	}
 
 	const response = await fetch(request);
