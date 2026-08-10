@@ -7,6 +7,7 @@ export type ConsentInfo = {
 	clientId: string;
 	clientName: string;
 	clientHost: string;
+	logoUri?: string;
 	scopes: string[];
 };
 

@@ -161,6 +161,8 @@ router.get("/consent", async (ctx) => {
 		clientId: params.client_id,
 		clientName: metadata.client_name,
 		clientHost: new URL(params.client_id).host,
+		// Guaranteed https (or absent) by the CIMD document schema — safe to render.
+		...(metadata.logo_uri ? { logoUri: metadata.logo_uri } : {}),
 		scopes,
 	};
 });
