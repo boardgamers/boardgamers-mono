@@ -1,6 +1,7 @@
 node_modules
 .env
 .env.*
+!.env.example
 dist
 pnpm-debug.log*
 .pnpm-store

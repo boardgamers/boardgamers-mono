@@ -169,6 +169,21 @@ describe("shareImageResponse S3 cache", () => {
 		expect(Buffer.from(send.mock.calls[1][0].input.Body).length).toBeGreaterThan(0);
 	});
 
+	it("passes a fail-fast abort signal to S3 calls (bounds crawler-facing latency)", async () => {
+		enableS3(send);
+		send.mockRejectedValueOnce(Object.assign(new Error("nope"), { name: "NoSuchKey" })).mockResolvedValueOnce({});
+
+		await shareImageResponse(path, etag, null);
+
+		// Every S3 send carries a ~3s AbortSignal.timeout so a slow store fails into
+		// the render path quickly instead of tailing on a crawler request.
+		for (const call of send.mock.calls) {
+			const signal = call[1]?.abortSignal;
+			expect(signal).toBeInstanceOf(AbortSignal);
+			expect(signal.aborted).toBe(false);
+		}
+	});
+
 	it("serves the stored object on a hit without rendering", async () => {
 		enableS3(send);
 		const stored = Buffer.from("cached-webp");

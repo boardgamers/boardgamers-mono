@@ -185,11 +185,18 @@ function client(): S3Client {
 	return s3Client;
 }
 
+// Bound S3 latency: a slow/flaky store must fail fast into the render path rather than
+// add multi-second tail latency to crawler-facing OG requests. Errors already fall back
+// to rendering; this just caps how long we wait.
+const S3_TIMEOUT_MS = 3000;
+
 // Stored webp for this key, or null on a miss. S3 failures are logged and treated as a
 // miss — the cache must never break a request.
 async function cachedThumbnail(key: string): Promise<Buffer | null> {
 	try {
-		const res = await client().send(new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }));
+		const res = await client().send(new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }), {
+			abortSignal: AbortSignal.timeout(S3_TIMEOUT_MS),
+		});
 		if (!res.Body) {
 			return null;
 		}
@@ -207,6 +214,7 @@ async function storeThumbnail(key: string, webp: Buffer): Promise<void> {
 	try {
 		await client().send(
 			new PutObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key, Body: webp, ContentType: "image/webp" }),
+			{ abortSignal: AbortSignal.timeout(S3_TIMEOUT_MS) },
 		);
 	} catch (err) {
 		console.warn("share image cache write failed:", (err as Error)?.message ?? err);
