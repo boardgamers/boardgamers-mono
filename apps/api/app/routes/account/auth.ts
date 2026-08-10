@@ -3,27 +3,12 @@ import passport from "koa-passport";
 import Router from "koa-router";
 import { z } from "zod";
 import { createPendingSignup } from "../../models/oauthflows.ts";
-import { huggingfaceStrategy, requestOrigin } from "../../config/passport.ts";
+import { verifySocialProfile } from "../../config/passport.ts";
+import { pkceStart, pkceCallback, githubConfig, huggingfaceConfig } from "../../config/pkce.ts";
 import { sendAuthInfo } from "./utils.ts";
+import env from "../../config/env.ts";
 
 const router = new Router<Application.DefaultState, Context>();
-
-// passport.authenticate accepts a strategy NAME or a strategy INSTANCE at runtime, but
-// @types/koa-passport only declares the string form. Hugging Face's CIMD strategy is
-// built per request origin, so it must be passed as an instance.
-type Middleware = ReturnType<ReturnType<typeof passport.authenticate>>;
-function authenticateWith(
-	strategy: string | ReturnType<typeof huggingfaceStrategy>,
-	options: object,
-	callback?: (...args: unknown[]) => unknown,
-): Middleware {
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- strategy instances are valid at runtime
-	return (passport as unknown as { authenticate(...args: unknown[]): Middleware }).authenticate(
-		strategy,
-		options,
-		callback,
-	);
-}
 
 const socialFeedbackSchema = z.object({
 	createSocialAccount: z.boolean(),
@@ -37,7 +22,7 @@ const socialFeedbackSchema = z.object({
 //
 // The API owns the whole round-trip with full navigations only:
 //   1. GET /api/account/auth/<provider> — store PKCE state server-side (Mongo,
-//      see config/passport.ts) and redirect to the provider.
+//      see config/pkce.ts) and redirect to the provider.
 //   2. The provider-registered callback is the API itself:
 //      /api/account/auth/<provider>/callback?code=…&state=…
 //   3. The callback exchanges the code, verifies state+PKCE, then 303s:
@@ -47,31 +32,38 @@ const socialFeedbackSchema = z.object({
 //                                 anymore — nothing sensitive reaches logs/history)
 //        - error                → /login?error=…
 //
+// GitHub and Hugging Face use hand-rolled PKCE (config/pkce.ts) — no passport,
+// no client secret. Discord/Google/Facebook keep passport strategies (they're
+// confidential clients with pre-registered secrets).
+//
 // Hugging Face needs NO registered callback at all: it uses CIMD, where the
-// client_id is the env's own /.well-known/oauth-cimd URL (served by the web app) and
-// that doc names the env's own /api/account/auth/huggingface/callback as the redirect. So each
-// environment (prod + every PR preview) does HF login directly — there is no prod
-// redirect-relay. The other providers (google/discord/facebook/github) still require
-// pre-registered OAuth apps with fixed callbacks, so on preview envs their social
-// login simply isn't wired up (acceptable; only HF works on previews).
+// client_id is the env's own /.well-known/oauth-cimd URL (served by the web app)
+// and that doc names the env's own /api/account/auth/huggingface/callback as the
+// redirect. So each environment (prod + every PR preview) does HF login directly
+// — there is no prod redirect-relay. The other providers (google/discord/facebook/
+// github) still require pre-registered OAuth apps with fixed callbacks, so on
+// preview envs their social login simply isn't wired up (acceptable; only HF
+// works on previews).
 // ---------------------------------------------------------------------------
 
 // The web app shares the API's origin (vite proxy in dev, nginx in prod), so the
 // request origin is the right base for post-auth redirects.
 const webUrl = (ctx: Context, path: string) => `${ctx.protocol}://${ctx.host}${path}`;
 
-function socialStartOptions(ctx: Context, provider: string, scope: string[]) {
-	return {
-		scope,
-		callbackURL: socialCallbackUrl(ctx, provider),
-	};
-}
-
 // The provider callback must point at the api-mounted route (this router is mounted at
 // /api/account/auth). nginx routes only /api/* to the api — a bare /auth/... falls
 // through to the web SPA and 404s. This must also match the CIMD doc's redirect_uris.
 function socialCallbackUrl(ctx: Context, provider: string): string {
 	return `${ctx.protocol}://${ctx.hostname}/api/account/auth/${provider}/callback`;
+}
+
+// --- Passport-based providers (discord, google, facebook) ---
+
+function socialStartOptions(ctx: Context, provider: string, scope: string[]) {
+	return {
+		scope,
+		callbackURL: socialCallbackUrl(ctx, provider),
+	};
 }
 
 router.get("/google", async (ctx, next) => {
@@ -86,52 +78,76 @@ router.get("/facebook", async (ctx, next) => {
 	await passport.authenticate("facebook", socialStartOptions(ctx, "facebook", []))(ctx, next);
 });
 
-router.get("/github", async (ctx, next) => {
-	await passport.authenticate("github", socialStartOptions(ctx, "github", ["read:user"]))(ctx, next);
+// --- PKCE providers (github, huggingface) — no passport, no client secret ---
+
+router.get("/github", async (ctx) => {
+	const { url } = await pkceStart(githubConfig, env.social.github.id, socialCallbackUrl(ctx, "github"));
+	ctx.redirect(url);
 });
 
-router.get("/huggingface", async (ctx, next) => {
-	// CIMD: the strategy (and its client_id) is specific to this request's origin.
-	await authenticateWith(huggingfaceStrategy(requestOrigin(ctx)), {
-		scope: ["openid", "profile"],
-		callbackURL: socialCallbackUrl(ctx, "huggingface"),
-	})(ctx, next);
+router.get("/huggingface", async (ctx) => {
+	// CIMD: the client_id is this origin's own /.well-known/oauth-cimd URL.
+	const origin = `${ctx.protocol}://${ctx.host}`;
+	const clientId = `${origin}/.well-known/oauth-cimd`;
+	const { url } = await pkceStart(huggingfaceConfig, clientId, socialCallbackUrl(ctx, "huggingface"));
+	ctx.redirect(url);
 });
 
-// Custom passport callback: on OAuth failure, bounce to the login page with an
-// error instead of passport's default failureRedirect (which would land on the
-// API root with no feedback).
+// --- Callbacks ---
+
+// Passport-based callback: discord/google/facebook.
 function authenticateCallback(ctx: Context, next: Next, provider: string): Promise<void> {
-	const strategy = provider === "huggingface" ? huggingfaceStrategy(requestOrigin(ctx)) : provider;
-	return authenticateWith(
-		strategy,
+	return passport.authenticate(
+		provider,
 		{
 			callbackURL: socialCallbackUrl(ctx, provider),
 			session: false,
 		},
 		async (err: unknown, user: unknown) => {
-			// koa-passport signals failure two ways: an err (exception) OR a falsy user with
-			// err=null (strategy.fail() — bad/expired code, unknown state, user denied). Both
-			// must bounce to /login?error=; a falsy user that falls through to finishSocialAuth
-			// would crash on ctx.state.user being undefined (500 instead of a clean redirect).
 			if (err || !user) {
 				redirectAfterAuth(ctx, `/login?error=${encodeURIComponent("Social login failed")}`);
 				return;
 			}
-			// With a custom callback passport does NOT run its default success() (which would
-			// req.logIn(user) → set ctx.state.user) — it delegates entirely to us. So assign the
-			// verified user/feedback onto ctx.state.user for finishSocialAuth to read. (On main,
-			// where there's no custom callback, passport's logIn sets ctx.state.user; here we must.)
 			ctx.state.user = user;
 			await next();
 		},
 	)(ctx, next);
 }
 
+// PKCE callback: github/huggingface. Verifies state, exchanges code, fetches profile.
+async function pkceCallbackHandler(ctx: Context, next: Next, provider: "github" | "huggingface"): Promise<void> {
+	const query = z.object({ code: z.string(), state: z.string() }).safeParse(ctx.query);
+	if (!query.success) {
+		redirectAfterAuth(ctx, `/login?error=${encodeURIComponent("Social login failed")}`);
+		return;
+	}
+
+	const config = provider === "github" ? githubConfig : huggingfaceConfig;
+	const clientId =
+		provider === "github" ? env.social.github.id : `${ctx.protocol}://${ctx.host}/.well-known/oauth-cimd`;
+	const redirectUri = socialCallbackUrl(ctx, provider);
+
+	const profile = await pkceCallback(config, clientId, redirectUri, query.data.code, query.data.state);
+	if (!profile) {
+		redirectAfterAuth(ctx, `/login?error=${encodeURIComponent("Social login failed")}`);
+		return;
+	}
+
+	// Reuse the same link-or-create logic as the passport strategies.
+	const user = await verifySocialProfile(provider, { user: ctx.state.user }, profile);
+	ctx.state.user = user;
+	await next();
+}
+
 router.get(
 	"/:provider/callback",
 	async (ctx, next) => {
-		await authenticateCallback(ctx, next, ctx.params.provider);
+		const provider = ctx.params.provider;
+		if (provider === "github" || provider === "huggingface") {
+			await pkceCallbackHandler(ctx, next, provider);
+		} else {
+			await authenticateCallback(ctx, next, provider);
+		}
 	},
 	async (ctx) => {
 		await finishSocialAuth(ctx, ctx.params.provider);

@@ -25,9 +25,8 @@ export async function createOAuthState(entry: { codeVerifier: string; expiresAt:
 }
 
 /**
- * Single-use verification: removes the state and returns its verifier (a string
- * is what passport-oauth2 expects for a successful PKCE verify), or false when
- * the handle is unknown/expired (a replayed handle fails here).
+ * Single-use verification: removes the state and returns its code verifier,
+ * or false when the handle is unknown/expired (a replayed handle fails here).
  */
 export async function verifyOAuthState(handle: unknown): Promise<string | false> {
 	if (typeof handle !== "string") {
