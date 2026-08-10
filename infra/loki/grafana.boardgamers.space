@@ -1,6 +1,14 @@
 server {
     server_name grafana.boardgamers.space;
 
+    # CIMD client metadata for the boardgamers.space OAuth2/OIDC provider: it fetches
+    # this URL (it's the client_id) to learn Grafana's redirect_uri/scopes. Keep in
+    # sync with the GF_AUTH_GENERIC_OAUTH_* envs in docker-compose.yml.
+    location = /client-metadata.json {
+        default_type application/json;
+        return 200 '{"client_id":"https://grafana.boardgamers.space/client-metadata.json","client_name":"Grafana","redirect_uris":["https://grafana.boardgamers.space/login/generic_oauth"],"grant_types":["authorization_code"],"response_types":["code"],"token_endpoint_auth_method":"none","scope":"openid profile email role"}';
+    }
+
     location / {
         proxy_set_header Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;

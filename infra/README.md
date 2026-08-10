@@ -90,12 +90,26 @@ SSL certs managed by Certbot (Let's Encrypt), auto-renewed.
 
 Podman-based Loki + Promtail + Grafana stack. See [`infra/loki/`](./loki/) for details.
 
-- **Grafana**: `https://grafana.boardgamers.space` (login: `admin`, password in env)
+- **Grafana**: `https://grafana.boardgamers.space` (login: OAuth via boardgamers.space, admins only — see "Grafana OAuth" below; `admin`/password env kept as backdoor)
 - **Loki**: `127.0.0.1:3100` (internal only)
 - **Promtail**: tails `~/.pm2/logs/*.log`, ships to Loki
 - **systemd**: `bgs-loki.service` auto-starts the stack on boot
 
 Pre-provisioned dashboard: "Boardgamers — Server Health" (status codes, error rate, latency, slow endpoints).
+
+### Grafana OAuth (OIDC login)
+
+Login goes through the boardgamers.space OAuth2/OIDC provider (CIMD, PKCE — no client secret). Role comes from the user's `authority` claim: `admin` → GrafanaAdmin, anything else → denied (`role_attribute_strict=true`). The `admin`/password envs remain as an emergency backdoor.
+
+**Prerequisite:** the API PR exposing the `authority` claim under the `role` scope must be deployed on www.boardgamers.space first.
+
+**Deploy** (on coyo):
+
+1. Sync the nginx vhost `infra/loki/grafana.boardgamers.space` to `/etc/nginx/sites-enabled/` (adds the `location = /client-metadata.json` CIMD block), then `sudo nginx -t && sudo systemctl reload nginx`.
+2. `docker compose -f infra/loki/docker-compose.yml up -d grafana` to pick up the `GF_AUTH_GENERIC_OAUTH_*` envs.
+3. Verify: log in via the "Boardgamers" button on https://grafana.boardgamers.space with an admin account (gets GrafanaAdmin); a non-admin account must be denied.
+
+**Follow-up:** once OAuth is confirmed working, uncomment `GF_AUTH_DISABLE_LOGIN_FORM=true` in `infra/loki/docker-compose.yml` (and redeploy) to remove the password form.
 
 Admin panel health widgets: `admin.boardgamers.space/health` (queries Loki via `/api/admin/loki/*` proxy).
 
