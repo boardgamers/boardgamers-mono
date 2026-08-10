@@ -71,7 +71,36 @@ describe("Account API — GitHub social auth", () => {
 		const doc = await colls.users.findOne({ "account.username": "ghuser" });
 		assert.ok(doc);
 		assert.strictEqual(doc.account.social?.github, "gh-1001");
-		assert.strictEqual(doc.account.email, "");
+		assert.ok(!("email" in doc.account), "account.email must be ABSENT when the provider returned none");
+	});
+
+	it("lets TWO no-email social signups coexist (no E11000 on the sparse account.email index)", async () => {
+		// Regression: the unique sparse index on account.email skips docs where the field is
+		// ABSENT but indexes "" — storing "" used to make every second no-email social
+		// signup fail with E11000.
+		for (const [socialId, username] of [
+			["gh-noemail-1", "ghnoemail1"],
+			["gh-noemail-2", "ghnoemail2"],
+		] as const) {
+			const { err, user } = await verifySocial("github", socialId);
+			assert.ifError(err);
+			isSocialFeedback(user);
+
+			const token = jwt.sign(user, env.jwt.keys.private, { expiresIn: "1h", algorithm: env.jwt.algorithm });
+			const res = await fetch(`${baseURL()}/api/account/signup/social`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ jwt: token, username, termsAndConditions: true }),
+			});
+			const text = await res.text();
+			assert.strictEqual(res.status, 200, `no-email social signup failed: ${res.status} ${text}`);
+		}
+
+		const docs = await colls.users.find({ "account.username": { $in: ["ghnoemail1", "ghnoemail2"] } }).toArray();
+		assert.strictEqual(docs.length, 2, "both no-email social signups must succeed");
+		for (const doc of docs) {
+			assert.ok(!("email" in doc.account), `account.email must be absent on ${doc.account.username}`);
+		}
 	});
 
 	it("logs in an existing user via the github strategy", async () => {
