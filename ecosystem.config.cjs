@@ -24,6 +24,10 @@ module.exports = {
 				NODE_ENV: "production",
 				HOST: "127.0.0.1",
 				PORT: 8612,
+				// Resolve the real client IP from nginx's X-Forwarded-For (adapter-node):
+				// without ADDRESS_HEADER the web app sees the nginx socket IP, not the user.
+				ADDRESS_HEADER: "x-forwarded-for",
+				XFF_DEPTH: "1",
 			},
 			exec_mode: "cluster",
 			instances: 2,

@@ -9,7 +9,9 @@ interface RequestContext {
 	clientIp: string | undefined;
 }
 
-const requestContextStorage = new AsyncLocalStorage<RequestContext>();
+// Exported for tests (hooks.server.spec.ts) so the ctx-dependent header logic
+// (x-request-id, x-forwarded-for) can be exercised without spinning up `handle`.
+export const requestContextStorage = new AsyncLocalStorage<RequestContext>();
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const clientIp = event.getClientAddress();
@@ -82,6 +84,13 @@ function backendUrl(override: string | undefined, defaultPort: number): string {
 	return `${proto}://${ip}:${port ?? defaultPort}`;
 }
 
+// Forwarding/tracking headers that must never travel from the client to the api on the
+// SSR proxy hop — each is either re-added authoritatively below (x-forwarded-for) or
+// simply untrusted. Headers are matched case-insensitively (Headers normalizes keys to
+// lowercase). x-forwarded-for is stripped too: without it, a client-supplied XFF would
+// pass through verbatim whenever ctx.clientIp is unavailable, re-opening the spoof.
+const STRIPPED_FORWARDING_HEADERS = new Set(["x-forwarded-for", "x-forwarded-host", "x-real-ip", "x-forwarded-server"]);
+
 /**
  * During SSR, event.fetch calls are routed through here. We rewrite /api/*
  * URLs to the backend host (same logic as the old externalFetch hook, minus the
@@ -118,11 +127,29 @@ export const handleFetch: HandleFetch = async ({ request, fetch, event }) => {
 			request.headers.set("cookie", cookie);
 		}
 
+		// new Request(url, request) copies every client header, so drop the forwarding /
+		// tracking headers a client can spoof before re-adding the only ones the api should
+		// trust below. Otherwise an attacker-controlled x-real-ip / x-forwarded-host / cf-*
+		// would reach the api verbatim. (The wildcard cf-* covers Cloudflare's ip/prefetch/
+		// scheme/etc. headers — none are set by our own proxy, so any inbound one is forged.)
+		for (const name of [...request.headers.keys()]) {
+			if (STRIPPED_FORWARDING_HEADERS.has(name) || name.startsWith("cf-")) {
+				request.headers.delete(name);
+			}
+		}
+
 		if (ctx) {
 			request.headers.set("x-request-id", ctx.requestId);
 			if (ctx.clientIp) {
-				const existing = request.headers.get("x-forwarded-for");
-				request.headers.set("x-forwarded-for", existing ? `${existing}, ${ctx.clientIp}` : ctx.clientIp);
+				// Overwrite — never append. The api (app.proxy = true) reads the LEFTMOST
+				// x-forwarded-for as ctx.ip, so appending would leave a client-supplied value
+				// in that slot and let a client spoof its IP (poisoning security.lastIp,
+				// lastLogin.ip and log/error attribution). ctx.clientIp is the trusted value
+				// we stamp authoritatively: in prod it's the real client IP resolved from
+				// nginx's XFF (ADDRESS_HEADER/XFF_DEPTH are set in ecosystem.config.cjs), and
+				// in dev/preview (no nginx) it's the direct peer — either way the overwrite,
+				// not the env, is what strips the spoof off the wire.
+				request.headers.set("x-forwarded-for", ctx.clientIp);
 			}
 		}
 
