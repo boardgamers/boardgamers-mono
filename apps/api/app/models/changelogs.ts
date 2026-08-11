@@ -24,17 +24,15 @@ export async function latestChangelogs(limit: number, before?: Date): Promise<Ch
 		.toArray();
 }
 
-// The announcement box is now a view over the changelog: the latest entries,
-// stitched back into the { title, content } shape the homepage has always used.
-export async function announcementFromChangelog(): Promise<z.output<typeof announcementSchema> | undefined> {
+// The announcement box is now a view over the changelog: the latest entries'
+// one-liners, joined back together. The box header ("Recent changes") is fixed
+// in the homepage markup.
+export async function announcementFromChangelog(): Promise<{ content: string } | undefined> {
 	const entries = await latestChangelogs(ANNOUNCEMENT_ENTRY_COUNT);
 	if (entries.length === 0) {
 		return undefined;
 	}
-	return {
-		title: "Recent changes",
-		content: entries.map((entry) => entry.content).join("<br>\n"),
-	};
+	return { content: entries.map((entry) => entry.content).join("<br>\n") };
 }
 
 // Best-effort split of the historical announcement blob ("last 4 changes" joined

@@ -166,7 +166,7 @@ describe("Changelog API", () => {
 	});
 
 	describe("GET /api/site/announcement", () => {
-		it("stitches the latest 4 published entries into the legacy { title, content } shape", async () => {
+		it("stitches the latest 4 published entries' one-liners into { content }", async () => {
 			for (let i = 1; i <= 6; i++) {
 				await insertEntry({ content: `change ${i}`, createdAt: new Date(2024, 0, i) });
 			}
@@ -174,9 +174,9 @@ describe("Changelog API", () => {
 			const res = await api("GET", "/api/site/announcement");
 			assert.strictEqual(res.status, 200);
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
-			const body = res.data as { title: string; content: string };
-			assert.equal(body.title, "Recent changes");
+			const body = res.data as { content: string };
 			assert.equal(body.content, ["change 6", "change 5", "change 4", "change 3"].join("<br>\n"));
+			assert.ok(!("title" in body));
 		});
 
 		it("returns an empty body when there is nothing to announce", async () => {

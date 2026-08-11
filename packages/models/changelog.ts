@@ -5,9 +5,6 @@ import { zObjectId, zDate } from "./helpers.ts";
 
 export const changelogSchema = z.object({
 	_id: zObjectId().optional(),
-	// Legacy per-entry heading (dropped after #231's feedback): entries no longer
-	// carry one — `content` is the visible line. Optional so old rows still validate.
-	title: z.string().optional(),
 	// The entry: a short one-liner (emoji + description), rendered with `marked`
 	// on the homepage announcement box and the /changelog page.
 	content: z.string(),
