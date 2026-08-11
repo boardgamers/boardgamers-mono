@@ -24,3 +24,15 @@ from both `src/lib` and the compiled `build/server/chunks/` regardless of PM2's 
 real `process.env` values still win, so PM2-injected vars take precedence. Do NOT
 commit them to `ecosystem.config.cjs`, which is git-tracked. Locally the same
 `apps/web/.env` works, or just export the vars.
+
+## `IconStub.svelte` test stub for `$props()` rest-spread leaf components
+
+Leaf components that spread `$props()` rest (`let { ...rest } = $props()` + `{...rest}`
+— e.g. `IconClockHistory`, `Badge`) crash with "Cannot convert undefined or null to
+object" when `mount()`ed with empty/undefined props in the jsdom + `@sveltejs/vite-plugin-svelte`
+vitest env. Production is unaffected (SSR/parent render always passes a props object);
+only standalone `mount()` in component specs hits it. Specs that mount a parent which
+renders such a leaf should stub it via
+`vi.mock("@/components/icons/Icon….svelte", () => import("@/lib/__mocks__/IconStub.svelte"))`
+(see `src/components/Game/GameList.spec.ts`). Revisit if the mount env is fixed
+(upgrading `svelte` / the vitest plugin, or dropping the rest-spread from the leaves).

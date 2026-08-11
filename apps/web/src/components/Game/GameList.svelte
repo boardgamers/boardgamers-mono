@@ -45,8 +45,8 @@
 	let games = $state<GameFront[]>([]);
 
 	const load = defer(
-		(refresh: boolean) => {
-			const fetchCount = refresh && !topRecords && !sample;
+		(refetchCount: boolean, bypassCache = false) => {
+			const fetchCount = refetchCount && !topRecords && !sample;
 
 			const result = loadGames({
 				gameStatus,
@@ -58,6 +58,7 @@
 				count: perPage,
 				skip: currentPage * perPage,
 				fetchCount,
+				refresh: bypassCache,
 				search,
 			});
 
@@ -162,20 +163,25 @@
 	const onCurrentPageChanged = createWatcher(() => load(false));
 
 	let firstRun = true;
+	let lastLogoClicks = $logoClicks;
 
 	$effect(() => {
 		userId;
 		boardgameId;
 		search;
-		$logoClicks;
+		const clicks = $logoClicks;
 		// Skip the first run — initial load already happened synchronously above.
 		if (firstRun) {
 			firstRun = false;
 			return;
 		}
+		// A logo-click bump is a user-triggered refresh: bypass the games cache.
+		// Filter changes keep the cache (switching back to a seen filter is instant).
+		const isLogoRefresh = clicks !== lastLogoClicks;
+		lastLogoClicks = clicks;
 		// Reset to the first page when the filter changes.
 		currentPage = 0;
-		load(true);
+		load(true, isLogoRefresh);
 	});
 
 	$effect(() => {

@@ -127,7 +127,16 @@
 <Navbar color="primary" class={className} dark expand>
 	<a
 		href={resolve("/(app)")}
-		onclick={logoClick}
+		onclick={(event) => {
+			// On the home page the click is a "refresh game lists" affordance — skip the
+			// redundant navigation. Off home it's plain navigation to `/` (a fresh load,
+			// so bumping the counter is pointless). The href keeps no-JS/middle-click
+			// navigation working.
+			if (page.url.pathname === resolve("/(app)")) {
+				event.preventDefault();
+				logoClick();
+			}
+		}}
 		data-sveltekit-preload-data="hover"
 		class="me-2 text-xl font-bold text-white no-underline hover:text-white">BGS</a
 	>
