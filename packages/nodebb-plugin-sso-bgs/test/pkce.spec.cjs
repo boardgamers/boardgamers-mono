@@ -84,7 +84,7 @@ test("LIVE BUG EXACT: config saved after boot, stock overwrote the wrapper, and 
 			callbackURL: "https://forum.boardgamers.space/auth/boardgamers/callback",
 			passReqToCallback: true,
 		},
-		async (req, t, s, p, done) => done(null, { uid: 1 })
+		async (req, t, s, p, done) => done(null, { uid: 1 }),
 	);
 	env.passport.use("boardgamers", stock);
 	env.loginStrategies = [
@@ -248,7 +248,9 @@ test("never configured at all (missing db key): no button, kickoff bounces to /l
 	assert.strictEqual(env.loginStrategies.length, 0, "no button without config");
 
 	// Force a route so kickoff can run against the wrapper.
-	env.loginStrategies = [{ name: "boardgamers", url: "/auth/boardgamers", callbackURL: "/auth/boardgamers/callback", scope: "openid" }];
+	env.loginStrategies = [
+		{ name: "boardgamers", url: "/auth/boardgamers", callbackURL: "/auth/boardgamers/callback", scope: "openid" },
+	];
 	env.routes = new Map([["/auth/boardgamers", env.loginStrategies[0]]]);
 	const { location } = await env.kickoff("/auth/boardgamers");
 	assert.strictEqual(location, "/login", "bounces to /login instead of redirecting to authorize or 500ing");
@@ -270,6 +272,10 @@ test("a string opts.state (core's ssoState) can no longer reach passport-oauth2 
 
 	const { location, session } = await env.kickoff("/auth/boardgamers");
 	const params = assertPkceAuthorizeUrl(location);
-	assert.notStrictEqual(params.get("state"), "CORE-SSO-STATE-STRING", "state is the PKCE store handle, not core's string");
+	assert.notStrictEqual(
+		params.get("state"),
+		"CORE-SSO-STATE-STRING",
+		"state is the PKCE store handle, not core's string",
+	);
 	assert.ok(session, "session exists");
 });

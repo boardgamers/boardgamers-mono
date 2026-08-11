@@ -55,7 +55,7 @@ what we need, so this shim:
 core **once per route reload** (boot / plugin reload), not per request. The first
 version of this shim built its PKCE strategy only inside that hook. If the ACP
 strategy config was saved **after** that one firing — the normal order when
-installing the shim on a live forum (deploy + activate, restart, *then* configure) —
+installing the shim on a live forum (deploy + activate, restart, _then_ configure) —
 the shim no-oped (no config yet), while the stock plugin's `loadStrategies`
 (priority 10) registered its **non-PKCE** strategy on the next reload.
 `passport.use(name)` is last-write-wins, so the stale stock strategy kept answering
@@ -150,6 +150,6 @@ string-`opts.state` override.
   this way — map to a custom `admin` group instead, per its ACP settings).
 - **No restart is needed after saving the `boardgamers` strategy in the ACP** — the
   strategy is resolved from the current db config at request time. (The login
-  *button's* `scope` label is captured at route-reload time by NodeBB core, like any
+  _button's_ `scope` label is captured at route-reload time by NodeBB core, like any
   SSO plugin, so a scope-only change is picked up on the next request anyway; only
   adding the very first strategy benefits from a rebuild to render the button.)

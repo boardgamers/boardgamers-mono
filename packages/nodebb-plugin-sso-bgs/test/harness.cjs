@@ -147,11 +147,18 @@ function makeStockPlugin(env) {
 		configured = configured.filter((obj) => obj.enabled);
 
 		const configs = configured.map(
-			({ name, authUrl: authorizationURL, tokenUrl: tokenURL, id: clientID, secret: clientSecret, callbackUrl: callbackURL }) =>
+			({
+				name,
+				authUrl: authorizationURL,
+				tokenUrl: tokenURL,
+				id: clientID,
+				secret: clientSecret,
+				callbackUrl: callbackURL,
+			}) =>
 				new passportOAuth(
 					{ authorizationURL, tokenURL, clientID, clientSecret, callbackURL, passReqToCallback: true },
-					async (req, token, secret, profile, done) => done(null, { uid: 1 })
-				)
+					async (req, token, secret, profile, done) => done(null, { uid: 1 }),
+				),
 		);
 
 		configs.forEach((strategy, idx) => {
@@ -167,7 +174,7 @@ function makeStockPlugin(env) {
 				icon: faIcon || "fa-right-to-bracket",
 				labels: { login: loginLabel || "Log In", register: registerLabel || "Register" },
 				scope: scope || "openid email profile",
-			}))
+			})),
 		);
 
 		return strategies;
@@ -329,7 +336,7 @@ function makeEnv() {
 			assert.strictEqual(
 				query.state,
 				session.ssoState,
-				"core ssoState gate would 403 (checkState descriptor + mismatched state)"
+				"core ssoState gate would 403 (checkState descriptor + mismatched state)",
 			);
 		}
 		return new Promise((resolve, reject) => {
@@ -367,9 +374,7 @@ function runAuthenticate(passport, name, opts, req) {
 			},
 			redirect: (url) => done((v) => resolve({ location: v }), url),
 		};
-		passport.authenticate(name, opts)(req, res, (err) =>
-			done(() => (err ? reject(err) : resolve({ location: null })))
-		);
+		passport.authenticate(name, opts)(req, res, (err) => done(() => (err ? reject(err) : resolve({ location: null }))));
 	});
 }
 

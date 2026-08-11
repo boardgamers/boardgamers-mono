@@ -102,7 +102,7 @@ function buildWrapper() {
 			callbackURL: `${nconf.get("url")}/auth/${STRATEGY_NAME}/callback`,
 			passReqToCallback: true,
 		},
-		() => {}
+		() => {},
 	);
 	wrapper.name = STRATEGY_NAME;
 
@@ -113,7 +113,7 @@ function buildWrapper() {
 				if (!resolved) {
 					// No (enabled) ACP config: behave like a disabled SSO button.
 					winston.warn(
-						`[plugin/sso-bgs] /auth/${STRATEGY_NAME} hit but no enabled strategy is configured — check the sso-oauth2-multiple ACP page`
+						`[plugin/sso-bgs] /auth/${STRATEGY_NAME} hit but no enabled strategy is configured — check the sso-oauth2-multiple ACP page`,
 					);
 					return this.redirect("/login");
 				}
@@ -234,7 +234,7 @@ async function buildStrategy(config, key) {
 			} catch (err) {
 				done(err);
 			}
-		}
+		},
 	);
 
 	// NodeBB core sets `opts.state = req.session.ssoState` (a STRING) before
