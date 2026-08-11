@@ -78,6 +78,14 @@
 		>
 			Admin Tokens
 		</a>
+		<a
+			href={resolve("/changelog")}
+			class="px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive('/changelog')
+				? 'bg-gray-100 dark:bg-gray-800 font-semibold'
+				: ''}"
+		>
+			Changelog
+		</a>
 
 		<div class="mt-4">
 			<button

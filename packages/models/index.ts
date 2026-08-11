@@ -6,6 +6,10 @@ export { adminTokenSchema, ADMIN_TOKENS_COLLECTION, adminTokenIndexes } from "./
 export type { ApiErrorDoc, ApiErrorFront } from "./api-error.ts";
 export { apiErrorSchema, API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollectionOptions } from "./api-error.ts";
 
+// --- Changelog ---
+export type { ChangelogDoc, ChangelogFront } from "./changelog.ts";
+export { changelogSchema, CHANGELOGS_COLLECTION, changelogIndexes } from "./changelog.ts";
+
 // --- Chat Message ---
 export type { ChatMessageDoc, ChatMessageFront } from "./chatmessage.ts";
 export {

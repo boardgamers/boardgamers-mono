@@ -71,7 +71,13 @@
 				<aside
 					class="mx-auto mt-5 w-fit max-w-xl rounded-lg border border-accent/60 bg-accent/5 px-4 py-3 text-left dark:border-accent-light/50 dark:bg-accent/10"
 				>
-					<div class="mb-1 text-base font-semibold text-accent dark:text-accent-lighter">{announcement.title}</div>
+					<div class="mb-1 flex items-baseline justify-between gap-4">
+						<div class="text-base font-semibold text-accent dark:text-accent-lighter">{announcement.title}</div>
+						<a
+							href={resolve("/(app)/changelog")}
+							class="shrink-0 text-xs font-medium text-accent hover:underline dark:text-accent-lighter">View all</a
+						>
+					</div>
 					<div class="announcement-content"><SanitizedHtml html={marked(announcement.content)} /></div>
 				</aside>
 			{/if}
