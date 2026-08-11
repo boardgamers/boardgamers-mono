@@ -3,6 +3,7 @@ import type { Server } from "node:http";
 import { listen } from "../app.ts";
 import initDb, { closeDb, db } from "./db.ts";
 import env from "./env.ts";
+import { setActionRateLimitsForTests } from "../services/actionratelimit.ts";
 import { ensureIndexes } from "@bgs/models";
 
 assert.strictEqual(process.env.NODE_ENV, "test");
@@ -45,6 +46,11 @@ async function doSetup() {
 	// the whole suite — relax the production-tight limit so only the dedicated
 	// rate-limit spec (which lowers it back per-test) ever trips it.
 	env.authRateLimit.maxPerIp = 100_000;
+
+	// Specs cover whole flows end-to-end (e.g. the email-change suite sends 5+
+	// emails per user); the production per-user action caps would throttle them.
+	// The limiter has its own dedicated specs, which pass explicit tight limits.
+	setActionRateLimitsForTests({ max: Number.MAX_SAFE_INTEGER, windowMs: 60_000 });
 
 	server = await listen();
 	const addr = server.address();

@@ -34,6 +34,7 @@ import {
 import type { ImageDoc } from "@bgs/models";
 import sharp from "sharp";
 import { loggedIn, loggedOut, rateLimitAttempt } from "../utils.ts";
+import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { putAvatar, s3Enabled } from "../../services/s3.ts";
 import auth from "./auth.ts";
 import { sendAuthInfo } from "./utils.ts";
@@ -171,7 +172,12 @@ router.post("/avatar", loggedIn, async (ctx) => {
 	ctx.status = 200;
 });
 
-router.post("/email", loggedIn, async (ctx) => {
+// Per-user cap on the email-change action itself (#195), counted in mongo —
+// the limit is registered in ACTION_RATE_LIMITS (services/actionratelimit.ts).
+// Complementary to the per-email cooldown of #233: that one limits outbound
+// mail volume to an address, this one limits how often a user can hit the
+// route at all.
+router.post("/email", loggedIn, actionRateLimit("account/email"), async (ctx) => {
 	const { email } = z.object({ email: z.string().email() }).parse(ctx.request.body);
 	const user = ctx.state.user!;
 
@@ -208,17 +214,19 @@ router.post("/email", loggedIn, async (ctx) => {
 
 	const updatedUser = await colls.users.findOne({ _id: user._id });
 	if (updatedUser) {
-		// Auth-email cooldown (#195): skip only the send — the email change itself
-		// still happens. Don't stamp the cooldown on a skip: the mail-CHANGE notice
-		// above is sent to the old address without stamping, so a skipped confirm
-		// email can be triggered again right away.
-		if (!authEmailOnCooldown(updatedUser)) {
-			// sendConfirmationEmail reads security.confirmKey to build the link — hand it
-			// the plaintext (the db holds only the hash).
-			updatedUser.security.confirmKey = confirmKey;
-			await sendConfirmationEmail(updatedUser);
-			await markAuthEmailSent(updatedUser);
-		}
+		// The confirmation email ALWAYS goes out on an email change: the change
+		// applies immediately, so suppressing the send (per-email auth cooldown,
+		// #233) would leave the account changed-but-unconfirmable. The throttle
+		// for this route is the per-user action rate limit above; the #233
+		// cooldown stays in charge of the unauthenticated routes (/forget, admin
+		// resend-confirmation). Not stamping lastAuthEmailSentAt here keeps a
+		// change from muting a later /forget to the new address, and its volume
+		// is already bounded by the action limit.
+		//
+		// sendConfirmationEmail reads security.confirmKey to build the link — hand it
+		// the plaintext (the db holds only the hash).
+		updatedUser.security.confirmKey = confirmKey;
+		await sendConfirmationEmail(updatedUser);
 		ctx.body = stripSensitiveFields(updatedUser);
 	}
 });
