@@ -1,7 +1,7 @@
 version: "3.8"
 
 # Loki logging stack for boardgamers.space
-# Grafana (3030)  — dashboards at https://grafana.boardgamers.space  (admin / see GF_SECURITY_ADMIN_PASSWORD)
+# Grafana (3030)  — dashboards at https://grafana.boardgamers.space  (OAuth only, admins; no local password auth at all)
 # Loki   (3100)  — log storage, internal only
 # Promtail (9080) — tails PM2 logs, internal only
 #
@@ -41,7 +41,7 @@ services:
     command: -config.file=/etc/promtail/config.yaml
 
   grafana:
-    image: docker.io/grafana/grafana:11.0.0
+    image: docker.io/grafana/grafana:12.4.8
     container_name: bgs-grafana
     restart: unless-stopped
     mem_limit: 1g
@@ -51,18 +51,18 @@ services:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      # GF_SECURITY_ADMIN_PASSWORD is only read on first DB init; afterwards the password
-      # lives in the grafana-data volume. The committed default below is overwritten on
-      # fresh installs by setting GRAFANA_ADMIN_PASSWORD in the env. To rotate an existing
-      # install: `podman exec bgs-grafana grafana-cli admin reset-admin-password <pw>`.
-      # Current password is stored out-of-band at /home/bgs/.grafana-admin-password (chmod 600).
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      # No local admin user at all: password auth (login form + basic-auth API) is
+      # disabled below and no initial admin is provisioned on first init, so there is
+      # NO password credential anywhere — OAuth is the only way in. Emergency recovery:
+      # `podman exec bgs-grafana grafana-cli admin reset-admin-password <pw>` (edits the
+      # db directly, unaffected by these flags) or temporarily re-adding GF_SECURITY_ADMIN_*.
+      - GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION=true
       - GF_USERS_ALLOW_SIGN_UP=false
       # OAuth (OIDC via www.boardgamers.space, CIMD + PKCE — no real client secret) is the
-      # login. Role comes from the `authority` claim (JMESPath below), which requires the
-      # API authority-claim PR deployed on www.boardgamers.space first. nginx serves the
-      # client metadata at /client-metadata.json (see infra/loki/grafana.boardgamers.space).
+      # ONLY login. Access is restricted to admins only — the `authority` claim is
+      # emitted by the API solely for admin users, so anyone else gets no mapped role
+      # and the strict-role setting denies their login. nginx serves the client
+      # metadata at /client-metadata.json (see infra/loki/grafana.boardgamers.space).
       - GF_SERVER_ROOT_URL=https://grafana.boardgamers.space
       - GF_AUTH_GENERIC_OAUTH_ENABLED=true
       - GF_AUTH_GENERIC_OAUTH_NAME=Boardgamers
@@ -77,13 +77,14 @@ services:
       - GF_AUTH_GENERIC_OAUTH_API_URL=https://www.boardgamers.space/api/oauth2/userinfo
       - GF_AUTH_GENERIC_OAUTH_SCOPES=openid profile email role
       - GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH=sub
-      # JMESPath — keep exact. No mapped role (non-admin) => login denied (strict below).
-      - GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=authority == 'admin' && 'GrafanaAdmin' || 'Viewer'
+      # JMESPath — keep exact. admin => GrafanaAdmin; non-admin => no mapped role,
+      # which ROLE_ATTRIBUTE_STRICT turns into a login denial (non-admin => denied).
+      - GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=authority == 'admin' && 'GrafanaAdmin' || null
       - GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN=true
       - GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_STRICT=true
-      # TODO: enable once OAuth login is confirmed working — removes the password form.
-      # The admin/password envs above stay as an emergency backdoor (reset via grafana-cli).
-      # - GF_AUTH_DISABLE_LOGIN_FORM=true
+      # Password auth fully disabled: no login form AND no basic-auth API login.
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_AUTH_BASIC_AUTH_ENABLED=false
     depends_on:
       - loki
 
