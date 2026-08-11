@@ -33,20 +33,28 @@ async function makeAuthHeaders(userId: ObjectId) {
 
 interface ChangelogEntryBody {
 	_id: string;
-	title: string;
 	content: string;
+	details?: string;
+	github?: string;
 	published: boolean;
 	createdAt: string;
 	updatedAt?: string;
 }
 
-function insertEntry(overrides: { title: string; content?: string; published?: boolean; createdAt?: Date }) {
+function insertEntry(overrides: {
+	content: string;
+	details?: string;
+	github?: string;
+	published?: boolean;
+	createdAt?: Date;
+}) {
 	return colls.changelogs.insertOne({
 		_id: new ObjectId(),
-		content: overrides.content ?? "some change",
+		content: overrides.content,
+		...(overrides.details ? { details: overrides.details } : {}),
+		...(overrides.github ? { github: overrides.github } : {}),
 		published: overrides.published ?? true,
 		createdAt: overrides.createdAt ?? new Date(),
-		title: overrides.title,
 	});
 }
 
@@ -72,31 +80,45 @@ describe("Changelog API", () => {
 
 	describe("GET /api/site/changelog", () => {
 		it("returns published entries newest-first and hides drafts", async () => {
-			await insertEntry({ title: "oldest", createdAt: new Date("2024-01-01T00:00:00Z") });
-			await insertEntry({ title: "newest", createdAt: new Date("2024-03-01T00:00:00Z") });
-			await insertEntry({ title: "draft", published: false, createdAt: new Date("2024-04-01T00:00:00Z") });
-			await insertEntry({ title: "middle", createdAt: new Date("2024-02-01T00:00:00Z") });
+			await insertEntry({ content: "oldest", createdAt: new Date("2024-01-01T00:00:00Z") });
+			await insertEntry({ content: "newest", createdAt: new Date("2024-03-01T00:00:00Z") });
+			await insertEntry({ content: "draft", published: false, createdAt: new Date("2024-04-01T00:00:00Z") });
+			await insertEntry({ content: "middle", createdAt: new Date("2024-02-01T00:00:00Z") });
 
 			const res = await api("GET", "/api/site/changelog");
 			assert.strictEqual(res.status, 200);
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
 			const entries = res.data as ChangelogEntryBody[];
 			assert.deepEqual(
-				entries.map((e) => e.title),
+				entries.map((e) => e.content),
 				["newest", "middle", "oldest"],
 			);
 		});
 
+		it("includes the optional details and github fields", async () => {
+			await insertEntry({
+				content: "🚀 New feature",
+				details: "Longer **markdown** explanation.",
+				github: "https://github.com/boardgamers/boardgamers-mono/pull/231",
+			});
+
+			const res = await api("GET", "/api/site/changelog");
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			const [entry] = res.data as ChangelogEntryBody[];
+			assert.equal(entry.details, "Longer **markdown** explanation.");
+			assert.equal(entry.github, "https://github.com/boardgamers/boardgamers-mono/pull/231");
+		});
+
 		it("paginates with limit and the before cursor", async () => {
 			for (let i = 1; i <= 5; i++) {
-				await insertEntry({ title: `entry${i}`, createdAt: new Date(`2024-01-0${i}T00:00:00Z`) });
+				await insertEntry({ content: `entry${i}`, createdAt: new Date(`2024-01-0${i}T00:00:00Z`) });
 			}
 
 			const first = await api("GET", "/api/site/changelog?limit=2");
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
 			const page1 = first.data as ChangelogEntryBody[];
 			assert.deepEqual(
-				page1.map((e) => e.title),
+				page1.map((e) => e.content),
 				["entry5", "entry4"],
 			);
 
@@ -104,7 +126,7 @@ describe("Changelog API", () => {
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
 			const page2 = second.data as ChangelogEntryBody[];
 			assert.deepEqual(
-				page2.map((e) => e.title),
+				page2.map((e) => e.content),
 				["entry3", "entry2"],
 			);
 
@@ -112,7 +134,7 @@ describe("Changelog API", () => {
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
 			const page3 = third.data as ChangelogEntryBody[];
 			assert.deepEqual(
-				page3.map((e) => e.title),
+				page3.map((e) => e.content),
 				["entry1"],
 			);
 		});
@@ -146,7 +168,7 @@ describe("Changelog API", () => {
 	describe("GET /api/site/announcement", () => {
 		it("stitches the latest 4 published entries into the legacy { title, content } shape", async () => {
 			for (let i = 1; i <= 6; i++) {
-				await insertEntry({ title: `entry${i}`, content: `change ${i}`, createdAt: new Date(2024, 0, i) });
+				await insertEntry({ content: `change ${i}`, createdAt: new Date(2024, 0, i) });
 			}
 
 			const res = await api("GET", "/api/site/announcement");
@@ -167,8 +189,9 @@ describe("Changelog API", () => {
 	describe("admin CRUD", () => {
 		it("creates an entry (published by default) and lists it", async () => {
 			const res = await api("POST", "/api/admin/changelog", adminHeaders, {
-				title: "New feature",
-				content: "Gaia Project: Ivits available",
+				content: "🪐 Gaia Project: Ivits available",
+				details: "The Ivits are now playable.",
+				github: "https://github.com/boardgamers/boardgamers-mono/pull/231",
 			});
 			assert.strictEqual(res.status, 201);
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
@@ -180,7 +203,9 @@ describe("Changelog API", () => {
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
 			const entries = list.data as ChangelogEntryBody[];
 			assert.strictEqual(entries.length, 1);
-			assert.equal(entries[0].title, "New feature");
+			assert.equal(entries[0].content, "🪐 Gaia Project: Ivits available");
+			assert.equal(entries[0].details, "The Ivits are now playable.");
+			assert.equal(entries[0].github, "https://github.com/boardgamers/boardgamers-mono/pull/231");
 
 			// And the entry is immediately public.
 			const publicList = await api("GET", "/api/site/changelog");
@@ -190,7 +215,6 @@ describe("Changelog API", () => {
 
 		it("creates a draft that stays hidden from the public list until published", async () => {
 			const res = await api("POST", "/api/admin/changelog", adminHeaders, {
-				title: "WIP",
 				content: "not ready",
 				published: false,
 			});
@@ -211,25 +235,43 @@ describe("Changelog API", () => {
 			assert.strictEqual(publicEntries.length, 1);
 		});
 
-		it("edits title/content and stamps updatedAt, keeping createdAt", async () => {
-			const created = await insertEntry({ title: "typo", content: "gaia porject" });
+		it("edits content/details and stamps updatedAt, keeping createdAt", async () => {
+			const created = await insertEntry({ content: "gaia porject", details: "typo details" });
 			const original = (await colls.changelogs.findOne({ _id: created.insertedId }))!;
 
 			const res = await api("PUT", `/api/admin/changelog/${created.insertedId.toHexString()}`, adminHeaders, {
-				title: "fixed",
-				content: "Gaia Project",
+				content: "🪐 Gaia Project",
+				details: "fixed details",
 			});
 			assert.strictEqual(res.status, 200);
 
 			const afterUpdate = (await colls.changelogs.findOne({ _id: created.insertedId }))!;
-			assert.equal(afterUpdate.title, "fixed");
-			assert.equal(afterUpdate.content, "Gaia Project");
+			assert.equal(afterUpdate.content, "🪐 Gaia Project");
+			assert.equal(afterUpdate.details, "fixed details");
 			assert.deepEqual(afterUpdate.createdAt, original.createdAt);
 			assert.ok(afterUpdate.updatedAt && afterUpdate.updatedAt > original.createdAt);
 		});
 
+		it("clears details/github when an empty string is sent", async () => {
+			const created = await insertEntry({
+				content: "entry",
+				details: "some details",
+				github: "https://github.com/boardgamers/boardgamers-mono/pull/1",
+			});
+
+			const res = await api("PUT", `/api/admin/changelog/${created.insertedId.toHexString()}`, adminHeaders, {
+				details: "",
+				github: "",
+			});
+			assert.strictEqual(res.status, 200);
+
+			const afterUpdate = (await colls.changelogs.findOne({ _id: created.insertedId }))!;
+			assert.ok(!("details" in afterUpdate));
+			assert.ok(!("github" in afterUpdate));
+		});
+
 		it("deletes an entry", async () => {
-			const created = await insertEntry({ title: "gone" });
+			const created = await insertEntry({ content: "gone" });
 			const res = await api("DELETE", `/api/admin/changelog/${created.insertedId.toHexString()}`, adminHeaders);
 			assert.strictEqual(res.status, 200);
 			assert.strictEqual(await colls.changelogs.countDocuments(), 0);
@@ -238,26 +280,24 @@ describe("Changelog API", () => {
 		it("404s on unknown or malformed ids", async () => {
 			const unknown = new ObjectId().toHexString();
 			assert.strictEqual(
-				(await api("PUT", `/api/admin/changelog/${unknown}`, adminHeaders, { title: "x" })).status,
+				(await api("PUT", `/api/admin/changelog/${unknown}`, adminHeaders, { content: "x" })).status,
 				404,
 			);
 			assert.strictEqual((await api("DELETE", `/api/admin/changelog/${unknown}`, adminHeaders)).status, 404);
 			assert.strictEqual(
-				(await api("PUT", "/api/admin/changelog/not-an-objectid", adminHeaders, { title: "x" })).status,
+				(await api("PUT", "/api/admin/changelog/not-an-objectid", adminHeaders, { content: "x" })).status,
 				400,
 			);
 		});
 
-		it("rejects empty title/content and no-op updates", async () => {
+		it("rejects empty/invalid payloads and no-op updates", async () => {
+			assert.strictEqual((await api("POST", "/api/admin/changelog", adminHeaders, { content: "  " })).status, 400);
+			assert.strictEqual((await api("POST", "/api/admin/changelog", adminHeaders, {})).status, 400);
 			assert.strictEqual(
-				(await api("POST", "/api/admin/changelog", adminHeaders, { title: "", content: "x" })).status,
+				(await api("POST", "/api/admin/changelog", adminHeaders, { content: "x", github: "not-a-url" })).status,
 				400,
 			);
-			assert.strictEqual(
-				(await api("POST", "/api/admin/changelog", adminHeaders, { title: "x", content: "  " })).status,
-				400,
-			);
-			const created = await insertEntry({ title: "entry" });
+			const created = await insertEntry({ content: "entry" });
 			assert.strictEqual(
 				(await api("PUT", `/api/admin/changelog/${created.insertedId.toHexString()}`, adminHeaders, {})).status,
 				400,
@@ -265,17 +305,14 @@ describe("Changelog API", () => {
 		});
 
 		it("requires admin for every endpoint", async () => {
-			const created = await insertEntry({ title: "entry" });
+			const created = await insertEntry({ content: "entry" });
 			const id = created.insertedId.toHexString();
 
 			// isAdmin rejects anonymous and regular users alike with 403.
 			for (const headers of [undefined, userHeaders]) {
 				assert.strictEqual((await api("GET", "/api/admin/changelog", headers)).status, 403);
-				assert.strictEqual(
-					(await api("POST", "/api/admin/changelog", headers, { title: "x", content: "y" })).status,
-					403,
-				);
-				assert.strictEqual((await api("PUT", `/api/admin/changelog/${id}`, headers, { title: "x" })).status, 403);
+				assert.strictEqual((await api("POST", "/api/admin/changelog", headers, { content: "y" })).status, 403);
+				assert.strictEqual((await api("PUT", `/api/admin/changelog/${id}`, headers, { content: "x" })).status, 403);
 				assert.strictEqual((await api("DELETE", `/api/admin/changelog/${id}`, headers)).status, 403);
 			}
 		});

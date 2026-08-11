@@ -3,9 +3,14 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { colls } from "../config/db.ts";
 
+// Admin create/update payload: `content` is the short one-liner (the entry itself),
+// `details`/`github` are optional extras rendered on /changelog only.
 export const changelogInputSchema = changelogSchema
-	.pick({ title: true, content: true, published: true })
-	.extend({ title: z.string().trim().min(1).max(200), content: z.string().trim().min(1) });
+	.pick({ content: true, details: true, github: true, published: true })
+	.extend({
+		content: z.string().trim().min(1).max(500),
+		details: z.string().trim().min(1).optional(),
+	});
 
 // How many entries the homepage announcement box stitches together.
 export const ANNOUNCEMENT_ENTRY_COUNT = 4;
@@ -66,7 +71,6 @@ export async function seedChangelogsFromAnnouncement(): Promise<number> {
 	const parts = splitAnnouncementContent(announcement.data.content);
 	const docs: ChangelogDoc[] = parts.map((part, i) => ({
 		_id: new ObjectId(),
-		title: announcement.data.title || "Recent changes",
 		content: part,
 		published: true,
 		// Keep list order stable: 1ms apart, oldest part last.

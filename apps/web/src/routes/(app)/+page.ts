@@ -18,7 +18,7 @@ export const load: PageLoad = async ({ parent }) => {
 	await Promise.all([firstGames, secondGames]);
 
 	return {
-		announcement: await get<{ title: string; content: string }>("/site/announcement"),
+		announcement: await get<{ title?: string; content: string }>("/site/announcement"),
 		seo: {
 			title: "Boardgamers — play boardgames online",
 			description:
