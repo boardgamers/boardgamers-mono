@@ -96,9 +96,13 @@ consent doc exists (i.e. after one user has gone through the flow), or pre-creat
 ## Notes / limitations
 
 - Users **without an email** on their BGS account (email-less social signups, #211)
-  cannot log in via OAuth: userinfo omits `email`/`email_verified` for them. The shim
-  detects this and **fails with a user-facing message** (NodeBB redirects the failure
-  `info.message` to `/?register=<message>`): "This boardgamers account has no email
-  address. Add one in your boardgamers.space account settings to log into the forum."
+  cannot log in via OAuth. Such a user still has `security.confirmed: true`, so they
+  **pass the provider's authorize gate**, complete the code exchange, and reach
+  userinfo — which then omits the `email`/`email_verified` claims. The shim triggers
+  purely on the **userinfo response lacking the `email` claim** and **fails with a
+  user-facing message** (NodeBB redirects the failure `info.message` to
+  `/?register=<message>`): "This boardgamers account has no email address. Add one in
+  your boardgamers.space account settings to log into the forum." They must add an
+  email to their BGS account first.
 - PKCE/state use the forum's session store (`req.session`), which NodeBB always
   provides — no extra middleware needed.
