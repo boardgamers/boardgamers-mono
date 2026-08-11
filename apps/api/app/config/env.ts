@@ -47,6 +47,9 @@ export default {
 	// Max games with status "open" a user may have created at once (they clog the
 	// open-games lobby). Active/ended games don't count. 0 disables the cap.
 	maxOpenGamesPerUser: Math.max(0, Number(process.env.maxOpenGamesPerUser) || 10),
+	// Minimum interval between two auth emails (password reset, confirmation) sent
+	// to the same address, so the site can't be used to flood someone's inbox (#195).
+	authEmailCooldownMs: Math.max(0, Number(process.env.authEmailCooldownMs) || 5 * 60 * 1000),
 	sessionSecret: process.env.sessionSecret || "Quel est donc le secret mystère du succès de Gaia Project?!",
 	jwt: {
 		keys: {

@@ -150,6 +150,22 @@ export async function confirm(user: WithId<UserDoc>, key: string) {
 	await colls.users.updateOne({ _id: user._id }, { $set: { "security.confirmed": true, "security.confirmKey": null } });
 }
 
+// Per-email cooldown (#195): /forget, confirmation resends and the email-change
+// flow all check this before mailing, so they can't be used to flood someone's
+// inbox. Callers must respond identically whether or not the email went out —
+// and NOT regenerate the link secret on a skip (the first email's link must
+// keep working). The cooldown stamp lives on the user doc; a skipped mail-CHANGE
+// notice doesn't stamp it, so an email-change confirm link is never blocked by
+// the notice that preceded it.
+export function authEmailOnCooldown(user: UserDoc): boolean {
+	const last = user.security.lastAuthEmailSentAt;
+	return !!last && Date.now() - new Date(last).getTime() < env.authEmailCooldownMs;
+}
+
+export async function markAuthEmailSent(user: WithId<UserDoc>) {
+	await colls.users.updateOne({ _id: user._id }, { $set: { "security.lastAuthEmailSentAt": new Date() } });
+}
+
 export async function generateResetLink(user: WithId<UserDoc>) {
 	const key = secureId();
 	const reset = { key: hashUserSecret(key), issued: new Date() };

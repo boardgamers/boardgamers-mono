@@ -9,11 +9,13 @@ import { z } from "zod";
 import { colls } from "../../config/db.ts";
 import {
 	accessTokenDuration,
+	authEmailOnCooldown,
 	createAccessToken,
 	findGamesWithPlayersTurn,
 	isAvatarStyle,
 	isUserAdmin,
 	lookupRefreshToken,
+	markAuthEmailSent,
 	revokeRefreshToken,
 } from "../../models/index.ts";
 import { parseRefreshCookie, clearRefreshCookie } from "../../models/session.ts";
@@ -206,10 +208,17 @@ router.post("/email", loggedIn, async (ctx) => {
 
 	const updatedUser = await colls.users.findOne({ _id: user._id });
 	if (updatedUser) {
-		// sendConfirmationEmail reads security.confirmKey to build the link — hand it
-		// the plaintext (the db holds only the hash).
-		updatedUser.security.confirmKey = confirmKey;
-		await sendConfirmationEmail(updatedUser);
+		// Auth-email cooldown (#195): skip only the send — the email change itself
+		// still happens. Don't stamp the cooldown on a skip: the mail-CHANGE notice
+		// above is sent to the old address without stamping, so a skipped confirm
+		// email can be triggered again right away.
+		if (!authEmailOnCooldown(updatedUser)) {
+			// sendConfirmationEmail reads security.confirmKey to build the link — hand it
+			// the plaintext (the db holds only the hash).
+			updatedUser.security.confirmKey = confirmKey;
+			await sendConfirmationEmail(updatedUser);
+			await markAuthEmailSent(updatedUser);
+		}
 		ctx.body = stripSensitiveFields(updatedUser);
 	}
 });
@@ -427,8 +436,13 @@ router.post("/forget", loggedOut, async (ctx: Context) => {
 		throw createError(404, "Utilisateur introuvable: " + email);
 	}
 
-	await generateResetLink(user);
-	await sendResetEmail(user);
+	// Same 200 whether or not the email goes out; on a cooldown skip we don't
+	// regenerate the key, so the first email's link keeps working (#195).
+	if (!authEmailOnCooldown(user)) {
+		await generateResetLink(user);
+		await sendResetEmail(user);
+		await markAuthEmailSent(user);
+	}
 	ctx.status = 200;
 });
 

@@ -60,5 +60,7 @@ export {
 	sendConfirmationEmail,
 	generateConfirmKey,
 	hashUserSecret,
+	authEmailOnCooldown,
+	markAuthEmailSent,
 } from "./user.ts";
 export type { UserDoc } from "@bgs/models";

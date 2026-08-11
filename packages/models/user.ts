@@ -86,6 +86,9 @@ export const userSchema = z.object({
 		// sha256 hex of the email-confirmation link secret (the emailed link carries the
 		// plaintext). Legacy docs hold the plaintext until used / migration 1.4.0 (#164).
 		confirmKey: z.string().nullable().optional(),
+		// Last time an auth email (reset link / confirmation) was sent to this user —
+		// shared per-email send cooldown (#195).
+		lastAuthEmailSentAt: zDate().optional(),
 		reset: z
 			.object({
 				// sha256 hex of the password-reset link secret (plaintext only in the email).

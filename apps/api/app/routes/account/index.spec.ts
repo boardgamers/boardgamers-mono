@@ -9,6 +9,7 @@ import sharp from "sharp";
 import { z } from "zod";
 import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
+import { setSendmailForTests, type MailSendData } from "../../config/sendmail.ts";
 import { testUser, testGamePrefs } from "../../config/test-helpers.ts";
 import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
 import { interceptS3Fetches, makeS3Mock } from "../../services/s3-mock.ts";
@@ -33,6 +34,10 @@ const countryOf = (data: unknown) =>
 
 const isWebp = (buf: Buffer) =>
 	buf.subarray(0, 4).toString("ascii") === "RIFF" && buf.subarray(8, 12).toString("ascii") === "WEBP";
+
+// The reset link's plaintext key is only in the emailed html: /reset?key=…&email=…
+const sentResetKey = (mails: MailSendData[]) =>
+	new URL(String(mails[0].html).match(/href='([^']+)'/)![1]).searchParams.get("key")!;
 
 // 300x200 — wider than tall, so "cover" must crop to a square.
 const makeAvatarUpload = (format: "jpeg" | "png") => {
@@ -295,6 +300,139 @@ describe("Account API — avatar upload with S3 disabled", () => {
 	});
 
 	after(() => db().dropDatabase());
+});
+
+describe("Account API — auth email cooldown (#195)", () => {
+	const userId = new ObjectId();
+	const email = "reset-cooldown@test.com";
+	let sentMails: MailSendData[];
+	let authHeaders: Record<string, string> = {};
+
+	before(async () => {
+		await colls.users.insertOne(
+			testUser({
+				_id: userId,
+				account: { username: "cooldownuser", email },
+				security: { confirmed: true, slug: "cooldownuser" },
+			}),
+		);
+		const code = generateRefreshCode();
+		const tokenDoc = { user: userId, codeHash: hashRefreshCode(code), createdAt: new Date() };
+		await colls.jwtRefreshTokens.insertOne(tokenDoc);
+		authHeaders = { Authorization: `Bearer ${await createAccessToken(tokenDoc, ["all"], false)}` };
+	});
+
+	// Reinstalled before each send-asserting test: describes in this file run
+	// concurrently and another one could swap the hook.
+	const interceptMails = () => {
+		sentMails = [];
+		setSendmailForTests(async (data) => {
+			sentMails.push(data);
+		});
+	};
+
+	it("first /forget sends the reset email and stamps the cooldown", async () => {
+		interceptMails();
+		const res = await api("POST", "/api/account/forget", { email });
+		assert.strictEqual(res.status, 200);
+		assert.strictEqual(sentMails.length, 1);
+		assert.match(String(sentMails[0].subject), /forgotten password/i);
+
+		const user = (await colls.users.findOne({ _id: userId }))!;
+		assert.ok(user.security.reset?.key, "a reset key must be stored");
+		assert.ok(user.security.lastAuthEmailSentAt, "the cooldown stamp must be set");
+	});
+
+	it("a second /forget within the cooldown sends nothing, keeps the same key, still 200s", async () => {
+		const keyBefore = (await colls.users.findOne({ _id: userId }))!.security.reset?.key;
+
+		interceptMails();
+		const res = await api("POST", "/api/account/forget", { email });
+		assert.strictEqual(res.status, 200);
+		assert.strictEqual(sentMails.length, 0, "no second email within the cooldown");
+
+		const afterSkip = (await colls.users.findOne({ _id: userId }))!;
+		assert.strictEqual(afterSkip.security.reset?.key, keyBefore, "the reset key must not be regenerated on a skip");
+	});
+
+	it("the reset link from the first (sent) email still works after skipped resends", async () => {
+		// Its own user: describes in the file run concurrently and the previous tests
+		// left ours outside the reset-email cooldown.
+		const soloId = new ObjectId();
+		const soloEmail = "reset-link-solo@test.com";
+		await colls.users.insertOne(
+			testUser({
+				_id: soloId,
+				account: { username: "resetlinksolo", email: soloEmail },
+				security: { slug: "resetlinksolo" },
+			}),
+		);
+
+		interceptMails();
+		assert.strictEqual((await api("POST", "/api/account/forget", { email: soloEmail })).status, 200);
+		assert.strictEqual(sentMails.length, 1);
+		const firstKey = sentResetKey(sentMails);
+
+		assert.strictEqual((await api("POST", "/api/account/forget", { email: soloEmail })).status, 200);
+		assert.strictEqual(sentMails.length, 1, "the resend is skipped: still within the cooldown");
+		assert.strictEqual((await api("POST", "/api/account/forget", { email: soloEmail })).status, 200);
+		assert.strictEqual(sentMails.length, 1);
+
+		const reset = await api("POST", "/api/account/reset", {
+			email: soloEmail,
+			resetKey: firstKey,
+			password: "reset-hunter2",
+		});
+		assert.strictEqual(reset.status, 200, JSON.stringify(reset.data));
+	});
+
+	it("/forget still 404s on an unknown email", async () => {
+		interceptMails();
+		const res = await api("POST", "/api/account/forget", { email: "no-such-user-195@test.com" });
+		assert.strictEqual(res.status, 404);
+		assert.strictEqual(sentMails.length, 0);
+	});
+
+	it("a /forget past the cooldown sends again", async () => {
+		await colls.users.updateOne(
+			{ _id: userId },
+			{ $set: { "security.lastAuthEmailSentAt": new Date(Date.now() - env.authEmailCooldownMs - 1) } },
+		);
+		interceptMails();
+		const res = await api("POST", "/api/account/forget", { email });
+		assert.strictEqual(res.status, 200);
+		assert.strictEqual(sentMails.length, 1);
+	});
+
+	it("the email-change confirmation respects the cooldown but the change still applies", async () => {
+		// A reset email went out in the previous test → the confirm send is on cooldown.
+		const res = await api("POST", "/api/account/email", { email: "cooldown-user-new@test.com" }, authHeaders);
+		assert.strictEqual(res.status, 200);
+		assert.strictEqual(
+			sentMails.filter((m) => String(m.to) === "cooldown-user-new@test.com").length,
+			0,
+			"no confirm email within the cooldown",
+		);
+		const updated = (await colls.users.findOne({ _id: userId }))!;
+		assert.strictEqual(updated.account.email, "cooldown-user-new@test.com");
+		assert.strictEqual(updated.security.confirmed, false);
+
+		// Past the cooldown the confirm email goes out. A skipped send doesn't stamp:
+		// the mail-change notice above went to the old address cooldown-free.
+		await colls.users.updateOne(
+			{ _id: userId },
+			{ $set: { "security.lastAuthEmailSentAt": new Date(Date.now() - env.authEmailCooldownMs - 1) } },
+		);
+		sentMails = [];
+		const res2 = await api("POST", "/api/account/email", { email: "cooldown-user-final@test.com" }, authHeaders);
+		assert.strictEqual(res2.status, 200);
+		assert.strictEqual(sentMails.filter((m) => String(m.to) === "cooldown-user-final@test.com").length, 1);
+	});
+
+	after(() => {
+		setSendmailForTests(null);
+		return db().dropDatabase();
+	});
 });
 
 describe("Account API — session cookie over a TLS-terminating proxy", () => {
