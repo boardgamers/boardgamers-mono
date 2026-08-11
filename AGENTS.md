@@ -71,10 +71,23 @@ Rules for the agent:
   coordinator for the Mongo URL if you don't have one).
 - **Mongo**: check `dbUrl` in `apps/api/.env` first — that's the source of truth. In
   the devcontainer it's the compose service (`mongodb://mongo:27017/admin`), reachable
-  via the docker network, already running, with `mongosh` on PATH. Only when running
-  outside the devcontainer (plain host) do you `docker compose up -d mongo` and hit the
-  published port (`127.0.0.1:27517`). Note `docker` is **not** on PATH inside the
-  devcontainer, so don't try to start Mongo from here — use the `mongo` hostname.
+  via the docker network, already running, with `mongosh` on PATH. On the plain host
+  there is **no** devcontainer mongo: the local dev mongo is the `mongo` service of the
+  root `docker-compose.yml`, started with **`podman compose up -d`** (podman rootless —
+  no `docker`, no `podman-compose` needed once `pipx install podman-compose` has run;
+  `podman compose` shells out to it). It publishes `127.0.0.1:27517` and self-initiates
+  its `rs0` replica set via the healthcheck, so connect with
+  `dbUrl=mongodb://127.0.0.1:27517/admin?replicaSet=rs0&directConnection=true`
+  (the RS member is named `localhost`; without `directConnection` the driver
+  re-resolves it and fails). `mongosh` is not on the host PATH — use
+  `podman exec <project>_mongo_1 mongosh` (project = checkout dir name). The
+  **preview mongo**
+  (`10.90.0.2:27017`, container `bgs-preview-mongo`, dbs `bgs-pr-*`) is **off-limits**
+  for local dev/tests — it serves the PR preview envs.
+- **S3 (local)**: the same compose file runs **MinIO** (`127.0.0.1:9000` S3 API,
+  `127.0.0.1:9001` console, `minio`/`minio123`) with a pre-created, anonymous-download
+  `bgs-assets` bucket. Uncomment the `S3_*` block in `apps/web/.env.example` into
+  `apps/web/.env` to enable the share-thumbnail cache locally; unset = cache no-ops.
 
 ## Preview environments & test credentials
 
