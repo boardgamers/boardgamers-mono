@@ -25,9 +25,9 @@ export const imageSchema = z.object({
 	ref: zObjectId(),
 	refType: z.literal("User"),
 	// Set once every size's blob has been copied to S3 (avatars/<ref>/<size>.webp)
-	// — by the upload route (dual-write) or the boot migration. The avatar GET
-	// routes 302 to a presigned S3 URL only when this is true; absent/false means
-	// serve from mongo. The mongo blobs are kept as fallback and never deleted.
+	// — by the upload route or the boot migration. The avatar GET routes 302 to
+	// the public S3 object URL only when this is true; absent/false means serve
+	// from mongo. Pre-#224 mongo blobs are kept as fallback and never deleted.
 	s3: z.boolean().optional(),
 	createdAt: zDate().optional(),
 	updatedAt: zDate().optional(),

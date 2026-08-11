@@ -132,13 +132,16 @@ export function publicAvatarUrl(userId: string, size: string): string | null {
 // The api 302s to the public URL only once an anonymous HEAD on the object
 // confirms the bucket serves it publicly (#218); until then it serves the mongo
 // blob. The verdict is cached in-process: negatives briefly (the operator may
-// flip the policy at any moment), positives ~forever (a public bucket stays
-// public; a blip just re-probes on a later request). Bounded by the number of
-// avatar keys requested, × the short negative TTL — never a traffic multiplier
-// worth worrying about next to a mongo blob read.
+// flip the policy at any moment), positives for ~10 minutes (a re-privated
+// bucket heals within the TTL). Bounded by the number of avatar keys
+// requested, × the short TTLs — never a traffic multiplier worth worrying
+// about next to a mongo blob read.
 const publicProbeCache = new Map<string, Promise<boolean>>();
 const PROBE_NEGATIVE_TTL_MS = 30_000;
-const PROBE_POSITIVE_TTL_MS = 3600_000;
+// Positive verdicts are re-checked ~periodically too: a bucket re-privated
+// after going public would otherwise keep redirecting to now-403 objects for
+// the TTL's whole length.
+const PROBE_POSITIVE_TTL_MS = 600_000;
 
 export function isAvatarPubliclyReachable(userId: string, size: string): Promise<boolean> {
 	const url = publicAvatarUrl(userId, size);
