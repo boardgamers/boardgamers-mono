@@ -88,12 +88,13 @@ SSL certs managed by Certbot (Let's Encrypt), auto-renewed.
 
 ## Loki logging stack (`infra/loki/`)
 
-Podman-based Loki + Promtail + Grafana stack. See [`infra/loki/`](./loki/) for details.
+Loki + Promtail + Grafana stack on the prod box, run by **rootless podman under the `bgs` user** — there is no docker on that box. Operate it as the `bgs` user (`ssh bgs`, or `sudo -u bgs …` from another sudo account; rootless podman storage is per-user, so any other user's `podman ps` shows nothing). See [`infra/loki/`](./loki/) for details.
 
 - **Grafana**: `https://grafana.boardgamers.space` (login: OAuth via boardgamers.space, admins only — see "Grafana OAuth" below; `admin`/password env kept as backdoor)
 - **Loki**: `127.0.0.1:3100` (internal only)
 - **Promtail**: tails `~/.pm2/logs/*.log`, ships to Loki
-- **systemd**: `bgs-loki.service` auto-starts the stack on boot
+- **systemd**: `bgs-loki.service` auto-starts the stack on boot (`podman-compose up --no-recreate`, run as `User=bgs`)
+- **Changing a container env** (e.g. `GF_AUTH_GENERIC_OAUTH_*`) needs a recreate, not a restart — envs are baked in at container creation: `cd ~/boardgamers-mono/infra/loki && podman-compose up -d --force-recreate --no-deps grafana`
 
 Pre-provisioned dashboard: "Boardgamers — Server Health" (status codes, error rate, latency, slow endpoints).
 
@@ -103,10 +104,10 @@ Login goes through the boardgamers.space OAuth2/OIDC provider (CIMD, PKCE — no
 
 **Prerequisite:** the API PR exposing the `authority` claim under the `role` scope must be deployed on www.boardgamers.space first.
 
-**Deploy** (on coyo):
+**Deploy** (on the prod box, as `bgs` for step 2 — nginx steps need root):
 
 1. Sync the nginx vhost `infra/loki/grafana.boardgamers.space` to `/etc/nginx/sites-enabled/` (adds the `location = /client-metadata.json` CIMD block), then `sudo nginx -t && sudo systemctl reload nginx`.
-2. `docker compose -f infra/loki/docker-compose.yml up -d grafana` to pick up the `GF_AUTH_GENERIC_OAUTH_*` envs.
+2. As `bgs`: `cd ~/boardgamers-mono/infra/loki && podman-compose up -d --force-recreate --no-deps grafana` to pick up the `GF_AUTH_GENERIC_OAUTH_*` envs (container envs are baked in at creation — a plain `podman restart` does **not** apply compose-file env changes).
 3. Verify: log in via the "Boardgamers" button on https://grafana.boardgamers.space with an admin account (gets GrafanaAdmin); a non-admin account must be denied.
 
 **Follow-up:** once OAuth is confirmed working, uncomment `GF_AUTH_DISABLE_LOGIN_FORM=true` in `infra/loki/docker-compose.yml` (and redeploy) to remove the password form.

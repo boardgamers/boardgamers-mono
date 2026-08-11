@@ -5,7 +5,14 @@ version: "3.8"
 # Loki   (3100)  — log storage, internal only
 # Promtail (9080) — tails PM2 logs, internal only
 #
-# Deploy:  docker compose -f infra/loki/docker-compose.yml up -d
+# Runs on the prod box as ROOTLESS PODMAN under the `bgs` user (no docker on that
+# box), auto-started by bgs-loki.service (`podman-compose up --no-recreate`).
+# Deploy:  ssh bgs, then: cd boardgamers-mono/infra/loki && podman-compose up -d
+# Note: a container's env (e.g. GF_AUTH_GENERIC_OAUTH_*) is baked in at creation —
+# changing it needs a recreate, not a restart:
+#   podman-compose up -d --force-recreate --no-deps grafana
+# (podman-compose 0.0.1 ignores --no-deps and recreates loki too — harmless, it
+# comes back in seconds with its volume intact; promtail is correctly skipped.)
 
 services:
   loki:
