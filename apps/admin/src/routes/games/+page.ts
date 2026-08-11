@@ -5,7 +5,8 @@ type GameCounts = Record<string, number>;
 type RecentGame = Pick<GameFront, "_id" | "game" | "status" | "lastMove" | "createdAt">;
 
 export interface GamesPageData {
-	games: GameCounts;
+	// Named gameCounts (not games) — `games` is the layout's GameInfoFront[] and would be shadowed in page.data.
+	gameCounts: GameCounts;
 	recentGames: RecentGame[];
 	hangsTotal: number;
 }
@@ -21,7 +22,7 @@ export async function load(): Promise<GamesPageData> {
 	]);
 
 	return {
-		games: serverInfo?.games ?? {},
+		gameCounts: serverInfo?.games ?? {},
 		recentGames: serverInfo?.recentGames ?? [],
 		hangsTotal: hangs.total,
 	};

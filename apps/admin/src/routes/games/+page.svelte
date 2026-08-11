@@ -22,7 +22,7 @@
 		{ key: "ended", label: "Ended", color: "text-gray-500 dark:text-gray-400" },
 	] as const;
 
-	const totalGames = $derived(Object.values(data.games).reduce<number>((a, b) => a + (b ?? 0), 0));
+	const totalGames = $derived(Object.values(data.gameCounts).reduce<number>((a, b) => a + (b ?? 0), 0));
 
 	// Map boardgame id → emoji, built from the sidebar's GameInfo labels.
 	const gameEmojiByName = $derived(
@@ -93,7 +93,7 @@
 			<div class="flex gap-3 mt-1.5 text-xs">
 				{#each gameStatuses as s (s.key)}
 					<span class={s.color}>
-						{data.games[s.key] ?? 0}
+						{data.gameCounts[s.key] ?? 0}
 						{s.label.toLowerCase()}
 					</span>
 				{/each}
