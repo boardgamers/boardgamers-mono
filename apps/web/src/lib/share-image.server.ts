@@ -192,7 +192,7 @@ export function s3CacheEnabled(): boolean {
 // served. e.g. share/thumbnail/game/abc123.d41d8cd98f00b204.webp — old keys are left
 // for the bucket's lifecycle rules to expire. Keys nest under the share/ prefix so the
 // bucket root stays clean; each path segment is sanitized individually, so nothing in
-// the route can escape the prefix (e.g. ".." becomes "__").
+// the route can escape the prefix (e.g. ".." becomes "_").
 export function shareImageCacheKey(thumbnailPath: string, etag: string): string {
 	const path = thumbnailPath
 		.split("/")
