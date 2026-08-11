@@ -16,6 +16,13 @@ Boardgamers — an online board game platform. pnpm workspace, Node ≥ 24, ESM 
 | `packages/models`  | Shared Zod schemas + Mongo collection definitions (`@bgs/models`) |
 | `packages/utils`   | Shared helpers (`@bgs/utils`)                                     |
 
+## Working in this repo
+
+**By default, just work directly in your checkout on a branch.** You do NOT need a git
+worktree or a parallel instance — those exist only for the coordinator-orchestrated
+multi-agent (swarm) setup ("## Multi-agent swarms (coordinator)" below), which solo
+agents can skip entirely. Everything else in this file applies to everyone.
+
 ## Comments
 
 Default to no comment — write self-explanatory code. Only comment the non-obvious: a _why_ (decision, constraint, gotcha), or a workaround for an external bug (link the issue/PR).
@@ -24,14 +31,71 @@ Default to no comment — write self-explanatory code. Only comment the non-obvi
 
 Avoid reading env vars & secrets directly, you can store them in files or env and load them, but avoid reading them directly
 
-## Running instances (agent swarms)
+## Conventions
 
-Multiple copies of the stack can run side-by-side on one machine — this is how a
-coordinator agent gives each of its sub-agents an isolated environment.
-**Never run two agents against the default ports/db at once** (they collide and
-share `bgs-dev`).
+- **Formatting** is enforced (see `.prettierrc`: 120 cols, 2-space, `trailingComma: es5`). Don't hand-format; let the formatter run.
+- **Document shapes live in `@bgs/models`** as Zod schemas. They define the types with `z.infer` and are also inserted in DB as validation schemas (`"warn"`).
+- **Tests** are colocated `*.spec.ts` using `node:test` (api/game-server). API tests run with `NODE_ENV=test` against a `…-test` database. Build fixtures inline via `app/config/test-helpers.ts` rather than relying on shared seed data.
+- **Workarounds**: each project keeps a `WORKAROUNDS.md` (e.g. `apps/web/WORKAROUNDS.md`) listing temporary shims and deferred cleanups. When you add such a thing, log a short entry there; when you touch related code, check whether an entry can be removed.
 
-Division of labor:
+## Local dev services
+
+- **Running the stack**: `pnpm dev` runs web+api+game-server on the default ports (web 8612, api 50801, ws 50802, game-server 50803). A direct `pnpm dev` run is always a single process that also runs cron (defaults on in dev) — process forking is owned by PM2 (see `ecosystem.config.cjs`), not the app.
+- **Don't collide with the shared `bgs-dev` db**: if another instance may be using the default db (swarm or not), set a unique `dbName` (e.g. `dbName=bgs-<name> pnpm dev`; `NODE_ENV` stays unset, so the db is actually `bgs-<name>-dev`). If `apps/api/.env` exists, don't also set `dbUrl` — the `.env` already points at the right Mongo and `dbUrl` overrides it; without an `.env`, set `dbUrl` explicitly if the default doesn't work.
+- **Mongo**: check `dbUrl` in `apps/api/.env` first — that's the source of truth. In
+  the devcontainer it's the compose service (`mongodb://mongo:27017/admin`), reachable
+  via the docker network, already running, with `mongosh` on PATH. On the plain host
+  there is **no** devcontainer mongo: the local dev mongo is the `mongo` service of the
+  root `docker-compose.yml`, started with **`podman compose up -d`** (podman rootless —
+  no `docker`, no `podman-compose` needed once `pipx install podman-compose` has run;
+  `podman compose` shells out to it). It publishes `127.0.0.1:27517` and self-initiates
+  its `rs0` replica set via the healthcheck, so connect with
+  `dbUrl=mongodb://127.0.0.1:27517/admin?replicaSet=rs0&directConnection=true`
+  (the RS member is named `localhost`; without `directConnection` the driver
+  re-resolves it and fails). `mongosh` is not on the host PATH — use
+  `podman exec <project>_mongo_1 mongosh` (project = checkout dir name). The
+  **preview mongo** (`10.90.0.2:27017`, container `bgs-preview-mongo`, dbs `bgs-pr-*`)
+  is **off-limits** for local dev/tests — it serves the PR preview envs.
+- **S3 (local)**: the same compose file runs **MinIO** (`127.0.0.1:9000` S3 API,
+  `127.0.0.1:9001` console, `minio`/`minio123`) with a pre-created, anonymous-download
+  `bgs-assets` bucket. Uncomment the `S3_*` block in `apps/web/.env.example` into
+  `apps/web/.env` to enable the share-thumbnail cache locally; unset = cache no-ops.
+
+## Pull requests
+
+- **Merging a PR to `main` auto-deploys to production** (the prod box runs git pull + build + pm2 restart). Merging = shipping, so a PR is only mergeable when it's genuinely ready for prod.
+- **UI PRs must include screenshots**, attached per "## Screenshots on PRs/issues" below.
+
+## Screenshots on PRs/issues
+
+To attach a screenshot to a PR or issue:
+
+- **Do NOT use** GitHub's asset upload (drag-drop / `/assets/` URLs) from an agent token — it fails with "Asset upload is not working with this token type".
+- **Do NOT** commit screenshots to the PR's own branch (they'd get merged into main and bloat the repo), and do NOT create throwaway draft releases to host them (deleting the release breaks the images).
+- **The convention**: push the file to the dedicated long-lived **`pr-assets`** branch (an orphan-ish branch we never delete, so the raw URLs stay valid), under a per-PR folder `pr-<N>/`:
+
+```bash
+# from a clone of the repo, on the pr-assets branch (fetch it first if you don't have it):
+git fetch origin pr-assets && git checkout pr-assets
+mkdir -p pr-<N>
+cp /path/to/screenshot.png pr-<N>/
+git add pr-<N> && git commit -m "PR <N>: <what>" && git push origin pr-assets
+```
+
+Then embed it in the PR body or a comment:
+
+```
+![alt](https://raw.githubusercontent.com/boardgamers/boardgamers-mono/pr-assets/pr-<N>/<name>.png)
+```
+
+Switch **back** to your working branch/worktree afterward — or do this in a separate throwaway clone — so the assets commit never lands on your working branch.
+
+## Multi-agent swarms (coordinator)
+
+Everything in this section applies only when a coordinator agent runs several worker
+agents side-by-side on one machine. **Never run two agents against the default ports/db
+at once** (they collide and share `bgs-dev`) — each sub-agent gets an isolated worktree,
+IP, and db. Division of labor:
 
 - **Coordinator**: spawns one sub-agent per worktree. Before spawning, pick a
   unique `<name>`, allocate its IP, and **copy the local env files into the
@@ -39,7 +103,7 @@ Division of labor:
 
   ```bash
   IP=$(scripts/instance-ip.sh alloc <name>)       # unique 127.1.X.Y, idempotent
-    [spawn subagent with IP, tell it its name]
+  [spawn subagent with IP, tell it its name]
   for app in api game-server; do
     [ -f apps/$app/.env ] && cp apps/$app/.env .worktrees/<name>/apps/$app/.env
   done
@@ -57,49 +121,28 @@ Division of labor:
   # when done: coordinator runs scripts/instance-ip.sh free <name>
   ```
 
-Rules for the agent:
+  Always set `dbName` (see "Don't collide with the shared `bgs-dev` db" under
+  "## Local dev services"), and **don't set `dbUrl` if the coordinator gave you an
+  `.env`** — it already points at the right Mongo for this host. If there is **no**
+  `apps/api/.env` in your worktree, ask the coordinator for the Mongo URL.
 
-- Always set `dbName` (e.g. `bgs-<name>`) — otherwise the instance shares the
-  default `bgs-dev` db. `NODE_ENV` stays unset (development), so the db is
-  actually `bgs-<name>-dev`. Process forking is owned by PM2 (see
-  `ecosystem.config.cjs`), not the app, so a direct `pnpm dev` run is always a
-  single process that also runs cron (which defaults on in dev).
-- **Don't set `dbUrl` if the coordinator gave you an `.env`** — it already
-  points at the right Mongo for this host, and `dbUrl` overrides it. If there
-  is **no** `apps/api/.env` in your worktree, set `dbUrl` explicitly if the default
-  one doesnt work (ask the
-  coordinator for the Mongo URL if you don't have one).
-- **Mongo**: check `dbUrl` in `apps/api/.env` first — that's the source of truth. In
-  the devcontainer it's the compose service (`mongodb://mongo:27017/admin`), reachable
-  via the docker network, already running, with `mongosh` on PATH. On the plain host
-  there is **no** devcontainer mongo: the local dev mongo is the `mongo` service of the
-  root `docker-compose.yml`, started with **`podman compose up -d`** (podman rootless —
-  no `docker`, no `podman-compose` needed once `pipx install podman-compose` has run;
-  `podman compose` shells out to it). It publishes `127.0.0.1:27517` and self-initiates
-  its `rs0` replica set via the healthcheck, so connect with
-  `dbUrl=mongodb://127.0.0.1:27517/admin?replicaSet=rs0&directConnection=true`
-  (the RS member is named `localhost`; without `directConnection` the driver
-  re-resolves it and fails). `mongosh` is not on the host PATH — use
-  `podman exec <project>_mongo_1 mongosh` (project = checkout dir name). The
-  **preview mongo**
-  (`10.90.0.2:27017`, container `bgs-preview-mongo`, dbs `bgs-pr-*`) is **off-limits**
-  for local dev/tests — it serves the PR preview envs.
-- **S3 (local)**: the same compose file runs **MinIO** (`127.0.0.1:9000` S3 API,
-  `127.0.0.1:9001` console, `minio`/`minio123`) with a pre-created, anonymous-download
-  `bgs-assets` bucket. Uncomment the `S3_*` block in `apps/web/.env.example` into
-  `apps/web/.env` to enable the share-thumbnail cache locally; unset = cache no-ops.
+### PR review process (swarm)
+
+- **Open one PR per worker** — worker branches are `moon/<name>`, and each worker opens its own PR.
+- **The coordinator never merges PRs itself** — only the user (repo owner) merges. The coordinator prepares PRs and reports readiness; the merge decision is the user's.
+- **Every PR gets an independent review by a fresh reviewer agent** (especially auth / security / proxy / data / public-facing changes): the coordinator spawns a separate, dedicated reviewer pointed at the PR head for a read-only review that reports blockers/nits and a verdict (APPROVE / REQUEST-CHANGES). The author worker's own tests passing is not sufficient — the independent pass is required before presenting the PR to the user. The reviewer also verifies that UI-PR screenshots (required of everyone — see "## Pull requests") match the claimed change.
+- **Keep the coordinator's local `main` fresh**: after each merge, run `git fetch origin && git reset --hard origin/main` (or pull) on the main checkout — workers branch off `origin/main` at spawn time, so a stale main leaves them behind and risks reverting merged work. Also re-check in-flight workers' bases after a merge and have them rebase if they overlap.
 
 ## Preview environments & test credentials
 
 - Each open PR can get an ephemeral preview at `https://pr-<N>.boardgamers.space`,
   deployed by `.github/workflows/pr-preview.yml` when a MEMBER/OWNER/COLLABORATOR
   pushes (or the PR has the `preview` label). The preview db is a **sanitized prod
-  dump** — full architecture in `infra/pr-preview/README.md`.
-- **Every preview user's password is `password`**
-  (`infra/pr-preview/seed/scrub-users.mjs` rewrites every password hash and sets
-  emails to `<username>@preview.invalid`), so you can log in as anyone on a preview —
-  e.g. admin user `coyotte508` / `password`.
-- Script against a preview API:
+  dump** — full architecture in `infra/pr-preview/README.md`; sanitization details
+  and the contributor rule for personal data are in "### Preview sanitization" below.
+- **Every preview user's password is `password`** (the sanitize script rewrites every
+  password hash), so you can log in as anyone on a preview — e.g. admin user
+  `coyotte508` / `password`. Script against a preview API:
 
   ```bash
   curl -X POST https://pr-<N>.boardgamers.space/api/account/login \
@@ -116,6 +159,24 @@ Rules for the agent:
 
 - Local seeded db (`apps/api/scripts/seed.ts`): every fixture user's password is
   also `password` (e.g. `admin@test.com` / `password`).
+
+### Preview sanitization
+
+The sanitization of the preview dump lives in `infra/pr-preview/seed/`:
+
+- `dump-and-ship.sh` **excludes whole collections** (`EXCLUDED=(...)`) — sessions,
+  tokens, private comms, cron state, debug/transient bulk.
+- `scrub-users.mjs` rebuilds `users` from a **whitelist** of safe fields and sets
+  every password to the hash of `password` (so you can log in as anyone on a
+  preview), with emails rewritten to `<username>@preview.invalid`.
+
+**When you add a collection or a user field that holds personal data** (emails,
+passwords, OAuth ids, IPs, tokens, private messages, anything identifying), update
+these two files in the same change: add the collection to `EXCLUDED`, or make sure
+the new user field is _not_ in the `KEEP_*` sets (the whitelist drops unknown
+fields by default — you only need to act if you _want_ the field kept, or if it's
+a new collection that isn't covered). The whitelist is the safety net: a field you
+don't mention never reaches a preview.
 
 ### Admin tokens (agent-facing)
 
@@ -177,68 +238,6 @@ Prod runs under PM2 (`ecosystem.config.cjs`); reach the box with `ssh bgs`.
   ```
 
   Resources are plain `bucket/prefix/*` strings, **not** `arn:aws:...` ARNs.
-
-## Workarounds
-
-Each project keeps a `WORKAROUNDS.md` (e.g. `apps/web/WORKAROUNDS.md`, `apps/api/WORKAROUNDS.md`) listing temporary shims and deferred cleanups — things intentional for now but to revisit later. When you add such a thing, log a short entry there; when you touch related code, check whether an entry can be removed.
-
-## Personal data & the preview sanitize script
-
-PR preview envs (`infra/pr-preview/`) restore their db from a **sanitized** dump of
-prod. The sanitization lives in `infra/pr-preview/seed/`:
-
-- `dump-and-ship.sh` **excludes whole collections** (`EXCLUDED=(...)`) — sessions,
-  tokens, private comms, cron state, debug/transient bulk.
-- `scrub-users.mjs` rebuilds `users` from a **whitelist** of safe fields and sets
-  every password to the hash of `password` (so you can log in as anyone on a
-  preview), with emails rewritten to `<username>@preview.invalid`.
-
-**When you add a collection or a user field that holds personal data** (emails,
-passwords, OAuth ids, IPs, tokens, private messages, anything identifying), update
-these two files in the same change: add the collection to `EXCLUDED`, or make sure
-the new user field is _not_ in the `KEEP_*` sets (the whitelist drops unknown
-fields by default — you only need to act if you _want_ the field kept, or if it's
-a new collection that isn't covered). The whitelist is the safety net: a field you
-don't mention never reaches a preview.
-
-## Screenshots on PRs/issues
-
-To attach a screenshot to a PR or issue:
-
-- **Do NOT use** GitHub's asset upload (drag-drop / `/assets/` URLs) from an agent token — it fails with "Asset upload is not working with this token type".
-- **Do NOT** commit screenshots to the PR's own branch (they'd get merged into main and bloat the repo), and do NOT create throwaway draft releases to host them (deleting the release breaks the images).
-- **The convention**: push the file to the dedicated long-lived **`pr-assets`** branch (an orphan-ish branch we never delete, so the raw URLs stay valid), under a per-PR folder `pr-<N>/`:
-
-```bash
-# from a clone of the repo, on the pr-assets branch (fetch it first if you don't have it):
-git fetch origin pr-assets && git checkout pr-assets
-mkdir -p pr-<N>
-cp /path/to/screenshot.png pr-<N>/
-git add pr-<N> && git commit -m "PR <N>: <what>" && git push origin pr-assets
-```
-
-Then embed it in the PR body or a comment:
-
-```
-![alt](https://raw.githubusercontent.com/boardgamers/boardgamers-mono/pr-assets/pr-<N>/<name>.png)
-```
-
-Switch **back** to your working branch/worktree afterward — or do this in a separate throwaway clone — so the assets commit never lands on your working branch.
-
-## PR review
-
-- **Open one PR per worker** — worker branches are `moon/<name>`, and each worker opens its own PR.
-- **Merging a PR to `main` auto-deploys to production** (the prod box runs git pull + build + pm2 restart). Merging = shipping, so a PR is only mergeable when it's genuinely ready for prod.
-- **The coordinator never merges PRs itself** — only the user (repo owner) merges. The coordinator prepares PRs and reports readiness; the merge decision is the user's.
-- **Every PR gets an independent review by a fresh reviewer agent** (especially auth / security / proxy / data / public-facing changes): the coordinator spawns a separate, dedicated reviewer pointed at the PR head for a read-only review that reports blockers/nits and a verdict (APPROVE / REQUEST-CHANGES). The author worker's own tests passing is not sufficient — the independent pass is required before presenting the PR to the user.
-- **UI PRs must include screenshots**: any PR that changes user-visible UI attaches them per "## Screenshots on PRs/issues" (push to the `pr-assets` branch under `pr-<N>/`, embed the raw URL; never commit screenshots to the PR's own branch). The reviewer agent verifies the screenshots match the claimed change.
-- **Keep the coordinator's local `main` fresh**: after each merge, run `git fetch origin && git reset --hard origin/main` (or pull) on the main checkout — workers branch off `origin/main` at spawn time, so a stale main leaves them behind and risks reverting merged work. Also re-check in-flight workers' bases after a merge and have them rebase if they overlap.
-
-## Conventions
-
-- **Formatting** is enforced (see `.prettierrc`: 120 cols, 2-space, `trailingComma: es5`). Don't hand-format; let the formatter run.
-- **Document shapes live in `@bgs/models`** as Zod schemas. They define the types with `z.infer` and are also inserted in DB as validation schemas (`"warn"`).
-- **Tests** are colocated `*.spec.ts` using `node:test` (api/game-server). API tests run with `NODE_ENV=test` against a `…-test` database. Build fixtures inline via `app/config/test-helpers.ts` rather than relying on shared seed data.
 
 ### Removing an index
 
