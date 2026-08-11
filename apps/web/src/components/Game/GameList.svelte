@@ -91,7 +91,12 @@
 
 		const elo = pl.elo.initial ?? 0;
 		const delta = pl.elo.delta ?? 0;
-		return elo === 0 && delta === 0 ? "" : (delta >= 0 ? "( +" : "( -") + Math.abs(delta) + " elo )";
+		if (elo === 0 && delta === 0) {
+			return "";
+		}
+		// The proper minus sign (not a hyphen) keeps the chip compact and unambiguous.
+		const text = (delta >= 0 ? "+" : "−") + Math.abs(delta);
+		return { delta, text, label: `Elo change: ${text}` };
 	}
 
 	function playTime(game: GameFront) {
@@ -194,6 +199,7 @@
 				>
 					{#each games as game (game._id)}
 						{@const timeLeft = game.status === "active" ? turnTimeLeft(game) : null}
+						{@const eloChange = playerEloChange(game)}
 						<li
 							class="game-item"
 							class:active-game={game.status === "active"}
@@ -219,13 +225,22 @@
 												{game.players.length}/{game.options.setup.nbPlayers}
 											</span>
 										{/if}
-										<span class="game-name truncate">
+										<span class="game-name min-w-0 truncate">
 											{game._id}
 										</span>
-										{#if playerEloChange(game)}
-											<sup class="ms-1">
-												{playerEloChange(game)}
-											</sup>
+										{#if eloChange}
+											<!-- shrink-0 + whitespace-nowrap: the chip never wraps or gets squeezed, so the
+											     name truncates before it instead of overlapping on narrow screens. -->
+											<span
+												class="ms-1.5 inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-1.5 py-0.5 text-xs font-semibold {eloChange.delta >=
+												0
+													? 'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-200'
+													: 'bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200'}"
+												title={eloChange.label}
+												aria-label={eloChange.label}
+											>
+												{eloChange.text}
+											</span>
 										{/if}
 									</div>
 									<small
