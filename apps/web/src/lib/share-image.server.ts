@@ -3,7 +3,13 @@ import { Readable } from "node:stream";
 // Side-effect import first: loads apps/web/.env into process.env (no-op when absent),
 // so the S3_* vars are set before s3Config() reads them — regardless of cwd.
 import "./server-env";
-import { GetObjectCommand, PutObjectCommand, S3Client, type S3ClientConfig } from "@aws-sdk/client-s3";
+import {
+	GetObjectCommand,
+	HeadObjectCommand,
+	PutObjectCommand,
+	S3Client,
+	type S3ClientConfig,
+} from "@aws-sdk/client-s3";
 import { error } from "@sveltejs/kit";
 import { chromium, type Browser } from "playwright";
 import sharp from "sharp";
@@ -185,10 +191,42 @@ function client(): S3Client {
 	return s3Client;
 }
 
+// Public base URL of the bucket, or null when the bucket isn't (yet) public-read.
+// Explicitly opt-in via S3_PUBLIC_URL (an unset/empty value means "private bucket"):
+// only then do cache hits 302 to the object URL instead of proxying the bytes
+// through this process. Requires the bucket to allow anonymous reads (#218) — with a
+// private bucket the redirect target would 403, which is why this is gated rather
+// than derived from S3_ENDPOINT by default. Path-style, matching forcePathStyle.
+export function shareImagePublicBaseUrl(): string | null {
+	const base = process.env.S3_PUBLIC_URL ?? process.env.S3_PUBLIC_ENDPOINT;
+	if (!base || !process.env.S3_BUCKET) {
+		return null;
+	}
+	return `${base.replace(/\/+$/, "")}/${process.env.S3_BUCKET}`;
+}
+
 // Bound S3 latency: a slow/flaky store must fail fast into the render path rather than
 // add multi-second tail latency to crawler-facing OG requests. Errors already fall back
 // to rendering; this just caps how long we wait.
 const S3_TIMEOUT_MS = 3000;
+
+// True when the object exists in the bucket. Cheap existence check (no body): on a
+// warm cache we redirect to the public URL, so we must know the object is there
+// without downloading it. S3 failures are logged and treated as a miss — the cache
+// must never break a request.
+async function cachedThumbnailExists(key: string): Promise<boolean> {
+	try {
+		await client().send(new HeadObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }), {
+			abortSignal: AbortSignal.timeout(S3_TIMEOUT_MS),
+		});
+		return true;
+	} catch (err) {
+		if ((err as { name?: string })?.name !== "NoSuchKey" && (err as { name?: string })?.name !== "NotFound") {
+			console.warn("share image cache head failed, rendering instead:", (err as Error)?.message ?? err);
+		}
+		return false;
+	}
+}
 
 // Stored webp for this key, or null on a miss. S3 failures are logged and treated as a
 // miss — the cache must never break a request.
@@ -244,14 +282,29 @@ export async function shareImageResponse(
 
 	if (s3CacheEnabled()) {
 		const key = shareImageCacheKey(thumbnailPath, etag);
-		const cached = await cachedThumbnail(key);
-		if (cached) {
-			return body(cached);
+		// Public bucket (opt-in, #218): on a hit, redirect to the public object URL
+		// instead of proxying the bytes through this process — S3/CDN serves them.
+		const publicBase = shareImagePublicBaseUrl();
+		if (publicBase) {
+			if (await cachedThumbnailExists(key)) {
+				return new Response(null, {
+					status: 302,
+					headers: { ...headers, Location: `${publicBase}/${key}` },
+				});
+			}
+		} else {
+			const cached = await cachedThumbnail(key);
+			if (cached) {
+				return body(cached);
+			}
 		}
 		const webp = await render(thumbnailPath);
 		// Awaited rather than fire-and-forget so callers (and tests) can rely on the
 		// write being issued; storeThumbnail never throws.
 		await storeThumbnail(key, webp);
+		// Serve the bytes we just rendered rather than redirecting to the object we
+		// just wrote — it may not be consistently readable instantly, and the cold
+		// path shouldn't pay a redirect round-trip.
 		return body(webp);
 	}
 

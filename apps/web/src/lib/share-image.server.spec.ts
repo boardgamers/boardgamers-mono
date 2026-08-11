@@ -121,8 +121,11 @@ describe("shareImageResponse S3 cache", () => {
 		S3_SECRET_ACCESS_KEY: "secret",
 	};
 
-	function enableS3(s: Send) {
+	function enableS3(s: Send, { publicUrl }: { publicUrl?: string } = {}) {
 		Object.assign(process.env, s3Env);
+		if (publicUrl) {
+			process.env.S3_PUBLIC_URL = publicUrl;
+		}
 		setS3ClientForTests({ send: s } as never);
 	}
 
@@ -141,7 +144,7 @@ describe("shareImageResponse S3 cache", () => {
 
 	afterEach(() => {
 		setS3ClientForTests(null);
-		for (const key of Object.keys(s3Env)) {
+		for (const key of [...Object.keys(s3Env), "S3_PUBLIC_URL", "S3_PUBLIC_ENDPOINT"]) {
 			delete process.env[key];
 		}
 		vi.unstubAllGlobals();
@@ -184,7 +187,7 @@ describe("shareImageResponse S3 cache", () => {
 		}
 	});
 
-	it("serves the stored object on a hit without rendering", async () => {
+	it("serves the stored object on a hit without rendering (private bucket: proxy bytes)", async () => {
 		enableS3(send);
 		const stored = Buffer.from("cached-webp");
 		send.mockResolvedValueOnce({
@@ -198,6 +201,51 @@ describe("shareImageResponse S3 cache", () => {
 		expect(res.headers.get("ETag")).toBe(etag);
 		// Exactly one S3 call (the GetObject) — no render, no PutObject.
 		expect(send).toHaveBeenCalledTimes(1);
+	});
+
+	it("redirects to the public object URL on a hit when S3_PUBLIC_URL is set", async () => {
+		enableS3(send, { publicUrl: "https://s3.fr-par.scw.cloud/" });
+		// HeadObject success — the object exists.
+		send.mockResolvedValueOnce({});
+
+		const res = await shareImageResponse(path, etag, null);
+
+		expect(res.status).toBe(302);
+		expect(res.headers.get("Location")).toBe(`https://s3.fr-par.scw.cloud/bgs-assets/${cacheKey}`);
+		expect(res.headers.get("ETag")).toBe(etag);
+		expect(res.headers.get("Cache-Control")).toBe("public, max-age=300, must-revalidate");
+		expect(await res.text()).toBe("");
+		// Exactly one S3 call: a HeadObject, NOT a GetObject — no bytes are proxied.
+		expect(send).toHaveBeenCalledTimes(1);
+		expect(send.mock.calls[0][0].constructor.name).toBe("HeadObjectCommand");
+		expect(send.mock.calls[0][0].input).toMatchObject({ Bucket: "bgs-assets", Key: cacheKey });
+	});
+
+	it("renders + stores + serves bytes on a miss even when S3_PUBLIC_URL is set (no redirect on the cold path)", async () => {
+		enableS3(send, { publicUrl: "https://s3.fr-par.scw.cloud" });
+		send.mockRejectedValueOnce(Object.assign(new Error("nope"), { name: "NotFound" })).mockResolvedValueOnce({});
+
+		const res = await shareImageResponse(path, etag, null);
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toBe("image/webp");
+		// HeadObject (miss) + PutObject — the freshly rendered bytes are served directly.
+		expect(send).toHaveBeenCalledTimes(2);
+		expect(send.mock.calls[0][0].constructor.name).toBe("HeadObjectCommand");
+		expect(send.mock.calls[1][0].constructor.name).toBe("PutObjectCommand");
+	});
+
+	it("falls back to rendering when the HeadObject check fails (public mode never 500s on S3 errors)", async () => {
+		enableS3(send, { publicUrl: "https://s3.fr-par.scw.cloud" });
+		send.mockRejectedValueOnce(new Error("network down")).mockResolvedValueOnce({});
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		const res = await shareImageResponse(path, etag, null);
+
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Content-Type")).toBe("image/webp");
+		expect(warn).toHaveBeenCalledOnce();
+		expect(send).toHaveBeenCalledTimes(2);
 	});
 
 	it("falls back to rendering when S3 read fails", async () => {
