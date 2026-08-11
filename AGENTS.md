@@ -137,6 +137,47 @@ while their owner is still an admin — treat one as a credential, and ask the
 admin for a new one if it stops working. (Admins: list/revoke your own tokens on
 the Admin Tokens page or via `GET`/`DELETE /api/admin/tokens`.)
 
+## Production operations
+
+Prod runs under PM2 (`ecosystem.config.cjs`); reach the box with `ssh bgs`.
+
+- **Reload, don't restart**: use `pm2 reload <proc> --update-env` (graceful,
+  zero-downtime) rather than `pm2 restart`. Processes: `web`, `api`, `api-cron`,
+  `game-server` (plus `game-server-cron`, `watchdog` — see
+  `ecosystem.config.cjs`). `api-cron` is the singleton process that runs DB
+  migrations + cron (`cron=true`); reloading it re-runs any pending migrations.
+- **Fresh logs**: `pm2 logs <proc>` starts from a buffered tail — run
+  `pm2 flush <proc>` first when you need to tell new output apart from old.
+- **Re-running a DB migration**: migrations (`apps/api/app/models/migrations/`)
+  run at `api-cron` boot for every version greater than the one recorded in the
+  `settings` collection doc `{ _id: "dbVersion", value: "<semver>" }`. To re-run
+  migration `X`, set `value` back to the version just below `X`, then
+  `pm2 reload api-cron` — e.g. for `1.5.0`:
+
+  ```bash
+  mongosh <db> --eval 'db.settings.updateOne({_id:"dbVersion"},{$set:{value:"1.4.2"}})'
+  pm2 reload api-cron --update-env
+  ```
+
+  Write migrations to be **idempotent** — they must be safe to re-run this way.
+
+- **Scaleway Object Storage bucket policies are ALLOW-ONLY** (policy version
+  `2023-04-17`): once a bucket policy exists, only actions it explicitly allows
+  are permitted — a policy with just an `s3:GetObject`-for-`*` statement
+  silently denies the owning key's own `PutObject`/`ListObjects`. Always pair
+  any public-read statement with a full-access statement for the owning
+  user/app:
+
+  ```json
+  {
+    "Principal": { "SCW": "user_id:<id>" },
+    "Action": ["s3:*"],
+    "Resource": ["<bucket>", "<bucket>/*"]
+  }
+  ```
+
+  Resources are plain `bucket/prefix/*` strings, **not** `arn:aws:...` ARNs.
+
 ## Workarounds
 
 Each project keeps a `WORKAROUNDS.md` (e.g. `apps/web/WORKAROUNDS.md`, `apps/api/WORKAROUNDS.md`) listing temporary shims and deferred cleanups — things intentional for now but to revisit later. When you add such a thing, log a short entry there; when you touch related code, check whether an entry can be removed.
