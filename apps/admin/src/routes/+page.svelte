@@ -2,26 +2,14 @@
 	import { invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
-	import { api } from "$lib/api.ts";
-	import { toast } from "$lib/toast.svelte.ts";
 	import { filesize, gameEmoji, timeAgo } from "$lib/utils.ts";
 	import type { GameInfoFront } from "@bgs/models";
-	import MarkdownEditor from "$components/MarkdownEditor.svelte";
 	import WebLink from "$components/WebLink.svelte";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
 
 	let refreshing = $state(false);
-	let announcement = $state({ title: "", content: "" });
-
-	// Initialise the editable announcement from the loaded serverInfo.
-	$effect(() => {
-		if (data.serverInfo?.announcement) {
-			announcement.title = data.serverInfo.announcement.title ?? "";
-			announcement.content = data.serverInfo.announcement.content ?? "";
-		}
-	});
 
 	const serverInfo = $derived(data.serverInfo);
 	const healthStatus = $derived(data.healthStatus);
@@ -43,15 +31,6 @@
 			await invalidateAll();
 		} finally {
 			refreshing = false;
-		}
-	}
-
-	async function saveAnnouncement() {
-		try {
-			await api.post("/admin/announcement", { announcement });
-			toast.success("Announcement updated");
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Failed to update");
 		}
 	}
 </script>
@@ -220,21 +199,10 @@
 		<!-- Announcement -->
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-4">
 			<h3 class="text-sm font-semibold">Announcement</h3>
-			<div class="space-y-2">
-				<label class="block text-xs font-medium text-gray-500" for="announcement-title">Title</label>
-				<input
-					id="announcement-title"
-					bind:value={announcement.title}
-					class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-				/>
-				<MarkdownEditor bind:value={announcement.content} label="Content (Markdown)" rows={5} />
-				<button
-					onclick={saveAnnouncement}
-					class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
-				>
-					Update announcement
-				</button>
-			</div>
+			<p class="text-sm text-gray-500 dark:text-gray-400">
+				The homepage "Recent changes" box now shows the latest published changelog entries. Manage them on the
+				<a href={resolve("/changelog")} class="text-blue-600 dark:text-blue-400 hover:underline">Changelog</a> page.
+			</p>
 		</div>
 	</div>
 </div>

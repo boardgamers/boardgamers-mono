@@ -7,18 +7,17 @@ import path from "node:path";
 import { env } from "../../config/index.ts";
 import { colls } from "../../config/db.ts";
 import {
-	announcementSchema,
 	findByEmail,
 	findByUsername,
 	generateConfirmKey,
 	hashUserSecret,
 	recalculateKarma,
 	sendConfirmationEmail,
-	SettingsKey,
 } from "../../models/index.ts";
 import { sendAuthInfo } from "../account/index.ts";
 import { z } from "zod";
 import { isAdmin } from "../utils.ts";
+import changelogRouter from "./changelog.ts";
 import gameInfo from "./gameinfo.ts";
 import gamesRouter from "./games.ts";
 import loki from "./loki.ts";
@@ -30,6 +29,7 @@ const router = new Router<Application.DefaultState, Context>();
 
 router.use(isAdmin);
 
+router.use("/changelog", changelogRouter.routes(), changelogRouter.allowedMethods());
 router.use("/gameinfo", gameInfo.routes(), gameInfo.allowedMethods());
 router.use("/games", gamesRouter.routes(), gamesRouter.allowedMethods());
 router.use("/loki", loki.routes(), loki.allowedMethods());
@@ -98,44 +98,33 @@ router.get("/serverinfo", async (ctx) => {
 	// lastOnline = user marked themselves online; lastActive = ws connection alive (pong).
 	const activityCutoff = new Date(Date.now() - 60 * 1000);
 
-	const [
-		disk,
-		nbUsers,
-		nbAdmins,
-		onlineUsers,
-		connectedUsers,
-		gamesByStatus,
-		queueByKind,
-		recentUsers,
-		recentGames,
-		announcement,
-	] = await Promise.all([
-		checkDiskSpace(process.cwd()),
-		colls.users.countDocuments({}),
-		colls.users.countDocuments({ authority: "admin" }),
-		colls.users.countDocuments({ "security.lastOnline": { $gt: activityCutoff } }),
-		colls.users.countDocuments({ "security.lastActive": { $gt: activityCutoff } }),
-		colls.games
-			.aggregate<{ _id: string; count: number }>([{ $group: { _id: "$status", count: { $sum: 1 } } }])
-			.toArray(),
-		colls.gameNotifications
-			.aggregate<{ _id: string; count: number }>([
-				{ $match: { processed: false } },
-				{ $group: { _id: "$kind", count: { $sum: 1 } } },
-			])
-			.toArray(),
-		colls.users
-			.find({}, { projection: { _id: 1, "account.username": 1, createdAt: 1 } })
-			.sort({ createdAt: -1 })
-			.limit(5)
-			.toArray(),
-		colls.games
-			.find({}, { projection: { _id: 1, "game.name": 1, status: 1, lastMove: 1, createdAt: 1 } })
-			.sort({ lastMove: -1 })
-			.limit(5)
-			.toArray(),
-		colls.settings.findOne({ _id: SettingsKey.Announcement }),
-	]);
+	const [disk, nbUsers, nbAdmins, onlineUsers, connectedUsers, gamesByStatus, queueByKind, recentUsers, recentGames] =
+		await Promise.all([
+			checkDiskSpace(process.cwd()),
+			colls.users.countDocuments({}),
+			colls.users.countDocuments({ authority: "admin" }),
+			colls.users.countDocuments({ "security.lastOnline": { $gt: activityCutoff } }),
+			colls.users.countDocuments({ "security.lastActive": { $gt: activityCutoff } }),
+			colls.games
+				.aggregate<{ _id: string; count: number }>([{ $group: { _id: "$status", count: { $sum: 1 } } }])
+				.toArray(),
+			colls.gameNotifications
+				.aggregate<{ _id: string; count: number }>([
+					{ $match: { processed: false } },
+					{ $group: { _id: "$kind", count: { $sum: 1 } } },
+				])
+				.toArray(),
+			colls.users
+				.find({}, { projection: { _id: 1, "account.username": 1, createdAt: 1 } })
+				.sort({ createdAt: -1 })
+				.limit(5)
+				.toArray(),
+			colls.games
+				.find({}, { projection: { _id: 1, "game.name": 1, status: 1, lastMove: 1, createdAt: 1 } })
+				.sort({ lastMove: -1 })
+				.limit(5)
+				.toArray(),
+		]);
 
 	const games: Record<string, number> = {};
 	for (const g of gamesByStatus) {
@@ -157,7 +146,6 @@ router.get("/serverinfo", async (ctx) => {
 		queue,
 		recentUsers,
 		recentGames,
-		announcement: announcement?.value,
 		cron: env.cron,
 	};
 });
@@ -234,16 +222,6 @@ router.post("/load-games", async (ctx) => {
 
 		await colls.games.replaceOne({ _id: gameId }, game);
 	}
-});
-
-router.post("/announcement", async (ctx) => {
-	const { announcement } = z.object({ announcement: announcementSchema.optional() }).parse(ctx.request.body);
-	await colls.settings.updateOne(
-		{ _id: SettingsKey.Announcement },
-		{ $set: { value: announcement } },
-		{ upsert: true },
-	);
-	ctx.status = 200;
 });
 
 router.post("/recreate-notifications", async (ctx) => {

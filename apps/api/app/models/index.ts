@@ -3,6 +3,15 @@ export { DEFAULT_AVATAR_STYLE, generateAvatar, isAvatarStyle } from "./avatar.ts
 export type { AdminTokenDoc } from "@bgs/models";
 export type { ApiErrorDoc } from "@bgs/models";
 export type { ChatMessageDoc } from "@bgs/models";
+export {
+	ANNOUNCEMENT_ENTRY_COUNT,
+	announcementFromChangelog,
+	changelogInputSchema,
+	latestChangelogs,
+	seedChangelogsFromAnnouncement,
+	splitAnnouncementContent,
+} from "./changelogs.ts";
+export type { ChangelogDoc } from "@bgs/models";
 export { findGamesWithPlayer, findGamesWithPlayersTurn, gameBasicsProjection } from "./game.ts";
 export type { GameDoc } from "@bgs/models";
 export { findGameInfoWithVersion } from "./gameinfo.ts";

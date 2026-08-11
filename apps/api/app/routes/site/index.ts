@@ -2,12 +2,40 @@ import type { Context } from "koa";
 import Router from "koa-router";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
-import { SettingsKey } from "../../models/index.ts";
+import {
+	ANNOUNCEMENT_ENTRY_COUNT,
+	announcementFromChangelog,
+	latestChangelogs,
+	SettingsKey,
+	seedChangelogsFromAnnouncement,
+} from "../../models/index.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
+const changelogQuerySchema = z.object({
+	limit: z.coerce.number().int().min(1).max(50).default(ANNOUNCEMENT_ENTRY_COUNT),
+	// Cursor: an ISO date — the next page holds entries strictly older than it.
+	before: z.iso.datetime().optional(),
+});
+
+// GET /api/site/changelog — latest published entries, newest first.
+// Lazily backfills from the legacy announcement blob when the collection is
+// empty: pre-#184 dbs get their history without waiting for api-cron, and the
+// migration's own empty check makes the seed-once guarantee race-safe.
+router.get("/changelog", async (ctx) => {
+	const { limit, before } = changelogQuerySchema.parse(ctx.query);
+	if (!before) {
+		await seedChangelogsFromAnnouncement();
+	}
+	ctx.body = await latestChangelogs(limit, before ? new Date(before) : undefined);
+});
+
+// Kept for older clients: same { title, content } shape as before #184, now fed
+// by the changelog. Falls back to the stored blob when there are no entries at
+// all (e.g. an announcement written by hand but never migrated).
 router.get("/announcement", async (ctx) => {
-	ctx.body = (await colls.settings.findOne({ _id: SettingsKey.Announcement }))?.value;
+	ctx.body =
+		(await announcementFromChangelog()) ?? (await colls.settings.findOne({ _id: SettingsKey.Announcement }))?.value;
 });
 
 const errorReportSchema = z.object({

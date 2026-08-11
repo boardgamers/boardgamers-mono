@@ -1,5 +1,5 @@
 import { api, ApiError } from "$lib/api.ts";
-import type { UserFront, GameFront, Announcement } from "@bgs/models";
+import type { UserFront, GameFront } from "@bgs/models";
 
 type RecentUser = Pick<UserFront, "_id" | "account" | "createdAt">;
 type RecentGame = Pick<GameFront, "_id" | "game" | "status" | "lastMove" | "createdAt">;
@@ -13,7 +13,6 @@ export interface ServerInfo {
 	queue: Record<string, number>;
 	recentUsers: RecentUser[];
 	recentGames: RecentGame[];
-	announcement: Announcement;
 	cron: boolean;
 }
 interface LokiInstantResult {

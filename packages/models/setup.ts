@@ -2,6 +2,7 @@ import type { Collection, Db, IndexDescription, IndexDescriptionInfo, IndexDirec
 import type { ZodType } from "zod";
 import { ADMIN_TOKENS_COLLECTION, adminTokenIndexes, adminTokenSchema } from "./admintoken.ts";
 import { API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollectionOptions, apiErrorSchema } from "./api-error.ts";
+import { CHANGELOGS_COLLECTION, changelogIndexes, changelogSchema } from "./changelog.ts";
 import {
 	CHAT_MESSAGES_COLLECTION,
 	chatMessageIndexes,
@@ -459,6 +460,7 @@ export const declaredIndexes: [string, IndexDescription[]][] = [
 	[GAMES_COLLECTION, gameIndexes],
 	[USERS_COLLECTION, userIndexes],
 	[API_ERRORS_COLLECTION, apiErrorIndexes],
+	[CHANGELOGS_COLLECTION, changelogIndexes],
 	[CHAT_MESSAGES_COLLECTION, chatMessageIndexes],
 	[GAME_NOTIFICATIONS_COLLECTION, gameNotificationIndexes],
 	[GAME_PREFERENCES_COLLECTION, gamePreferencesIndexes],
@@ -524,6 +526,7 @@ export async function ensureValidation(db: Db) {
 	const validationMap: [string, ZodType][] = [
 		[ADMIN_TOKENS_COLLECTION, adminTokenSchema],
 		[API_ERRORS_COLLECTION, apiErrorSchema],
+		[CHANGELOGS_COLLECTION, changelogSchema],
 		[CHAT_MESSAGES_COLLECTION, chatMessageSchema],
 		[GAMES_COLLECTION, gameSchema],
 		[GAME_INFOS_COLLECTION, gameInfoSchema],
