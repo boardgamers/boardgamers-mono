@@ -28,10 +28,10 @@ export function webHost(): string {
 	if (devHost) {
 		return `http://${devHost}`;
 	}
-	if (location.hostname === "localhost" || /^\\d{1,3}(\\.\\d{1,3}){3}$/.test(location.hostname)) {
+	if (location.hostname === "localhost" || /^\d{1,3}(\.\d{1,3}){3}$/.test(location.hostname)) {
 		return "http://localhost:8612";
 	}
-	return `//${location.hostname.replace(/^admin\\./, "")}`;
+	return `//${location.hostname.replace(/^admin\./, "")}`;
 }
 
 export function timeAgo(iso?: string): string {
