@@ -6,6 +6,7 @@ import { type Binary, ObjectId } from "mongodb";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
 import { generateAvatar } from "../../models/avatar.ts";
+import { presignAvatarGet, s3Enabled } from "../../services/s3.ts";
 import {
 	eloProjection,
 	findGamesWithPlayersTurn,
@@ -27,6 +28,19 @@ const router = new Router<Application.DefaultState, Context>();
 // Returns true when it short-circuited with a 304.
 function serveAvatar(ctx: Context, contentType: string, body: Buffer | string, etag?: string): boolean {
 	const etagValue = `"${etag ?? createHash("sha256").update(body).digest("hex").slice(0, 16)}"`;
+	if (setAvatarHeaders(ctx, etagValue)) {
+		return true;
+	}
+
+	ctx.set("Content-Type", contentType);
+	ctx.body = body;
+	return false;
+}
+
+// Sets the ETag/Cache-Control pair every avatar response carries. Returns true
+// (status 304) when the client's revalidation matches — decided purely from the
+// stored hash, without touching S3 or mongo bytes.
+function setAvatarHeaders(ctx: Context, etagValue: string): boolean {
 	ctx.set("ETag", etagValue);
 	ctx.set("Cache-Control", "no-cache");
 
@@ -34,10 +48,40 @@ function serveAvatar(ctx: Context, contentType: string, body: Buffer | string, e
 		ctx.status = 304;
 		return true;
 	}
-
-	ctx.set("Content-Type", contentType);
-	ctx.body = body;
 	return false;
+}
+
+// S3-migrated avatars are served as a redirect to a presigned GET: the browser
+// downloads the bytes straight from S3 while the ETag stays the api's content
+// hash (the next revalidation still comes back here → cheap 304).
+async function serveUploadedAvatarFromS3(ctx: Context, userId: ObjectId, format: string) {
+	ctx.status = 302;
+	ctx.set("Location", await presignAvatarGet(userId.toHexString(), format));
+}
+
+// Shared by both avatar routes. The ETag comes from the upload-time stored
+// hash, so the 304 decision and the S3-redirect branch never touch the blob.
+// Without a stored hash (pre-#217 uploads) the ETag is computed from the bytes
+// like before — the mongo path handles it.
+async function serveUploadedAvatar(
+	ctx: Context,
+	userId: ObjectId,
+	format: string,
+	item: { images: Record<string, { mime: string; raw: Buffer | Binary; hash?: string }>; s3?: boolean },
+) {
+	const imageData = item.images[format];
+	// 304 on revalidation, without touching S3 or the blob.
+	if (imageData.hash && setAvatarHeaders(ctx, `"${imageData.hash}"`)) {
+		return;
+	}
+
+	if (item.s3 && s3Enabled()) {
+		await serveUploadedAvatarFromS3(ctx, userId, format);
+		return;
+	}
+
+	const buf = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from(imageData.raw.buffer);
+	serveAvatar(ctx, imageData.mime, buf, imageData.hash);
 }
 
 router.param("userId", async (userId, ctx, next) => {
@@ -95,15 +139,13 @@ router.get("/byName/:userName/avatar", async (ctx) => {
 				key: "avatar",
 				[`images.${format}`]: { $exists: true },
 			},
-			{ projection: { [`images.${format}`]: 1 } },
+			{ projection: { [`images.${format}`]: 1, s3: 1 } },
 		);
 		if (!item) {
 			return;
 		}
 
-		const imageData = item.images[format];
-		const buf = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from((imageData.raw as Binary).buffer);
-		serveAvatar(ctx, imageData.mime, buf, imageData.hash);
+		await serveUploadedAvatar(ctx, foundUser._id, format, item);
 		return;
 	}
 
@@ -125,15 +167,13 @@ router.get("/:userId/avatar", async (ctx) => {
 				key: "avatar",
 				[`images.${format}`]: { $exists: true },
 			},
-			{ projection: { [`images.${format}`]: 1, updatedAt: 1 } },
+			{ projection: { [`images.${format}`]: 1, s3: 1 } },
 		);
 		if (!item) {
 			return;
 		}
 
-		const imageData = item.images[format];
-		const buf = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from((imageData.raw as Binary).buffer);
-		serveAvatar(ctx, imageData.mime, buf, imageData.hash);
+		await serveUploadedAvatar(ctx, foundUser._id, format, item);
 		return;
 	}
 

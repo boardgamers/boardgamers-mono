@@ -32,6 +32,7 @@ import {
 import type { ImageDoc } from "@bgs/models";
 import sharp from "sharp";
 import { loggedIn, loggedOut } from "../utils.ts";
+import { putAvatar, s3Enabled } from "../../services/s3.ts";
 import auth from "./auth.ts";
 import { sendAuthInfo } from "./utils.ts";
 
@@ -129,12 +130,30 @@ router.post("/avatar", loggedIn, async (ctx) => {
 		imagesObj[`${size}x${size}`] = { mime, raw: converted, size: converted.length, hash };
 	}
 
+	// Dual-write: S3 (when enabled) + mongo. Mongo stays the serving fallback and
+	// is never deleted; `s3: true` flips the GET routes to presigned redirects.
+	// Only set when every size landed — a partial S3 failure leaves s3 unset and
+	// the boot migration retries the whole avatar later.
+	let s3Stored = false;
+	if (s3Enabled()) {
+		s3Stored = true;
+		for (const [size, data] of Object.entries(imagesObj)) {
+			s3Stored = (await putAvatar(ctx.state.user!._id.toHexString(), size, data.raw)) && s3Stored;
+		}
+		if (!s3Stored) {
+			console.warn(
+				`avatar S3 dual-write incomplete for ${ctx.state.user!._id.toHexString()} — mongo has the bytes, migration will retry`,
+			);
+		}
+	}
+
 	await colls.images.updateOne(
 		{ ref: ctx.state.user!._id, key: "avatar", refType: "User" },
 		{
 			$set: {
 				images: imagesObj,
 				formats: Object.keys(imagesObj),
+				...(s3Stored ? { s3: true } : {}),
 			},
 		},
 		{ upsert: true },

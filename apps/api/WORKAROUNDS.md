@@ -2,6 +2,10 @@
 
 Things that are intentional for now but should be revisited / removed later. Add an entry when you leave a temporary shim, a deferred migration, or anything a future reader might mistake for a permanent decision. Keep entries short and link the code.
 
+## Avatar blobs kept in mongo after the S3 migration (`app/routes/user/index.ts`, `app/models/migrations/1.5.0-avatars-to-s3.ts`)
+
+Uploaded avatars are **dual-written** to mongo and S3 (when the `S3_*` env vars are set — see `apps/api/.env.example`), and the boot migration `1.5.0` backfills S3 for pre-existing uploads, flagging each doc `s3: true`. The mongo blobs are deliberately **never deleted**: they are the serving fallback when S3 is disabled or errors, and the rollback path if the S3 setup has to be abandoned. Once the S3 serving has proven itself in prod for a while, a follow-up migration can `$unset` `images.*.raw` on `s3: true` docs to reclaim the storage — do NOT ship that unset in the same change as any code that still reads the blobs.
+
 ## secure-cookie-over-insecure diagnostic (`app/models/session.ts`)
 
 Prod logs a chronic "Cannot send secure cookie over unencrypted connection" from `setRefreshCookie` (~25–56/day + bursts): some requests reach the api with `ctx.secure === false` even though prod is HTTPS-only and nginx sets `X-Forwarded-Proto` on the api vhost. The source is **unknown** (internal caller? crawler over http? a route/XFP gap?), and a "drop Secure on http" fix was rejected — the cookie must stay `Secure`. Until the culprit is found, `setRefreshCookie` records the full request context (secure/protocol/hostname/ip/ips, X-Forwarded-*/host/user-agent/referer/origin headers, `app.proxy`) as a `secure-cookie-over-insecure` warn log line **and** an `apierrors` record (`meta.source: "secure-cookie"`, surfaced by `GET /api/admin/errors` → admin health page). Behavior is unchanged — the cookie set still throws, still 500s. Once the root cause is identified and fixed, this diagnostic can be removed.
