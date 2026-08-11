@@ -25,6 +25,14 @@ const authenticationController = nodebb.require("./src/controllers/authenticatio
 // The strategy this shim manages — matches the strategy `name` entered in the
 // sso-oauth2-multiple ACP page, i.e. routes /auth/boardgamers[+/callback].
 const STRATEGY_NAME = "boardgamers";
+const LOGIN_URL = `/auth/${STRATEGY_NAME}`;
+const CALLBACK_URL = `${LOGIN_URL}/callback`;
+
+// Lazily-built PKCE strategy, cached by its serialized config. Built from the
+// CURRENT db config at request time — see resolveStrategy for why.
+let cachedStrategy = null;
+let cachedConfigKey = null;
+let building = null; // in-flight build promise (dedupes concurrent requests)
 
 const Shim = module.exports;
 
@@ -49,27 +57,124 @@ Shim.init = async ({ router }) => {
 };
 
 /**
- * filter:auth.init, registered at priority 12 so it runs AFTER
- * sso-oauth2-multiple's own loadStrategies (default priority 10): `passport.use`
- * is last-write-wins per name, so the shim's PKCE strategy must register LAST to
- * be the one that actually handles /auth/boardgamers[/callback]. (NodeBB core
- * dispatches the route by name, so the final registration wins.)
+ * THE fix for the live-forum bug (authorize redirect missing code_challenge).
  *
- * All `filter:auth.init` handlers share the same loginStrategies array, and the
- * stock plugin (priority 10) has already pushed its button descriptor by the time
- * we run — so we find it by name, flip `checkState: false` (see authenticate
- * override), and return the array unchanged rather than pushing a duplicate
- * button.
+ * Root cause: the PKCE strategy used to be built ONCE inside `filter:auth.init`,
+ * which NodeBB core fires a single time per route reload (boot / plugin reload)
+ * — NOT per request. If the ACP strategy config was saved after that one firing
+ * (the normal order when installing the shim on a live forum — deploy+activate,
+ * restart, THEN configure), the shim's handler no-oped (no config yet), while
+ * the stock plugin's handler (priority 10) registered its NON-PKCE strategy on
+ * the NEXT reload. `passport.use(name)` is last-write-wins, so that stale stock
+ * strategy kept answering /auth/boardgamers — redirecting to authorize without
+ * any code_challenge, which the PKCE-only provider 403s.
+ *
+ * Fix: the registered passport strategy's `authenticate` resolves the PKCE
+ * strategy AT REQUEST TIME from the current db config, then runs it. It
+ * therefore survives every combination of boot order, ACP save timing, and
+ * `passport.use` overwrite by the stock plugin. The `filter:auth.init` hook
+ * (further below) only manages the login-button descriptor and pre-warms the
+ * cache; it is no longer load-bearing for logins.
+ *
+ * On the `this` plumbing: passport's authenticate middleware runs
+ * `Object.create(registeredStrategy).authenticate(req, options)` and augments
+ * that per-request delegate with redirect/success/fail/error/pass. So the
+ * registered object must itself be an OAuth2Strategy whose `authenticate` runs
+ * with the augmented delegate as `this`. We delegate by creating a
+ * `Object.create(currentStrategy)` target and copying passport's delegation
+ * methods onto it — `self = this` inside passport-oauth2 then resolves the
+ * delegation methods, while `_pkceMethod`/`_oauth2`/the verify callback come
+ * from `currentStrategy`.
  */
-Shim.loadStrategies = async (strategies) => {
-	const OAuth = stockPlugin();
-	const config = await OAuth.getStrategy(STRATEGY_NAME);
+const strategy = buildWrapper();
+
+function buildWrapper() {
+	const { OAuth2Strategy } = require("passport-oauth"); // eslint-disable-line global-require
+	// A placeholder instance: its own endpoints are never used for a redirect —
+	// authenticate() below delegates to the request-time-resolved strategy. It
+	// exists so the registered object is an OAuth2Strategy (correct `this`
+	// semantics + delegation wiring) from the moment passport can resolve it.
+	const wrapper = new OAuth2Strategy(
+		{
+			authorizationURL: `${nconf.get("url")}/auth/${STRATEGY_NAME}/unconfigured`,
+			tokenURL: `${nconf.get("url")}/auth/${STRATEGY_NAME}/unconfigured`,
+			clientID: "nodebb-plugin-sso-bgs",
+			callbackURL: `${nconf.get("url")}/auth/${STRATEGY_NAME}/callback`,
+			passReqToCallback: true,
+		},
+		() => {}
+	);
+	wrapper.name = STRATEGY_NAME;
+
+	const base = OAuth2Strategy.prototype.authenticate;
+	wrapper.authenticate = function (req, options) {
+		resolveStrategy()
+			.then((resolved) => {
+				if (!resolved) {
+					// No (enabled) ACP config: behave like a disabled SSO button.
+					winston.warn(
+						`[plugin/sso-bgs] /auth/${STRATEGY_NAME} hit but no enabled strategy is configured — check the sso-oauth2-multiple ACP page`
+					);
+					return this.redirect("/login");
+				}
+				// Strip core's string ssoState (see buildStrategy's override) so the
+				// PKCE session store runs even if the route descriptor didn't set
+				// checkState:false.
+				const opts = { ...options };
+				delete opts.state;
+				// Thread passport's per-request delegate (`this`, carrying
+				// redirect/success/fail/error/pass) into a target that inherits the
+				// resolved strategy's config, and run the PROTOTYPE authenticate on
+				// it: `self = this` then finds the delegation methods while
+				// `_pkceMethod`/`_oauth2`/the verify callback come from `resolved`.
+				const target = Object.create(resolved);
+				for (const m of ["redirect", "success", "fail", "error", "pass"]) {
+					if (typeof this[m] === "function") {
+						target[m] = this[m];
+					}
+				}
+				return base.call(target, req, opts);
+			})
+			.catch((err) => {
+				winston.error(`[plugin/sso-bgs] ${(err && err.stack) || err}`);
+				if (typeof this.error === "function") {
+					return this.error(err);
+				}
+				throw err;
+			});
+	};
+	return wrapper;
+}
+
+/**
+ * The currently-configured PKCE strategy, building/rebuilding it from the db
+ * when missing or stale. Concurrent builds are deduped via `building`.
+ */
+async function resolveStrategy() {
+	const config = await stockPlugin().getStrategy(STRATEGY_NAME);
+	const key = config && config.enabled ? JSON.stringify(config) : null;
+
+	if (key === cachedConfigKey) {
+		return cachedStrategy;
+	}
+	if (!building) {
+		building = buildStrategy(config, key).finally(() => {
+			building = null;
+		});
+	}
+	return building;
+}
+
+async function buildStrategy(config, key) {
 	if (!config || !config.enabled) {
-		return strategies;
+		cachedStrategy = null;
+		cachedConfigKey = null;
+		return null;
 	}
 
+	const OAuth = stockPlugin();
 	const { OAuth2Strategy } = require("passport-oauth"); // eslint-disable-line global-require
-	const strategy = new OAuth2Strategy(
+	const inner = new OAuth2Strategy(
 		{
 			authorizationURL: config.authUrl,
 			tokenURL: config.tokenUrl,
@@ -116,42 +221,109 @@ Shim.loadStrategies = async (strategies) => {
 			} catch (err) {
 				done(err);
 			}
-		},
+		}
 	);
 
 	// NodeBB core sets `opts.state = req.session.ssoState` (a STRING) before
-	// calling passport.authenticate, and on the callback asserts
-	// `req.query.state === req.session.ssoState`. With a string state,
-	// passport-oauth2 skips its PKCE session store entirely — so the
-	// `code_verifier` is never persisted and the callback can't redeem the code.
-	// Strip `options.state` so the PKCE store runs (it persists the verifier and
-	// mints its own single-use handle as `state`), and set `checkState: false` on
-	// the descriptor (below) so core's ssoState gate is skipped. CSRF is still
-	// enforced by PKCESessionStore.verify (handle match, single-use).
-	const delegate = strategy.authenticate.bind(strategy);
-	strategy.authenticate = function (req, options) {
+	// calling passport.authenticate whenever the route descriptor lacks
+	// `checkState: false` — and passport-oauth2, given a string state, skips its
+	// PKCE session store entirely (early redirect path), so the `code_verifier`
+	// would never be persisted and the callback couldn't redeem the code. Strip
+	// `options.state` so the PKCE store always runs (it persists the verifier and
+	// mints its own single-use handle as `state`). CSRF is still enforced by
+	// PKCESessionStore.verify on the callback (handle match, single-use). The
+	// shim's own descriptor already carries `checkState: false`, but the stock
+	// plugin's descriptor does NOT — this override makes the strategy correct no
+	// matter which descriptor the core route used.
+	const base = OAuth2Strategy.prototype.authenticate;
+	inner.authenticate = function (req, options) {
 		const opts = { ...options };
 		delete opts.state;
-		return delegate(req, opts);
+		return base.call(this, req, opts);
 	};
 
 	// Reuse the stock plugin's userinfo fetch + claim normalization.
-	strategy.userProfile = OAuth.getUserProfile.bind(strategy, STRATEGY_NAME, config.userRoute);
+	inner.userProfile = OAuth.getUserProfile.bind(inner, STRATEGY_NAME, config.userRoute);
 	// node-oauth always serializes a `client_secret` key (even with the secret
 	// undefined it sends `client_secret=`, which our provider rejects) — replace
 	// the exchange so no client_secret is sent at all (public client).
-	strategy._oauth2.getOAuthAccessToken = publicClientTokenExchange;
+	inner._oauth2.getOAuthAccessToken = publicClientTokenExchange;
 
-	require("passport").use(STRATEGY_NAME, strategy); // eslint-disable-line global-require
+	// Cache the built strategy, keyed by its config, so the wrapper's
+	// authenticate reuses it until the ACP config changes. We deliberately do
+	// NOT passport.use(inner) here: the registered strategy stays the
+	// request-time-resolving wrapper (`strategy`), so an ACP edit without a
+	// reload still takes effect on the next request (the wrapper rebuilds).
+	cachedStrategy = inner;
+	cachedConfigKey = key;
+	return inner;
+}
 
-	// Reuse the stock plugin's already-pushed button descriptor (same shared
-	// array) so only one button renders; just relax core's ssoState gate for it.
-	const descriptor = strategies.find((s) => s.name === STRATEGY_NAME);
-	if (descriptor) {
-		descriptor.checkState = false;
+/**
+ * Login-button descriptor, registered at priority 12 so it runs AFTER
+ * sso-oauth2-multiple's own loadStrategies (default priority 10) on the shared
+ * loginStrategies array: we drop the stock plugin's button descriptor and push
+ * our own with `checkState: false` (core then skips its string-ssoState gate,
+ * which would otherwise fight the PKCE store — see buildStrategy). Scope and
+ * URLs come from the CURRENT db config so they stay right across ACP edits. The
+ * underlying strategy resolution happens at request time (resolveStrategy), so
+ * this hook no longer needs to have run for logins to work.
+ */
+Shim.loadStrategies = async (strategies) => {
+	const filtered = strategies.filter((s) => s.name !== STRATEGY_NAME);
+	const config = await stockPlugin().getStrategy(STRATEGY_NAME);
+	if (!config || !config.enabled) {
+		return filtered;
 	}
-	return strategies;
+
+	// Pre-warm the PKCE strategy cache (the wrapper's authenticate would build
+	// it lazily on first request anyway).
+	await resolveStrategy();
+
+	filtered.push({
+		name: STRATEGY_NAME,
+		url: LOGIN_URL,
+		callbackURL: CALLBACK_URL,
+		icon: config.faIcon || "fa-right-to-bracket",
+		icons: {
+			normal: `fa ${config.faIcon || "fa-right-to-bracket"}`,
+			square: `fa ${config.faIcon || "fa-right-to-bracket"}`,
+		},
+		labels: {
+			login: config.loginLabel || "Log In",
+			register: config.registerLabel || "Register",
+		},
+		color: "#666",
+		scope: config.scope || "openid profile email",
+		checkState: false,
+	});
+	return filtered;
 };
+
+/**
+ * Per-request safety net. NodeBB core fires `filter:auth.options` on EVERY
+ * /auth/<name> kickoff, right before `passport.authenticate` — after the route
+ * table (and thus the stock plugin's registration) already exists. If the
+ * registered strategy for `boardgamers` is not ours (stock plugin overwrote it
+ * and no reload has fired our filter:auth.init since — the exact live-forum
+ * bug), re-register the request-time-resolving wrapper so this and all
+ * subsequent requests resolve the PKCE strategy.
+ */
+Shim.ensureStrategy = ({ req, res, opts }) => {
+	const passport = require("passport"); // eslint-disable-line global-require
+	const registered = passport._strategies && passport._strategies[STRATEGY_NAME];
+	if (registered !== strategy) {
+		passport.use(STRATEGY_NAME, strategy);
+	}
+	return { req, res, opts };
+};
+
+// Register the request-time-resolving strategy as early as possible (module
+// load, before any route reload fires filter:auth.init): every later
+// passport.use by the stock plugin is pre-warm-only, and the filter:auth.options
+// hook re-registers it per request if needed. The filter hooks themselves are
+// registered from plugin.json by NodeBB's loader.
+require("passport").use(STRATEGY_NAME, strategy); // eslint-disable-line global-require
 
 /**
  * node-oauth OAuth2#getOAuthAccessToken, minus client_secret. The token POST is

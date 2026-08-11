@@ -18,6 +18,9 @@
 		"directory": "packages/nodebb-plugin-sso-bgs"
 	},
 	"main": "library.js",
+	"scripts": {
+		"test": "node --test 'test/*.spec.cjs'"
+	},
 	"dependencies": {
 		"nodebb-plugin-sso-oauth2-multiple": "^2.0.0",
 		"passport-oauth": "~1.0.0"
