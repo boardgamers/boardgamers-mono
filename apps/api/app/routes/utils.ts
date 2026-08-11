@@ -58,7 +58,8 @@ export async function rateLimitAttempt(ctx: Context, next: Next) {
 	// ctx.request.body is already parsed (bodyparser runs first); a missing/invalid
 	// email just skips the per-email bucket — the route's own validation will 400 it.
 	const parsed = attemptEmailSchema.safeParse(ctx.request.body ?? {});
-	const emailKey = parsed.success ? parsed.data.email.toLowerCase() : undefined;
+	// Normalize like findByEmail so " user@x.com " and "user@x.com" share a bucket.
+	const emailKey = parsed.success ? parsed.data.email.toLowerCase().trim() : undefined;
 
 	const ipResult = await recordAttempt("auth:ip", ctx.ip, { windowMs, max: maxPerIp });
 	const emailResult = emailKey ? await recordAttempt("auth:email", emailKey, { windowMs, max: maxPerEmail }) : null;
