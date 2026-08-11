@@ -27,12 +27,14 @@ MONGO_TOOLS="${dbUrl%/admin}"
 # gamenotifications (~25 MB). deletedUsers is the soft-delete archive — it holds
 # full user docs (emails etc.) and must never reach preview dumps. oauthflows and
 # oauthconsents are the OAuth2/OIDC provider state (#76): short-lived codes and
-# per-user client consent grants don't belong in a shared preview snapshot. And
-# games is dumped separately below with a status filter (open+active only),
-# because 99% of it is 2.8 GB of ended games.
+# per-user client consent grants don't belong in a shared preview snapshot.
+# authattempts is the auth rate-limit state (#195): per-IP/email counters that
+# previews have no use for. And games is dumped separately below with a status
+# filter (open+active only), because 99% of it is 2.8 GB of ended games.
 EXCLUDED=(
   usersettings locks chats notifications sessions jwtrefreshtokens admintokens
   apierrors logs gamenotifications deletedUsers oauthflows oauthconsents
+  authattempts
   games
 )
 EXCLUDE_ARGS=()

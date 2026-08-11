@@ -2,7 +2,9 @@ import createError from "http-errors";
 import type { Context, Next } from "koa";
 import NodeCache from "node-cache";
 import { z } from "zod";
+import env from "../config/env.ts";
 import { isUserAdmin } from "../models/index.ts";
+import { recordAttempt } from "../services/ratelimit.ts";
 
 export async function loggedIn(ctx: Context, next: Next) {
 	if (!ctx.state.user) {
@@ -31,6 +33,40 @@ export async function loggedOut(ctx: Context, next: Next) {
 export async function isAdmin(ctx: Context, next: Next) {
 	if (!ctx.state.user || !isUserAdmin(ctx.state.user)) {
 		throw createError(403, "You need to be admin");
+	}
+
+	await next();
+}
+
+const attemptEmailSchema = z.object({ email: z.string().email() });
+
+/**
+ * Throttles the public auth endpoints that reveal account existence (login /
+ * forget / reset / confirm — issue #195), per client IP and per target email.
+ * Runs BEFORE the handler so a flood hits the limiter instead of the user
+ * lookup; every attempt counts (not just failures) so a legit user's handful
+ * of tries sails through while bulk enumeration stalls.
+ *
+ * The client IP is ctx.ip — correct behind nginx because app.proxy=true makes
+ * Koa read X-Forwarded-For (same source app.ts already records for logins).
+ * The 429 message is deliberately generic: it must not confirm or deny the
+ * target email's registration.
+ */
+export async function rateLimitAttempt(ctx: Context, next: Next) {
+	const { windowMs, maxPerIp, maxPerEmail } = env.authRateLimit;
+
+	// ctx.request.body is already parsed (bodyparser runs first); a missing/invalid
+	// email just skips the per-email bucket — the route's own validation will 400 it.
+	const parsed = attemptEmailSchema.safeParse(ctx.request.body ?? {});
+	const emailKey = parsed.success ? parsed.data.email.toLowerCase() : undefined;
+
+	const ipResult = await recordAttempt("auth:ip", ctx.ip, { windowMs, max: maxPerIp });
+	const emailResult = emailKey ? await recordAttempt("auth:email", emailKey, { windowMs, max: maxPerEmail }) : null;
+
+	if (!ipResult.allowed || (emailResult && !emailResult.allowed)) {
+		const retryAfter = Math.max(ipResult.retryAfterSeconds, emailResult?.retryAfterSeconds ?? 0);
+		ctx.set("Retry-After", String(retryAfter));
+		throw createError(429, "Too many attempts, please try again later");
 	}
 
 	await next();
