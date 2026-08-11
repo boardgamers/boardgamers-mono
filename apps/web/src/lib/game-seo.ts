@@ -29,6 +29,12 @@ export function gameSeo(game: GameFront | null | undefined, gameInfo: GameInfoFr
 		return { ...base, title: `${label(gameInfo)} game ${gameId}` };
 	}
 
+	// Mongo validates the games schema with "warn", so a legacy/corrupt doc can be missing
+	// any of these — fall back instead of throwing (a 500 here breaks the whole game page).
+	const players = game.players ?? [];
+	const setup = game.options?.setup;
+	const timing = game.options?.timing;
+
 	if (game.status === "open") {
 		const options = (gameInfo?.options ?? [])
 			.filter((x) => !!gameOptions(game)[x.name])
@@ -36,7 +42,11 @@ export function gameSeo(game: GameFront | null | undefined, gameInfo: GameInfoFr
 				pref.type === "checkbox"
 					? pref.label
 					: pref.type === "select" && pref.items
-						? pref.label + ": " + pref.items.find((x) => x.name === gameOptions(game)[pref.name])?.label
+						? (
+								pref.label +
+								": " +
+								(pref.items.find((x) => x.name === gameOptions(game)[pref.name])?.label ?? "")
+							).trim()
 						: "",
 			)
 			.filter(Boolean)
@@ -47,9 +57,9 @@ export function gameSeo(game: GameFront | null | undefined, gameInfo: GameInfoFr
 		return {
 			...base,
 			title: `${label(gameInfo)} game ${gameId}`,
-			description: `${game.players.length} / ${game.options.setup.nbPlayers} players. Timer of ${duration(
-				game.options.timing.timePerGame ?? 0,
-			)} per player, with an additional ${duration(game.options.timing.timePerMove ?? 0)} per move.${expansions}${options}`,
+			description: `${players.length} / ${setup?.nbPlayers ?? "?"} players. Timer of ${duration(
+				timing?.timePerGame ?? 0,
+			)} per player, with an additional ${duration(timing?.timePerMove ?? 0)} per move.${expansions}${options}`,
 		};
 	}
 
@@ -60,15 +70,15 @@ export function gameSeo(game: GameFront | null | undefined, gameInfo: GameInfoFr
 	} else if (game.cancelled) {
 		title = `Cancelled - ${label(gameInfo)} game`;
 	} else {
-		const victor = minBy(game.players, "ranking")!;
-		title = `${victor.name}'s victory! - ${label(gameInfo)} game`;
+		const victor = minBy(players, "ranking");
+		title = victor ? `${victor.name}'s victory! - ${label(gameInfo)} game` : `${label(gameInfo)} game`;
 	}
 
 	let description: string | undefined;
 	if (game.status === "active") {
-		description = `Round ${game.context?.round ?? 0}\n\n${game.players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
+		description = `Round ${game.context?.round ?? 0}\n\n${players.map((pl) => `- ${pl.name} (${pl.score} pts)`).join("\n")}`;
 	} else if (!game.cancelled) {
-		description = sortBy(game.players, "ranking")
+		description = sortBy(players, "ranking")
 			.map((player) => `${player.ranking}° ${player.name} (${player.score}pts)`)
 			.join("\n");
 	}
