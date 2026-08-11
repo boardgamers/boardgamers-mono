@@ -11,6 +11,7 @@ import { migration as unsetEmptyUserEmails } from "./1.4.1-unset-empty-user-emai
 import { migration as unsetDefaultAuthority } from "./1.4.2-unset-default-authority.ts";
 import { migration as avatarsToS3 } from "./1.5.0-avatars-to-s3.ts";
 import { migration as seedChangelogs } from "./1.6.0-seed-changelogs.ts";
+import { migration as dropChangelogTitles } from "./1.7.0-drop-changelog-titles.ts";
 
 export type Migration = {
 	up(): Promise<void>;
@@ -29,6 +30,7 @@ const migrationMap: Record<string, Migration> = {
 	"1.4.2": unsetDefaultAuthority,
 	"1.5.0": avatarsToS3,
 	"1.6.0": seedChangelogs,
+	"1.7.0": dropChangelogTitles,
 };
 
 export const migrations: [string, Migration][] = Object.entries(migrationMap).sort(([a], [b]) => semver.compare(a, b));

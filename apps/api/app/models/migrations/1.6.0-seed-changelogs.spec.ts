@@ -32,8 +32,9 @@ describe("migration 1.6.0 — seed changelogs from the announcement", () => {
 			entries.map((e) => e.content),
 			["Gaia Project: Ivits available", "Powergrid: new Italy map", "Bugfixes"],
 		);
+		// No per-entry title: the short content line is the entry.
 		assert.ok(entries.every((e) => e.published));
-		assert.ok(entries.every((e) => e.title === "Recent changes" && e.createdAt && e._id));
+		assert.ok(entries.every((e) => e.title === undefined && e.createdAt && e._id));
 	});
 
 	it("splits markdown paragraphs too, and seeds an unsplittable blob as a single entry", async () => {
@@ -70,7 +71,9 @@ describe("migration 1.6.0 — seed changelogs from the announcement", () => {
 
 		await migration.up();
 		await migration.up();
-		assert.strictEqual(await colls.changelogs.countDocuments(), 1);
+		const remaining = await colls.changelogs.find({}).toArray();
+		assert.strictEqual(remaining.length, 1);
+		assert.equal(remaining[0].content, "already there");
 
 		// Fresh db without any announcement: no-op, no throw.
 		await colls.changelogs.deleteMany({});

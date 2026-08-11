@@ -30,9 +30,10 @@ router.get("/changelog", async (ctx) => {
 	ctx.body = await latestChangelogs(limit, before ? new Date(before) : undefined);
 });
 
-// Kept for older clients: same { title, content } shape as before #184, now fed
-// by the changelog. Falls back to the stored blob when there are no entries at
-// all (e.g. an announcement written by hand but never migrated).
+// The homepage announcement box: the latest changelog one-liners joined into
+// { content } (the "Recent changes" header is fixed in the homepage markup).
+// Falls back to the stored legacy blob when there are no entries at all (e.g.
+// an announcement written by hand but never migrated).
 router.get("/announcement", async (ctx) => {
 	ctx.body =
 		(await announcementFromChangelog()) ?? (await colls.settings.findOne({ _id: SettingsKey.Announcement }))?.value;

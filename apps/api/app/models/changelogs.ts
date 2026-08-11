@@ -3,9 +3,14 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { colls } from "../config/db.ts";
 
+// Admin create/update payload: `content` is the short one-liner (the entry itself),
+// `details`/`github` are optional extras rendered on /changelog only.
 export const changelogInputSchema = changelogSchema
-	.pick({ title: true, content: true, published: true })
-	.extend({ title: z.string().trim().min(1).max(200), content: z.string().trim().min(1) });
+	.pick({ content: true, details: true, github: true, published: true })
+	.extend({
+		content: z.string().trim().min(1).max(500),
+		details: z.string().trim().min(1).optional(),
+	});
 
 // How many entries the homepage announcement box stitches together.
 export const ANNOUNCEMENT_ENTRY_COUNT = 4;
@@ -19,17 +24,15 @@ export async function latestChangelogs(limit: number, before?: Date): Promise<Ch
 		.toArray();
 }
 
-// The announcement box is now a view over the changelog: the latest entries,
-// stitched back into the { title, content } shape the homepage has always used.
-export async function announcementFromChangelog(): Promise<z.output<typeof announcementSchema> | undefined> {
+// The announcement box is now a view over the changelog: the latest entries'
+// one-liners, joined back together. The box header ("Recent changes") is fixed
+// in the homepage markup.
+export async function announcementFromChangelog(): Promise<{ content: string } | undefined> {
 	const entries = await latestChangelogs(ANNOUNCEMENT_ENTRY_COUNT);
 	if (entries.length === 0) {
 		return undefined;
 	}
-	return {
-		title: "Recent changes",
-		content: entries.map((entry) => entry.content).join("<br>\n"),
-	};
+	return { content: entries.map((entry) => entry.content).join("<br>\n") };
 }
 
 // Best-effort split of the historical announcement blob ("last 4 changes" joined
@@ -66,7 +69,6 @@ export async function seedChangelogsFromAnnouncement(): Promise<number> {
 	const parts = splitAnnouncementContent(announcement.data.content);
 	const docs: ChangelogDoc[] = parts.map((part, i) => ({
 		_id: new ObjectId(),
-		title: announcement.data.title || "Recent changes",
 		content: part,
 		published: true,
 		// Keep list order stable: 1ms apart, oldest part last.
