@@ -25,12 +25,14 @@ what we need, so this shim:
 
 1. registers a passport OAuth2 strategy for the `boardgamers` strategy with
    `pkce: true, state: true` (S256 challenge/verifier + CSRF state, both handled by
-   passport-oauth2's session store). It hooks `filter:auth.init` at **priority 12** —
-   after the stock plugin's own `loadStrategies` (default 10) — because
-   `passport.use(name)` is last-write-wins and NodeBB core dispatches `/auth/boardgamers`
-   by name, so the PKCE strategy must be the final registration. The two plugins share
-   the `loginStrategies` array, so the shim flips the stock plugin's descriptor to
-   `checkState: false` rather than pushing a duplicate button (see below);
+   passport-oauth2's session store). The registered strategy **resolves the PKCE
+   strategy at request time** from the current db config (see "Why request-time
+   resolution" below) — it is registered at module load and re-registered on the
+   per-request `filter:auth.options` hook, so it wins regardless of when the ACP
+   strategy was saved relative to boot. The two plugins share the `loginStrategies`
+   array; the shim hooks `filter:auth.init` at **priority 12** (after the stock
+   plugin's 10) to replace the stock button descriptor with one carrying
+   `checkState: false` (see below);
 2. **overrides `authenticate`** to strip `options.state`. NodeBB core sets
    `opts.state = req.session.ssoState` (a string) before `passport.authenticate`, and
    passport-oauth2 — given a string state — skips its PKCE session store, so the
@@ -46,6 +48,25 @@ what we need, so this shim:
 5. serves the Client ID Metadata Document (`static/client-metadata.json`) at
    **`/client-metadata.json`** — the exact URL used as `client_id`, so the plugin is
    self-contained (no nginx change needed).
+
+## Why request-time resolution (the live bug this fixes)
+
+`filter:auth.init` — the hook that builds passport strategies — is fired by NodeBB
+core **once per route reload** (boot / plugin reload), not per request. The first
+version of this shim built its PKCE strategy only inside that hook. If the ACP
+strategy config was saved **after** that one firing — the normal order when
+installing the shim on a live forum (deploy + activate, restart, _then_ configure) —
+the shim no-oped (no config yet), while the stock plugin's `loadStrategies`
+(priority 10) registered its **non-PKCE** strategy on the next reload.
+`passport.use(name)` is last-write-wins, so the stale stock strategy kept answering
+`/auth/boardgamers` and redirected to authorize **without** `code_challenge` — which
+the PKCE-only provider 403s (`expected string, received undefined at code_challenge`).
+
+The fix: the passport strategy NodeBB resolves for `boardgamers` builds the real
+PKCE strategy **from the current db config on each request** (cached by config, so
+it's built once until the config changes). Boot order, ACP-save timing, and
+`passport.use` overwrites by the stock plugin no longer matter — no
+rebuild/restart is required after saving the strategy in the ACP.
 
 ## Install (forum server)
 
@@ -93,6 +114,22 @@ user's first authorize — unless the recorded consent doc for
 `trusted: true` (the out-of-band first-party escape hatch). Do that once the first
 consent doc exists (i.e. after one user has gone through the flow), or pre-create it.
 
+## Tests
+
+A regression harness simulating NodeBB v4.14 core (shared `loginStrategies` array,
+last-write-wins `passport.use`, core's string-state calling convention, hook
+priorities) against the **real** `passport` + `passport-oauth2` lives in `test/`.
+
+```bash
+npm install --no-save --prefix /tmp/sso-bgs-deps passport@0.7.0 passport-oauth@1.0.0
+node --test 'test/*.spec.cjs'
+```
+
+It covers: ACP-save-after-boot (the live bug), config-present-at-boot, config edits
+without a restart, disabling the strategy, the full kickoff→callback PKCE
+round-trip (verifier persisted, no `client_secret`, single-use state), and the
+string-`opts.state` override.
+
 ## Notes / limitations
 
 - Users **without an email** on their BGS account (email-less social signups, #211)
@@ -111,3 +148,8 @@ consent doc exists (i.e. after one user has gone through the flow), or pre-creat
   stock plugin's `assignGroups` maps `profile.roles` entries onto same-named NodeBB
   groups (the built-in `administrators` group is a system group and is NOT assignable
   this way — map to a custom `admin` group instead, per its ACP settings).
+- **No restart is needed after saving the `boardgamers` strategy in the ACP** — the
+  strategy is resolved from the current db config at request time. (The login
+  _button's_ `scope` label is captured at route-reload time by NodeBB core, like any
+  SSO plugin, so a scope-only change is picked up on the next request anyway; only
+  adding the very first strategy benefits from a rebuild to render the button.)
