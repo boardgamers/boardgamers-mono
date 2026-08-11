@@ -65,6 +65,44 @@ describe("cookie-CSRF guard (app.ts)", () => {
 		assert.strictEqual(res.status, 415, await res.text());
 	});
 
+	it("allows a cookie-authed DELETE with no body and no Content-Type", async () => {
+		// DELETE isn't form-submittable (cross-site fetches are preflighted), so the
+		// JSON gate doesn't apply — this is the admin panel's token-revoke flow.
+		const res = await fetch(`${baseURL()}/api/admin/tokens/507f1f77bcf86cd799439011`, {
+			method: "DELETE",
+			headers: { cookie: cookieHeader },
+		});
+		// Past the guard: this user isn't admin, so the admin gate answers 403.
+		assert.strictEqual(res.status, 403, await res.text());
+	});
+
+	it("allows a cookie-authed urlencoded PUT (not form-submittable, no JSON gate)", async () => {
+		const res = await fetch(`${baseURL()}/api/account`, {
+			method: "PUT",
+			headers: { cookie: cookieHeader, "content-type": "application/x-www-form-urlencoded" },
+			body: "x=1",
+		});
+		// Past the CSRF guard (whatever the route itself answers must not be 415).
+		assert.notStrictEqual(res.status, 415, await res.text());
+	});
+
+	it("still 415s a cookie-authed POST with a text body and no Origin marker", async () => {
+		const res = await fetch(`${baseURL()}${MUTATING}`, {
+			method: "POST",
+			headers: { cookie: cookieHeader, "content-type": "text/plain" },
+			body: "hello",
+		});
+		assert.strictEqual(res.status, 415, await res.text());
+	});
+
+	it("still 403s a cross-site bodyless DELETE", async () => {
+		const res = await fetch(`${baseURL()}/api/admin/tokens/507f1f77bcf86cd799439011`, {
+			method: "DELETE",
+			headers: { cookie: cookieHeader, "sec-fetch-site": "cross-site" },
+		});
+		assert.strictEqual(res.status, 403, await res.text());
+	});
+
 	it("allows a same-origin JSON POST (no cross-site markers)", async () => {
 		const res = await fetch(`${baseURL()}${MUTATING}`, {
 			method: "POST",

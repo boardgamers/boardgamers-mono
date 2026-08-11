@@ -263,6 +263,29 @@ describe("Admin tokens API", () => {
 			);
 		});
 
+		it("revokes a token from a cookie-authed bodyless DELETE (the admin panel flow)", async () => {
+			// The panel's fetch sends no body and no Content-Type on DELETE — the CSRF
+			// guard's JSON gate only applies to POST (the form-submittable verb), so
+			// this must not 415.
+			const {
+				doc: { _id },
+			} = await createAdminToken(adminId, "revoke-by-cookie", DAY_MS);
+
+			const sessionCode = generateRefreshCode();
+			await colls.jwtRefreshTokens.insertOne({
+				user: adminId,
+				codeHash: hashRefreshCode(sessionCode),
+				createdAt: new Date(),
+				expiresAt: new Date(Date.now() + 3600 * 1000),
+			});
+			const res = await fetch(`${baseURL()}/api/admin/tokens/${_id.toHexString()}`, {
+				method: "DELETE",
+				headers: { cookie: `refreshToken=${encodeURIComponent(JSON.stringify({ code: sessionCode }))}` },
+			});
+			assert.strictEqual(res.status, 200, await res.text());
+			assert.ok((await colls.adminTokens.findOne({ _id }))?.revokedAt);
+		});
+
 		it("cannot revoke another admin's token", async () => {
 			const other = await colls.adminTokens.findOne({ userId: otherAdminId, revokedAt: { $exists: false } });
 			assert.ok(other);
