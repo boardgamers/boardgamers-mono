@@ -40,15 +40,18 @@ export async function isAdmin(ctx: Context, next: Next) {
 
 /**
  * Throttles the public auth endpoints that reveal account existence (login /
- * forget / reset / confirm — issue #195), per client IP. Runs BEFORE the
- * handler so a flood hits the limiter instead of the user lookup; every
- * attempt counts (not just failures) so a legit user's handful of tries sails
- * through while bulk enumeration stalls.
+ * forget / reset / confirm / signup — issue #195), per client IP, on a single
+ * shared budget. Runs BEFORE the handler so a flood hits the limiter instead
+ * of the user lookup; every attempt counts (not just failures) so a legit
+ * user's handful of tries sails through while bulk enumeration stalls.
  *
  * The client IP is ctx.ip — correct behind nginx because app.proxy=true makes
  * Koa read X-Forwarded-For (same source app.ts already records for logins) —
  * bucketed by ipBucketKey (IPv6 masked to /56). The 429 message is deliberately
  * generic: it must not confirm or deny the target email's registration.
+ *
+ * `/signup/social` is deliberately NOT limited — it keys on provider identities,
+ * not an email-existence check, so it isn't an enumeration oracle.
  */
 export async function rateLimitAttempt(ctx: Context, next: Next) {
 	const { windowMs, maxPerIp } = env.authRateLimit;

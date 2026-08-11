@@ -155,5 +155,58 @@ describe("auth endpoint rate limiting (#195)", () => {
 		}
 	});
 
+	// A signup attempt against the already-registered email 409s ("email taken")
+	// without sending mail — safe to drive the limiter. A valid signup would send
+	// a confirmation email (Mailgun), which can't succeed in the test env.
+	const signupBody = { email: registeredEmail, password, username: "whatever", termsAndConditions: true };
+
+	it("throttles signup on the same shared per-IP cap, with a generic 429", async () => {
+		Object.assign(env.authRateLimit, { maxPerIp: 3 });
+		const ip = fromIp();
+
+		for (let i = 0; i < 3; i++) {
+			const res = await post("/api/account/signup", signupBody, ip);
+			assert.strictEqual(res.status, 409, `signup ${i + 1} should reach the handler`);
+		}
+		const blocked = await post("/api/account/signup", signupBody, ip);
+		assert.strictEqual(blocked.status, 429);
+		assert.strictEqual(message(blocked.data), "Too many attempts, please try again later");
+		assert.ok(blocked.retryAfter, "a Retry-After header is set");
+		assert.doesNotMatch(message(blocked.data), /taken|registered|@/);
+	});
+
+	it("signup and login share one per-IP budget", async () => {
+		Object.assign(env.authRateLimit, { maxPerIp: 3 });
+		const ip = fromIp();
+
+		// Two logins consume two of the three shared attempts…
+		assert.strictEqual(
+			(await post("/api/account/login", { email: registeredEmail, password: "wrong" }, ip)).status,
+			401,
+		);
+		assert.strictEqual(
+			(await post("/api/account/login", { email: registeredEmail, password: "wrong" }, ip)).status,
+			401,
+		);
+		// …a signup reaches the handler (the 3rd)…
+		assert.strictEqual((await post("/api/account/signup", signupBody, ip)).status, 409);
+		// …and now both are over the shared cap.
+		assert.strictEqual((await post("/api/account/signup", signupBody, ip)).status, 429);
+		assert.strictEqual(
+			(await post("/api/account/login", { email: registeredEmail, password: "wrong" }, ip)).status,
+			429,
+		);
+	});
+
+	it("buckets signup IPv6 clients by /56 too", async () => {
+		Object.assign(env.authRateLimit, { maxPerIp: 2 });
+		// Two distinct addresses in one /56 share the cap; the neighboring /56 doesn't.
+		assert.strictEqual((await post("/api/account/signup", signupBody, from6(10))).status, 409);
+		assert.strictEqual((await post("/api/account/signup", signupBody, from6(11))).status, 409);
+		assert.strictEqual((await post("/api/account/signup", signupBody, from6(12))).status, 429);
+		const neighbor = await post("/api/account/signup", signupBody, { "X-Forwarded-For": "2001:db8:cafe:5b00::1" });
+		assert.strictEqual(neighbor.status, 409);
+	});
+
 	after(() => db().dropDatabase());
 });

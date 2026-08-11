@@ -339,7 +339,10 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
 	ctx.status = 200;
 });
 
-router.post("/signup", loggedOut, passport.authenticate("local-signup", { session: false }), (ctx) =>
+// Email signup 409s on a taken email — an enumeration oracle, so it shares the
+// per-IP limiter (same budget as login/forget/reset/confirm). /signup/social
+// keys on provider identities, not email existence, so it is NOT rate-limited.
+router.post("/signup", rateLimitAttempt, loggedOut, passport.authenticate("local-signup", { session: false }), (ctx) =>
 	sendAuthInfo(ctx, "password"),
 );
 
