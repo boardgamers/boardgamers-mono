@@ -47,12 +47,14 @@
 		sessions: Record<string, number>;
 		trend: { weeks: number; methods: string[]; loginsByWeek: Record<string, string | number>[] };
 	}
-	type Method = "password" | "google" | "facebook" | "discord";
+	type Method = "password" | "google" | "facebook" | "discord" | "github" | "huggingface";
 	const methodLabels: Record<Method, string> = {
 		password: "Password",
 		google: "Google",
 		facebook: "Facebook",
 		discord: "Discord",
+		github: "GitHub",
+		huggingface: "Hugging Face",
 	};
 
 	const trendColor = (method: string) =>
@@ -61,6 +63,9 @@
 			google: "#ef4444",
 			facebook: "#1877f2",
 			discord: "#5865f2",
+			// #24292e (GitHub dark) vanishes in dark mode; this gray reads on both themes.
+			github: "#6b7280",
+			huggingface: "#ff9d00",
 			admin: "#a855f7",
 			unknown: "#9ca3af",
 		})[method] ?? "#14b8a6";

@@ -129,6 +129,8 @@ describe("Admin users API", () => {
 		const oldGoogleId = new ObjectId();
 		const recentComboId = new ObjectId();
 		const noMethodId = new ObjectId();
+		const recentGithubId = new ObjectId();
+		const oldHuggingfaceId = new ObjectId();
 
 		before(async () => {
 			const now = new Date();
@@ -158,6 +160,20 @@ describe("Admin users API", () => {
 			await colls.users.insertOne(
 				testUser({ _id: noMethodId, security: { lastLogin: { ip: "", date: new Date(0) } } }),
 			);
+			await colls.users.insertOne(
+				testUser({
+					_id: recentGithubId,
+					account: { social: { github: "gh-lm-1" } },
+					security: { lastLogin: { ip: "", date: now } },
+				}),
+			);
+			await colls.users.insertOne(
+				testUser({
+					_id: oldHuggingfaceId,
+					account: { social: { huggingface: "hf-lm-1" } },
+					security: { lastLogin: { ip: "", date: old } },
+				}),
+			);
 		});
 
 		it("rejects non-admin callers", async () => {
@@ -185,6 +201,10 @@ describe("Admin users API", () => {
 			assert.strictEqual(body.perMethod.older.google, 1);
 			assert.strictEqual(body.perMethod.recent.discord, 1);
 			assert.strictEqual(body.perMethod.older.discord, 0);
+			assert.strictEqual(body.perMethod.recent.github, 1);
+			assert.strictEqual(body.perMethod.older.github, 0);
+			assert.strictEqual(body.perMethod.recent.huggingface, 0);
+			assert.strictEqual(body.perMethod.older.huggingface, 1);
 			assert.ok(body.combinations.length > 0);
 
 			// Each method set must appear exactly once: recent/older buckets are merged into a
@@ -206,6 +226,8 @@ describe("Admin users API", () => {
 				recent: 1,
 				older: 0,
 			});
+			assert.deepStrictEqual(combo(["github"]), { methods: ["github"], recent: 1, older: 0 });
+			assert.deepStrictEqual(combo(["huggingface"]), { methods: ["huggingface"], recent: 0, older: 1 });
 			// adminId, userId, noMethodId: testUser leaves password "" and no social → no usable method.
 			// (May also count users from other spec files when the full suite shares the db.)
 			assert.strictEqual(combo([]).recent, 0);
