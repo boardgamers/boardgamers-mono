@@ -214,7 +214,10 @@
 									{gameIcon(game.game.name)}
 								</span>
 
-								<div class="me-auto min-w-0" style="line-height: 1.1">
+								<!-- Left block claims the free width (flex-1) but can shrink (min-w-0); the
+								     name is the only child allowed to truncate, so the elo chip and the avatar
+								     stack always keep their room on long names. -->
+								<div class="me-auto min-w-0 flex-1" style="line-height: 1.1">
 									<div class="flex items-center">
 										{#if game.status === "active"}
 											<Badge color="contrast" class="me-2 text-xs text-white">R{game.context?.round ?? 0}</Badge>
@@ -287,7 +290,8 @@
 								</div>
 
 								{#if game.status !== "open"}
-									<div class="factions flex min-w-0 shrink flex-row items-center">
+									<!-- shrink-0: never clipped on long game names — the truncating name yields first. -->
+									<div class="factions flex min-w-0 shrink-0 flex-row items-center">
 										{#each game.players as player, i (player._id)}
 											<PlayerGameAvatar
 												game={game.game.name}
