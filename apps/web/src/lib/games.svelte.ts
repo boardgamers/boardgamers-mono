@@ -15,6 +15,8 @@ export type LoadGamesParams = {
 	gameStatus: GameStatus;
 	fetchCount?: boolean;
 	store?: boolean;
+	/** Bypass the cache read AND overwrite the entry — user-triggered refresh (logo click, sidebar active-game, avatar save). */
+	refresh?: boolean;
 	search?: string;
 };
 
@@ -42,6 +44,7 @@ export function loadGames({
 	gameStatus,
 	fetchCount = !sample,
 	store = false,
+	refresh = false,
 	search,
 }: LoadGamesParams) {
 	const queryParams = {
@@ -58,7 +61,7 @@ export function loadGames({
 
 	const key = JSON.stringify({ ...queryParams, gameStatus, fetchCount });
 
-	if (!store && gamesCache.has(key)) {
+	if (!store && !refresh && gamesCache.has(key)) {
 		return gamesCache.get(key)!;
 	}
 
@@ -66,7 +69,7 @@ export function loadGames({
 		get<GameFront[]>(`/game/status/${gameStatus}`, queryParams),
 		fetchCount ? get<number>(`/game/status/${gameStatus}/count`, queryParams) : 0,
 	]).then(async ([games, total]) => {
-		if (store) {
+		if (store || refresh) {
 			gamesCache.set(key, { games, total });
 		}
 
