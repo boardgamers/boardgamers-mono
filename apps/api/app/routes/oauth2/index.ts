@@ -212,6 +212,12 @@ router.post("/consent", async (ctx) => {
 	ctx.body = { redirectUrl: url.toString() };
 });
 
+// Non-credential placeholder for OAuth clients that unconditionally send a
+// client_secret (Grafana's generic-oauth always does). Tolerated at the token
+// endpoint — and accepted for nothing else: PKCE remains the only client-auth
+// mechanism, and this value must never be treated as authentication.
+export const OAUTH_PLACEHOLDER_CLIENT_SECRET = "__UNUSED__";
+
 const tokenBodySchema = z
 	.object({
 		grant_type: z.literal("authorization_code"),
@@ -220,14 +226,24 @@ const tokenBodySchema = z
 		client_id: z.string(),
 		// RFC7636 §4.1
 		code_verifier: z.string().min(43).max(128),
+		// Declared only so the placeholder isn't stripped by .strict() — never read
+		// afterwards; real secrets are rejected by the raw-body check below.
+		client_secret: z.literal(OAUTH_PLACEHOLDER_CLIENT_SECRET).optional(),
 	})
 	.strict();
 
 router.post("/token", async (ctx) => {
 	// Public clients only (CIMD §4.1): a client_secret must never be used — reject
-	// it explicitly rather than silently ignoring it.
-	if (new URLSearchParams(ctx.request.rawBody).has("client_secret")) {
-		throw createError(400, "invalid_client: CIMD clients are public — no client_secret (PKCE only)");
+	// it explicitly rather than silently ignoring it. Sole tolerance: Grafana (and
+	// some other generic-oauth clients) always send one, so the known placeholder
+	// `__UNUSED__` is accepted and ignored; any other value is a real secret and
+	// still violates §4.1.
+	const clientSecret = new URLSearchParams(ctx.request.rawBody).get("client_secret");
+	if (clientSecret !== null && clientSecret !== OAUTH_PLACEHOLDER_CLIENT_SECRET) {
+		throw createError(
+			400,
+			`invalid_client: CIMD clients are public — no client_secret (PKCE only). If your client requires one, set it to "${OAUTH_PLACEHOLDER_CLIENT_SECRET}".`,
+		);
 	}
 	const body = tokenBodySchema.parse(ctx.request.body);
 

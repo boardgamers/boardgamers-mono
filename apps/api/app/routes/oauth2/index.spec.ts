@@ -545,17 +545,37 @@ describe("POST /api/oauth2/token", () => {
 		assert.strictEqual(wrongRedirect.status, 400);
 	});
 
-	it("rejects a client_secret (public clients only, §4.1)", async () => {
+	it('accepts-and-ignores the placeholder client_secret "__UNUSED__" (Grafana always sends one)', async () => {
+		const verifier = codeVerifier();
+		const { code } = await runAuthorizeFlow(cookie, verifier);
 		const res = await tokenRequest({
 			grant_type: "authorization_code",
-			code: "whatever",
+			code,
 			redirect_uri: clientRedirectUri(),
 			client_id: clientId(),
-			code_verifier: codeVerifier(),
-			client_secret: "nope",
+			code_verifier: verifier,
+			client_secret: "__UNUSED__",
 		});
-		assert.strictEqual(res.status, 400);
-		assert.match(String(res.body!.message), /client_secret/);
+		assert.strictEqual(res.status, 200, JSON.stringify(res.body));
+		assert.strictEqual(res.body!.token_type, "Bearer");
+	});
+
+	it("rejects any other client_secret value, even an empty one (public clients only, §4.1)", async () => {
+		for (const client_secret of ["nope", ""]) {
+			const res = await tokenRequest({
+				grant_type: "authorization_code",
+				code: "whatever",
+				redirect_uri: clientRedirectUri(),
+				client_id: clientId(),
+				code_verifier: codeVerifier(),
+				client_secret,
+			});
+			assert.strictEqual(res.status, 400, `client_secret=${JSON.stringify(client_secret)} must be rejected`);
+			assert.strictEqual(
+				res.body!.message,
+				'invalid_client: CIMD clients are public — no client_secret (PKCE only). If your client requires one, set it to "__UNUSED__".',
+			);
+		}
 	});
 });
 

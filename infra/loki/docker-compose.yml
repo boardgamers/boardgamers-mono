@@ -60,7 +60,10 @@ services:
       - GF_AUTH_GENERIC_OAUTH_ENABLED=true
       - GF_AUTH_GENERIC_OAUTH_NAME=Boardgamers
       - GF_AUTH_GENERIC_OAUTH_CLIENT_ID=https://grafana.boardgamers.space/client-metadata.json
-      - GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET=unused
+      # Grafana always sends a client_secret; the API tolerates exactly this
+      # placeholder (and no other value) — it authenticates nothing, PKCE is the
+      # only client-auth mechanism.
+      - GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET=__UNUSED__
       - GF_AUTH_GENERIC_OAUTH_USE_PKCE=true
       - GF_AUTH_GENERIC_OAUTH_AUTH_URL=https://www.boardgamers.space/api/oauth2/authorize
       - GF_AUTH_GENERIC_OAUTH_TOKEN_URL=https://www.boardgamers.space/api/oauth2/token
