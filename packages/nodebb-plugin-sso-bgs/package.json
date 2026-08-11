@@ -1,0 +1,28 @@
+{
+	"name": "nodebb-plugin-sso-bgs",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Boardgamers SSO for NodeBB: PKCE public-client shim around nodebb-plugin-sso-oauth2-multiple, plus the OAuth Client ID Metadata Document at /client-metadata.json",
+	"keywords": [
+		"nodebb",
+		"oauth",
+		"oauth2",
+		"pkce",
+		"plugin",
+		"sso"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/boardgamers/boardgamers-mono",
+		"directory": "packages/nodebb-plugin-sso-bgs"
+	},
+	"main": "library.js",
+	"dependencies": {
+		"nodebb-plugin-sso-oauth2-multiple": "^2.0.0",
+		"passport-oauth": "~1.0.0"
+	},
+	"nbbpm": {
+		"compatibility": "^4.14.0"
+	}
+}
