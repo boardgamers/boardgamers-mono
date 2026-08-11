@@ -33,6 +33,16 @@
 			Users
 		</a>
 		<a
+			href={resolve("/users/deleted")}
+			class="pl-6 pr-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 {isActive(
+				'/users/deleted'
+			)
+				? 'bg-gray-100 dark:bg-gray-800 font-semibold'
+				: ''}"
+		>
+			Deleted users
+		</a>
+		<a
 			href={resolve("/games")}
 			class="px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive('/games')
 				? 'bg-gray-100 dark:bg-gray-800 font-semibold'
@@ -49,16 +59,6 @@
 				: ''}"
 		>
 			Hangs / timeouts
-		</a>
-		<a
-			href={resolve("/users/deleted")}
-			class="pl-6 pr-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 {isActive(
-				'/users/deleted'
-			)
-				? 'bg-gray-100 dark:bg-gray-800 font-semibold'
-				: ''}"
-		>
-			Deleted users
 		</a>
 		<a
 			href={resolve("/health")}
