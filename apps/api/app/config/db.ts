@@ -34,6 +34,8 @@ import {
 	ROOM_METADATA_COLLECTION,
 	type SettingsDoc,
 	SETTINGS_COLLECTION,
+	type UserActionDoc,
+	USER_ACTIONS_COLLECTION,
 	type UserDoc,
 	USERS_COLLECTION,
 	ensureCollections,
@@ -74,6 +76,7 @@ export const colls = {} as {
 	pages: Collection<PageDoc>;
 	roomMetaData: Collection<RoomMetaDataDoc>;
 	settings: Collection<SettingsDoc>;
+	userActions: Collection<UserActionDoc>;
 	users: Collection<UserDoc>;
 };
 
@@ -97,6 +100,7 @@ function initColls(database: Db) {
 		pages: withAutoUpdatedAt(database.collection<PageDoc>(PAGES_COLLECTION)),
 		roomMetaData: database.collection<RoomMetaDataDoc>(ROOM_METADATA_COLLECTION),
 		settings: withAutoUpdatedAt(database.collection<SettingsDoc>(SETTINGS_COLLECTION)),
+		userActions: database.collection<UserActionDoc>(USER_ACTIONS_COLLECTION),
 		users: withAutoUpdatedAt(database.collection<UserDoc>(USERS_COLLECTION)),
 	});
 }

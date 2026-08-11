@@ -21,6 +21,7 @@ import { OAUTH_FLOWS_COLLECTION, oauthFlowIndexes, oauthFlowSchema } from "./oau
 import { PAGES_COLLECTION, pageSchema } from "./page.ts";
 import { ROOM_METADATA_COLLECTION, roomMetaDataIndexes, roomMetaDataSchema } from "./roommetadata.ts";
 import { SETTINGS_COLLECTION, settingsSchema } from "./settings.ts";
+import { USER_ACTIONS_COLLECTION, userActionIndexes, userActionSchema } from "./useraction.ts";
 import { USERS_COLLECTION, userIndexes, userSchema } from "./user.ts";
 import { DELETED_USERS_COLLECTION, deletedUserIndexes, deletedUserSchema } from "./deleteduser.ts";
 import { zodToMongoSchema } from "./mongo-schema.ts";
@@ -470,6 +471,7 @@ export const declaredIndexes: [string, IndexDescription[]][] = [
 	[OAUTH_FLOWS_COLLECTION, oauthFlowIndexes],
 	[ROOM_METADATA_COLLECTION, roomMetaDataIndexes],
 	[DELETED_USERS_COLLECTION, deletedUserIndexes],
+	[USER_ACTIONS_COLLECTION, userActionIndexes],
 ];
 
 // Indexes removed from the code that still exist on deployed databases.
@@ -542,6 +544,7 @@ export async function ensureValidation(db: Db) {
 		[SETTINGS_COLLECTION, settingsSchema],
 		[USERS_COLLECTION, userSchema],
 		[DELETED_USERS_COLLECTION, deletedUserSchema],
+		[USER_ACTIONS_COLLECTION, userActionSchema],
 	];
 
 	const existing = new Set((await db.listCollections().toArray()).map((c) => c.name));

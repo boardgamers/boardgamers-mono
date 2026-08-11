@@ -404,25 +404,41 @@ describe("Account API — auth email cooldown (#195)", () => {
 		assert.strictEqual(sentMails.length, 1);
 	});
 
-	it("the email-change confirmation respects the cooldown but the change still applies", async () => {
-		// A reset email went out in the previous test → the confirm send is on cooldown.
+	it("the email-change confirmation ALWAYS sends, even within the cooldown, and the change applies", async () => {
+		// A reset email went out in the previous test → the per-email cooldown is
+		// active. The logged-in email change ignores it (the per-user action rate
+		// limit throttles this route instead): an email change applies
+		// immediately, so the account must never be left changed-but-unconfirmable.
+		sentMails = [];
 		const res = await api("POST", "/api/account/email", { email: "cooldown-user-new@test.com" }, authHeaders);
 		assert.strictEqual(res.status, 200);
 		assert.strictEqual(
 			sentMails.filter((m) => String(m.to) === "cooldown-user-new@test.com").length,
-			0,
-			"no confirm email within the cooldown",
+			1,
+			"the confirm email to the new address goes out despite the cooldown",
 		);
 		const updated = (await colls.users.findOne({ _id: userId }))!;
 		assert.strictEqual(updated.account.email, "cooldown-user-new@test.com");
 		assert.strictEqual(updated.security.confirmed, false);
 
-		// Past the cooldown the confirm email goes out. A skipped send doesn't stamp:
-		// the mail-change notice above went to the old address cooldown-free.
+		// The bypass didn't stamp the cooldown — the stamp is still the one from
+		// the previous test's /forget. Pretend that stamp is old: a /forget to
+		// the new address then sends normally (the change didn't mute it)…
 		await colls.users.updateOne(
 			{ _id: userId },
 			{ $set: { "security.lastAuthEmailSentAt": new Date(Date.now() - env.authEmailCooldownMs - 1) } },
 		);
+		sentMails = [];
+		assert.strictEqual((await api("POST", "/api/account/forget", { email: "cooldown-user-new@test.com" })).status, 200);
+		assert.strictEqual(sentMails.length, 1, "first /forget to the new address sends normally");
+
+		// …and its OWN cooldown still suppresses immediate repeats.
+		sentMails = [];
+		assert.strictEqual((await api("POST", "/api/account/forget", { email: "cooldown-user-new@test.com" })).status, 200);
+		assert.strictEqual(sentMails.length, 0, "second /forget within the cooldown stays suppressed");
+
+		// Another email change, still within the cooldown stamped by /forget above:
+		// the confirm email goes out again.
 		sentMails = [];
 		const res2 = await api("POST", "/api/account/email", { email: "cooldown-user-final@test.com" }, authHeaders);
 		assert.strictEqual(res2.status, 200);
