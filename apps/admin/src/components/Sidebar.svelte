@@ -14,7 +14,9 @@
 	}
 </script>
 
-<aside class="w-60 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-y-auto shrink-0">
+<aside
+	class="w-60 h-full border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-y-auto shrink-0"
+>
 	<nav class="p-3 flex flex-col gap-0.5 text-sm">
 		<a
 			href={resolve("/")}
