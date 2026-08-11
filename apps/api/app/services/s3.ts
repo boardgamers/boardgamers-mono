@@ -1,16 +1,24 @@
-import { GetObjectCommand, PutObjectCommand, S3Client, type S3ClientConfig } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { PutObjectCommand, S3Client, type S3ClientConfig } from "@aws-sdk/client-s3";
 
 // S3 storage for user-uploaded avatars. Enabled when S3_BUCKET +
 // S3_ACCESS_KEY_ID + S3_SECRET_ACCESS_KEY are all set; otherwise every helper
-// no-ops and avatars keep serving from mongo (dev/preview default).
+// no-ops and avatars keep serving from mongo (dev default).
 //
-// Two endpoints, because the api and the browser may not reach S3 the same way:
+// Avatars are PUBLIC objects (anyone can view any user's avatar): the bucket is
+// public-read at the operator level (#218), so serving redirects to the plain
+// object URL — no presigning, no per-object ACL. The public base is derived
+// from S3_PUBLIC_ENDPOINT + S3_BUCKET (default: S3_ENDPOINT); it must be
+// browser-reachable. Envs with the base URL but no creds (PR previews: no S3
+// secrets) still 302 to the public gateway — anonymous GET works.
+//
+// If the bucket is NOT publicly readable yet (operator step pending), a
+// HEAD-probe (see isAvatarPubliclyReachable) fails and the api keeps serving
+// from mongo — avatar serving never depends on the bucket being public.
+//
 // - S3_ENDPOINT: used by the api for PutObject (upload path, boot migration).
-// - S3_PUBLIC_ENDPOINT: used to sign the GET URLs the api 302-redirects
-//   browsers to — the signed host must be browser-reachable. Defaults to
-//   S3_ENDPOINT; in prod both are the public Scaleway gateway, locally both are
-//   the MinIO port (see .env.example).
+// - S3_PUBLIC_ENDPOINT: the public base the api 302-redirects browsers to.
+//   Defaults to S3_ENDPOINT; in prod both are the public Scaleway gateway,
+//   locally both are the MinIO port (see .env.example).
 function s3Config(): S3ClientConfig | null {
 	const { S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY } = process.env;
 	if (!S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
@@ -26,23 +34,21 @@ function s3Config(): S3ClientConfig | null {
 }
 
 let client: S3Client | null = null;
-let publicClient: S3Client | null = null;
-// When set, presigned URLs point at this origin instead of the public endpoint
-// — tests serve their mock S3 from it (fetch()-able in-process, so following a
+// When set, avatar URLs point at this origin instead of the public endpoint —
+// tests serve their mock S3 from it (fetch()-able in-process, so following a
 // 302 exercises the full flow). Never set outside tests.
-let presignedOriginForTests: string | null = null;
+let publicOriginForTests: string | null = null;
 
 // Exported for tests — spec files can't set env vars before module import
-// reliably, so they inject mock clients (or null to reset).
-export function setS3ClientsForTests(internal: S3Client | null, pub?: S3Client | null): void {
+// reliably, so they inject a mock client (or null to reset).
+export function setS3ClientsForTests(internal: S3Client | null): void {
 	client = internal;
-	publicClient = pub ?? internal;
-	presignedOriginForTests = internal ? "http://s3-mock.local" : null;
+	publicOriginForTests = internal ? "http://s3-mock.local" : null;
 }
 
 export function s3Enabled(): boolean {
 	// A test-injected client counts as "enabled" even without S3_* env vars.
-	if (client && presignedOriginForTests) {
+	if (client && publicOriginForTests) {
 		return true;
 	}
 	const config = s3Config();
@@ -50,32 +56,25 @@ export function s3Enabled(): boolean {
 		return false;
 	}
 	client ??= new S3Client(config);
-	// The signer must see the public endpoint so the presigned host is one a
-	// browser can reach; a separate client only when it differs.
-	const publicEndpoint = process.env.S3_PUBLIC_ENDPOINT;
-	publicClient ??=
-		publicEndpoint && publicEndpoint !== config.endpoint
-			? new S3Client({ ...config, endpoint: publicEndpoint })
-			: client;
 	return true;
 }
 
-function clients(): { internal: S3Client; pub: S3Client } {
-	if (!client || !publicClient) {
+function clients(): { internal: S3Client } {
+	if (!client) {
 		throw new Error("S3 accessed while disabled");
 	}
-	return { internal: client, pub: publicClient };
+	return { internal: client };
 }
 
 export function avatarS3Key(userId: string, size: string): string {
 	return `avatars/${userId}/${size}.webp`;
 }
 
-// Test hook: lets spec files serve the mock's "presigned" URLs via plain
+// Test hook: lets spec files serve the mock's public object URLs via plain
 // fetch() (the api returns http://s3-mock.local/… redirects when test clients
 // are injected). Production code never installs one. Returns the previous
 // interceptor so callers can restore it.
-type FetchInterceptor = (url: string) => Promise<Response | null>;
+type FetchInterceptor = (url: string, init?: { method?: string }) => Promise<Response | null>;
 const interceptorStore: { current: FetchInterceptor | null } = { current: null };
 export function setS3FetchInterceptorForTests(interceptor: FetchInterceptor | null): FetchInterceptor | null {
 	const previous = interceptorStore.current;
@@ -84,12 +83,12 @@ export function setS3FetchInterceptorForTests(interceptor: FetchInterceptor | nu
 }
 
 // Same as fetch(), except S3-mock URLs are served in-process under NODE_ENV=test.
-export function s3Fetch(url: string): Promise<Response> {
+export function s3Fetch(url: string, init?: { method?: string }): Promise<Response> {
 	const interceptor = interceptorStore.current;
 	if (interceptor) {
-		return interceptor(url).then((res) => res ?? fetch(url));
+		return interceptor(url, init).then((res) => res ?? fetch(url, init));
 	}
-	return fetch(url);
+	return fetch(url, init);
 }
 
 // Failure mode: throws or returns false — never breaks the caller. The mongo
@@ -113,15 +112,62 @@ export async function putAvatar(userId: string, size: string, webp: Buffer): Pro
 	}
 }
 
-// Short-lived so a changed avatar stops being served quickly; the ETag stays
-// authoritative anyway (browsers revalidate via the api, not S3). Signing is
-// local (no network), so failures are a bug — they propagate to the 500 handler.
-export async function presignAvatarGet(userId: string, size: string, expiresInSeconds = 3600): Promise<string> {
-	const key = avatarS3Key(userId, size);
-	if (presignedOriginForTests) {
-		return `${presignedOriginForTests}/${process.env.S3_BUCKET ?? "test-bucket"}/${key}?X-Amz-Signature=mock`;
+// The plain (unsigned) URL for an avatar object, or null when the env has no
+// public S3 base URL at all (fully S3-less env → the caller serves from mongo
+// or falls back to a generated avatar). Avatars are public-read, so no signing
+// — which also makes the URL cacheable and usable by creds-less previews.
+export function publicAvatarUrl(userId: string, size: string): string | null {
+	if (publicOriginForTests) {
+		return `${publicOriginForTests}/${process.env.S3_BUCKET ?? "test-bucket"}/${avatarS3Key(userId, size)}`;
 	}
-	return getSignedUrl(clients().pub, new GetObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }), {
-		expiresIn: expiresInSeconds,
-	});
+	if (!process.env.S3_BUCKET) {
+		return null;
+	}
+	const publicEndpoint = process.env.S3_PUBLIC_ENDPOINT || process.env.S3_ENDPOINT || "https://s3.fr-par.scw.cloud";
+	// forcePathStyle: <endpoint>/<bucket>/<key>
+	return `${publicEndpoint.replace(/\/+$/, "")}/${process.env.S3_BUCKET}/${avatarS3Key(userId, size)}`;
+}
+
+// -- Public-reachability probe ------------------------------------------------
+// The api 302s to the public URL only once an anonymous HEAD on the object
+// confirms the bucket serves it publicly (#218); until then it serves the mongo
+// blob. The verdict is cached in-process: negatives briefly (the operator may
+// flip the policy at any moment), positives ~forever (a public bucket stays
+// public; a blip just re-probes on a later request). Bounded by the number of
+// avatar keys requested, × the short negative TTL — never a traffic multiplier
+// worth worrying about next to a mongo blob read.
+const publicProbeCache = new Map<string, Promise<boolean>>();
+const PROBE_NEGATIVE_TTL_MS = 30_000;
+const PROBE_POSITIVE_TTL_MS = 3600_000;
+
+export function isAvatarPubliclyReachable(userId: string, size: string): Promise<boolean> {
+	const url = publicAvatarUrl(userId, size);
+	if (!url) {
+		return Promise.resolve(false);
+	}
+	const cached = publicProbeCache.get(url);
+	if (cached) {
+		return cached;
+	}
+	const probe = s3Fetch(url, { method: "HEAD" })
+		.then((res) => res.ok)
+		.catch(() => false)
+		.then((ok) => {
+			setTimeout(
+				() => {
+					if (publicProbeCache.get(url) === probe) {
+						publicProbeCache.delete(url);
+					}
+				},
+				ok ? PROBE_POSITIVE_TTL_MS : PROBE_NEGATIVE_TTL_MS,
+			).unref();
+			return ok;
+		});
+	publicProbeCache.set(url, probe);
+	return probe;
+}
+
+// Exported for tests.
+export function clearAvatarPublicProbeCache(): void {
+	publicProbeCache.clear();
 }

@@ -6,7 +6,7 @@ import { type Binary, ObjectId } from "mongodb";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
 import { generateAvatar } from "../../models/avatar.ts";
-import { presignAvatarGet, s3Enabled } from "../../services/s3.ts";
+import { isAvatarPubliclyReachable, publicAvatarUrl } from "../../services/s3.ts";
 import {
 	eloProjection,
 	findGamesWithPlayersTurn,
@@ -51,37 +51,47 @@ function setAvatarHeaders(ctx: Context, etagValue: string): boolean {
 	return false;
 }
 
-// S3-migrated avatars are served as a redirect to a presigned GET: the browser
-// downloads the bytes straight from S3 while the ETag stays the api's content
-// hash (the next revalidation still comes back here → cheap 304).
-async function serveUploadedAvatarFromS3(ctx: Context, userId: ObjectId, format: string) {
-	ctx.status = 302;
-	ctx.set("Location", await presignAvatarGet(userId.toHexString(), format));
-}
-
-// Shared by both avatar routes. The ETag comes from the upload-time stored
-// hash, so the 304 decision and the S3-redirect branch never touch the blob.
-// Without a stored hash (pre-#217 uploads) the ETag is computed from the bytes
-// like before — the mongo path handles it.
+// Shared by both avatar routes. Precedence: (1) 304 on the stored hash, (2)
+// 302 to the public S3 object URL for migrated avatars once a HEAD probe
+// confirms the bucket serves it anonymously (public-read per #218 — creds-less
+// envs like PR previews redirect the same way), (3) mongo blob when present,
+// (4) DiceBear fallback — a metadata-only (S3-only) doc in an env with no S3
+// base URL at all must never 500.
 async function serveUploadedAvatar(
 	ctx: Context,
 	userId: ObjectId,
 	format: string,
-	item: { images: Record<string, { mime: string; raw: Buffer | Binary; hash?: string }>; s3?: boolean },
+	item: { images: Record<string, { mime: string; raw?: Buffer | Binary; hash?: string }> | undefined; s3?: boolean },
+	fallback: { username: string; size?: number },
 ) {
-	const imageData = item.images[format];
+	const imageData = item.images?.[format];
 	// 304 on revalidation, without touching S3 or the blob.
-	if (imageData.hash && setAvatarHeaders(ctx, `"${imageData.hash}"`)) {
+	if (imageData?.hash && setAvatarHeaders(ctx, `"${imageData.hash}"`)) {
 		return;
 	}
 
-	if (item.s3 && s3Enabled()) {
-		await serveUploadedAvatarFromS3(ctx, userId, format);
+	if (item.s3) {
+		// Redirect to the public object URL whenever the env knows one — with S3
+		// creds (prod/dev) or without (previews, anonymous GET) — AND the object
+		// is confirmed publicly reachable (operator bucket policy, #218): until
+		// the HEAD probe passes, keep serving from mongo. The browser downloads
+		// the bytes straight from S3 while the ETag stays the api's content hash
+		// (the next revalidation still comes back here → cheap 304).
+		const url = publicAvatarUrl(userId.toHexString(), format);
+		if (url && (await isAvatarPubliclyReachable(userId.toHexString(), format))) {
+			ctx.status = 302;
+			ctx.set("Location", url);
+			return;
+		}
+	}
+
+	if (imageData?.raw) {
+		const buf = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from(imageData.raw.buffer);
+		serveAvatar(ctx, imageData.mime, buf, imageData.hash);
 		return;
 	}
 
-	const buf = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from(imageData.raw.buffer);
-	serveAvatar(ctx, imageData.mime, buf, imageData.hash);
+	serveAvatar(ctx, "image/svg+xml", generateAvatar(undefined, fallback.username, fallback.size));
 }
 
 router.param("userId", async (userId, ctx, next) => {
@@ -145,7 +155,10 @@ router.get("/byName/:userName/avatar", async (ctx) => {
 			return;
 		}
 
-		await serveUploadedAvatar(ctx, foundUser._id, format, item);
+		await serveUploadedAvatar(ctx, foundUser._id, format, item, {
+			username: account.username,
+			size: size && size <= 256 ? size : undefined,
+		});
 		return;
 	}
 
@@ -173,7 +186,10 @@ router.get("/:userId/avatar", async (ctx) => {
 			return;
 		}
 
-		await serveUploadedAvatar(ctx, foundUser._id, format, item);
+		await serveUploadedAvatar(ctx, foundUser._id, format, item, {
+			username: account.username,
+			size: size && size <= 256 ? size : undefined,
+		});
 		return;
 	}
 

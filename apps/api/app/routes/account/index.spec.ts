@@ -3,7 +3,7 @@
 // the API server.
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { Binary, ObjectId } from "mongodb";
+import { ObjectId } from "mongodb";
 import bcrypt from "bcryptjs";
 import sharp from "sharp";
 import { z } from "zod";
@@ -124,7 +124,7 @@ describe("Account API — avatar upload", () => {
 	const userId = new ObjectId();
 	let authHeaders: Record<string, string> = {};
 	const s3Mock = makeS3Mock();
-	// Lets s3Fetch() resolve the mock's presigned URLs (redirect follow below).
+	// Lets s3Fetch() resolve the mock's public object URLs (redirect follow below).
 	const restoreFetchInterceptor = interceptS3Fetches(s3Mock);
 
 	before(async () => {
@@ -163,21 +163,22 @@ describe("Account API — avatar upload", () => {
 				const entry = doc.images[`${size}x${size}`];
 				assert.ok(entry, `missing ${size}x${size}`);
 				assert.strictEqual(entry.mime, "image/webp");
-				// The driver returns BSON binary as `Binary`, not a Node Buffer.
-				const raw = entry.raw instanceof Binary ? entry.raw.buffer : entry.raw;
-				assert.strictEqual(entry.size, raw.length);
-				assert.ok(isWebp(raw), `expected RIFF…WEBP magic bytes for ${size}x${size}`);
-				const meta = await sharp(raw).metadata();
-				assert.strictEqual(meta.format, "webp");
-				assert.strictEqual(meta.width, size);
-				assert.strictEqual(meta.height, size);
+				// S3-only write: the doc is the metadata record (etag), no blob.
+				assert.strictEqual(entry.raw, undefined, `expected no raw blob for ${size}x${size}`);
+				assert.ok(entry.hash, `expected a stored hash (etag) for ${size}x${size}`);
+				assert.ok(entry.size > 0);
 
-				// Dual-write: S3 got the exact same bytes.
+				// S3 holds the actual bytes — verify they decode to the right size.
 				const s3Body = s3Mock.buckets
 					.get(s3Mock.bucketName)
 					?.get(`avatars/${userId.toHexString()}/${size}x${size}.webp`);
 				assert.ok(s3Body, `expected an S3 object for ${size}x${size}`);
-				assert.deepStrictEqual(s3Body.body, Buffer.from(raw));
+				assert.strictEqual(entry.size, s3Body.body.length);
+				assert.ok(isWebp(s3Body.body), `expected RIFF…WEBP magic bytes for ${size}x${size}`);
+				const meta = await sharp(s3Body.body).metadata();
+				assert.strictEqual(meta.format, "webp");
+				assert.strictEqual(meta.width, size);
+				assert.strictEqual(meta.height, size);
 			}
 			// Set outside the loop: on failure the loop assert kills the test first.
 			assert.strictEqual(doc.s3, true);
@@ -186,12 +187,15 @@ describe("Account API — avatar upload", () => {
 			assert.strictEqual(user?.account.avatar, "upload");
 
 			// The uploaded avatar serves as webp, in the requested size bucket. S3
-			// is enabled and the doc is migrated → a 302 to a presigned URL, which
-			// the test client follows against the mock S3 store.
+			// is enabled and the doc is migrated → a 302 to the public object URL,
+			// which the test client follows against the mock S3 store.
 			const redirect = await fetch(`${baseURL()}/api/user/${userId.toHexString()}/avatar?size=64`, {
 				redirect: "manual",
 			});
 			assert.strictEqual(redirect.status, 302);
+			// The ETag is the stored upload-time hash — identical to what the old
+			// mongo-serving path emitted, so existing caches revalidate cleanly.
+			assert.strictEqual(redirect.headers.get("etag"), `"${doc.images["64x64"].hash}"`);
 			const served = await s3Fetch(redirect.headers.get("location")!);
 			assert.strictEqual(served.status, 200);
 			assert.strictEqual(served.headers.get("content-type"), "image/webp");

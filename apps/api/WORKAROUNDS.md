@@ -4,7 +4,11 @@ Things that are intentional for now but should be revisited / removed later. Add
 
 ## Avatar blobs kept in mongo after the S3 migration (`app/routes/user/index.ts`, `app/models/migrations/1.5.0-avatars-to-s3.ts`)
 
-Uploaded avatars are **dual-written** to mongo and S3 (when the `S3_*` env vars are set — see `apps/api/.env.example`), and the boot migration `1.5.0` backfills S3 for pre-existing uploads, flagging each doc `s3: true`. The mongo blobs are deliberately **never deleted**: they are the serving fallback when S3 is disabled or errors, and the rollback path if the S3 setup has to be abandoned. Once the S3 serving has proven itself in prod for a while, a follow-up migration can `$unset` `images.*.raw` on `s3: true` docs to reclaim the storage — do NOT ship that unset in the same change as any code that still reads the blobs.
+Avatars uploaded before the S3 migration keep their blob in mongo — the boot migration `1.5.0` copies the bytes to S3 and flags the doc `s3: true` but deliberately **never deletes** the blob: it is the serving fallback if the S3 setup is ever abandoned. New uploads (post-#224) are **S3-only** (metadata + etag hash in mongo, no blob) — there is nothing to roll back for those beyond the public S3 object itself. A follow-up migration can `$unset` `images.*.raw` on `s3: true` docs to reclaim the storage once S3 serving has proven itself — do NOT ship that unset in the same change as any code that still reads the blobs.
+
+## S3-only avatars in PR previews fall back to DiceBear when the public base URL is unset (`app/routes/user/index.ts`)
+
+Previews restore a sanitized prod dump that **includes** `images` docs — metadata-only (`s3: true`, no blob) for post-#224 uploads. Preview containers have no S3 creds; if they have `S3_BUCKET` + `S3_PUBLIC_ENDPOINT` (non-secret) they 302 to the public Scaleway gateway like prod (avatar objects are public-read). Without those vars, `serveUploadedAvatar` falls back to the DiceBear generated avatar so previews never 500/broken-image on a missing blob. Blob-bearing (pre-#224) avatars always serve from the dumped mongo bytes regardless.
 
 ## secure-cookie-over-insecure diagnostic (`app/models/session.ts`)
 

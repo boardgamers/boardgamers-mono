@@ -5,7 +5,7 @@ import type { Migration } from "./index.ts";
 
 // Copies uploaded user avatars from the mongo `images` collection to S3
 // (avatars/<userId>/<size>.webp) and marks each doc `s3: true`, which flips the
-// avatar GET routes to presigned redirects. The mongo blobs are NOT deleted —
+// avatar GET routes to public-URL redirects. The mongo blobs are NOT deleted —
 // they stay as the serving fallback / rollback path.
 //
 // Idempotent: docs already flagged (by a previous run or by the upload route's
@@ -33,7 +33,14 @@ export const migration: Migration = {
 			for (let i = 0; i < entries.length; i += CONCURRENCY) {
 				const results = await Promise.all(
 					entries.slice(i, i + CONCURRENCY).map(([size, data]) => {
-						const raw = Buffer.isBuffer(data.raw) ? data.raw : Buffer.from((data.raw as Binary).buffer);
+						// Unflagged docs always hold the blob (S3-only uploads are
+						// flagged at upload time and never match this query) — the
+						// guard is just for the type.
+						if (!data.raw) {
+							return false;
+						}
+						// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the driver returns BSON Binary, which the Buffer type doesn't cover
+						const raw = Buffer.isBuffer(data.raw) ? data.raw : Buffer.from((data.raw as unknown as Binary).buffer);
 						return putAvatar(doc.ref.toHexString(), size, raw);
 					}),
 				);

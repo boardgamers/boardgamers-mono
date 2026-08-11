@@ -6,7 +6,7 @@ import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { testUser } from "../../config/test-helpers.ts";
 import { interceptS3Fetches, makeS3Mock, seedS3Avatars } from "../../services/s3-mock.ts";
-import { s3Fetch, setS3ClientsForTests } from "../../services/s3.ts";
+import { clearAvatarPublicProbeCache, s3Fetch, setS3ClientsForTests } from "../../services/s3.ts";
 import { migration as avatarsToS3Migration } from "../../models/migrations/1.5.0-avatars-to-s3.ts";
 
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
@@ -225,7 +225,7 @@ describe("User API — avatar", () => {
 
 describe("User API — avatar served from S3", () => {
 	const s3Mock = makeS3Mock();
-	// Lets s3Fetch() (and only it) resolve the mock's presigned URLs.
+	// Lets s3Fetch() (and only it) resolve the mock's public object URLs.
 	const restoreFetchInterceptor = interceptS3Fetches(s3Mock);
 	const webpHash = createHash("sha256").update(rawWebp).digest("hex").slice(0, 16);
 	const webpEtag = `"${webpHash}"`;
@@ -238,6 +238,7 @@ describe("User API — avatar served from S3", () => {
 	before(async () => {
 		setS3ClientsForTests(s3Mock.client);
 		s3Mock.reset();
+		clearAvatarPublicProbeCache();
 
 		const migratedUser = testUser({ _id: migratedUserId, account: { avatar: "upload" } });
 		await colls.users.insertOne(migratedUser);
@@ -277,7 +278,7 @@ describe("User API — avatar served from S3", () => {
 
 		// Migrated fixtures: the matching objects must exist in S3 for the
 		// redirect target to serve bytes (the api never uploads on a GET).
-		await seedS3Avatars(s3Mock, [
+		seedS3Avatars(s3Mock, [
 			{ userId: migratedUserId.toHexString(), sizes: Object.keys(images), body: rawWebp },
 			{ userId: byNameUserId.toHexString(), sizes: Object.keys(images), body: rawWebp },
 		]);
@@ -285,6 +286,7 @@ describe("User API — avatar served from S3", () => {
 
 	after(async () => {
 		setS3ClientsForTests(null);
+		clearAvatarPublicProbeCache();
 		restoreFetchInterceptor();
 		await db().dropDatabase();
 	});
@@ -292,7 +294,7 @@ describe("User API — avatar served from S3", () => {
 	const getNoFollow = (path: string, headers?: Record<string, string>) =>
 		fetch(`${baseURL()}${path}`, { redirect: "manual", headers });
 
-	it("redirects a migrated avatar to a presigned S3 URL, ETag preserved", async () => {
+	it("redirects a migrated avatar to the public S3 object URL, ETag preserved", async () => {
 		const res = await getNoFollow(`/api/user/${migratedUserId.toHexString()}/avatar?size=64`);
 
 		assert.strictEqual(res.status, 302);
@@ -301,7 +303,8 @@ describe("User API — avatar served from S3", () => {
 		const url = new URL(location);
 		assert.strictEqual(url.hostname, s3Mock.endpointHost);
 		assert.strictEqual(url.pathname, `/${s3Mock.bucketName}/avatars/${migratedUserId.toHexString()}/64x64.webp`);
-		assert.match(url.search, /X-Amz-Signature=/);
+		// Public-read objects: plain URL, no signing params.
+		assert.strictEqual(url.search, "");
 		assert.strictEqual(res.headers.get("etag"), webpEtag);
 		assert.strictEqual(res.headers.get("cache-control"), "no-cache");
 	});
@@ -344,26 +347,36 @@ describe("User API — avatar served from S3", () => {
 		assert.strictEqual(revalidate.status, 304);
 	});
 
-	it("a broken S3 never breaks avatar serving: the redirect still works and the presigned URL is only as good as S3", async () => {
-		// Presigning is local (no network) so the api still 302s; if S3 itself is
-		// down the browser-side fetch is what fails — the api is never in that
-		// path, and a client revalidation (304 logic) keeps working regardless.
-		s3Mock.failing = true;
-		try {
-			const res = await getNoFollow(`/api/user/${migratedUserId.toHexString()}/avatar?size=64`);
-			assert.strictEqual(res.status, 302);
-			assert.strictEqual(res.headers.get("etag"), webpEtag);
-			const fetched = await s3Fetch(res.headers.get("location")!);
-			assert.strictEqual(fetched.status, 500);
+	it("serves from mongo while the object is NOT publicly reachable (private bucket / S3 down)", async () => {
+		// Until the operator makes the bucket public (#218) — or while S3 is
+		// erroring — the HEAD probe fails and the api keeps serving the blob.
+		for (const state of ["private", "down"] as const) {
+			clearAvatarPublicProbeCache();
+			s3Mock.publiclyReadable = state === "private" ? false : true;
+			s3Mock.failing = state === "down";
+			try {
+				const res = await getNoFollow(`/api/user/${migratedUserId.toHexString()}/avatar?size=64`);
+				assert.strictEqual(res.status, 200, `expected mongo serve with S3 ${state}`);
+				assert.strictEqual(res.headers.get("location"), null);
+				assert.strictEqual(res.headers.get("content-type"), "image/webp");
+				assert.strictEqual(res.headers.get("etag"), webpEtag);
+				assert.deepStrictEqual(Buffer.from(await res.arrayBuffer()), rawWebp);
 
-			// Revalidation stays cheap and correct while S3 is broken.
-			const revalidate = await getNoFollow(`/api/user/${migratedUserId.toHexString()}/avatar?size=64`, {
-				"if-none-match": webpEtag,
-			});
-			assert.strictEqual(revalidate.status, 304);
-		} finally {
-			s3Mock.failing = false;
+				// Revalidation stays cheap and correct in that state.
+				const revalidate = await getNoFollow(`/api/user/${migratedUserId.toHexString()}/avatar?size=64`, {
+					"if-none-match": webpEtag,
+				});
+				assert.strictEqual(revalidate.status, 304);
+			} finally {
+				s3Mock.failing = false;
+				s3Mock.publiclyReadable = true;
+			}
 		}
+
+		// Once the probe passes again (bucket public), the same request 302s.
+		clearAvatarPublicProbeCache();
+		const res = await getNoFollow(`/api/user/${migratedUserId.toHexString()}/avatar?size=64`);
+		assert.strictEqual(res.status, 302);
 	});
 
 	it("serves migrated avatars from mongo once S3 is disabled", async () => {
@@ -376,6 +389,43 @@ describe("User API — avatar served from S3", () => {
 		} finally {
 			setS3ClientsForTests(s3Mock.client);
 		}
+	});
+
+	it("metadata-only doc + S3 disabled (PR preview) → DiceBear fallback, no 500", async () => {
+		// Shape of post-#224 uploads in a preview dump: s3:true, hash/size/mime,
+		// no `raw` blob. Previews have no S3 → the generated avatar stands in.
+		const metaOnlyUserId = new ObjectId();
+		await colls.users.insertOne(testUser({ _id: metaOnlyUserId, account: { avatar: "upload" } }));
+		await colls.images.insertOne({
+			ref: metaOnlyUserId,
+			refType: "User",
+			key: "avatar",
+			formats: ["64x64"],
+			images: { "64x64": { mime: "image/webp", size: rawWebp.length, hash: webpHash } },
+			s3: true,
+		});
+
+		setS3ClientsForTests(null);
+		try {
+			const res = await getNoFollow(`/api/user/${metaOnlyUserId.toHexString()}/avatar?size=64`);
+			assert.strictEqual(res.status, 200);
+			assert.strictEqual(res.headers.get("location"), null);
+			assert.strictEqual(res.headers.get("content-type"), "image/svg+xml");
+			const body = await res.text();
+			assert.ok(body.startsWith("<svg"), `expected a DiceBear SVG fallback, got: ${body.slice(0, 80)}`);
+			assert.ok(body.includes('width="64"'), "expected the requested size");
+		} finally {
+			setS3ClientsForTests(s3Mock.client);
+		}
+
+		// With S3 enabled AND the object publicly reachable, the same doc 302s as
+		// usual (hash etag preserved).
+		seedS3Avatars(s3Mock, [{ userId: metaOnlyUserId.toHexString(), sizes: ["64x64"], body: rawWebp }]);
+		clearAvatarPublicProbeCache();
+		const res = await getNoFollow(`/api/user/${metaOnlyUserId.toHexString()}/avatar?size=64`);
+		assert.strictEqual(res.status, 302);
+		assert.ok(res.headers.get("location")?.includes(`/avatars/${metaOnlyUserId.toHexString()}/64x64.webp`));
+		assert.strictEqual(res.headers.get("etag"), webpEtag);
 	});
 });
 
