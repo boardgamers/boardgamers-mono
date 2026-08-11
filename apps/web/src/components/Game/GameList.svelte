@@ -91,7 +91,12 @@
 
 		const elo = pl.elo.initial ?? 0;
 		const delta = pl.elo.delta ?? 0;
-		return elo === 0 && delta === 0 ? "" : (delta >= 0 ? "( +" : "( -") + Math.abs(delta) + " elo )";
+		if (elo === 0 && delta === 0) {
+			return "";
+		}
+		// The proper minus sign (not a hyphen) keeps the chip compact and unambiguous.
+		const text = (delta >= 0 ? "+" : "−") + Math.abs(delta);
+		return { delta, text, label: `Elo change: ${text}` };
 	}
 
 	function playTime(game: GameFront) {
@@ -194,6 +199,7 @@
 				>
 					{#each games as game (game._id)}
 						{@const timeLeft = game.status === "active" ? turnTimeLeft(game) : null}
+						{@const eloChange = playerEloChange(game)}
 						<li
 							class="game-item"
 							class:active-game={game.status === "active"}
@@ -208,7 +214,10 @@
 									{gameIcon(game.game.name)}
 								</span>
 
-								<div class="me-auto min-w-0" style="line-height: 1.1">
+								<!-- Left block claims the free width (flex-1) but can shrink (min-w-0); the
+								     name is the only child allowed to truncate, so the elo chip and the avatar
+								     stack always keep their room on long names. -->
+								<div class="me-auto min-w-0 flex-1" style="line-height: 1.1">
 									<div class="flex items-center">
 										{#if game.status === "active"}
 											<Badge color="contrast" class="me-2 text-xs text-white">R{game.context?.round ?? 0}</Badge>
@@ -219,13 +228,22 @@
 												{game.players.length}/{game.options.setup.nbPlayers}
 											</span>
 										{/if}
-										<span class="game-name truncate">
+										<span class="game-name min-w-0 truncate">
 											{game._id}
 										</span>
-										{#if playerEloChange(game)}
-											<sup class="ms-1">
-												{playerEloChange(game)}
-											</sup>
+										{#if eloChange}
+											<!-- shrink-0 + whitespace-nowrap: the chip never wraps or gets squeezed, so the
+											     name truncates before it instead of overlapping on narrow screens. -->
+											<span
+												class="ms-1.5 inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-1.5 py-0.5 text-xs font-semibold {eloChange.delta >=
+												0
+													? 'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-200'
+													: 'bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200'}"
+												title={eloChange.label}
+												aria-label={eloChange.label}
+											>
+												{eloChange.text}
+											</span>
 										{/if}
 									</div>
 									<small
@@ -272,7 +290,8 @@
 								</div>
 
 								{#if game.status !== "open"}
-									<div class="factions flex min-w-0 shrink flex-row items-center">
+									<!-- shrink-0: never clipped on long game names — the truncating name yields first. -->
+									<div class="factions flex min-w-0 shrink-0 flex-row items-center">
 										{#each game.players as player, i (player._id)}
 											<PlayerGameAvatar
 												game={game.game.name}
