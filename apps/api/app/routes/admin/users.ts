@@ -213,7 +213,7 @@ router.post("/:userId/access/grant", async (ctx) => {
 	ctx.status = 200;
 });
 
-const zeroMethodCounts = () => ({ password: 0, google: 0, facebook: 0, discord: 0 });
+const zeroMethodCounts = () => ({ password: 0, google: 0, facebook: 0, discord: 0, github: 0, huggingface: 0 });
 
 // DELETE /api/admin/users/:userId/refresh-tokens — revoke all sessions (refresh tokens) of a user
 router.delete("/:userId/refresh-tokens", async (ctx) => {
@@ -236,7 +236,15 @@ router.get("/login-methods", async (ctx) => {
 
 	const grouped = await colls.users
 		.aggregate<{
-			_id: { password: boolean; google: boolean; facebook: boolean; discord: boolean; recent: boolean };
+			_id: {
+				password: boolean;
+				google: boolean;
+				facebook: boolean;
+				discord: boolean;
+				github: boolean;
+				huggingface: boolean;
+				recent: boolean;
+			};
 			count: number;
 		}>([
 			{
@@ -246,6 +254,8 @@ router.get("/login-methods", async (ctx) => {
 						google: { $gt: ["$account.social.google", null] },
 						facebook: { $gt: ["$account.social.facebook", null] },
 						discord: { $gt: ["$account.social.discord", null] },
+						github: { $gt: ["$account.social.github", null] },
+						huggingface: { $gt: ["$account.social.huggingface", null] },
 						recent: { $gte: [{ $ifNull: ["$security.lastLogin.date", new Date(0)] }, since] },
 					},
 					count: { $sum: 1 },
@@ -273,8 +283,16 @@ router.get("/login-methods", async (ctx) => {
 		if (_id.discord) {
 			perMethod[bucket].discord += count;
 		}
+		if (_id.github) {
+			perMethod[bucket].github += count;
+		}
+		if (_id.huggingface) {
+			perMethod[bucket].huggingface += count;
+		}
 
-		const methods = (["password", "google", "facebook", "discord"] as const).filter((m) => _id[m]);
+		const methods = (["password", "google", "facebook", "discord", "github", "huggingface"] as const).filter(
+			(m) => _id[m],
+		);
 		const key = methods.join("+");
 		const row = comboMap.get(key) ?? { methods, recent: 0, older: 0 };
 		if (_id.recent) {
