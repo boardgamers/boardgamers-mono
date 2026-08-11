@@ -88,22 +88,29 @@ describe("renderOrigin", () => {
 describe("shareImageCacheKey", () => {
 	it("is deterministic and derives from path + etag", () => {
 		expect(shareImageCacheKey("/thumbnail/game/abc123", '"d41d8cd98f00b204"')).toBe(
-			"share_thumbnail_game_abc123.d41d8cd98f00b204.webp",
+			"share/thumbnail/game/abc123.d41d8cd98f00b204.webp",
 		);
-		expect(shareImageCacheKey("/thumbnail", '"0123456789abcdef"')).toBe("share_thumbnail.0123456789abcdef.webp");
+		expect(shareImageCacheKey("/thumbnail", '"0123456789abcdef"')).toBe("share/thumbnail.0123456789abcdef.webp");
 	});
 
 	it("produces a new key when the etag changes (no stale cache)", () => {
 		const a = shareImageCacheKey("/thumbnail/user/bob", shareImageEtag({ karma: 10 }));
 		const b = shareImageCacheKey("/thumbnail/user/bob", shareImageEtag({ karma: 11 }));
 		expect(a).not.toBe(b);
-		expect(a).toMatch(/^share_thumbnail_user_bob\.[0-9a-f]{16}\.webp$/);
+		expect(a).toMatch(/^share\/thumbnail\/user\/bob\.[0-9a-f]{16}\.webp$/);
 	});
 
 	it("sanitizes characters that are awkward in object keys", () => {
 		const key = shareImageCacheKey("/thumbnail/game/a b@c?d", '"quoted+tag/"');
 		expect(key).toMatch(/^share[\w./-]+$/);
 		expect(key).not.toMatch(/[\s?"+]/);
+	});
+
+	it("cannot escape the share/ prefix (path traversal stays inside it)", () => {
+		const key = shareImageCacheKey("/../../avatars/../secret", '"d41d8cd98f00b204"');
+		expect(key).toBe("share/_/_/avatars/_/secret.d41d8cd98f00b204.webp");
+		// No clean ".." segment remains: resolving the key as a path stays under share/.
+		expect(key.split("/")).not.toContain("..");
 	});
 });
 
