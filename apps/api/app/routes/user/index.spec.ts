@@ -352,7 +352,7 @@ describe("User API — avatar served from S3", () => {
 		// erroring — the HEAD probe fails and the api keeps serving the blob.
 		for (const state of ["private", "down"] as const) {
 			clearAvatarPublicProbeCache();
-			s3Mock.publiclyReadable = state === "private" ? false : true;
+			s3Mock.publiclyReadable = state !== "private";
 			s3Mock.failing = state === "down";
 			try {
 				const res = await getNoFollow(`/api/user/${migratedUserId.toHexString()}/avatar?size=64`);
