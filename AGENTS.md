@@ -186,10 +186,12 @@ Switch **back** to your working branch/worktree afterward — or do this in a se
 
 ## PR review
 
-- **Open one PR per worker** (each worker opens its own).
-- After pushing, the coordinator should launch another agent pointed to the PR head, as reviewerwait for the in-flight review and list its new inline comments:
-
-Note: there's a wait-on-copilot script, ignore itCopilot)
+- **Open one PR per worker** — worker branches are `moon/<name>`, and each worker opens its own PR.
+- **Merging a PR to `main` auto-deploys to production** (the prod box runs git pull + build + pm2 restart). Merging = shipping, so a PR is only mergeable when it's genuinely ready for prod.
+- **The coordinator never merges PRs itself** — only the user (repo owner) merges. The coordinator prepares PRs and reports readiness; the merge decision is the user's.
+- **Every PR gets an independent review by a fresh reviewer agent** (especially auth / security / proxy / data / public-facing changes): the coordinator spawns a separate, dedicated reviewer pointed at the PR head for a read-only review that reports blockers/nits and a verdict (APPROVE / REQUEST-CHANGES). The author worker's own tests passing is not sufficient — the independent pass is required before presenting the PR to the user.
+- **UI PRs must include screenshots**: any PR that changes user-visible UI attaches them per "## Screenshots on PRs/issues" (push to the `pr-assets` branch under `pr-<N>/`, embed the raw URL; never commit screenshots to the PR's own branch). The reviewer agent verifies the screenshots match the claimed change.
+- **Keep the coordinator's local `main` fresh**: after each merge, run `git fetch origin && git reset --hard origin/main` (or pull) on the main checkout — workers branch off `origin/main` at spawn time, so a stale main leaves them behind and risks reverting merged work. Also re-check in-flight workers' bases after a merge and have them rebase if they overlap.
 
 ## Conventions
 
