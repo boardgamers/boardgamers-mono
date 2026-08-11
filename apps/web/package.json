@@ -13,6 +13,7 @@
 		"test": "vitest run && SANITIZE_TEST_BROWSER=1 vitest run"
 	},
 	"dependencies": {
+		"@aws-sdk/client-s3": "^3.1106.0",
 		"@bgs/utils": "workspace:*",
 		"dompurify": "^2.3.1",
 		"eventemitter3": "^4.0.7",
