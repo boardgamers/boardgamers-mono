@@ -150,53 +150,55 @@
 			</h3>
 		</div>
 		{#if data.tokens.length > 0}
-			<table class="w-full text-sm">
-				<thead>
-					<tr class="border-b border-gray-100 dark:border-gray-800 text-left text-xs text-gray-500 uppercase">
-						<th class="py-2 pl-5 pr-4">Name</th>
-						<th class="py-2 pr-4">Created</th>
-						<th class="py-2 pr-4">Expires</th>
-						<th class="py-2 pr-4">Last used</th>
-						<th class="py-2 pr-4">Status</th>
-						<th class="py-2 pr-5"></th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each data.tokens as t (t._id)}
-						{@const status = statusOf(t)}
-						<tr class="border-b border-gray-50 dark:border-gray-800/50">
-							<td class="py-2.5 pl-5 pr-4 font-medium">{t.name}</td>
-							<td class="py-2.5 pr-4 text-gray-500">{timeAgo(t.createdAt)}</td>
-							<td class="py-2.5 pr-4 text-gray-500">
-								{new Date(t.expiresAt).toLocaleDateString()}
-							</td>
-							<td class="py-2.5 pr-4 text-gray-500">{t.lastUsedAt ? timeAgo(t.lastUsedAt) : "never"}</td>
-							<td class="py-2.5 pr-4">
-								<span
-									class="px-2 py-0.5 text-xs font-medium rounded-full {status === 'active'
-										? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
-										: status === 'revoked'
-											? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
-											: 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}"
-								>
-									{status}
-								</span>
-							</td>
-							<td class="py-2.5 pr-5 text-right">
-								{#if status === "active"}
-									<button
-										onclick={() => revoke(t)}
-										disabled={revoking === t._id}
-										class="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-700 dark:hover:text-red-300 text-gray-600 dark:text-gray-300 rounded-lg disabled:opacity-50"
-									>
-										{revoking === t._id ? "…" : "Revoke"}
-									</button>
-								{/if}
-							</td>
+			<div class="overflow-x-auto">
+				<table class="w-full text-sm">
+					<thead>
+						<tr class="border-b border-gray-100 dark:border-gray-800 text-left text-xs text-gray-500 uppercase">
+							<th class="py-2 pl-5 pr-4">Name</th>
+							<th class="py-2 pr-4">Created</th>
+							<th class="py-2 pr-4">Expires</th>
+							<th class="py-2 pr-4">Last used</th>
+							<th class="py-2 pr-4">Status</th>
+							<th class="py-2 pr-5"></th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						{#each data.tokens as t (t._id)}
+							{@const status = statusOf(t)}
+							<tr class="border-b border-gray-50 dark:border-gray-800/50">
+								<td class="py-2.5 pl-5 pr-4 font-medium">{t.name}</td>
+								<td class="py-2.5 pr-4 text-gray-500">{timeAgo(t.createdAt)}</td>
+								<td class="py-2.5 pr-4 text-gray-500">
+									{new Date(t.expiresAt).toLocaleDateString()}
+								</td>
+								<td class="py-2.5 pr-4 text-gray-500">{t.lastUsedAt ? timeAgo(t.lastUsedAt) : "never"}</td>
+								<td class="py-2.5 pr-4">
+									<span
+										class="px-2 py-0.5 text-xs font-medium rounded-full {status === 'active'
+											? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+											: status === 'revoked'
+												? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+												: 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}"
+									>
+										{status}
+									</span>
+								</td>
+								<td class="py-2.5 pr-5 text-right">
+									{#if status === "active"}
+										<button
+											onclick={() => revoke(t)}
+											disabled={revoking === t._id}
+											class="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-700 dark:hover:text-red-300 text-gray-600 dark:text-gray-300 rounded-lg disabled:opacity-50"
+										>
+											{revoking === t._id ? "…" : "Revoke"}
+										</button>
+									{/if}
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
 		{:else}
 			<p class="px-5 py-4 text-sm text-gray-500">No tokens yet. Create one above to script admin APIs.</p>
 		{/if}

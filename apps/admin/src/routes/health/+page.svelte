@@ -165,22 +165,24 @@
 				{#if slowEndpoints.length === 0}
 					<p class="text-sm text-gray-400">No data</p>
 				{:else}
-					<table class="w-full text-sm">
-						<thead>
-							<tr class="text-left text-xs text-gray-400 border-b border-gray-200 dark:border-gray-800">
-								<th class="pb-2 font-medium">Route</th>
-								<th class="pb-2 font-medium text-right">Avg ms</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each slowEndpoints as e (e.route)}
-								<tr class="border-b border-gray-100 dark:border-gray-800/50">
-									<td class="py-2 font-mono text-xs truncate max-w-[200px]">{e.route}</td>
-									<td class="py-2 text-right font-medium">{e.value}</td>
+					<div class="overflow-x-auto">
+						<table class="w-full text-sm">
+							<thead>
+								<tr class="text-left text-xs text-gray-400 border-b border-gray-200 dark:border-gray-800">
+									<th class="pb-2 font-medium">Route</th>
+									<th class="pb-2 font-medium text-right">Avg ms</th>
 								</tr>
-							{/each}
-						</tbody>
-					</table>
+							</thead>
+							<tbody>
+								{#each slowEndpoints as e (e.route)}
+									<tr class="border-b border-gray-100 dark:border-gray-800/50">
+										<td class="py-2 font-mono text-xs truncate max-w-[200px]">{e.route}</td>
+										<td class="py-2 text-right font-medium">{e.value}</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
 				{/if}
 			</div>
 
@@ -190,22 +192,24 @@
 				{#if errorEndpoints.length === 0}
 					<p class="text-sm text-gray-400">No errors 🎉</p>
 				{:else}
-					<table class="w-full text-sm">
-						<thead>
-							<tr class="text-left text-xs text-gray-400 border-b border-gray-200 dark:border-gray-800">
-								<th class="pb-2 font-medium">Route</th>
-								<th class="pb-2 font-medium text-right">Errors</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each errorEndpoints as e (e.route)}
-								<tr class="border-b border-gray-100 dark:border-gray-800/50">
-									<td class="py-2 font-mono text-xs truncate max-w-[200px]">{e.route}</td>
-									<td class="py-2 text-right font-medium text-red-500">{e.value}</td>
+					<div class="overflow-x-auto">
+						<table class="w-full text-sm">
+							<thead>
+								<tr class="text-left text-xs text-gray-400 border-b border-gray-200 dark:border-gray-800">
+									<th class="pb-2 font-medium">Route</th>
+									<th class="pb-2 font-medium text-right">Errors</th>
 								</tr>
-							{/each}
-						</tbody>
-					</table>
+							</thead>
+							<tbody>
+								{#each errorEndpoints as e (e.route)}
+									<tr class="border-b border-gray-100 dark:border-gray-800/50">
+										<td class="py-2 font-mono text-xs truncate max-w-[200px]">{e.route}</td>
+										<td class="py-2 text-right font-medium text-red-500">{e.value}</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
 				{/if}
 			</div>
 		</div>

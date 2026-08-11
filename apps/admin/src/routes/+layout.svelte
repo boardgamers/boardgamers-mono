@@ -6,11 +6,27 @@
 	import NavBar from "$components/NavBar.svelte";
 	import Sidebar from "$components/Sidebar.svelte";
 	import Toast from "$components/Toast.svelte";
+	import { on } from "svelte/events";
 	import type { LayoutProps } from "./$types";
 
 	let { data, children }: LayoutProps = $props();
 
 	const isLoginPage = $derived(page.url.pathname === "/login");
+
+	let sidebarOpen = $state(false);
+
+	// Close the mobile sidebar on navigation
+	$effect(() => {
+		void page.url.pathname;
+		sidebarOpen = false;
+	});
+
+	// Close the mobile sidebar on Escape
+	$effect(() =>
+		on(window, "keydown", (e) => {
+			if (e.key === "Escape") sidebarOpen = false;
+		})
+	);
 
 	// When there's no user (and we're not on the login page), redirect to login.
 	// data.user comes from +layout.ts load; login/logout call invalidateAll() to refetch it.
@@ -34,10 +50,29 @@
 	{@render children()}
 {:else if data.user}
 	<div class="h-full flex flex-col">
-		<NavBar user={data.user} />
-		<div class="flex flex-1 overflow-hidden">
-			<Sidebar {data} />
-			<main class="flex-1 overflow-y-auto p-6">
+		<NavBar user={data.user} onMenuClick={() => (sidebarOpen = true)} />
+		<div class="relative flex flex-1 overflow-hidden">
+			<!-- Desktop: always visible -->
+			<div class="hidden md:block h-full shrink-0">
+				<Sidebar {data} />
+			</div>
+			<!-- Mobile: slide-in drawer over the content -->
+			{#if sidebarOpen}
+				<button
+					class="fixed inset-0 z-40 bg-black/50 md:hidden"
+					onclick={() => (sidebarOpen = false)}
+					aria-label="Close menu"
+					tabindex="-1"
+				></button>
+			{/if}
+			<div
+				class="fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 md:hidden {sidebarOpen
+					? 'translate-x-0'
+					: '-translate-x-full'}"
+			>
+				<Sidebar {data} />
+			</div>
+			<main class="flex-1 min-w-0 overflow-y-auto p-4 md:p-6">
 				{@render children()}
 			</main>
 		</div>
