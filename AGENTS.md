@@ -170,9 +170,9 @@ Prod runs under PM2 (`ecosystem.config.cjs`); reach the box with `ssh bgs`.
 
   ```json
   {
-    "Principal": { "SCW": "user_id:<id>" },
-    "Action": ["s3:*"],
-    "Resource": ["<bucket>", "<bucket>/*"]
+  	"Principal": { "SCW": "user_id:<id>" },
+  	"Action": ["s3:*"],
+  	"Resource": ["<bucket>", "<bucket>/*"]
   }
   ```
 
