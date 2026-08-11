@@ -35,9 +35,10 @@ router.post("/", async (ctx) => {
 });
 
 // Empty string clears an optional field ($unset below); undefined leaves it.
+// github stays http(s)-only like the schema (raw <a href> target).
 const updateSchema = changelogInputSchema
 	.partial()
-	.extend({ details: z.string().trim().optional(), github: z.url().or(z.literal("")).optional() });
+	.extend({ details: z.string().trim().optional(), github: z.httpUrl().or(z.literal("")).optional() });
 
 // PUT /api/admin/changelog/:id — edit content/details/github/published. createdAt
 // is immutable: an entry keeps its place in the timeline.

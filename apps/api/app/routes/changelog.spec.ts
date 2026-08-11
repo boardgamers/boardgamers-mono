@@ -297,6 +297,12 @@ describe("Changelog API", () => {
 				(await api("POST", "/api/admin/changelog", adminHeaders, { content: "x", github: "not-a-url" })).status,
 				400,
 			);
+			// github is bound to a raw <a href>: only http(s) URLs may validate.
+			assert.strictEqual(
+				(await api("POST", "/api/admin/changelog", adminHeaders, { content: "x", github: "javascript:alert(1)" }))
+					.status,
+				400,
+			);
 			const created = await insertEntry({ content: "entry" });
 			assert.strictEqual(
 				(await api("PUT", `/api/admin/changelog/${created.insertedId.toHexString()}`, adminHeaders, {})).status,

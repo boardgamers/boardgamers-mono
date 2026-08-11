@@ -13,8 +13,9 @@ export const changelogSchema = z.object({
 	content: z.string(),
 	// Longer markdown shown under the one-liner on /changelog only.
 	details: z.string().optional(),
-	// Link to the matching PR / commit, shown on /changelog only.
-	github: z.url().optional(),
+	// Link to the matching PR / commit, shown on /changelog only. http(s)-only:
+	// it's bound to a raw <a href>, so javascript:/data: schemes must never validate.
+	github: z.httpUrl().optional(),
 	// Drafts stay invisible on the public routes until published.
 	published: z.boolean(),
 	createdAt: zDate().optional(),
