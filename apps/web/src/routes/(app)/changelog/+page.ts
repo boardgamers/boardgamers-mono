@@ -2,7 +2,7 @@ import type { PageLoad } from "./$types";
 import { get } from "@/lib/api";
 import type { ChangelogFront } from "@bgs/models";
 
-export const ENTRIES_PER_PAGE = 10;
+const ENTRIES_PER_PAGE = 10;
 
 export const load: PageLoad = async ({ url }) => {
 	const pageNumber = Math.max(1, Math.floor(Number(url.searchParams.get("page")) || 1));
