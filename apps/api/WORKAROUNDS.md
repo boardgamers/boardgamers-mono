@@ -2,6 +2,14 @@
 
 Things that are intentional for now but should be revisited / removed later. Add an entry when you leave a temporary shim, a deferred migration, or anything a future reader might mistake for a permanent decision. Keep entries short and link the code.
 
+## Avatar blobs kept in mongo after the S3 migration (`app/routes/user/index.ts`, `app/models/migrations/1.5.0-avatars-to-s3.ts`)
+
+Avatars uploaded before the S3 migration keep their blob in mongo — the boot migration `1.5.0` copies the bytes to S3 and flags the doc `s3: true` but deliberately **never deletes** the blob: it is the serving fallback if the S3 setup is ever abandoned. New uploads (post-#224) are **S3-only** (metadata + etag hash in mongo, no blob) — there is nothing to roll back for those beyond the public S3 object itself. A follow-up migration can `$unset` `images.*.raw` on `s3: true` docs to reclaim the storage once S3 serving has proven itself — do NOT ship that unset in the same change as any code that still reads the blobs.
+
+## S3-only avatars in PR previews fall back to DiceBear when the public base URL is unset (`app/routes/user/index.ts`)
+
+Previews restore a sanitized prod dump that **includes** `images` docs — metadata-only (`s3: true`, no blob) for post-#224 uploads. Preview containers have no S3 creds; if they have `S3_BUCKET` + `S3_PUBLIC_ENDPOINT` (non-secret) they 302 to the public Scaleway gateway like prod (avatar objects are public-read). Without those vars, `serveUploadedAvatar` falls back to the DiceBear generated avatar so previews never 500/broken-image on a missing blob. Blob-bearing (pre-#224) avatars always serve from the dumped mongo bytes regardless.
+
 ## secure-cookie-over-insecure diagnostic (`app/models/session.ts`)
 
 Prod logs a chronic "Cannot send secure cookie over unencrypted connection" from `setRefreshCookie` (~25–56/day + bursts): some requests reach the api with `ctx.secure === false` even though prod is HTTPS-only and nginx sets `X-Forwarded-Proto` on the api vhost. The source is **unknown** (internal caller? crawler over http? a route/XFP gap?), and a "drop Secure on http" fix was rejected — the cookie must stay `Secure`. Until the culprit is found, `setRefreshCookie` records the full request context (secure/protocol/hostname/ip/ips, X-Forwarded-*/host/user-agent/referer/origin headers, `app.proxy`) as a `secure-cookie-over-insecure` warn log line **and** an `apierrors` record (`meta.source: "secure-cookie"`, surfaced by `GET /api/admin/errors` → admin health page). Behavior is unchanged — the cookie set still throws, still 500s. Once the root cause is identified and fixed, this diagnostic can be removed.

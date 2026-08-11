@@ -12,12 +12,6 @@ catalogs:
     oxfmt:
       specifier: ^0.61.0
       version: 0.61.0
-    prettier:
-      specifier: ^3.5.3
-      version: 3.9.6
-    prettier-plugin-svelte:
-      specifier: ^3.5.0
-      version: 3.5.2
     type-fest:
       specifier: ^5.4.4
       version: 5.6.0
@@ -80,22 +74,22 @@ importers:
         version: 2.4.0
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.32.1
-        version: 8.56.1(@typescript-eslint/parser@8.56.1(eslint@9.39.3(jiti@2.6.1))(typescript@6.0.3))(eslint@9.39.3(jiti@2.6.1))(typescript@6.0.3)
+        version: 8.56.1(@typescript-eslint/parser@8.56.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(supports-color@6.1.0)(typescript@6.0.3))(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(supports-color@6.1.0)(typescript@6.0.3)
       '@typescript-eslint/parser':
         specifier: ^8.32.1
-        version: 8.56.1(eslint@9.39.3(jiti@2.6.1))(typescript@6.0.3)
+        version: 8.56.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(supports-color@6.1.0)(typescript@6.0.3)
       '@typescript/native':
         specifier: npm:typescript@^7.0.2
         version: typescript@7.0.2
       eslint:
         specifier: ^9.0.0
-        version: 9.39.3(jiti@2.6.1)
+        version: 9.39.3(jiti@2.6.1)(supports-color@6.1.0)
       eslint-config-prettier:
         specifier: ^10.0.0
-        version: 10.1.8(eslint@9.39.3(jiti@2.6.1))
+        version: 10.1.8(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))
       eslint-plugin-svelte:
         specifier: ^3.0.0
-        version: 3.15.0(eslint@9.39.3(jiti@2.6.1))(svelte@5.53.7)
+        version: 3.15.0(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(svelte@5.53.7)
       oxfmt:
         specifier: 'catalog:'
         version: 0.61.0(svelte@5.53.7)
@@ -123,6 +117,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.1106.0
+        version: 3.1106.0
       '@bgs/models':
         specifier: workspace:*
         version: link:../../packages/models
@@ -158,7 +155,7 @@ importers:
         version: 8.5.1
       koa:
         specifier: ^2.11.0
-        version: 2.16.4(supports-color@6.1.0)
+        version: 2.16.4
       koa-bodyparser:
         specifier: ^4.3.0
         version: 4.4.1
@@ -167,16 +164,16 @@ importers:
         version: 3.1.0
       koa-morgan:
         specifier: ^1.0.1
-        version: 1.0.1(supports-color@6.1.0)
+        version: 1.0.1
       koa-passport:
         specifier: ^4.1.3
         version: 4.1.4
       koa-router:
         specifier: ^8.0.8
-        version: 8.0.8(supports-color@6.1.0)
+        version: 8.0.8
       mailgun-js:
         specifier: ^0.20.0
-        version: 0.20.0(supports-color@6.1.0)
+        version: 0.20.0
       mongo-locks:
         specifier: ^3.1.2
         version: 3.1.2(mongodb@7.1.0)
@@ -473,10 +470,10 @@ importers:
         version: 0.3.4
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.32.1
-        version: 8.56.1(@typescript-eslint/parser@8.56.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(supports-color@6.1.0)(typescript@6.0.3))(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(supports-color@6.1.0)(typescript@6.0.3)
+        version: 8.56.1(@typescript-eslint/parser@8.56.1(eslint@9.39.3(jiti@2.6.1))(typescript@6.0.3))(eslint@9.39.3(jiti@2.6.1))(typescript@6.0.3)
       '@typescript-eslint/parser':
         specifier: ^8.32.1
-        version: 8.56.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(supports-color@6.1.0)(typescript@6.0.3)
+        version: 8.56.1(eslint@9.39.3(jiti@2.6.1))(typescript@6.0.3)
       '@typescript/native':
         specifier: npm:typescript@^7.0.2
         version: typescript@7.0.2
@@ -485,13 +482,13 @@ importers:
         version: 8.6.0
       eslint:
         specifier: ^9.27.0
-        version: 9.39.3(jiti@2.6.1)(supports-color@6.1.0)
+        version: 9.39.3(jiti@2.6.1)
       eslint-config-prettier:
         specifier: ^10.1.5
-        version: 10.1.8(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))
+        version: 10.1.8(eslint@9.39.3(jiti@2.6.1))
       eslint-plugin-svelte:
         specifier: ^3.9.1
-        version: 3.15.0(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(svelte@5.56.8(@typescript-eslint/types@8.56.1))
+        version: 3.15.0(eslint@9.39.3(jiti@2.6.1))(svelte@5.56.8(@typescript-eslint/types@8.56.1))
       oxfmt:
         specifier: 'catalog:'
         version: 0.61.0(svelte@5.56.8(@typescript-eslint/types@8.56.1))
@@ -503,7 +500,7 @@ importers:
         version: 3.5.2(prettier@3.9.6)(svelte@5.56.8(@typescript-eslint/types@8.56.1))
       svelte-check:
         specifier: 4.7.4
-        version: 4.7.4(picomatch@4.0.3)(svelte@5.56.8(@typescript-eslint/types@8.56.1))(typescript@6.0.3)
+        version: 4.7.4(picomatch@4.0.5)(svelte@5.56.8(@typescript-eslint/types@8.56.1))(typescript@6.0.3)
       svelte-eslint-parser:
         specifier: ^1.8.0
         version: 1.8.0(svelte@5.56.8(@typescript-eslint/types@8.56.1))
@@ -13639,6 +13636,10 @@ snapshots:
 
   de-indent@1.0.2: {}
 
+  debug@2.6.9:
+    dependencies:
+      ms: 2.0.0
+
   debug@2.6.9(supports-color@6.1.0):
     dependencies:
       ms: 2.0.0
@@ -13649,11 +13650,19 @@ snapshots:
     dependencies:
       ms: 2.0.0
 
+  debug@3.2.7:
+    dependencies:
+      ms: 2.1.3
+
   debug@3.2.7(supports-color@6.1.0):
     dependencies:
       ms: 2.1.3
     optionalDependencies:
       supports-color: 6.1.0
+
+  debug@4.4.3:
+    dependencies:
+      ms: 2.1.3
 
   debug@4.4.3(supports-color@6.1.0):
     dependencies:
@@ -14193,7 +14202,7 @@ snapshots:
     dependencies:
       eslint: 9.39.3(jiti@2.6.1)
 
-  eslint-plugin-svelte@3.15.0(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(svelte@5.56.8(@typescript-eslint/types@8.56.1)):
+  eslint-plugin-svelte@3.15.0(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))(svelte@5.53.7):
     dependencies:
       '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.3(jiti@2.6.1)(supports-color@6.1.0))
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -14205,13 +14214,13 @@ snapshots:
       postcss-load-config: 3.1.4(postcss@8.5.6)
       postcss-safe-parser: 7.0.1(postcss@8.5.6)
       semver: 7.7.4
-      svelte-eslint-parser: 1.5.1(svelte@5.56.8(@typescript-eslint/types@8.56.1))
+      svelte-eslint-parser: 1.5.1(svelte@5.53.7)
     optionalDependencies:
-      svelte: 5.56.8(@typescript-eslint/types@8.56.1)
+      svelte: 5.53.7
     transitivePeerDependencies:
       - ts-node
 
-  eslint-plugin-svelte@3.15.0(eslint@9.39.3(jiti@2.6.1))(svelte@5.53.7):
+  eslint-plugin-svelte@3.15.0(eslint@9.39.3(jiti@2.6.1))(svelte@5.56.8(@typescript-eslint/types@8.56.1)):
     dependencies:
       '@eslint-community/eslint-utils': 4.9.1(eslint@9.39.3(jiti@2.6.1))
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -14223,9 +14232,9 @@ snapshots:
       postcss-load-config: 3.1.4(postcss@8.5.6)
       postcss-safe-parser: 7.0.1(postcss@8.5.6)
       semver: 7.7.4
-      svelte-eslint-parser: 1.5.1(svelte@5.53.7)
+      svelte-eslint-parser: 1.5.1(svelte@5.56.8(@typescript-eslint/types@8.56.1))
     optionalDependencies:
-      svelte: 5.53.7
+      svelte: 5.56.8(@typescript-eslint/types@8.56.1)
     transitivePeerDependencies:
       - ts-node
 
@@ -14713,10 +14722,10 @@ snapshots:
       es-errors: 1.3.0
       get-intrinsic: 1.3.0
 
-  get-uri@2.0.4(supports-color@6.1.0):
+  get-uri@2.0.4:
     dependencies:
       data-uri-to-buffer: 1.2.0
-      debug: 2.6.9(supports-color@6.1.0)
+      debug: 2.6.9
       extend: 3.0.2
       file-uri-to-path: 1.0.0
       ftp: 0.3.10
@@ -15034,17 +15043,17 @@ snapshots:
 
   https-browserify@1.0.0: {}
 
-  https-proxy-agent@2.2.4(supports-color@6.1.0):
+  https-proxy-agent@2.2.4:
     dependencies:
       agent-base: 4.3.0
-      debug: 3.2.7(supports-color@6.1.0)
+      debug: 3.2.7
     transitivePeerDependencies:
       - supports-color
 
-  https-proxy-agent@3.0.1(supports-color@6.1.0):
+  https-proxy-agent@3.0.1:
     dependencies:
       agent-base: 4.3.0
-      debug: 3.2.7(supports-color@6.1.0)
+      debug: 3.2.7
     transitivePeerDependencies:
       - supports-color
 
@@ -15594,6 +15603,12 @@ snapshots:
 
   koa-is-json@1.0.0: {}
 
+  koa-morgan@1.0.1:
+    dependencies:
+      morgan: 1.10.1
+    transitivePeerDependencies:
+      - supports-color
+
   koa-morgan@1.0.1(supports-color@6.1.0):
     dependencies:
       morgan: 1.10.1(supports-color@6.1.0)
@@ -15604,6 +15619,17 @@ snapshots:
     dependencies:
       passport: 0.4.1
 
+  koa-router@8.0.8:
+    dependencies:
+      debug: 4.4.3
+      http-errors: 1.8.1
+      koa-compose: 4.1.0
+      methods: 1.1.2
+      path-to-regexp: 1.9.0
+      urijs: 1.19.11
+    transitivePeerDependencies:
+      - supports-color
+
   koa-router@8.0.8(supports-color@6.1.0):
     dependencies:
       debug: 4.4.3(supports-color@6.1.0)
@@ -15612,6 +15638,34 @@ snapshots:
       methods: 1.1.2
       path-to-regexp: 1.9.0
       urijs: 1.19.11
+    transitivePeerDependencies:
+      - supports-color
+
+  koa@2.16.4:
+    dependencies:
+      accepts: 1.3.8
+      cache-content-type: 1.0.1
+      content-disposition: 0.5.4
+      content-type: 1.0.5
+      cookies: 0.9.1
+      debug: 4.4.3
+      delegates: 1.0.0
+      depd: 2.0.0
+      destroy: 1.2.0
+      encodeurl: 1.0.2
+      escape-html: 1.0.3
+      fresh: 0.5.2
+      http-assert: 1.5.0
+      http-errors: 1.8.1
+      is-generator-function: 1.1.0
+      koa-compose: 4.1.0
+      koa-convert: 2.0.0
+      on-finished: 2.4.1
+      only: 0.0.2
+      parseurl: 1.3.3
+      statuses: 1.5.0
+      type-is: 1.6.18
+      vary: 1.1.2
     transitivePeerDependencies:
       - supports-color
 
@@ -15870,7 +15924,7 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  mailgun-js@0.20.0(supports-color@6.1.0):
+  mailgun-js@0.20.0:
     dependencies:
       async: 2.6.4
       debug: 3.1.0
@@ -15879,7 +15933,7 @@ snapshots:
       is-stream: 1.1.0
       path-proxy: 1.0.0
       promisify-call: 2.0.4
-      proxy-agent: 3.0.3(supports-color@6.1.0)
+      proxy-agent: 3.0.3
       tsscmp: 1.0.6
     transitivePeerDependencies:
       - supports-color
@@ -16083,6 +16137,16 @@ snapshots:
       '@mongodb-js/saslprep': 1.4.6
       bson: 7.2.0
       mongodb-connection-string-url: 7.0.1
+
+  morgan@1.10.1:
+    dependencies:
+      basic-auth: 2.0.1
+      debug: 2.6.9
+      depd: 2.0.0
+      on-finished: 2.3.0
+      on-headers: 1.1.0
+    transitivePeerDependencies:
+      - supports-color
 
   morgan@1.10.1(supports-color@6.1.0):
     dependencies:
@@ -16484,13 +16548,13 @@ snapshots:
 
   p-try@2.2.0: {}
 
-  pac-proxy-agent@3.0.1(supports-color@6.1.0):
+  pac-proxy-agent@3.0.1:
     dependencies:
       agent-base: 4.3.0
-      debug: 4.4.3(supports-color@6.1.0)
-      get-uri: 2.0.4(supports-color@6.1.0)
+      debug: 4.4.3
+      get-uri: 2.0.4
       http-proxy-agent: 2.1.0
-      https-proxy-agent: 3.0.1(supports-color@6.1.0)
+      https-proxy-agent: 3.0.1
       pac-resolver: 3.0.0
       raw-body: 2.5.3
       socks-proxy-agent: 4.0.2
@@ -17005,14 +17069,14 @@ snapshots:
       forwarded: 0.2.0
       ipaddr.js: 1.9.1
 
-  proxy-agent@3.0.3(supports-color@6.1.0):
+  proxy-agent@3.0.3:
     dependencies:
       agent-base: 4.3.0
-      debug: 3.2.7(supports-color@6.1.0)
+      debug: 3.2.7
       http-proxy-agent: 2.1.0
-      https-proxy-agent: 2.2.4(supports-color@6.1.0)
+      https-proxy-agent: 2.2.4
       lru-cache: 4.1.5
-      pac-proxy-agent: 3.0.1(supports-color@6.1.0)
+      pac-proxy-agent: 3.0.1
       proxy-from-env: 1.1.0
       socks-proxy-agent: 4.0.2
     transitivePeerDependencies:
@@ -18027,12 +18091,12 @@ snapshots:
     transitivePeerDependencies:
       - picomatch
 
-  svelte-check@4.7.4(picomatch@4.0.3)(svelte@5.56.8(@typescript-eslint/types@8.56.1))(typescript@6.0.3):
+  svelte-check@4.7.4(picomatch@4.0.5)(svelte@5.56.8(@typescript-eslint/types@8.56.1))(typescript@6.0.3):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       '@sveltejs/load-config': 0.2.1
       chokidar: 4.0.3
-      fdir: 6.5.0(picomatch@4.0.3)
+      fdir: 6.5.0(picomatch@4.0.5)
       picocolors: 1.1.1
       sade: 1.8.1
       svelte: 5.56.8(@typescript-eslint/types@8.56.1)

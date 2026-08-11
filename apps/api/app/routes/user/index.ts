@@ -6,6 +6,7 @@ import { type Binary, ObjectId } from "mongodb";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
 import { generateAvatar } from "../../models/avatar.ts";
+import { isAvatarPubliclyReachable, publicAvatarUrl } from "../../services/s3.ts";
 import {
 	eloProjection,
 	findGamesWithPlayersTurn,
@@ -27,6 +28,19 @@ const router = new Router<Application.DefaultState, Context>();
 // Returns true when it short-circuited with a 304.
 function serveAvatar(ctx: Context, contentType: string, body: Buffer | string, etag?: string): boolean {
 	const etagValue = `"${etag ?? createHash("sha256").update(body).digest("hex").slice(0, 16)}"`;
+	if (setAvatarHeaders(ctx, etagValue)) {
+		return true;
+	}
+
+	ctx.set("Content-Type", contentType);
+	ctx.body = body;
+	return false;
+}
+
+// Sets the ETag/Cache-Control pair every avatar response carries. Returns true
+// (status 304) when the client's revalidation matches — decided purely from the
+// stored hash, without touching S3 or mongo bytes.
+function setAvatarHeaders(ctx: Context, etagValue: string): boolean {
 	ctx.set("ETag", etagValue);
 	ctx.set("Cache-Control", "no-cache");
 
@@ -34,10 +48,50 @@ function serveAvatar(ctx: Context, contentType: string, body: Buffer | string, e
 		ctx.status = 304;
 		return true;
 	}
-
-	ctx.set("Content-Type", contentType);
-	ctx.body = body;
 	return false;
+}
+
+// Shared by both avatar routes. Precedence: (1) 304 on the stored hash, (2)
+// 302 to the public S3 object URL for migrated avatars once a HEAD probe
+// confirms the bucket serves it anonymously (public-read per #218 — creds-less
+// envs like PR previews redirect the same way), (3) mongo blob when present,
+// (4) DiceBear fallback — a metadata-only (S3-only) doc in an env with no S3
+// base URL at all must never 500.
+async function serveUploadedAvatar(
+	ctx: Context,
+	userId: ObjectId,
+	format: string,
+	item: { images: Record<string, { mime: string; raw?: Buffer | Binary; hash?: string }> | undefined; s3?: boolean },
+	fallback: { username: string; size?: number },
+) {
+	const imageData = item.images?.[format];
+	// 304 on revalidation, without touching S3 or the blob.
+	if (imageData?.hash && setAvatarHeaders(ctx, `"${imageData.hash}"`)) {
+		return;
+	}
+
+	if (item.s3) {
+		// Redirect to the public object URL whenever the env knows one — with S3
+		// creds (prod/dev) or without (previews, anonymous GET) — AND the object
+		// is confirmed publicly reachable (operator bucket policy, #218): until
+		// the HEAD probe passes, keep serving from mongo. The browser downloads
+		// the bytes straight from S3 while the ETag stays the api's content hash
+		// (the next revalidation still comes back here → cheap 304).
+		const url = publicAvatarUrl(userId.toHexString(), format);
+		if (url && (await isAvatarPubliclyReachable(userId.toHexString(), format))) {
+			ctx.status = 302;
+			ctx.set("Location", url);
+			return;
+		}
+	}
+
+	if (imageData?.raw) {
+		const buf = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from(imageData.raw.buffer);
+		serveAvatar(ctx, imageData.mime, buf, imageData.hash);
+		return;
+	}
+
+	serveAvatar(ctx, "image/svg+xml", generateAvatar(undefined, fallback.username, fallback.size));
 }
 
 router.param("userId", async (userId, ctx, next) => {
@@ -95,15 +149,16 @@ router.get("/byName/:userName/avatar", async (ctx) => {
 				key: "avatar",
 				[`images.${format}`]: { $exists: true },
 			},
-			{ projection: { [`images.${format}`]: 1 } },
+			{ projection: { [`images.${format}`]: 1, s3: 1 } },
 		);
 		if (!item) {
 			return;
 		}
 
-		const imageData = item.images[format];
-		const buf = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from((imageData.raw as Binary).buffer);
-		serveAvatar(ctx, imageData.mime, buf, imageData.hash);
+		await serveUploadedAvatar(ctx, foundUser._id, format, item, {
+			username: account.username,
+			size: size && size <= 256 ? size : undefined,
+		});
 		return;
 	}
 
@@ -125,15 +180,16 @@ router.get("/:userId/avatar", async (ctx) => {
 				key: "avatar",
 				[`images.${format}`]: { $exists: true },
 			},
-			{ projection: { [`images.${format}`]: 1, updatedAt: 1 } },
+			{ projection: { [`images.${format}`]: 1, s3: 1 } },
 		);
 		if (!item) {
 			return;
 		}
 
-		const imageData = item.images[format];
-		const buf = Buffer.isBuffer(imageData.raw) ? imageData.raw : Buffer.from((imageData.raw as Binary).buffer);
-		serveAvatar(ctx, imageData.mime, buf, imageData.hash);
+		await serveUploadedAvatar(ctx, foundUser._id, format, item, {
+			username: account.username,
+			size: size && size <= 256 ? size : undefined,
+		});
 		return;
 	}
 

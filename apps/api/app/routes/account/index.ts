@@ -32,6 +32,7 @@ import {
 import type { ImageDoc } from "@bgs/models";
 import sharp from "sharp";
 import { loggedIn, loggedOut } from "../utils.ts";
+import { putAvatar, s3Enabled } from "../../services/s3.ts";
 import auth from "./auth.ts";
 import { sendAuthInfo } from "./utils.ts";
 
@@ -129,12 +130,36 @@ router.post("/avatar", loggedIn, async (ctx) => {
 		imagesObj[`${size}x${size}`] = { mime, raw: converted, size: converted.length, hash };
 	}
 
+	// S3-only write when enabled: on success the images doc is the metadata/etag
+	// record (hash+mime+size per size, no `raw` blob) and the bytes live only in
+	// S3. On any S3 failure (or S3 disabled) the mongo doc keeps the blobs and
+	// stays unflagged, serving exactly as before — upload never breaks.
+	let s3Stored = false;
+	if (s3Enabled()) {
+		s3Stored = true;
+		for (const [size, data] of Object.entries(imagesObj)) {
+			s3Stored = (await putAvatar(ctx.state.user!._id.toHexString(), size, data.raw!)) && s3Stored;
+		}
+		if (!s3Stored) {
+			console.warn(
+				`avatar S3 write incomplete for ${ctx.state.user!._id.toHexString()} — storing blobs in mongo instead`,
+			);
+		}
+	}
+
+	if (s3Stored) {
+		for (const data of Object.values(imagesObj)) {
+			delete data.raw;
+		}
+	}
+
 	await colls.images.updateOne(
 		{ ref: ctx.state.user!._id, key: "avatar", refType: "User" },
 		{
 			$set: {
 				images: imagesObj,
 				formats: Object.keys(imagesObj),
+				...(s3Stored ? { s3: true } : {}),
 			},
 		},
 		{ upsert: true },

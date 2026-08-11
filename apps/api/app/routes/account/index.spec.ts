@@ -3,7 +3,7 @@
 // the API server.
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { Binary, ObjectId } from "mongodb";
+import { ObjectId } from "mongodb";
 import bcrypt from "bcryptjs";
 import sharp from "sharp";
 import { z } from "zod";
@@ -11,6 +11,8 @@ import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { testUser, testGamePrefs } from "../../config/test-helpers.ts";
 import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
+import { interceptS3Fetches, makeS3Mock } from "../../services/s3-mock.ts";
+import { s3Fetch, setS3ClientsForTests } from "../../services/s3.ts";
 
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
 
@@ -121,8 +123,13 @@ describe("Account API — country", () => {
 describe("Account API — avatar upload", () => {
 	const userId = new ObjectId();
 	let authHeaders: Record<string, string> = {};
+	const s3Mock = makeS3Mock();
+	// Lets s3Fetch() resolve the mock's public object URLs (redirect follow below).
+	const restoreFetchInterceptor = interceptS3Fetches(s3Mock);
 
 	before(async () => {
+		setS3ClientsForTests(s3Mock.client);
+		s3Mock.reset();
 		await colls.users.insertOne(
 			testUser({
 				_id: userId,
@@ -139,6 +146,7 @@ describe("Account API — avatar upload", () => {
 
 	for (const format of ["jpeg", "png"] as const) {
 		it(`encodes an uploaded ${format.toUpperCase()} as webp in all three sizes`, async () => {
+			s3Mock.reset();
 			const upload = await makeAvatarUpload(format);
 			const res = await fetch(`${baseURL()}/api/account/avatar`, {
 				method: "POST",
@@ -155,21 +163,40 @@ describe("Account API — avatar upload", () => {
 				const entry = doc.images[`${size}x${size}`];
 				assert.ok(entry, `missing ${size}x${size}`);
 				assert.strictEqual(entry.mime, "image/webp");
-				// The driver returns BSON binary as `Binary`, not a Node Buffer.
-				const raw = entry.raw instanceof Binary ? entry.raw.buffer : entry.raw;
-				assert.strictEqual(entry.size, raw.length);
-				assert.ok(isWebp(raw), `expected RIFF…WEBP magic bytes for ${size}x${size}`);
-				const meta = await sharp(raw).metadata();
+				// S3-only write: the doc is the metadata record (etag), no blob.
+				assert.strictEqual(entry.raw, undefined, `expected no raw blob for ${size}x${size}`);
+				assert.ok(entry.hash, `expected a stored hash (etag) for ${size}x${size}`);
+				assert.ok(entry.size > 0);
+
+				// S3 holds the actual bytes — verify they decode to the right size.
+				const s3Body = s3Mock.buckets
+					.get(s3Mock.bucketName)
+					?.get(`avatars/${userId.toHexString()}/${size}x${size}.webp`);
+				assert.ok(s3Body, `expected an S3 object for ${size}x${size}`);
+				assert.strictEqual(entry.size, s3Body.body.length);
+				assert.ok(isWebp(s3Body.body), `expected RIFF…WEBP magic bytes for ${size}x${size}`);
+				const meta = await sharp(s3Body.body).metadata();
 				assert.strictEqual(meta.format, "webp");
 				assert.strictEqual(meta.width, size);
 				assert.strictEqual(meta.height, size);
 			}
+			// Set outside the loop: on failure the loop assert kills the test first.
+			assert.strictEqual(doc.s3, true);
 
 			const user = await colls.users.findOne({ _id: userId });
 			assert.strictEqual(user?.account.avatar, "upload");
 
-			// The uploaded avatar serves as webp, in the requested size bucket.
-			const served = await fetch(`${baseURL()}/api/user/${userId.toHexString()}/avatar?size=64`);
+			// The uploaded avatar serves as webp, in the requested size bucket. S3
+			// is enabled and the doc is migrated → a 302 to the public object URL,
+			// which the test client follows against the mock S3 store.
+			const redirect = await fetch(`${baseURL()}/api/user/${userId.toHexString()}/avatar?size=64`, {
+				redirect: "manual",
+			});
+			assert.strictEqual(redirect.status, 302);
+			// The ETag is the stored upload-time hash — identical to what the old
+			// mongo-serving path emitted, so existing caches revalidate cleanly.
+			assert.strictEqual(redirect.headers.get("etag"), `"${doc.images["64x64"].hash}"`);
+			const served = await s3Fetch(redirect.headers.get("location")!);
 			assert.strictEqual(served.status, 200);
 			assert.strictEqual(served.headers.get("content-type"), "image/webp");
 			const body = Buffer.from(await served.arrayBuffer());
@@ -180,6 +207,36 @@ describe("Account API — avatar upload", () => {
 		});
 	}
 
+	it("keeps mongo as the only copy when the S3 write fails (no s3 flag, 200 upload)", async () => {
+		// Start clean: previous tests left the doc migrated; remove it so this
+		// upload's s3 flag reflects only this request's (failing) S3 write.
+		await colls.images.deleteOne({ ref: userId, key: "avatar", refType: "User" });
+		s3Mock.reset();
+		s3Mock.failing = true;
+		try {
+			const upload = await makeAvatarUpload("png");
+			const res = await fetch(`${baseURL()}/api/account/avatar`, {
+				method: "POST",
+				headers: authHeaders,
+				body: upload,
+			});
+			assert.strictEqual(res.status, 200);
+		} finally {
+			s3Mock.failing = false;
+		}
+
+		const doc = await colls.images.findOne({ ref: userId, key: "avatar", refType: "User" });
+		assert.ok(doc, "expected an images doc");
+		assert.ok(!doc.s3, "s3 flag must stay unset when the S3 write failed");
+		assert.ok(doc.images["64x64"]?.raw, "mongo must still hold the bytes");
+		assert.strictEqual(s3Mock.buckets.size, 0, "nothing should have landed in S3");
+
+		// Serving still works, from mongo.
+		const served = await fetch(`${baseURL()}/api/user/${userId.toHexString()}/avatar?size=64`, { redirect: "manual" });
+		assert.strictEqual(served.status, 200);
+		assert.strictEqual(served.headers.get("content-type"), "image/webp");
+	});
+
 	it("rejects a non-image body", async () => {
 		const res = await fetch(`${baseURL()}/api/account/avatar`, {
 			method: "POST",
@@ -187,6 +244,54 @@ describe("Account API — avatar upload", () => {
 			body: Buffer.from("definitely not an image"),
 		});
 		assert.strictEqual(res.ok, false);
+	});
+
+	after(async () => {
+		setS3ClientsForTests(null);
+		restoreFetchInterceptor();
+		await db().dropDatabase();
+	});
+});
+
+describe("Account API — avatar upload with S3 disabled", () => {
+	const userId = new ObjectId();
+	let authHeaders: Record<string, string> = {};
+
+	before(async () => {
+		// No setS3ClientsForTests here: with no S3_* env vars in the test
+		// environment, s3Enabled() is false and the upload is mongo-only.
+		await colls.users.insertOne(
+			testUser({
+				_id: userId,
+				account: { username: "avatarnos3", email: "avatarnos3@test.com" },
+				security: { confirmed: true, slug: "avatarnos3" },
+			}),
+		);
+		const code = generateRefreshCode();
+		const tokenDoc = { user: userId, codeHash: hashRefreshCode(code), createdAt: new Date() };
+		await colls.jwtRefreshTokens.insertOne(tokenDoc);
+		const token = await createAccessToken(tokenDoc, ["all"], false);
+		authHeaders = { Authorization: `Bearer ${token}` };
+	});
+
+	it("writes mongo only, without the s3 flag", async () => {
+		const upload = await makeAvatarUpload("png");
+		const res = await fetch(`${baseURL()}/api/account/avatar`, {
+			method: "POST",
+			headers: authHeaders,
+			body: upload,
+		});
+		assert.strictEqual(res.status, 200);
+
+		const doc = await colls.images.findOne({ ref: userId, key: "avatar", refType: "User" });
+		assert.ok(doc, "expected an images doc");
+		assert.ok(!doc.s3, "no s3 flag when S3 is disabled");
+		assert.ok(doc.images["64x64"]?.raw, "mongo holds the bytes");
+
+		const served = await fetch(`${baseURL()}/api/user/${userId.toHexString()}/avatar?size=64`);
+		assert.strictEqual(served.status, 200);
+		assert.strictEqual(served.headers.get("content-type"), "image/webp");
+		assert.ok(isWebp(Buffer.from(await served.arrayBuffer())));
 	});
 
 	after(() => db().dropDatabase());
