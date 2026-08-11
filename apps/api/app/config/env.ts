@@ -47,6 +47,17 @@ export default {
 	// Max games with status "open" a user may have created at once (they clog the
 	// open-games lobby). Active/ended games don't count. 0 disables the cap.
 	maxOpenGamesPerUser: Math.max(0, Number(process.env.maxOpenGamesPerUser) || 10),
+	// Rate limiting of the public auth endpoints that reveal account existence
+	// (login / forget / reset / confirm — issue #195): per-IP and per-target-email
+	// sliding-window attempt caps. Shared across the PM2 cluster via Mongo, so the
+	// limits below are the real totals, not per-worker. Test overrides the whole
+	// bag (see config/test-setup.ts): existing auth specs repeatedly hammer these
+	// endpoints from 127.0.0.1 and would flake against a production-tight limit.
+	authRateLimit: {
+		windowMs: Number(process.env.authRateLimitWindowMs) || 60_000,
+		maxPerIp: Number(process.env.authRateLimitMaxPerIp) || 20,
+		maxPerEmail: Number(process.env.authRateLimitMaxPerEmail) || 10,
+	},
 	sessionSecret: process.env.sessionSecret || "Quel est donc le secret mystère du succès de Gaia Project?!",
 	jwt: {
 		keys: {

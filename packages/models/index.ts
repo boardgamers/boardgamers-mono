@@ -6,6 +6,10 @@ export { adminTokenSchema, ADMIN_TOKENS_COLLECTION, adminTokenIndexes } from "./
 export type { ApiErrorDoc, ApiErrorFront } from "./api-error.ts";
 export { apiErrorSchema, API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollectionOptions } from "./api-error.ts";
 
+// --- Auth Attempt (rate limiting on auth endpoints, #195) ---
+export type { AuthAttemptDoc } from "./authattempt.ts";
+export { authAttemptSchema, AUTH_ATTEMPTS_COLLECTION, authAttemptIndexes } from "./authattempt.ts";
+
 // --- Chat Message ---
 export type { ChatMessageDoc, ChatMessageFront } from "./chatmessage.ts";
 export {
