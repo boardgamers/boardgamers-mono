@@ -41,7 +41,10 @@ const db = {
 		return [...(dbSortedSets.get(key) || [])];
 	},
 	async getObjects(keys) {
-		return keys.map((key) => ({ ...(dbObjects.get(key) || {}) }));
+		// Real NodeBB db.getObjects returns null for a missing key (mongo/redis
+		// hash.js) — mirror that so the stock plugin's `strategy.name = ...` on a
+		// missing key throws, exactly as on the live forum before configuration.
+		return keys.map((key) => (dbObjects.has(key) ? { ...dbObjects.get(key) } : null));
 	},
 	async sortedSetAdd(key, _score, member) {
 		const set = dbSortedSets.get(key) || [];
@@ -105,13 +108,15 @@ function makeStockPlugin(env) {
 	const { passport } = env;
 	const OAuth = {
 		async getStrategy(name) {
+			// Verbatim from the stock plugin: a missing key makes `strategy.name =`
+			// throw a TypeError (the shim now guards against this).
 			const strategies = await env.db.getObjects([`oauth2-multiple:strategies:${name}`]);
 			strategies.forEach((strategy) => {
 				strategy.name = name;
 				strategy.enabled = strategy.enabled === "true" || strategy.enabled === true;
 				strategy.callbackUrl = `${nconf.get("url")}/auth/${name}/callback`;
 			});
-			return strategies.length && Object.keys(strategies[0]).length ? strategies[0] : null;
+			return strategies.length ? strategies[0] : null;
 		},
 		async listStrategies() {
 			const names = await env.db.getSortedSetMembers("oauth2-multiple:strategies");

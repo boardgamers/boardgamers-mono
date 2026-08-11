@@ -239,6 +239,21 @@ test("full round-trip: kickoff persists a code_verifier, callback redeems it (si
 	assert.strictEqual(replay.user, false, "replayed state handle must not authenticate");
 });
 
+test("never configured at all (missing db key): no button, kickoff bounces to /login, no 500", async () => {
+	// Fresh install before the first ACP save: the db key is absent entirely, so
+	// the stock plugin's getStrategy throws (real db.getObjects returns [null]).
+	// The shim must treat that as "not configured", not error.
+	const env = makeEnv();
+	await env.reloadRoutes();
+	assert.strictEqual(env.loginStrategies.length, 0, "no button without config");
+
+	// Force a route so kickoff can run against the wrapper.
+	env.loginStrategies = [{ name: "boardgamers", url: "/auth/boardgamers", callbackURL: "/auth/boardgamers/callback", scope: "openid" }];
+	env.routes = new Map([["/auth/boardgamers", env.loginStrategies[0]]]);
+	const { location } = await env.kickoff("/auth/boardgamers");
+	assert.strictEqual(location, "/login", "bounces to /login instead of redirecting to authorize or 500ing");
+});
+
 test("a string opts.state (core's ssoState) can no longer reach passport-oauth2 — the override strips it", async () => {
 	// Directly exercises the scenario where a route descriptor WITHOUT
 	// checkState:false (e.g. the stock plugin's own button) drives the

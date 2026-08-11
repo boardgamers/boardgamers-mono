@@ -151,7 +151,7 @@ function buildWrapper() {
  * when missing or stale. Concurrent builds are deduped via `building`.
  */
 async function resolveStrategy() {
-	const config = await stockPlugin().getStrategy(STRATEGY_NAME);
+	const config = await getConfig();
 	const key = config && config.enabled ? JSON.stringify(config) : null;
 
 	if (key === cachedConfigKey) {
@@ -163,6 +163,19 @@ async function resolveStrategy() {
 		});
 	}
 	return building;
+}
+
+// The stock plugin's getStrategy throws a TypeError on a fully-missing db key
+// (NodeBB's db.getObjects returns [null] and its getStrategies does
+// `strategy.name = ...` on it). Treat that as "not configured" rather than
+// erroring every request before the first ACP save.
+async function getConfig() {
+	try {
+		return await stockPlugin().getStrategy(STRATEGY_NAME);
+	} catch (err) {
+		winston.warn(`[plugin/sso-bgs] could not read strategy config: ${(err && err.message) || err}`);
+		return null;
+	}
 }
 
 async function buildStrategy(config, key) {
@@ -271,7 +284,7 @@ async function buildStrategy(config, key) {
  */
 Shim.loadStrategies = async (strategies) => {
 	const filtered = strategies.filter((s) => s.name !== STRATEGY_NAME);
-	const config = await stockPlugin().getStrategy(STRATEGY_NAME);
+	const config = await getConfig();
 	if (!config || !config.enabled) {
 		return filtered;
 	}
