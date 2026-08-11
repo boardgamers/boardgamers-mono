@@ -2,7 +2,9 @@ import createError from "http-errors";
 import type { Context, Next } from "koa";
 import NodeCache from "node-cache";
 import { z } from "zod";
+import env from "../config/env.ts";
 import { isUserAdmin } from "../models/index.ts";
+import { ipBucketKey, recordAttempt } from "../services/ratelimit.ts";
 
 export async function loggedIn(ctx: Context, next: Next) {
 	if (!ctx.state.user) {
@@ -31,6 +33,34 @@ export async function loggedOut(ctx: Context, next: Next) {
 export async function isAdmin(ctx: Context, next: Next) {
 	if (!ctx.state.user || !isUserAdmin(ctx.state.user)) {
 		throw createError(403, "You need to be admin");
+	}
+
+	await next();
+}
+
+/**
+ * Throttles the public auth endpoints that reveal account existence (login /
+ * forget / reset / confirm / signup — issue #195), per client IP, on a single
+ * shared budget. Runs BEFORE the handler so a flood hits the limiter instead
+ * of the user lookup; every attempt counts (not just failures) so a legit
+ * user's handful of tries sails through while bulk enumeration stalls.
+ *
+ * The client IP is ctx.ip — correct behind nginx because app.proxy=true makes
+ * Koa read X-Forwarded-For (same source app.ts already records for logins) —
+ * bucketed by ipBucketKey (IPv6 masked to /56). The 429 message is deliberately
+ * generic: it must not confirm or deny the target email's registration.
+ *
+ * `/signup/social` is deliberately NOT limited — it keys on provider identities,
+ * not an email-existence check, so it isn't an enumeration oracle.
+ */
+export async function rateLimitAttempt(ctx: Context, next: Next) {
+	const { windowMs, maxPerIp } = env.authRateLimit;
+
+	const result = recordAttempt("auth:ip", ipBucketKey(ctx.ip), { windowMs, max: maxPerIp });
+
+	if (!result.allowed) {
+		ctx.set("Retry-After", String(result.retryAfterSeconds));
+		throw createError(429, "Too many attempts, please try again later");
 	}
 
 	await next();

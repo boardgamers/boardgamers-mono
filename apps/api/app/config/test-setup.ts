@@ -41,6 +41,10 @@ async function doSetup() {
 	// → ECONNREFUSED.
 	env.listen.host = "127.0.0.1";
 	env.silent = true;
+	// Existing auth specs hammer login/forget/confirm/signup from 127.0.0.1 across
+	// the whole suite — relax the production-tight limit so only the dedicated
+	// rate-limit spec (which lowers it back per-test) ever trips it.
+	env.authRateLimit.maxPerIp = 100_000;
 
 	server = await listen();
 	const addr = server.address();

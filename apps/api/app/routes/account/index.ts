@@ -33,7 +33,7 @@ import {
 } from "../../models/user.ts";
 import type { ImageDoc } from "@bgs/models";
 import sharp from "sharp";
-import { loggedIn, loggedOut } from "../utils.ts";
+import { loggedIn, loggedOut, rateLimitAttempt } from "../utils.ts";
 import { putAvatar, s3Enabled } from "../../services/s3.ts";
 import auth from "./auth.ts";
 import { sendAuthInfo } from "./utils.ts";
@@ -339,14 +339,19 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
 	ctx.status = 200;
 });
 
-router.post("/signup", loggedOut, passport.authenticate("local-signup", { session: false }), (ctx) =>
+// Email signup 409s on a taken email — an enumeration oracle, so it shares the
+// per-IP limiter (same budget as login/forget/reset/confirm). /signup/social
+// keys on provider identities, not email existence, so it is NOT rate-limited.
+router.post("/signup", rateLimitAttempt, loggedOut, passport.authenticate("local-signup", { session: false }), (ctx) =>
 	sendAuthInfo(ctx, "password"),
 );
 
 // The social-signup strategy attaches the provider as `loginMethod` on the returned user.
 router.post("/signup/social", loggedOut, passport.authenticate("social-signup", { session: false }), sendAuthInfo);
 
-router.post("/login", passport.authenticate("local-login", { session: false }), (ctx) => sendAuthInfo(ctx, "password"));
+router.post("/login", rateLimitAttempt, passport.authenticate("local-login", { session: false }), (ctx) =>
+	sendAuthInfo(ctx, "password"),
+);
 
 router.post("/signout", async (ctx: Context) => {
 	// Revoke server-side too — otherwise a leaked cookie keeps working until its 120-day expiry.
@@ -365,7 +370,7 @@ router.post("/signout", async (ctx: Context) => {
 	ctx.status = 200;
 });
 
-router.post("/confirm", async (ctx: Context) => {
+router.post("/confirm", rateLimitAttempt, async (ctx: Context) => {
 	const body = z.object({ email: z.string().email(), key: z.string() }).parse(ctx.request.body);
 	const user = await findByEmail(body.email);
 
@@ -424,11 +429,11 @@ router.post("/mint", mintAccessToken);
 // the auth migration — remove once nothing calls /refresh anymore.
 router.post("/refresh", mintAccessToken);
 
-router.post("/reset", loggedOut, passport.authenticate("local-reset", { session: false }), (ctx) =>
+router.post("/reset", rateLimitAttempt, loggedOut, passport.authenticate("local-reset", { session: false }), (ctx) =>
 	sendAuthInfo(ctx, "password"),
 );
 
-router.post("/forget", loggedOut, async (ctx: Context) => {
+router.post("/forget", rateLimitAttempt, loggedOut, async (ctx: Context) => {
 	const { email } = z.object({ email: z.string().email() }).parse(ctx.request.body);
 	const user = await findByEmail(email);
 

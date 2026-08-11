@@ -50,6 +50,15 @@ export default {
 	// Minimum interval between two auth emails (password reset, confirmation) sent
 	// to the same address, so the site can't be used to flood someone's inbox (#195).
 	authEmailCooldownMs: Math.max(0, Number(process.env.authEmailCooldownMs) || 15 * 60 * 1000),
+	// Rate limiting of the public auth endpoints that reveal account existence
+	// (login / forget / reset / confirm / signup — issue #195): per-IP fixed-window
+	// attempt cap, in memory (per PM2 worker). Test overrides the whole bag (see
+	// config/test-setup.ts): existing auth specs repeatedly hammer these endpoints
+	// from 127.0.0.1 and would flake against a production-tight limit.
+	authRateLimit: {
+		windowMs: Number(process.env.authRateLimitWindowMs) || 60_000,
+		maxPerIp: Number(process.env.authRateLimitMaxPerIp) || 10,
+	},
 	sessionSecret: process.env.sessionSecret || "Quel est donc le secret mystère du succès de Gaia Project?!",
 	jwt: {
 		keys: {
