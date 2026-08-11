@@ -25,13 +25,25 @@ what we need, so this shim:
 
 1. registers a passport OAuth2 strategy for the `boardgamers` strategy with
    `pkce: true, state: true` (S256 challenge/verifier + CSRF state, both handled by
-   passport-oauth2's session store), wired **before** the stock plugin's own
-   (priority 4 vs default 10), so the PKCE strategy handles `/auth/boardgamers` while
-   the stock plugin still renders the login button and admin page;
-2. replaces the token exchange so **no `client_secret` key is sent at all**;
-3. delegates profile parsing and login/account-linking to the stock plugin
-   (`getUserProfile` → `parseUserReturn` → `OAuth.login`);
-4. serves the Client ID Metadata Document (`static/client-metadata.json`) at
+   passport-oauth2's session store). It hooks `filter:auth.init` at **priority 12** —
+   after the stock plugin's own `loadStrategies` (default 10) — because
+   `passport.use(name)` is last-write-wins and NodeBB core dispatches `/auth/boardgamers`
+   by name, so the PKCE strategy must be the final registration. The two plugins share
+   the `loginStrategies` array, so the shim flips the stock plugin's descriptor to
+   `checkState: false` rather than pushing a duplicate button (see below);
+2. **overrides `authenticate`** to strip `options.state`. NodeBB core sets
+   `opts.state = req.session.ssoState` (a string) before `passport.authenticate`, and
+   passport-oauth2 — given a string state — skips its PKCE session store, so the
+   `code_verifier` would never be persisted and the callback would 403. Stripping it
+   lets the PKCE store run (persist the verifier + mint its own single-use handle).
+   `checkState: false` tells core to skip its own `ssoState` equality gate; CSRF is
+   still enforced by `PKCESessionStore.verify` (handle match + single-use);
+3. replaces the token exchange so **no `client_secret` key is sent at all**;
+4. delegates userinfo fetch, claim normalization, login/account-linking, and the
+   post-login extras to the stock plugin (`getUserProfile` → `parseUserReturn` →
+   `OAuth.login` → `onSuccessfulLogin`/`assignGroups`/`updateProfile`, firing
+   `action:oauth2.login`);
+5. serves the Client ID Metadata Document (`static/client-metadata.json`) at
    **`/client-metadata.json`** — the exact URL used as `client_id`, so the plugin is
    self-contained (no nginx change needed).
 
@@ -84,8 +96,9 @@ consent doc exists (i.e. after one user has gone through the flow), or pre-creat
 ## Notes / limitations
 
 - Users **without an email** on their BGS account (email-less social signups, #211)
-  cannot log in via OAuth: userinfo omits `email`/`email_verified` for them and the
-  strategy requires id + displayName + email. They must add an email to their BGS
-  account first.
+  cannot log in via OAuth: userinfo omits `email`/`email_verified` for them. The shim
+  detects this and **fails with a user-facing message** (NodeBB redirects the failure
+  `info.message` to `/?register=<message>`): "This boardgamers account has no email
+  address. Add one in your boardgamers.space account settings to log into the forum."
 - PKCE/state use the forum's session store (`req.session`), which NodeBB always
   provides — no extra middleware needed.

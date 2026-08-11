@@ -2,6 +2,8 @@
 
 const nconf = nodebb.require("nconf");
 const winston = nodebb.require("winston");
+const plugins = nodebb.require("./src/plugins");
+const authenticationController = nodebb.require("./src/controllers/authentication");
 
 /**
  * Boardgamers SSO (issue #196): a thin shim over nodebb-plugin-sso-oauth2-multiple.
@@ -47,11 +49,17 @@ Shim.init = async ({ router }) => {
 };
 
 /**
- * filter:auth.init, registered at priority 4 so it runs BEFORE
- * sso-oauth2-multiple's own loadStrategies (default priority 10): passport
- * handlers are tried in registration order, so our PKCE strategy wins for
- * /auth/boardgamers while the stock plugin still pushes the login-button
- * descriptor (we don't) — the button url /auth/boardgamers then lands on us.
+ * filter:auth.init, registered at priority 12 so it runs AFTER
+ * sso-oauth2-multiple's own loadStrategies (default priority 10): `passport.use`
+ * is last-write-wins per name, so the shim's PKCE strategy must register LAST to
+ * be the one that actually handles /auth/boardgamers[/callback]. (NodeBB core
+ * dispatches the route by name, so the final registration wins.)
+ *
+ * All `filter:auth.init` handlers share the same loginStrategies array, and the
+ * stock plugin (priority 10) has already pushed its button descriptor by the time
+ * we run — so we find it by name, flip `checkState: false` (see authenticate
+ * override), and return the array unchanged rather than pushing a duplicate
+ * button.
  */
 Shim.loadStrategies = async (strategies) => {
 	const OAuth = stockPlugin();
@@ -76,7 +84,18 @@ Shim.loadStrategies = async (strategies) => {
 		},
 		async (req, token, secret, profile, done) => {
 			const { id, displayName, email, email_verified } = profile;
-			if (![id, displayName, email].every(Boolean)) {
+			// Email-less social signups (#211): the provider omits `email`/`email_verified`.
+			// FAIL (not error) with a message — NodeBB core's callback handler redirects a
+			// fail's `info.message` to `/?register=<message>`, surfacing it to the user,
+			// whereas a done(err) only hits the error page/logs.
+			if (!email) {
+				return done(null, false, {
+					message:
+						"This boardgamers account has no email address. " +
+						"Add one in your boardgamers.space account settings to log into the forum.",
+				});
+			}
+			if (![id, displayName].every(Boolean)) {
 				return done(new Error("insufficient-scope"));
 			}
 			try {
@@ -88,12 +107,33 @@ Shim.loadStrategies = async (strategies) => {
 					email_verified,
 				});
 				winston.verbose(`[plugin/sso-bgs] Successful login to uid ${user.uid} (remote id ${id})`);
+				await authenticationController.onSuccessfulLogin(req, user.uid);
+				await OAuth.assignGroups({ provider: STRATEGY_NAME, user, profile });
+				await OAuth.updateProfile(user.uid, profile);
 				done(null, user);
+
+				plugins.hooks.fire("action:oauth2.login", { name: STRATEGY_NAME, user, profile });
 			} catch (err) {
 				done(err);
 			}
 		},
 	);
+
+	// NodeBB core sets `opts.state = req.session.ssoState` (a STRING) before
+	// calling passport.authenticate, and on the callback asserts
+	// `req.query.state === req.session.ssoState`. With a string state,
+	// passport-oauth2 skips its PKCE session store entirely — so the
+	// `code_verifier` is never persisted and the callback can't redeem the code.
+	// Strip `options.state` so the PKCE store runs (it persists the verifier and
+	// mints its own single-use handle as `state`), and set `checkState: false` on
+	// the descriptor (below) so core's ssoState gate is skipped. CSRF is still
+	// enforced by PKCESessionStore.verify (handle match, single-use).
+	const delegate = strategy.authenticate.bind(strategy);
+	strategy.authenticate = function (req, options) {
+		const opts = { ...options };
+		delete opts.state;
+		return delegate(req, opts);
+	};
 
 	// Reuse the stock plugin's userinfo fetch + claim normalization.
 	strategy.userProfile = OAuth.getUserProfile.bind(strategy, STRATEGY_NAME, config.userRoute);
@@ -103,6 +143,13 @@ Shim.loadStrategies = async (strategies) => {
 	strategy._oauth2.getOAuthAccessToken = publicClientTokenExchange;
 
 	require("passport").use(STRATEGY_NAME, strategy); // eslint-disable-line global-require
+
+	// Reuse the stock plugin's already-pushed button descriptor (same shared
+	// array) so only one button renders; just relax core's ssoState gate for it.
+	const descriptor = strategies.find((s) => s.name === STRATEGY_NAME);
+	if (descriptor) {
+		descriptor.checkState = false;
+	}
 	return strategies;
 };
 
