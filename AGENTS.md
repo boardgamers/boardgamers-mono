@@ -202,6 +202,13 @@ the Admin Tokens page or via `GET`/`DELETE /api/admin/tokens`.)
 
 Prod runs under PM2 (`ecosystem.config.cjs`); reach the box with `ssh bgs`.
 
+- **Containers are podman, not docker**: the Loki/Grafana stack (`infra/loki/`)
+  runs as **rootless podman under the `bgs` user** — there is no docker on the
+  prod box. Rootless podman storage is per-user, so operate it **as `bgs`**
+  (`ssh bgs` directly, or `sudo -u bgs …` from another sudo account — any other
+  user's `podman ps` shows nothing). Container envs are baked in at creation:
+  apply compose env changes with `podman-compose up -d --force-recreate
+  --no-deps <svc>` from `~/boardgamers-mono/infra/loki`, not `podman restart`.
 - **Reload, don't restart**: use `pm2 reload <proc> --update-env` (graceful,
   zero-downtime) rather than `pm2 restart`. Processes: `web`, `api`, `api-cron`,
   `game-server` (plus `game-server-cron`, `watchdog` — see
