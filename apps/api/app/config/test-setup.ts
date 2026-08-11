@@ -45,7 +45,6 @@ async function doSetup() {
 	// whole suite — relax the production-tight limit so only the dedicated
 	// rate-limit spec (which lowers it back per-test) ever trips it.
 	env.authRateLimit.maxPerIp = 100_000;
-	env.authRateLimit.maxPerEmail = 100_000;
 
 	server = await listen();
 	const addr = server.address();

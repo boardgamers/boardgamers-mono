@@ -7,6 +7,7 @@ import bcrypt from "bcryptjs";
 import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { testUser } from "../../config/test-helpers.ts";
+import { resetRateLimitCounters } from "../../services/ratelimit.ts";
 
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
 
@@ -24,6 +25,9 @@ async function post(path: string, body: unknown, headers: Record<string, string>
 
 const message = (data: unknown) =>
 	typeof data === "object" && data !== null && "message" in data ? String(data.message) : "";
+
+// IPv6 addresses inside one /56 (differ only below bit 56).
+const from6 = (host: number) => ({ "X-Forwarded-For": `2001:db8:cafe:5a${String(host).padStart(2, "0")}::1` });
 
 // The suite-wide config relaxes the limiter (see config/test-setup.ts) so the
 // existing auth specs don't trip it; these describes opt back into tight limits
@@ -43,7 +47,8 @@ describe("auth endpoint rate limiting (#195)", () => {
 	const saveLimit = () => ({ ...env.authRateLimit });
 
 	afterEach(() => {
-		Object.assign(env.authRateLimit, { windowMs: 60_000, maxPerIp: 100_000, maxPerEmail: 100_000 });
+		Object.assign(env.authRateLimit, { windowMs: 60_000, maxPerIp: 100_000 });
+		resetRateLimitCounters();
 	});
 
 	before(async () => {
@@ -73,7 +78,7 @@ describe("auth endpoint rate limiting (#195)", () => {
 	});
 
 	it("429s login attempts past the per-IP limit, with a generic message", async () => {
-		Object.assign(env.authRateLimit, { maxPerIp: 5, maxPerEmail: 100_000 });
+		Object.assign(env.authRateLimit, { maxPerIp: 5 });
 		const ip = fromIp();
 
 		for (let i = 0; i < 5; i++) {
@@ -95,25 +100,37 @@ describe("auth endpoint rate limiting (#195)", () => {
 		assert.strictEqual(other.status, 401);
 	});
 
-	it("caps repeated probes of a single email across distinct IPs", async () => {
-		Object.assign(env.authRateLimit, { maxPerIp: 100_000, maxPerEmail: 4 });
-		const target = "ratelimit-per-email@test.com";
+	it("buckets IPv6 clients by /56 — address rotation within the prefix doesn't evade", async () => {
+		Object.assign(env.authRateLimit, { maxPerIp: 3 });
 
-		for (let i = 0; i < 4; i++) {
-			const res = await post("/api/account/forget", { email: target }, fromIp());
-			assert.strictEqual(res.status, 404, `probe ${i + 1} should reach the handler`);
-		}
-		const blocked = await post("/api/account/forget", { email: target }, fromIp());
+		// Three addresses in the same /56 (differ only below bit 56).
+		assert.strictEqual(
+			(await post("/api/account/login", { email: registeredEmail, password: "wrong" }, from6(1))).status,
+			401,
+		);
+		assert.strictEqual(
+			(await post("/api/account/login", { email: registeredEmail, password: "wrong" }, from6(2))).status,
+			401,
+		);
+		assert.strictEqual(
+			(await post("/api/account/login", { email: registeredEmail, password: "wrong" }, from6(3))).status,
+			401,
+		);
+		// A fourth address in the same /56 is over the shared limit…
+		const blocked = await post("/api/account/login", { email: registeredEmail, password: "wrong" }, from6(4));
 		assert.strictEqual(blocked.status, 429);
-
-		// …while other emails still get their normal response.
-		const other = await post("/api/account/forget", { email: "ratelimit-other@test.com" }, fromIp());
-		assert.strictEqual(other.status, 404);
+		// …while the neighboring /56 has its own bucket.
+		const neighbor = await post(
+			"/api/account/login",
+			{ email: registeredEmail, password: "wrong" },
+			{ "X-Forwarded-For": "2001:db8:cafe:5b00::1" },
+		);
+		assert.strictEqual(neighbor.status, 401);
 	});
 
 	it("allows attempts again after the window rolls over", async () => {
 		const saved = saveLimit();
-		Object.assign(env.authRateLimit, { windowMs: 300, maxPerIp: 2, maxPerEmail: 100_000 });
+		Object.assign(env.authRateLimit, { windowMs: 300, maxPerIp: 2 });
 		const ip = fromIp();
 		const attempt = () => post("/api/account/login", { email: registeredEmail, password: "wrong" }, ip);
 		// Windows align to wall-clock multiples of windowMs: landing the first

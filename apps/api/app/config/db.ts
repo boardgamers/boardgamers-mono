@@ -4,8 +4,6 @@ import {
 	ADMIN_TOKENS_COLLECTION,
 	type ApiErrorDoc,
 	API_ERRORS_COLLECTION,
-	type AuthAttemptDoc,
-	AUTH_ATTEMPTS_COLLECTION,
 	type ChangelogDoc,
 	CHANGELOGS_COLLECTION,
 	type ChatMessageDoc,
@@ -61,7 +59,6 @@ export function db(): Db {
 export const colls = {} as {
 	adminTokens: Collection<AdminTokenDoc>;
 	apiErrors: Collection<ApiErrorDoc>;
-	authAttempts: Collection<AuthAttemptDoc>;
 	changelogs: Collection<ChangelogDoc>;
 	chatMessages: Collection<ChatMessageDoc>;
 	deletedUsers: Collection<DeletedUserDoc>;
@@ -85,7 +82,6 @@ function initColls(database: Db) {
 	Object.assign(colls, {
 		adminTokens: database.collection<AdminTokenDoc>(ADMIN_TOKENS_COLLECTION),
 		apiErrors: withAutoUpdatedAt(database.collection<ApiErrorDoc>(API_ERRORS_COLLECTION)),
-		authAttempts: database.collection<AuthAttemptDoc>(AUTH_ATTEMPTS_COLLECTION),
 		changelogs: withAutoUpdatedAt(database.collection<ChangelogDoc>(CHANGELOGS_COLLECTION)),
 		chatMessages: database.collection<ChatMessageDoc>(CHAT_MESSAGES_COLLECTION),
 		deletedUsers: database.collection<DeletedUserDoc>(DELETED_USERS_COLLECTION),

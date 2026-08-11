@@ -4,7 +4,7 @@ import NodeCache from "node-cache";
 import { z } from "zod";
 import env from "../config/env.ts";
 import { isUserAdmin } from "../models/index.ts";
-import { recordAttempt } from "../services/ratelimit.ts";
+import { ipBucketKey, recordAttempt } from "../services/ratelimit.ts";
 
 export async function loggedIn(ctx: Context, next: Next) {
 	if (!ctx.state.user) {
@@ -38,35 +38,25 @@ export async function isAdmin(ctx: Context, next: Next) {
 	await next();
 }
 
-const attemptEmailSchema = z.object({ email: z.string().email() });
-
 /**
  * Throttles the public auth endpoints that reveal account existence (login /
- * forget / reset / confirm — issue #195), per client IP and per target email.
- * Runs BEFORE the handler so a flood hits the limiter instead of the user
- * lookup; every attempt counts (not just failures) so a legit user's handful
- * of tries sails through while bulk enumeration stalls.
+ * forget / reset / confirm — issue #195), per client IP. Runs BEFORE the
+ * handler so a flood hits the limiter instead of the user lookup; every
+ * attempt counts (not just failures) so a legit user's handful of tries sails
+ * through while bulk enumeration stalls.
  *
  * The client IP is ctx.ip — correct behind nginx because app.proxy=true makes
- * Koa read X-Forwarded-For (same source app.ts already records for logins).
- * The 429 message is deliberately generic: it must not confirm or deny the
- * target email's registration.
+ * Koa read X-Forwarded-For (same source app.ts already records for logins) —
+ * bucketed by ipBucketKey (IPv6 masked to /56). The 429 message is deliberately
+ * generic: it must not confirm or deny the target email's registration.
  */
 export async function rateLimitAttempt(ctx: Context, next: Next) {
-	const { windowMs, maxPerIp, maxPerEmail } = env.authRateLimit;
+	const { windowMs, maxPerIp } = env.authRateLimit;
 
-	// ctx.request.body is already parsed (bodyparser runs first); a missing/invalid
-	// email just skips the per-email bucket — the route's own validation will 400 it.
-	const parsed = attemptEmailSchema.safeParse(ctx.request.body ?? {});
-	// Normalize like findByEmail so " user@x.com " and "user@x.com" share a bucket.
-	const emailKey = parsed.success ? parsed.data.email.toLowerCase().trim() : undefined;
+	const result = recordAttempt("auth:ip", ipBucketKey(ctx.ip), { windowMs, max: maxPerIp });
 
-	const ipResult = await recordAttempt("auth:ip", ctx.ip, { windowMs, max: maxPerIp });
-	const emailResult = emailKey ? await recordAttempt("auth:email", emailKey, { windowMs, max: maxPerEmail }) : null;
-
-	if (!ipResult.allowed || (emailResult && !emailResult.allowed)) {
-		const retryAfter = Math.max(ipResult.retryAfterSeconds, emailResult?.retryAfterSeconds ?? 0);
-		ctx.set("Retry-After", String(retryAfter));
+	if (!result.allowed) {
+		ctx.set("Retry-After", String(result.retryAfterSeconds));
 		throw createError(429, "Too many attempts, please try again later");
 	}
 

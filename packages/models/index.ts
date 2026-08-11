@@ -10,10 +10,6 @@ export { apiErrorSchema, API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollec
 export type { ChangelogDoc, ChangelogFront } from "./changelog.ts";
 export { changelogSchema, CHANGELOGS_COLLECTION, changelogIndexes } from "./changelog.ts";
 
-// --- Auth Attempt (rate limiting on auth endpoints, #195) ---
-export type { AuthAttemptDoc } from "./authattempt.ts";
-export { authAttemptSchema, AUTH_ATTEMPTS_COLLECTION, authAttemptIndexes } from "./authattempt.ts";
-
 // --- Chat Message ---
 export type { ChatMessageDoc, ChatMessageFront } from "./chatmessage.ts";
 export {

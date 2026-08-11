@@ -2,7 +2,6 @@ import type { Collection, Db, IndexDescription, IndexDescriptionInfo, IndexDirec
 import type { ZodType } from "zod";
 import { ADMIN_TOKENS_COLLECTION, adminTokenIndexes, adminTokenSchema } from "./admintoken.ts";
 import { API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollectionOptions, apiErrorSchema } from "./api-error.ts";
-import { AUTH_ATTEMPTS_COLLECTION, authAttemptIndexes, authAttemptSchema } from "./authattempt.ts";
 import { CHANGELOGS_COLLECTION, changelogIndexes, changelogSchema } from "./changelog.ts";
 import {
 	CHAT_MESSAGES_COLLECTION,
@@ -458,7 +457,6 @@ export async function reconcileIndexes(
 
 export const declaredIndexes: [string, IndexDescription[]][] = [
 	[ADMIN_TOKENS_COLLECTION, adminTokenIndexes],
-	[AUTH_ATTEMPTS_COLLECTION, authAttemptIndexes],
 	[GAMES_COLLECTION, gameIndexes],
 	[USERS_COLLECTION, userIndexes],
 	[API_ERRORS_COLLECTION, apiErrorIndexes],
@@ -528,7 +526,6 @@ export async function ensureValidation(db: Db) {
 	const validationMap: [string, ZodType][] = [
 		[ADMIN_TOKENS_COLLECTION, adminTokenSchema],
 		[API_ERRORS_COLLECTION, apiErrorSchema],
-		[AUTH_ATTEMPTS_COLLECTION, authAttemptSchema],
 		[CHANGELOGS_COLLECTION, changelogSchema],
 		[CHAT_MESSAGES_COLLECTION, chatMessageSchema],
 		[GAMES_COLLECTION, gameSchema],
