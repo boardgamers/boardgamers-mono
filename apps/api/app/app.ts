@@ -115,10 +115,14 @@ async function listen(port = env.listen.port.api) {
 	//  1. Cross-site marker: if the request is explicitly marked cross-site
 	//     (Sec-Fetch-Site: cross-site, or a foreign Origin), reject — fail-open only
 	//     when the client sends no marker at all (older browsers, non-browser tools).
-	//  2. Body gate: mutating requests must carry application/json, which forces a
-	//     CORS preflight a cross-origin HTML form can't pass. Exempted: the
-	//     genuinely form-encoded / binary endpoints (OAuth2 token, per RFC6749, and
-	//     the raw avatar upload) — those are protected by the cross-site check above.
+	//  2. Body gate: POSTs must carry application/json, which forces a CORS
+	//     preflight a cross-origin HTML form can't pass. POST is the only verb a
+	//     native form can submit with a CORS-safelisted content type — forms
+	//     can't send DELETE/PUT/PATCH, and a cross-site fetch with those verbs
+	//     is preflighted, so they rely on the cross-site check above alone
+	//     (which is also why a bodyless DELETE needs no Content-Type). Exempted:
+	//     the genuinely form-encoded / binary endpoints (OAuth2 token, per
+	//     RFC6749, and the raw avatar upload).
 	app.use(async (ctx, next) => {
 		if (["GET", "HEAD", "OPTIONS"].includes(ctx.method)) {
 			return next();
@@ -137,7 +141,11 @@ async function listen(port = env.listen.port.api) {
 		if (origin && !isSameSiteOrigin(ctx, origin)) {
 			throw createError(403, "cross-site origin rejected");
 		}
-		if (!ctx.is("application/json") && !CSRF_JSON_EXEMPT.test(ctx.path)) {
+		// Only POST is form-submittable, hence the only verb a cross-site form could
+		// reach with a safelisted (no-preflight) content type — so it's the only verb
+		// that needs the JSON content-type gate. DELETE/PUT/PATCH can't come from a
+		// form and are preflighted cross-site; the cross-site check above covers them.
+		if (ctx.method === "POST" && !ctx.is("application/json") && !CSRF_JSON_EXEMPT.test(ctx.path)) {
 			throw createError(415, "mutating requests require a JSON body");
 		}
 		return next();
