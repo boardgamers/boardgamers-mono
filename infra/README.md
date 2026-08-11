@@ -100,9 +100,9 @@ Pre-provisioned dashboard: "Boardgamers — Server Health" (status codes, error 
 
 ### Grafana OAuth (OIDC login)
 
-Login goes through the boardgamers.space OAuth2/OIDC provider (CIMD, PKCE — no client secret). Role comes from the user's `authority` claim: `admin` → GrafanaAdmin, anything else → denied (`role_attribute_strict=true`). The `admin`/password envs remain as an emergency backdoor.
+Login goes through the boardgamers.space OAuth2/OIDC provider (CIMD, PKCE — no client secret). Role comes from the user's `roles` array claim: it contains `admin` → GrafanaAdmin, anything else → denied (`role_attribute_strict=true`). The `admin`/password envs remain as an emergency backdoor.
 
-**Prerequisite:** the API PR exposing the `authority` claim under the `role` scope must be deployed on www.boardgamers.space first.
+**Prerequisite:** the API PR exposing the `roles` claim under the `role` scope must be deployed on www.boardgamers.space first.
 
 **Deploy** (on the prod box, as `bgs` for step 2 — nginx steps need root):
 

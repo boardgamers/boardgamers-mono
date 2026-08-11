@@ -39,7 +39,7 @@ export const GET: RequestHandler = () => {
 			subject_types_supported: ["public"],
 			// Matches the api's signing algorithm (RS256 in prod, HS256 in dev).
 			id_token_signing_alg_values_supported: [process.env.jwtMode === "asymmetric" ? "RS256" : "HS256"],
-			claims_supported: ["sub", "id", "preferred_username", "name", "email", "email_verified", "picture", "authority"],
+			claims_supported: ["sub", "id", "preferred_username", "name", "email", "email_verified", "picture", "roles"],
 			// §6 of draft-ietf-oauth-client-id-metadata-document (current draft name —
 			// the older "client_id_metadata_supported" is from an outdated revision).
 			client_id_metadata_document_supported: true,

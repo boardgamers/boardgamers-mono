@@ -77,7 +77,7 @@ ACP → Plugins → SSO OAuth2 → add strategy:
 | `userRoute`          | `https://www.boardgamers.space/api/oauth2/userinfo`      |
 | `id`                 | `https://forum.boardgamers.space/client-metadata.json`   |
 | `secret`             | any value (the shim never sends a secret)                |
-| `scope`              | `openid profile email`                                   |
+| `scope`              | `openid profile email role`                              |
 | `trustEmailVerified` | **on** — links existing forum accounts by verified email |
 | `syncPicture`        | optional (userinfo exposes `picture`)                    |
 
@@ -106,3 +106,8 @@ consent doc exists (i.e. after one user has gone through the flow), or pre-creat
   email to their BGS account first.
 - PKCE/state use the forum's session store (`req.session`), which NodeBB always
   provides — no extra middleware needed.
+- **Group mapping**: with the `role` scope granted, userinfo carries a standard
+  `roles` array claim (e.g. `["admin"]` for admins, omitted for regular users). The
+  stock plugin's `assignGroups` maps `profile.roles` entries onto same-named NodeBB
+  groups (the built-in `administrators` group is a system group and is NOT assignable
+  this way — map to a custom `admin` group instead, per its ACP settings).
