@@ -65,6 +65,16 @@ only host _loopback_ is firewalled off.
   fields (emails → `@preview.invalid`, passwords/social/IPs dropped), shipped to
   minipc and imported as `bgs-preview-template`.
 
+## S3 / thumbnail cache
+
+Preview envs have **no S3 configured**: the env containers get no `S3_*` env
+vars, so the social share-thumbnail cache (#217) no-ops and every `/share.webp`
+request renders fresh (the code degrades gracefully on missing config or S3
+errors — see `apps/web/WORKAROUNDS.md`). Wiring an S3 bucket into the preview
+deployment is a follow-up if we ever want to exercise the cache on previews.
+Local dev uses the MinIO service from the root `docker-compose.yml` instead
+(see `apps/web/.env.example`).
+
 ## One-time setup (already done on coyo/minipc)
 
 - WireGuard mesh coyo↔minipc: `/etc/wireguard/wg0.conf`, 10.90.0.1 / 10.90.0.2.
