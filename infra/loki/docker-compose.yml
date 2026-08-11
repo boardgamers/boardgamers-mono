@@ -59,10 +59,10 @@ services:
       - GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION=true
       - GF_USERS_ALLOW_SIGN_UP=false
       # OAuth (OIDC via www.boardgamers.space, CIMD + PKCE — no real client secret) is the
-      # ONLY login. Access is restricted to admins only — the `authority` claim is
-      # emitted by the API solely for admin users, so anyone else gets no mapped role
-      # and the strict-role setting denies their login. nginx serves the client
-      # metadata at /client-metadata.json (see infra/loki/grafana.boardgamers.space).
+      # ONLY login. Access is restricted to admins only — the `roles` claim is
+      # emitted by the API solely for admin users (["admin"]), so anyone else gets no
+      # mapped role and the strict-role setting denies their login. nginx serves the
+      # client metadata at /client-metadata.json (see infra/loki/grafana.boardgamers.space).
       - GF_SERVER_ROOT_URL=https://grafana.boardgamers.space
       - GF_AUTH_GENERIC_OAUTH_ENABLED=true
       - GF_AUTH_GENERIC_OAUTH_NAME=Boardgamers
@@ -77,9 +77,9 @@ services:
       - GF_AUTH_GENERIC_OAUTH_API_URL=https://www.boardgamers.space/api/oauth2/userinfo
       - GF_AUTH_GENERIC_OAUTH_SCOPES=openid profile email role
       - GF_AUTH_GENERIC_OAUTH_LOGIN_ATTRIBUTE_PATH=sub
-      # JMESPath — keep exact. admin => GrafanaAdmin; non-admin => no mapped role,
-      # which ROLE_ATTRIBUTE_STRICT turns into a login denial (non-admin => denied).
-      - GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=authority == 'admin' && 'GrafanaAdmin' || null
+      # JMESPath — keep exact. `roles` array contains 'admin' => GrafanaAdmin; otherwise
+      # no mapped role, which ROLE_ATTRIBUTE_STRICT turns into a login denial.
+      - GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=contains(roles, 'admin') && 'GrafanaAdmin' || null
       - GF_AUTH_GENERIC_OAUTH_ALLOW_ASSIGN_GRAFANA_ADMIN=true
       - GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_STRICT=true
       # Password auth fully disabled: no login form AND no basic-auth API login.

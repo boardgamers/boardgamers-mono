@@ -311,10 +311,11 @@ function signIdToken(user: WithId<UserDoc>, clientId: string, scopes: OAuthScope
 		// proven address.
 		claims.email_verified = true;
 	}
-	// Role signal for first-party tooling (Grafana role mapping), NOT an
-	// admin grant: admin API access stays gated on the session-token family.
+	// Role signal for first-party tooling (Grafana role mapping, NodeBB
+	// assignGroups), NOT an admin grant: admin API access stays gated on the
+	// session-token family. Standard `roles` array form.
 	if (scopes.includes("role") && user.authority) {
-		claims.authority = user.authority;
+		claims.roles = [user.authority];
 	}
 	return jwt.sign(claims, env.jwt.keys.private, { algorithm: env.jwt.algorithm });
 }
@@ -365,12 +366,13 @@ router.get("/userinfo", async (ctx) => {
 					email_verified: true,
 				}
 			: {}),
-		// Role signal for first-party tooling (Grafana role_attribute_path), NOT an
-		// admin grant: admin API access stays gated on the session-token family.
-		// The grant's scopes ride the access token (minted at /token) so userinfo
-		// gates the claim on them, like signIdToken does. Regular users have no
-		// authority field (migration 1.4.2 $unset the legacy "user" placeholder).
-		...(scopes.includes("role") && user.authority ? { authority: user.authority } : {}),
+		// Role signal for first-party tooling (Grafana role_attribute_path, NodeBB
+		// assignGroups reads profile.roles), NOT an admin grant: admin API access
+		// stays gated on the session-token family. The grant's scopes ride the
+		// access token (minted at /token) so userinfo gates the claim on them, like
+		// signIdToken does. Regular users have no authority field (migration 1.4.2
+		// $unset the legacy "user" placeholder), hence no roles claim.
+		...(scopes.includes("role") && user.authority ? { roles: [user.authority] } : {}),
 		picture: `${env.oauth2.issuer}/api/user/${user._id.toString()}/avatar`,
 	};
 });
@@ -404,7 +406,7 @@ export function openidConfiguration() {
 		token_endpoint_auth_methods_supported: ["none"],
 		subject_types_supported: ["public"],
 		id_token_signing_alg_values_supported: [env.jwt.algorithm],
-		claims_supported: ["sub", "id", "preferred_username", "name", "email", "email_verified", "picture", "authority"],
+		claims_supported: ["sub", "id", "preferred_username", "name", "email", "email_verified", "picture", "roles"],
 		// §6: signal CIMD support (current draft name — the older
 		// "client_id_metadata_supported" is from an outdated draft revision).
 		client_id_metadata_document_supported: true,
