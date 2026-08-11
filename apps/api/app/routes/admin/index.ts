@@ -7,10 +7,12 @@ import path from "node:path";
 import { env } from "../../config/index.ts";
 import { colls } from "../../config/db.ts";
 import {
+	authEmailOnCooldown,
 	findByEmail,
 	findByUsername,
 	generateConfirmKey,
 	hashUserSecret,
+	markAuthEmailSent,
 	recalculateKarma,
 	sendConfirmationEmail,
 } from "../../models/index.ts";
@@ -158,12 +160,20 @@ router.post("/resend-confirmation", async (ctx) => {
 		throw createError(404, "User not found: " + email);
 	}
 
+	// Same 200 whether or not the email goes out (#195): on a cooldown skip the
+	// existing confirmKey is kept so the previously emailed link keeps working.
+	if (authEmailOnCooldown(user)) {
+		ctx.status = 200;
+		return;
+	}
+
 	// The db holds only the hash of the confirm key (#164) — mint a fresh one, store
 	// its hash, and hand the plaintext to the mailer (the emailed link needs it).
 	const confirmKey = generateConfirmKey();
 	await colls.users.updateOne({ _id: user._id }, { $set: { "security.confirmKey": hashUserSecret(confirmKey) } });
 	user.security.confirmKey = confirmKey;
 	await sendConfirmationEmail(user);
+	await markAuthEmailSent(user);
 	ctx.status = 200;
 });
 
