@@ -110,6 +110,7 @@ Only relevant when a coordinator runs several workers on one machine. **Never ru
   ```
 
   Admin routes check `authority === "admin"` on the user reloaded from the db per request. If a preview's API container is stale, the db still has the data — from the prod box: `mongosh "mongodb://10.90.0.2:27017/bgs-pr-<N>"`.
+
 - Local seeded db (`apps/api/scripts/seed.ts`): fixture passwords are also `password` (e.g. `admin@test.com`).
 
 ### Preview sanitization
