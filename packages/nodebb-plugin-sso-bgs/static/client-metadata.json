@@ -1,0 +1,9 @@
+{
+	"client_id": "https://forum.boardgamers.space/client-metadata.json",
+	"client_name": "NodeBB Forum",
+	"redirect_uris": ["https://forum.boardgamers.space/auth/boardgamers/callback"],
+	"grant_types": ["authorization_code"],
+	"response_types": ["code"],
+	"token_endpoint_auth_method": "none",
+	"scope": "openid profile email"
+}

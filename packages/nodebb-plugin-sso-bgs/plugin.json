@@ -1,0 +1,11 @@
+{
+	"id": "nodebb-plugin-sso-bgs",
+	"name": "NodeBB BGS SSO (PKCE shim)",
+	"description": "Boardgamers SSO: wraps nodebb-plugin-sso-oauth2-multiple with a PKCE public-client strategy, and serves the OAuth Client ID Metadata Document at /client-metadata.json",
+	"url": "https://github.com/boardgamers/boardgamers-mono/tree/main/packages/nodebb-plugin-sso-bgs",
+	"library": "./library.js",
+	"hooks": [
+		{ "hook": "static:app.load", "method": "init" },
+		{ "hook": "filter:auth.init", "method": "loadStrategies", "priority": 4 }
+	]
+}
