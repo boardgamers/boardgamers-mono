@@ -190,11 +190,17 @@ export function s3CacheEnabled(): boolean {
 // Deterministic key per (route, etag): the etag already changes when the underlying
 // entity changes, so a changed entity renders to a NEW key and no stale object is ever
 // served. e.g. share/thumbnail/game/abc123.d41d8cd98f00b204.webp — old keys are left
-// for the bucket's lifecycle rules to expire.
+// for the bucket's lifecycle rules to expire. Keys nest under the share/ prefix so the
+// bucket root stays clean; each path segment is sanitized individually, so nothing in
+// the route can escape the prefix (e.g. ".." becomes "__").
 export function shareImageCacheKey(thumbnailPath: string, etag: string): string {
-	const path = thumbnailPath.replace(/\/+$/, "").replace(/[^\w.-]+/g, "_");
+	const path = thumbnailPath
+		.split("/")
+		.map((segment) => segment.replace(/[^\w.-]+/g, "_").replace(/^\.+$/, "_"))
+		.filter(Boolean)
+		.join("/");
 	const tag = etag.replace(/[^\w.-]+/g, "");
-	return `share${path}.${tag}.webp`;
+	return `share/${path}.${tag}.webp`;
 }
 
 function client(): S3Client {
