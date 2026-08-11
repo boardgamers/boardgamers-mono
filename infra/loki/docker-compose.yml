@@ -41,7 +41,7 @@ services:
     command: -config.file=/etc/promtail/config.yaml
 
   grafana:
-    image: docker.io/grafana/grafana:11.0.0
+    image: docker.io/grafana/grafana:12.4.8
     container_name: bgs-grafana
     restart: unless-stopped
     mem_limit: 1g
