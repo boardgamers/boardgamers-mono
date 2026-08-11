@@ -116,13 +116,22 @@ describe("auth endpoint rate limiting (#195)", () => {
 		Object.assign(env.authRateLimit, { windowMs: 300, maxPerIp: 2, maxPerEmail: 100_000 });
 		const ip = fromIp();
 		const attempt = () => post("/api/account/login", { email: registeredEmail, password: "wrong" }, ip);
+		// Windows align to wall-clock multiples of windowMs: landing the first
+		// attempts near the end of one would let the window roll before the 429
+		// assertion. Wait for a fresh window so the whole burst lands inside it.
+		const waitForFreshWindow = () =>
+			new Promise<void>((resolve) => {
+				const delay = env.authRateLimit.windowMs - (Date.now() % env.authRateLimit.windowMs) + 20;
+				setTimeout(resolve, delay);
+			});
 
 		try {
+			await waitForFreshWindow();
 			assert.strictEqual((await attempt()).status, 401);
 			assert.strictEqual((await attempt()).status, 401);
 			assert.strictEqual((await attempt()).status, 429);
 
-			await new Promise((resolve) => setTimeout(resolve, 350));
+			await waitForFreshWindow();
 			assert.strictEqual((await attempt()).status, 401);
 		} finally {
 			Object.assign(env.authRateLimit, saved);
