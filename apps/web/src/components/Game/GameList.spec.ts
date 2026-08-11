@@ -7,9 +7,10 @@
 // - #236: the relative-time labels ("created X ago", "last activity X ago",
 //   "⏱ Xh left") were computed against a `now` frozen at component init, so a
 //   refresh couldn't move them — a (re)load must refresh `now` and recompute
-//   the labels. This is only observable via lastActivity/turnTimeLeft, which read
-//   `now` (the open row's "created X ago" reads Date.now() live, so it updates on
-//   any re-render regardless) — both render in the "active" branch.
+//   the labels. All three labels now read the reactive `now`; the test exercises
+//   the active branch's lastActivity/turnTimeLeft, which read `now` even before the
+//   fix (the open row's "created X ago" read Date.now() live then, so it couldn't
+//   show the freeze).
 //
 // The #204 lists use gameStatus "open" (the "active" branch renders a `Badge`,
 // which crashes in this jsdom/svelte mount environment); the #236 test uses
@@ -171,12 +172,12 @@ describe("GameList refresh on $logoClicks (#204)", () => {
 
 	it("a reload refreshes the relative-time labels (#236)", async () => {
 		// The "ago"/"left" labels read `now`, which used to be a constant captured at
-		// component init — so a reload re-rendered but the labels stayed frozen. The
-		// open row's "created X ago" can't show this (it reads Date.now() live, so it
-		// updates on any re-render), so this test uses an active game: both
-		// "last activity X ago" (lastActivity) and "⏱ Xh left" (turnTimeLeft) read `now`.
-		// Fake timers pin the clock; time only moves via explicit setSystemTime (a
-		// vi.waitFor poll would auto-advance it and mask the frozen-`now` bug).
+		// component init — so a reload re-rendered but the labels stayed frozen. This
+		// test uses an active game because lastActivity and turnTimeLeft read `now` even
+		// before the fix (the open row's "created X ago" read Date.now() live then, so it
+		// couldn't show the freeze). Fake timers pin the clock; time only moves via
+		// explicit setSystemTime (a vi.waitFor poll would auto-advance it and mask the
+		// frozen-`now` bug).
 		const T0 = 1_800_000_000_000;
 		vi.useFakeTimers({ now: T0 });
 		try {
