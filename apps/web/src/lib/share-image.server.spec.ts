@@ -133,10 +133,15 @@ describe("shareImageResponse S3 cache", () => {
 		send = vi.fn();
 		// page.goto's internal navigation hits the (absent) render origin via fetch.
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("<html></html>")));
-		// Fresh fake Chromium page per render: screenshot yields the fixed PNG.
+		// Fresh fake Chromium page per render: screenshot yields the fixed PNG; goto
+		// resolves to a 2xx navigation response (renderWebp refuses to screenshot a
+		// non-2xx card page).
 		newPage.mockReset();
 		newPage.mockResolvedValue({
-			goto: vi.fn().mockResolvedValue(null),
+			// goto resolves to a 2xx navigation response (renderWebp refuses to screenshot
+			// a non-2xx card page). Only status()/ok() are used, like Playwright's Response.
+			goto: vi.fn().mockResolvedValue({ status: () => 200, ok: () => true }),
+			setExtraHTTPHeaders: vi.fn().mockResolvedValue(undefined),
 			screenshot: vi.fn().mockResolvedValue(png),
 			close: vi.fn().mockResolvedValue(undefined),
 		});
@@ -277,5 +282,57 @@ describe("shareImageResponse S3 cache", () => {
 		expect(res.headers.get("Content-Type")).toBe("image/webp");
 		expect(res.headers.get("ETag")).toBe(etag);
 		expect(send).not.toHaveBeenCalled();
+	});
+
+	it("sends a loopback x-forwarded-for on the internal render navigation", async () => {
+		// Prod runs adapter-node with ADDRESS_HEADER=x-forwarded-for, which throws when
+		// the header is absent — and the direct loopback render has no nginx to add it.
+		const res = await shareImageResponse(path, etag, null);
+
+		expect(res.status).toBe(200);
+		const page = await newPage.mock.results.at(-1)?.value;
+		expect(page.setExtraHTTPHeaders).toHaveBeenCalledWith({ "x-forwarded-for": "127.0.0.1" });
+	});
+
+	it("does NOT screenshot or store when the thumbnail page returns a non-2xx status", async () => {
+		enableS3(send);
+		// Cold cache (HeadObject misses), then the card page 500s.
+		send.mockRejectedValueOnce(Object.assign(new Error("nope"), { name: "NotFound" }));
+		newPage.mockResolvedValue({
+			goto: vi.fn().mockResolvedValue({ status: () => 500, ok: () => false }),
+			setExtraHTTPHeaders: vi.fn().mockResolvedValue(undefined),
+			screenshot: vi.fn().mockResolvedValue(png),
+			close: vi.fn().mockResolvedValue(undefined),
+		});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		// SvelteKit's error(503) is an HttpError with a .status — assert the rejection.
+		await expect(shareImageResponse(path, etag, null)).rejects.toMatchObject({ status: 503 });
+
+		const page = await newPage.mock.results.at(-1)?.value;
+		expect(page.screenshot).not.toHaveBeenCalled();
+		// Only the cold-cache GetObject miss ran — the render threw before any PutObject.
+		expect(send).toHaveBeenCalledTimes(1);
+		expect(send.mock.calls[0][0].constructor.name).toBe("GetObjectCommand");
+		errSpy.mockRestore();
+	});
+
+	it("does NOT screenshot or store when the navigation yields no response", async () => {
+		enableS3(send);
+		send.mockRejectedValueOnce(Object.assign(new Error("nope"), { name: "NotFound" }));
+		newPage.mockResolvedValue({
+			goto: vi.fn().mockResolvedValue(null),
+			setExtraHTTPHeaders: vi.fn().mockResolvedValue(undefined),
+			screenshot: vi.fn().mockResolvedValue(png),
+			close: vi.fn().mockResolvedValue(undefined),
+		});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await expect(shareImageResponse(path, etag, null)).rejects.toMatchObject({ status: 503 });
+
+		const page = await newPage.mock.results.at(-1)?.value;
+		expect(page.screenshot).not.toHaveBeenCalled();
+		expect(send).toHaveBeenCalledTimes(1);
+		errSpy.mockRestore();
 	});
 });

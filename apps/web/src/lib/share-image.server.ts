@@ -116,8 +116,21 @@ function loopbackAddress(host: string | undefined): string {
 async function renderWebp(path: string): Promise<Buffer> {
 	const b = await getBrowser();
 	const page = await b.newPage({ viewport: { width: 1200, height: 630 } });
+	// The render hits our own http loopback directly (no nginx), so it carries no
+	// x-forwarded-for. Prod sets ADDRESS_HEADER=x-forwarded-for, and adapter-node THROWS
+	// when that header is absent — so without this the internal /thumbnail render 500s.
+	// 127.0.0.1 is genuinely correct (the request IS the loopback) and, with XFF_DEPTH=1
+	// (rightmost entry wins), a single loopback value resolves to a loopback client IP.
+	await page.setExtraHTTPHeaders({ "x-forwarded-for": "127.0.0.1" });
 	try {
-		await page.goto(`${renderOrigin()}${path}`, { waitUntil: "networkidle", timeout: 10_000 });
+		const response = await page.goto(`${renderOrigin()}${path}`, { waitUntil: "networkidle", timeout: 10_000 });
+		// Never cache an error thumbnail: a non-2xx card (e.g. a 500) screenshotted here
+		// would be stored under the etag key and served forever. Throw instead so the
+		// request 503s (same as a missing Chromium) and nothing is written to S3. A null
+		// response means the navigation never produced one — also not renderable.
+		if (!response || !response.ok()) {
+			throw new Error(`thumbnail render target returned ${response ? response.status() : "no response"} for ${path}`);
+		}
 		// Clip to the card exactly: any stray page margin must not leak into the image.
 		const png = await page.screenshot({ type: "png", timeout: 10_000, clip: { x: 0, y: 0, width: 1200, height: 630 } });
 		return await sharp(png).webp({ quality: 80 }).toBuffer();

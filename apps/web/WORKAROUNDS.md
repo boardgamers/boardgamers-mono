@@ -25,6 +25,14 @@ real `process.env` values still win, so PM2-injected vars take precedence. Do NO
 commit them to `ecosystem.config.cjs`, which is git-tracked. Locally the same
 `apps/web/.env` works, or just export the vars.
 
+Two render-path constraints (in `share-image.server.ts#renderWebp`): the internal
+Chromium navigation sends a loopback `x-forwarded-for: 127.0.0.1` because prod runs
+adapter-node with `ADDRESS_HEADER=x-forwarded-for`, which **throws** when the header is
+absent — and the direct loopback render has no nginx to add it (a cold render would
+otherwise 500). And the render refuses to screenshot/cache a non-2xx card page: an
+error card cached under the etag key would be served forever, so a non-2xx (or a null
+navigation response) throws and the request 503s like a missing Chromium instead.
+
 ## `IconStub.svelte` test stub for `$props()` rest-spread leaf components
 
 Leaf components that spread `$props()` rest (`let { ...rest } = $props()` + `{...rest}`
