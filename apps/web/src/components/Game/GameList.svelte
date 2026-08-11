@@ -43,6 +43,9 @@
 	let count = $state(0);
 	let currentPage = $state(0);
 	let games = $state<GameFront[]>([]);
+	// Refreshed on each list (re)load so the relative-time labels ("last activity X
+	// ago", "⏱ Xh left", "created X ago") recompute on a refresh; static between loads.
+	let now = $state(Date.now());
 
 	const load = defer(
 		(refetchCount: boolean, bypassCache = false) => {
@@ -63,6 +66,7 @@
 			});
 
 			const handleResult = (result: LoadGamesResult) => {
+				now = Date.now();
 				games = result.games;
 
 				if (fetchCount) {
@@ -122,11 +126,6 @@
 	// text on a 390px-wide screen with a 6-player game.
 	const MOBILE_AVATARS_LIMIT = 5;
 
-	// No live re-render: "⏱ Xh left" / "last activity" are computed once per load
-	// and go stale while the list stays open. Revisit with a 1s ticker (cheap but
-	// re-renders constantly) or backend-pushed refreshes.
-	const now = Date.now();
-
 	// lastMove/createdAt are optional — fall back to "just now" when both are missing.
 	function lastActivity(game: GameFront): string {
 		const ts = new Date(game.lastMove ?? game.createdAt ?? now).getTime() || now;
@@ -145,7 +144,7 @@
 		if (deadlines.length === 0) {
 			return null;
 		}
-		return Math.floor((Math.min(...deadlines) - Date.now()) / 1000);
+		return Math.floor((Math.min(...deadlines) - now) / 1000);
 	}
 
 	// "Act soon": it's the viewer's turn and the turn deadline is close. Only when
@@ -320,7 +319,7 @@
 								{:else}
 									<div class="me-3 text-right" style="line-height: 1.1;">
 										<small class="text-gray-500 dark:text-gray-400">
-											{shortDuration(Math.floor((Date.now() - new Date(game.createdAt ?? "").getTime()) / 1000))} ago
+											{shortDuration(Math.floor((now - new Date(game.createdAt ?? "").getTime()) / 1000))} ago
 										</small>
 									</div>
 								{/if}

@@ -1,13 +1,20 @@
-// Regression test for issue #204: bumping `logoClicks` (the "BGS" logo, the
-// active game in the sidebar, an avatar save) must make GameList refetch with a
-// cache bypass — before the fix, the effect re-ran `load(true)` but the games
-// cache served the stale entry and the list never updated. A filter change, in
-// contrast, keeps using the cache.
+// Regression tests for issues #204 and #236:
+// - #204: bumping `logoClicks` (the "BGS" logo, the active game in the sidebar,
+//   an avatar save) must make GameList refetch with a cache bypass — before the
+//   fix, the effect re-ran `load(true)` but the games cache served the stale
+//   entry and the list never updated. A filter change, in contrast, keeps using
+//   the cache.
+// - #236: the relative-time labels ("created X ago", "last activity X ago",
+//   "⏱ Xh left") were computed against a `now` frozen at component init, so a
+//   refresh couldn't move them — a (re)load must refresh `now` and recompute
+//   the labels. This is only observable via lastActivity/turnTimeLeft, which read
+//   `now` (the open row's "created X ago" reads Date.now() live, so it updates on
+//   any re-render regardless) — both render in the "active" branch.
 //
-// The lists use gameStatus "open" because the "active" branch renders a `Badge`,
-// which crashes in this jsdom/svelte mount environment (a test-env limitation,
-// unrelated to the cache logic under test). The open/active code paths share the
-// same loadGames + $logoClicks handling, so behavior coverage is identical.
+// The #204 lists use gameStatus "open" (the "active" branch renders a `Badge`,
+// which crashes in this jsdom/svelte mount environment); the #236 test uses
+// "active" and stubs Badge instead. The open/active code paths share the same
+// loadGames + $logoClicks handling, so behavior coverage is identical.
 import { flushSync, mount, unmount } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,6 +24,13 @@ vi.mock("@/lib/api", () => ({ get: vi.fn() }));
 vi.mock("@/components/icons/IconClockHistory.svelte", async () => ({
 	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
 }));
+// Badge (rendered on the "active" branch) also crashes on its `{...rest}` spread in
+// jsdom; stub it so the #236 test can mount an active list. Pagination/Loading are
+// kept real.
+vi.mock("@/modules/cdk", async () => {
+	const actual = await vi.importActual<typeof import("@/modules/cdk")>("@/modules/cdk");
+	return { ...actual, Badge: (await import("@/lib/__mocks__/BadgeStub.svelte")).default };
+});
 
 import { get } from "@/lib/api";
 import { clearGamesCache, loadGames } from "@/lib/games.svelte";
@@ -50,6 +64,17 @@ function gameIds(target: HTMLElement): string[] {
 
 async function waitForGames(target: HTMLElement, ids: string[]) {
 	await vi.waitFor(() => expect(gameIds(target)).toEqual(ids));
+}
+
+// Settle the loadGames promise chain + Svelte's reactive flush without touching the
+// (fake) clock — a vi.waitFor poll would auto-advance fake timers and mask the
+// frozen-`now` bug under test. The chain is promise-only (no timers), so a handful of
+// microtask turns + a final flushSync() is deterministic.
+async function flushMicrotasks() {
+	for (let i = 0; i < 10; i++) {
+		await Promise.resolve();
+	}
+	flushSync();
 }
 
 function mountList(props: Record<string, unknown> = {}) {
@@ -142,5 +167,55 @@ describe("GameList refresh on $logoClicks (#204)", () => {
 		await waitForGames(target, ["g-old"]);
 		expect(getMock.mock.calls.length).toBe(before + 2);
 		unmount(instance as never);
+	});
+
+	it("a reload refreshes the relative-time labels (#236)", async () => {
+		// The "ago"/"left" labels read `now`, which used to be a constant captured at
+		// component init — so a reload re-rendered but the labels stayed frozen. The
+		// open row's "created X ago" can't show this (it reads Date.now() live, so it
+		// updates on any re-render), so this test uses an active game: both
+		// "last activity X ago" (lastActivity) and "⏱ Xh left" (turnTimeLeft) read `now`.
+		// Fake timers pin the clock; time only moves via explicit setSystemTime (a
+		// vi.waitFor poll would auto-advance it and mask the frozen-`now` bug).
+		const T0 = 1_800_000_000_000;
+		vi.useFakeTimers({ now: T0 });
+		try {
+			const game = {
+				_id: "g-active",
+				status: "active",
+				players: [{ _id: "u1" }, { _id: "u2" }],
+				currentPlayers: [{ _id: "u1", deadline: new Date(T0 + 2 * 3600 * 1000).toISOString() }],
+				lastMove: new Date(T0 - 10 * 60 * 1000).toISOString(),
+				createdAt: new Date(T0 - 60 * 60 * 1000).toISOString(),
+				game: { name: "g-active-game" },
+				options: {
+					setup: { nbPlayers: 2 },
+					timing: { timer: { start: 0, end: 0 }, timePerGame: 86400, timePerMove: 3600 },
+				},
+			} as never;
+			mockApi([game], 1);
+
+			const target = document.createElement("div");
+			document.body.appendChild(target);
+			const instance = mount(GameList as never, { target, props: { gameStatus: "active", userId: "u1" } });
+			flushSync();
+			await flushMicrotasks();
+			const row = () => target.querySelector(".game-item")?.textContent?.replace(/\s+/g, " ") ?? "";
+			expect(row()).toContain("10 minutes ago");
+			expect(row()).toContain("2h left");
+
+			// Time passes; lastMove/deadline don't move. A logo-click refresh must
+			// recompute the labels against the new time (before the fix they stayed frozen).
+			vi.setSystemTime(T0 + 60 * 60 * 1000);
+			logoClick();
+			flushSync();
+			await flushMicrotasks();
+			expect(row()).toContain("1h 10m ago");
+			expect(row()).toContain("1h left");
+
+			unmount(instance as never);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });
