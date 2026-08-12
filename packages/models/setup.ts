@@ -9,6 +9,7 @@ import {
 	chatMessagesCollectionOptions,
 	chatMessageSchema,
 } from "./chatmessage.ts";
+import { FORUM_USER_LINKS_COLLECTION, forumUserLinkIndexes, forumUserLinkSchema } from "./forumuserlink.ts";
 import { GAMES_COLLECTION, gameIndexes, gameSchema } from "./game.ts";
 import { GAME_INFOS_COLLECTION, gameInfoSchema } from "./gameinfo.ts";
 import { GAME_NOTIFICATIONS_COLLECTION, gameNotificationIndexes, gameNotificationSchema } from "./gamenotification.ts";
@@ -458,6 +459,7 @@ export async function reconcileIndexes(
 
 export const declaredIndexes: [string, IndexDescription[]][] = [
 	[ADMIN_TOKENS_COLLECTION, adminTokenIndexes],
+	[FORUM_USER_LINKS_COLLECTION, forumUserLinkIndexes],
 	[GAMES_COLLECTION, gameIndexes],
 	[USERS_COLLECTION, userIndexes],
 	[API_ERRORS_COLLECTION, apiErrorIndexes],
@@ -530,6 +532,7 @@ export async function ensureValidation(db: Db) {
 		[API_ERRORS_COLLECTION, apiErrorSchema],
 		[CHANGELOGS_COLLECTION, changelogSchema],
 		[CHAT_MESSAGES_COLLECTION, chatMessageSchema],
+		[FORUM_USER_LINKS_COLLECTION, forumUserLinkSchema],
 		[GAMES_COLLECTION, gameSchema],
 		[GAME_INFOS_COLLECTION, gameInfoSchema],
 		[GAME_NOTIFICATIONS_COLLECTION, gameNotificationSchema],

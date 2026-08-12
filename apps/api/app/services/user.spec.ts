@@ -30,11 +30,17 @@ describe("cleanupDeadUsers", () => {
 	const oauthUserId = new ObjectId();
 	const staleOauthUserId = new ObjectId();
 	const forumPosterId = new ObjectId();
-	// A forum user with a linked account but no posts (no content) → not protected by
-	// the forum check (but still protected if they have an OAuth consent — not set here).
+	// A forum user with a linked account but no posts → still kept (any forum
+	// account protects, poster or not).
 	const forumLurkerId = new ObjectId();
 	const forumPosterUid = 42;
 	const forumLurkerUid = 43;
+	// Legacy forum users linked only via the bgs-side forumUserLinks backfill (NOT
+	// NodeBB's OAuth-era boardgamersId:uid map): poster or not → kept.
+	const legacyPosterId = new ObjectId();
+	const legacyLurkerId = new ObjectId();
+	const legacyPosterUid = 147;
+	const legacyLurkerUid = 148;
 	// Only a recent security.lastSeen (e.g. bumped by an OAuth authorize) → kept.
 	const lastSeenUserId = new ObjectId();
 
@@ -66,24 +72,32 @@ describe("cleanupDeadUsers", () => {
 			testUser({ _id: staleOauthUserId, createdAt: old, security: noActivity }),
 			// No site activity, no OAuth — but a forum post (content) → kept.
 			testUser({ _id: forumPosterId, createdAt: old, security: noActivity }),
-			// No site activity, no OAuth, a forum account but no posts → still dead.
+			// No site activity, no OAuth, a forum account but no posts → still kept
+			// (any forum account protects, poster or not).
 			testUser({ _id: forumLurkerId, createdAt: old, security: noActivity }),
+			// No site activity, no OAuth, no OAuth-era link — but a forumUserLinks
+			// backfill entry (legacy session-sharing account) → kept, posts or not.
+			testUser({ _id: legacyPosterId, createdAt: old, security: noActivity }),
+			testUser({ _id: legacyLurkerId, createdAt: old, security: noActivity }),
 			// No other activity, but a recent security.lastSeen (e.g. an OAuth authorize
 			// bumped it) → excluded by the candidate filter itself.
 			testUser({ _id: lastSeenUserId, createdAt: old, security: { ...noActivity, lastSeen: new Date() } }),
 		]);
-		// Simulated NodeBB `objects` docs: the bgs→forum-uid link plus the posters set.
+		// Simulated NodeBB `objects` doc: the OAuth-era bgs→forum-uid link. The
+		// cleanup never reads posts — link existence alone protects.
 		await db()
 			.collection("objects")
-			.insertMany([
-				{
-					_key: "boardgamersId:uid",
-					[forumPosterId.toHexString()]: forumPosterUid,
-					[forumLurkerId.toHexString()]: forumLurkerUid,
-				},
-				// forumPoster has posted; forumLurker has no `uid:<uid>:posts` doc.
-				{ _key: `uid:${forumPosterUid}:posts`, members: ["1001"], score: [1] },
-			]);
+			.insertOne({
+				_key: "boardgamersId:uid",
+				[forumPosterId.toHexString()]: forumPosterUid,
+				[forumLurkerId.toHexString()]: forumLurkerUid,
+			});
+		// The bgs-side link backfill (legacy session-sharing accounts): _id = bgs
+		// user id → forumUid. Deliberately absent from boardgamersId:uid above.
+		await colls.forumUserLinks.insertMany([
+			{ _id: legacyPosterId, forumUid: legacyPosterUid },
+			{ _id: legacyLurkerId, forumUid: legacyLurkerUid },
+		]);
 		await colls.oauthConsents.insertMany([
 			{
 				userId: oauthUserId,
@@ -133,6 +147,8 @@ describe("cleanupDeadUsers", () => {
 			staleOauthUserId,
 			forumPosterId,
 			forumLurkerId,
+			legacyPosterId,
+			legacyLurkerId,
 		]) {
 			assert.ok(ids.includes(expected.toString()), `expected ${expected.toString()} to be a candidate`);
 		}
@@ -147,11 +163,11 @@ describe("cleanupDeadUsers", () => {
 		assert.ok(!dead.some((u) => u._id!.equals(lastSeenUserId)), "a recent lastSeen must keep the user");
 	});
 
-	it("findDeadUsers only keeps users with no games, no created games, no chat, no OAuth trace, no forum content", async () => {
+	it("findDeadUsers only keeps users with no games, no created games, no chat, no OAuth trace, no forum account", async () => {
 		const dead = await findDeadUsers(cutoff, 50);
 		assert.deepEqual(
 			dead.map((u) => u._id!.toString()).sort(),
-			[deadUserId.toString(), secondDeadUserId.toString(), forumLurkerId.toString()].sort(),
+			[deadUserId.toString(), secondDeadUserId.toString()].sort(),
 		);
 	});
 
@@ -165,16 +181,29 @@ describe("cleanupDeadUsers", () => {
 		assert.ok(!dead.some((u) => u._id!.equals(staleOauthUserId)), "even a stale OAuth consent must protect the user");
 	});
 
-	it("a user with forum content (a post) but no site activity is not cleaned up", async () => {
+	it("a user with a forum account (OAuth-era boardgamersId:uid link) but no site activity is not cleaned up", async () => {
 		const dead = await findDeadUsers(cutoff, 50);
-		assert.ok(!dead.some((u) => u._id!.equals(forumPosterId)), "a forum post must count as content");
+		assert.ok(!dead.some((u) => u._id!.equals(forumPosterId)), "any forum account must protect");
 	});
 
-	it("a forum user with a linked account but no posts is still dead (content, not connection)", async () => {
+	it("an OAuth-linked forum account is kept even with zero posts (connection, not content)", async () => {
 		const dead = await findDeadUsers(cutoff, 50);
 		assert.ok(
-			dead.some((u) => u._id!.equals(forumLurkerId)),
-			"a forum account without posts must not protect",
+			!dead.some((u) => u._id!.equals(forumLurkerId)),
+			"a linked forum account without posts must still protect",
+		);
+	});
+
+	it("a legacy forum account linked only via the bgs-side forumUserLinks backfill is kept", async () => {
+		const dead = await findDeadUsers(cutoff, 50);
+		assert.ok(!dead.some((u) => u._id!.equals(legacyPosterId)), "a forumUserLinks entry must protect");
+	});
+
+	it("a forumUserLinks entry protects even with zero posts on the forum account", async () => {
+		const dead = await findDeadUsers(cutoff, 50);
+		assert.ok(
+			!dead.some((u) => u._id!.equals(legacyLurkerId)),
+			"a linked legacy forum account without posts must still protect",
 		);
 	});
 
@@ -242,6 +271,9 @@ describe("cleanupDeadUsers", () => {
 			oauthUserId,
 			staleOauthUserId,
 			forumPosterId,
+			forumLurkerId,
+			legacyPosterId,
+			legacyLurkerId,
 			lastSeenUserId,
 		]) {
 			assert.ok(await colls.users.findOne({ _id: kept }), `expected ${kept.toString()} to be kept`);

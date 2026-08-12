@@ -10,6 +10,8 @@ import {
 	CHAT_MESSAGES_COLLECTION,
 	type DeletedUserDoc,
 	DELETED_USERS_COLLECTION,
+	type ForumUserLinkDoc,
+	FORUM_USER_LINKS_COLLECTION,
 	type GameDoc,
 	GAMES_COLLECTION,
 	type GameInfoDoc,
@@ -64,6 +66,7 @@ export const colls = {} as {
 	changelogs: Collection<ChangelogDoc>;
 	chatMessages: Collection<ChatMessageDoc>;
 	deletedUsers: Collection<DeletedUserDoc>;
+	forumUserLinks: Collection<ForumUserLinkDoc>;
 	games: Collection<GameDoc>;
 	gameInfos: Collection<GameInfoDoc>;
 	gameNotifications: Collection<GameNotificationDoc>;
@@ -88,6 +91,7 @@ function initColls(database: Db) {
 		changelogs: withAutoUpdatedAt(database.collection<ChangelogDoc>(CHANGELOGS_COLLECTION)),
 		chatMessages: database.collection<ChatMessageDoc>(CHAT_MESSAGES_COLLECTION),
 		deletedUsers: database.collection<DeletedUserDoc>(DELETED_USERS_COLLECTION),
+		forumUserLinks: database.collection<ForumUserLinkDoc>(FORUM_USER_LINKS_COLLECTION),
 		games: withAutoUpdatedAt(database.collection<GameDoc>(GAMES_COLLECTION)),
 		gameInfos: withAutoUpdatedAt(database.collection<GameInfoDoc>(GAME_INFOS_COLLECTION)),
 		gameNotifications: withAutoUpdatedAt(database.collection<GameNotificationDoc>(GAME_NOTIFICATIONS_COLLECTION)),

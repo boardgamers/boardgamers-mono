@@ -47,6 +47,10 @@ export {
 export type { GamePreferencesDoc, GamePreferencesFront } from "./gamepreferences.ts";
 export { gamePreferencesSchema, GAME_PREFERENCES_COLLECTION, gamePreferencesIndexes } from "./gamepreferences.ts";
 
+// --- Forum User Link (bgs user → NodeBB uid, backfilled out-of-band) ---
+export type { ForumUserLinkDoc } from "./forumuserlink.ts";
+export { forumUserLinkSchema, FORUM_USER_LINKS_COLLECTION, forumUserLinkIndexes } from "./forumuserlink.ts";
+
 // --- Image ---
 export type { ImageDoc } from "./image.ts";
 export { imageSchema, IMAGES_COLLECTION, imageIndexes } from "./image.ts";
