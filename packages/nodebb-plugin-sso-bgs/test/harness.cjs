@@ -14,6 +14,12 @@
  *    hook priority order (10 stock → 12 shim), string `opts.state` set from
  *    `req.session.ssoState` unless the descriptor has `checkState === false`,
  *    and the callback's ssoState equality gate.
+ *  - `@nodebb/spider-detector` 2.0.3 (the exact package + version core mounts
+ *    in webserver.js) — run for every harness request so `req.isSpider()` is
+ *    faithful, and injected for the shim's own UA-detection fallback.
+ *  - the app-level page middleware the shim mounts from `static:app.load`
+ *    (silent SSO): env.appLoad() runs the hook against a mock express `app`,
+ *    and env.page(path, opts) drives a request through the mounted stack.
  *  - the shim under test: `library.js`, loaded via a NodeBB-style sandbox
  *    (`nodebb.require` global, like NodeBB's own loader).
  *
@@ -58,9 +64,32 @@ const db = {
 	},
 };
 
-const nconfValues = { url: "https://forum.boardgamers.space" };
+const nconfValues = { url: "https://forum.boardgamers.space", relative_path: "" };
 const nconf = {
 	get: (key) => nconfValues[key],
+};
+
+// src/meta — only `Meta.configs.cookie.get()` is used (by the silent-login
+// cooldown cookie). Verbatim semantics of core's Configs.cookie.get().
+const meta = {
+	configs: {
+		cookie: {
+			get: () => {
+				const cookie = {};
+				if (nconf.get("cookieDomain")) {
+					cookie.domain = nconf.get("cookieDomain");
+				}
+				if (nconf.get("secure")) {
+					cookie.secure = true;
+				}
+				if (nconf.get("relative_path")) {
+					cookie.path = nconf.get("relative_path");
+				}
+				cookie.sameSite = "Lax";
+				return cookie;
+			},
+		},
+	},
 };
 
 const logs = [];
@@ -75,8 +104,10 @@ const authenticationController = {
 	async onSuccessfulLogin() {},
 };
 
-// Minimal filter-hook registry with NodeBB semantics: default priority 10,
-// ascending sort, filter hooks chained through each listener in order.
+// Minimal hook registry with NodeBB semantics: default priority 10, ascending
+// sort. FILTER hooks are chained through each listener in order; STATIC hooks
+// (e.g. static:app.load) are fired in parallel for side effects and their
+// return value is ignored (NodeBB fires them via Promise.all, not chained).
 function makePlugins() {
 	const hooks = new Map();
 	return {
@@ -87,8 +118,13 @@ function makePlugins() {
 				hooks.get(data.hook).sort((a, b) => a.priority - b.priority);
 			},
 			async fire(hook, params) {
+				const entries = hooks.get(hook) || [];
+				if (hook.startsWith("static:")) {
+					await Promise.all(entries.map((entry) => entry.method(params)));
+					return params;
+				}
 				let result = params;
-				for (const entry of hooks.get(hook) || []) {
+				for (const entry of entries) {
 					result = await entry.method(result);
 				}
 				return result;
@@ -202,6 +238,11 @@ function loadShim(env, stockOAuth) {
 		if (spec === "passport") {
 			return env.passport;
 		}
+		if (spec === "@nodebb/spider-detector") {
+			// Same package+version NodeBB 4.14 core mounts (webserver.js) — the
+			// shim's UA-detection fallback behaves exactly like core's.
+			return depsRequire("@nodebb/spider-detector");
+		}
 		return createRequire(shimPath)(spec);
 	};
 
@@ -215,6 +256,9 @@ function loadShim(env, stockOAuth) {
 			}
 			if (spec === "./src/plugins") {
 				return plugins;
+			}
+			if (spec === "./src/meta") {
+				return meta;
 			}
 			if (spec === "./src/controllers/authentication") {
 				return authenticationController;
@@ -233,7 +277,9 @@ function loadShim(env, stockOAuth) {
 		module,
 		exports: module.exports,
 		__dirname: path.dirname(shimPath),
+		URL,
 		URLSearchParams,
+		Date,
 		fetch,
 		console,
 	};
@@ -269,11 +315,20 @@ function loadShim(env, stockOAuth) {
 
 function makeEnv() {
 	const passport = depsRequire("passport");
+	// Stand-in for the express app passed to `static:app.load`: the shim mounts
+	// the silent-login page middleware on it via app.use.
+	const app = {
+		middleware: [],
+		use(fn) {
+			this.middleware.push(fn);
+		},
+	};
 	const env = {
 		passport,
 		plugins: makePlugins(),
 		db,
 		loginStrategies: [],
+		app,
 	};
 	env.stockOAuth = makeStockPlugin(env);
 	env.plugins.hooks.register("nodebb-plugin-sso-oauth2-multiple", {
@@ -281,6 +336,14 @@ function makeEnv() {
 		method: env.stockOAuth.loadStrategies,
 	});
 	env.shim = loadShim(env, env.stockOAuth);
+
+	// Core fires static:app.load (with {app, router, ...}) at boot/reload; the
+	// shim's appLoad hook mounts silentLoginPageMiddleware on the app and its
+	// init hook serves the CIMD doc on the router.
+	env.appLoad = async () => {
+		const router = { get() {}, use() {} };
+		await env.plugins.hooks.fire("static:app.load", { app, router });
+	};
 
 	// core reloadRoutes: clears the array, fires filter:auth.init once,
 	// registers routes per descriptor.
@@ -295,43 +358,172 @@ function makeEnv() {
 		return env.loginStrategies;
 	};
 
-	// core kickoff handler (routes/authentication.js L90-107): applyCSRF →
-	// ssoState → filter:auth.options → passport.authenticate(name, opts).
-	env.kickoff = async (url) => {
-		const descriptor = env.routes.get(url);
-		assert.ok(descriptor, `no route for ${url}`);
+	// Minimal express-like request/response factories. `opts`:
+	//   path, method, query, session, cookies, loggedIn, spider, ua, cookieJar
+	function makeReq(opts = {}) {
+		const jar = opts.cookieJar || opts.cookies || {};
+		const session = opts.session || {};
 		const req = {
-			session: {},
-			query: {},
+			path: opts.path || "/",
+			method: opts.method || "GET",
+			query: opts.query || {},
+			session,
+			cookies: { ...jar },
 			connection: { encrypted: true },
-			headers: { host: "forum.boardgamers.space" },
+			headers: {
+				host: "forum.boardgamers.space",
+				"user-agent": opts.ua || "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+			},
+			get(name) {
+				return this.headers[String(name).toLowerCase()];
+			},
 			logIn() {},
 			isAuthenticated: () => false,
 		};
-		let opts = { scope: descriptor.scope, prompt: descriptor.prompt || undefined };
+		// Core's setAuthVars (routes/authentication.js): loggedIn/uid from the
+		// spider check + session user.
+		req.uid = opts.loggedIn ? 1 : opts.spider ? -1 : 0;
+		req.loggedIn = req.uid > 0;
+		// Core mounts @nodebb/spider-detector's middleware before the router —
+		// run the REAL one here so req.isSpider is exactly what core provides.
+		depsRequire("@nodebb/spider-detector").middleware()(req, {}, () => {});
+		if (opts.spider && typeof req.isSpider !== "function") {
+			req.isSpider = () => true;
+		}
+		return req;
+	}
+
+	function makeRes(jar) {
+		const headers = {};
+		const res = {
+			headers,
+			setCookies: [],
+			statusCode: 200,
+			body: undefined,
+			setHeader(key, value) {
+				headers[key.toLowerCase()] = value;
+			},
+			// express res.cookie: record + reflect into the shared cookie jar so
+			// subsequent requests "send" it.
+			cookie(name, value, options) {
+				res.setCookies.push({ name, value, options });
+				jar[name] = value;
+			},
+			clearCookie(name) {
+				delete jar[name];
+			},
+			redirect(url) {
+				res.statusCode = 302;
+				res.headers.location = url;
+				res.body = url;
+				return res;
+			},
+			status(code) {
+				res.statusCode = code;
+				return res;
+			},
+			send(b) {
+				res.body = b;
+				return res;
+			},
+			end() {},
+		};
+		return res;
+	}
+
+	// A normal page GET through the shim's app-level middleware (the one
+	// static:app.load mounts). Returns { statusCode, location, session, cookies,
+	// proceeded } — `proceeded` is true when the middleware called next()
+	// (i.e. did NOT redirect). Core's own page handling is not simulated.
+	env.page = async (path, opts = {}) => {
+		const jar = opts.cookieJar || {};
+		const req = makeReq({ ...opts, path });
+		const res = makeRes(jar);
+		const stack = env.app.middleware;
+		assert.ok(stack.length > 0, "env.appLoad() was not run — no app middleware mounted");
+		let idx = 0;
+		let proceeded = false;
+		const run = () => {
+			if (res.headers.location || res.statusCode === 302) {
+				return;
+			}
+			if (idx >= stack.length) {
+				proceeded = true;
+				return;
+			}
+			const fn = stack[idx++];
+			fn(req, res, (err) => {
+				assert.ifError(err);
+				run();
+			});
+		};
+		run();
+		return {
+			statusCode: res.statusCode,
+			location: res.headers.location || null,
+			session: req.session,
+			cookies: jar,
+			setCookies: res.setCookies,
+			proceeded,
+		};
+	};
+
+	// core kickoff handler (routes/authentication.js L90-107): applyCSRF →
+	// ssoState → filter:auth.options → passport.authenticate(name, opts).
+	env.kickoff = async (url, opts = {}) => {
+		const parsed = new URL(url, "https://forum.boardgamers.space");
+		const descriptor = env.routes.get(parsed.pathname);
+		assert.ok(descriptor, `no route for ${parsed.pathname}`);
+		const jar = opts.cookieJar || {};
+		const req = makeReq({
+			path: parsed.pathname,
+			query: { ...Object.fromEntries(parsed.searchParams), ...(opts.query || {}) },
+			session: opts.session || {},
+			cookieJar: jar,
+			loggedIn: opts.loggedIn,
+			ua: opts.ua,
+		});
+		const res = makeRes(jar);
+		let authOpts = { scope: descriptor.scope, prompt: descriptor.prompt || undefined };
 		if (descriptor.checkState !== false) {
 			req.session.ssoState = "CORE-SSO-STATE-STRING";
-			opts.state = req.session.ssoState;
+			authOpts.state = req.session.ssoState;
 		}
 		// core fires filter:auth.options per kickoff request before authenticate
-		({ opts } = await env.plugins.hooks.fire("filter:auth.options", { req, res: {}, opts }));
-		const { location } = await runAuthenticate(passport, descriptor.name, opts, req);
-		return { location, session: req.session, descriptor };
+		({ opts: authOpts } = await env.plugins.hooks.fire("filter:auth.options", { req, res, opts: authOpts }));
+		if (res.headers.location) {
+			// A hook (the shim's silent-callback gate) ended the response with a
+			// redirect — core's passport.authenticate never runs.
+			return {
+				location: res.headers.location,
+				session: req.session,
+				descriptor,
+				setCookies: res.setCookies,
+				opts: authOpts,
+				skipped: true,
+			};
+		}
+		const { location } = await runAuthenticate(passport, descriptor.name, authOpts, req);
+		return { location, session: req.session, descriptor, setCookies: res.setCookies, opts: authOpts };
 	};
 
 	// core callback handler (routes/authentication.js L110-145): ssoState gate
-	// (unless checkState === false), then passport.authenticate(name, cb).
-	env.callback = async (session, query) => {
-		const descriptor = env.routes.get(`/auth/${query.__name || "boardgamers"}/callback`);
+	// (unless checkState === false), filter:auth.options (the shim's
+	// silent-callback gate), then passport.authenticate(name, cb).
+	env.callback = async (session, query, opts = {}) => {
+		const name = query.__name || "boardgamers";
+		const descriptor = env.routes.get(`/auth/${name}/callback`);
 		assert.ok(descriptor, "no callback route");
-		const req = {
-			session,
+		const jar = opts.cookieJar || {};
+		const req = makeReq({
+			path: `/auth/${name}/callback`,
 			query,
-			connection: { encrypted: true },
-			headers: { host: "forum.boardgamers.space" },
-			logIn() {},
-			isAuthenticated: () => false,
-		};
+			session,
+			cookieJar: jar,
+			loggedIn: opts.loggedIn,
+			ua: opts.ua,
+		});
+		const res = makeRes(jar);
 		if (descriptor.checkState !== false) {
 			assert.strictEqual(
 				query.state,
@@ -339,15 +531,30 @@ function makeEnv() {
 				"core ssoState gate would 403 (checkState descriptor + mismatched state)",
 			);
 		}
-		return new Promise((resolve, reject) => {
+		// fire filter:auth.options (the shim's silent-callback gate lives there)
+		let authOpts = { scope: descriptor.scope };
+		({ opts: authOpts } = await env.plugins.hooks.fire("filter:auth.options", { req, res, opts: authOpts }));
+		if (res.headers.location) {
+			// The silent-callback gate armed the cooldown and bounced — core's
+			// own error handling / passport.authenticate never run.
+			return {
+				redirected: res.headers.location,
+				session: req.session,
+				cookies: jar,
+				setCookies: res.setCookies,
+				gated: true,
+			};
+		}
+		const result = await new Promise((resolve, reject) => {
 			passport.authenticate(descriptor.name, (err, user, info) => {
 				if (err) {
 					reject(err);
 				} else {
 					resolve({ user, info });
 				}
-			})(req, {}, reject);
+			})(req, res, reject);
 		});
+		return { ...result, session: req.session, cookies: jar, setCookies: res.setCookies };
 	};
 
 	return env;

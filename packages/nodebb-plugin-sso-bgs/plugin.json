@@ -6,6 +6,7 @@
 	"library": "./library.js",
 	"hooks": [
 		{ "hook": "static:app.load", "method": "init" },
+		{ "hook": "static:app.load", "method": "appLoad" },
 		{ "hook": "filter:auth.init", "method": "loadStrategies", "priority": 12 },
 		{ "hook": "filter:auth.options", "method": "ensureStrategy" }
 	]

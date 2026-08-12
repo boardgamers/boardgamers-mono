@@ -3,6 +3,7 @@
 const nconf = nodebb.require("nconf");
 const winston = nodebb.require("winston");
 const plugins = nodebb.require("./src/plugins");
+const meta = nodebb.require("./src/meta");
 const authenticationController = nodebb.require("./src/controllers/authentication");
 
 /**
@@ -27,6 +28,27 @@ const authenticationController = nodebb.require("./src/controllers/authenticatio
 const STRATEGY_NAME = "boardgamers";
 const LOGIN_URL = `/auth/${STRATEGY_NAME}`;
 const CALLBACK_URL = `${LOGIN_URL}/callback`;
+
+// --- Silent (passive) SSO -------------------------------------------------
+// Timestamped cookie implementing the silent-login cooldown + explicit-logout
+// suppression: while its value is within SILENT_COOLDOWN_MS, anonymous page
+// GETs do NOT redirect to the provider (no redirect loop for logged-out
+// users, no silent re-login right after an explicit /logout). Its Max-Age is
+// deliberately LONGER than the cooldown window so the cookie itself
+// outlives the cooldown — the browser only stops sending it well after the
+// timestamp already reads as expired.
+const SILENT_COOKIE = "bgs_silent";
+const SILENT_COOLDOWN_MS = 60 * 60 * 1000; // 1 h
+const SILENT_COOKIE_MAX_AGE = 24 * 60 * 60 * 1000; // 1 day
+// Session flag carrying the "this is a silent (prompt=none) round-trip" state
+// from the page middleware through the kickoff to the callback.
+const SILENT_SESSION_FLAG = "bgsSilent";
+
+function silentCookieOptions() {
+	// Same options core uses for its session cookie (Meta.configs.cookie.get):
+	// respects cookieDomain / `secure` / relative_path; SameSite=Lax.
+	return { ...meta.configs.cookie.get(), maxAge: SILENT_COOKIE_MAX_AGE };
+}
 
 // Lazily-built PKCE strategy, cached by its serialized config. Built from the
 // CURRENT db config at request time — see resolveStrategy for why.
@@ -55,6 +77,144 @@ Shim.init = async ({ router }) => {
 			.sendFile("client-metadata.json", { root: `${__dirname}/static` });
 	});
 };
+
+/**
+ * Mount the silent-SSO page middleware. Fires as `static:app.load` (the only
+ * hook receiving the real express `app`, at boot and on every plugin/routes
+ * reload), inserting the middleware BEFORE NodeBB mounts the page router:
+ * every page GET passes through it before any route handler.
+ *
+ * Mounted on `app` (not `router`) precisely because static:app.load fires
+ * BEFORE the page routes exist on `router` — a router.use here would run after
+ * the page handlers (which end the response) and never fire.
+ *
+ * express4 re-mounts a mounted app-level mw on every `app.use(router)` /
+ * Router() acquisition, so a re-fire of this hook would stack duplicates; the
+ * marker property dedupes (idempotent across reloads).
+ */
+Shim.appLoad = async ({ app }) => {
+	if (app._bgsSilentSso) {
+		return;
+	}
+	app._bgsSilentSso = true;
+	app.use(silentLoginPageMiddleware);
+};
+
+/**
+ * Silent (passive) SSO: a logged-out visitor browsing a normal page with an
+ * active boardgamers.space session is auto-logged-in WITHOUT a click, via one
+ * OIDC `prompt=none` round-trip.
+ *
+ * Runs on normal page GETs only, and decides entirely from the request:
+ *  - logged in (`req.uid > 0`) or a spider (`req.isSpider()`, @nodebb/spider-detector
+ *    mounted by core before the router) → skip;
+ *  - not a page request (non-GET method, /api prefix, a path with a file
+ *    extension — assets/uploads) → skip;
+ *  - already on the SSO login/callback path, /login, /logout, or carrying a
+ *    `?logout` marker → skip;
+ *  - cooldown cookie fresh (set by a `prompt=none` failure or an explicit
+ *    logout) → skip.
+ * Otherwise mark the session (`req.session.bgsSilent = true`) and redirect
+ * ONCE to `/auth/boardgamers?silent=1` — the regular kickoff route, which
+ * re-runs passport with the PKCE strategy; our `filter:auth.options` hook
+ * turns that flag into `prompt=none` on the authorize redirect (reusing the
+ * exact PKCE/state machinery the manual button uses). A site session returns
+ * a code → seamless login; a logged-out provider redirects back with
+ * `error=login_required`, which the callback gate (see `ensureStrategy`)
+ * turns into the cooldown cookie.
+ *
+ * `prompt=none` is also what suppresses the provider's consent interstitial
+ * (an interstitial mid-round-trip would defeat "silent"), so a user who
+ * hasn't consented yet gets `error=consent_required` → same cooldown path.
+ */
+function silentLoginPageMiddleware(req, res, next) {
+	try {
+		if (!shouldAttemptSilentLogin(req)) {
+			return next();
+		}
+		req.session = req.session || {};
+		req.session[SILENT_SESSION_FLAG] = true;
+		res.redirect(`${nconf.get("relative_path") || ""}${LOGIN_URL}?silent=1`);
+	} catch (err) {
+		// Never break page rendering because of the silent-SSO shim.
+		winston.warn(`[plugin/sso-bgs] silent-login middleware: ${(err && err.message) || err}`);
+		next();
+	}
+}
+
+function shouldAttemptSilentLogin(req) {
+	// Auth state: req.uid is set by core's setAuthVars (0 = guest, -1 =
+	// spider). Fall back to session/passport if core hasn't populated it.
+	const uid =
+		typeof req.uid === "number" ? req.uid : (req.session && req.session.passport && req.session.passport.user) || 0;
+	if (uid > 0 || req.loggedIn) {
+		return false;
+	}
+	// Bots must never be sent through a redirect dance (SEO + they can't log in).
+	if (uid === -1 || isSpiderRequest(req)) {
+		return false;
+	}
+	if (String(req.method || "GET").toUpperCase() !== "GET") {
+		return false;
+	}
+	// Path checks run on the mount-relative path (core mounts the page router
+	// at relative_path, and our app.use runs before it → req.path is already
+	// the in-app path).
+	const path = String(req.path || "/");
+	if (path === "/api" || path.startsWith("/api/")) {
+		return false;
+	}
+	if (/\.[a-z0-9]{1,8}$/i.test(path)) {
+		return false; // static asset / upload / robots.txt / sitemap.xml / ...
+	}
+	if (path === LOGIN_URL || path === CALLBACK_URL || path === "/login" || path === "/logout") {
+		return false;
+	}
+	const query = req.query || {};
+	if ("logout" in query) {
+		return false; // explicit logout marker — never silently re-log them in
+	}
+	if (silentCooldownActive(req)) {
+		return false;
+	}
+	return true;
+}
+
+function isSpiderRequest(req) {
+	try {
+		if (typeof req.isSpider === "function") {
+			return !!req.isSpider();
+		}
+		// Fallback if core's detector.middleware() hasn't populated req.isSpider
+		// (same package + UA list core uses, so the behaviour is identical).
+		const ua = (req.headers && (req.headers["user-agent"] || req.headers["User-Agent"])) || "";
+		// eslint-disable-next-line global-require
+		return require("@nodebb/spider-detector").isSpider(ua);
+	} catch {
+		return false; // fail open for humans rather than skipping silent SSO entirely
+	}
+}
+
+function silentCooldownActive(req) {
+	const cookies = req.cookies || {};
+	const raw = cookies[SILENT_COOKIE];
+	if (!raw) {
+		return false;
+	}
+	const ts = parseInt(String(raw).replace(/^s:/, ""), 10);
+	if (!Number.isFinite(ts) || ts <= 0) {
+		return false; // malformed cookie → treat as absent
+	}
+	return Date.now() - ts < SILENT_COOLDOWN_MS;
+}
+
+function armSilentCooldown(res) {
+	try {
+		res.cookie(SILENT_COOKIE, String(Date.now()), silentCookieOptions());
+	} catch (err) {
+		winston.warn(`[plugin/sso-bgs] could not set silent-login cooldown cookie: ${(err && err.message) || err}`);
+	}
+}
 
 /**
  * THE fix for the live-forum bug (authorize redirect missing code_challenge).
@@ -119,9 +279,12 @@ function buildWrapper() {
 				}
 				// Strip core's string ssoState (see buildStrategy's override) so the
 				// PKCE session store runs even if the route descriptor didn't set
-				// checkState:false.
+				// checkState:false. An OBJECT state (the silent-SSO marker set by
+				// withPromptNone) is KEPT so it reaches the PKCE store.
 				const opts = { ...options };
-				delete opts.state;
+				if (typeof opts.state === "string") {
+					delete opts.state;
+				}
 				// Thread passport's per-request delegate (`this`, carrying
 				// redirect/success/fail/error/pass) into a target that inherits the
 				// resolved strategy's config, and run the PROTOTYPE authenticate on
@@ -133,7 +296,10 @@ function buildWrapper() {
 						target[m] = this[m];
 					}
 				}
-				return base.call(target, req, opts);
+				// Run the RESOLVED strategy's OWN authenticate (which carries the
+				// string-state strip + the silent-SSO authorizationParams handling) —
+				// NOT the bare prototype, or those overrides would be bypassed.
+				return resolved.authenticate.call(target, req, opts);
 			})
 			.catch((err) => {
 				winston.error(`[plugin/sso-bgs] ${(err && err.stack) || err}`);
@@ -242,16 +408,35 @@ async function buildStrategy(config, key) {
 	// `checkState: false` — and passport-oauth2, given a string state, skips its
 	// PKCE session store entirely (early redirect path), so the `code_verifier`
 	// would never be persisted and the callback couldn't redeem the code. Strip
-	// `options.state` so the PKCE store always runs (it persists the verifier and
-	// mints its own single-use handle as `state`). CSRF is still enforced by
-	// PKCESessionStore.verify on the callback (handle match, single-use). The
-	// shim's own descriptor already carries `checkState: false`, but the stock
-	// plugin's descriptor does NOT — this override makes the strategy correct no
-	// matter which descriptor the core route used.
+	// a STRING `options.state` so the PKCE store always runs (it persists the
+	// verifier and mints its own single-use handle as `state`). CSRF is still
+	// enforced by PKCESessionStore.verify on the callback (handle match,
+	// single-use). The shim's own descriptor already carries `checkState:
+	// false`, but the stock plugin's descriptor does NOT — this override makes
+	// the strategy correct no matter which descriptor the core route used.
+	//
+	// An OBJECT `options.state` is KEPT: it is the silent-SSO round-trip marker
+	// (see `withPromptNone`), which the PKCE store persists as `meta.state`.
 	const base = OAuth2Strategy.prototype.authenticate;
 	inner.authenticate = function (req, options) {
 		const opts = { ...options };
-		delete opts.state;
+		if (typeof opts.state === "string") {
+			delete opts.state;
+		}
+		// Silent SSO: honour a per-request `authorizationParams` (set by
+		// withPromptNone). passport-oauth2's stock authorizationParams returns {}
+		// and the authorize URL is built ONLY from `this.authorizationParams(opts)`
+		// + whitelisted params — so set an own `authorizationParams` on the
+		// request's `this` (the wrapper's per-request delegate) to add prompt=none.
+		// Then DELETE the opts key (and `opts.prompt`, now consumed) so the
+		// prototype doesn't forward them into the URL a second time.
+		if (typeof opts.authorizationParams === "function") {
+			const reqParams = opts.authorizationParams;
+			const baseParams = OAuth2Strategy.prototype.authorizationParams.bind(this);
+			this.authorizationParams = (o) => ({ ...baseParams(o), ...reqParams(o) });
+			delete opts.authorizationParams;
+			delete opts.prompt;
+		}
 		return base.call(this, req, opts);
 	};
 
@@ -314,13 +499,30 @@ Shim.loadStrategies = async (strategies) => {
 };
 
 /**
- * Per-request safety net. NodeBB core fires `filter:auth.options` on EVERY
- * /auth/<name> kickoff, right before `passport.authenticate` — after the route
- * table (and thus the stock plugin's registration) already exists. If the
- * registered strategy for `boardgamers` is not ours (stock plugin overwrote it
- * and no reload has fired our filter:auth.init since — the exact live-forum
- * bug), re-register the request-time-resolving wrapper so this and all
- * subsequent requests resolve the PKCE strategy.
+ * Per-request safety net AND the silent-SSO kickoff/callback handler. NodeBB
+ * core fires `filter:auth.options` on EVERY /auth/<name> kickoff, right before
+ * `passport.authenticate` — after the route table (and thus the stock plugin's
+ * registration) already exists.
+ *
+ *  1. Safety net (the original live-forum fix): if the registered strategy for
+ *     `boardgamers` is not ours (stock plugin overwrote it and no reload has
+ *     fired our filter:auth.init since), re-register the request-time-resolving
+ *     wrapper so this and all subsequent requests resolve the PKCE strategy.
+ *
+ *  2. Silent kickoff: the page middleware redirected here with `?silent=1`
+ *     (and set `req.session.bgsSilent`). Add `prompt=none` to the authorize
+ *     params (passport-oauth2 passes unknown opts through to the authorize
+ *     URL). The `?silent=1` query marker is required — the session flag alone
+ *     can survive a manual button click (one retry of an expired session), and
+ *     the manual button must NEVER become a silent attempt.
+ *
+ *  3. Silent callback: `req.session.bgsSilent` is still set on the way back
+ *     (same session cookie), so a provider error means the prompt=none attempt
+ *     failed (login_required / consent_required / account_selection_required /
+ *     interaction_required / ...): arm the cooldown cookie, clear the flag, and
+ *     end the response HERE by bouncing to a local page — core's own error
+ *     handling never runs, so the user never sees an OIDC error page.
+ *     Successes fall through untouched to the normal code exchange.
  */
 Shim.ensureStrategy = ({ req, res, opts }) => {
 	const passport = require("passport"); // eslint-disable-line global-require
@@ -328,8 +530,92 @@ Shim.ensureStrategy = ({ req, res, opts }) => {
 	if (registered !== strategy) {
 		passport.use(STRATEGY_NAME, strategy);
 	}
+
+	const path = String((req && req.path) || "");
+	if (req && req.session && path === LOGIN_URL) {
+		// Kickoff. The silent marker must be BOTH in the session (set by the page
+		// middleware) AND in the query (`?silent=1`): the session flag alone can
+		// survive a manual button click, and the manual button must NEVER become
+		// a silent attempt.
+		if (req.session[SILENT_SESSION_FLAG] === true && req.query && "silent" in req.query) {
+			opts = withPromptNone(req, opts);
+		} else if (req.query && !("silent" in req.query)) {
+			// A non-silent (manual) kickoff: consume any stale flag so it can't
+			// mark a later callback as silent.
+			delete req.session[SILENT_SESSION_FLAG];
+		}
+	} else if (req && res && path === CALLBACK_URL) {
+		// Callback. This attempt was silent iff the PKCE state metadata carries
+		// prompt=none (self-describing, no fragile session-flag timing).
+		const silent = isSilentCallback(req);
+		if (req.session) {
+			delete req.session[SILENT_SESSION_FLAG];
+		}
+		const error = req.query && req.query.error;
+		if (silent && error) {
+			winston.verbose(`[plugin/sso-bgs] silent SSO: provider returned error=${error}; cooldown armed`);
+			armSilentCooldown(res);
+			res.redirect(`${nconf.get("relative_path") || ""}/`);
+			return { req, res, opts: { ...opts, skip: true } };
+		}
+	}
+
 	return { req, res, opts };
 };
+
+/**
+ * Turn a kickoff's passport options into a silent (prompt=none) attempt.
+ *
+ * passport-oauth2's stock `authorizationParams()` returns `{}` — only
+ * whitelisted params (response_type/scope/redirect_uri/code_challenge/state)
+ * reach the authorize URL, so a plain `opts.prompt` is DROPPED. We therefore
+ * thread prompt=none through the PKCE state store's metadata instead:
+ *  - `opts.state` as an OBJECT makes the store persist it as `meta.state` while
+ *    minting its own random handle as the actual `state` param (the object
+ *    itself never reaches the URL);
+ *  - on the callback the store hands that object back as `meta.state`, which
+ *    `isSilentCallback` reads to recognise the attempt as silent;
+ *  - `opts.authorizationParams` is consulted by the shim's strategy override
+ *    (see `buildStrategy`) to actually put `prompt=none` on the authorize URL.
+ * Setting an object opts.state is safe here only because our descriptor carries
+ * `checkState: false` — core's string-ssoState branch is skipped, so we don't
+ * fight it (and the wrapper/strategy strip any string state anyway).
+ */
+function withPromptNone(req, opts) {
+	return {
+		...opts,
+		prompt: "none", // documents intent; also honoured by any wrapping strategy
+		state: { prompt: "none" }, // PKCE-store metadata, read back on the callback
+		authorizationParams: (params) => ({ ...params, prompt: "none" }),
+	};
+}
+
+/**
+ * Whether the in-flight callback is the return leg of a silent (prompt=none)
+ * attempt: at kickoff, the PKCE store persisted `{handle, code_verifier,
+ * state:{prompt:"none"}}` under the strategy's session key. That key is
+ * `oauth2:<authorize-url-hostname>` (passport-oauth2 derives it from the
+ * configured authorization URL — here the PROVIDER's host, e.g.
+ * `oauth2:www.boardgamers.space`, not the forum's). We don't read the config
+ * here (this hook is sync), so scan the session for any PKCE entry carrying
+ * the prompt=none marker — there is exactly one such entry per attempt.
+ */
+function isSilentCallback(req) {
+	const session = req && req.session;
+	if (!session) {
+		return false;
+	}
+	for (const key of Object.keys(session)) {
+		if (!key.startsWith("oauth2:")) {
+			continue;
+		}
+		const meta = session[key] && session[key].state;
+		if (meta && meta.state && meta.state.prompt === "none") {
+			return true;
+		}
+	}
+	return false;
+}
 
 // Register the request-time-resolving strategy as early as possible (module
 // load, before any route reload fires filter:auth.init): every later

@@ -47,7 +47,46 @@ what we need, so this shim:
    `action:oauth2.login`);
 5. serves the Client ID Metadata Document (`static/client-metadata.json`) at
    **`/client-metadata.json`** — the exact URL used as `client_id`, so the plugin is
-   self-contained (no nginx change needed).
+   self-contained (no nginx change needed);
+6. adds **silent (passive) SSO** — see below.
+
+## Silent (passive) SSO
+
+A visitor with an active boardgamers.space session who browses the forum logged-out
+is auto-logged-in **without a click**, via one OIDC `prompt=none` round-trip. The
+provider (`apps/api`) supports `prompt=none`: logged-in → returns a code; logged-out
+→ redirects back with `error=login_required`. The flow:
+
+1. **Detect** — an app-level middleware (mounted in `static:app.load`, so it runs
+   before the page router) inspects every request and redirects **once** to
+   `/auth/boardgamers?silent=1` when _all_ hold: anonymous (`req.uid <= 0`, not
+   `req.loggedIn`), **not a spider** (`req.isSpider()` from core's
+   `@nodebb/spider-detector`, falling back to UA parsing), a **GET** page request
+   (skips `/api/*`, paths with a file extension — assets/uploads/robots/sitemap),
+   not already on `/auth/boardgamers*` / `/login` / `/logout`, no `?logout` marker,
+   and no fresh cooldown cookie. It sets `req.session.bgsSilent` so the callback can
+   recognise the round-trip.
+2. **Silent kickoff** — the `filter:auth.options` hook (already used for the
+   strategy safety-net) sees the `?silent=1` + session-flag pair and turns the
+   kickoff into a `prompt=none` authorize redirect, **reusing the exact PKCE/state
+   machinery** (code_challenge/verifier, single-use state) the manual button uses.
+   `prompt=none` is threaded via the PKCE state store's metadata (`opts.state`
+   object) because passport-oauth2's stock `authorizationParams()` returns `{}`.
+   `prompt=none` also suppresses the provider's consent interstitial — a user who
+   hasn't consented gets `error=consent_required`, handled like any other failure.
+3. **Cooldown on failure** — if the callback returns with an `error` and the attempt
+   was silent (the PKCE state metadata carries `prompt: "none"`), the hook arms a
+   timestamped cookie (`bgs_silent`, 1 h window inside a 1-day cookie) and **bounces
+   to `/`**, so the user never sees an OIDC error page. While the cookie is fresh,
+   page GETs skip the silent attempt — **no redirect loop** for logged-out users.
+4. **Explicit logout respected** — the middleware skips any request carrying a
+   `?logout` marker (and the `/logout` path), so a user who just logged out is not
+   instantly re-logged-in silently. The failure/logout cooldown expires on its own;
+   logging in on the main site again and returning also works once it clears.
+
+The **manual login button is untouched**: a kickoff without `?silent=1` clears any
+stale session flag and never gets `prompt=none`, so it stays an interactive login.
+Spiders are never redirected (both via `req.isSpider()` and a UA-regex fallback).
 
 ## Why request-time resolution (the live bug this fixes)
 
@@ -118,17 +157,22 @@ consent doc exists (i.e. after one user has gone through the flow), or pre-creat
 
 A regression harness simulating NodeBB v4.14 core (shared `loginStrategies` array,
 last-write-wins `passport.use`, core's string-state calling convention, hook
-priorities) against the **real** `passport` + `passport-oauth2` lives in `test/`.
+priorities, the `static:app.load` page middleware, and core's `req.isSpider()`) runs
+the shim against the **real** `passport`, `passport-oauth2`, and
+`@nodebb/spider-detector`. It lives in `test/`.
 
 ```bash
-npm install --no-save --prefix /tmp/sso-bgs-deps passport@0.7.0 passport-oauth@1.0.0
+npm install --no-save --prefix /tmp/sso-bgs-deps passport@0.7.0 passport-oauth@1.0.0 @nodebb/spider-detector@2.0.3
 node --test 'test/*.spec.cjs'
 ```
 
 It covers: ACP-save-after-boot (the live bug), config-present-at-boot, config edits
 without a restart, disabling the strategy, the full kickoff→callback PKCE
 round-trip (verifier persisted, no `client_secret`, single-use state), and the
-string-`opts.state` override.
+string-`opts.state` override — plus the silent-SSO suite: one silent redirect with
+`prompt=none` + PKCE, the `login_required`→cooldown→no-loop path, the successful
+silent round-trip, logged-in/spider/logout/SSO-path/API/asset suppression, and the
+manual-button isolation.
 
 ## Notes / limitations
 
