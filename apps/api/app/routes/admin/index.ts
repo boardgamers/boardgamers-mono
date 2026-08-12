@@ -39,6 +39,23 @@ router.use("/page", pagesRouter.routes(), pagesRouter.allowedMethods());
 router.use("/tokens", tokensRouter.routes(), tokensRouter.allowedMethods());
 router.use("/users", usersRouter.routes(), usersRouter.allowedMethods());
 
+interface ForumHealth {
+	ok: boolean;
+	/** HTTP status from the probe; null when the request never got a response (timeout, DNS, …). */
+	status: number | null;
+}
+
+// Pings the forum's public API. Never throws: the dashboard must render even
+// when the forum (or the network path to it) is down.
+async function checkForumHealth(): Promise<ForumHealth> {
+	try {
+		const res = await fetch(`${env.forumUrl}/api/config`, { signal: AbortSignal.timeout(3000) });
+		return { ok: res.ok, status: res.status };
+	} catch {
+		return { ok: false, status: null };
+	}
+}
+
 const errorsQuerySchema = z.object({
 	page: z.coerce.number().int().min(1).default(1),
 	limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -100,33 +117,44 @@ router.get("/serverinfo", async (ctx) => {
 	// lastOnline = user marked themselves online; lastActive = ws connection alive (pong).
 	const activityCutoff = new Date(Date.now() - 60 * 1000);
 
-	const [disk, nbUsers, nbAdmins, onlineUsers, connectedUsers, gamesByStatus, queueByKind, recentUsers, recentGames] =
-		await Promise.all([
-			checkDiskSpace(process.cwd()),
-			colls.users.countDocuments({}),
-			colls.users.countDocuments({ authority: "admin" }),
-			colls.users.countDocuments({ "security.lastOnline": { $gt: activityCutoff } }),
-			colls.users.countDocuments({ "security.lastActive": { $gt: activityCutoff } }),
-			colls.games
-				.aggregate<{ _id: string; count: number }>([{ $group: { _id: "$status", count: { $sum: 1 } } }])
-				.toArray(),
-			colls.gameNotifications
-				.aggregate<{ _id: string; count: number }>([
-					{ $match: { processed: false } },
-					{ $group: { _id: "$kind", count: { $sum: 1 } } },
-				])
-				.toArray(),
-			colls.users
-				.find({}, { projection: { _id: 1, "account.username": 1, createdAt: 1 } })
-				.sort({ createdAt: -1 })
-				.limit(5)
-				.toArray(),
-			colls.games
-				.find({}, { projection: { _id: 1, "game.name": 1, status: 1, lastMove: 1, createdAt: 1 } })
-				.sort({ lastMove: -1 })
-				.limit(5)
-				.toArray(),
-		]);
+	const [
+		disk,
+		nbUsers,
+		nbAdmins,
+		onlineUsers,
+		connectedUsers,
+		gamesByStatus,
+		queueByKind,
+		recentUsers,
+		recentGames,
+		forum,
+	] = await Promise.all([
+		checkDiskSpace(process.cwd()),
+		colls.users.countDocuments({}),
+		colls.users.countDocuments({ authority: "admin" }),
+		colls.users.countDocuments({ "security.lastOnline": { $gt: activityCutoff } }),
+		colls.users.countDocuments({ "security.lastActive": { $gt: activityCutoff } }),
+		colls.games
+			.aggregate<{ _id: string; count: number }>([{ $group: { _id: "$status", count: { $sum: 1 } } }])
+			.toArray(),
+		colls.gameNotifications
+			.aggregate<{ _id: string; count: number }>([
+				{ $match: { processed: false } },
+				{ $group: { _id: "$kind", count: { $sum: 1 } } },
+			])
+			.toArray(),
+		colls.users
+			.find({}, { projection: { _id: 1, "account.username": 1, createdAt: 1 } })
+			.sort({ createdAt: -1 })
+			.limit(5)
+			.toArray(),
+		colls.games
+			.find({}, { projection: { _id: 1, "game.name": 1, status: 1, lastMove: 1, createdAt: 1 } })
+			.sort({ lastMove: -1 })
+			.limit(5)
+			.toArray(),
+		checkForumHealth(),
+	]);
 
 	const games: Record<string, number> = {};
 	for (const g of gamesByStatus) {
@@ -148,7 +176,7 @@ router.get("/serverinfo", async (ctx) => {
 		queue,
 		recentUsers,
 		recentGames,
-		cron: env.cron,
+		forum,
 	};
 });
 

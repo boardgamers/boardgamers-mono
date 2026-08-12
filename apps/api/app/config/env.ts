@@ -108,6 +108,9 @@ export default {
 	/** Is the computer able to send emails? If not, let the main server send the emails */
 	automatedEmails: process.env.automatedEmails || false,
 	lokiUrl: process.env.lokiUrl || "http://127.0.0.1:3100",
+	// NodeBB forum — the admin serverinfo endpoint pings {forumUrl}/api/config to
+	// report forum up/down on the dashboard.
+	forumUrl: process.env.forumUrl || "https://forum.boardgamers.space",
 	// Cron (game notifications, scheduled games, emails) is on by default — in dev the
 	// single process must run it. PM2 workers opt out with cron=false so only the
 	// dedicated api-cron process runs it (see ecosystem.config.cjs).
