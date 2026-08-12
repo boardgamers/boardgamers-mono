@@ -30,7 +30,7 @@ describe("Admin serverinfo forum health", () => {
 
 		// Simulate the forum db: point the read-only NodeBB connection at the SAME
 		// test db (mirrors user.spec.ts) and seed an `objects` collection fixture:
-		// 4 users (2 with posts), 5 posts, 2 linked bgs accounts.
+		// 4 users (2 with posts), 1008 posts (global.postCount), 2 linked bgs accounts.
 		const bgsUrl = new URL(env.database.bgs.url.replace(/^mongodb:/, "http:"));
 		env.database.nodebb = `mongodb://${bgsUrl.host}/${env.database.bgs.name}${bgsUrl.search}`;
 		await closeNodebbDb();
@@ -42,8 +42,11 @@ describe("Admin serverinfo forum health", () => {
 				{ _key: "user:3", postcount: 2 },
 				{ _key: "user:0" }, // NodeBB's system uid — included, matching the /^user:\d+$/ count
 				{ _key: "boardgamersId:uid", [adminId.toHexString()]: 1, [new ObjectId().toHexString()]: 2 },
-				...Array.from({ length: 5 }, (_, i) => ({ _key: `pid:${i + 1}`, uid: 1 })),
-				{ _key: "post:queue", count: 3 }, // non-pid key: must not count as a post
+				{ _key: "global", postCount: 1008 },
+				// Posts are `post:<pid>` docs (the old `pid:*` regex never matched); the
+				// endpoint reads global.postCount, so these are decorative realism.
+				{ _key: "post:11", pid: 11, uid: 1 },
+				{ _key: "post:12", pid: 12, uid: 3 },
 				{ _key: "username:sorted" }, // non-user key: must not count as a user
 			]);
 
@@ -103,8 +106,8 @@ describe("Admin serverinfo forum health", () => {
 	it("reports forum db stats from the NodeBB objects collection", async () => {
 		forumStatus = 200;
 		const forum = await serverinfo();
-		// Fixture: user:0..3 (2 with posts), 5 pid:* docs, 2 linked bgs accounts.
-		assert.deepEqual(forum.stats, { users: 4, linked: 2, usersWithPosts: 2, posts: 5 });
+		// Fixture: user:0..3 (2 with posts), global.postCount=1008, 2 linked bgs accounts.
+		assert.deepEqual(forum.stats, { users: 4, linked: 2, usersWithPosts: 2, posts: 1008 });
 	});
 
 	it("returns null stats when the forum db is unreachable, without failing the request", async () => {

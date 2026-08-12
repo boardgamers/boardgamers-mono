@@ -73,17 +73,19 @@ async function loadForumStats(): Promise<ForumStats | null> {
 		return null;
 	}
 	try {
-		// All three counts use the `_key` index (or a single doc read), so the
-		// queries stay cheap even on a large `objects` collection.
-		const [users, linkDoc, usersWithPosts, postIds] = await Promise.all([
+		// All counts are `_key`-indexed or single-doc reads, staying cheap even on a
+		// large `objects` collection. Posts use NodeBB's canonical `global.postCount`
+		// counter — NodeBB stores posts as `post:<pid>` docs, not `pid:<pid>`.
+		const [users, linkDoc, usersWithPosts, globalDoc] = await Promise.all([
 			nodebb.objects.countDocuments({ _key: /^user:\d+$/ }),
 			nodebb.objects.findOne({ _key: "boardgamersId:uid" }, { projection: { _id: 0 } }),
 			nodebb.objects.countDocuments({ _key: /^user:\d+$/, postcount: { $gt: 0 } }),
-			nodebb.objects.countDocuments({ _key: /^pid:\d+$/ }),
+			nodebb.objects.findOne({ _key: "global" }, { projection: { _id: 0, postCount: 1 } }),
 		]);
 		// Every field except _key is a linked bgs user id → forum uid.
 		const linked = Object.keys(linkDoc ?? {}).filter((k) => k !== "_key").length;
-		return { users, linked, usersWithPosts, posts: postIds };
+		const posts = typeof globalDoc?.postCount === "number" ? globalDoc.postCount : 0;
+		return { users, linked, usersWithPosts, posts };
 	} catch (err) {
 		console.error("[serverinfo] forum stats lookup failed — returning null stats", err);
 		return null;
