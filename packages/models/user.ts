@@ -70,6 +70,32 @@ export const userSchema = z.object({
 					forgottenGames: z.array(z.string()).optional(),
 				})
 				.optional(),
+			notifications: z
+				.object({
+					// Per-user outgoing webhook for your-turn notifications (#85/#33).
+					webhook: z
+						.object({
+							// Secret-ish: anyone with the URL can post to the channel, so the
+							// api strips it from responses and only exposes `hasWebhook`.
+							url: z.string().optional(),
+							format: z.enum(["discord", "slack", "raw"]).default("discord"),
+							enabled: z.boolean().default(true),
+							// Auto-set after 24h of continuous delivery failure; saving a new
+							// URL resets it (along with failingSince/retryCount/nextRetryAt/lastError).
+							disabled: z.boolean().optional(),
+							failingSince: zDate().optional(),
+							// Consecutive delivery failures — drives the exponential backoff.
+							retryCount: z.number().optional(),
+							nextRetryAt: zDate().optional(),
+							lastError: z.string().optional(),
+							// Serialization-only hint, computed by the api's stripSensitiveFields
+							// (never stored): tells the UI a webhook is configured without
+							// revealing the URL.
+							hasWebhook: z.boolean().optional(),
+						})
+						.optional(),
+				})
+				.optional(),
 		})
 		.optional(),
 	security: z.object({

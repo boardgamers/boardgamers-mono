@@ -31,6 +31,76 @@
 	let soundNotification = $state(untrack(() => user?.settings?.game?.soundNotification ?? false));
 	let gameNotification = $state(untrack(() => user?.settings?.mailing?.game?.activated ?? false));
 	let gameNotificationDelay = $state(untrack(() => user?.settings?.mailing?.game?.delay ?? 30 * 60));
+
+	// Notification webhook (#85/#33): the url is secret-ish — the api never sends
+	// it back, only `hasWebhook`. `webhookConfigured` also flips true right after
+	// a successful save so the field can be hidden again.
+	let webhookUrl = $state("");
+	let webhookFormat = $state<"discord" | "slack" | "raw">(
+		untrack(() => user?.settings?.notifications?.webhook?.format ?? "discord")
+	);
+	let webhookEnabled = $state(untrack(() => user?.settings?.notifications?.webhook?.enabled ?? true));
+	let webhookEditing = $state(false);
+	let webhookTesting = $state(false);
+	let webhookConfigured = $state(untrack(() => !!user?.settings?.notifications?.webhook?.hasWebhook));
+	let webhookDisabled = $derived(user?.settings?.notifications?.webhook?.disabled ?? false);
+
+	async function saveWebhook() {
+		if (webhookUrl && !webhookUrl.startsWith("http")) {
+			webhookEditing = true;
+			return;
+		}
+		try {
+			const r = await post<UserFront>("/account", {
+				settings: {
+					notifications: {
+						webhook: {
+							...(webhookUrl ? { url: webhookUrl } : {}),
+							format: webhookFormat,
+							enabled: webhookEnabled,
+						},
+					},
+				},
+			});
+			account.set(r);
+			if (webhookUrl) {
+				webhookConfigured = true;
+				webhookUrl = "";
+				webhookEditing = false;
+			}
+			handleSuccess("Webhook settings saved");
+		} catch (err) {
+			handleError(err);
+		}
+	}
+
+	async function testWebhook() {
+		webhookTesting = true;
+		try {
+			const res = await post<{ success: boolean; error?: string }>("/account/webhook/test");
+			if (res.success) {
+				handleSuccess("✅ Test notification sent!");
+			} else {
+				handleError(`Test notification failed: ${res.error}`);
+			}
+		} catch (err) {
+			handleError(err);
+		} finally {
+			webhookTesting = false;
+		}
+	}
+
+	async function removeWebhook() {
+		try {
+			account.set(await post<UserFront>("/account", { settings: { notifications: { webhook: null } } }));
+			webhookUrl = "";
+			webhookConfigured = false;
+			webhookEditing = false;
+			handleSuccess("Webhook removed");
+		} catch (err) {
+			handleError(err);
+		}
+	}
 	let tc = $state(false);
 	let editingAvatar = $state(false);
 	let fileUpload = $state<HTMLInputElement>();
@@ -318,6 +388,60 @@
 						</select>
 					</div>
 				</div>
+				<FormGroup class="mt-2">
+					<label for="notification-webhook">Notification webhook</label>
+					{#if webhookConfigured && !webhookEditing}
+						<div class="flex flex-wrap items-center gap-2">
+							<span class="text-sm">A webhook is configured (format: {webhookFormat}).</span>
+							<Button size="sm" outline color="secondary" onclick={() => (webhookEditing = true)}>Change</Button>
+							<Button size="sm" outline color="primary" disabled={webhookTesting} onclick={testWebhook}>
+								Send test notification
+							</Button>
+							<Button size="sm" outline color="danger" onclick={removeWebhook}>Remove</Button>
+						</div>
+					{:else}
+						<InputGroup>
+							<Input
+								type="url"
+								id="notification-webhook"
+								placeholder="https://discord.com/api/webhooks/…"
+								bind:value={webhookUrl}
+							/>
+							<Button outline color="success" disabled={!webhookUrl} onclick={saveWebhook}>Save</Button>
+							{#if webhookConfigured}
+								<Button outline color="secondary" onclick={() => (webhookEditing = false)}>Cancel</Button>
+							{/if}
+						</InputGroup>
+					{/if}
+					{#if webhookConfigured || webhookEditing}
+						<div class="mt-2 flex flex-wrap items-center gap-3">
+							<select
+								class="rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+								bind:value={webhookFormat}
+								onchange={() => webhookConfigured && !webhookEditing && saveWebhook()}
+							>
+								{#each ["discord", "slack", "raw"] as const as format (format)}
+									<option value={format}>{format}</option>
+								{/each}
+							</select>
+							<Checkbox
+								bind:checked={webhookEnabled}
+								onchange={() => webhookConfigured && !webhookEditing && saveWebhook()}
+							>
+								Enabled
+							</Checkbox>
+						</div>
+					{/if}
+					{#if webhookDisabled}
+						<span class="text-xs text-warning"
+							>⚠️ This webhook was disabled after 24h of failures — save a new URL to re-enable it.</span
+						>
+					{:else}
+						<span class="text-xs"
+							>Posts "your turn" notifications to Discord, Slack, or your own endpoint (raw JSON).</span
+						>
+					{/if}
+				</FormGroup>
 			</div>
 			<hr />
 			<Checkbox bind:checked={$developerSettings}>🔧 Enable developper settings on this device</Checkbox>

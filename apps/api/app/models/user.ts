@@ -3,9 +3,11 @@ import assert from "node:assert";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import type { WithId } from "mongodb";
+import { z } from "zod";
 import locks from "../config/locks.ts";
 import { colls } from "../config/db.ts";
 import { env, sendmail } from "../config/index.ts";
+import { safeFetch } from "../services/safefetch.ts";
 import { findGamesWithPlayersTurn } from "./game.ts";
 
 export const defaultKarma = 75;
@@ -268,6 +270,154 @@ export function sendMailChangeEmail(user: WithId<UserDoc>, newEmail: string) {
 	});
 }
 
+// --- Your-turn notification webhook (#85/#33) -------------------------------
+
+export type WebhookFormat = "discord" | "slack" | "raw";
+
+export interface WebhookCall {
+	url: string;
+	method: "POST";
+	headers: Record<string, string>;
+	body: string;
+}
+
+type WebhookFetch = (
+	url: string,
+	init: { method: "POST"; headers: Record<string, string>; body: string },
+) => Promise<unknown>;
+
+const safeFetchPost: WebhookFetch = (url, init) =>
+	safeFetch(url, { method: init.method, headers: init.headers, body: init.body });
+let webhookFetch: WebhookFetch = safeFetchPost;
+
+// Tests swap in a recorder to assert on outbound webhooks without network access.
+export function setWebhookFetchForTests(mock: WebhookFetch | null) {
+	webhookFetch = mock ?? safeFetchPost;
+}
+
+// Exponential backoff between delivery retries: 1min, doubling per consecutive
+// failure, capped at 1h. After WEBHOOK_DISABLE_AFTER_MS of continuous failure
+// the webhook is disabled until the user re-saves it.
+export const WEBHOOK_BACKOFF_BASE_SECONDS = 60;
+export const WEBHOOK_BACKOFF_MAX_SECONDS = 3600;
+export const WEBHOOK_DISABLE_AFTER_MS = 24 * 3600 * 1000;
+
+export function webhookBackoffSeconds(failureCount: number): number {
+	return Math.min(WEBHOOK_BACKOFF_BASE_SECONDS * 2 ** Math.max(0, failureCount - 1), WEBHOOK_BACKOFF_MAX_SECONDS);
+}
+
+export type WebhookGame = { _id: string; game: { name: string } };
+
+function gameNames(games: WebhookGame[]): string {
+	const names = [...new Set(games.map((g) => g.game.name))];
+	return names.length <= 2 ? names.join(" & ") : `${names[0]} & ${names.length - 1} more`;
+}
+
+export function buildWebhookPayload(
+	format: WebhookFormat,
+	user: UserDoc,
+	games: WebhookGame[],
+): Record<string, unknown> {
+	const waiting = games.length;
+	const names = gameNames(games);
+	const waitingString = waiting === 1 ? "1 game waiting" : `${waiting} games waiting`;
+	switch (format) {
+		case "discord":
+			return {
+				content: `🎲 It's your turn in **${names}** (${waitingString})`,
+				embeds: [{ title: `${names} — your turn`, url: `https://${env.site}/game/${games[0]._id}` }],
+			};
+		case "slack":
+			return {
+				text: `🎲 It's your turn in *${names}* (${waiting} waiting): https://${env.site}/user/${user.account.username}`,
+			};
+		case "raw":
+			return {
+				event: "turn",
+				user: user.account.username,
+				waitingCount: waiting,
+				games: games.map((g) => ({ id: g._id, name: g.game.name, url: `https://${env.site}/game/${g._id}` })),
+			};
+	}
+}
+
+/**
+ * POST a payload to the user's configured webhook. Throws on any failure
+ * (network error, non-2xx status) — callers persist the backoff state.
+ */
+export async function deliverWebhook(user: UserDoc, payload: Record<string, unknown>): Promise<unknown> {
+	const webhook = user.settings?.notifications?.webhook;
+	assert(webhook?.url, "Cannot deliver webhook: user has no webhook url");
+	return webhookFetch(webhook.url, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(payload),
+	});
+}
+
+/**
+ * Fire the per-user your-turn webhook for the games waiting on them. No-op
+ * unless the webhook is configured, enabled, not auto-disabled, and past its
+ * retry backoff. Delivery state (failingSince / nextRetryAt / disabled /
+ * lastError) is persisted on the user doc. Never throws into the caller: a
+ * failing webhook must not break the email path.
+ */
+export async function deliverGameNotificationWebhook(freshUser: WithId<UserDoc>, activeGames: WebhookGame[]) {
+	const webhook = freshUser.settings?.notifications?.webhook;
+	// oxlint-disable-next-line typescript/no-unnecessary-boolean-literal-compare -- explicit: undefined means enabled
+	if (!webhook?.url || webhook.enabled === false || webhook.disabled) {
+		return;
+	}
+	if (webhook.nextRetryAt && new Date(webhook.nextRetryAt) > new Date()) {
+		return;
+	}
+
+	const base = "settings.notifications.webhook";
+	try {
+		const result: unknown = await deliverWebhook(
+			freshUser,
+			buildWebhookPayload(webhook.format ?? "discord", freshUser, activeGames),
+		);
+		// The default fetch returns a SafeFetchResponse (status checked); test mocks
+		// resolve undefined → success.
+		if (result && typeof result === "object" && "statusCode" in result) {
+			const statusCode = z.object({ statusCode: z.number() }).parse(result).statusCode;
+			if (statusCode < 200 || statusCode >= 300) {
+				throw new Error(`webhook returned status ${statusCode}`);
+			}
+		}
+		// Success: reset the failure streak.
+		await colls.users.updateOne(
+			{ _id: freshUser._id },
+			{
+				$unset: {
+					[`${base}.failingSince`]: "",
+					[`${base}.retryCount`]: "",
+					[`${base}.nextRetryAt`]: "",
+					[`${base}.lastError`]: "",
+					[`${base}.disabled`]: "",
+				},
+			},
+		);
+	} catch (err) {
+		const now = new Date();
+		const failingSince = webhook.failingSince ? new Date(webhook.failingSince) : now;
+		// Consecutive-failure counter, doubled into the backoff interval. Legacy
+		// docs (failingSince set before retryCount existed) count as one failure.
+		const failureCount = webhook.failingSince ? (webhook.retryCount ?? 1) + 1 : 1;
+		const set: Record<string, unknown> = {
+			[`${base}.failingSince`]: failingSince,
+			[`${base}.retryCount`]: failureCount,
+			[`${base}.nextRetryAt`]: new Date(now.getTime() + webhookBackoffSeconds(failureCount) * 1000),
+			[`${base}.lastError`]: err instanceof Error ? err.message : String(err),
+		};
+		if (now.getTime() - failingSince.getTime() > WEBHOOK_DISABLE_AFTER_MS) {
+			set[`${base}.disabled`] = true;
+		}
+		await colls.users.updateOne({ _id: freshUser._id }, { $set: set });
+	}
+}
+
 export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
 	await using _lock = await locks.lock("game-notification", user._id.toString());
 	try {
@@ -324,12 +474,15 @@ export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
 				to: freshUser.account.email,
 				subject: "Your turn",
 				html: `
-        <p>Hello ${freshUser.account.username}</p>
-        <p>It's your turn on ${gameString},
-        click <a href='http://${env.site}/user/${encodeURIComponent(freshUser.account.username)}'>here</a> to see your active games.</p>
-        <p>You can also change your email settings and unsubscribe <a href='http://${env.site}/account'>here</a> with a simple click.</p>`,
+	        <p>Hello ${freshUser.account.username}</p>
+	        <p>It's your turn on ${gameString},
+	        click <a href='http://${env.site}/user/${encodeURIComponent(freshUser.account.username)}'>here</a> to see your active games.</p>
+	        <p>You can also change your email settings and unsubscribe <a href='http://${env.site}/account'>here</a> with a simple click.</p>`,
 			}).catch(console.error);
 		}
+
+		// Independent of the email path: a failing webhook must never affect the mail.
+		await deliverGameNotificationWebhook(freshUser, activeGames).catch(console.error);
 
 		await colls.users.updateOne(
 			{ _id: user._id },
@@ -352,9 +505,27 @@ export function stripSensitiveFields(user: WithId<UserDoc>): WithId<UserDoc> {
 				return { ...rest, key: null };
 			})()
 		: undefined;
+
+	// The webhook URL is secret-ish (whoever has it can post to the channel): never
+	// let it leave the api — replace it with a `hasWebhook` hint for the UI. Copy,
+	// never mutate the stored doc.
+	let settings = user.settings;
+	const webhook = settings?.notifications?.webhook;
+	if (webhook) {
+		const { url: _url, ...webhookWithoutUrl } = webhook;
+		settings = {
+			...settings,
+			notifications: {
+				...settings!.notifications,
+				webhook: { ...webhookWithoutUrl, ...(webhook.url ? { hasWebhook: true } : {}) },
+			},
+		};
+	}
+
 	return {
 		...user,
 		account: { ...account },
+		settings,
 		security: { ...securityRest, reset: resetWithoutKey },
 	};
 }
