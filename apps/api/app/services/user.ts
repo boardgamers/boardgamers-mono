@@ -44,6 +44,47 @@ async function hasActivity(userId: ObjectId): Promise<boolean> {
 	return games > 0 || createdGames > 0 || chatMessages > 0 || gameNotifications > 0;
 }
 
+/**
+ * bgs user ids that have a FORUM ACCOUNT. Principle: never delete a user with a
+ * forum presence at all — poster or not (their profile, likes, DMs, watched
+ * topics are content too, and account deletion must not orphan a forum identity).
+ *
+ * NodeBB's `objects` doc `{ _key: "boardgamersId:uid" }` is the single
+ * authoritative bgs user → forum-uid map: it holds the OAuth-era links written
+ * by the forum SSO plugin AND the legacy session-sharing accounts, which were
+ * backfilled into it. One batched read; a candidate whose hex id is a key in
+ * that doc has a forum account and is kept. No posts lookup — the link's
+ * existence is the whole signal.
+ *
+ * Fail-safe: an unreachable/erroring forum db keeps ALL candidates — never
+ * delete on uncertainty.
+ */
+async function forumUsersWithContent(userIds: ObjectId[]): Promise<Set<string>> {
+	const protected_ = new Set(userIds.map((id) => id.toString()));
+	if (userIds.length === 0) {
+		return protected_;
+	}
+	const nodebb = await nodebbColls();
+	if (!nodebb) {
+		return protected_;
+	}
+	try {
+		// One hash doc maps every linked bgs user → forum uid.
+		const link = await nodebb.objects.findOne({ _key: "boardgamersId:uid" });
+		const linked = new Set<string>();
+		for (const id of userIds) {
+			const forumUid = link?.[id.toHexString()];
+			if (typeof forumUid === "number" || typeof forumUid === "string") {
+				linked.add(id.toString());
+			}
+		}
+		return linked;
+	} catch (err) {
+		console.error("[cleanupDeadUsers] forum-link lookup failed — failing safe (keep all)", err);
+		return protected_;
+	}
+}
+
 // Conservative backstop: a user with ANY oauthConsents doc authorized a client at
 // least once, and a forum user always authorized at least once. Since we never
 // delete on uncertainty, any OAuth trace is an unconditional keep — it guards
@@ -56,55 +97,6 @@ async function hasOAuthTrace(userIds: ObjectId[]): Promise<Set<string>> {
 	}
 	const docs = await colls.oauthConsents.find({ userId: { $in: userIds } }, { projection: { userId: 1 } }).toArray();
 	return new Set(docs.map((d) => d.userId.toString()));
-}
-
-/**
- * bgs user ids that have forum CONTENT (posts), looked up in the read-only NodeBB
- * db. The bgs→forum-uid map is NodeBB's `objects` doc `{ _key: "boardgamersId:uid",
- * "<bgsUserIdHex>": <forumUid> }`; posts live in the `uid:<forumUid>:posts` set.
- * Fail-safe: when the forum db is unreachable (or the lookup errors), return ALL
- * input ids — never delete on uncertainty.
- */
-async function forumUsersWithContent(userIds: ObjectId[]): Promise<Set<string>> {
-	const protected_ = new Set(userIds.map((id) => id.toString()));
-	if (userIds.length === 0) {
-		return protected_;
-	}
-	const nodebb = await nodebbColls();
-	if (!nodebb) {
-		return protected_;
-	}
-	try {
-		const objects = nodebb.objects;
-		// One hash doc maps every linked bgs user → forum uid.
-		const link = await objects.findOne({ _key: "boardgamersId:uid" });
-		const uidToBgs = new Map<string, string>();
-		for (const id of userIds) {
-			const forumUid = link?.[id.toHexString()];
-			if (typeof forumUid === "number" || typeof forumUid === "string") {
-				uidToBgs.set(String(forumUid), id.toHexString());
-			}
-		}
-		if (uidToBgs.size === 0) {
-			return new Set();
-		}
-		const uids = [...uidToBgs.keys()];
-		const posting = await objects
-			.find({ _key: { $in: uids.map((u) => `uid:${u}:posts`) } }, { projection: { _key: 1 } })
-			.toArray();
-		const result = new Set<string>();
-		for (const doc of posting) {
-			const forumUid = String(doc._key).slice("uid:".length, -":posts".length);
-			const bgs = uidToBgs.get(forumUid);
-			if (bgs) {
-				result.add(bgs);
-			}
-		}
-		return result;
-	} catch (err) {
-		console.error("[cleanupDeadUsers] forum-content lookup failed — failing safe (keep all)", err);
-		return protected_;
-	}
 }
 
 export async function findDeadUsers(cutoff: Date, batchSize: number): Promise<UserDoc[]> {
