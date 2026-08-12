@@ -21,6 +21,7 @@ import {
 import { parseRefreshCookie, clearRefreshCookie } from "../../models/session.ts";
 import {
 	confirm,
+	deliverWebhook,
 	findByEmail,
 	generateConfirmKey,
 	generateResetLink,
@@ -29,11 +30,13 @@ import {
 	sendMailChangeEmail,
 	sendResetEmail,
 	stripSensitiveFields,
+	type WebhookFormat,
 } from "../../models/user.ts";
 import type { ImageDoc } from "@bgs/models";
 import sharp from "sharp";
 import { loggedIn, loggedOut, rateLimitAttempt } from "../utils.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
+import { resolveAllowedAddresses, assertSafeUrlScheme } from "../../services/safefetch.ts";
 import { putAvatar, s3Enabled } from "../../services/s3.ts";
 import auth from "./auth.ts";
 import { sendAuthInfo } from "./utils.ts";
@@ -42,8 +45,48 @@ const router = new Router<Application.DefaultState, Context>();
 
 router.use("/auth", auth.routes(), auth.allowedMethods());
 
+/**
+ * Server-side SSRF validation for a user-supplied notification webhook URL (#85/#33):
+ * it must parse, be https (loopback http tolerated only outside production) and
+ * resolve to no special-use address. Throws assert/Error → 400.
+ */
+async function assertValidWebhookUrl(raw: unknown): Promise<void> {
+	assert(typeof raw === "string" && raw.length > 0, "Invalid webhook url");
+	let url: URL;
+	try {
+		url = new URL(raw);
+	} catch {
+		assert.fail("Invalid webhook url");
+	}
+	assertSafeUrlScheme(url, "Webhook url");
+	await resolveAllowedAddresses(url.hostname);
+}
+
+// Shape of the settings.notifications.webhook sub-tree accepted by POST /api/account.
+const webhookSettingsSchema = z
+	.object({
+		url: z.string().nullish(),
+		format: z.enum(["discord", "slack", "raw"]).optional(),
+		enabled: z.boolean().optional(),
+		// Seconds before posting (0 = immediate). Independent of the email delay.
+		delay: z.number().int().min(0).optional(),
+	})
+	.strict();
+
+function webhookTestPayload(format: WebhookFormat): Record<string, unknown> {
+	switch (format) {
+		case "discord":
+			return { content: "🎲 Test notification from boardgamers.space — your webhook works!" };
+		case "slack":
+			return { text: "🎲 Test notification from boardgamers.space — your webhook works!" };
+		case "raw":
+			return { event: "test" };
+	}
+}
+
 router.get("/", loggedIn, (ctx) => {
-	ctx.body = ctx.state.user;
+	// Redact: ctx.state.user comes straight from Mongo (webhook url, secrets).
+	ctx.body = stripSensitiveFields(ctx.state.user!);
 });
 
 router.get("/active-games", async (ctx) => {
@@ -77,7 +120,52 @@ router.post("/", loggedIn, async (ctx) => {
 	const avatar = body.account?.avatar;
 	assert(avatar == null || avatar === "upload" || isAvatarStyle(avatar), "Invalid avatar");
 
+	// Validate + normalize the webhook sub-tree BEFORE flattening: strict shape
+	// (unknown keys rejected), url SSRF-checked, null/empty url ⇒ clear the block.
+	// (oxlint-disable: settings is z.any() — the cast is the raw request payload)
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion
+	const rawSettings = body.settings as Record<string, unknown> | undefined;
+	const rawNotifications: unknown = rawSettings?.notifications;
+	let webhookUpdate: { clear: true } | { set: Record<string, unknown>; urlChanged: boolean } | undefined;
+	if (rawNotifications && typeof rawNotifications === "object" && "webhook" in rawNotifications) {
+		const rawWebhook = rawNotifications.webhook;
+		if (rawWebhook == null) {
+			webhookUpdate = { clear: true };
+		} else {
+			const parsedWebhook = webhookSettingsSchema.parse(rawWebhook);
+			if (parsedWebhook.url != null && parsedWebhook.url.trim() === "") {
+				webhookUpdate = { clear: true };
+			} else {
+				if (parsedWebhook.url != null) {
+					await assertValidWebhookUrl(parsedWebhook.url);
+				}
+				const urlChanged =
+					parsedWebhook.url != null && parsedWebhook.url !== ctx.state.user!.settings?.notifications?.webhook?.url;
+				const set: Record<string, unknown> = {};
+				if (parsedWebhook.url != null) {
+					set.url = parsedWebhook.url;
+				}
+				if (parsedWebhook.format !== undefined) {
+					set.format = parsedWebhook.format;
+				}
+				if (parsedWebhook.enabled !== undefined) {
+					set.enabled = parsedWebhook.enabled;
+				}
+				if (parsedWebhook.delay !== undefined) {
+					set.delay = parsedWebhook.delay;
+				}
+				webhookUpdate = { set, urlChanged };
+			}
+		}
+		// Handled here, not via the generic flatten (null must $unset, url state resets).
+		delete rawNotifications.webhook;
+		if (Object.keys(rawNotifications).length === 0) {
+			delete rawSettings!.notifications;
+		}
+	}
+
 	const updateFields: Record<string, unknown> = {};
+	const unsetFields: Record<string, ""> = {};
 	if (body.settings != null) {
 		// Merge leaf-by-leaf via dot-notation so a partial update (e.g. just
 		// home.forgottenGames) doesn't clobber sibling settings or sub-keys.
@@ -95,6 +183,24 @@ router.post("/", loggedIn, async (ctx) => {
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- settings is a partial settings tree
 		flatten(body.settings as Record<string, unknown>, "");
 	}
+	if (webhookUpdate) {
+		const base = "settings.notifications.webhook";
+		if ("clear" in webhookUpdate) {
+			unsetFields[base] = "";
+		} else {
+			for (const [key, value] of Object.entries(webhookUpdate.set)) {
+				updateFields[`${base}.${key}`] = value;
+			}
+			if (webhookUpdate.urlChanged) {
+				// A new/changed url re-arms the webhook: reset the failure state.
+				unsetFields[`${base}.disabled`] = "";
+				unsetFields[`${base}.failingSince`] = "";
+				unsetFields[`${base}.retryCount`] = "";
+				unsetFields[`${base}.nextRetryAt`] = "";
+				unsetFields[`${base}.lastError`] = "";
+			}
+		}
+	}
 	if (body.account?.avatar != null) {
 		updateFields["account.avatar"] = body.account.avatar;
 	}
@@ -105,12 +211,39 @@ router.post("/", loggedIn, async (ctx) => {
 		updateFields["account.country"] = body.account.country === "" ? null : body.account.country;
 	}
 
-	if (Object.keys(updateFields).length > 0) {
-		await colls.users.updateOne({ _id: ctx.state.user!._id }, { $set: updateFields });
+	if (Object.keys(updateFields).length > 0 || Object.keys(unsetFields).length > 0) {
+		await colls.users.updateOne(
+			{ _id: ctx.state.user!._id },
+			{
+				...(Object.keys(updateFields).length > 0 ? { $set: updateFields } : {}),
+				...(Object.keys(unsetFields).length > 0 ? { $unset: unsetFields } : {}),
+			},
+		);
 	}
 
 	const updatedUser = await colls.users.findOne({ _id: ctx.state.user!._id });
-	ctx.body = updatedUser;
+	ctx.body = updatedUser ? stripSensitiveFields(updatedUser) : updatedUser;
+});
+
+/**
+ * Send a test notification to the user's saved webhook (#85/#33): re-runs the
+ * SSRF validation and does a real POST in the user's configured format, so they
+ * can verify the URL before relying on it.
+ */
+router.post("/webhook/test", loggedIn, actionRateLimit("account/webhook/test"), async (ctx) => {
+	const user = ctx.state.user!;
+	const webhook = user.settings?.notifications?.webhook;
+	if (!webhook?.url) {
+		ctx.body = { success: false, error: "No webhook configured" };
+		return;
+	}
+	try {
+		await assertValidWebhookUrl(webhook.url);
+		await deliverWebhook(user, webhookTestPayload(webhook.format ?? "discord"));
+		ctx.body = { success: true };
+	} catch (err) {
+		ctx.body = { success: false, error: err instanceof Error ? err.message : String(err) };
+	}
 });
 
 router.post("/avatar", loggedIn, async (ctx) => {
@@ -234,7 +367,7 @@ router.post("/terms-and-conditions", loggedIn, async (ctx) => {
 	assert(!ctx.state.user!.account.termsAndConditions, "You already accepted the Terms and Conditions");
 	await colls.users.updateOne({ _id: ctx.state.user!._id }, { $set: { "account.termsAndConditions": new Date() } });
 	const updatedUser = await colls.users.findOne({ _id: ctx.state.user!._id });
-	ctx.body = updatedUser;
+	ctx.body = updatedUser ? stripSensitiveFields(updatedUser) : updatedUser;
 });
 
 router.get("/games/settings", loggedIn, async (ctx) => {

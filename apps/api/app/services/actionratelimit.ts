@@ -27,6 +27,10 @@ export const ACTION_RATE_LIMITS: Record<string, ActionRateLimitOptions> = {
 	// POST /account/email — changing the account email sends a notice to the old
 	// address and a confirmation link to the new one.
 	"account/email": { max: 5, windowMs: 60 * 60 * 1000 },
+	// POST /account/webhook/test — an authenticated trigger for an outbound POST
+	// to a user-supplied URL (#85/#33); cap it so the api can't be used to fan
+	// out request volume.
+	"account/webhook/test": { max: 10, windowMs: 60 * 60 * 1000 },
 };
 
 let testLimits: ActionRateLimitOptions | null = null;

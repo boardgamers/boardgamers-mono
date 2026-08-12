@@ -12,6 +12,7 @@ import env from "../../config/env.ts";
 import { setSendmailForTests, type MailSendData } from "../../config/sendmail.ts";
 import { testUser, testGamePrefs } from "../../config/test-helpers.ts";
 import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
+import { setWebhookFetchForTests, type WebhookCall } from "../../models/user.ts";
 import { interceptS3Fetches, makeS3Mock } from "../../services/s3-mock.ts";
 import { s3Fetch, setS3ClientsForTests } from "../../services/s3.ts";
 
@@ -123,6 +124,211 @@ describe("Account API — country", () => {
 	});
 
 	after(() => db().dropDatabase());
+});
+
+describe("Account API — notification webhook (#85/#33)", () => {
+	const userId = new ObjectId();
+	let authHeaders: Record<string, string> = {};
+	let webhookCalls: WebhookCall[];
+	let webhookFails = false;
+
+	const interceptWebhook = () => {
+		webhookCalls = [];
+		setWebhookFetchForTests(async (url, init) => {
+			if (webhookFails) {
+				throw new Error("connection refused");
+			}
+			webhookCalls.push({ url, ...init });
+			return { statusCode: 200 };
+		});
+	};
+
+	before(async () => {
+		await colls.users.insertOne(
+			testUser({
+				_id: userId,
+				account: { username: "webhookuser", email: "webhook@test.com" },
+				security: { confirmed: true, slug: "webhookuser" },
+			}),
+		);
+		const code = generateRefreshCode();
+		const tokenDoc = { user: userId, codeHash: hashRefreshCode(code), createdAt: new Date() };
+		await colls.jwtRefreshTokens.insertOne(tokenDoc);
+		authHeaders = { Authorization: `Bearer ${await createAccessToken(tokenDoc, ["all"], false)}` };
+		interceptWebhook();
+	});
+
+	it("rejects special-use (SSRF) webhook urls", async () => {
+		for (const url of [
+			"http://169.254.169.254/latest/meta-data",
+			"https://10.0.0.1/hook",
+			"https://192.168.1.1/hook",
+		]) {
+			const res = await api("POST", "/api/account", { settings: { notifications: { webhook: { url } } } }, authHeaders);
+			assert.strictEqual(res.ok, false, `expected failure for ${url}`);
+		}
+		const stored = await colls.users.findOne({ _id: userId });
+		assert.strictEqual(stored?.settings?.notifications, undefined);
+	});
+
+	it("sets a webhook; the url never leaves the api but hasWebhook does", async () => {
+		const url = "https://discord.com/api/webhooks/123/abc";
+		const res = await api(
+			"POST",
+			"/api/account",
+			{ settings: { notifications: { webhook: { url, format: "discord", enabled: true } } } },
+			authHeaders,
+		);
+		assert.strictEqual(res.status, 200, JSON.stringify(res.data));
+
+		const responseWebhook = z
+			.object({
+				settings: z.object({
+					notifications: z.object({
+						webhook: z.object({ url: z.string().optional(), hasWebhook: z.boolean().optional() }),
+					}),
+				}),
+			})
+			.parse(res.data).settings.notifications.webhook;
+		assert.strictEqual(responseWebhook.url, undefined, "the url must be stripped from the response");
+		assert.strictEqual(responseWebhook.hasWebhook, true);
+
+		const stored = await colls.users.findOne({ _id: userId });
+		assert.strictEqual(stored?.settings?.notifications?.webhook?.url, url);
+		assert.strictEqual(stored?.settings?.notifications?.webhook?.format, "discord");
+
+		const get = await api("GET", "/api/account", undefined, authHeaders);
+		const getWebhook = z
+			.object({
+				settings: z.object({
+					notifications: z.object({
+						webhook: z.object({ url: z.string().optional(), hasWebhook: z.boolean().optional() }),
+					}),
+				}),
+			})
+			.parse(get.data).settings.notifications.webhook;
+		assert.strictEqual(getWebhook.url, undefined);
+		assert.strictEqual(getWebhook.hasWebhook, true);
+	});
+
+	it("persists the webhook delivery delay (0 = immediate)", async () => {
+		const res = await api(
+			"POST",
+			"/api/account",
+			{ settings: { notifications: { webhook: { delay: 0 } } } },
+			authHeaders,
+		);
+		assert.strictEqual(res.status, 200, JSON.stringify(res.data));
+		let stored = await colls.users.findOne({ _id: userId });
+		assert.strictEqual(stored?.settings?.notifications?.webhook?.delay, 0);
+
+		await api("POST", "/api/account", { settings: { notifications: { webhook: { delay: 600 } } } }, authHeaders);
+		stored = await colls.users.findOne({ _id: userId });
+		assert.strictEqual(stored?.settings?.notifications?.webhook?.delay, 600);
+	});
+
+	it("rejects a negative webhook delay", async () => {
+		const res = await api(
+			"POST",
+			"/api/account",
+			{ settings: { notifications: { webhook: { delay: -5 } } } },
+			authHeaders,
+		);
+		assert.strictEqual(res.status, 400);
+	});
+
+	it("POST /webhook/test posts a test notification to the configured url", async () => {
+		const res = await api("POST", "/api/account/webhook/test", undefined, authHeaders);
+		assert.strictEqual(res.status, 200);
+		assert.deepStrictEqual(res.data, { success: true });
+		assert.strictEqual(webhookCalls.length, 1);
+		assert.strictEqual(webhookCalls[0].url, "https://discord.com/api/webhooks/123/abc");
+		assert.strictEqual(webhookCalls[0].method, "POST");
+		const payload = z.object({ content: z.string() }).parse(JSON.parse(webhookCalls[0].body));
+		assert.match(payload.content, /test notification/i);
+	});
+
+	it("POST /webhook/test reports failure when the endpoint errors", async () => {
+		webhookFails = true;
+		try {
+			const res = await api("POST", "/api/account/webhook/test", undefined, authHeaders);
+			assert.strictEqual(res.status, 200);
+			const body = z.object({ success: z.literal(false), error: z.string() }).parse(res.data);
+			assert.match(body.error, /connection refused/);
+		} finally {
+			webhookFails = false;
+		}
+	});
+
+	it("POST /webhook/test reports failure when no webhook is configured", async () => {
+		const soloId = new ObjectId();
+		await colls.users.insertOne(
+			testUser({
+				_id: soloId,
+				account: { username: "nowebhook", email: "nowebhook@test.com" },
+				security: { confirmed: true, slug: "nowebhook" },
+			}),
+		);
+		const code = generateRefreshCode();
+		const tokenDoc = { user: soloId, codeHash: hashRefreshCode(code), createdAt: new Date() };
+		await colls.jwtRefreshTokens.insertOne(tokenDoc);
+		const headers = { Authorization: `Bearer ${await createAccessToken(tokenDoc, ["all"], false)}` };
+
+		const res = await api("POST", "/api/account/webhook/test", undefined, headers);
+		assert.deepStrictEqual(res.data, { success: false, error: "No webhook configured" });
+	});
+
+	it("saving a new url resets the failure state", async () => {
+		await colls.users.updateOne(
+			{ _id: userId },
+			{
+				$set: {
+					"settings.notifications.webhook.disabled": true,
+					"settings.notifications.webhook.failingSince": new Date(),
+					"settings.notifications.webhook.nextRetryAt": new Date(),
+					"settings.notifications.webhook.lastError": "boom",
+				},
+			},
+		);
+		const res = await api(
+			"POST",
+			"/api/account",
+			{ settings: { notifications: { webhook: { url: "https://discord.com/api/webhooks/123/def" } } } },
+			authHeaders,
+		);
+		assert.strictEqual(res.status, 200, JSON.stringify(res.data));
+		const stored = await colls.users.findOne({ _id: userId });
+		const webhook = stored?.settings?.notifications?.webhook;
+		assert.strictEqual(webhook?.url, "https://discord.com/api/webhooks/123/def");
+		assert.ok(webhook && !("disabled" in webhook), "disabled must be reset");
+		assert.ok(!("failingSince" in webhook));
+		assert.ok(!("nextRetryAt" in webhook));
+		assert.ok(!("lastError" in webhook));
+	});
+
+	it("clears the webhook when sent null", async () => {
+		const res = await api("POST", "/api/account", { settings: { notifications: { webhook: null } } }, authHeaders);
+		assert.strictEqual(res.status, 200, JSON.stringify(res.data));
+		const stored = await colls.users.findOne({ _id: userId });
+		assert.strictEqual(stored?.settings?.notifications?.webhook, undefined);
+		// A null leaf must not clobber sibling settings.
+		assert.ok(stored?.settings?.mailing, "sibling settings must survive");
+	});
+
+	it("rejects unknown keys inside the webhook block", async () => {
+		const res = await api(
+			"POST",
+			"/api/account",
+			{ settings: { notifications: { webhook: { url: "https://example.com/hook", evil: true } } } },
+			authHeaders,
+		);
+		assert.strictEqual(res.ok, false);
+	});
+
+	after(() => {
+		setWebhookFetchForTests(null);
+		return db().dropDatabase();
+	});
 });
 
 describe("Account API — avatar upload", () => {

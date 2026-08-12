@@ -62,5 +62,14 @@ export {
 	hashUserSecret,
 	authEmailOnCooldown,
 	markAuthEmailSent,
+	buildWebhookPayload,
+	deliverWebhook,
+	deliverGameNotificationWebhook,
+	setWebhookFetchForTests,
+	webhookBackoffSeconds,
+	WEBHOOK_BACKOFF_BASE_SECONDS,
+	WEBHOOK_BACKOFF_MAX_SECONDS,
+	WEBHOOK_DISABLE_AFTER_MS,
 } from "./user.ts";
+export type { WebhookCall, WebhookFormat, WebhookGame } from "./user.ts";
 export type { UserDoc } from "@bgs/models";
