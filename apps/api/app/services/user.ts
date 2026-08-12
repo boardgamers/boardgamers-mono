@@ -49,17 +49,15 @@ async function hasActivity(userId: ObjectId): Promise<boolean> {
  * forum presence at all — poster or not (their profile, likes, DMs, watched
  * topics are content too, and account deletion must not orphan a forum identity).
  *
- * The bgs → forum-uid link comes from TWO sources, unioned:
+ * NodeBB's `objects` doc `{ _key: "boardgamersId:uid" }` is the single
+ * authoritative bgs user → forum-uid map: it holds the OAuth-era links written
+ * by the forum SSO plugin AND the legacy session-sharing accounts, which were
+ * backfilled into it. One batched read; a candidate whose hex id is a key in
+ * that doc has a forum account and is kept. No posts lookup — the link's
+ * existence is the whole signal.
  *
- * 1. Our own `forumUserLinks` collection (`_id` = bgs user id → `forumUid`) —
- *    written out-of-band (legacy session-sharing backfill, OAuth links folded in).
- * 2. NodeBB's `objects` doc `{ _key: "boardgamersId:uid" }` — the OAuth-era link
- *    written by the forum SSO plugin (authoritative for accounts linked after
- *    the backfill).
- *
- * No posts lookup: the link's existence is the whole signal. Batched (no N+1).
- * Fail-safe: if EITHER source can't be read (bgs db error, NodeBB unreachable or
- * erroring), ALL candidates are kept — never delete on uncertainty.
+ * Fail-safe: an unreachable/erroring forum db keeps ALL candidates — never
+ * delete on uncertainty.
  */
 async function forumUsersWithContent(userIds: ObjectId[]): Promise<Set<string>> {
 	const protected_ = new Set(userIds.map((id) => id.toString()));
@@ -71,23 +69,15 @@ async function forumUsersWithContent(userIds: ObjectId[]): Promise<Set<string>> 
 		return protected_;
 	}
 	try {
+		// One hash doc maps every linked bgs user → forum uid.
+		const link = await nodebb.objects.findOne({ _key: "boardgamersId:uid" });
 		const linked = new Set<string>();
-
-		// 1. bgs-side links (legacy backfill + folded-in OAuth links).
-		const links = await colls.forumUserLinks.find({ _id: { $in: userIds } }, { projection: { _id: 1 } }).toArray();
-		for (const link of links) {
-			linked.add(link._id.toString());
-		}
-
-		// 2. NodeBB OAuth link: one hash doc maps every linked bgs user → forum uid.
-		const oauthLink = await nodebb.objects.findOne({ _key: "boardgamersId:uid" });
 		for (const id of userIds) {
-			const forumUid = oauthLink?.[id.toHexString()];
+			const forumUid = link?.[id.toHexString()];
 			if (typeof forumUid === "number" || typeof forumUid === "string") {
 				linked.add(id.toString());
 			}
 		}
-
 		return linked;
 	} catch (err) {
 		console.error("[cleanupDeadUsers] forum-link lookup failed — failing safe (keep all)", err);

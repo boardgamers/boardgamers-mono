@@ -35,8 +35,9 @@ describe("cleanupDeadUsers", () => {
 	const forumLurkerId = new ObjectId();
 	const forumPosterUid = 42;
 	const forumLurkerUid = 43;
-	// Legacy forum users linked only via the bgs-side forumUserLinks backfill (NOT
-	// NodeBB's OAuth-era boardgamersId:uid map): poster or not → kept.
+	// Legacy forum users: the session-sharing-era accounts were backfilled into
+	// NodeBB's boardgamersId:uid map (the single authoritative link), so they take
+	// the same path as OAuth-era accounts — poster or not → kept.
 	const legacyPosterId = new ObjectId();
 	const legacyLurkerId = new ObjectId();
 	const legacyPosterUid = 147;
@@ -75,15 +76,16 @@ describe("cleanupDeadUsers", () => {
 			// No site activity, no OAuth, a forum account but no posts → still kept
 			// (any forum account protects, poster or not).
 			testUser({ _id: forumLurkerId, createdAt: old, security: noActivity }),
-			// No site activity, no OAuth, no OAuth-era link — but a forumUserLinks
-			// backfill entry (legacy session-sharing account) → kept, posts or not.
+			// Legacy session-sharing accounts, backfilled into boardgamersId:uid →
+			// kept, posts or not.
 			testUser({ _id: legacyPosterId, createdAt: old, security: noActivity }),
 			testUser({ _id: legacyLurkerId, createdAt: old, security: noActivity }),
 			// No other activity, but a recent security.lastSeen (e.g. an OAuth authorize
 			// bumped it) → excluded by the candidate filter itself.
 			testUser({ _id: lastSeenUserId, createdAt: old, security: { ...noActivity, lastSeen: new Date() } }),
 		]);
-		// Simulated NodeBB `objects` doc: the OAuth-era bgs→forum-uid link. The
+		// Simulated NodeBB `objects` doc: the bgs→forum-uid link, holding both the
+		// OAuth-era accounts and the backfilled legacy session-sharing ones. The
 		// cleanup never reads posts — link existence alone protects.
 		await db()
 			.collection("objects")
@@ -91,13 +93,9 @@ describe("cleanupDeadUsers", () => {
 				_key: "boardgamersId:uid",
 				[forumPosterId.toHexString()]: forumPosterUid,
 				[forumLurkerId.toHexString()]: forumLurkerUid,
+				[legacyPosterId.toHexString()]: legacyPosterUid,
+				[legacyLurkerId.toHexString()]: legacyLurkerUid,
 			});
-		// The bgs-side link backfill (legacy session-sharing accounts): _id = bgs
-		// user id → forumUid. Deliberately absent from boardgamersId:uid above.
-		await colls.forumUserLinks.insertMany([
-			{ _id: legacyPosterId, forumUid: legacyPosterUid },
-			{ _id: legacyLurkerId, forumUid: legacyLurkerUid },
-		]);
 		await colls.oauthConsents.insertMany([
 			{
 				userId: oauthUserId,
@@ -194,16 +192,16 @@ describe("cleanupDeadUsers", () => {
 		);
 	});
 
-	it("a legacy forum account linked only via the bgs-side forumUserLinks backfill is kept", async () => {
+	it("a legacy forum account (backfilled into boardgamersId:uid) is kept", async () => {
 		const dead = await findDeadUsers(cutoff, 50);
-		assert.ok(!dead.some((u) => u._id!.equals(legacyPosterId)), "a forumUserLinks entry must protect");
+		assert.ok(!dead.some((u) => u._id!.equals(legacyPosterId)), "a backfilled legacy forum link must protect");
 	});
 
-	it("a forumUserLinks entry protects even with zero posts on the forum account", async () => {
+	it("a backfilled legacy forum account is kept even with zero posts (connection, not content)", async () => {
 		const dead = await findDeadUsers(cutoff, 50);
 		assert.ok(
 			!dead.some((u) => u._id!.equals(legacyLurkerId)),
-			"a linked legacy forum account without posts must still protect",
+			"a backfilled legacy forum account without posts must still protect",
 		);
 	});
 
