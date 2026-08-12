@@ -403,8 +403,7 @@
 					</div>
 				{/if}
 				<span class="text-xs"
-					>A single email listing your waiting games, sent after the delay so you're not spammed. This delay applies to
-					email only; the webhook below has its own.</span
+					>An email listing your waiting games, sent after the configured delay.</span
 				>
 			</FormGroup>
 
