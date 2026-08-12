@@ -25,6 +25,8 @@ export const oauthConsentSchema = z.object({
 	/** First-party trusted clients skip the consent screen (nothing is trusted yet). */
 	trusted: z.boolean().optional(),
 	createdAt: zDate(),
+	/** Last time the user re-confirmed / used this consent (updated on every authorize). */
+	lastUsedAt: zDate().optional(),
 });
 
 export type OAuthConsentDoc = z.output<typeof oauthConsentSchema>;

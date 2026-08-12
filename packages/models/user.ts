@@ -82,6 +82,9 @@ export const userSchema = z.object({
 			.optional(),
 		lastActive: zDate().optional(),
 		lastOnline: zDate().optional(),
+		// Bumped by the sliding-session middleware on mutating activity, and by OAuth
+		// authorize/token (a "seen via SSO" signal). Feeds the dead-user cleanup.
+		lastSeen: zDate().optional(),
 		confirmed: z.boolean().optional(),
 		// sha256 hex of the email-confirmation link secret (the emailed link carries the
 		// plaintext). Legacy docs hold the plaintext until used / migration 1.4.0 (#164).

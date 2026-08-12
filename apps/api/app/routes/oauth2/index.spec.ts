@@ -500,6 +500,62 @@ describe("GET /api/oauth2/authorize", () => {
 		assert.ok(new URL(again.location!).searchParams.get("code"), `expected a code, got ${again.location}`);
 	});
 
+	it("bumps security.lastSeen on authorize (throttled to ~1/day), and touches the consent lastUsedAt", async () => {
+		resetClient();
+		// An old account last seen long ago — exactly what the dead-user cleanup targets.
+		const stale = new Date(Date.now() - 400 * 24 * 3600 * 1000);
+		const oauthOnly = await insertUser({ security: { lastSeen: stale, lastLogin: { ip: "", date: stale } } });
+		const oauthCookie = await makeSessionCookie(oauthOnly._id);
+
+		const seenAfter = Date.now();
+		const { code } = await runAuthorizeFlow(oauthCookie, codeVerifier());
+		assert.ok(code);
+
+		// The lastSeen bump is fire-and-forget: poll briefly for the write to land.
+		let lastSeen: Date | undefined;
+		for (let i = 0; i < 50; i++) {
+			const doc = await colls.users.findOne({ _id: oauthOnly._id }, { projection: { "security.lastSeen": 1 } });
+			lastSeen = doc?.security.lastSeen;
+			if (lastSeen && lastSeen.getTime() >= seenAfter) {
+				break;
+			}
+			await new Promise((r) => setTimeout(r, 20));
+		}
+		assert.ok(lastSeen && lastSeen.getTime() >= seenAfter, "expected lastSeen to be bumped on authorize");
+
+		// The consent lastUsedAt trace is bumped too.
+		const consent = await colls.oauthConsents.findOne({ userId: oauthOnly._id, clientId: clientId() });
+		assert.ok(consent?.lastUsedAt && consent.lastUsedAt.getTime() >= seenAfter, "expected consent lastUsedAt bump");
+
+		// security.lastLogin is untouched — an OAuth authorization is not a site login.
+		const doc = await colls.users.findOne({ _id: oauthOnly._id }, { projection: { "security.lastLogin": 1 } });
+		assert.equal(doc?.security.lastLogin?.date?.getTime(), stale.getTime());
+	});
+
+	it("does not rewrite lastSeen when the user was seen less than a day ago (throttled)", async () => {
+		resetClient();
+		const recent = new Date(Date.now() - 60 * 1000); // 1 minute ago
+		const active = await insertUser({ security: { lastSeen: recent } });
+		const activeCookie = await makeSessionCookie(active._id);
+		// Pre-record consent so authorize issues the code via GET only — no mutating
+		// consent POST, which the site sliding-session middleware would count as
+		// activity and bump lastSeen itself (that's the site path, not the OAuth bump
+		// under test here).
+		await colls.oauthConsents.insertOne({
+			userId: active._id,
+			clientId: clientId(),
+			scopes: ["openid", "profile", "email"],
+			createdAt: new Date(),
+		});
+
+		const res = await authorize(authorizeParams(codeVerifier()), activeCookie);
+		assert.strictEqual(res.status, 303);
+		assert.ok(new URL(res.location!).searchParams.get("code"), `expected a code, got ${res.location}`);
+
+		const doc = await colls.users.findOne({ _id: active._id }, { projection: { "security.lastSeen": 1 } });
+		assert.equal(doc?.security.lastSeen?.getTime(), recent.getTime());
+	});
+
 	it("rejects a form-urlencoded consent POST (CSRF — a cross-site HTML form is form-encoded)", async () => {
 		resetClient();
 		const formBody = new URLSearchParams({

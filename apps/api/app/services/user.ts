@@ -4,11 +4,18 @@ import { type Filter } from "mongodb";
 import { z } from "zod";
 import { SettingsKey, type UserDoc } from "@bgs/models";
 import env from "../config/env.ts";
-import { colls } from "../config/db.ts";
+import { colls, nodebbColls } from "../config/db.ts";
 
 export const CLEANUP_DEAD_USERS_INTERVAL_MS = 24 * 3600 * 1000;
 
-const ACTIVITY_FIELDS = ["security.lastActive", "security.lastLogin.date", "security.lastOnline"] as const;
+// security.lastSeen is bumped both by the sliding-session middleware (mutating
+// activity) and by OAuth authorize/token — so an SSO-only user is still "seen".
+const ACTIVITY_FIELDS = [
+	"security.lastActive",
+	"security.lastLogin.date",
+	"security.lastOnline",
+	"security.lastSeen",
+] as const;
 
 // Conservative candidate pre-filter: very old account, no recorded activity of any kind
 // after the cutoff (or none at all), never an admin. The per-user activity checks below
@@ -37,13 +44,83 @@ async function hasActivity(userId: ObjectId): Promise<boolean> {
 	return games > 0 || createdGames > 0 || chatMessages > 0 || gameNotifications > 0;
 }
 
+// Conservative backstop: a user with ANY oauthConsents doc authorized a client at
+// least once, and a forum user always authorized at least once. Since we never
+// delete on uncertainty, any OAuth trace is an unconditional keep — it guards
+// against a forum-content lookup that missed (or a forum user whose only content
+// predates our lookup). The content-based forum-posts check below is the real
+// signal; this is the cheap fail-safe.
+async function hasOAuthTrace(userIds: ObjectId[]): Promise<Set<string>> {
+	if (userIds.length === 0) {
+		return new Set();
+	}
+	const docs = await colls.oauthConsents.find({ userId: { $in: userIds } }, { projection: { userId: 1 } }).toArray();
+	return new Set(docs.map((d) => d.userId.toString()));
+}
+
+/**
+ * bgs user ids that have forum CONTENT (posts), looked up in the read-only NodeBB
+ * db. The bgs→forum-uid map is NodeBB's `objects` doc `{ _key: "boardgamersId:uid",
+ * "<bgsUserIdHex>": <forumUid> }`; posts live in the `uid:<forumUid>:posts` set.
+ * Fail-safe: when the forum db is unreachable (or the lookup errors), return ALL
+ * input ids — never delete on uncertainty.
+ */
+async function forumUsersWithContent(userIds: ObjectId[]): Promise<Set<string>> {
+	const protected_ = new Set(userIds.map((id) => id.toString()));
+	if (userIds.length === 0) {
+		return protected_;
+	}
+	const nodebb = await nodebbColls();
+	if (!nodebb) {
+		return protected_;
+	}
+	try {
+		const objects = nodebb.objects;
+		// One hash doc maps every linked bgs user → forum uid.
+		const link = await objects.findOne({ _key: "boardgamersId:uid" });
+		const uidToBgs = new Map<string, string>();
+		for (const id of userIds) {
+			const forumUid = link?.[id.toHexString()];
+			if (typeof forumUid === "number" || typeof forumUid === "string") {
+				uidToBgs.set(String(forumUid), id.toHexString());
+			}
+		}
+		if (uidToBgs.size === 0) {
+			return new Set();
+		}
+		const uids = [...uidToBgs.keys()];
+		const posting = await objects
+			.find({ _key: { $in: uids.map((u) => `uid:${u}:posts`) } }, { projection: { _key: 1 } })
+			.toArray();
+		const result = new Set<string>();
+		for (const doc of posting) {
+			const forumUid = String(doc._key).slice("uid:".length, -":posts".length);
+			const bgs = uidToBgs.get(forumUid);
+			if (bgs) {
+				result.add(bgs);
+			}
+		}
+		return result;
+	} catch (err) {
+		console.error("[cleanupDeadUsers] forum-content lookup failed — failing safe (keep all)", err);
+		return protected_;
+	}
+}
+
 export async function findDeadUsers(cutoff: Date, batchSize: number): Promise<UserDoc[]> {
 	const candidates = await colls.users.find(deadUserCandidateFilter(cutoff)).sort({ createdAt: 1 }).toArray();
+	const ids = candidates.map((u) => u._id);
+	// Batched up-front (no N+1): OAuth backstop + forum content.
+	const oauthUsers = await hasOAuthTrace(ids);
+	const forumUsers = await forumUsersWithContent(ids);
 
 	const dead: UserDoc[] = [];
 	for (const user of candidates) {
 		if (dead.length >= batchSize) {
 			break;
+		}
+		if (oauthUsers.has(user._id.toString()) || forumUsers.has(user._id.toString())) {
+			continue;
 		}
 		if (!(await hasActivity(user._id))) {
 			dead.push(user);
@@ -94,9 +171,14 @@ export async function cleanupDeadUsers() {
 
 	for (const user of dead) {
 		const userId = user._id!;
-		// Re-verify right before archiving: a user who joined their first game or posted
-		// their first message between selection and now must be kept.
-		if (await hasActivity(userId)) {
+		// Re-verify right before archiving: a user who joined their first game, posted
+		// their first message, authorized a client, or has forum content between
+		// selection and now must be kept. All checks fail safe toward keeping.
+		if (
+			(await hasOAuthTrace([userId])).size > 0 ||
+			(await forumUsersWithContent([userId])).size > 0 ||
+			(await hasActivity(userId))
+		) {
 			console.log(`[cleanupDeadUsers] skipping ${label(user)}: activity appeared since selection`);
 			continue;
 		}
