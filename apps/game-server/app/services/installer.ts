@@ -69,7 +69,7 @@ export async function installNewGames() {
 		await initIfNeeded();
 
 		const currentPkg = JSON.parse((await fs.readFile("./games/package.json")).toString("utf-8"));
-		const infos = await colls.gameInfos.find({}, { projection: { engine: 1 } }).toArray();
+		const infos = await colls.gameInfos.find({}, { projection: { engine: 1, "meta.bots": 1 } }).toArray();
 
 		// Desired dependencies, keyed by a name unique per game+version+package
 		// version (engineKey). Because the key changes whenever the engine package
