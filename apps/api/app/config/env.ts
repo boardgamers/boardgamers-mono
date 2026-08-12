@@ -38,6 +38,17 @@ export default {
 		// OIDC issuer identifier. In production it MUST be the canonical site origin so
 		// it matches the discovery doc served at /.well-known/openid-configuration.
 		issuer: process.env.oauth2Issuer || (process.env.NODE_ENV === "production" ? `https://${domain}` : ""),
+		// First-party trusted clients (#196's escape hatch): these CIMD client_id URLs
+		// skip the consent screen for every user — they're operated by us and can't
+		// meaningfully consent to themselves. The per-user `trusted` doc flag in
+		// oauthconsents.ts stays as the out-of-band variant.
+		trustedClients: (
+			process.env.trustedOauthClients ??
+			"https://forum.boardgamers.space/client-metadata.json,https://grafana.boardgamers.space/client-metadata.json"
+		)
+			.split(",")
+			.map((s) => s.trim())
+			.filter(Boolean),
 	},
 	noreply: process.env.noreply || `BGS <no-reply@${domain}>`,
 	contact: process.env.contact || `contact@${domain}`,

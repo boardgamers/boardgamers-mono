@@ -1,6 +1,7 @@
 import type { ObjectId } from "mongodb";
 import type { OAuthScope } from "@bgs/models";
 import { colls } from "../config/db.ts";
+import { env } from "../config/index.ts";
 
 /**
  * OAuth2/OIDC provider consent store (issue #76): which user granted which scopes
@@ -20,19 +21,22 @@ export async function recordConsent(userId: ObjectId, clientId: string, scopes: 
 }
 
 /**
- * Scopes the user has NOT yet granted this client, or null when the client is
- * trusted (trusted clients — set out of band on the stored doc — skip consent;
- * nothing is trusted yet, this is the escape hatch for future first-party clients).
- * `[]` means consent covers everything requested — authorize can proceed.
+ * Scopes the user has NOT yet granted this client. Returns `[]` when nothing is
+ * missing, including for trusted clients: first-party ones listed in
+ * `env.oauth2.trustedClients`, and (out-of-band escape hatch) any client with
+ * `trusted: true` on the stored per-user consent doc.
  */
 export async function missingConsentScopes(
 	userId: ObjectId,
 	clientId: string,
 	scopes: OAuthScope[],
-): Promise<OAuthScope[] | null> {
+): Promise<OAuthScope[]> {
+	if (env.oauth2.trustedClients.includes(clientId)) {
+		return [];
+	}
 	const consent = await colls.oauthConsents.findOne({ userId, clientId });
 	if (consent?.trusted) {
-		return null;
+		return [];
 	}
 	const granted = new Set(consent?.scopes ?? []);
 	return scopes.filter((scope) => !granted.has(scope));
