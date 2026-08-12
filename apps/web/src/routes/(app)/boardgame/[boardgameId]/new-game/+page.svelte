@@ -37,6 +37,11 @@
 	let showAdvanced = $state(false);
 	let seed = $state("");
 	let numPlayers = $state(2);
+	let numBots = $state(0);
+	// The creator can join themselves (the "join" option), so a seat is taken by a
+	// human either way — cap bots at players - 1 to always leave one human seat.
+	let maxBots = $derived(Math.max(0, numPlayers - 1));
+	let botsSupported = $derived(!!info?.meta?.bots);
 
 	let options = $state(["join"]);
 	let playerOrder = $state<PlayerOrder>("random");
@@ -91,6 +96,7 @@
 			},
 			gameId,
 			players: numPlayers,
+			bots: numBots > 0 ? numBots : (undefined as number | undefined),
 			timePerMove,
 			timePerGame,
 			options: { ...fromPairs(options.map((key) => [key, true])), ...selects, playerOrder },
@@ -111,6 +117,10 @@
 
 		if (!seed) {
 			delete dataObj.seed;
+		}
+
+		if (!dataObj.bots) {
+			delete dataObj.bots;
 		}
 
 		if (!enableKarma || !dataObj.minimumKarma) {
@@ -151,6 +161,13 @@
 		}
 	});
 
+	// Keep the bot count within the seats the player count leaves for bots.
+	$effect(() => {
+		if (numBots > maxBots) {
+			numBots = maxBots;
+		}
+	});
+
 	const updateSelects = async () => {
 		if (!info) {
 			return;
@@ -176,6 +193,10 @@
 
 		if (!info.players.includes(numPlayers)) {
 			numPlayers = info.players[0];
+		}
+
+		if (!info.meta?.bots) {
+			numBots = 0;
 		}
 
 		selects = newVal;
@@ -253,6 +274,35 @@
 							{/each}
 						</div>
 					</div>
+
+					{#if botsSupported}
+						<div class="mb-4">
+							<span class="mb-1 block font-medium">Bot players</span>
+							<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Number of bot players">
+								{#each Array.from({ length: maxBots + 1 }, (_, i) => i) as option (option)}
+									<button
+										type="button"
+										class="rounded-md border px-4 py-2 text-sm font-medium transition-colors {numBots === option
+											? 'border-primary bg-primary text-white'
+											: 'border-gray-300 text-gray-700 hover:border-primary hover:text-primary dark:border-gray-600 dark:text-gray-200 dark:hover:text-primary-lighter'}"
+										aria-pressed={numBots === option}
+										onclick={() => (numBots = option)}
+									>
+										{option === 0 ? "None" : option}
+									</button>
+								{/each}
+							</div>
+							{#if numBots > 0}
+								<p
+									class="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+									transition:fade
+								>
+									🤖 Bots are <b>dumb</b>: they auto-play engine-chosen moves. They're meant for
+									<b>testing the UI solo</b>, not for enjoyment — real AI opponents may come later.
+								</p>
+							{/if}
+						</div>
+					{/if}
 
 					<div class="mb-4">
 						<label for="gameId" class="mb-1 block font-medium">Game name</label>

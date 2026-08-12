@@ -30,7 +30,10 @@
 		`background-image: url('${
 			player.faction && bg?.factions?.avatars
 				? `/images/factions/icons/${player.faction}.svg`
-				: `/api/user/${player._id}/avatar?d=${$account?.account.avatar}`
+				: player.isBot
+					? // Bots have no user account — the id route would 404; byName serves a generated avatar.
+						`/api/user/byName/${encodeURIComponent(player.name)}/avatar`
+					: `/api/user/${player._id}/avatar?d=${$account?.account.avatar}`
 		}')`
 	);
 </script>

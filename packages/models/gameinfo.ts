@@ -71,6 +71,9 @@ export const gameInfoSchema = z.object({
 	meta: z.object({
 		public: z.boolean(),
 		needOwnership: z.boolean().optional(),
+		// Set when the game's engine implements `moveAI` — enables adding bot players
+		// at game creation. Maintained per game by the site operator.
+		bots: z.boolean().optional(),
 	}),
 	createdAt: zDate().optional(),
 	updatedAt: zDate().optional(),

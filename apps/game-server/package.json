@@ -13,7 +13,7 @@
 		"lint": "oxlint --fix",
 		"lint-check": "oxlint",
 		"start": "node --env-file-if-exists=.env --env-file-if-exists=.env.${NODE_ENV} server.ts",
-		"test": "node --test 'app/**/*.spec.ts' 'scripts/**/*.spec.ts'",
+		"test": "node --test --test-force-exit 'app/**/*.spec.ts' 'scripts/**/*.spec.ts'",
 		"tsc": "tsc --noEmit"
 	},
 	"dependencies": {

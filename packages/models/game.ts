@@ -16,6 +16,9 @@ export const playerInfoSchema = z.object({
 	dropped: z.boolean().optional(),
 	quit: z.boolean().optional(),
 	name: z.string(),
+	// Platform-driven bot slot (auto-plays via the engine's moveAI). No user account:
+	// the _id is a placeholder, and bots are excluded from emails, karma and Elo.
+	isBot: z.boolean().optional(),
 	faction: z.string().nullable().optional(),
 	voteCancel: z.boolean().optional(),
 	ranking: z.number().optional(),

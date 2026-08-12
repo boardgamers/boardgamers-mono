@@ -78,6 +78,20 @@ Drop a player out.
 You should either change the player to an AI or completely remove them from the game. If it is
 the current player, the turn should automatically go to the next, non dropped-player.
 
+### moveAI
+
+```ts
+moveAI(data: GameData, player: number): Promise<GameData> | GameData
+```
+
+Play one move for `player`, chosen by the engine. This powers the platform's **bot players**:
+when a bot slot becomes the current player, the game-server calls `moveAI` and stores the
+result like a regular move.
+
+Optional — only games whose engine implements `moveAI` can have bot players (the site's
+game registry flags them with `meta.bots`). Reusing the auto-play logic from
+[dropPlayer](#dropplayer) is a good starting point; a simple random legal move is fine.
+
 ### currentPlayer
 
 ```ts

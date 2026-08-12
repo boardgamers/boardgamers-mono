@@ -210,6 +210,75 @@ describe("Game API", () => {
 		assert.strictEqual(errorMessage(res.data), "Wrong number of players");
 	});
 
+	describe("bot players", () => {
+		it("should reject bots for a game that does not support them", async () => {
+			const res = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-bots-unsupported", { bots: 1 }),
+				authHeaders,
+			);
+
+			assert.strictEqual(res.ok, false);
+			assert.ok(errorMessage(res.data)?.includes("does not support bot players"));
+			assert.strictEqual(await colls.games.countDocuments({ _id: "test-bots-unsupported" }), 0);
+		});
+
+		it("should reject a game with no human player", async () => {
+			await colls.gameInfos.updateOne({ _id: { game: "test", version: 1 } }, { $set: { "meta.bots": true } });
+
+			const res = await api("POST", "/api/game/new-game", newGameBody("test-bots-all", { bots: 2 }), authHeaders);
+
+			assert.strictEqual(res.ok, false);
+			assert.ok(errorMessage(res.data)?.includes("at least one human player"));
+			assert.strictEqual(await colls.games.countDocuments({ _id: "test-bots-all" }), 0);
+		});
+
+		it("should create a game with bot players filling seats", async () => {
+			const res = await api("POST", "/api/game/new-game", newGameBody("test-bots", { bots: 1 }), authHeaders);
+
+			assert.strictEqual(res.ok, true, JSON.stringify(res.data));
+			const game = await colls.games.findOne({ _id: "test-bots" });
+			assert.ok(game, "Game should be created");
+			assert.strictEqual(game.players.length, 2, "Creator + bot fill both seats");
+			const bot = game.players.find((pl) => pl.isBot);
+			assert.ok(bot, "One player should be flagged as bot");
+			assert.ok(bot.name.includes("bot"), "Bot name should be labeled");
+			assert.ok(
+				game.players.some((pl) => pl._id.equals(userId) && !pl.isBot),
+				"Creator is a human player",
+			);
+			assert.strictEqual(game.options.setup.nbPlayers, 2);
+
+			// The players endpoint surfaces bots (they have no user document).
+			const playersRes = await api("GET", "/api/game/test-bots/players", undefined, authHeaders);
+			assert.strictEqual(playersRes.ok, true);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- response body is untyped JSON
+			const listed = playersRes.data as { _id: string; name: string }[];
+			assert.ok(
+				listed.some((pl) => pl._id === bot._id.toString() && pl.name === bot.name),
+				"Bot should be listed in /players",
+			);
+		});
+
+		it("should count the bot seats when a human joins", async () => {
+			const createRes = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-bots-join", { bots: 1 }),
+				authHeaders,
+			);
+			assert.strictEqual(createRes.ok, true, JSON.stringify(createRes.data));
+
+			const game = await colls.games.findOne({ _id: "test-bots-join" });
+			assert.strictEqual(game?.players.length, 2, "Creator + 1 bot — the game is already full");
+
+			const joinRes = await api("POST", "/api/game/test-bots-join/join", {}, joinerAuthHeaders);
+			assert.strictEqual(joinRes.ok, false, "No free seat left for another human");
+			assert.ok(errorMessage(joinRes.data)?.includes("Too many people"));
+		});
+	});
+
 	describe("open-games cap", () => {
 		const capUserId = new ObjectId();
 		let capAuthHeaders: Record<string, string> = {};

@@ -11,6 +11,10 @@ export async function getUserElo(userId: ObjectId, game: string): Promise<number
 }
 
 export async function processEloForGame(game: Pick<GameDoc, "_id" | "players" | "game" | "cancelled">) {
+	// Bots have no account and no Elo: a game with bot players is unrated.
+	if (game.players.some((pl) => pl.isBot)) {
+		return;
+	}
 	const dropped = game.players.some((pl) => pl.dropped);
 	const prefs = keyBy(
 		await colls.gamePreferences

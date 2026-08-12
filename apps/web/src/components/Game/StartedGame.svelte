@@ -75,7 +75,14 @@
 	}
 
 	function postAvatars() {
-		const avatars = context.game?.players.map((pl) => `${window.location.origin}/api/user/${pl._id}/avatar`) ?? [];
+		// Bots have no user account — the avatar route 404s on their placeholder id,
+		// so use the byName route (a generated, name-seeded avatar) for them.
+		const avatars =
+			context.game?.players.map((pl) =>
+				pl.isBot
+					? `${window.location.origin}/api/user/byName/${encodeURIComponent(pl.name)}/avatar`
+					: `${window.location.origin}/api/user/${pl._id}/avatar`
+			) ?? [];
 		gameIframe?.contentWindow?.postMessage({ type: "avatars", avatars: JSON.parse(JSON.stringify(avatars)) }, "*");
 	}
 
