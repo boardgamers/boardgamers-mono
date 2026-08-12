@@ -370,12 +370,12 @@
 
 		<Card class="mt-4 border-accent" header="Notifications">
 			<p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
-				Choose how you're told when it's your turn — by email, on this device, or via a webhook.
+				Choose how you're told when it's your turn: by email, on this device, or via a webhook.
 			</p>
 
 			<FormGroup>
 				<Checkbox bind:checked={newsletter} onchange={updateAccount}>Newsletter</Checkbox>
-				<span class="text-xs">Occasional news about the site — at most six emails per year.</span>
+				<span class="text-xs">Occasional news about the site, at most six emails per year.</span>
 			</FormGroup>
 
 			<hr />
@@ -403,8 +403,8 @@
 					</div>
 				{/if}
 				<span class="text-xs"
-					>One email per waiting game, batched after the delay so you're not spammed. This delay applies to email only —
-					the webhook below has its own.</span
+					>A single email listing your waiting games, sent after the delay so you're not spammed. This delay applies to
+					email only; the webhook below has its own.</span
 				>
 			</FormGroup>
 
@@ -479,11 +479,11 @@
 				{/if}
 				{#if webhookDisabled}
 					<span class="text-xs text-warning"
-						>⚠️ This webhook was disabled after 24h of failures — save a new URL to re-enable it.</span
+						>⚠️ This webhook was disabled after 24h of failures. Save a new URL to re-enable it.</span
 					>
 				{:else}
 					<span class="text-xs"
-						>Post a message to Discord, Slack, or your own endpoint (raw JSON) when it's your turn — immediately, or
+						>Post a message to Discord, Slack, or your own endpoint (raw JSON) when it's your turn: immediately, or
 						batched at the chosen interval.</span
 					>
 				{/if}
