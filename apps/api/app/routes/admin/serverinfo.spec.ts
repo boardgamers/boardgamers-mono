@@ -23,6 +23,38 @@ describe("Admin serverinfo forum health", () => {
 	before(async () => {
 		const adminId = new ObjectId();
 		await colls.users.insertOne(testUser({ _id: adminId, authority: "admin" }));
+
+		// Sync-drift fixture: 4 more bgs users, all linked to a forum account —
+		//  1 in sync (case-insensitive email match), 1 username drift, 1 email drift,
+		//  1 drifting on both and unconfirmed. Plus 2 dangling links (bgs user deleted
+		//  / forum user deleted), which must count in linkedTotal but not as drift.
+		const syncedId = new ObjectId();
+		const usernameDriftId = new ObjectId();
+		const emailDriftId = new ObjectId();
+		const bothDriftId = new ObjectId();
+		const ghostBgsId = new ObjectId();
+		await colls.users.insertMany([
+			testUser({
+				_id: syncedId,
+				account: { username: "synced", email: "synced@test.com" },
+				security: { confirmed: true },
+			}),
+			testUser({
+				_id: usernameDriftId,
+				account: { username: "Alice Doe", email: "alice@test.com" },
+				security: { confirmed: true },
+			}),
+			testUser({
+				_id: emailDriftId,
+				account: { username: "bob", email: "bob@old.com" },
+				security: { confirmed: true },
+			}),
+			testUser({
+				_id: bothDriftId,
+				account: { username: "carol", email: "carol@old.com" },
+				security: { confirmed: false },
+			}),
+		]);
 		const tokenDoc = { user: adminId, codeHash: hashRefreshCode(generateRefreshCode()), createdAt: new Date() };
 		await colls.jwtRefreshTokens.insertOne(tokenDoc);
 		const token = await createAccessToken(tokenDoc, ["all"], true);
@@ -30,21 +62,34 @@ describe("Admin serverinfo forum health", () => {
 
 		// Simulate the forum db: point the read-only NodeBB connection at the SAME
 		// test db (mirrors user.spec.ts) and seed an `objects` collection fixture:
-		// 4 users (2 with posts), 1008 posts (global.postCount), 2 linked bgs accounts.
+		// 6 users (2 with posts), 1008 posts (global.postCount), 8 linked bgs accounts
+		// (admin + the 6 above + 1 unparseable entry).
 		const bgsUrl = new URL(env.database.bgs.url.replace(/^mongodb:/, "http:"));
 		env.database.nodebb = `mongodb://${bgsUrl.host}/${env.database.bgs.name}${bgsUrl.search}`;
 		await closeNodebbDb();
 		await db()
 			.collection("objects")
 			.insertMany([
-				{ _key: "user:1", postcount: 7 },
-				{ _key: "user:2", postcount: 0 },
-				{ _key: "user:3", postcount: 2 },
+				{ _key: "user:1", username: "admin", email: "admin@forum.com", postcount: 7 },
+				{ _key: "user:2", username: "synced", email: "SYNCED@test.com", postcount: 0 },
+				{ _key: "user:3", username: "alice-doe", email: "alice@test.com", postcount: 2 },
+				{ _key: "user:4", username: "bob", email: "bob@new.com" },
+				{ _key: "user:5", username: "Carol", email: "carol@new.com" },
 				{ _key: "user:0" }, // NodeBB's system uid — included, matching the /^user:\d+$/ count
-				{ _key: "boardgamersId:uid", [adminId.toHexString()]: 1, [new ObjectId().toHexString()]: 2 },
+				{
+					_key: "boardgamersId:uid",
+					[adminId.toHexString()]: 1,
+					[syncedId.toHexString()]: 2,
+					[usernameDriftId.toHexString()]: 3,
+					[emailDriftId.toHexString()]: 4,
+					[bothDriftId.toHexString()]: 5,
+					[ghostBgsId.toHexString()]: 6, // bgs user deleted — dangling, not drift
+					[new ObjectId().toHexString()]: 99, // forum user:99 missing — dangling, not drift
+					"not-an-objectid": 7, // unparseable link entry — skipped entirely
+				},
 				{ _key: "global", postCount: 1008 },
-				// Posts are `post:<pid>` docs (the old `pid:*` regex never matched); the
-				// endpoint reads global.postCount, so these are decorative realism.
+				// Posts are `post:<pid>` docs; the endpoint reads global.postCount, so
+				// these are decorative realism (and must not count as users).
 				{ _key: "post:11", pid: 11, uid: 1 },
 				{ _key: "post:12", pid: 12, uid: 3 },
 				{ _key: "username:sorted" }, // non-user key: must not count as a user
@@ -69,10 +114,24 @@ describe("Admin serverinfo forum health", () => {
 		await db().dropDatabase();
 	});
 
+	interface ForumSyncSample {
+		forumUsername: string | null;
+		bgsUsername: string | null;
+		forumEmail: string | null;
+		bgsEmail: string | null;
+	}
+	interface ForumSync {
+		linkedTotal: number;
+		usernameMismatch: number;
+		emailMismatch: number;
+		unconfirmedLinked: number;
+		sample: ForumSyncSample[];
+	}
 	interface ForumInfo {
 		ok: boolean;
 		status: number | null;
 		stats: { users: number; linked: number; usersWithPosts: number; posts: number } | null;
+		forumSync: ForumSync | null;
 	}
 
 	async function serverinfo() {
@@ -106,8 +165,9 @@ describe("Admin serverinfo forum health", () => {
 	it("reports forum db stats from the NodeBB objects collection", async () => {
 		forumStatus = 200;
 		const forum = await serverinfo();
-		// Fixture: user:0..3 (2 with posts), global.postCount=1008, 2 linked bgs accounts.
-		assert.deepEqual(forum.stats, { users: 4, linked: 2, usersWithPosts: 2, posts: 1008 });
+		// Fixture: user:0..5 (2 with posts), global.postCount=1008, 8 entries in the
+		// boardgamersId:uid link doc (raw count — the unparseable entry included).
+		assert.deepEqual(forum.stats, { users: 6, linked: 8, usersWithPosts: 2, posts: 1008 });
 	});
 
 	it("returns null stats when the forum db is unreachable, without failing the request", async () => {
@@ -117,9 +177,44 @@ describe("Admin serverinfo forum health", () => {
 		try {
 			const forum = await serverinfo();
 			assert.equal(forum.stats, null);
+			assert.equal(forum.forumSync, null);
 		} finally {
 			env.database.nodebb = saved;
 			await closeNodebbDb(); // reset so later tests reconnect to the fixture db
 		}
+	});
+
+	it("reports bgs↔forum account drift over the linked pairs", async () => {
+		forumStatus = 200;
+		const forum = await serverinfo();
+		const sync = forum.forumSync;
+		assert.ok(sync, "forumSync must be present when the forum db is reachable");
+		// 8 raw entries in boardgamersId:uid — the unparseable "not-an-objectid"
+		// key is skipped, leaving 7 links: admin + 4 fixture users + 2 dangling.
+		// Dangling pairs (bgs user deleted / forum user deleted) count in the
+		// total but not as drift.
+		assert.equal(sync.linkedTotal, 7);
+		// username: admin ≠ user1 (the auto-generated admin username drifts on the
+		// forum), alice-doe ≠ Alice Doe, Carol ≠ carol. synced matches.
+		assert.equal(sync.usernameMismatch, 3);
+		// email: admin@forum ≠ user1@test, bob@old ≠ bob@new, carol@old ≠ carol@new.
+		// synced matches case-insensitively.
+		assert.equal(sync.emailMismatch, 3);
+		assert.equal(sync.unconfirmedLinked, 1);
+		assert.equal(sync.sample.length, 4, "only the drifting pairs are sampled");
+		assert.deepEqual(
+			[...sync.sample].sort((a, b) => (a.bgsUsername ?? "").localeCompare(b.bgsUsername ?? "")),
+			[
+				{
+					forumUsername: "alice-doe",
+					bgsUsername: "Alice Doe",
+					forumEmail: "alice@test.com",
+					bgsEmail: "alice@test.com",
+				},
+				{ forumUsername: "bob", bgsUsername: "bob", forumEmail: "bob@new.com", bgsEmail: "bob@old.com" },
+				{ forumUsername: "Carol", bgsUsername: "carol", forumEmail: "carol@new.com", bgsEmail: "carol@old.com" },
+				{ forumUsername: "admin", bgsUsername: "user1", forumEmail: "admin@forum.com", bgsEmail: "user1@test.com" },
+			],
+		);
 	});
 });

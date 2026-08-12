@@ -154,6 +154,42 @@
 				{:else}
 					<div class="text-xs text-gray-400 mt-1.5">stats unavailable</div>
 				{/if}
+				{#if serverInfo.forum.forumSync}
+					{@const sync = serverInfo.forum.forumSync}
+					{@const drifted = sync.usernameMismatch + sync.emailMismatch > 0}
+					<div
+						class="text-xs mt-1 {drifted ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400'}"
+					>
+						{#if drifted}
+							{#if sync.usernameMismatch}{sync.usernameMismatch} username drift{/if}{#if sync.usernameMismatch && sync.emailMismatch}
+								·
+							{/if}{#if sync.emailMismatch}{sync.emailMismatch} email drift{/if}
+						{:else}
+							all in sync
+						{/if}
+						{#if sync.unconfirmedLinked}· {sync.unconfirmedLinked} unconfirmed{/if}
+						{#if sync.sample.length}
+							<details class="mt-1">
+								<summary class="cursor-pointer text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+									{sync.sample.length} drifted account{sync.sample.length > 1 ? "s" : ""}
+								</summary>
+								<ul class="mt-1 space-y-1 text-gray-500 dark:text-gray-400">
+									{#each sync.sample as d, i (i)}
+										<li class="truncate" title="forum: {d.forumEmail ?? '—'} · bgs: {d.bgsEmail ?? '—'}">
+											<span class="font-medium">{d.bgsUsername ?? "(deleted)"}</span>
+											{#if d.forumUsername !== d.bgsUsername}
+												→ forum: {d.forumUsername ?? "(deleted)"}
+											{/if}
+											{#if d.forumEmail !== d.bgsEmail}
+												<span class="text-gray-400">· email differs</span>
+											{/if}
+										</li>
+									{/each}
+								</ul>
+							</details>
+						{/if}
+					</div>
+				{/if}
 			</div>
 		</div>
 	{/if}
