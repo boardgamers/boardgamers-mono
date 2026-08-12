@@ -22,6 +22,7 @@
 		"test": "node --test 'test/*.spec.cjs'"
 	},
 	"dependencies": {
+		"@nodebb/spider-detector": "^2.0.3",
 		"nodebb-plugin-sso-oauth2-multiple": "^2.0.0",
 		"passport-oauth": "~1.0.0"
 	},
