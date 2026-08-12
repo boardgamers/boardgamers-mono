@@ -24,7 +24,6 @@ import { accessTokenPayloadSchema, lookupRefreshToken } from "./models/jwtrefres
 import { authenticateAdminToken } from "./models/admintokens.ts";
 import { notifyLogin, notifyLastIp } from "./models/user.ts";
 import { setRefreshCookie, parseRefreshCookie, clearAllRefreshCookieVariants } from "./models/session.ts";
-import { FORUM_SSO_COOKIE, clearForumSsoCookie, reissueForumSsoCookieIfNeeded } from "./models/forumsso.ts";
 
 // Throttle sliding-session cookie refreshes (per refresh code) so active users
 // don't rewrite the cookie / bump lastSeen on every single mutating request.
@@ -311,24 +310,6 @@ async function listen(port = env.listen.port.api) {
 				await notifyLogin(user, ctx.ip);
 			} else {
 				await notifyLastIp(user, ctx.ip);
-			}
-		}
-	});
-
-	app.use(async (ctx, next) => {
-		await next();
-
-		if (ctx.state.user) {
-			// Forum SSO cookie — re-signed only when absent/invalid or near expiry (#152).
-			reissueForumSsoCookieIfNeeded(ctx, ctx.state.user);
-		} else if (ctx.cookies.get(FORUM_SSO_COOKIE)) {
-			// Logged out with a lingering forum cookie — clear both domain variants.
-			// Skip when the request handler already cleared it (signout): clears don't
-			// update the parsed request-cookie store, so the getter above still sees
-			// the pre-request value — a second clear here would be redundant, and
-			// host-only-only off prod would shrink the dual-domain clear signout sent.
-			if (!ctx.state.forumSsoCookieCleared) {
-				clearForumSsoCookie(ctx);
 			}
 		}
 	});
