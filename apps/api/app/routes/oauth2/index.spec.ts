@@ -61,9 +61,10 @@ const altClientDocument = () => ({ ...defaultClientDocument(), client_id: altCli
 before(async () => {
 	client.server = createServer((req, res) => {
 		const url = new URL(req.url ?? "/", "http://127.0.0.1");
-		// /client is the default identity; /client2 hosts the mutated-document tests
-		// (a distinct client_id, so the metadata cache can't cross-contaminate).
-		if (url.pathname === "/client" || url.pathname === "/client2") {
+		// /client is the default identity; /client2 and /client3 host the
+		// mutated-document tests (distinct client_ids, so the metadata cache can't
+		// cross-contaminate).
+		if (url.pathname === "/client" || url.pathname === "/client2" || url.pathname === "/client3") {
 			client.fetches++;
 			if (client.redirectTo) {
 				res.writeHead(302, { location: client.redirectTo }).end();
@@ -357,6 +358,72 @@ describe("GET /api/oauth2/authorize", () => {
 		assert.ok(back.includes(`code_challenge=${encodeURIComponent(codeChallenge(verifier))}`));
 	});
 
+	// prompt=none is the forum's silent-SSO check: never bounce the browser to an
+	// interactive page, always answer in-band on the client's redirect_uri.
+	it("prompt=none + logged out → in-band error=login_required with state preserved (no login redirect)", async () => {
+		resetClient();
+		const res = await authorize(authorizeParams(codeVerifier(), { prompt: "none" }));
+		assert.strictEqual(res.status, 303);
+		const target = new URL(res.location!);
+		assert.strictEqual(target.origin + target.pathname, clientRedirectUri());
+		assert.strictEqual(target.searchParams.get("error"), "login_required");
+		assert.strictEqual(target.searchParams.get("state"), "client-state");
+		assert.ok(!target.searchParams.get("code"), "must not issue a code");
+	});
+
+	it("prompt=none + logged in + consent granted → issues the code directly (silent SSO)", async () => {
+		resetClient();
+		const consenting = await insertUser();
+		const consentingCookie = await makeSessionCookie(consenting._id);
+		// Grant consent through the interactive flow once...
+		const granted = await runAuthorizeFlow(consentingCookie, codeVerifier());
+		assert.ok(granted.code);
+		// ...then the silent round-trip answers in-band with a fresh code.
+		const res = await authorize(authorizeParams(codeVerifier(), { prompt: "none" }), consentingCookie);
+		assert.strictEqual(res.status, 303);
+		const target = new URL(res.location!);
+		assert.strictEqual(target.origin + target.pathname, clientRedirectUri());
+		assert.ok(target.searchParams.get("code"), `expected a code, got ${res.location}`);
+		assert.strictEqual(target.searchParams.get("state"), "client-state");
+	});
+
+	it("prompt=none + logged in + consent missing → error=interaction_required (no consent interstitial)", async () => {
+		resetClient();
+		const fresh = await insertUser();
+		const freshCookie = await makeSessionCookie(fresh._id);
+		const res = await authorize(authorizeParams(codeVerifier(), { prompt: "none" }), freshCookie);
+		assert.strictEqual(res.status, 303);
+		const target = new URL(res.location!);
+		assert.strictEqual(target.origin + target.pathname, clientRedirectUri());
+		assert.strictEqual(target.searchParams.get("error"), "interaction_required");
+		assert.strictEqual(target.searchParams.get("state"), "client-state");
+	});
+
+	it("first-party trusted clients (env.oauth2.trustedClients) skip consent for every user", async () => {
+		// A dedicated client_id identity: getClientMetadata's per-client cache
+		// keeps whatever this test serves here from leaking into the others.
+		const trustedId = () => `http://127.0.0.1:${client.port}/client3`;
+		resetClient({ ...defaultClientDocument(), client_id: trustedId() });
+		env.oauth2.trustedClients.push(trustedId());
+		try {
+			const fresh = await insertUser();
+			const freshCookie = await makeSessionCookie(fresh._id);
+			// Neither a consent doc nor the per-user trusted flag: the client-level
+			// list alone must let it through, and prompt=none rides along.
+			const res = await authorize(
+				authorizeParams(codeVerifier(), { client_id: trustedId(), prompt: "none" }),
+				freshCookie,
+			);
+			assert.strictEqual(res.status, 303);
+			const target = new URL(res.location!);
+			assert.strictEqual(target.origin + target.pathname, clientRedirectUri());
+			assert.ok(target.searchParams.get("code"), `expected a code, got ${res.location}`);
+			assert.strictEqual(target.searchParams.get("state"), "client-state");
+		} finally {
+			env.oauth2.trustedClients.pop();
+		}
+	});
+
 	it("rejects unconfirmed accounts (email_verified must never be issued for them)", async () => {
 		resetClient();
 		const unconfirmed = await insertUser({ security: { confirmed: false } });
@@ -404,6 +471,23 @@ describe("GET /api/oauth2/authorize", () => {
 		const first = await authorize(authorizeParams(codeVerifier()), freshCookie);
 		assert.strictEqual(first.status, 303);
 		assert.ok(first.location?.includes("/oauth2/consent?"), `expected consent interstitial, got ${first.location}`);
+
+		// Consent via the recorded doc's per-user `trusted` flag also skips the
+		// interstitial (out-of-band escape hatch kept working).
+		const flagged = await insertUser();
+		const flaggedCookie = await makeSessionCookie(flagged._id);
+		await colls.oauthConsents.insertOne({
+			userId: flagged._id,
+			clientId: clientId(),
+			scopes: [],
+			trusted: true,
+			createdAt: new Date(),
+		});
+		const viaFlag = await authorize(authorizeParams(codeVerifier()), flaggedCookie);
+		assert.ok(
+			new URL(viaFlag.location!).searchParams.get("code"),
+			`trusted consent doc must skip the interstitial, got ${viaFlag.location}`,
+		);
 
 		const verifier = codeVerifier();
 		const { code, state } = await runAuthorizeFlow(cookie, verifier);

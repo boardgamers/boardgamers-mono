@@ -21,8 +21,9 @@ import { getClientMetadata, isRegisteredRedirectUri } from "../../services/cimd.
  *
  * Consent is REQUIRED: CIMD clients are self-asserted, so unlike the
  * trusted-first-party design of #196 every client goes through the consent
- * screen — except ones with `trusted: true` on their recorded consent doc (the
- * out-of-band escape hatch for future first-party clients).
+ * screen — except first-party trusted clients listed in
+ * `env.oauth2.trustedClients` (e.g. the forum), and ones with `trusted: true`
+ * on their recorded consent doc (the out-of-band escape hatch).
  */
 
 const CODE_TTL_MS = 10 * 60 * 1000;
@@ -54,7 +55,8 @@ function parseScopes(scope: string): OAuthScope[] {
 
 // client_id/redirect_uri stay bare strings here: their real validation is the
 // CIMD layer (validateClientIdUrl enforces §3; redirect_uris exact-match §4.2),
-// which also yields the OAuth-style error messages.
+// which also yields the OAuth-style error messages. Same for prompt: pass any
+// value through (OIDC Core §3.1.2.1), only "none" changes behavior below.
 const authorizeQuerySchema = z.object({
 	client_id: z.string(),
 	redirect_uri: z.string(),
@@ -63,6 +65,7 @@ const authorizeQuerySchema = z.object({
 	state: z.string().max(1024).optional(),
 	code_challenge: z.string().min(43).max(128),
 	code_challenge_method: z.literal("S256"),
+	prompt: z.string().optional(),
 });
 
 type AuthorizeParams = z.infer<typeof authorizeQuerySchema>;
@@ -117,6 +120,18 @@ async function issueCodeAndRedirect(
 	ctx.redirect(url.toString());
 }
 
+/** Authorization-error redirect to the client's redirect_uri (RFC6749 §4.1.2.1 / OIDC Core §3.1.2.6). */
+function errorAndRedirect(ctx: Context, params: AuthorizeParams, error: string, description: string) {
+	const url = new URL(params.redirect_uri);
+	url.searchParams.set("error", error);
+	url.searchParams.set("error_description", description);
+	if (params.state !== undefined) {
+		url.searchParams.set("state", params.state);
+	}
+	ctx.status = 303;
+	ctx.redirect(url.toString());
+}
+
 const router = new Router<Application.DefaultState, Context>();
 
 router.get("/authorize", async (ctx) => {
@@ -126,6 +141,12 @@ router.get("/authorize", async (ctx) => {
 
 	const user = ctx.state.user;
 	if (!user) {
+		// prompt=none forbids any interactive step (OIDC Core §3.1.2.6): answer
+		// in-band on the client's redirect_uri instead of bouncing to web login.
+		if (params.prompt === "none") {
+			errorAndRedirect(ctx, params, "login_required", "The user is not authenticated");
+			return;
+		}
 		// Back to the authorize URL after login (web's login flow honours the
 		// same-origin ?redirect= param; /api/... is same-origin on the site).
 		const back = encodeURIComponent(ctx.originalUrl);
@@ -139,9 +160,19 @@ router.get("/authorize", async (ctx) => {
 		throw createError(403, "You need to confirm your account before authorizing applications");
 	}
 
-	// Consent: required for every client unless the recorded doc flags it trusted.
+	// Consent: required for every client unless the recorded doc flags it trusted
+	// or the client is a first-party trusted one (env.oauth2.trustedClients).
 	const missing = await missingConsentScopes(user._id, params.client_id, scopes);
-	if (missing !== null && missing.length > 0) {
+	if (missing.length > 0) {
+		if (params.prompt === "none") {
+			errorAndRedirect(
+				ctx,
+				params,
+				"interaction_required",
+				"The user has not granted consent for the requested scopes",
+			);
+			return;
+		}
 		const query = new URLSearchParams();
 		for (const [key, value] of Object.entries(ctx.query)) {
 			if (typeof value === "string") {
@@ -404,6 +435,9 @@ export function openidConfiguration() {
 		grant_types_supported: ["authorization_code"],
 		code_challenge_methods_supported: ["S256"],
 		token_endpoint_auth_methods_supported: ["none"],
+		// Only "none" has behavioral effect — don't advertise values whose
+		// semantics (forced re-auth / forced consent) aren't implemented.
+		prompt_values_supported: ["none"],
 		subject_types_supported: ["public"],
 		id_token_signing_alg_values_supported: [env.jwt.algorithm],
 		claims_supported: ["sub", "id", "preferred_username", "name", "email", "email_verified", "picture", "roles"],
