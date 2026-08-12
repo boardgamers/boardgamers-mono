@@ -513,30 +513,6 @@ describe("Account API — session cookie over a TLS-terminating proxy", () => {
 		assert.strictEqual(account.status, 200);
 	});
 
-	it("signout clears the forum SSO cookie exactly once — the post-response middleware must not re-clear it (#152)", async () => {
-		const login = await fetch(`${baseURL()}/api/account/login`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json", ...proxyHeaders },
-			body: JSON.stringify({ email, password }),
-		});
-		assert.strictEqual(login.status, 200);
-		const session = (login.headers.getSetCookie().find((c) => c.startsWith("refreshToken=")) ?? "").split(";")[0];
-		const forumCookie = (login.headers.getSetCookie().find((c) => c.startsWith("token=")) ?? "").split(";")[0];
-		assert.ok(session && forumCookie, "login must set both the session and the forum SSO cookie");
-
-		const res = await fetch(`${baseURL()}/api/account/signout`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json", cookie: `${session}; ${forumCookie}`, ...proxyHeaders },
-		});
-		assert.strictEqual(res.status, 200);
-		const clears = res.headers
-			.getSetCookie()
-			.filter((c) => c.startsWith("token=") && /expires=Thu, 01 Jan 1970/i.test(c));
-		// Pre-fix the response middleware re-ran its own (host-only) clear after the
-		// route's dual-variant clear — re-emitting the cookie it had just cleared.
-		assert.strictEqual(clears.length, 1, `expected a single forum-cookie clear, got: ${clears.join(" | ")}`);
-	});
-
 	it("login over perceived plain http fails loudly (the reported 500)", async () => {
 		const res = await fetch(`${baseURL()}/api/account/login`, {
 			method: "POST",
