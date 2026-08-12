@@ -402,9 +402,7 @@
 						</select>
 					</div>
 				{/if}
-				<span class="text-xs"
-					>An email listing your waiting games, sent after the configured delay.</span
-				>
+				<span class="text-xs">An email listing your waiting games, sent after the configured delay.</span>
 			</FormGroup>
 
 			<FormGroup>
