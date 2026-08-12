@@ -3,9 +3,10 @@ import fs from "node:fs";
 import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
+import { ObjectId } from "mongodb";
 import path from "node:path";
 import { env } from "../../config/index.ts";
-import { colls, nodebbColls } from "../../config/db.ts";
+import { colls, nodebbColls, type NodebbObject } from "../../config/db.ts";
 import {
 	authEmailOnCooldown,
 	findByEmail,
@@ -45,6 +46,28 @@ interface ForumHealth {
 	status: number | null;
 	/** Forum db stats; null when the (read-only) NodeBB db is unreachable. */
 	stats: ForumStats | null;
+	/** bgs↔forum account sync drift; null when the NodeBB db is unreachable. */
+	forumSync: ForumSync | null;
+}
+
+/** Drift on one linked pair — only the fields that differ are present. */
+interface ForumSyncSample {
+	forumUsername: string | null;
+	bgsUsername: string | null;
+	forumEmail: string | null;
+	bgsEmail: string | null;
+}
+
+interface ForumSync {
+	linkedTotal: number;
+	/** Forum username ≠ bgs username (case-sensitive; forum may hold a sanitized form). */
+	usernameMismatch: number;
+	/** Forum email ≠ bgs email (case-insensitive, absent and "" treated as equal). */
+	emailMismatch: number;
+	/** Linked bgs users whose security.confirmed is false. */
+	unconfirmedLinked: number;
+	/** Up to 10 drifted pairs, so the admin can see who. */
+	sample: ForumSyncSample[];
 }
 
 interface ForumStats {
@@ -88,6 +111,97 @@ async function loadForumStats(): Promise<ForumStats | null> {
 		return { users, linked, usersWithPosts, posts };
 	} catch (err) {
 		console.error("[serverinfo] forum stats lookup failed — returning null stats", err);
+		return null;
+	}
+}
+
+const absentEmail = (value: unknown): value is null | undefined | "" => typeof value !== "string" || value === "";
+
+// bgs↔forum account drift over the linked pairs in `boardgamersId:uid`. Login-time
+// SSO sync self-heals a pair on the user's next forum login — this surfaces drift
+// for users who haven't logged in recently. READ-ONLY: never writes to the forum
+// (the forum write API comes with #172).
+//
+// Batched: one read of the link doc, one $in fetch of the linked bgs users, one
+// $in fetch of the forum user:<uid> docs — comparison happens in-process.
+// Never throws: a down or erroring forum db yields null, not a failed endpoint.
+async function loadForumSync(): Promise<ForumSync | null> {
+	const nodebb = await nodebbColls();
+	if (!nodebb) {
+		return null;
+	}
+	try {
+		const linkDoc = await nodebb.objects.findOne({ _key: "boardgamersId:uid" }, { projection: { _id: 0 } });
+		const linkMap = Object.entries(linkDoc ?? {}).filter(
+			(entry): entry is [string, number] => entry[0] !== "_key" && typeof entry[1] === "number",
+		);
+		// Skip unparseable bgs ids rather than throwing the whole report.
+		const pairs = linkMap.flatMap(([bgsId, forumUid]) => (ObjectId.isValid(bgsId) ? [{ bgsId, forumUid }] : []));
+		if (pairs.length === 0) {
+			return { linkedTotal: 0, usernameMismatch: 0, emailMismatch: 0, unconfirmedLinked: 0, sample: [] };
+		}
+
+		const [bgsUsers, forumUsers] = await Promise.all([
+			colls.users
+				.find(
+					{ _id: { $in: pairs.map((p) => new ObjectId(p.bgsId)) } },
+					{ projection: { "account.username": 1, "account.email": 1, "security.confirmed": 1 } },
+				)
+				.toArray(),
+			nodebb.objects
+				.find(
+					{ _key: { $in: pairs.map((p) => `user:${p.forumUid}`) } },
+					// _key must be projected explicitly: an inclusion projection without
+					// it drops it (unlike a naked find), and we parse the uid out of it.
+					{ projection: { _key: 1, username: 1, email: 1 } },
+				)
+				.toArray(),
+		]);
+		const bgsById = new Map(bgsUsers.map((u) => [u._id.toHexString(), u]));
+		const forumByUid = new Map<number, NodebbObject>();
+		for (const u of forumUsers) {
+			const match = /^user:(\d+)$/.exec(u._key);
+			if (match) {
+				forumByUid.set(Number(match[1]), u);
+			}
+		}
+
+		let usernameMismatch = 0;
+		let emailMismatch = 0;
+		let unconfirmedLinked = 0;
+		const sample: ForumSyncSample[] = [];
+		for (const { bgsId, forumUid } of pairs) {
+			const bgs = bgsById.get(bgsId);
+			const forum = forumByUid.get(forumUid);
+			const usernameDrift = typeof forum?.username === "string" && forum.username !== (bgs?.account.username ?? null);
+			// The forum email is unknown-typed (schemaless objects store); only compare strings.
+			const forumEmail = typeof forum?.email === "string" ? forum.email : undefined;
+			const emailDrift =
+				!(absentEmail(forum?.email) && absentEmail(bgs?.account.email)) &&
+				forumEmail?.toLowerCase() !== bgs?.account.email?.toLowerCase();
+			if (usernameDrift) {
+				usernameMismatch++;
+			}
+			if (emailDrift) {
+				emailMismatch++;
+			}
+			// `confirmed` is optional on the schema — legacy users never set it. Only an
+			// explicit false counts as unconfirmed.
+			if (bgs && bgs.security.confirmed === false) {
+				unconfirmedLinked++;
+			}
+			if ((usernameDrift || emailDrift) && sample.length < 10) {
+				sample.push({
+					forumUsername: typeof forum?.username === "string" ? forum.username : null,
+					bgsUsername: bgs?.account.username ?? null,
+					forumEmail: typeof forum?.email === "string" ? forum.email : null,
+					bgsEmail: bgs?.account.email ?? null,
+				});
+			}
+		}
+		return { linkedTotal: pairs.length, usernameMismatch, emailMismatch, unconfirmedLinked, sample };
+	} catch (err) {
+		console.error("[serverinfo] forum sync lookup failed — returning null forumSync", err);
 		return null;
 	}
 }
@@ -165,6 +279,7 @@ router.get("/serverinfo", async (ctx) => {
 		recentGames,
 		forumHealth,
 		forumStats,
+		forumSync,
 	] = await Promise.all([
 		checkDiskSpace(process.cwd()),
 		colls.users.countDocuments({}),
@@ -192,9 +307,10 @@ router.get("/serverinfo", async (ctx) => {
 			.toArray(),
 		checkForumHealth(),
 		loadForumStats(),
+		loadForumSync(),
 	]);
 
-	const forum: ForumHealth = { ...forumHealth, stats: forumStats };
+	const forum: ForumHealth = { ...forumHealth, stats: forumStats, forumSync };
 
 	const games: Record<string, number> = {};
 	for (const g of gamesByStatus) {

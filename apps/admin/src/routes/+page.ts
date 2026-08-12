@@ -17,6 +17,13 @@ export interface ServerInfo {
 		ok: boolean;
 		status: number | null;
 		stats: { users: number; linked: number; usersWithPosts: number; posts: number } | null;
+		forumSync: {
+			linkedTotal: number;
+			usernameMismatch: number;
+			emailMismatch: number;
+			unconfirmedLinked: number;
+			sample: { forumUsername: string | null; bgsUsername: string | null; forumEmail: string | null; bgsEmail: string | null }[];
+		} | null;
 	};
 }
 interface LokiInstantResult {
