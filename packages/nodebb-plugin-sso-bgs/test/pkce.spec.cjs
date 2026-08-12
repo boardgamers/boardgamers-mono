@@ -130,6 +130,37 @@ test("config exists BEFORE boot (stock plugin registers first): PKCE params are 
 	assert.strictEqual(env.loginStrategies[0].scope, "openid profile email role");
 });
 
+test("after a reload the registered strategy is the SHIM wrapper (so the callback route, which never fires filter:auth.options, resolves it too)", async () => {
+	// Regression for the fragility the real-NodeBB run exposed: the stock
+	// plugin's filter:auth.init (priority 10) passport.use's its non-PKCE
+	// strategy; without the shim re-asserting the wrapper at priority 12, the
+	// registered strategy is the stock one and only the per-kickoff
+	// filter:auth.options hook recovers it — leaving the CALLBACK route (which
+	// never fires filter:auth.options) served by the wrong strategy after any
+	// reload/plugin-toggle. loadStrategies must re-register the wrapper LAST.
+	await acpSaveStrategy(VALID_CONFIG);
+	const env = makeEnv();
+	await env.reloadRoutes(); // stock (p10) then shim (p12)
+
+	// The wrapper must be the registered strategy — not the stock non-PKCE one.
+	// We can't import the wrapper object, but we can detect it: it is NOT an
+	// OAuth2Strategy with _pkceMethod set by the STOCK plugin (which passes no
+	// pkce), and it must be the request-time-resolving one. Assert via behavior
+	// on the CALLBACK path (no filter:auth.options in the harness callback):
+	const descriptor = env.routes.get("/auth/boardgamers/callback");
+	assert.ok(descriptor, "callback route registered");
+	// A forged callback must reach the shim's PKCE store (which fails state
+	// verification), proving the wrapper — not the stock strategy — handled it.
+	env.fetchImpl = async () => {
+		throw new Error("token exchange must NOT be reached for a forged state");
+	};
+	// The PKCE store fails state verification → strategy.fail() → user is false
+	// (a 403 in production), NOT a successful login and NOT the stock strategy
+	// (which has no state store and would have tried the token exchange).
+	const { user } = await env.callback({}, { code: "forged", state: "no-such-handle" });
+	assert.strictEqual(user, false, "forged state must fail via the shim's PKCE store (no token exchange attempted)");
+});
+
 test("config edited in the ACP (no restart): the next kickoff uses the NEW endpoints/client config", async () => {
 	await acpSaveStrategy(VALID_CONFIG);
 	const env = makeEnv();

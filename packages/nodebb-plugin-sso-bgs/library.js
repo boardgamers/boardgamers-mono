@@ -149,12 +149,25 @@ function buildWrapper() {
 /**
  * The currently-configured PKCE strategy, building/rebuilding it from the db
  * when missing or stale. Concurrent builds are deduped via `building`.
+ *
+ * Caching: the built strategy is reused while the config is unchanged, but the
+ * cache is short-lived (CACHE_TTL_MS) rather than indefinite. NodeBB keeps a
+ * PER-PROCESS object cache (`db.objectCache`) that is only invalidated on
+ * writes from the SAME process — on a clustered/multi-process forum (like
+ * production), an ACP save invalidates the cache in whichever worker served the
+ * ACP request but NOT in the others, so `getStrategy` can return stale data in
+ * a sibling worker. A TTL means every worker re-reads (and, if needed,
+ * rebuilds) within a few seconds, so a config change propagates to all workers
+ * without a restart.
  */
+const CACHE_TTL_MS = 5000;
+let cacheExpiry = 0;
+
 async function resolveStrategy() {
 	const config = await getConfig();
 	const key = config && config.enabled ? JSON.stringify(config) : null;
 
-	if (key === cachedConfigKey) {
+	if (key === cachedConfigKey && Date.now() < cacheExpiry) {
 		return cachedStrategy;
 	}
 	if (!building) {
@@ -171,11 +184,47 @@ async function resolveStrategy() {
 // erroring every request before the first ACP save.
 async function getConfig() {
 	try {
-		return await stockPlugin().getStrategy(STRATEGY_NAME);
+		return await readConfigFresh();
 	} catch (err) {
 		winston.warn(`[plugin/sso-bgs] could not read strategy config: ${(err && err.message) || err}`);
 		return null;
 	}
+}
+
+/**
+ * Read the strategy config bypassing NodeBB's per-process object cache.
+ * `db.getObjects` (used by the stock plugin's getStrategy) serves
+ * `db.objectCache`, which is only invalidated by writes from the SAME process —
+ * on a clustered/multi-process forum an ACP save invalidates only the worker
+ * that served the ACP request, leaving sibling workers serving a stale config
+ * (and thus a stale/missing PKCE strategy) indefinitely. Reading straight from
+ * the db driver keeps every worker's view current within the resolveStrategy
+ * TTL. Falls back to the stock plugin's (cached) getStrategy if the direct
+ * driver isn't available.
+ */
+async function readConfigFresh() {
+	const key = `oauth2-multiple:strategies:${STRATEGY_NAME}`;
+	const db = nodebb.require("./src/database");
+	const client = db.client;
+	let config = null;
+
+	if (client && typeof client.collection === "function") {
+		// mongo driver: read the raw object doc, bypassing objectCache.
+		const doc = await client.collection("objects").findOne({ _key: key }, { projection: { _id: 0 } });
+		config = doc || null;
+	} else {
+		// Unknown driver — fall back to the stock plugin's (cached) read.
+		return stockPlugin().getStrategy(STRATEGY_NAME);
+	}
+
+	if (!config) {
+		return null;
+	}
+	// Mirror the stock plugin's getStrategies normalization.
+	config.name = STRATEGY_NAME;
+	config.enabled = config.enabled === "true" || config.enabled === true;
+	config.callbackUrl = `${nconf.get("url")}/auth/${STRATEGY_NAME}/callback`;
+	return config;
 }
 
 async function buildStrategy(config, key) {
@@ -262,13 +311,15 @@ async function buildStrategy(config, key) {
 	// the exchange so no client_secret is sent at all (public client).
 	inner._oauth2.getOAuthAccessToken = publicClientTokenExchange;
 
-	// Cache the built strategy, keyed by its config, so the wrapper's
-	// authenticate reuses it until the ACP config changes. We deliberately do
-	// NOT passport.use(inner) here: the registered strategy stays the
+	// Cache the built strategy, keyed by its config + a short TTL (see
+	// resolveStrategy), so the wrapper's authenticate reuses it until the config
+	// changes or the TTL forces a fresh db read. We deliberately do NOT
+	// passport.use(inner) here: the registered strategy stays the
 	// request-time-resolving wrapper (`strategy`), so an ACP edit without a
 	// reload still takes effect on the next request (the wrapper rebuilds).
 	cachedStrategy = inner;
 	cachedConfigKey = key;
+	cacheExpiry = Date.now() + CACHE_TTL_MS;
 	return inner;
 }
 
@@ -289,8 +340,13 @@ Shim.loadStrategies = async (strategies) => {
 		return filtered;
 	}
 
-	// Pre-warm the PKCE strategy cache (the wrapper's authenticate would build
-	// it lazily on first request anyway).
+	// The stock plugin (priority 10) has already passport.use'd its non-PKCE
+	// strategy during this filter:auth.init pass. Re-assert the request-time
+	// wrapper LAST so the final registration for `boardgamers` is ours
+	// (passport.use is last-write-wins) — for BOTH the kickoff and the callback
+	// routes (the callback never fires filter:auth.options, so it has no other
+	// safety net). Then pre-warm the PKCE strategy cache.
+	require("passport").use(STRATEGY_NAME, strategy); // eslint-disable-line global-require
 	await resolveStrategy();
 
 	filtered.push({

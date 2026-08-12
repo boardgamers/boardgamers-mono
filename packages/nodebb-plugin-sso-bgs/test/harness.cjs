@@ -37,6 +37,19 @@ const dbObjects = new Map(); // `oauth2-multiple:strategies:<name>` → config o
 const dbSortedSets = new Map(); // `oauth2-multiple:strategies` → [name, ...]
 
 const db = {
+	// Mongo-like driver handle so the shim's readConfigFresh takes the
+	// cache-bypass path (the same path it takes on the live mongo-backed forum).
+	client: {
+		collection(name) {
+			assert.strictEqual(name, "objects");
+			return {
+				async findOne(query, _opts) {
+					const doc = dbObjects.get(query._key);
+					return doc ? { ...doc } : null;
+				},
+			};
+		},
+	},
 	async getSortedSetMembers(key) {
 		return [...(dbSortedSets.get(key) || [])];
 	},
