@@ -298,7 +298,7 @@
 									transition:fade
 								>
 									🤖 Bots are <b>dumb</b>: they auto-play engine-chosen moves. They're meant for
-									<b>testing the UI solo</b>, not for enjoyment — real AI opponents may come later.
+									<b>testing the UI solo</b>, not for enjoyment. Real AI opponents may come later.
 								</p>
 							{/if}
 						</div>
