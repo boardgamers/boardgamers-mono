@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { ObjectId } from "mongodb";
-import { colls, closeDb, db } from "../config/db.ts";
+import { colls, closeDb } from "../config/db.ts";
 import { engineRunner } from "./engine-runner.ts";
 import { engineKey } from "./engines.ts";
 import { startNextGame } from "./game.ts";
@@ -141,7 +141,12 @@ describe("bot driver", () => {
 	}
 
 	before(async () => {
-		await db().dropDatabase();
+		// Only clear this suite's own fixtures — the full suite runs several spec files
+		// concurrently against the same test db, and a dropDatabase() here would wipe
+		// another file's state mid-run.
+		await colls.games.deleteMany({ _id: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai"] } });
+		await colls.gameNotifications.deleteMany({ game: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai"] } });
+		await colls.gameInfos.deleteMany({ "_id.game": { $in: [ENGINE_NAME, "bot-test-noai"] } });
 		// Register the engine: getEngine/enginePath resolve via gameInfos.
 		await colls.gameInfos.insertOne({
 			_id: { game: ENGINE_NAME, version: ENGINE_VERSION },
@@ -162,12 +167,22 @@ describe("bot driver", () => {
 		fs.rmSync(dir, { recursive: true, force: true });
 	});
 
+	// startNextGame polls one unprocessed gameStarted notification; loop until this
+	// game's is processed (deterministic regardless of other pending notifications).
+	async function startGame(gameId: string) {
+		await waitFor(async () => {
+			await startNextGame();
+			const n = await colls.gameNotifications.findOne({ game: gameId, kind: "gameStarted" });
+			return !!n?.processed;
+		});
+	}
+
 	it("a bot auto-plays when it becomes current, until the game ends", async () => {
-		// 2 players: human first, bot second. The human never moves in this test —
-		// so this covers start → bot chained turns only when the bot starts.
+		// 2 players: bot first, human second. The human never moves in this test —
+		// so this covers start → bot auto-plays, then the turn passes to the human.
 		await insertGame("bot-game-1", [botPlayer("Rob (bot 1)"), humanPlayer("human")]);
 
-		assert.strictEqual(await startNextGame(), true);
+		await startGame("bot-game-1");
 		const started = await colls.games.findOne({ _id: "bot-game-1" });
 		assert.strictEqual(started?.status, "active");
 		assert.strictEqual(started?.currentPlayers?.length, 1);
@@ -210,7 +225,7 @@ describe("bot driver", () => {
 		// Two bots alternate until the engine reports the game ended.
 		await insertGame("bot-game-2", [botPlayer("Rob (bot 1)"), botPlayer("Ada (bot 2)")]);
 
-		assert.strictEqual(await startNextGame(), true);
+		await startGame("bot-game-2");
 
 		await waitFor(async () => {
 			const game = await colls.games.findOne({ _id: "bot-game-2" });
@@ -289,7 +304,7 @@ describe("bot driver", () => {
 			updatedAt: new Date(),
 		});
 
-		assert.strictEqual(await startNextGame(), true);
+		await startGame(noAiGame);
 
 		// Give the driver ample time to attempt (and fail) the bot move.
 		await new Promise((r) => setTimeout(r, 1500));
