@@ -81,6 +81,18 @@ test("a callback with error=login_required arms the cooldown and bounces to /; t
 	const env = await bootEnv();
 	const jar = {};
 
+	// Regression guard for the PR-review blocker: core's callback route does NOT
+	// fire filter:auth.options (kickoff-only), so the cooldown gate MUST run as
+	// an app-level middleware on the callback path. env.callback is faithful to
+	// core: it runs the shim's mounted callback middleware, NOT the hook — so if
+	// the gate still lived in ensureStrategy (filter:auth.options), this test
+	// would see NO cooldown and NO redirect.
+	assert.strictEqual(
+		env.plugins.hooks.listeners("filter:auth.options").length,
+		1,
+		"only the shim's kickoff hook is registered",
+	);
+
 	// silent round-trip: page → kickoff → callback(error=login_required)
 	const page = await env.page("/recent", { cookieJar: jar });
 	const kickoff = await env.kickoff("/auth/boardgamers?silent=1", { session: page.session, cookieJar: jar });
@@ -100,6 +112,41 @@ test("a callback with error=login_required arms the cooldown and bounces to /; t
 	assert.strictEqual(page2.proceeded, true, "page proceeded without a redirect");
 	assert.strictEqual(page2.location, null);
 	assert.strictEqual(page2.session.bgsSilent, undefined);
+});
+
+test("REGRESSION (PR #254 review): the silent-error cooldown runs on the CALLBACK path, NOT filter:auth.options", async () => {
+	// Core's callback route never fires filter:auth.options (kickoff-only), so a
+	// gate placed there is dead code live → redirect loop. This test proves the
+	// gate is the app-level middleware mounted at CALLBACK_URL: it (a) checks
+	// the mount exists, and (b) drives an error callback through env.callback —
+	// which faithfully does NOT fire filter:auth.options — and asserts the
+	// cooldown + redirect still happen.
+	const env = await bootEnv();
+
+	// (a) the gate is mounted on the app at the callback path
+	const mounts = env.app.middleware.filter((m) => m.path === "/auth/boardgamers/callback");
+	assert.strictEqual(
+		mounts.length,
+		1,
+		"silent-callback gate is app-mounted at the callback path (runs before core's handler)",
+	);
+
+	// (b) drive the full silent round-trip; the error callback must be gated
+	const jar = {};
+	const page = await env.page("/recent", { cookieJar: jar });
+	const kickoff = await env.kickoff("/auth/boardgamers?silent=1", { session: page.session, cookieJar: jar });
+	const state = new URL(kickoff.location).searchParams.get("state");
+	const cb = await env.callback(page.session, { error: "login_required", state }, { cookieJar: jar });
+	assert.strictEqual(cb.gated, true, "gated on the real callback path (no filter:auth.options involved)");
+	assert.strictEqual(cb.redirected, "/");
+	assert.ok(
+		cb.setCookies.some((c) => c.name === "bgs_silent"),
+		"cooldown armed on the real callback path",
+	);
+
+	// no loop: the next anonymous page GET with the cooldown does not redirect
+	const page2 = await env.page("/recent", { cookieJar: jar });
+	assert.strictEqual(page2.location, null, "no second silent redirect — loop prevented");
 });
 
 test("a SUCCESSFUL silent callback logs the user in (full round-trip) and arms NO cooldown", async () => {

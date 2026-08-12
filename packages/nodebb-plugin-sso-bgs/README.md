@@ -74,8 +74,15 @@ provider (`apps/api`) supports `prompt=none`: logged-in → returns a code; logg
    object) because passport-oauth2's stock `authorizationParams()` returns `{}`.
    `prompt=none` also suppresses the provider's consent interstitial — a user who
    hasn't consented gets `error=consent_required`, handled like any other failure.
-3. **Cooldown on failure** — if the callback returns with an `error` and the attempt
-   was silent (the PKCE state metadata carries `prompt: "none"`), the hook arms a
+3. **Cooldown on failure** — a dedicated app-level middleware (mounted in
+   `static:app.load` at `/auth/boardgamers/callback`, so it runs _before_ NodeBB's
+   callback route handler) inspects the callback. Core's callback route goes
+   straight to `passport.authenticate` and does **not** fire `filter:auth.options`
+   (that hook is kickoff-only), so this gate **cannot** live in the hook — it must
+   be a real middleware on the callback path. If the callback carries an `error`
+   (`login_required`, `consent_required`, …) and the attempt was silent (the PKCE
+   state metadata still in the session carries `prompt: "none"` — read before
+   passport-oauth2's `PKCESessionStore.verify` deletes it), the gate arms a
    timestamped cookie (`bgs_silent`, 1 h window inside a 1-day cookie) and **bounces
    to `/`**, so the user never sees an OIDC error page. While the cookie is fresh,
    page GETs skip the silent attempt — **no redirect loop** for logged-out users.
@@ -170,9 +177,11 @@ It covers: ACP-save-after-boot (the live bug), config-present-at-boot, config ed
 without a restart, disabling the strategy, the full kickoff→callback PKCE
 round-trip (verifier persisted, no `client_secret`, single-use state), and the
 string-`opts.state` override — plus the silent-SSO suite: one silent redirect with
-`prompt=none` + PKCE, the `login_required`→cooldown→no-loop path, the successful
-silent round-trip, logged-in/spider/logout/SSO-path/API/asset suppression, and the
-manual-button isolation.
+`prompt=none` + PKCE, the `login_required`→cooldown→no-loop path (driven through a
+callback harness faithful to core: the cooldown gate runs as an app-level callback
+middleware, NOT via `filter:auth.options`, which core never fires on the callback),
+the successful silent round-trip, logged-in/spider/logout/SSO-path/API/asset
+suppression, and the manual-button isolation.
 
 ## Notes / limitations
 

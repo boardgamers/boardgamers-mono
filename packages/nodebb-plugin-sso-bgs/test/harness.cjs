@@ -316,13 +316,25 @@ function loadShim(env, stockOAuth) {
 function makeEnv() {
 	const passport = depsRequire("passport");
 	// Stand-in for the express app passed to `static:app.load`: the shim mounts
-	// the silent-login page middleware on it via app.use.
+	// the silent-login page middleware and the silent-callback gate on it via
+	// app.use. Supports express's two app.use signatures: app.use(fn) (all
+	// paths) and app.use(path, fn) (mounted at a path prefix).
 	const app = {
-		middleware: [],
-		use(fn) {
-			this.middleware.push(fn);
+		middleware: [], // [{ path, fn }] — path undefined = matches all
+		use(...args) {
+			const fn = args[args.length - 1];
+			const mountPath = args.length > 1 ? args[0] : undefined;
+			this.middleware.push({ path: mountPath, fn });
 		},
 	};
+	// express mount semantics: a middleware mounted at `path` matches any request
+	// whose path equals it or is under it (path-prefix), with req.path rebased.
+	function mountedMatch(mountPath, reqPath) {
+		if (mountPath === undefined) {
+			return true;
+		}
+		return reqPath === mountPath || reqPath.startsWith(mountPath + "/");
+	}
 	const env = {
 		passport,
 		plugins: makePlugins(),
@@ -431,33 +443,47 @@ function makeEnv() {
 		return res;
 	}
 
-	// A normal page GET through the shim's app-level middleware (the one
-	// static:app.load mounts). Returns { statusCode, location, session, cookies,
-	// proceeded } — `proceeded` is true when the middleware called next()
-	// (i.e. did NOT redirect). Core's own page handling is not simulated.
-	env.page = async (path, opts = {}) => {
-		const jar = opts.cookieJar || {};
-		const req = makeReq({ ...opts, path });
-		const res = makeRes(jar);
+	// Run the app-level middleware mounted on `app` that match `reqPath`, in
+	// order (express mount semantics). Stops when a middleware ends the response
+	// (redirect) instead of calling next(). Returns { proceeded, res }.
+	function runAppMiddleware(reqPath, req, res) {
 		const stack = env.app.middleware;
-		assert.ok(stack.length > 0, "env.appLoad() was not run — no app middleware mounted");
+		// No app middleware mounted (env.appLoad() not run): nothing to do —
+		// equivalent to a forum where the shim's app-level middleware is absent.
 		let idx = 0;
 		let proceeded = false;
 		const run = () => {
 			if (res.headers.location || res.statusCode === 302) {
 				return;
 			}
+			// skip middleware not mounted on this path
+			while (idx < stack.length && !mountedMatch(stack[idx].path, reqPath)) {
+				idx++;
+			}
 			if (idx >= stack.length) {
 				proceeded = true;
 				return;
 			}
-			const fn = stack[idx++];
+			const { fn } = stack[idx++];
 			fn(req, res, (err) => {
 				assert.ifError(err);
 				run();
 			});
 		};
 		run();
+		return { proceeded };
+	}
+
+	// A normal page GET through the shim's app-level page middleware. The
+	// callback-path gate (mounted at /auth/boardgamers/callback) does not match
+	// these page paths, so this drives only the page middleware. Returns
+	// { statusCode, location, session, cookies, proceeded } — `proceeded` is
+	// true when the middleware called next() (i.e. did NOT redirect).
+	env.page = async (path, opts = {}) => {
+		const jar = opts.cookieJar || {};
+		const req = makeReq({ ...opts, path });
+		const res = makeRes(jar);
+		const { proceeded } = runAppMiddleware(path, req, res);
 		return {
 			statusCode: res.statusCode,
 			location: res.headers.location || null,
@@ -492,8 +518,8 @@ function makeEnv() {
 		// core fires filter:auth.options per kickoff request before authenticate
 		({ opts: authOpts } = await env.plugins.hooks.fire("filter:auth.options", { req, res, opts: authOpts }));
 		if (res.headers.location) {
-			// A hook (the shim's silent-callback gate) ended the response with a
-			// redirect — core's passport.authenticate never runs.
+			// A hook ended the response with a redirect — passport.authenticate
+			// never runs. (Not used by the shim today, but kept faithful.)
 			return {
 				location: res.headers.location,
 				session: req.session,
@@ -507,16 +533,21 @@ function makeEnv() {
 		return { location, session: req.session, descriptor, setCookies: res.setCookies, opts: authOpts };
 	};
 
-	// core callback handler (routes/authentication.js L110-145): ssoState gate
-	// (unless checkState === false), filter:auth.options (the shim's
-	// silent-callback gate), then passport.authenticate(name, cb).
+	// core callback handler (routes/authentication.js L110-145), faithful to
+	// 4.14: ssoState gate (unless checkState === false), then
+	// passport.authenticate(name, cb). Core does NOT fire filter:auth.options on
+	// the callback — so the shim's silent-callback gate is the app-level
+	// middleware mounted on CALLBACK_URL, which we run FIRST (as core's router
+	// would, since the shim app.use's it ahead of the page router). If the gate
+	// ends the response (cooldown + redirect to /), core's handler never runs.
 	env.callback = async (session, query, opts = {}) => {
 		const name = query.__name || "boardgamers";
-		const descriptor = env.routes.get(`/auth/${name}/callback`);
+		const cbPath = `/auth/${name}/callback`;
+		const descriptor = env.routes.get(cbPath);
 		assert.ok(descriptor, "no callback route");
 		const jar = opts.cookieJar || {};
 		const req = makeReq({
-			path: `/auth/${name}/callback`,
+			path: cbPath,
 			query,
 			session,
 			cookieJar: jar,
@@ -524,19 +555,13 @@ function makeEnv() {
 			ua: opts.ua,
 		});
 		const res = makeRes(jar);
-		if (descriptor.checkState !== false) {
-			assert.strictEqual(
-				query.state,
-				session.ssoState,
-				"core ssoState gate would 403 (checkState descriptor + mismatched state)",
-			);
-		}
-		// fire filter:auth.options (the shim's silent-callback gate lives there)
-		let authOpts = { scope: descriptor.scope };
-		({ opts: authOpts } = await env.plugins.hooks.fire("filter:auth.options", { req, res, opts: authOpts }));
+
+		// The shim's app-level silent-callback gate (mounted at CALLBACK_URL)
+		// runs before core's callback route handler.
+		runAppMiddleware(cbPath, req, res);
 		if (res.headers.location) {
-			// The silent-callback gate armed the cooldown and bounced — core's
-			// own error handling / passport.authenticate never run.
+			// Gate armed the cooldown + bounced to / — passport.authenticate and
+			// core's error handling never run (no OIDC error page, no loop).
 			return {
 				redirected: res.headers.location,
 				session: req.session,
@@ -544,6 +569,14 @@ function makeEnv() {
 				setCookies: res.setCookies,
 				gated: true,
 			};
+		}
+
+		if (descriptor.checkState !== false) {
+			assert.strictEqual(
+				query.state,
+				session.ssoState,
+				"core ssoState gate would 403 (checkState descriptor + mismatched state)",
+			);
 		}
 		const result = await new Promise((resolve, reject) => {
 			passport.authenticate(descriptor.name, (err, user, info) => {

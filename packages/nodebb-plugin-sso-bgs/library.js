@@ -98,7 +98,43 @@ Shim.appLoad = async ({ app }) => {
 	}
 	app._bgsSilentSso = true;
 	app.use(silentLoginPageMiddleware);
+	// Silent-SSO callback gate. Mounted on the app at CALLBACK_URL so it runs
+	// BEFORE NodeBB's callback route handler. Core's callback route
+	// (routes/authentication.js) goes straight to passport.authenticate and does
+	// NOT fire `filter:auth.options` (that hook is kickoff-only), so the
+	// cooldown gate CANNOT live in that hook — it must be a real middleware on
+	// the callback path, or a prompt=none failure would loop forever.
+	app.use(CALLBACK_URL, silentCallbackGate);
 };
+
+/**
+ * Runs before NodeBB's OAuth callback handler on GET /auth/boardgamers/callback.
+ * If this is the return leg of a silent (prompt=none) attempt AND the provider
+ * returned an error (login_required / consent_required / ...), arm the cooldown
+ * cookie and bounce to `/` — passport-oauth2 would otherwise surface an
+ * AuthorizationError page AND no cooldown would be set, looping the redirect.
+ * Successes (a `code`) and non-silent callbacks fall through to core untouched.
+ */
+function silentCallbackGate(req, res, next) {
+	try {
+		const error = req.query && req.query.error;
+		if (error && isSilentCallback(req)) {
+			winston.verbose(`[plugin/sso-bgs] silent SSO: provider returned error=${error}; cooldown armed`);
+			if (req.session) {
+				delete req.session[SILENT_SESSION_FLAG];
+			}
+			armSilentCooldown(res);
+			return res.redirect(`${nconf.get("relative_path") || ""}/`);
+		}
+		if (req.session) {
+			delete req.session[SILENT_SESSION_FLAG];
+		}
+		next();
+	} catch (err) {
+		winston.warn(`[plugin/sso-bgs] silent-callback gate: ${(err && err.message) || err}`);
+		next();
+	}
+}
 
 /**
  * Silent (passive) SSO: a logged-out visitor browsing a normal page with an
@@ -499,10 +535,12 @@ Shim.loadStrategies = async (strategies) => {
 };
 
 /**
- * Per-request safety net AND the silent-SSO kickoff/callback handler. NodeBB
- * core fires `filter:auth.options` on EVERY /auth/<name> kickoff, right before
+ * Per-request safety net AND the silent-SSO kickoff. NodeBB core fires
+ * `filter:auth.options` on EVERY /auth/<name> KICKOFF, right before
  * `passport.authenticate` — after the route table (and thus the stock plugin's
- * registration) already exists.
+ * registration) already exists. (Core does NOT fire this hook on the callback
+ * route, which is why the silent-callback cooldown gate lives in a dedicated
+ * app-level middleware — see `silentCallbackGate`.)
  *
  *  1. Safety net (the original live-forum fix): if the registered strategy for
  *     `boardgamers` is not ours (stock plugin overwrote it and no reload has
@@ -511,18 +549,11 @@ Shim.loadStrategies = async (strategies) => {
  *
  *  2. Silent kickoff: the page middleware redirected here with `?silent=1`
  *     (and set `req.session.bgsSilent`). Add `prompt=none` to the authorize
- *     params (passport-oauth2 passes unknown opts through to the authorize
- *     URL). The `?silent=1` query marker is required — the session flag alone
- *     can survive a manual button click (one retry of an expired session), and
- *     the manual button must NEVER become a silent attempt.
- *
- *  3. Silent callback: `req.session.bgsSilent` is still set on the way back
- *     (same session cookie), so a provider error means the prompt=none attempt
- *     failed (login_required / consent_required / account_selection_required /
- *     interaction_required / ...): arm the cooldown cookie, clear the flag, and
- *     end the response HERE by bouncing to a local page — core's own error
- *     handling never runs, so the user never sees an OIDC error page.
- *     Successes fall through untouched to the normal code exchange.
+ *     redirect, reusing the exact PKCE/state machinery (the prompt is threaded
+ *     via the PKCE state-store metadata — see `withPromptNone`). The `?silent=1`
+ *     query marker is required — the session flag alone can survive a manual
+ *     button click (one retry of an expired session), and the manual button
+ *     must NEVER become a silent attempt.
  */
 Shim.ensureStrategy = ({ req, res, opts }) => {
 	const passport = require("passport"); // eslint-disable-line global-require
@@ -544,21 +575,10 @@ Shim.ensureStrategy = ({ req, res, opts }) => {
 			// mark a later callback as silent.
 			delete req.session[SILENT_SESSION_FLAG];
 		}
-	} else if (req && res && path === CALLBACK_URL) {
-		// Callback. This attempt was silent iff the PKCE state metadata carries
-		// prompt=none (self-describing, no fragile session-flag timing).
-		const silent = isSilentCallback(req);
-		if (req.session) {
-			delete req.session[SILENT_SESSION_FLAG];
-		}
-		const error = req.query && req.query.error;
-		if (silent && error) {
-			winston.verbose(`[plugin/sso-bgs] silent SSO: provider returned error=${error}; cooldown armed`);
-			armSilentCooldown(res);
-			res.redirect(`${nconf.get("relative_path") || ""}/`);
-			return { req, res, opts: { ...opts, skip: true } };
-		}
 	}
+	// NOTE: the silent-callback cooldown gate is NOT here — core never fires
+	// `filter:auth.options` on the callback route, only on the kickoff. It lives
+	// in `silentCallbackGate`, an app-level middleware mounted on CALLBACK_URL.
 
 	return { req, res, opts };
 };
@@ -597,8 +617,14 @@ function withPromptNone(req, opts) {
  * `oauth2:<authorize-url-hostname>` (passport-oauth2 derives it from the
  * configured authorization URL — here the PROVIDER's host, e.g.
  * `oauth2:www.boardgamers.space`, not the forum's). We don't read the config
- * here (this hook is sync), so scan the session for any PKCE entry carrying
+ * here (this gate is sync), so scan the session for any PKCE entry carrying
  * the prompt=none marker — there is exactly one such entry per attempt.
+ *
+ * TIMING: this MUST read the state BEFORE passport-oauth2's PKCESessionStore
+ * runs — `verify()` deletes the entry on first use. Our `silentCallbackGate`
+ * middleware is mounted on CALLBACK_URL ahead of core's callback route (which
+ * is where passport.authenticate → verify runs), so the marker is still
+ * present when we check it here.
  */
 function isSilentCallback(req) {
 	const session = req && req.session;
