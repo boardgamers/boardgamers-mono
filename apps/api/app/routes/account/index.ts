@@ -225,7 +225,7 @@ router.post("/", loggedIn, async (ctx) => {
  * SSRF validation and does a real POST in the user's configured format, so they
  * can verify the URL before relying on it.
  */
-router.post("/webhook/test", loggedIn, async (ctx) => {
+router.post("/webhook/test", loggedIn, actionRateLimit("account/webhook/test"), async (ctx) => {
 	const user = ctx.state.user!;
 	const webhook = user.settings?.notifications?.webhook;
 	if (!webhook?.url) {
