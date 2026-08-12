@@ -102,7 +102,7 @@ export default {
 			url: process.env.dbUrl || "mongodb://localhost:27517/admin",
 			name: dbName,
 		},
-		nodebb: "mongodb://nodebb:NodeBBPassword@localhost:27017/nodebb",
+		nodebb: process.env.nodebbDbUrl || "mongodb://nodebb:NodeBBPassword@localhost:27017/nodebb",
 	},
 	isProduction: process.env.NODE_ENV === "production",
 	/** Is the computer able to send emails? If not, let the main server send the emails */

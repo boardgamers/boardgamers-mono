@@ -149,4 +149,69 @@ export default async function initDb(url = env.database.bgs.url, runMigrations =
 
 export async function closeDb() {
 	await client?.close();
+	await closeNodebbDb();
+}
+
+// --- NodeBB (forum) read-only connection -------------------------------------
+// Reusable integration point for reading forum data (deeper forum integration is
+// planned). Today only the dead-user cleanup uses it, to detect forum *content*
+// (posts). Read-only by convention: nothing in the api should ever write here.
+// Lazily connected on first use (never created if unused) and gracefully `null`
+// whenever the forum db is unreachable, so callers can fail safe.
+
+/** NodeBB's `objects` collection holds every entity as a `{ _key: ... }` doc. */
+export interface NodebbObject {
+	_key: string;
+	[field: string]: unknown;
+}
+
+let nodebbClient: MongoClient | null = null;
+let nodebbPromise: Promise<Db | null> | null = null;
+
+async function connectNodebb(): Promise<Db | null> {
+	let c: MongoClient | null = null;
+	try {
+		// serverSelectionTimeoutMS: an unreachable forum must fail fast (the cleanup
+		// fails safe to keeping users), not hang the batch for the 30s default.
+		c = new MongoClient(env.database.nodebb, { directConnection: true, serverSelectionTimeoutMS: 3000 });
+		await c.connect();
+		// The db name comes from the connection-string path (the driver's own parser
+		// handles credentials / query strings / SRV), defaulting to "nodebb".
+		nodebbClient = c;
+		return c.db(c.options.dbName ?? "nodebb");
+	} catch (err) {
+		console.error("[nodebb] unreachable — forum-data reads will fail safe (null)", err);
+		await c?.close().catch(() => {});
+		nodebbClient = null;
+		return null;
+	}
+}
+
+/**
+ * The NodeBB `Db`, or `null` when unreachable. Lazily connected; a `null` result is
+ * sticky for the process so a forum outage doesn't turn into repeated reconnect
+ * attempts mid-batch.
+ */
+export function getNodebbDb(): Promise<Db | null> {
+	nodebbPromise ??= connectNodebb();
+	return nodebbPromise;
+}
+
+/**
+ * Typed collection accessors over the NodeBB db, mirroring `colls`. Returns `null`
+ * when the forum db is unreachable. Add forum collections here as features need
+ * them; only `objects` exists today (NodeBB stores users/posts/sets all in it).
+ */
+export async function nodebbColls(): Promise<{ objects: Collection<NodebbObject> } | null> {
+	const database = await getNodebbDb();
+	if (!database) {
+		return null;
+	}
+	return { objects: database.collection<NodebbObject>("objects") };
+}
+
+export async function closeNodebbDb() {
+	await nodebbClient?.close();
+	nodebbClient = null;
+	nodebbPromise = null;
 }

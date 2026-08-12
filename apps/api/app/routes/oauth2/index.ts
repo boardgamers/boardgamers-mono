@@ -10,7 +10,7 @@ import { env } from "../../config/index.ts";
 import { verifyPkceS256 } from "../../config/pkce.ts";
 import { createAccessToken, accessTokenDuration } from "../../models/jwtrefreshtokens.ts";
 import { createOAuthCode, redeemOAuthCode } from "../../models/oauthflows.ts";
-import { missingConsentScopes, recordConsent } from "../../models/oauthconsents.ts";
+import { missingConsentScopes, recordConsent, touchConsent } from "../../models/oauthconsents.ts";
 import { getClientMetadata, isRegisteredRedirectUri } from "../../services/cimd.ts";
 
 /**
@@ -96,12 +96,30 @@ function redirectToWeb(ctx: Context, path: string) {
 	ctx.redirect(`${env.webAppUrl}${path}`);
 }
 
+// A user reaching us via OAuth (forum / Grafana SSO) was "seen". Bump
+// security.lastSeen — the cleanup's activity field for SSO-only users — plus the
+// consent's lastUsedAt trace. Fire-and-forget, throttled to ~1 write/day per user
+// (reads lastSeen off the already-loaded ctx.state.user, mirroring the
+// sliding-session throttle in app.ts). Never touches security.lastLogin: an OAuth
+// authorization is not a site login.
+function markSeenViaOAuth(user: WithId<UserDoc>, clientId: string) {
+	const lastSeen = user.security.lastSeen?.getTime() ?? 0;
+	if (Date.now() - lastSeen < 24 * 3600 * 1000) {
+		return;
+	}
+	Promise.all([
+		colls.users.updateOne({ _id: user._id }, { $set: { "security.lastSeen": new Date() } }),
+		touchConsent(user._id, clientId),
+	]).catch(console.error);
+}
+
 async function issueCodeAndRedirect(
 	ctx: Context,
 	params: AuthorizeParams,
 	user: WithId<UserDoc>,
 	scopes: OAuthScope[],
 ) {
+	markSeenViaOAuth(user, params.client_id);
 	const code = await createOAuthCode({
 		clientId: params.client_id,
 		redirectUri: params.redirect_uri,
@@ -302,6 +320,10 @@ router.post("/token", async (ctx) => {
 	if (!user) {
 		throw createError(400, "invalid_grant: the authorizing user no longer exists");
 	}
+	// The lastSeen bump happens once per flow, at code issuance (authorize). Here we
+	// only refresh the consent trace — bumping lastSeen from the freshly re-read user
+	// would race authorize's fire-and-forget write and double-write.
+	touchConsent(user._id, body.client_id).catch(console.error);
 
 	// Not user.isAdmin on purpose: the OAuth token is an identity credential for
 	// third-party clients, not an admin credential — keep admin gating on the

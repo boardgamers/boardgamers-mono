@@ -10,14 +10,28 @@ import { env } from "../config/index.ts";
 
 /** Record (or refresh) the user's consent for a client. Returns the stored doc. */
 export async function recordConsent(userId: ObjectId, clientId: string, scopes: OAuthScope[]) {
+	const now = new Date();
 	const doc = {
 		userId,
 		clientId,
 		scopes: [...new Set(scopes)],
-		createdAt: new Date(),
+		createdAt: now,
+		lastUsedAt: now,
 	};
-	await colls.oauthConsents.updateOne({ userId, clientId }, { $set: doc }, { upsert: true });
+	// createdAt must only be set on insert ($setOnInsert would reset it on re-consent otherwise);
+	// lastUsedAt tracks the most recent use for the dead-user cleanup.
+	const { createdAt, lastUsedAt, ...rest } = doc;
+	await colls.oauthConsents.updateOne(
+		{ userId, clientId },
+		{ $set: { ...rest, lastUsedAt }, $setOnInsert: { createdAt } },
+		{ upsert: true },
+	);
 	return doc;
+}
+
+/** Bump the consent's lastUsedAt — cheap proof-of-life for the dead-user cleanup. */
+export async function touchConsent(userId: ObjectId, clientId: string) {
+	await colls.oauthConsents.updateOne({ userId, clientId }, { $set: { lastUsedAt: new Date() } });
 }
 
 /**
