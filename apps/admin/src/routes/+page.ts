@@ -13,7 +13,11 @@ export interface ServerInfo {
 	queue: Record<string, number>;
 	recentUsers: RecentUser[];
 	recentGames: RecentGame[];
-	forum: { ok: boolean; status: number | null };
+	forum: {
+		ok: boolean;
+		status: number | null;
+		stats: { users: number; linked: number; usersWithPosts: number; posts: number } | null;
+	};
 }
 interface LokiInstantResult {
 	status: string;

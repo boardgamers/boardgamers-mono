@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it, mock } from "node:test";
 import { ObjectId } from "mongodb";
-import { colls, db } from "../../config/db.ts";
+import { closeNodebbDb, colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { testUser } from "../../config/test-helpers.ts";
 import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
@@ -28,6 +28,25 @@ describe("Admin serverinfo forum health", () => {
 		const token = await createAccessToken(tokenDoc, ["all"], true);
 		adminHeaders = { Authorization: `Bearer ${token}` };
 
+		// Simulate the forum db: point the read-only NodeBB connection at the SAME
+		// test db (mirrors user.spec.ts) and seed an `objects` collection fixture:
+		// 4 users (2 with posts), 5 posts, 2 linked bgs accounts.
+		const bgsUrl = new URL(env.database.bgs.url.replace(/^mongodb:/, "http:"));
+		env.database.nodebb = `mongodb://${bgsUrl.host}/${env.database.bgs.name}${bgsUrl.search}`;
+		await closeNodebbDb();
+		await db()
+			.collection("objects")
+			.insertMany([
+				{ _key: "user:1", postcount: 7 },
+				{ _key: "user:2", postcount: 0 },
+				{ _key: "user:3", postcount: 2 },
+				{ _key: "user:0" }, // NodeBB's system uid — included, matching the /^user:\d+$/ count
+				{ _key: "boardgamersId:uid", [adminId.toHexString()]: 1, [new ObjectId().toHexString()]: 2 },
+				...Array.from({ length: 5 }, (_, i) => ({ _key: `pid:${i + 1}`, uid: 1 })),
+				{ _key: "post:queue", count: 3 }, // non-pid key: must not count as a post
+				{ _key: "username:sorted" }, // non-user key: must not count as a user
+			]);
+
 		mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
 			const url = new URL(typeof input === "string" || input instanceof URL ? input : input.url);
 			if (url.origin === forumUrl().origin) {
@@ -47,28 +66,57 @@ describe("Admin serverinfo forum health", () => {
 		await db().dropDatabase();
 	});
 
+	interface ForumInfo {
+		ok: boolean;
+		status: number | null;
+		stats: { users: number; linked: number; usersWithPosts: number; posts: number } | null;
+	}
+
 	async function serverinfo() {
 		const res = await fetch(`${baseURL()}/api/admin/serverinfo`, { headers: adminHeaders });
 		assert.equal(res.status, 200, "the endpoint itself must always succeed");
 		const body: unknown = await res.json();
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
-		return (body as { forum: { ok: boolean; status: number | null } }).forum;
+		return (body as { forum: ForumInfo }).forum;
 	}
 
 	it("probes {forumUrl}/api/config and reports up on 200", async () => {
 		forumStatus = 200;
 		forumFetchCount = 0;
-		assert.deepEqual(await serverinfo(), { ok: true, status: 200 });
+		const forum = await serverinfo();
+		assert.deepEqual({ ok: forum.ok, status: forum.status }, { ok: true, status: 200 });
 		assert.ok(forumFetchCount > 0, "forum must be contacted");
 	});
 
 	it("reports down on a non-2xx forum response, with the status", async () => {
 		forumStatus = 503;
-		assert.deepEqual(await serverinfo(), { ok: false, status: 503 });
+		const forum = await serverinfo();
+		assert.deepEqual({ ok: forum.ok, status: forum.status }, { ok: false, status: 503 });
 	});
 
 	it("reports down with status null when the forum is unreachable, without failing the request", async () => {
 		forumStatus = 0;
-		assert.deepEqual(await serverinfo(), { ok: false, status: null });
+		const forum = await serverinfo();
+		assert.deepEqual({ ok: forum.ok, status: forum.status }, { ok: false, status: null });
+	});
+
+	it("reports forum db stats from the NodeBB objects collection", async () => {
+		forumStatus = 200;
+		const forum = await serverinfo();
+		// Fixture: user:0..3 (2 with posts), 5 pid:* docs, 2 linked bgs accounts.
+		assert.deepEqual(forum.stats, { users: 4, linked: 2, usersWithPosts: 2, posts: 5 });
+	});
+
+	it("returns null stats when the forum db is unreachable, without failing the request", async () => {
+		const saved = env.database.nodebb;
+		env.database.nodebb = "mongodb://127.0.0.1:1/nodebb";
+		await closeNodebbDb();
+		try {
+			const forum = await serverinfo();
+			assert.equal(forum.stats, null);
+		} finally {
+			env.database.nodebb = saved;
+			await closeNodebbDb(); // reset so later tests reconnect to the fixture db
+		}
 	});
 });

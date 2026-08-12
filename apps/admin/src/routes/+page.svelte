@@ -141,6 +141,19 @@
 						<span class="text-xs font-normal text-gray-400">({serverInfo.forum.status})</span>
 					{/if}
 				</div>
+				{#if serverInfo.forum.stats}
+					{@const s = serverInfo.forum.stats}
+					<div
+						class="text-xs text-gray-500 dark:text-gray-400 mt-1.5"
+						title="Forum accounts · linked bgs accounts · accounts with posts · total posts"
+					>
+						{s.users.toLocaleString()} users · {s.linked.toLocaleString()} linked ({Math.round(
+							(100 * s.linked) / Math.max(1, s.users)
+						)}%) · {s.usersWithPosts.toLocaleString()} posters · {s.posts.toLocaleString()} posts
+					</div>
+				{:else}
+					<div class="text-xs text-gray-400 mt-1.5">stats unavailable</div>
+				{/if}
 			</div>
 		</div>
 	{/if}

@@ -5,7 +5,7 @@ import type { Context } from "koa";
 import Router from "koa-router";
 import path from "node:path";
 import { env } from "../../config/index.ts";
-import { colls } from "../../config/db.ts";
+import { colls, nodebbColls } from "../../config/db.ts";
 import {
 	authEmailOnCooldown,
 	findByEmail,
@@ -43,16 +43,50 @@ interface ForumHealth {
 	ok: boolean;
 	/** HTTP status from the probe; null when the request never got a response (timeout, DNS, …). */
 	status: number | null;
+	/** Forum db stats; null when the (read-only) NodeBB db is unreachable. */
+	stats: ForumStats | null;
+}
+
+interface ForumStats {
+	users: number;
+	linked: number;
+	usersWithPosts: number;
+	posts: number;
 }
 
 // Pings the forum's public API. Never throws: the dashboard must render even
 // when the forum (or the network path to it) is down.
-async function checkForumHealth(): Promise<ForumHealth> {
+async function checkForumHealth(): Promise<Pick<ForumHealth, "ok" | "status">> {
 	try {
 		const res = await fetch(`${env.forumUrl}/api/config`, { signal: AbortSignal.timeout(3000) });
 		return { ok: res.ok, status: res.status };
 	} catch {
 		return { ok: false, status: null };
+	}
+}
+
+// Cheap, batched reads of the NodeBB `objects` store. Never throws: a down or
+// erroring forum db yields null stats, not a failed endpoint.
+async function loadForumStats(): Promise<ForumStats | null> {
+	const nodebb = await nodebbColls();
+	if (!nodebb) {
+		return null;
+	}
+	try {
+		// All three counts use the `_key` index (or a single doc read), so the
+		// queries stay cheap even on a large `objects` collection.
+		const [users, linkDoc, usersWithPosts, postIds] = await Promise.all([
+			nodebb.objects.countDocuments({ _key: /^user:\d+$/ }),
+			nodebb.objects.findOne({ _key: "boardgamersId:uid" }, { projection: { _id: 0 } }),
+			nodebb.objects.countDocuments({ _key: /^user:\d+$/, postcount: { $gt: 0 } }),
+			nodebb.objects.countDocuments({ _key: /^pid:\d+$/ }),
+		]);
+		// Every field except _key is a linked bgs user id → forum uid.
+		const linked = Object.keys(linkDoc ?? {}).filter((k) => k !== "_key").length;
+		return { users, linked, usersWithPosts, posts: postIds };
+	} catch (err) {
+		console.error("[serverinfo] forum stats lookup failed — returning null stats", err);
+		return null;
 	}
 }
 
@@ -127,7 +161,8 @@ router.get("/serverinfo", async (ctx) => {
 		queueByKind,
 		recentUsers,
 		recentGames,
-		forum,
+		forumHealth,
+		forumStats,
 	] = await Promise.all([
 		checkDiskSpace(process.cwd()),
 		colls.users.countDocuments({}),
@@ -154,7 +189,10 @@ router.get("/serverinfo", async (ctx) => {
 			.limit(5)
 			.toArray(),
 		checkForumHealth(),
+		loadForumStats(),
 	]);
+
+	const forum: ForumHealth = { ...forumHealth, stats: forumStats };
 
 	const games: Record<string, number> = {};
 	for (const g of gamesByStatus) {
