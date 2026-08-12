@@ -22,7 +22,12 @@ export interface ServerInfo {
 			usernameMismatch: number;
 			emailMismatch: number;
 			unconfirmedLinked: number;
-			sample: { forumUsername: string | null; bgsUsername: string | null; forumEmail: string | null; bgsEmail: string | null }[];
+			sample: {
+				forumUsername: string | null;
+				bgsUsername: string | null;
+				forumEmail: string | null;
+				bgsEmail: string | null;
+			}[];
 		} | null;
 	};
 }
