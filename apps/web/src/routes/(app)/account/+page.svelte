@@ -40,6 +40,8 @@
 		untrack(() => user?.settings?.notifications?.webhook?.format ?? "discord")
 	);
 	let webhookEnabled = $state(untrack(() => user?.settings?.notifications?.webhook?.enabled ?? true));
+	// Webhook delivery delay in seconds; 0 = immediate. Independent of the email delay.
+	let webhookDelay = $state(untrack(() => user?.settings?.notifications?.webhook?.delay ?? 0));
 	let webhookEditing = $state(false);
 	let webhookTesting = $state(false);
 	let webhookConfigured = $state(untrack(() => !!user?.settings?.notifications?.webhook?.hasWebhook));
@@ -58,6 +60,7 @@
 							...(webhookUrl ? { url: webhookUrl } : {}),
 							format: webhookFormat,
 							enabled: webhookEnabled,
+							delay: webhookDelay,
 						},
 					},
 				},
@@ -399,7 +402,10 @@
 						</select>
 					</div>
 				{/if}
-				<span class="text-xs">One email per waiting game, batched after the delay so you're not spammed.</span>
+				<span class="text-xs"
+					>One email per waiting game, batched after the delay so you're not spammed. This delay applies to email only —
+					the webhook below has its own.</span
+				>
 			</FormGroup>
 
 			<FormGroup>
@@ -455,6 +461,20 @@
 						>
 							Enabled
 						</Checkbox>
+						<span class="flex items-center gap-2">
+							<label for="webhook-delay" class="text-sm text-gray-500 dark:text-gray-400">Deliver</label>
+							<select
+								id="webhook-delay"
+								class="rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+								bind:value={webhookDelay}
+								onchange={() => webhookConfigured && !webhookEditing && saveWebhook()}
+							>
+								<option value={0}>Immediately</option>
+								{#each [60, 5 * 60, 10 * 60, 30 * 60, 2 * 3600] as seconds (seconds)}
+									<option value={seconds}>every {duration(seconds)}</option>
+								{/each}
+							</select>
+						</span>
 					</div>
 				{/if}
 				{#if webhookDisabled}
@@ -463,7 +483,8 @@
 					>
 				{:else}
 					<span class="text-xs"
-						>Post a message to Discord, Slack, or your own endpoint (raw JSON) when it's your turn.</span
+						>Post a message to Discord, Slack, or your own endpoint (raw JSON) when it's your turn — immediately, or
+						batched at the chosen interval.</span
 					>
 				{/if}
 			</FormGroup>

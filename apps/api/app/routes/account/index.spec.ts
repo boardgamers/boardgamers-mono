@@ -211,6 +211,32 @@ describe("Account API — notification webhook (#85/#33)", () => {
 		assert.strictEqual(getWebhook.hasWebhook, true);
 	});
 
+	it("persists the webhook delivery delay (0 = immediate)", async () => {
+		const res = await api(
+			"POST",
+			"/api/account",
+			{ settings: { notifications: { webhook: { delay: 0 } } } },
+			authHeaders,
+		);
+		assert.strictEqual(res.status, 200, JSON.stringify(res.data));
+		let stored = await colls.users.findOne({ _id: userId });
+		assert.strictEqual(stored?.settings?.notifications?.webhook?.delay, 0);
+
+		await api("POST", "/api/account", { settings: { notifications: { webhook: { delay: 600 } } } }, authHeaders);
+		stored = await colls.users.findOne({ _id: userId });
+		assert.strictEqual(stored?.settings?.notifications?.webhook?.delay, 600);
+	});
+
+	it("rejects a negative webhook delay", async () => {
+		const res = await api(
+			"POST",
+			"/api/account",
+			{ settings: { notifications: { webhook: { delay: -5 } } } },
+			authHeaders,
+		);
+		assert.strictEqual(res.status, 400);
+	});
+
 	it("POST /webhook/test posts a test notification to the configured url", async () => {
 		const res = await api("POST", "/api/account/webhook/test", undefined, authHeaders);
 		assert.strictEqual(res.status, 200);

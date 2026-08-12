@@ -418,6 +418,21 @@ export async function deliverGameNotificationWebhook(freshUser: WithId<UserDoc>,
 	}
 }
 
+/**
+ * Immediate variant (webhook.delay === 0): fire on the turn event, not the email
+ * throttle. Called from processCurrentMove with the game that just became the
+ * user's turn. Shares the backoff + 24h-disable + streak-reset logic; never
+ * throws into the caller.
+ */
+export async function deliverGameNotificationWebhookImmediate(freshUser: WithId<UserDoc>, game: WebhookGame) {
+	const webhook = freshUser.settings?.notifications?.webhook;
+	// oxlint-disable-next-line typescript/no-unnecessary-boolean-literal-compare -- explicit: undefined means enabled
+	if (!webhook?.url || (webhook.delay ?? 0) !== 0 || webhook.enabled === false || webhook.disabled) {
+		return;
+	}
+	await deliverGameNotificationWebhook(freshUser, [game]);
+}
+
 export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
 	await using _lock = await locks.lock("game-notification", user._id.toString());
 	try {
@@ -482,7 +497,11 @@ export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
 		}
 
 		// Independent of the email path: a failing webhook must never affect the mail.
-		await deliverGameNotificationWebhook(freshUser, activeGames).catch(console.error);
+		// Only batched webhooks (delay > 0) ride this throttled pass; immediate ones
+		// fire on the turn event (processCurrentMove).
+		if ((freshUser.settings?.notifications?.webhook?.delay ?? 0) > 0) {
+			await deliverGameNotificationWebhook(freshUser, activeGames).catch(console.error);
+		}
 
 		await colls.users.updateOne(
 			{ _id: user._id },

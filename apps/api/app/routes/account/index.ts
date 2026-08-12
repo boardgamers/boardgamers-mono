@@ -68,6 +68,8 @@ const webhookSettingsSchema = z
 		url: z.string().nullish(),
 		format: z.enum(["discord", "slack", "raw"]).optional(),
 		enabled: z.boolean().optional(),
+		// Seconds before posting (0 = immediate). Independent of the email delay.
+		delay: z.number().int().min(0).optional(),
 	})
 	.strict();
 
@@ -148,6 +150,9 @@ router.post("/", loggedIn, async (ctx) => {
 				}
 				if (parsedWebhook.enabled !== undefined) {
 					set.enabled = parsedWebhook.enabled;
+				}
+				if (parsedWebhook.delay !== undefined) {
+					set.delay = parsedWebhook.delay;
 				}
 				webhookUpdate = { set, urlChanged };
 			}

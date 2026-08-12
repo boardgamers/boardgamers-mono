@@ -6,6 +6,7 @@ import type { UserDoc } from "@bgs/models";
 import { colls, db } from "../config/db.ts";
 import { setSendmailForTests } from "../config/sendmail.ts";
 import { testGame, testUser } from "../config/test-helpers.ts";
+import { processCurrentMove } from "./gamenotification.ts";
 import {
 	deliverGameNotificationWebhook,
 	sendGameNotificationEmail,
@@ -54,7 +55,7 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 			account: { username: "hooked" },
 			settings: {
 				notifications: {
-					webhook: { url: "https://discord.com/api/webhooks/1/secret", format: "discord", enabled: true },
+					webhook: { url: "https://discord.com/api/webhooks/1/secret", format: "discord", enabled: true, delay: 1800 },
 				},
 			},
 			// lastGameNotification must predate the game's timerStart: the countDocuments
@@ -281,6 +282,135 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 		const ghost = testUser({ settings: {} });
 		delete ghost.account.email;
 		await deliverGameNotificationWebhook({ ...ghost, _id: new ObjectId() }, oneGame);
+	});
+
+	describe("webhook timing — immediate vs batched", () => {
+		it("immediate (delay 0) fires on the turn event even with turn emails off", async () => {
+			const userId = await insertWebhookUser("hookimmediate", {
+				url: "https://discord.com/api/webhooks/9/secret",
+				format: "discord",
+				enabled: true,
+				delay: 0,
+			});
+			// Turn emails disabled — the immediate webhook must still fire.
+			await colls.users.updateOne({ _id: userId }, { $set: { "settings.mailing.game.activated": false } });
+			await colls.games.insertOne(
+				testGame({
+					_id: "immediate-game",
+					game: { name: "Gaia Project", version: 1 },
+					status: "active",
+					players: [{ _id: userId }],
+					currentPlayers: [{ _id: userId, timerStart: new Date() }],
+				}),
+			);
+			await colls.gameNotifications.insertOne({
+				game: "immediate-game",
+				user: userId,
+				kind: "currentMove",
+				processed: false,
+			});
+
+			calls = [];
+			await processCurrentMove();
+
+			assert.strictEqual(calls.length, 1, "immediate webhook must fire on the turn event");
+			assert.strictEqual(calls[0].url, "https://discord.com/api/webhooks/9/secret");
+			assert.match(JSON.parse(calls[0].body).content, /Gaia Project/);
+		});
+
+		it("immediate webhook does not fire on the batched email pass", async () => {
+			const userId = new ObjectId();
+			const past = new Date(Date.now() - 3600 * 1000);
+			const user = testUser({
+				_id: userId,
+				account: { username: "hookskipbatch" },
+				settings: {
+					notifications: {
+						webhook: { url: "https://discord.com/api/webhooks/10/secret", format: "discord", enabled: true, delay: 0 },
+					},
+				},
+				meta: { nextGameNotification: past, lastGameNotification: past },
+			});
+			delete user.account.email;
+			await colls.users.insertOne(user);
+			await colls.games.insertOne(
+				testGame({
+					_id: "skip-batch-game",
+					game: { name: "Gaia Project", version: 1 },
+					status: "active",
+					players: [{ _id: userId }],
+					currentPlayers: [{ _id: userId, timerStart: past }],
+					lastMove: past,
+				}),
+			);
+
+			calls = [];
+			await sendGameNotificationEmail((await colls.users.findOne({ _id: userId }))!);
+			assert.strictEqual(calls.length, 0, "delay 0 (immediate) must not ride the throttled email pass");
+		});
+
+		it("batched webhook does not fire on the immediate turn event", async () => {
+			const userId = await insertWebhookUser("hookbatched", {
+				url: "https://discord.com/api/webhooks/11/secret",
+				format: "discord",
+				enabled: true,
+				delay: 1800,
+			});
+			await colls.games.insertOne(
+				testGame({
+					_id: "batched-game",
+					game: { name: "Gaia Project", version: 1 },
+					status: "active",
+					players: [{ _id: userId }],
+					currentPlayers: [{ _id: userId, timerStart: new Date() }],
+				}),
+			);
+			await colls.gameNotifications.insertOne({
+				game: "batched-game",
+				user: userId,
+				kind: "currentMove",
+				processed: false,
+			});
+
+			calls = [];
+			await processCurrentMove();
+			assert.strictEqual(calls.length, 0, "batched webhook must not fire on the turn event");
+		});
+
+		it("a failing immediate webhook backs off without breaking the cron loop", async () => {
+			const userId = await insertWebhookUser("hookimmfail", {
+				url: "https://discord.com/api/webhooks/12/secret",
+				format: "discord",
+				enabled: true,
+				delay: 0,
+			});
+			await colls.games.insertOne(
+				testGame({
+					_id: "imm-fail-game",
+					game: { name: "Gaia Project", version: 1 },
+					status: "active",
+					players: [{ _id: userId }],
+					currentPlayers: [{ _id: userId, timerStart: new Date() }],
+				}),
+			);
+			await colls.gameNotifications.insertOne({
+				game: "imm-fail-game",
+				user: userId,
+				kind: "currentMove",
+				processed: false,
+			});
+
+			failing = true;
+			calls = [];
+			await processCurrentMove(); // must not throw
+			failing = false;
+
+			const stored = await colls.users.findOne({ _id: userId });
+			const webhook = stored?.settings?.notifications?.webhook;
+			assert.ok(webhook?.failingSince, "failure streak started");
+			assert.ok(webhook?.nextRetryAt, "backoff scheduled");
+			assert.ok(!webhook.disabled, "not disabled on first failure");
+		});
 	});
 
 	after(() => {

@@ -80,6 +80,10 @@ export const userSchema = z.object({
 							url: z.string().optional(),
 							format: z.enum(["discord", "slack", "raw"]).default("discord"),
 							enabled: z.boolean().default(true),
+							// Seconds to wait before posting, batching moves into one message.
+							// 0 = immediate (on the turn event). Independent of the email
+							// delay (settings.mailing.game.delay).
+							delay: z.number().optional(),
 							// Auto-set after 24h of continuous delivery failure; saving a new
 							// URL resets it (along with failingSince/retryCount/nextRetryAt/lastError).
 							disabled: z.boolean().optional(),

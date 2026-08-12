@@ -1,7 +1,7 @@
 import locks from "../config/locks.ts";
 import { colls } from "../config/db.ts";
 import { processEloForGame } from "../services/elo.ts";
-import { maxKarma } from "./user.ts";
+import { deliverGameNotificationWebhookImmediate, maxKarma } from "./user.ts";
 
 export async function processCurrentMove() {
 	const col = colls.gameNotifications;
@@ -12,6 +12,19 @@ export async function processCurrentMove() {
 	const userDocs = await userCol.find({ _id: { $in: userIds } }).toArray();
 
 	for (const user of userDocs) {
+		// Immediate webhooks (delay 0) fire now, on the turn event — independent of the
+		// email throttle below and of whether turn emails are even enabled.
+		const webhook = user.settings?.notifications?.webhook;
+		if (webhook?.url && (webhook.delay ?? 0) === 0) {
+			const gameIds = notifications.filter((n) => n.user?.equals(user._id)).map((n) => n.game);
+			for (const gameId of gameIds) {
+				const game = await colls.games.findOne({ _id: gameId }, { projection: { "game.name": 1 } });
+				if (game) {
+					await deliverGameNotificationWebhookImmediate(user, game).catch(console.error);
+				}
+			}
+		}
+
 		if (!user.settings?.mailing?.game?.activated) {
 			continue;
 		}
