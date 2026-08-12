@@ -435,7 +435,9 @@ export function openidConfiguration() {
 		grant_types_supported: ["authorization_code"],
 		code_challenge_methods_supported: ["S256"],
 		token_endpoint_auth_methods_supported: ["none"],
-		prompt_values_supported: ["none", "login", "consent"],
+		// Only "none" has behavioral effect — don't advertise values whose
+		// semantics (forced re-auth / forced consent) aren't implemented.
+		prompt_values_supported: ["none"],
 		subject_types_supported: ["public"],
 		id_token_signing_alg_values_supported: [env.jwt.algorithm],
 		claims_supported: ["sub", "id", "preferred_username", "name", "email", "email_verified", "picture", "roles"],
