@@ -19,6 +19,7 @@
 	import { post } from "@/lib/api";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { useGamePreferencesFallback, gamePreferences } from "@/lib/game-preferences.svelte";
+	import { developerSettings } from "@/lib/stores.svelte";
 	import { page } from "$app/state";
 	import TimeRangeSlider from "@/components/Form/TimeRangeSlider.svelte";
 
@@ -41,7 +42,9 @@
 	// The creator can join themselves (the "join" option), so a seat is taken by a
 	// human either way — cap bots at players - 1 to always leave one human seat.
 	let maxBots = $derived(Math.max(0, numPlayers - 1));
-	let botsSupported = $derived(!!info?.meta?.bots);
+	// Bots are dumb (engine auto-play) and only for testing the UI solo — the picker
+	// is a developer-only control, hidden unless developer settings are enabled.
+	let botsSupported = $derived(!!info?.meta?.bots && $developerSettings);
 
 	let options = $state(["join"]);
 	let playerOrder = $state<PlayerOrder>("random");

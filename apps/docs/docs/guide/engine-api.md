@@ -86,11 +86,18 @@ moveAI(data: GameData, player: number): Promise<GameData> | GameData
 
 Play one move for `player`, chosen by the engine. This powers the platform's **bot players**:
 when a bot slot becomes the current player, the game-server calls `moveAI` and stores the
-result like a regular move.
+result like a regular move. It should be exported from the engine's **entry point** (the
+module the game-server loads), since that's what the bot driver calls.
 
-Optional — only games whose engine implements `moveAI` can have bot players (the site's
-game registry flags them with `meta.bots`). Reusing the auto-play logic from
-[dropPlayer](#dropplayer) is a good starting point; a simple random legal move is fine.
+Optional — only games whose engine implements `moveAI` can have bot players. The game-server
+**auto-detects** it when an engine version is installed (probing the entry point for a
+`moveAI` export) and records it as `meta.bots` on the game info, which the creation UI uses to
+offer bot seats. All five current games implement it: Power Grid, Container, 6nimmt! (take6),
+Splendor and Gaia Project. Reusing the auto-play logic from [dropPlayer](#dropplayer) is a good
+starting point; a simple random legal move is fine.
+
+Bots are deliberately **dumb** — they're for testing the UI solo, not for enjoyment. See
+[issue #251](https://github.com/boardgamers/boardgamers-mono/issues/251) for real AI opponents.
 
 ### currentPlayer
 
