@@ -13,7 +13,7 @@ export interface ServerInfo {
 	queue: Record<string, number>;
 	recentUsers: RecentUser[];
 	recentGames: RecentGame[];
-	cron: boolean;
+	forum: { ok: boolean; status: number | null };
 }
 interface LokiInstantResult {
 	status: string;

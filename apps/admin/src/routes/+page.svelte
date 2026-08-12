@@ -132,10 +132,14 @@
 				<div class="text-xs text-gray-400 mt-1">of {filesize(serverInfo.disk.size)}</div>
 			</div>
 			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Cron</div>
+				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Forum</div>
 				<div class="text-2xl font-bold mt-1 flex items-center gap-2">
-					<span class="inline-block w-2.5 h-2.5 rounded-full {serverInfo.cron ? 'bg-green-500' : 'bg-gray-400'}"></span>
-					{serverInfo.cron ? "Active" : "Inactive"}
+					<span class="inline-block w-2.5 h-2.5 rounded-full {serverInfo.forum.ok ? 'bg-green-500' : 'bg-gray-400'}"
+					></span>
+					{serverInfo.forum.ok ? "Up" : "Down"}
+					{#if serverInfo.forum.status}
+						<span class="text-xs font-normal text-gray-400">({serverInfo.forum.status})</span>
+					{/if}
 				</div>
 			</div>
 		</div>

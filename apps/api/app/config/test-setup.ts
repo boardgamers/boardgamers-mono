@@ -57,6 +57,10 @@ async function doSetup() {
 	if (addr && typeof addr === "object") {
 		env.listen.port.api = addr.port;
 	}
+
+	// Never let specs dial the real forum — the admin serverinfo spec spins up a
+	// stub and points this at it.
+	env.forumUrl = "http://127.0.0.1:9";
 }
 
 export async function teardown() {
