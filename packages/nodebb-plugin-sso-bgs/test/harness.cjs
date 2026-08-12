@@ -432,8 +432,12 @@ function makeEnv() {
 			clearCookie(name) {
 				delete jar[name];
 			},
-			redirect(url) {
-				res.statusCode = 302;
+			// Faithful to express: res.redirect(url) OR res.redirect(status, url).
+			// The URL is the LAST arg; a leading numeric arg is the status code.
+			redirect(...args) {
+				const url = args[args.length - 1];
+				const status = typeof args[0] === "number" ? args[0] : 302;
+				res.statusCode = status;
 				res.headers.location = url;
 				res.body = url;
 				return res;
@@ -598,11 +602,12 @@ function makeEnv() {
 			})(req, res, reject);
 		});
 		// Core's final step on success (routes/authentication.js): req.login,
-		// onSuccessfulLogin, then helpers.redirect(res, strategy.successUrl || '/').
-		// The shim's silentSuccessRedirect has wrapped res.redirect so a default
-		// '/' landing is rewritten to the original page for a silent success.
+		// onSuccessfulLogin, then helpers.redirect(res, strategy.successUrl || '/')
+		// — which calls res.redirect(307, url) (TWO args). The shim's
+		// silentSuccessRedirect has wrapped res.redirect so a default '/' landing
+		// is rewritten to the original page for a silent success.
 		if (result.user) {
-			res.redirect(descriptor.successUrl || "/");
+			res.redirect(307, descriptor.successUrl || "/");
 			result.redirected = res.headers.location || descriptor.successUrl || "/";
 		}
 		return { ...result, session: req.session, cookies: jar, setCookies: res.setCookies };

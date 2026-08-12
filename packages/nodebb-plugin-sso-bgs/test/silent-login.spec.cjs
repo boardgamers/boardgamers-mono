@@ -264,6 +264,31 @@ test("silent SUCCESS and FAILURE both return to the original page; tampered/exte
 	assert.strictEqual(manualCb.redirected, "/", "manual login keeps core's default (/) landing");
 });
 
+test("REGRESSION (PR #254 review): silent success rewrite works with core's 2-arg res.redirect(307, url)", async () => {
+	// NodeBB core's helpers.redirect calls res.redirect(307, url) — TWO args. A
+	// 1-arg res.redirect(url) wrap sees url=307 (a number), the `=== "/"` check
+	// fails, and the return-to-page silently no-ops. This drives the silent
+	// success through the faithful 2-arg shape (env.callback now uses
+	// res.redirect(307, url)) and asserts the rewrite actually fires.
+	await acpSaveStrategy(VALID_CONFIG);
+	const env = makeEnv();
+	env.fetchImpl = async () => ({ ok: true, json: async () => ({ access_token: "at-1" }) });
+	env.stockOAuth.getUserProfile = function (name, userRoute, accessToken, done) {
+		done(null, { provider: name, id: "u1", displayName: "u1", email: "u1@example.com", email_verified: true });
+	};
+	await env.appLoad();
+	await env.reloadRoutes();
+
+	const jar = {};
+	const page = await env.page("/topic/9/deep-dive", { cookieJar: jar });
+	const kickoff = await env.kickoff("/auth/boardgamers?silent=1", { session: page.session, cookieJar: jar });
+	const state = new URL(kickoff.location).searchParams.get("state");
+
+	const cb = await env.callback(page.session, { code: "c", state }, { cookieJar: jar });
+	assert.strictEqual(cb.user.uid, 1, "logged in");
+	assert.strictEqual(cb.redirected, "/topic/9/deep-dive", "rewritten to returnTo even via res.redirect(307, url)");
+});
+
 test("an EXPIRED cooldown cookie allows a fresh silent attempt", async () => {
 	const env = await bootEnv();
 	const stale = String(Date.now() - 2 * 60 * 60 * 1000); // 2 h ago (> 1 h cooldown)

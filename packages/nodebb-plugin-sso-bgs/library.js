@@ -209,14 +209,18 @@ function silentSuccessRedirect(req, res, next) {
 		}
 		const returnTo = safeReturnPath(meta.returnTo);
 		const original = res.redirect.bind(res);
-		res.redirect = function (url) {
+		// Core's helpers.redirect calls res.redirect(307, url) — TWO args — so
+		// match on the LAST argument (the URL) regardless of the (url) vs
+		// (status, url) call shape, and delegate with the original args.
+		res.redirect = function (...args) {
+			const url = args[args.length - 1];
 			// Only rewrite core's default post-login landing (`/`). Any explicit
 			// non-root redirect (e.g. a registration interstitial) is preserved.
 			const rel = nconf.get("relative_path") || "";
-			if (returnTo !== "/" && (url === "/" || url === `${rel}/`)) {
-				return original(returnTo);
+			if (returnTo !== "/" && typeof url === "string" && (url === "/" || url === `${rel}/`)) {
+				args[args.length - 1] = returnTo;
 			}
-			return original(url);
+			return original(...args);
 		};
 		next();
 	} catch (err) {
