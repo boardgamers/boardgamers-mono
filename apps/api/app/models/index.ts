@@ -63,6 +63,7 @@ export {
 	authEmailOnCooldown,
 	markAuthEmailSent,
 	buildWebhookPayload,
+	resolveGameLabels,
 	deliverWebhook,
 	deliverGameNotificationWebhook,
 	setWebhookFetchForTests,
