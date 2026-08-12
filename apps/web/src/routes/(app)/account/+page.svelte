@@ -482,8 +482,7 @@
 					>
 				{:else}
 					<span class="text-xs"
-						>Post a message to Discord, Slack, or your own endpoint (raw JSON) when it's your turn: immediately, or
-						batched at the chosen interval.</span
+						>Post a message to Discord, Slack, or your own endpoint (raw JSON) when it's your turn.</span
 					>
 				{/if}
 			</FormGroup>
