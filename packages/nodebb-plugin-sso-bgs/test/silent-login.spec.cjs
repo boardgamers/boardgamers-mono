@@ -100,7 +100,7 @@ test("a callback with error=login_required arms the cooldown and bounces to /; t
 
 	const cb = await env.callback(page.session, { error: "login_required", state }, { cookieJar: jar });
 	assert.strictEqual(cb.gated, true, "the shim's callback gate ended the response (no OIDC error page)");
-	assert.strictEqual(cb.redirected, "/", "bounced to the local homepage");
+	assert.strictEqual(cb.redirected, "/recent", "bounced back to the page the user was on (not home)");
 	const cooldown = cb.setCookies.find((c) => c.name === "bgs_silent");
 	assert.ok(cooldown, "cooldown cookie set");
 	assert.ok(Number(cooldown.value) > 0, "cookie carries the failure timestamp");
@@ -123,13 +123,10 @@ test("REGRESSION (PR #254 review): the silent-error cooldown runs on the CALLBAC
 	// cooldown + redirect still happen.
 	const env = await bootEnv();
 
-	// (a) the gate is mounted on the app at the callback path
+	// (a) the silent handling is mounted on the app at the callback path (gate +
+	// success-redirect), running before core's handler
 	const mounts = env.app.middleware.filter((m) => m.path === "/auth/boardgamers/callback");
-	assert.strictEqual(
-		mounts.length,
-		1,
-		"silent-callback gate is app-mounted at the callback path (runs before core's handler)",
-	);
+	assert.ok(mounts.length >= 1, "silent-callback middleware is app-mounted at the callback path");
 
 	// (b) drive the full silent round-trip; the error callback must be gated
 	const jar = {};
@@ -138,7 +135,7 @@ test("REGRESSION (PR #254 review): the silent-error cooldown runs on the CALLBAC
 	const state = new URL(kickoff.location).searchParams.get("state");
 	const cb = await env.callback(page.session, { error: "login_required", state }, { cookieJar: jar });
 	assert.strictEqual(cb.gated, true, "gated on the real callback path (no filter:auth.options involved)");
-	assert.strictEqual(cb.redirected, "/");
+	assert.strictEqual(cb.redirected, "/recent", "returns to the original page");
 	assert.ok(
 		cb.setCookies.some((c) => c.name === "bgs_silent"),
 		"cooldown armed on the real callback path",
@@ -174,22 +171,97 @@ test("a SUCCESSFUL silent callback logs the user in (full round-trip) and arms N
 	await env.reloadRoutes();
 
 	const jar = {};
-	const page = await env.page("/recent", { cookieJar: jar });
+	const page = await env.page("/topic/123/foo", { cookieJar: jar });
 	const kickoff = await env.kickoff("/auth/boardgamers?silent=1", { session: page.session, cookieJar: jar });
 	const state = new URL(kickoff.location).searchParams.get("state");
 
-	// provider returns a CODE (site session exists) → seamless login, NO cooldown
+	// provider returns a CODE (site session exists) → seamless login, NO cooldown,
+	// and the post-login redirect lands back on the page the user was reading
 	const cb = await env.callback(page.session, { code: "silentcode", state }, { cookieJar: jar });
 	assert.ok(!cb.gated, "not gated — normal code exchange runs");
 	assert.strictEqual(cb.user.uid, 1, "logged in seamlessly");
 	assert.ok(tokenPostBody, "token exchange happened");
 	assert.ok(tokenPostBody.get("code_verifier"), "PKCE verifier redeemed");
 	assert.ok(!cb.setCookies.some((c) => c.name === "bgs_silent"), "no cooldown cookie on success");
+	assert.strictEqual(cb.redirected, "/topic/123/foo", "silent success returns to the original page");
 
 	// and a subsequent anonymous-style page view is moot (they're logged in now),
 	// but even logged-out there's no cooldown blocking a retry
 	const page2 = await env.page("/recent", { cookieJar: jar });
 	assert.strictEqual(page2.location, "/auth/boardgamers?silent=1", "no cooldown → silent attempt still allowed");
+});
+
+test("silent SUCCESS and FAILURE both return to the original page; tampered/external returnTo falls back to /", async () => {
+	await acpSaveStrategy(VALID_CONFIG);
+	const env = makeEnv();
+	env.fetchImpl = async (url, init) => ({
+		ok: true,
+		json: async () => ({ access_token: "at-1", refresh_token: "rt-1" }),
+	});
+	env.stockOAuth.getUserProfile = function (name, userRoute, accessToken, done) {
+		done(null, { provider: name, id: "u1", displayName: "u1", email: "u1@example.com", email_verified: true });
+	};
+	await env.appLoad();
+	await env.reloadRoutes();
+
+	// helper: run a silent attempt from `pagePath`, return { session, state }
+	const startSilent = async (pagePath) => {
+		const jar = {};
+		const page = await env.page(pagePath, { cookieJar: jar });
+		const kickoff = await env.kickoff("/auth/boardgamers?silent=1", { session: page.session, cookieJar: jar });
+		return { session: page.session, state: new URL(kickoff.location).searchParams.get("state"), jar };
+	};
+
+	// FAILURE from a deep page → back to that page
+	const f1 = await startSilent("/topic/123/foo");
+	const failCb = await env.callback(f1.session, { error: "login_required", state: f1.state }, { cookieJar: f1.jar });
+	assert.strictEqual(failCb.redirected, "/topic/123/foo", "silent failure returns to the original page");
+
+	// SUCCESS from a deep page → back to that page
+	const s1 = await startSilent("/category/2/general");
+	const okCb = await env.callback(s1.session, { code: "c1", state: s1.state }, { cookieJar: s1.jar });
+	assert.strictEqual(okCb.user.uid, 1);
+	assert.strictEqual(okCb.redirected, "/category/2/general", "silent success returns to the original page");
+
+	// OPEN-REDIRECT GUARD: a tampered/external returnTo in the PKCE metadata must
+	// fall back to "/" for BOTH paths. Simulate tampering by overwriting the
+	// persisted metadata's returnTo with a malicious value.
+	for (const evil of [
+		"//evil.com/phish",
+		"/\\evil.com",
+		"\\/evil.com",
+		"\\\\evil.com",
+		"https://evil.com",
+		"http://evil.com/x",
+		"/auth/boardgamers",
+		"/auth/boardgamers/callback",
+		"/login",
+		"/logout",
+		"/api/users",
+		"javascript:alert(1)",
+		"not-a-path",
+		"",
+	]) {
+		const t = await startSilent("/recent");
+		const key = Object.keys(t.session).find((k) => k.startsWith("oauth2:"));
+		t.session[key].state.state.returnTo = evil; // tamper
+		const failT = await env.callback(t.session, { error: "login_required", state: t.state }, { cookieJar: t.jar });
+		assert.strictEqual(failT.redirected, "/", `failure: evil returnTo ${JSON.stringify(evil)} → /`);
+
+		const t2 = await startSilent("/recent");
+		const key2 = Object.keys(t2.session).find((k) => k.startsWith("oauth2:"));
+		t2.session[key2].state.state.returnTo = evil;
+		const okT = await env.callback(t2.session, { code: "c", state: t2.state }, { cookieJar: t2.jar });
+		assert.strictEqual(okT.redirected, "/", `success: evil returnTo ${JSON.stringify(evil)} → /`);
+	}
+
+	// the manual login button is NOT rewritten to the original page (no silent
+	// marker): a manual kickoff's callback keeps core's default landing.
+	const manual = await env.kickoff("/auth/boardgamers");
+	const mState = new URL(manual.location).searchParams.get("state");
+	const manualCb = await env.callback(manual.session, { code: "mc", state: mState }, {});
+	assert.strictEqual(manualCb.user.uid, 1);
+	assert.strictEqual(manualCb.redirected, "/", "manual login keeps core's default (/) landing");
 });
 
 test("an EXPIRED cooldown cookie allows a fresh silent attempt", async () => {

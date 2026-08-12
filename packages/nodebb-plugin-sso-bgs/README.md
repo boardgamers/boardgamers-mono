@@ -74,26 +74,42 @@ provider (`apps/api`) supports `prompt=none`: logged-in → returns a code; logg
    object) because passport-oauth2's stock `authorizationParams()` returns `{}`.
    `prompt=none` also suppresses the provider's consent interstitial — a user who
    hasn't consented gets `error=consent_required`, handled like any other failure.
-3. **Cooldown on failure** — a dedicated app-level middleware (mounted in
-   `static:app.load` at `/auth/boardgamers/callback`, so it runs _before_ NodeBB's
-   callback route handler) inspects the callback. Core's callback route goes
-   straight to `passport.authenticate` and does **not** fire `filter:auth.options`
-   (that hook is kickoff-only), so this gate **cannot** live in the hook — it must
-   be a real middleware on the callback path. If the callback carries an `error`
-   (`login_required`, `consent_required`, …) and the attempt was silent (the PKCE
-   state metadata still in the session carries `prompt: "none"` — read before
-   passport-oauth2's `PKCESessionStore.verify` deletes it), the gate arms a
-   timestamped cookie (`bgs_silent`, 1 h window inside a 1-day cookie) and **bounces
-   to `/`**, so the user never sees an OIDC error page. While the cookie is fresh,
-   page GETs skip the silent attempt — **no redirect loop** for logged-out users.
+3. **Return to the original page** — the page middleware captures `req.originalUrl`
+   (the page the user was reading), validated same-origin by `safeReturnPath`, and
+   threads it through the PKCE state-store metadata (`{prompt:"none", returnTo}`)
+   alongside the prompt marker — persisted server-side in the session, so it can't
+   be tampered with en route. Two app-level middlewares (mounted in
+   `static:app.load` at `/auth/boardgamers/callback`, so they run _before_ NodeBB's
+   callback route handler) use it. Core's callback route goes straight to
+   `passport.authenticate` and does **not** fire `filter:auth.options` (that hook is
+   kickoff-only), so this handling **cannot** live in the hook — it must be real
+   middleware on the callback path. The PKCE metadata is read _before_
+   passport-oauth2's `PKCESessionStore.verify` deletes it:
+   - **Failure** (`error=login_required` / `consent_required` / …): the gate arms a
+     timestamped cookie (`bgs_silent`, 1 h window inside a 1-day cookie) and
+     **redirects back to `returnTo`** — the user lands on the page they were on,
+     never sees an OIDC error page. While the cookie is fresh, page GETs skip the
+     silent attempt — **no redirect loop** for logged-out users.
+   - **Success** (a `code`): the second middleware wraps `res.redirect` so core's
+     final post-login redirect (which core hardcodes to `strategy.successUrl || '/'`
+     — it does not honour `req.session.returnTo` for SSO) lands back on `returnTo`
+     instead — seamless login on the page they were reading. Explicit non-root
+     redirects (e.g. a registration interstitial) are left alone.
 4. **Explicit logout respected** — the middleware skips any request carrying a
    `?logout` marker (and the `/logout` path), so a user who just logged out is not
    instantly re-logged-in silently. The failure/logout cooldown expires on its own;
    logging in on the main site again and returning also works once it clears.
 
 The **manual login button is untouched**: a kickoff without `?silent=1` clears any
-stale session flag and never gets `prompt=none`, so it stays an interactive login.
-Spiders are never redirected (both via `req.isSpider()` and a UA-regex fallback).
+stale session flag, never gets `prompt=none`, and keeps core's default post-login
+landing (`/`), so it stays an interactive login. Spiders are never redirected (both
+via `req.isSpider()` and a UA-regex fallback).
+
+**Open-redirect safety** — `returnTo` only ever redirects to a same-origin relative
+forum path: `safeReturnPath` requires a single leading `/`, rejects `//`/`/\`/`\\`
+(protocol-relative/backslash) and non-`/` values (absolute URLs, `scheme:…`), and
+rejects the SSO/`/login`/`/logout`/`/api` paths (pointless or a loop to land there
+after a failed silent attempt). Anything suspicious falls back to `/`.
 
 ## Why request-time resolution (the live bug this fixes)
 
@@ -180,7 +196,9 @@ string-`opts.state` override — plus the silent-SSO suite: one silent redirect 
 `prompt=none` + PKCE, the `login_required`→cooldown→no-loop path (driven through a
 callback harness faithful to core: the cooldown gate runs as an app-level callback
 middleware, NOT via `filter:auth.options`, which core never fires on the callback),
-the successful silent round-trip, logged-in/spider/logout/SSO-path/API/asset
+the successful silent round-trip, **silent success and failure both returning to
+the original page** (with the open-redirect guard falling back to `/` for
+tampered/external `returnTo`), logged-in/spider/logout/SSO-path/API/asset
 suppression, and the manual-button isolation.
 
 ## Notes / limitations

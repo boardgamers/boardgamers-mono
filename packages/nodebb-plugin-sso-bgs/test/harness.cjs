@@ -322,9 +322,12 @@ function makeEnv() {
 	const app = {
 		middleware: [], // [{ path, fn }] — path undefined = matches all
 		use(...args) {
-			const fn = args[args.length - 1];
-			const mountPath = args.length > 1 ? args[0] : undefined;
-			this.middleware.push({ path: mountPath, fn });
+			// express flattens app.use(path, fn1, fn2, ...) into one mount per fn.
+			const fns = args.filter((a) => typeof a === "function");
+			const mountPath = typeof args[0] === "string" ? args[0] : undefined;
+			for (const fn of fns) {
+				this.middleware.push({ path: mountPath, fn });
+			}
 		},
 	};
 	// express mount semantics: a middleware mounted at `path` matches any request
@@ -371,14 +374,19 @@ function makeEnv() {
 	};
 
 	// Minimal express-like request/response factories. `opts`:
-	//   path, method, query, session, cookies, loggedIn, spider, ua, cookieJar
+	//   path, method, query, session, cookies, loggedIn, spider, ua, cookieJar,
+	//   originalUrl
 	function makeReq(opts = {}) {
 		const jar = opts.cookieJar || opts.cookies || {};
 		const session = opts.session || {};
+		const qs = opts.query && Object.keys(opts.query).length ? "?" + new URLSearchParams(opts.query).toString() : "";
 		const req = {
 			path: opts.path || "/",
 			method: opts.method || "GET",
 			query: opts.query || {},
+			// express: originalUrl = path + query as received (before any reroute)
+			originalUrl: opts.originalUrl || `${opts.path || "/"}${qs}`,
+			url: opts.originalUrl || `${opts.path || "/"}${qs}`,
 			session,
 			cookies: { ...jar },
 			connection: { encrypted: true },
@@ -556,11 +564,13 @@ function makeEnv() {
 		});
 		const res = makeRes(jar);
 
-		// The shim's app-level silent-callback gate (mounted at CALLBACK_URL)
-		// runs before core's callback route handler.
+		// The shim's app-level silent-callback middleware (mounted at CALLBACK_URL)
+		// runs before core's callback route handler. silentCallbackGate may end a
+		// silent FAILURE (cooldown + redirect); silentSuccessRedirect wraps
+		// res.redirect for a silent SUCCESS but still calls next().
 		runAppMiddleware(cbPath, req, res);
 		if (res.headers.location) {
-			// Gate armed the cooldown + bounced to / — passport.authenticate and
+			// Gate armed the cooldown + bounced — passport.authenticate and
 			// core's error handling never run (no OIDC error page, no loop).
 			return {
 				redirected: res.headers.location,
@@ -587,6 +597,14 @@ function makeEnv() {
 				}
 			})(req, res, reject);
 		});
+		// Core's final step on success (routes/authentication.js): req.login,
+		// onSuccessfulLogin, then helpers.redirect(res, strategy.successUrl || '/').
+		// The shim's silentSuccessRedirect has wrapped res.redirect so a default
+		// '/' landing is rewritten to the original page for a silent success.
+		if (result.user) {
+			res.redirect(descriptor.successUrl || "/");
+			result.redirected = res.headers.location || descriptor.successUrl || "/";
+		}
 		return { ...result, session: req.session, cookies: jar, setCookies: res.setCookies };
 	};
 
