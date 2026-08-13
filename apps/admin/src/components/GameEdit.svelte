@@ -231,8 +231,9 @@
 			const links = Object.fromEntries(Object.entries(value.links).filter(([, url]) => url));
 			value.links = Object.keys(links).length > 0 ? links : undefined;
 		}
-		// An empty alias input means "no alias" — the schema requires non-empty when set.
-		value.alias = value.alias?.trim() || undefined;
+		// An empty alias input clears the alias; it must reach the API as null (not a
+		// dropped undefined) so the upsert's $unset removes it from the doc.
+		value.alias = value.alias?.trim() || null;
 		onsave(value);
 	}
 
