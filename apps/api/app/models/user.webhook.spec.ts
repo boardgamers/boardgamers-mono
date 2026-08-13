@@ -89,10 +89,10 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 			.object({ content: z.string(), embeds: z.array(z.object({ title: z.string(), url: z.string() })) })
 			.parse(JSON.parse(calls[0].body));
 		assert.match(payload.content, /your turn/);
-		assert.match(payload.content, /Gaia Project \(hooked-\)/, "display name + short game id");
+		assert.match(payload.content, /Gaia Project \(hooked-game-1\)/, "display name + full game id");
 		assert.doesNotMatch(payload.content, /gaia-project/, "the display name replaces the internal slug");
 		assert.match(payload.content, /1 game waiting/);
-		assert.match(payload.embeds[0].title, /Gaia Project \(hooked-\)/);
+		assert.match(payload.embeds[0].title, /Gaia Project \(hooked-game-1\)/);
 		assert.doesNotMatch(payload.embeds[0].title, /gaia-project/);
 		assert.match(payload.embeds[0].url, /\/game\/hooked-game-1$/);
 
@@ -314,11 +314,11 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 		await deliverGameNotificationWebhook((await colls.users.findOne({ _id: userId }))!, oneGame);
 		assert.strictEqual(calls.length, 1);
 		const payload = z.object({ text: z.string() }).parse(JSON.parse(calls[0].body));
-		assert.match(payload.text, /Gaia Project \(g1\)/, "display name + short game id");
+		assert.match(payload.text, /Gaia Project \(g1\)/, "display name + full game id");
 		assert.doesNotMatch(payload.text, /gaia-project/);
 	});
 
-	it("multiple waiting games are each listed as Label (shortId)", async () => {
+	it("multiple waiting games are each listed as Label (full id)", async () => {
 		const games = await resolveGameLabels([
 			{ _id: "abcdef1234567890", game: { name: "gaia-project", version: 1 } },
 			{ _id: "abcdef1234567891", game: { name: "gaia-project", version: 1 } },
@@ -328,8 +328,8 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 		const discord = z.object({ content: z.string() }).parse(buildWebhookPayload("discord", user, games));
 		assert.match(
 			discord.content,
-			/Gaia Project \(abcdef1\), Gaia Project \(abcdef1\), no-such-game \(game-b\)/,
-			"every waiting game is listed, with the short id telling duplicates apart",
+			/Gaia Project \(abcdef1234567890\), Gaia Project \(abcdef1234567891\), no-such-game \(game-b\)/,
+			"every waiting game is listed, with the full id telling duplicates apart",
 		);
 		assert.match(discord.content, /3 games waiting/);
 		// The raw payload keeps the FULL ids, untruncated.
@@ -347,7 +347,7 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 		const games = await resolveGameLabels([{ _id: "g-unknown", game: { name: "no-such-game", version: 1 } }]);
 		const user = testUser({ account: { username: "hookunknown" } });
 		const discord = z.object({ content: z.string() }).parse(buildWebhookPayload("discord", user, games));
-		assert.match(discord.content, /no-such-game \(g-unkno\)/);
+		assert.match(discord.content, /no-such-game \(g-unknown\)/);
 		const raw = z
 			.object({ games: z.array(z.object({ id: z.string(), game: z.string(), name: z.string() })) })
 			.parse(buildWebhookPayload("raw", user, games));
@@ -407,7 +407,7 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 
 			assert.strictEqual(calls.length, 1, "immediate webhook must fire on the turn event");
 			assert.strictEqual(calls[0].url, "https://discord.com/api/webhooks/9/secret");
-			assert.match(JSON.parse(calls[0].body).content, /Gaia Project \(immedia\)/);
+			assert.match(JSON.parse(calls[0].body).content, /Gaia Project \(immediate-game\)/);
 		});
 
 		it("immediate webhook does not fire on the batched email pass", async () => {

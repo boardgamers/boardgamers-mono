@@ -315,14 +315,10 @@ export type WebhookGame = { _id: string; game: { name: string; version: number; 
 // projects "game.name" + "game.version").
 const displayName = (game: WebhookGame) => game.game.label ?? game.game.name;
 
-// "Gaia Project (abcd123)" — the short id (first 7 chars, git-style) tells apart
-// several waiting games of the same type. The raw payload keeps the full id.
-const shortId = (game: WebhookGame) => String(game._id).slice(0, 7);
-
-// One "Label (id)" entry per waiting game, so duplicates of the same game type
-// are all listed and distinguishable.
+// One "Label (full game id)" entry per waiting game, so duplicates of the same
+// game type are all listed and distinguishable.
 function gameNames(games: WebhookGame[]): string {
-	return games.map((g) => `${displayName(g)} (${shortId(g)})`).join(", ");
+	return games.map((g) => `${displayName(g)} (${String(g._id)})`).join(", ");
 }
 
 // Batch-fills game.label from the GameInfo docs (one query for all the distinct
