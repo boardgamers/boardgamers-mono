@@ -129,14 +129,18 @@ export default {
 	cleanupDeadUsersMaxAgeDays: Number(process.env.cleanupDeadUsersMaxAgeDays) || 365,
 	cleanupDeadUsersBatchSize: Number(process.env.cleanupDeadUsersBatchSize) || 50,
 	// Auto-drop of inactive players in stalled async games / auto-cancel of games with
-	// no active human left (#94). A "live/realtime" game (timePerGame ≤ this) is never
-	// touched: an old unfinished live game is abandoned, not stalling — everyone left.
+	// no active human left (#94). A "live/realtime" game (timePerGame ≤ this) never
+	// drops anyone for inactivity (kicking a player mid-blitz is wrong); it can only
+	// be cancelled outright, via autoCancelLiveIdleMs below.
 	autoCancelLiveThresholdSec: Number(process.env.autoCancelLiveThresholdSec) || 24 * 3600,
 	// A current player's deadline can pass + this grace before the sweep acts. Absorbs
 	// the daily paused timer window (deadline() maps it to the next window's start, so
 	// this is true overtime) and gives a short "still time to move" buffer beyond the
 	// manual-drop bar (`POST /game/:id/drop/:userId`, deadline < now).
 	autoCancelGraceMs: Number(process.env.autoCancelGraceMs) || 3 * 24 * 3600 * 1000,
+	// A live game (timePerGame ≤ autoCancelLiveThresholdSec) with no move for this
+	// long is abandoned, not stalling — it is cancelled outright (no drops).
+	autoCancelLiveIdleMs: Number(process.env.autoCancelLiveIdleMs) || 3 * 24 * 3600 * 1000,
 	// Absolute floor: never touch a game with a move this recent, whatever the clocks say.
 	autoCancelMinIdleMs: Number(process.env.autoCancelMinIdleMs) || 7 * 24 * 3600 * 1000,
 	// Game age below which nothing is cancelled outright — everyone gets a drop instead

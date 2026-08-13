@@ -124,8 +124,9 @@ function activeHumanPlayers(game: Pick<GameDoc, "players">): PlayerInfo[] {
 
 /**
  * One inactivity sweep over an already-loaded game (#94): drop the current players
- * whose deadline expired past the grace window, or cancel the game when no active
- * human would remain. Reuses the existing drop machinery (`dropPlayer` game
+ * whose deadline expired past the grace window, or cancel the game outright when
+ * no active human would remain — or when it's an abandoned live game. Reuses the
+ * existing drop machinery (`dropPlayer` game
  * notification → game-server runs `engine.dropPlayer` → Elo/karma/chat exactly like
  * a manual drop) and the manual cancel's doc update + `gameEnded` notification.
  *
@@ -135,11 +136,12 @@ function activeHumanPlayers(game: Pick<GameDoc, "players">): PlayerInfo[] {
  * modify-write `replaceOne`, and the game-server no-ops on a non-active game) and
  * is unchanged here.
  *
- * Conservative on purpose — skips a game when: it's live/realtime (timePerGame ≤
- * env.autoCancelLiveThresholdSec), any move is younger than env.autoCancelMinIdleMs,
- * any current player's clock is still running (no deadline / deadline within grace),
- * or the stale player is a bot (a broken bot is a bug, not inactivity — the game
- * stays for an admin/engine fix).
+ * Conservative on purpose — skips a game when any move is younger than
+ * env.autoCancelMinIdleMs, any current player's clock is still running (no
+ * deadline / deadline within grace), or the stale player is a bot (a broken bot
+ * is a bug, not inactivity — the game stays for an admin/engine fix). Live
+ * games (timePerGame ≤ env.autoCancelLiveThresholdSec) are never dropped for
+ * inactivity — only cancelled outright once idle past env.autoCancelLiveIdleMs.
  */
 export async function processStalledGame(gameId: string): Promise<void> {
 	await using _lock = await locks.lock("game-cancel", gameId);
@@ -156,7 +158,13 @@ export async function processStalledGame(gameId: string): Promise<void> {
 	if (reference && now.getTime() - reference.getTime() < env.autoCancelMinIdleMs) {
 		return;
 	}
-	if ((game.options.timing.timePerGame ?? 0) <= env.autoCancelLiveThresholdSec) {
+	const isLive = (game.options.timing.timePerGame ?? 0) <= env.autoCancelLiveThresholdSec;
+	if (isLive) {
+		// Live games never drop anyone (kicking a player mid-blitz is wrong), but a
+		// game with no move for days is abandoned, not stalling: cancel it outright.
+		if (reference && now.getTime() - reference.getTime() >= env.autoCancelLiveIdleMs) {
+			await cancelInactiveGame(game, now);
+		}
 		return;
 	}
 
@@ -208,27 +216,7 @@ export async function processStalledGame(gameId: string): Promise<void> {
 		if (tooYoungToCancel) {
 			return;
 		}
-		// No active human would remain — the game can't progress. Cancel like the
-		// manual vote-to-cancel route does (same doc update + gameEnded notification,
-		// so Elo/karma handling matches a player-agreed cancel).
-		await colls.chatMessages.insertOne({
-			_id: new ObjectId(),
-			room: game._id,
-			type: "system",
-			data: { text: "Game cancelled: all remaining players have been inactive for too long" },
-		});
-		game.status = "ended";
-		game.cancelled = true;
-		game.currentPlayers = [];
-		await colls.games.replaceOne({ _id: game._id }, game);
-		await colls.gameNotifications.insertOne({
-			kind: "gameEnded",
-			game: game._id,
-			processed: false,
-			createdAt: now,
-			updatedAt: now,
-		});
-		await emailInactivityNotice(game, names, "the game was cancelled after everyone went inactive");
+		await cancelInactiveGame(game, now);
 		return;
 	}
 
@@ -261,6 +249,37 @@ export async function processStalledGame(gameId: string): Promise<void> {
 		});
 		await emailInactivityNotice(game, names, "been dropped from the game for inactivity");
 	}
+}
+
+// Cancel like the manual vote-to-cancel route does (same doc update + gameEnded
+// notification, so Elo/karma handling matches a player-agreed cancel). Used by
+// both the live path (abandoned live game) and the async path (no active human
+// would remain after inactivity drops).
+async function cancelInactiveGame(game: GameDoc, now: Date): Promise<void> {
+	await colls.chatMessages.insertOne({
+		_id: new ObjectId(),
+		room: game._id,
+		type: "system",
+		data: { text: "Game cancelled: all remaining players have been inactive for too long" },
+	});
+	game.status = "ended";
+	game.cancelled = true;
+	game.currentPlayers = [];
+	await colls.games.replaceOne({ _id: game._id }, game);
+	await colls.gameNotifications.insertOne({
+		kind: "gameEnded",
+		game: game._id,
+		processed: false,
+		createdAt: now,
+		updatedAt: now,
+	});
+	await emailInactivityNotice(
+		game,
+		activeHumanPlayers(game)
+			.map((pl) => pl.name)
+			.join(", "),
+		"the game was cancelled after everyone went inactive",
+	);
 }
 
 // Best-effort email notice, after the state change is committed and the chat
@@ -299,19 +318,31 @@ async function emailInactivityNotice(game: GameDoc, names: string, action: strin
 }
 
 export async function processStalledGames(): Promise<void> {
-	// Prefilter (re-checked per game under the lock). Live games are excluded here:
-	// { $gt } also matches missing timePerGame, which is fine — the per-game check
-	// treats missing as 0 and skips them.
+	// Prefilter (re-checked per game under the lock). Async games need to be idle
+	// past autoCancelMinIdleMs (the drop floor); live games only need the shorter
+	// autoCancelLiveIdleMs to be cancellable. The $or-on-timePerGame splits the
+	// two; for async games, { $gt } also matches missing timePerGame, which is
+	// fine — the per-game check treats missing as 0 and routes them to live.
+	const now = Date.now();
+	const idleSince = (ms: number) => [
+		{ lastMove: { $lt: new Date(now - ms) } },
+		// Legacy active docs predate lastMove (added later); fall back to updatedAt
+		// like the per-game check does.
+		{ lastMove: { $exists: false }, updatedAt: { $lt: new Date(now - ms) } },
+	];
 	const candidates = await colls.games
 		.find(
 			{
 				status: "active",
-				"options.timing.timePerGame": { $gt: env.autoCancelLiveThresholdSec },
-				// $or: legacy active docs predate lastMove (added later); fall back to
-				// updatedAt like the per-game check does.
 				$or: [
-					{ lastMove: { $lt: new Date(Date.now() - env.autoCancelMinIdleMs) } },
-					{ lastMove: { $exists: false }, updatedAt: { $lt: new Date(Date.now() - env.autoCancelMinIdleMs) } },
+					{
+						"options.timing.timePerGame": { $gt: env.autoCancelLiveThresholdSec },
+						$or: idleSince(env.autoCancelMinIdleMs),
+					},
+					{
+						"options.timing.timePerGame": { $lte: env.autoCancelLiveThresholdSec },
+						$or: idleSince(env.autoCancelLiveIdleMs),
+					},
 				],
 			},
 			{ projection: { _id: 1 } },
