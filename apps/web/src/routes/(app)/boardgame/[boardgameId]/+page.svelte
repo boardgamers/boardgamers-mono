@@ -13,7 +13,6 @@
 	import { gamePreferences, useGamePreferencesFallback } from "@/lib/game-preferences.svelte";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
-	import { gameLabel } from "@/utils/game-label";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
 

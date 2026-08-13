@@ -8,6 +8,7 @@
 	import { account } from "@/lib/account.svelte";
 	import { live } from "@/lib/stores.svelte";
 	import { handleError } from "@/utils";
+	import { gameDisplayName } from "@/utils/game-label";
 	import GameName from "@/components/GameName.svelte";
 	import type { GameInfoFront, UserFront } from "@bgs/models";
 
@@ -40,7 +41,8 @@
 		saveForgotten(forgotten.filter((g) => g !== id));
 	}
 
-	const byLabel = (a: GameInfoFront, b: GameInfoFront) => a.label.localeCompare(b.label);
+	// Sort by the DISPLAYED name (alias when set) so the ordering matches what the player reads.
+	const byLabel = (a: GameInfoFront, b: GameInfoFront) => gameDisplayName(a).localeCompare(gameDisplayName(b));
 	const rank = (id: string) => {
 		const i = myBoardgames.indexOf(id);
 		return i === -1 ? Number.MAX_SAFE_INTEGER : i;
@@ -101,7 +103,7 @@
 			<button
 				type="button"
 				title="Remove from My games (still listed under All games)"
-				aria-label={`Forget ${game.label}`}
+				aria-label={`Forget ${gameDisplayName(game)}`}
 				class="absolute end-1 top-1/2 hidden -translate-y-1/2 rounded px-1.5 py-0.5 text-gray-400 hover:bg-black/10 hover:text-gray-700 group-hover:block dark:hover:bg-white/10 dark:hover:text-gray-200"
 				onclick={(e) => {
 					e.preventDefault();
@@ -115,7 +117,7 @@
 			<button
 				type="button"
 				title="Pin back to My games"
-				aria-label={`Unforget ${game.label}`}
+				aria-label={`Unforget ${gameDisplayName(game)}`}
 				class="absolute end-1 top-1/2 hidden -translate-y-1/2 rounded px-1.5 py-0.5 text-gray-400 hover:bg-black/10 hover:text-gray-700 group-hover:block dark:hover:bg-white/10 dark:hover:text-gray-200"
 				onclick={(e) => {
 					e.preventDefault();
