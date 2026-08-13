@@ -32,7 +32,14 @@ export {
 
 // --- Game Info ---
 export type { GameInfoDoc, GameInfoFront, ViewerInfo, GameInfoOption } from "./gameinfo.ts";
-export { gameInfoSchema, viewerInfoSchema, gameInfoOptionSchema, GAME_INFOS_COLLECTION } from "./gameinfo.ts";
+export {
+	gameInfoSchema,
+	viewerInfoSchema,
+	gameInfoOptionSchema,
+	npmPackageNameSchema,
+	engineVersionSchema,
+	GAME_INFOS_COLLECTION,
+} from "./gameinfo.ts";
 
 // --- Game Notification ---
 export type { GameNotificationDoc, GameNotificationFront, NotificationKind } from "./gamenotification.ts";

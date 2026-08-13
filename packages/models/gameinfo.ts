@@ -18,6 +18,26 @@ export const viewerInfoSchema = z.object({
 
 export type ViewerInfo = z.output<typeof viewerInfoSchema>;
 
+// npm package name grammar (https://docs.npmjs.com/package-name-guidelines), enforced
+// because the game-server installer embeds this value in `npm install <name>@<version>`
+// argv (issue #270 — shell injection).
+export const npmPackageNameSchema = z
+	.string()
+	.max(214)
+	.regex(/^(?:@[a-z0-9][a-z0-9._~-]*\/[a-z0-9][a-z0-9._~-]*|[a-z0-9][a-z0-9._~-]*)?$/, "invalid npm package name")
+	.refine((name) => name.toLowerCase() !== "node_modules" && name.toLowerCase() !== "favicon.ico", {
+		message: "reserved npm package name",
+	});
+
+// Exact version only (no ranges): the installer pins the dependency with
+// --save-exact and the DB validation would reject range characters like `^`.
+// Empty string = "no engine" — the admin panel initializes new games with an
+// empty package name/version and this route doubles as the create form.
+export const engineVersionSchema = z
+	.string()
+	.max(64)
+	.regex(/^(\d+\.\d+\.\d+(?:-[0-9a-zA-Z.-]+)?(?:\+[0-9a-zA-Z.-]+)?)?$/, "invalid semver version");
+
 export const gameInfoOptionSchema = z.object({
 	label: z.string(),
 	type: z.enum(["checkbox", "select", "hidden", "category"]),
@@ -57,8 +77,8 @@ export const gameInfoSchema = z.object({
 	engine: z
 		.object({
 			package: z.object({
-				name: z.string(),
-				version: z.string(),
+				name: npmPackageNameSchema,
+				version: engineVersionSchema,
 				// When set (admin-uploaded bundle, #268), the game-server installs the
 				// engine from this npm-pack tarball URL instead of the registry.
 				// name/version still key the install path and the ESM cache bust.

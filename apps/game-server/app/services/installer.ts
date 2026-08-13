@@ -25,9 +25,18 @@ async function detectBotSupport(game: string, version: number) {
 
 // npm rather than yarn/pnpm: corepack refuses to run yarn inside this repo
 // because the root package.json pins "packageManager: pnpm".
-function npm(args: string[]): Promise<void> {
+//
+// Never `shell: true` here: args embed `engine.package.name`/`version` straight
+// from the DB, and Node concatenates them into the shell string UNESCAPED
+// (DEP0190) — a gameInfo with `x$(…)` in the package name was a game-server RCE
+// (issue #270). Direct spawn keeps every arg literal. The package name/version
+// are also validated at write time (`gameInfoSchema` in @bgs/models) as
+// defense-in-depth. Windows note: `npm` is a .cmd shim there, so a direct
+// spawn would need "npm.cmd"; prod/dev run on Linux and the extra hardening
+// from NOT going through a shell is the point.
+export function npm(args: string[]): Promise<void> {
 	return new Promise<void>((resolve, reject) => {
-		const child = spawn("npm", args, { shell: true, cwd: "./games" });
+		const child = spawn("npm", args, { cwd: "./games" });
 		// npm's own error (E404 for a missing registry package, fetch failure for
 		// a tarball URL, …) — without it the log line only says "exited with 1".
 		let output = "";

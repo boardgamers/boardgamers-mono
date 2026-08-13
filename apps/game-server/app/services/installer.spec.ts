@@ -1,7 +1,12 @@
-// Installer test for admin-uploaded engine bundles (#268): a GameInfo whose
-// engine.package carries a tarball URL must be npm-installed from that URL
-// (under the engineKey alias), not from the registry. Serves a real `npm pack`
-// tarball over an in-process HTTP server — same fetch path as S3 in prod.
+// Installer tests:
+//  - #268: a GameInfo whose engine.package carries a tarball URL (admin-uploaded
+//    bundle) must be npm-installed from that URL (under the engineKey alias), not
+//    from the registry. Serves a real `npm pack` tarball over an in-process HTTP
+//    server — same fetch path as S3 in prod.
+//  - #270: the installer's npm() must stay shell-free — it used
+//    `spawn("npm", args, { shell: true })` and Node concatenates args into the
+//    shell string UNESCAPED (DEP0190), so a package name with `$(…)` was a
+//    game-server RCE. The spawn must pass hostile args literally.
 // Run via `pnpm test` (needs a Mongo db — see AGENTS.md).
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -12,7 +17,7 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { colls, closeDb } from "../config/db.ts";
 import { engineKey, enginePath } from "./engines.ts";
-import { installNewGames } from "./installer.ts";
+import { installNewGames, npm } from "./installer.ts";
 
 const GAME = "installer-test";
 const VERSION = 1;
@@ -106,5 +111,34 @@ describe("installer — engine uploaded as tarball URL (#268)", () => {
 		// The bot probe imported the freshly installed engine and recorded the verdict.
 		const info = await colls.gameInfos.findOne({ _id: { game: GAME, version: VERSION } });
 		assert.strictEqual(info?.meta?.bots, false);
+	});
+});
+
+// The shell-injection tests need no db — only a writable CWD.
+describe("installer npm() — shell-injection safety (#270)", () => {
+	const workdir = process.cwd();
+
+	after(() => process.chdir(workdir));
+
+	it("npm resolves as a direct (shell-free) spawn on this platform", async () => {
+		// If `npm` failed to spawn without a shell (ENOENT), this rejects.
+		await npm(["--version"]);
+	});
+
+	it("an arg with shell metacharacters is passed literally, never executed", async () => {
+		const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "bgs-installer-shell-"));
+		const marker = path.join(tmpDir, "pwned");
+		fs.mkdirSync(path.join(tmpDir, "games"));
+		process.chdir(tmpDir);
+		try {
+			// With `shell: true` the `$(touch …)` in this arg would run. Without a
+			// shell, npm receives it as one literal (invalid) argument and exits
+			// non-zero — either way the marker file must never appear.
+			await npm(["install", "--no-audit", "--no-fund", `x$(touch ${marker})@1.0.0`]).catch(() => {});
+			assert.ok(!fs.existsSync(marker), "shell injection executed — spawn is not shell-free!");
+		} finally {
+			process.chdir(workdir);
+			fs.rmSync(tmpDir, { recursive: true, force: true });
+		}
 	});
 });

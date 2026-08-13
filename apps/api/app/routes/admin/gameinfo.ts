@@ -1,3 +1,4 @@
+import { engineVersionSchema, gameInfoSchema, npmPackageNameSchema } from "@bgs/models";
 import { omit } from "@bgs/utils/object";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -27,8 +28,18 @@ router.get("/", async (ctx) => {
 // would fail the collection's schema validation — only alias is clearable for now.
 const NULLABLE_FIELDS = ["alias"] as const;
 
+// The game-server installer spawns `npm install <name>@<version>` from
+// engine.package — a loose record here let shell metacharacters in the package
+// name reach the spawn (issue #270). Validate the engine sub-object (npm name
+// grammar + pinned semver) whenever it is present; the rest of the gameInfo
+// stays a loose record.
+const upsertBodySchema = z.looseObject({
+	alias: gameInfoSchema.shape.alias.nullable(),
+	engine: gameInfoSchema.shape.engine, // optional, like on gameInfo
+});
+
 async function upsert(ctx: Context) {
-	const body = omit(z.record(z.string(), z.unknown()).parse(ctx.request.body), "_id", "createdAt", "updatedAt");
+	const body = omit(upsertBodySchema.parse(ctx.request.body), "_id", "createdAt", "updatedAt");
 	const $unset: Record<string, true> = {};
 	for (const field of NULLABLE_FIELDS) {
 		if (body[field] === null) {
@@ -166,7 +177,10 @@ async function readTarballPackage(tarball: Buffer): Promise<{ name: string; vers
 		const { stdout } = await execFileAsync("tar", ["-xzOf", file, "package/package.json"], {
 			maxBuffer: 1024 * 1024,
 		});
-		const pkg = z.object({ name: z.string().min(1), version: z.string().min(1) }).parse(JSON.parse(stdout));
+		// name/version are validated against the same npm-name/semver schemas as the
+		// upsert route (#270): they land in engine.package and the game-server
+		// installer builds npm argv from them.
+		const pkg = z.object({ name: npmPackageNameSchema, version: engineVersionSchema }).parse(JSON.parse(stdout));
 		return pkg;
 	} catch (err) {
 		if (err instanceof createError.HttpError) {
@@ -174,7 +188,7 @@ async function readTarballPackage(tarball: Buffer): Promise<{ name: string; vers
 		}
 		throw createError(
 			400,
-			"Not a valid npm pack tarball (expected gzip with package/package.json holding name+version)",
+			"Not a valid npm pack tarball (expected gzip with package/package.json holding a valid npm name+semver version)",
 		);
 	} finally {
 		await fs.promises.rm(dir, { recursive: true, force: true });
