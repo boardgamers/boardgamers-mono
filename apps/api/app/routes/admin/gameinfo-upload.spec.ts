@@ -22,6 +22,9 @@ const GAME = "bundle-test";
 const VERSION = 1;
 const VIEWER_JS = Buffer.from(`window.bundleTest = { launch: () => ({ on(){}, emit(){} }) };`);
 const VIEWER_CSS = Buffer.from("#app { background: black; }");
+const VIEWER_MAP = Buffer.from(
+	JSON.stringify({ version: 3, file: "viewer.js", sources: ["../src/viewer.ts"], names: [], mappings: "AAAA" }),
+);
 const jsHash = createHash("sha256").update(VIEWER_JS).digest("hex").slice(0, 16);
 
 const enginePkg = { name: "@test/uploaded-engine", version: "4.5.6" };
@@ -185,14 +188,40 @@ describe("Admin gameinfo bundle uploads (#268)", () => {
 			assert.ok(url.includes(`games/${GAME}/${VERSION}/viewer-alternate/${cssHash}/viewer.css`));
 		});
 
-		it("rejects non-js/css viewer filenames", async () => {
-			const res = await api(
+		it("stores a sourcemap and serves it as application/json", async () => {
+			const res = await api<{ url: string }>(
 				"POST",
-				`/api/admin/gameinfo/${GAME}/${VERSION}/viewer/file?filename=evil.exe`,
+				`/api/admin/gameinfo/${GAME}/${VERSION}/viewer/file?filename=viewer.js.map`,
 				adminHeaders,
-				VIEWER_JS,
+				VIEWER_MAP,
 			);
-			assert.strictEqual(res.status, 400);
+			assert.strictEqual(res.status, 200);
+			const { url } = res.data;
+			const mapHash = createHash("sha256").update(VIEWER_MAP).digest("hex").slice(0, 16);
+			const expectedKey = `games/${GAME}/${VERSION}/viewer/${mapHash}/viewer.js.map`;
+			assert.ok(url.endsWith(`/${expectedKey}`), `url ${url} ends with the map key`);
+
+			const stored = bucketObjects(s3Mock).get(expectedKey);
+			assert.ok(stored, "sourcemap stored in S3");
+			assert.deepStrictEqual(stored.body, VIEWER_MAP);
+			assert.match(stored.contentType ?? "", /^application\/json/);
+
+			const served = await s3Fetch(url);
+			assert.strictEqual(served.status, 200);
+			assert.match(served.headers.get("content-type") ?? "", /application\/json/);
+			assert.deepStrictEqual(Buffer.from(await served.arrayBuffer()), VIEWER_MAP);
+		});
+
+		it("rejects disallowed viewer filenames", async () => {
+			for (const filename of ["evil.exe", "evil.html", "viewer.ts", "noextension"]) {
+				const res = await api(
+					"POST",
+					`/api/admin/gameinfo/${GAME}/${VERSION}/viewer/file?filename=${filename}`,
+					adminHeaders,
+					VIEWER_JS,
+				);
+				assert.strictEqual(res.status, 400, `${filename} rejected`);
+			}
 		});
 
 		it("stores an engine tarball and points engine.package at it", async () => {

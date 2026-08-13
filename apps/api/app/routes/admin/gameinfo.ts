@@ -131,18 +131,24 @@ function requirePublicUrl(key: string): string {
 }
 
 const viewerFileQuerySchema = z.object({
-	filename: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*\.(js|css)$/, "filename must end in .js or .css"),
+	filename: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*\.(js|css|map)$/, "filename must end in .js, .css or .map"),
 	alternate: z.string().optional(),
 });
 
 const VIEWER_CONTENT_TYPES: Record<string, string> = {
 	".js": "text/javascript; charset=utf-8",
 	".css": "text/css; charset=utf-8",
+	".map": "application/json; charset=utf-8",
 };
 
-// Uploads ONE viewer bundle file (the built JS, or a CSS dependency) and
-// returns its hosted URL. Persists nothing — the admin UI writes the URL into
-// viewer.url / dependencies.stylesheets and the normal Save persists it.
+// Uploads ONE viewer bundle file (the built JS, a CSS dependency, or a
+// sourcemap) and returns its hosted URL. Persists nothing — the admin UI
+// writes the URL into viewer.url / dependencies.stylesheets and the normal
+// Save persists it. `.map` files are only uploaded for browser-devtools
+// debugging; nothing references them server-side — the built viewer JS must
+// point at the map via `//# sourceMappingURL=<hosted .map URL>` (a bare
+// `foo.js.map` filename resolves against the hosted JS URL, which shares the
+// directory when uploaded for the same viewer).
 router.post("/:game/:version/viewer/file", async (ctx) => {
 	const { game, version } = assertBundleTarget(ctx);
 	const { filename, alternate } = viewerFileQuerySchema.parse(ctx.query);
