@@ -97,21 +97,25 @@
 			data-sveltekit-preload-data="hover"
 			onclick={handleClick}
 		>
-			<GameName info={game} />
-			{#if isForgotten}
-				<span class="ms-1 text-xs font-normal text-gray-400">(hidden)</span>
-			{/if}
-			{#if game.likeCount}
-				<span
-					class="ms-1 inline-flex items-center gap-0.5 align-baseline text-xs font-normal text-gray-400 dark:text-gray-500"
-					class:text-red-500={game.liked}
-					class:dark:text-red-400={game.liked}
-					title="{game.likeCount} like{game.likeCount === 1 ? '' : 's'}"
-				>
-					<IconHeartFill size="0.75em" />
-					{game.likeCount}
-				</span>
-			{/if}
+			<div class="flex items-baseline">
+				<div class="min-w-0 flex-1">
+					<GameName info={game} />
+				</div>
+				{#if isForgotten}
+					<span class="ms-1 shrink-0 self-center text-xs font-normal text-gray-400">(hidden)</span>
+				{/if}
+				{#if game.likeCount}
+					<span
+						class="ms-1 flex shrink-0 items-center gap-0.5 self-center text-xs font-normal text-gray-400 dark:text-gray-500"
+						class:text-red-500={game.liked}
+						class:dark:text-red-400={game.liked}
+						title="{game.likeCount} like{game.likeCount === 1 ? '' : 's'}"
+					>
+						<IconHeartFill size="0.75em" />
+						{game.likeCount}
+					</span>
+				{/if}
+			</div>
 		</a>
 		{#if pinned}
 			<button
