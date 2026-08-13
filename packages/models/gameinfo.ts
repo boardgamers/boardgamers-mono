@@ -59,6 +59,10 @@ export const gameInfoSchema = z.object({
 			package: z.object({
 				name: z.string(),
 				version: z.string(),
+				// When set (admin-uploaded bundle, #268), the game-server installs the
+				// engine from this npm-pack tarball URL instead of the registry.
+				// name/version still key the install path and the ESM cache bust.
+				url: z.url().optional(),
 			}),
 			entryPoint: z.string(),
 		})
