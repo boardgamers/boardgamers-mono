@@ -9,7 +9,7 @@ import { ObjectId } from "mongodb";
 import { colls, closeDb } from "../config/db.ts";
 import { engineRunner } from "./engine-runner.ts";
 import { engineKey } from "./engines.ts";
-import { startNextGame } from "./game.ts";
+import { processQuit, startNextGame } from "./game.ts";
 
 // The driver polls with BOT_MOVE_DELAY_MS between moves — keep the suite fast.
 process.env.BOT_MOVE_DELAY_MS ??= "50";
@@ -144,8 +144,10 @@ describe("bot driver", () => {
 		// Only clear this suite's own fixtures — the full suite runs several spec files
 		// concurrently against the same test db, and a dropDatabase() here would wipe
 		// another file's state mid-run.
-		await colls.games.deleteMany({ _id: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai"] } });
-		await colls.gameNotifications.deleteMany({ game: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai"] } });
+		await colls.games.deleteMany({ _id: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel"] } });
+		await colls.gameNotifications.deleteMany({
+			game: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel"] },
+		});
 		await colls.gameInfos.deleteMany({ "_id.game": { $in: [ENGINE_NAME, "bot-test-noai"] } });
 		// Register the engine: getEngine/enginePath resolve via gameInfos.
 		await colls.gameInfos.insertOne({
@@ -254,6 +256,33 @@ describe("bot driver", () => {
 		assert.strictEqual(endedNotifs, 1, "gameEnded notification emitted exactly once");
 		const moveNotifs = await colls.gameNotifications.countDocuments({ game: "bot-game-2", kind: "currentMove" });
 		assert.strictEqual(moveNotifs, 0, "No currentMove notifications at all in an all-bot game");
+	});
+
+	it("a drop during a bot's turn cancels the game when every human agreed to cancel", async () => {
+		// The human voted to cancel (voteCancel), the bot auto-consents (isBot): the
+		// afterMove cancel check must not let the bot block the cancellation. This
+		// also exercises the bot's-turn case: dropping the current player advances
+		// the turn, and afterMove observes the cancelled game before the bot driver
+		// can move again (the driver no-ops on non-active games).
+		const human = { ...humanPlayer("human"), voteCancel: true };
+		await insertGame("bot-game-cancel", [botPlayer("Rob (bot 1)"), human]);
+
+		await startGame("bot-game-cancel");
+		const started = await colls.games.findOne({ _id: "bot-game-cancel" });
+		assert.strictEqual(started?.status, "active");
+
+		// The human times out and is dropped while the bot is current.
+		await processQuit({ kind: "dropPlayer", game: "bot-game-cancel", user: human._id, processed: false });
+
+		await waitFor(async () => {
+			const game = await colls.games.findOne({ _id: "bot-game-cancel" });
+			return game?.status === "ended";
+		});
+
+		const game = await colls.games.findOne({ _id: "bot-game-cancel" });
+		assert.ok(game);
+		assert.strictEqual(game.cancelled, true, "Bot auto-consents to the human's cancel vote");
+		assert.strictEqual(game.players[1].dropped, true);
 	});
 
 	it("a broken moveAI leaves the game active (bot stuck), without looping", async () => {
