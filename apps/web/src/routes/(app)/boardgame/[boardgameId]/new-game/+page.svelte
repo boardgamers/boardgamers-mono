@@ -40,14 +40,14 @@
 	let seed = $state("");
 	let numPlayers = $state(2);
 	let numBots = $state(0);
-	// The creator can join themselves (the "join" option), so a seat is taken by a
-	// human either way — cap bots at players - 1 to always leave one human seat.
-	let maxBots = $derived(Math.max(0, numPlayers - 1));
+	let options = $state(["join"]);
+	// A game must seat at least one human. The creator takes a seat only when the
+	// "join" option is on, so without it the cap is players - 2 (a seat must stay
+	// open for a human joiner) instead of players - 1.
+	let maxBots = $derived(Math.max(0, numPlayers - (options.includes("join") ? 1 : 2)));
 	// Bots are dumb (engine auto-play) and only for testing the UI solo — the picker
 	// is a developer-only control, hidden unless developer settings are enabled.
 	let botsSupported = $derived(!!info?.meta?.bots && $developerSettings);
-
-	let options = $state(["join"]);
 	let playerOrder = $state<PlayerOrder>("random");
 	let selects = $state<Record<string, string>>({});
 	let expansions = $state<string[]>([]);

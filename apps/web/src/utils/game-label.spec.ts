@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gameBasedOn, gameBasedOnLabel, gameDisplayName, gameEmoji, gameLabel } from "./game-label";
+import { gameBadge, gameBasedOn, gameBasedOnLabel, gameDisplayName, gameEmoji, gameLabel } from "./game-label";
 
 describe("gameEmoji", () => {
 	it("extracts the leading emoji from a label", () => {
@@ -51,6 +51,32 @@ describe("gameDisplayName", () => {
 	it("returns an empty string without a game", () => {
 		expect(gameDisplayName(null)).toBe("");
 		expect(gameDisplayName(undefined)).toBe("");
+	});
+});
+
+describe("gameBadge", () => {
+	it("returns the label's emoji for a non-aliased game", () => {
+		expect(gameBadge({ label: "🌏 Gaia Project" })).toBe("🌏");
+	});
+
+	it("returns the canonical label's emoji for an aliased game, not the alias initial", () => {
+		// Regression: GameList used the alias's first letter ("T" for "Take 6") even
+		// though the canonical label carries an emoji.
+		expect(gameBadge({ label: "6️⃣ 6nimmt", alias: "Take 6" })).toBe("6️⃣");
+		expect(gameBadge({ label: " 💎 Splendor", alias: "Gem Trader" })).toBe("💎");
+	});
+
+	it("falls back to the alias initial when the canonical label has no emoji", () => {
+		expect(gameBadge({ label: " Container", alias: "Box Baron" })).toBe("B");
+	});
+
+	it("falls back to the label initial when there is no emoji and no alias", () => {
+		expect(gameBadge({ label: " Container" })).toBe("C");
+	});
+
+	it("is empty without a game", () => {
+		expect(gameBadge(null)).toBe("");
+		expect(gameBadge(undefined)).toBe("");
 	});
 });
 

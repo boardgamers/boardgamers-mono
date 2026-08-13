@@ -39,6 +39,23 @@ export function gameBasedOnLabel(info: AliasedGame | null | undefined): string {
 }
 
 /**
+ * The badge/monogram for a game: the canonical label's emoji when there is one
+ * (even for an aliased game, matching {@link gameDisplayName}), otherwise the
+ * first letter of the displayed name (the alias when set, else the label) as an
+ * uppercase monogram.
+ */
+export function gameBadge(info: AliasedGame | null | undefined): string {
+	if (!info) {
+		return "";
+	}
+	const emoji = gameEmoji(info.label);
+	if (emoji) {
+		return emoji;
+	}
+	return [...(info.alias?.trim() || gameLabel(info.label))][0]?.toUpperCase() ?? "";
+}
+
+/**
  * Extract the starting emoji of a game label (inverse of {@link gameLabel}) — the
  * first whitespace-separated token, but only when it actually is an emoji (a label
  * like "Container" has no emoji and returns ""). Handles multi-codepoint emoji

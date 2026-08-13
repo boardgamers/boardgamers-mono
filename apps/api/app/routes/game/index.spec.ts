@@ -237,6 +237,31 @@ describe("Game API", () => {
 			assert.strictEqual(await colls.games.countDocuments({ _id: "test-bots-all" }), 0);
 		});
 
+		it("should reject bots filling every seat when the creator does not join", async () => {
+			// bots == players - 1 is fine when the creator joins (they are the human), but
+			// without `join` the last seat stays open for no one — an all-bot game.
+			const res = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-bots-all-nocreator", { bots: 1, options: {} }),
+				authHeaders,
+			);
+
+			assert.strictEqual(res.ok, false);
+			assert.ok(errorMessage(res.data)?.includes("at least one human player"));
+			assert.strictEqual(await colls.games.countDocuments({ _id: "test-bots-all-nocreator" }), 0);
+
+			// Same setup with the creator joining IS valid: they are the human player.
+			const okRes = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-bots-one-human", { bots: 1, options: { join: true } }),
+				authHeaders,
+			);
+			assert.strictEqual(okRes.ok, true, JSON.stringify(okRes.data));
+			await colls.games.deleteOne({ _id: "test-bots-one-human" });
+		});
+
 		it("should start the game when an invited player fills the last seat left by bots", async () => {
 			const createRes = await api(
 				"POST",
