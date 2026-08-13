@@ -24,6 +24,12 @@ export interface Engine {
 	// Drops a player from the game
 	dropPlayer(data: GameData, player: number): Promise<GameData>;
 
+	// Play one move for `player`, chosen by the engine (typically the same auto-play
+	// dropPlayer uses). Optional: only engines implementing it can host bot players
+	// (the game-server calls it whenever a bot slot becomes the current player).
+	// oxlint-disable-next-line typescript/no-redundant-type-constituents -- GameData is unknown now but won't always be
+	moveAI?(data: GameData, player: number): Promise<GameData> | GameData;
+
 	// Get current player(s)
 	currentPlayer(data: GameData): number[] | number | undefined;
 

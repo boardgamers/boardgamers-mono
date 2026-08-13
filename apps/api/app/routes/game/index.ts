@@ -24,6 +24,22 @@ function withoutData(game: GameDoc): Omit<GameDoc, "data"> {
 
 const gameIdPattern = /^[A-Za-z0-9_-]+$/;
 
+// Bot slots get placeholder ObjectIds — no user account exists for them. Bots are
+// excluded from emails, karma and Elo by filtering on `isBot` at those call sites.
+const botNames = ["Rob", "Ada", "Turing", "Shannon", "Babbage", "Lovelace", "Hopper", "Zuse"];
+
+function makeBotPlayer(index: number, timePerGame: number | undefined): GameDoc["players"][number] {
+	return {
+		_id: new ObjectId(),
+		remainingTime: timePerGame,
+		dropped: false,
+		quit: false,
+		score: 0,
+		name: `${botNames[index % botNames.length]} (bot ${index + 1})`,
+		isBot: true,
+	};
+}
+
 const newGameSchema = z.object({
 	game: z.object({
 		game: z.string(),
@@ -31,6 +47,8 @@ const newGameSchema = z.object({
 	}),
 	gameId: z.string().regex(gameIdPattern, "Wrong format for game id"),
 	players: z.number().int().positive(),
+	// How many of the player slots are filled by platform bots (engine auto-play).
+	bots: z.number().int().nonnegative().optional(),
 	expansions: z.array(z.string()).optional(),
 	timePerGame: z.number().positive("Wrong amount of time per game"),
 	timePerMove: z.number().positive("Wrong amount of time per move"),
@@ -62,6 +80,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 		game: gameInfoId,
 		gameId,
 		players,
+		bots,
 		expansions,
 		timePerGame,
 		timePerMove,
@@ -110,6 +129,12 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 
 	if (!gameInfo.players.includes(players)) {
 		throw createError(400, "Wrong number of players");
+	}
+
+	const botCount = bots ?? 0;
+	if (botCount > 0) {
+		assert(gameInfo.meta.bots, "This game does not support bot players");
+		assert(botCount < players, "There must be at least one human player");
 	}
 
 	if (await colls.games.findOne({ _id: gameId })) {
@@ -209,22 +234,27 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 	}
 
 	const gameExpansions = gameInfo.expansions ?? [];
+	const initialPlayers: GameDoc["players"] =
+		options.join === true
+			? [
+					{
+						_id: user._id,
+						remainingTime: timePerGame,
+						dropped: false,
+						score: 0,
+						name: user.account.username,
+						quit: false,
+					},
+				]
+			: [];
+	// Bots occupy seats from creation on; they can't be invited/joined over later.
+	for (let i = 0; i < botCount; i++) {
+		initialPlayers.push(makeBotPlayer(i, timePerGame));
+	}
 	const game: GameDoc = {
 		_id: gameId,
 		creator: user._id,
-		players:
-			options.join === true
-				? [
-						{
-							_id: user._id,
-							remainingTime: timePerGame,
-							dropped: false,
-							score: 0,
-							name: user.account.username,
-							quit: false,
-						},
-					]
-				: [],
+		players: initialPlayers,
 		currentPlayers: [],
 		data: {},
 		context: { round: 0 },
@@ -293,6 +323,12 @@ router.get("/:gameId/players", async (ctx) => {
 		const gamePref = gamePrefs.find((pref) => pref.user.equals(user._id));
 		// @fixme: Remove 'id' when fully moved to svelte frontend
 		ret.push({ id: user._id, _id: user._id, name: user.account.username, elo: gamePref?.elo?.value ?? 0 });
+	}
+	// Bots have no user document — surface them from the game's own player list.
+	for (const player of game.players) {
+		if (player.isBot) {
+			ret.push({ id: player._id, _id: player._id, name: player.name, elo: 0 });
+		}
 	}
 	ctx.body = ret;
 });

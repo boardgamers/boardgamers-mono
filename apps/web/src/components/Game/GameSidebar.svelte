@@ -130,18 +130,23 @@
 			/>
 
 			<div>
-				<UsernameLink
-					username={player.name}
-					userId={player._id}
-					class={player.dropped ? "player-name dropped" : "player-name"}
-				/>
-				<sup class="ms-1">
-					{#if player.elo}
-						{player.elo.initial} {(player.elo.delta ?? 0) >= 0 ? "+" : "-"} {Math.abs(player.elo.delta ?? 0)} elo
-					{:else}
-						{playerElo(player._id)} elo
-					{/if}
-				</sup>
+				{#if player.isBot}
+					<span class={player.dropped ? "player-name dropped" : "player-name"}>{player.name}</span>
+					<Badge color="secondary" class="ms-1" title="Bot player — auto-plays engine-chosen moves">🤖 bot</Badge>
+				{:else}
+					<UsernameLink
+						username={player.name}
+						userId={player._id}
+						class={player.dropped ? "player-name dropped" : "player-name"}
+					/>
+					<sup class="ms-1">
+						{#if player.elo}
+							{player.elo.initial} {(player.elo.delta ?? 0) >= 0 ? "+" : "-"} {Math.abs(player.elo.delta ?? 0)} elo
+						{:else}
+							{playerElo(player._id)} elo
+						{/if}
+					</sup>
+				{/if}
 				{#if game.status === "active"}
 					<span class="ms-1"> - {shortDuration(remainingTimes[player._id])}</span>
 				{/if}

@@ -74,8 +74,17 @@
 		gameIframe?.contentWindow?.postMessage(message, "*");
 	}
 
+	// Bots have no account and no avatar image — show a robot emoji instead of a URL.
+	function botAvatar(): string {
+		const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="#c7c9d1"/><text x="50" y="68" font-size="52" text-anchor="middle">🤖</text></svg>`;
+		return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+	}
+
 	function postAvatars() {
-		const avatars = context.game?.players.map((pl) => `${window.location.origin}/api/user/${pl._id}/avatar`) ?? [];
+		const avatars =
+			context.game?.players.map((pl) =>
+				pl.isBot ? botAvatar() : `${window.location.origin}/api/user/${pl._id}/avatar`
+			) ?? [];
 		gameIframe?.contentWindow?.postMessage({ type: "avatars", avatars: JSON.parse(JSON.stringify(avatars)) }, "*");
 	}
 

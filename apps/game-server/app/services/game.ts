@@ -7,6 +7,7 @@ import { colls } from "../config/db.ts";
 import locks from "../config/locks.ts";
 import env from "../config/env.ts";
 import type { Engine, GameData } from "../types/engine.ts";
+import { scheduleBotMoves } from "./bots.ts";
 import { getEngine } from "./engines.ts";
 
 export async function handleMessages(engine: Engine, gameId: string, gameData: GameData): Promise<GameData> {
@@ -112,16 +113,19 @@ export async function startNextGame(): Promise<boolean> {
 			await colls.games.replaceOne({ _id: game._id }, game);
 
 			const now = new Date();
-			const promises = (game.currentPlayers ?? []).map((pl) =>
-				colls.gameNotifications.insertOne({
-					user: pl._id,
-					createdAt: now,
-					updatedAt: now,
-					game: game._id,
-					kind: "currentMove",
-					processed: false,
-				}),
-			);
+			const promises = (game.currentPlayers ?? [])
+				// Bots don't get turn notifications (no account, no emails) — they auto-play.
+				.filter((pl) => !game.players.some((p) => p._id.equals(pl._id) && p.isBot))
+				.map((pl) =>
+					colls.gameNotifications.insertOne({
+						user: pl._id,
+						createdAt: now,
+						updatedAt: now,
+						game: game._id,
+						kind: "currentMove",
+						processed: false,
+					}),
+				);
 			await Promise.all([
 				...promises,
 				colls.gameNotifications.updateOne(
@@ -129,6 +133,8 @@ export async function startNextGame(): Promise<boolean> {
 					{ $set: { processed: true, updatedAt: new Date() } },
 				),
 			]);
+
+			scheduleBotMoves(game._id);
 
 			return true;
 		}
@@ -316,6 +322,10 @@ export async function afterMove(engine: Engine, game: GameDoc, gameData: GameDat
 
 	const amNow = new Date();
 	for (const player of game.currentPlayers ?? []) {
+		// Bots don't get turn notifications (no account, no emails) — they auto-play.
+		if (game.players.some((pl) => pl._id.equals(player._id) && pl.isBot)) {
+			continue;
+		}
 		await colls.gameNotifications.insertOne({
 			user: player._id,
 			createdAt: amNow,
@@ -333,5 +343,11 @@ export async function afterMove(engine: Engine, game: GameDoc, gameData: GameDat
 			createdAt: amNow,
 			updatedAt: amNow,
 		});
+	}
+
+	// Auto-play bot turns (no-op when no bot is the current player). Runs detached,
+	// after this move's response went out, and re-acquires the game lock itself.
+	if (game.status === "active" && game.currentPlayers?.length) {
+		scheduleBotMoves(game._id);
 	}
 }

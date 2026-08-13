@@ -27,11 +27,15 @@
 	const infos = useGameInfos();
 	let bg = $derived(infos[gameInfoKey(game, "latest")]);
 	let style = $derived(
-		`background-image: url('${
-			player.faction && bg?.factions?.avatars
-				? `/images/factions/icons/${player.faction}.svg`
-				: `/api/user/${player._id}/avatar?d=${$account?.account.avatar}`
-		}')`
+		// Bots get a neutral backdrop for the 🤖 marker, not a per-user avatar image
+		// (they have no account, and their display name breaks a CSS url()).
+		player.isBot
+			? ""
+			: `background-image: url('${
+					player.faction && bg?.factions?.avatars
+						? `/images/factions/icons/${player.faction}.svg`
+						: `/api/user/${player._id}/avatar?d=${$account?.account.avatar}`
+				}')`
 	);
 </script>
 
@@ -39,9 +43,14 @@
 	{style}
 	title={player.name}
 	class={classnames("player-avatar", className)}
+	class:bot={player.isBot}
 	class:current={highlightedPlayerId && player._id === highlightedPlayerId}
 	class:currentTurn={isCurrent}
 >
+	{#if player.isBot}
+		<!-- Bots have no avatar image — mark the slot with a robot instead. -->
+		<span class="bot-icon" title={player.name}>🤖</span>
+	{/if}
 	{#if showVp}
 		<span class={`vp ${status}`}>{player.score}</span>
 	{/if}
@@ -60,6 +69,17 @@
 		align-items: center;
 		justify-content: space-around;
 		font-weight: bold;
+	}
+
+	.player-avatar.bot {
+		background-color: #c7c9d1;
+	}
+	:global(.dark) .player-avatar.bot {
+		background-color: #4b5563; /* gray-600 */
+	}
+	.player-avatar .bot-icon {
+		font-size: 1.2rem;
+		line-height: 1;
 	}
 
 	.player-avatar.currentTurn .vp {

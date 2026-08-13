@@ -57,9 +57,10 @@ export async function processGameEnded() {
 		}
 
 		if (!game.cancelled) {
-			await colls.users.updateMany({ _id: { $in: game.players.filter((pl) => !pl.dropped).map((pl) => pl._id) } }, [
-				{ $set: { "account.karma": { $min: [{ $add: ["$account.karma", 1] }, maxKarma] } } },
-			]);
+			await colls.users.updateMany(
+				{ _id: { $in: game.players.filter((pl) => !pl.dropped && !pl.isBot).map((pl) => pl._id) } },
+				[{ $set: { "account.karma": { $min: [{ $add: ["$account.karma", 1] }, maxKarma] } } }],
+			);
 		}
 
 		await processEloForGame(game);

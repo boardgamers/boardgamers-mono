@@ -334,9 +334,22 @@
 				{#each context.game.players as player (player._id)}
 					{@const info = context.players.find((pl) => pl._id === player._id)}
 					<li class="flex items-center gap-2">
-						<UserAvatar userId={player._id} username={info?.name ?? "?"} size="2rem" />
-						<UsernameLink username={info?.name ?? "?"} userId={player._id} class="font-medium" />
-						<span class="text-sm text-gray-500 dark:text-gray-400">{info?.elo} elo</span>
+						{#if player.isBot}
+							<span
+								class="flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700"
+								style="height: 2rem; width: 2rem"
+								title={player.name}>🤖</span
+							>
+							<span class="font-medium">{player.name}</span>
+							<span
+								class="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+								>bot</span
+							>
+						{:else}
+							<UserAvatar userId={player._id} username={info?.name ?? "?"} size="2rem" />
+							<UsernameLink username={info?.name ?? "?"} userId={player._id} class="font-medium" />
+							<span class="text-sm text-gray-500 dark:text-gray-400">{info?.elo} elo</span>
+						{/if}
 						{#if player.pending}
 							<span
 								class="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
