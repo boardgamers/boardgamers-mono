@@ -3,6 +3,7 @@
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import ExpandableMarkdown from "@/components/ExpandableMarkdown.svelte";
+	import IconHeartFill from "@/components/icons/IconHeartFill.svelte";
 	import { useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
 	import { gameBasedOnLabel, gameDisplayName } from "@/utils/game-label";
@@ -10,7 +11,12 @@
 
 	let { data }: PageProps = $props();
 
-	let info = useLatestGameInfos();
+	// Discovery ordering (#98): most liked first, display name breaks ties.
+	let info = $derived(
+		useLatestGameInfos()
+			.slice()
+			.sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0) || gameDisplayName(a).localeCompare(gameDisplayName(b)))
+	);
 
 	// SSR: provide the SSR-fetched prefs map via context during init so the ownership
 	// classes render server-side (setContext must run at init; $effect does NOT run during
@@ -44,18 +50,31 @@
 						<ExpandableMarkdown markdown={game.description} />
 					</CardText>
 					{#snippet footer()}
-						<span
-							class:text-accent={owns(game._id.game)}
-							class:dark:text-accent-lighter={owns(game._id.game)}
-							class:text-gray-500={!owns(game._id.game)}
-							class:dark:text-gray-400={!owns(game._id.game)}
-						>
-							{#if owns(game._id.game)}
-								You own this game
-							{:else}
-								You do not own this game
+						<div class="flex items-center justify-between">
+							<span
+								class:text-accent={owns(game._id.game)}
+								class:dark:text-accent-lighter={owns(game._id.game)}
+								class:text-gray-500={!owns(game._id.game)}
+								class:dark:text-gray-400={!owns(game._id.game)}
+							>
+								{#if owns(game._id.game)}
+									You own this game
+								{:else}
+									You do not own this game
+								{/if}
+							</span>
+							{#if game.likeCount}
+								<span
+									class="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400"
+									class:text-red-500={game.liked}
+									class:dark:text-red-400={game.liked}
+									title="{game.likeCount} like{game.likeCount === 1 ? '' : 's'}"
+								>
+									<IconHeartFill />
+									{game.likeCount}
+								</span>
 							{/if}
-						</span>
+						</div>
 					{/snippet}
 				</Card>
 			</div>

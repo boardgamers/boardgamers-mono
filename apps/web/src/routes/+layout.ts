@@ -43,7 +43,7 @@ export const load: LayoutLoad = async ({ data }) => {
 	// and pinned group render on first paint, not after hydration.
 	let myBoardgames: string[] = [];
 	if (data?.user?._id) {
-		myBoardgames = await get<{ boardgame: string; lastActivity: string }[]>("/game/my-boardgames", {
+		myBoardgames = await get<{ boardgame: string; lastActivity: string; liked?: boolean }[]>("/game/my-boardgames", {
 			user: data.user._id,
 		})
 			.then((rows) => rows.map((r) => r.boardgame))

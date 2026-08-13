@@ -166,6 +166,17 @@ export async function post<T>(url: string, data: Record<string, unknown> = {}, o
 	);
 }
 
+export async function del<T>(url: string, opts?: FetchOptions): Promise<T> {
+	const doFetch = opts?.fetch ?? (await requestFetch());
+	return getResponseData<T>(
+		await doFetch(transformUrl(url), {
+			method: "DELETE",
+			credentials: "same-origin",
+			headers: await authHeaderFor(url, doFetch),
+		}),
+	);
+}
+
 export async function apiFetch(url: string, options: RequestInit, opts?: FetchOptions): Promise<Response> {
 	const doFetch = opts?.fetch ?? (await requestFetch());
 	return doFetch(transformUrl(url), {

@@ -11,6 +11,7 @@ import {
 } from "./chatmessage.ts";
 import { GAMES_COLLECTION, gameIndexes, gameSchema } from "./game.ts";
 import { GAME_INFOS_COLLECTION, GAME_METADATAS_COLLECTION, gameVersionSchema, gameMetadataSchema } from "./gameinfo.ts";
+import { GAME_LIKES_COLLECTION, gameLikeIndexes, gameLikeSchema } from "./gamelike.ts";
 import { GAME_NOTIFICATIONS_COLLECTION, gameNotificationIndexes, gameNotificationSchema } from "./gamenotification.ts";
 import { GAME_PREFERENCES_COLLECTION, gamePreferencesIndexes, gamePreferencesSchema } from "./gamepreferences.ts";
 import { IMAGES_COLLECTION, imageIndexes, imageSchema } from "./image.ts";
@@ -495,6 +496,7 @@ export const declaredIndexes: [string, IndexDescription[]][] = [
 	[API_ERRORS_COLLECTION, apiErrorIndexes],
 	[CHANGELOGS_COLLECTION, changelogIndexes],
 	[CHAT_MESSAGES_COLLECTION, chatMessageIndexes],
+	[GAME_LIKES_COLLECTION, gameLikeIndexes],
 	[GAME_NOTIFICATIONS_COLLECTION, gameNotificationIndexes],
 	[GAME_PREFERENCES_COLLECTION, gamePreferencesIndexes],
 	[IMAGES_COLLECTION, imageIndexes],
@@ -565,6 +567,7 @@ export async function ensureValidation(db: Db) {
 		[GAMES_COLLECTION, gameSchema],
 		[GAME_INFOS_COLLECTION, gameVersionSchema],
 		[GAME_METADATAS_COLLECTION, gameMetadataSchema],
+		[GAME_LIKES_COLLECTION, gameLikeSchema],
 		[GAME_NOTIFICATIONS_COLLECTION, gameNotificationSchema],
 		[GAME_PREFERENCES_COLLECTION, gamePreferencesSchema],
 		[IMAGES_COLLECTION, imageSchema],

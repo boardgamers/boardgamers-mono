@@ -10,6 +10,7 @@
 	import { handleError } from "@/utils";
 	import { gameDisplayName } from "@/utils/game-label";
 	import GameName from "@/components/GameName.svelte";
+	import IconHeartFill from "@/components/icons/IconHeartFill.svelte";
 	import type { GameInfoFront, UserFront } from "@bgs/models";
 
 	const games = useLatestGameInfos() as GameInfoFront[];
@@ -43,6 +44,8 @@
 
 	// Sort by the DISPLAYED name (alias when set) so the ordering matches what the player reads.
 	const byLabel = (a: GameInfoFront, b: GameInfoFront) => gameDisplayName(a).localeCompare(gameDisplayName(b));
+	// Discovery ordering (#98): most liked first, display name breaks ties.
+	const byPopularity = (a: GameInfoFront, b: GameInfoFront) => (b.likeCount ?? 0) - (a.likeCount ?? 0) || byLabel(a, b);
 	const rank = (id: string) => {
 		const i = myBoardgames.indexOf(id);
 		return i === -1 ? Number.MAX_SAFE_INTEGER : i;
@@ -51,7 +54,7 @@
 	let topGames = $derived(
 		games.filter((g) => pinnedIds.includes(g._id.game)).sort((a, b) => rank(a._id.game) - rank(b._id.game))
 	);
-	let otherGames = $derived(games.filter((g) => !pinnedIds.includes(g._id.game)).sort(byLabel));
+	let otherGames = $derived(games.filter((g) => !pinnedIds.includes(g._id.game)).sort(byPopularity));
 
 	const refreshGamesRoute = "/refresh-games";
 
@@ -97,6 +100,17 @@
 			<GameName info={game} />
 			{#if isForgotten}
 				<span class="ms-1 text-xs font-normal text-gray-400">(hidden)</span>
+			{/if}
+			{#if game.likeCount}
+				<span
+					class="ms-1 inline-flex items-center gap-0.5 align-baseline text-xs font-normal text-gray-400 dark:text-gray-500"
+					class:text-red-500={game.liked}
+					class:dark:text-red-400={game.liked}
+					title="{game.likeCount} like{game.likeCount === 1 ? '' : 's'}"
+				>
+					<IconHeartFill size="0.75em" />
+					{game.likeCount}
+				</span>
 			{/if}
 		</a>
 		{#if pinned}

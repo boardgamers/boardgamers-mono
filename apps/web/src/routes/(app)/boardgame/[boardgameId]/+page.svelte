@@ -6,7 +6,15 @@
 	import marked from "marked";
 	import type { GameFront, GameInfoFront } from "@bgs/models";
 	import { Button, Card } from "@/modules/cdk";
-	import { UserGameSettings, GameList, BoardgameElo, BoardgameLinks, GameName, SetupOptionsFilter } from "@/components";
+	import {
+		UserGameSettings,
+		GameList,
+		BoardgameElo,
+		BoardgameLinks,
+		GameName,
+		GameLikeButton,
+		SetupOptionsFilter,
+	} from "@/components";
 	import { account } from "@/lib/account.svelte";
 	import { live } from "@/lib/stores.svelte";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
@@ -55,7 +63,12 @@
 </script>
 
 <div class="container mx-auto px-4">
-	<h1 class="mb-4"><GameName info={boardgame} /></h1>
+	<h1 class="mb-4 flex items-center gap-3">
+		<GameName info={boardgame} />
+		{#if boardgame}
+			<GameLikeButton gameId={boardgameId} liked={!!boardgame.liked} likeCount={boardgame.likeCount ?? 0} />
+		{/if}
+	</h1>
 
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 		<div>

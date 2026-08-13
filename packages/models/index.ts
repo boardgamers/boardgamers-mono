@@ -52,6 +52,10 @@ export {
 	GAME_METADATAS_COLLECTION,
 } from "./gameinfo.ts";
 
+// --- Game Like ---
+export type { GameLikeDoc, GameLikeFront } from "./gamelike.ts";
+export { gameLikeSchema, GAME_LIKES_COLLECTION, gameLikeIndexes } from "./gamelike.ts";
+
 // --- Game Notification ---
 export type { GameNotificationDoc, GameNotificationFront, NotificationKind } from "./gamenotification.ts";
 export {

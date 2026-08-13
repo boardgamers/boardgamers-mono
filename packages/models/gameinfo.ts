@@ -177,18 +177,24 @@ export const GAME_METADATA_FIELDS = [
 // that version's game metadata. Consumers (web, admin, seed) see this shape — the
 // storage split into `gameInfos` (per version) + `gameMetadatas` (per game) is an
 // api-data-layer concern.
-export const gameInfoSchema = gameVersionSchema.merge(
-	gameMetadataSchema.pick({
-		label: true,
-		alias: true,
-		description: true,
-		rules: true,
-		links: true,
-		players: true,
-		needOwnership: true,
-		likeCount: true,
-	}),
-);
+export const gameInfoSchema = gameVersionSchema
+	.merge(
+		gameMetadataSchema.pick({
+			label: true,
+			alias: true,
+			description: true,
+			rules: true,
+			links: true,
+			players: true,
+			needOwnership: true,
+			likeCount: true,
+		}),
+	)
+	.extend({
+		// Serialization-only (computed by the api per request, never stored): does the
+		// current user like this game. Not part of the DB validation schema.
+		liked: z.boolean().optional(),
+	});
 
 export type GameInfoDoc = z.output<typeof gameInfoSchema>;
 export type GameInfoFront = Jsonify<GameInfoDoc>;
