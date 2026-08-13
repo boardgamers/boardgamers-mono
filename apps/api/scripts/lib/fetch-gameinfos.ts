@@ -4,9 +4,9 @@ import { z } from "zod";
 /**
  * Base URL of a public BGS API to pull game info from when seeding a local dev DB.
  * Defaults to production. Override with $seedSource, e.g.
- *   seedSource=https://www.boardgamers.space/api pnpm seed
+ *   seedSource=https://boardgamers.space/api pnpm seed
  */
-const SEED_SOURCE = process.env.seedSource || "https://www.boardgamers.space/api";
+const SEED_SOURCE = process.env.seedSource || "https://boardgamers.space/api";
 
 const listedGameInfosSchema = z.array(z.object({ _id: z.object({ game: z.string(), version: z.number() }) }));
 

@@ -29,6 +29,9 @@ server {
 
   root /home/coyotte508/code/gaia-site/front/dist;
 
+  # Stale example only — NOT the live vhost. The canonical host is the apex
+  # (boardgamers.space; www redirects there), and the real config lives on the
+  # prod box. See #153.
   server_name www.boardgamers.space;
 
   index index.html;

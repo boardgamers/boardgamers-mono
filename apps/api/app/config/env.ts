@@ -29,7 +29,10 @@ if (process.env.NODE_ENV === "test") {
 export default {
 	script: false,
 	domain,
-	site: process.env.site || `www.${domain}`,
+	// Canonical site host (#153): the apex. Drives social OAuth callback URLs and
+	// email links. Until nginx makes the apex canonical (www still is), set
+	// site=www.boardgamers.space in the prod env to roll back.
+	site: process.env.site || domain,
 	// Base URL of the web app (login page, consent page). The OAuth2 authorize
 	// endpoint redirects there when the caller has no session or no recorded consent.
 	webAppUrl:
