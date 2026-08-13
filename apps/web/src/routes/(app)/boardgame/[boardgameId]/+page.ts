@@ -1,8 +1,7 @@
 import type { PageLoad } from "./$types";
 import { loadGames, clearGamesCache } from "@/lib/games.svelte";
 import { loadEloRankings } from "@/lib/elo-rankings.svelte";
-import { shareImageUrl, stripMarkdown, truncate } from "@/lib/seo";
-import { gameDisplayName } from "@/utils/game-label";
+import { boardgameSeo } from "@/lib/boardgame-seo";
 
 export const load: PageLoad = async ({ params, parent }) => {
 	const { user, gameInfo } = await parent();
@@ -53,14 +52,6 @@ export const load: PageLoad = async ({ params, parent }) => {
 	return {
 		rankings,
 		myGamesStatus: myGamesFallback,
-		seo: {
-			title: gameInfo ? gameDisplayName(gameInfo, { emoji: false }) : boardgameId,
-			description: truncate(
-				stripMarkdown(gameInfo?.description ?? "") ||
-					`Play ${gameInfo ? gameDisplayName(gameInfo, { emoji: false }) : boardgameId} online with other people!`,
-				200,
-			),
-			image: shareImageUrl({ kind: "boardgame", id: boardgameId }),
-		},
+		seo: boardgameSeo(boardgameId, gameInfo),
 	};
 };
