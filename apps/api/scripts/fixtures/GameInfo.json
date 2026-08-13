@@ -8,7 +8,7 @@
 		"engine": {
 			"package": {
 				"name": "@gaia-project/engine",
-				"version": "*"
+				"version": "4.8.52"
 			},
 			"entryPoint": "dist/wrapper.js"
 		},
