@@ -208,7 +208,7 @@ async function listen(port = env.listen.port.api) {
 				const rt = await lookupRefreshToken(code);
 				if (!rt) {
 					// Dead session cookie (revoked or expired server-side). Clear all variants so a
-					// stale pre-overhaul host-only cookie can't shadow future logins (see session.ts).
+					// stale legacy Domain=boardgamers.space cookie can't shadow future logins (see session.ts).
 					clearAllRefreshCookieVariants(ctx);
 				}
 				if (rt) {

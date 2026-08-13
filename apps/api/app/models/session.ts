@@ -126,24 +126,42 @@ export function setRefreshCookie(ctx: Context, code: string, trigger: "sliding-s
 		// hop, so the SSR sees an anonymous user and bounces to /login. Lax still blocks
 		// cross-site subrequests (fetch/XHR/iframe), only top-level navigations are allowed.
 		sameSite: "lax",
-		domain: local ? undefined : env.domain,
+		// Host-only (no Domain): apex boardgamers.space is the canonical host (#153), so
+		// the cookie must never be sent to forum./admin./resources./grafana. subdomains.
 	});
-}
-
-/** Clear the session cookie (logout) — same `domain` it was set with, or it won't be removed. */
-export function clearRefreshCookie(ctx: Context) {
-	ctx.cookies.set(SESSION_COOKIE, null, { maxAge: 0, domain: isLocalhost(ctx) ? undefined : env.domain });
+	// A host-only cookie sorts BEFORE a Domain= one in the Cookie header, so a stale
+	// legacy Domain=boardgamers.space cookie (set pre-cutover) would linger and shadow
+	// the fresh one. Clear it (a deletion must repeat the exact Domain it was set
+	// with, or the browser ignores it). Local never set a Domain cookie — skip there.
+	// TODO(#153, #283): remove the Domain-cookie cleanup 120 days after deploy
+	// (~2026-12-11) — by then every legacy Domain cookie (max 120-day lifetime) has expired.
+	if (!local) {
+		ctx.cookies.set(SESSION_COOKIE, null, { maxAge: 0, domain: env.domain });
+	}
 }
 
 /**
- * Clear every variant of the session cookie: the current domain-scoped one AND the
- * host-only one set by pre-overhaul deployments. A lingering host-only duplicate sorts
- * first in the Cookie header and shadows the fresh domain cookie on every request,
- * locking the browser out of login until it expires (120 days).
+ * Clear the session cookie (logout): the current host-only one AND the legacy
+ * `Domain=env.domain` one set pre-cutover (#153) — both, so logout fully logs out
+ * whichever variant the browser holds. A deletion must repeat the exact Domain the
+ * cookie was set with, or the browser ignores it. Local never set a Domain cookie.
+ */
+export function clearRefreshCookie(ctx: Context) {
+	ctx.cookies.set(SESSION_COOKIE, null, { maxAge: 0 });
+	if (!isLocalhost(ctx)) {
+		ctx.cookies.set(SESSION_COOKIE, null, { maxAge: 0, domain: env.domain });
+	}
+}
+
+/**
+ * Clear every variant of the session cookie: the current host-only one AND the legacy
+ * `Domain=boardgamers.space` one set pre-cutover (#153) — same pair as
+ * `clearRefreshCookie`, since a stale Domain= cookie would otherwise linger and
+ * shadow the host-only one (it sorts first in the Cookie header).
+ *
+ * TODO(#153, #283): reduce back to the plain host-only clear 120 days after deploy
+ * (~2026-12-11) — by then every legacy Domain cookie (max 120-day lifetime) has expired.
  */
 export function clearAllRefreshCookieVariants(ctx: Context) {
 	clearRefreshCookie(ctx);
-	if (!isLocalhost(ctx)) {
-		ctx.cookies.set(SESSION_COOKIE, null, { maxAge: 0 });
-	}
 }
