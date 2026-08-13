@@ -227,9 +227,12 @@ describe("bot driver", () => {
 
 		await startGame("bot-game-2");
 
+		// Wait on the gameEnded notification, not status: afterMove writes the game
+		// doc (status "ended") before inserting the notification, so polling status
+		// races ahead of the notification write.
 		await waitFor(async () => {
-			const game = await colls.games.findOne({ _id: "bot-game-2" });
-			return game?.status === "ended";
+			const n = await colls.gameNotifications.countDocuments({ game: "bot-game-2", kind: "gameEnded" });
+			return n > 0;
 		});
 
 		const game = await colls.games.findOne({ _id: "bot-game-2" });
