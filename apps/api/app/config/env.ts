@@ -137,10 +137,10 @@ export default {
 	// the daily paused timer window (deadline() maps it to the next window's start, so
 	// this is true overtime) and gives a short "still time to move" buffer beyond the
 	// manual-drop bar (`POST /game/:id/drop/:userId`, deadline < now).
-	autoCancelGraceMs: Number(process.env.autoCancelGraceMs) || 3 * 24 * 3600 * 1000,
+	autoCancelGraceMs: Number(process.env.autoCancelGraceMs) || 10 * 24 * 3600 * 1000,
 	// A live game (timePerGame ≤ autoCancelLiveThresholdSec) with no move for this
 	// long is abandoned, not stalling — it is cancelled outright (no drops).
-	autoCancelLiveIdleMs: Number(process.env.autoCancelLiveIdleMs) || 3 * 24 * 3600 * 1000,
+	autoCancelLiveIdleMs: Number(process.env.autoCancelLiveIdleMs) || 10 * 24 * 3600 * 1000,
 	// Absolute floor: never touch a game with a move this recent, whatever the clocks say.
 	autoCancelMinIdleMs: Number(process.env.autoCancelMinIdleMs) || 7 * 24 * 3600 * 1000,
 	// Game age below which nothing is cancelled outright — everyone gets a drop instead
