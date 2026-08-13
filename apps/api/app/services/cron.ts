@@ -3,7 +3,7 @@ import { processCurrentMove, processGameEnded, processPlayerDrop } from "../mode
 import { sendGameNotificationEmail } from "../models/user.ts";
 import { colls, closeDb } from "../config/db.ts";
 import locks from "../config/locks.ts";
-import { cancelOldOpenGames, processSchedulesGames, processUnreadyGames } from "./game.ts";
+import { cancelOldOpenGames, processSchedulesGames, processStalledGames, processUnreadyGames } from "./game.ts";
 import { cleanupDeadUsers } from "./user.ts";
 import type { Closable } from "@bgs/utils/log";
 
@@ -45,6 +45,9 @@ if (env.cron) {
 	every(1000, singleton("scheduledGames", processSchedulesGames));
 	every(5000, singleton("cancelOldOpenGames", cancelOldOpenGames));
 	every(10000, singleton("unreadyGames", processUnreadyGames));
+	// Inactivity sweep (#94): drops current players whose deadline is long expired,
+	// cancels games with no active human left. Hourly is plenty — thresholds are days.
+	every(3600 * 1000, singleton("stalledGames", processStalledGames));
 	// Dead-user cleanup (archives to deletedUsers; only with cleanupDeadUsers="delete",
 	// otherwise dry-run log/off). It self-throttles to at most once per 24h via a
 	// persisted lastRunAt, so an hourly tick + a boot-time run catch up after a
