@@ -23,7 +23,8 @@ describe("processStalledGames — auto-drop / auto-cancel for inactivity (#94)",
 	// Snapshot of `mails` after the first sweep, before the idempotency test resets it.
 	let firstRunMails: MailSendData[] = [];
 
-	// past(cp) = deadline 10 days ago (grace is 3d → 7 days past), timerStart 20 days ago
+	// staleCp(id) = deadline 10 days ago, timerStart 20 days ago — past the 10d
+	// grace only once 10+ days pass, so fixtures must idle 11d+ to trip it.
 	const staleCp = (id: ObjectId) => ({
 		_id: id,
 		timerStart: new Date(Date.now() - 20 * day),
@@ -50,7 +51,7 @@ describe("processStalledGames — auto-drop / auto-cancel for inactivity (#94)",
 		]);
 
 		await colls.games.insertMany([
-			// Stalled: A's deadline expired 7 days past the grace → dropped; B continues.
+			// Stalled: A's deadline expired past the 10d grace (11d idle) → dropped; B continues.
 			testGame({
 				_id: "stall-drop",
 				game: { name: "test", version: 1 },
@@ -61,7 +62,7 @@ describe("processStalledGames — auto-drop / auto-cancel for inactivity (#94)",
 				],
 				currentPlayers: [staleCp(pA)],
 				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing: active },
-				lastMove: subDays(new Date(), 10),
+				lastMove: subDays(new Date(), 11),
 				createdAt: subDays(new Date(), 60),
 			}),
 			// Stalled and every remaining human is inactive (one already dropped) → cancel.
@@ -76,7 +77,7 @@ describe("processStalledGames — auto-drop / auto-cancel for inactivity (#94)",
 				],
 				currentPlayers: [staleCp(pA), staleCp(pB)],
 				options: { setup: { seed: "s", nbPlayers: 3, playerOrder: "random" }, timing: active },
-				lastMove: subDays(new Date(), 10),
+				lastMove: subDays(new Date(), 11),
 				createdAt: subDays(new Date(), 60),
 			}),
 			// Active game: A's deadline is still in the future → untouched.
@@ -94,7 +95,7 @@ describe("processStalledGames — auto-drop / auto-cancel for inactivity (#94)",
 				createdAt: subDays(new Date(), 60),
 			}),
 			// Live/realtime game (timePerGame ≤ live threshold), idle past
-			// autoCancelLiveIdleMs → cancelled outright, no drops.
+			// autoCancelIdleMs → cancelled outright, no drops.
 			testGame({
 				_id: "stall-live",
 				game: { name: "test", version: 1 },
@@ -108,8 +109,8 @@ describe("processStalledGames — auto-drop / auto-cancel for inactivity (#94)",
 					setup: { seed: "s", nbPlayers: 2, playerOrder: "random" },
 					timing: { timePerGame: 600, timePerMove: 60, timer: { start: 0, end: 86400 } },
 				},
-				lastMove: subDays(new Date(), 30),
-				createdAt: subDays(new Date(), 31),
+				lastMove: subDays(new Date(), 11),
+				createdAt: subDays(new Date(), 12),
 			}),
 			// A bot whose clock ran out is never dropped (a broken bot is a bug, not
 			// inactivity); the game is left alone for an admin/engine fix.
@@ -123,11 +124,11 @@ describe("processStalledGames — auto-drop / auto-cancel for inactivity (#94)",
 				],
 				currentPlayers: [staleCp(botId)],
 				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing: active },
-				lastMove: subDays(new Date(), 10),
+				lastMove: subDays(new Date(), 11),
 				createdAt: subDays(new Date(), 60),
 			}),
 			// Recent move but an expired deadline (clock restarted by a chat/ping):
-			// the absolute idle floor protects it.
+			// the absolute idle backstop protects it.
 			testGame({
 				_id: "stall-recent",
 				game: { name: "test", version: 1 },
@@ -141,7 +142,8 @@ describe("processStalledGames — auto-drop / auto-cancel for inactivity (#94)",
 				lastMove: subDays(new Date(), 2),
 				createdAt: subDays(new Date(), 60),
 			}),
-			// Everyone inactive but the game is young → skipped until old enough to cancel.
+			// Everyone inactive but the game is young (2d, minAge is 10d) → skipped
+			// until old enough to cancel.
 			testGame({
 				_id: "stall-young",
 				game: { name: "test", version: 1 },
@@ -152,8 +154,8 @@ describe("processStalledGames — auto-drop / auto-cancel for inactivity (#94)",
 				],
 				currentPlayers: [staleCp(pA), staleCp(pB)],
 				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing: active },
-				lastMove: subDays(new Date(), 10),
-				createdAt: subDays(new Date(), 12),
+				lastMove: subDays(new Date(), 2),
+				createdAt: subDays(new Date(), 2),
 			}),
 		]);
 	});
@@ -244,13 +246,13 @@ describe("processStalledGames — abandoned live games (#94 follow-up)", () => {
 	const liveTiming = { timePerGame: 600, timePerMove: 60, timer: { start: 0, end: 86400 } };
 	const pD = new ObjectId();
 	const pE = new ObjectId();
-	const origLiveIdleMs = env.autoCancelLiveIdleMs;
+	const origIdleMs = env.autoCancelIdleMs;
 
 	before(async () => {
-		// Shrink the live-idle bar so "recent" fixtures (2d) stay recent while
-		// "abandoned" ones (8d) trip it — defaults are 3d vs a 7d idle floor, too
-		// close to express both sides comfortably.
-		env.autoCancelLiveIdleMs = day;
+		// Shrink the idle bar so "recent" fixtures (2d) stay recent while
+		// "abandoned" ones (8d) trip it — the 10d default is too far out to
+		// express both sides comfortably.
+		env.autoCancelIdleMs = 3 * day;
 		await colls.users.insertMany([
 			testUser({ _id: pD, account: { username: "dave" } }),
 			testUser({ _id: pE, account: { username: "erin" } }),
@@ -270,8 +272,8 @@ describe("processStalledGames — abandoned live games (#94 follow-up)", () => {
 				lastMove: subDays(new Date(), 8),
 				createdAt: subDays(new Date(), 9),
 			}),
-			// Live game with a move 2 days ago (past liveIdle, short of the 7d
-			// minIdle floor): recent enough → untouched.
+			// Live game with a move 2 days ago (short of the 3d idle bar): recent
+			// enough → untouched.
 			testGame({
 				_id: "live-recent",
 				game: { name: "test", version: 1 },
@@ -286,7 +288,7 @@ describe("processStalledGames — abandoned live games (#94 follow-up)", () => {
 				createdAt: subDays(new Date(), 9),
 			}),
 			// Young abandoned live game: cancelled too — autoCancelMinAgeMs only
-			// gates the async cancel (its "everyone dropped into engine limbo"
+			// gates the async cancel (its "young games resolve on their own"
 			// concern doesn't apply: live games never drop anyone).
 			testGame({
 				_id: "live-young",
@@ -305,7 +307,7 @@ describe("processStalledGames — abandoned live games (#94 follow-up)", () => {
 	});
 
 	after(async () => {
-		env.autoCancelLiveIdleMs = origLiveIdleMs;
+		env.autoCancelIdleMs = origIdleMs;
 	});
 
 	it("cancels an abandoned live game outright — never drops anyone", async () => {

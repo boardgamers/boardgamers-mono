@@ -130,18 +130,26 @@ function activeHumanPlayers(game: Pick<GameDoc, "players">): PlayerInfo[] {
  * notification → game-server runs `engine.dropPlayer` → Elo/karma/chat exactly like
  * a manual drop) and the manual cancel's doc update + `gameEnded` notification.
  *
+ * Only *inactive current players* are ever dropped — a player is inactive when
+ * their deadline expired past env.autoCancelGraceMs (primary "out of clock"
+ * trigger) or when no move happened for env.autoCancelIdleMs (absolute backstop).
+ * A player who still has time is never dropped. When dropping the inactives would
+ * leave no active human, the game is cancelled instead — and cancel is
+ * penalty-free (no Elo/karma), so nobody with time left is ever punished: they
+ * either keep playing (after the inactive one is dropped) or get a no-penalty
+ * cancel.
+ *
  * Locking: `game-cancel:<id>` — the same key the manual cancel/quit/drop routes use
  * (they're what these updates must serialize with). The game-server's move path
  * locks `game:<id>` instead; that pre-existing split (#280) self-heals (read-
  * modify-write `replaceOne`, and the game-server no-ops on a non-active game) and
  * is unchanged here.
  *
- * Conservative on purpose — skips a game when any move is younger than
- * env.autoCancelMinIdleMs, any current player's clock is still running (no
- * deadline / deadline within grace), or the stale player is a bot (a broken bot
- * is a bug, not inactivity — the game stays for an admin/engine fix). Live
- * games (timePerGame ≤ env.autoCancelLiveThresholdSec) are never dropped for
- * inactivity — only cancelled outright once idle past env.autoCancelLiveIdleMs.
+ * Conservative on purpose — never touches a game with a move younger than
+ * env.autoCancelIdleMs, skips a stale player who is a bot (a broken bot is a
+ * bug, not inactivity — the game stays for an admin/engine fix). Live games
+ * (timePerGame ≤ env.autoCancelLiveThresholdSec) are never dropped for
+ * inactivity — only cancelled outright once idle past env.autoCancelIdleMs.
  */
 export async function processStalledGame(gameId: string): Promise<void> {
 	await using _lock = await locks.lock("game-cancel", gameId);
@@ -154,15 +162,12 @@ export async function processStalledGame(gameId: string): Promise<void> {
 	const now = new Date();
 	const reference = game.lastMove ?? game.updatedAt ?? game.createdAt;
 
-	// Same floor as the query prefilter — re-checked on the locked, fresh doc.
-	if (reference && now.getTime() - reference.getTime() < env.autoCancelMinIdleMs) {
-		return;
-	}
+	const idleMs = reference ? now.getTime() - reference.getTime() : 0;
 	const isLive = (game.options.timing.timePerGame ?? 0) <= env.autoCancelLiveThresholdSec;
 	if (isLive) {
 		// Live games never drop anyone (kicking a player mid-blitz is wrong), but a
 		// game with no move for days is abandoned, not stalling: cancel it outright.
-		if (reference && now.getTime() - reference.getTime() >= env.autoCancelLiveIdleMs) {
+		if (idleMs >= env.autoCancelIdleMs) {
 			await cancelInactiveGame(game, now);
 		}
 		return;
@@ -191,12 +196,16 @@ export async function processStalledGame(gameId: string): Promise<void> {
 			inactivePlayers.push({ player, timerStart: cp.timerStart, deadline: cp.deadline ?? now, alreadyQueued: true });
 			continue;
 		}
-		// A player with no deadline (or one still within the grace window) has time
-		// left to move: the game isn't stalled on them.
-		if (!cp.deadline || cp.deadline.getTime() + env.autoCancelGraceMs >= now.getTime()) {
+		// A player is inactive only when their deadline expired past the grace window
+		// (primary trigger: they're out of clock) or when no move happened for
+		// autoCancelIdleMs (absolute backstop). A player who still has time is never
+		// dropped; a current player with time left means the game isn't stalled on
+		// this sweep.
+		const outOfClock = cp.deadline !== undefined && cp.deadline.getTime() + env.autoCancelGraceMs < now.getTime();
+		if (!outOfClock && idleMs < env.autoCancelIdleMs) {
 			return;
 		}
-		inactivePlayers.push({ player, timerStart: cp.timerStart, deadline: cp.deadline, alreadyQueued: false });
+		inactivePlayers.push({ player, timerStart: cp.timerStart, deadline: cp.deadline ?? now, alreadyQueued: false });
 	}
 	if (inactivePlayers.length === 0) {
 		return;
@@ -206,12 +215,16 @@ export async function processStalledGame(gameId: string): Promise<void> {
 	const remaining = activeHumanPlayers(game).filter(
 		(pl) => !inactivePlayers.some((inactive) => inactive.player._id.equals(pl._id)),
 	);
-	// Games younger than autoCancelMinAgeMs are never cancelled outright: instead of
-	// dropping everyone into an engine limbo, leave them — the sweep revisits once
-	// the game is old enough to cancel.
+	// Young async games (younger than autoCancelMinAgeMs) are left alone for now —
+	// the sweep revisits them on a later run once they're old enough to cancel.
 	const tooYoungToCancel =
 		game.createdAt !== undefined && now.getTime() - game.createdAt.getTime() < env.autoCancelMinAgeMs;
 
+	// Cancel only when no active human would remain after the drops. Nobody who
+	// still has time is dropped — a cancel means everyone left was inactive, and
+	// cancelling is penalty-free (no Elo/karma), so the cancel path never punishes
+	// anyone: players with time left either keep playing (once the inactive player
+	// is dropped) or see the game cancelled with no penalty at all.
 	if (remaining.length === 0) {
 		if (tooYoungToCancel) {
 			return;
@@ -318,11 +331,12 @@ async function emailInactivityNotice(game: GameDoc, names: string, action: strin
 }
 
 export async function processStalledGames(): Promise<void> {
-	// Prefilter (re-checked per game under the lock). Async games need to be idle
-	// past autoCancelMinIdleMs (the drop floor); live games only need the shorter
-	// autoCancelLiveIdleMs to be cancellable. The $or-on-timePerGame splits the
-	// two; for async games, { $gt } also matches missing timePerGame, which is
-	// fine — the per-game check treats missing as 0 and routes them to live.
+	// Loose prefilter (re-checked per game under the lock): anything idle past
+	// autoCancelIdleMs, plus async games old enough that a current player's
+	// deadline may have expired past autoCancelGraceMs (the async path's primary
+	// trigger doesn't depend on idle time). Games with a missing timePerGame are
+	// picked up too — the per-game check treats missing as 0 and routes them to
+	// live.
 	const now = Date.now();
 	const idleSince = (ms: number) => [
 		{ lastMove: { $lt: new Date(now - ms) } },
@@ -335,13 +349,10 @@ export async function processStalledGames(): Promise<void> {
 			{
 				status: "active",
 				$or: [
+					...idleSince(env.autoCancelIdleMs),
 					{
 						"options.timing.timePerGame": { $gt: env.autoCancelLiveThresholdSec },
-						$or: idleSince(env.autoCancelMinIdleMs),
-					},
-					{
-						"options.timing.timePerGame": { $lte: env.autoCancelLiveThresholdSec },
-						$or: idleSince(env.autoCancelLiveIdleMs),
+						updatedAt: { $lt: new Date(now - env.autoCancelGraceMs) },
 					},
 				],
 			},
