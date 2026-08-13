@@ -2,6 +2,8 @@
 
 The viewer is integrated in an `iframe` on the site.
 
+To host the viewer — a CDN/npm URL or an uploaded pre-built bundle — see [Adding a game](./adding-a-game.md).
+
 It needs to export a object with a `launch` function in the global namespace, which returns an `EventEmitter` used
 to communicate with our application.
 

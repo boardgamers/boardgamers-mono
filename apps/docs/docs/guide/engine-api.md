@@ -2,6 +2,8 @@
 
 Your game engine should be a NPM module and export a number of methods.
 
+To host the engine on the platform — from the npm registry or an uploaded `npm pack` tarball — see [Adding a game](./adding-a-game.md).
+
 Most of the methods return `GameData`, the game state. You can alter the `GameData`
 passed in the argument and return, or return a whole new object.
 
