@@ -12,7 +12,7 @@ const DESCRIPTION_MAX = 160;
  */
 export function boardgameSeo(boardgameId: string, gameInfo: GameInfoFront | null | undefined): SeoData {
 	const name = gameInfo ? gameDisplayName(gameInfo, { emoji: false }) : boardgameId;
-	const lead = `Play ${name} online with other people, live or asynchronously.`;
+	const lead = `Play ${name} online with other people.`;
 	const blurb = stripMarkdown(gameInfo?.description ?? "");
 	return {
 		title: `Play ${name} online`,
