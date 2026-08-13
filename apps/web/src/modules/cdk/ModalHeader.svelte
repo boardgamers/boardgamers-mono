@@ -21,9 +21,10 @@
 <div class={classes} {...rest}>
 	{@render children?.()}
 	{#if toggle}
+		<!-- -m-2 expands the hit area to 44px (mobile touch target) without growing the header -->
 		<button
 			type="button"
-			class="ml-auto inline-flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+			class="-m-2 ml-auto inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
 			aria-label="Close"
 			onclick={toggle}
 		>
