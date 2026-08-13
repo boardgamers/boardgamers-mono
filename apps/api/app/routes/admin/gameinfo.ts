@@ -176,6 +176,13 @@ router.post("/:game/:version/engine", async (ctx) => {
 
 	const pkg = await readTarballPackage(body);
 
+	// Check the game exists BEFORE storing anything — an unknown game must not
+	// orphan the tarball in S3.
+	const existing = await colls.gameInfos.findOne({ _id: { game, version } }, { projection: { _id: 1 } });
+	if (!existing) {
+		throw createError(404, `No game info for ${game} v${version} — save the game first`);
+	}
+
 	const key = gameBundleS3Key(
 		game,
 		version,
@@ -191,9 +198,6 @@ router.post("/:game/:version/engine", async (ctx) => {
 		{ $set: { "engine.package": { name: pkg.name, version: pkg.version, url } } },
 		{ returnDocument: "after" },
 	);
-	if (!doc) {
-		throw createError(404, `No game info for ${game} v${version} — save the game first`);
-	}
 	ctx.body = doc;
 });
 
