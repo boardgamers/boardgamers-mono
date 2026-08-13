@@ -694,7 +694,9 @@ describe("Account API — session cookie over a TLS-terminating proxy", () => {
 		assert.match(setCookie, /refreshToken=/);
 		assert.match(setCookie, /;\s*secure/i);
 		// Host-only since apex step 5 (#153): the set cookie carries no Domain attribute…
-		const set = res.headers.getSetCookie().find((c) => c.startsWith("refreshToken=") && !/expires=Thu, 01 Jan 1970/i.test(c));
+		const set = res.headers
+			.getSetCookie()
+			.find((c) => c.startsWith("refreshToken=") && !/expires=Thu, 01 Jan 1970/i.test(c));
 		assert.ok(set, "expected the host-only session cookie set");
 		assert.doesNotMatch(set, /;\s*domain=/i);
 		// …and the transitional cleanup clears the legacy Domain=env.domain cookie.
