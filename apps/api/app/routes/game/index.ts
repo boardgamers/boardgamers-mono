@@ -612,7 +612,9 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
 			data: { text: `${player.name} voted to cancel this game` },
 		});
 
-		if (game.players.every((pl) => pl.voteCancel || pl.dropped)) {
+		// Bots auto-consent: no one can act for a bot, so it would otherwise block
+		// the vote forever. Only human players' votes are required.
+		if (game.players.every((pl) => pl.voteCancel || pl.dropped || pl.isBot)) {
 			await colls.chatMessages.insertOne({
 				_id: new ObjectId(),
 				room: game._id,

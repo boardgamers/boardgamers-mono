@@ -246,7 +246,11 @@ export async function afterMove(engine: Engine, game: GameDoc, gameData: GameDat
 
 	if (
 		(engine.cancelled && engine.cancelled(gameData)) ||
-		game.players.every((pl) => pl.dropped || pl.quit || pl.voteCancel)
+		// Cancel vote: bots auto-consent (no one can act for a bot), so only human
+		// players' votes are required. The `some` guard keeps an all-bot game from
+		// cancelling itself — a vote only exists once a human voted/dropped/quit.
+		(game.players.some((pl) => !pl.isBot && (pl.dropped || pl.quit || pl.voteCancel)) &&
+			game.players.every((pl) => pl.dropped || pl.quit || pl.voteCancel || pl.isBot))
 	) {
 		game.currentPlayers = [];
 		game.status = "ended";

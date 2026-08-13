@@ -609,6 +609,70 @@ describe("Game API", () => {
 		});
 	});
 
+	describe("cancel vote", () => {
+		it("should cancel an active game with a bot when the human votes", async () => {
+			// The bot auto-consents — no one can act for it, so its vote is implied.
+			await colls.games.insertOne(
+				testGame({
+					_id: "cancel-bot",
+					creator: userId,
+					status: "active",
+					players: [
+						{ _id: userId, name: "human" },
+						{ _id: new ObjectId(), name: "Rob (bot 1)", isBot: true },
+					],
+					game: { name: "test", version: 1 },
+				}),
+			);
+
+			const res = await api("POST", "/api/game/cancel-bot/cancel", {}, authHeaders);
+
+			assert.strictEqual(res.ok, true, JSON.stringify(res.data));
+			const game = await colls.games.findOne({ _id: "cancel-bot" });
+			assert.strictEqual(game?.status, "ended");
+			assert.strictEqual(game?.cancelled, true);
+			assert.deepStrictEqual(game?.currentPlayers, []);
+			assert.ok(
+				await colls.gameNotifications.findOne({ game: "cancel-bot", kind: "gameEnded" }),
+				"gameEnded notification emitted",
+			);
+		});
+
+		it("should still require every human vote in a game with humans and a bot", async () => {
+			await colls.games.insertOne(
+				testGame({
+					_id: "cancel-humans-bot",
+					creator: userId,
+					status: "active",
+					players: [
+						{ _id: userId, name: "human1" },
+						{ _id: joinerId, name: "human2" },
+						{ _id: new ObjectId(), name: "Ada (bot 2)", isBot: true },
+					],
+					options: {
+						setup: { seed: "test", nbPlayers: 3, playerOrder: "random" },
+						timing: { timePerGame: 5000, timePerMove: 5000, timer: { start: 0, end: 86400 } },
+					},
+					game: { name: "test", version: 1 },
+				}),
+			);
+
+			const firstVote = await api("POST", "/api/game/cancel-humans-bot/cancel", {}, authHeaders);
+			assert.strictEqual(firstVote.ok, true, JSON.stringify(firstVote.data));
+
+			let game = await colls.games.findOne({ _id: "cancel-humans-bot" });
+			assert.strictEqual(game?.status, "active", "One human vote is not enough — the other human didn't vote");
+			assert.strictEqual(game?.cancelled, false);
+
+			const secondVote = await api("POST", "/api/game/cancel-humans-bot/cancel", {}, joinerAuthHeaders);
+			assert.strictEqual(secondVote.ok, true, JSON.stringify(secondVote.data));
+
+			game = await colls.games.findOne({ _id: "cancel-humans-bot" });
+			assert.strictEqual(game?.status, "ended", "Both humans voted, bot auto-consents");
+			assert.strictEqual(game?.cancelled, true);
+		});
+	});
+
 	it("should be able to leave the game", async () => {
 		const res = await api("POST", "/api/game/test/unjoin", {}, authHeaders);
 
