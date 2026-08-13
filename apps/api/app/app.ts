@@ -35,7 +35,10 @@ const refreshSlideThrottle = new Map<string, number>();
 //  - /api/oauth2/token — application/x-www-form-urlencoded per RFC6749, called
 //    server-to-server by OAuth clients (no cookie), form is mandatory.
 //  - /api/account/avatar — raw image bytes (the web app POSTs a File).
-const CSRF_JSON_EXEMPT = /^\/api\/(oauth2\/token|account\/avatar)\/?$/;
+//  - /api/admin/gameinfo/<game>/<version>/(viewer/file|engine) — raw bundle
+//    bytes (#268; admin-gated upstream, like the rest of /api/admin).
+const CSRF_JSON_EXEMPT =
+	/^\/api\/(oauth2\/token|account\/avatar|admin\/gameinfo\/[^/]+\/[^/]+\/(viewer\/file|engine))\/?$/;
 
 /** True when `origin` is same-site with the request host (subdomains of env.domain count). Exported for tests. */
 export function isSameSiteOrigin(ctx: { hostname: string }, origin: string): boolean {

@@ -70,6 +70,56 @@ export function avatarS3Key(userId: string, size: string): string {
 	return `avatars/${userId}/${size}.webp`;
 }
 
+// -- Game bundles (viewer/engine uploads, #268) -------------------------------
+// Same bucket as avatars, under a `games/` prefix. Objects are public-read at
+// the operator level (bucket policy grants anonymous s3:GetObject on `games/*`,
+// same as `avatars/*`): viewers are browser-loaded and engine tarballs are
+// fetched by the game-server's plain `npm install <url>` — neither can carry a
+// signature, and expiring presigned URLs would silently break future engine
+// re-installs. Bundle keys embed a content hash, so a re-upload produces fresh
+// URLs (cache-busted) and old game rows keep working until pruned.
+export function gameBundleS3Key(
+	game: string,
+	version: number,
+	kind: "viewer" | "viewer-alternate" | "engine",
+	hash: string,
+	filename: string,
+): string {
+	return `games/${game}/${version}/${kind}/${hash}/${filename}`;
+}
+
+// Throws on failure (unlike putAvatar): bundle uploads are synchronous admin
+// actions — the admin must see the error, and a silent miss would persist a
+// GameInfo pointing at an object that doesn't exist.
+export async function putObject(key: string, body: Buffer, contentType: string): Promise<void> {
+	await clients().internal.send(
+		new PutObjectCommand({
+			// "test-bucket" fallback: see putAvatar.
+			Bucket: process.env.S3_BUCKET ?? "test-bucket",
+			Key: key,
+			Body: body,
+			ContentType: contentType,
+			// Keys are content-hashed → immutable objects, cache forever.
+			CacheControl: "public, max-age=31536000, immutable",
+		}),
+		{ abortSignal: AbortSignal.timeout(30_000) },
+	);
+}
+
+// The plain (unsigned) URL for any object in the bucket, or null when the env
+// has no public S3 base URL at all.
+export function publicObjectUrl(key: string): string | null {
+	if (publicOriginForTests) {
+		return `${publicOriginForTests}/${process.env.S3_BUCKET ?? "test-bucket"}/${key}`;
+	}
+	if (!process.env.S3_BUCKET) {
+		return null;
+	}
+	const publicEndpoint = process.env.S3_PUBLIC_ENDPOINT || process.env.S3_ENDPOINT || "https://s3.fr-par.scw.cloud";
+	// forcePathStyle: <endpoint>/<bucket>/<key>
+	return `${publicEndpoint.replace(/\/+$/, "")}/${process.env.S3_BUCKET}/${key}`;
+}
+
 // Test hook: lets spec files serve the mock's public object URLs via plain
 // fetch() (the api returns http://s3-mock.local/… redirects when test clients
 // are injected). Production code never installs one. Returns the previous
@@ -117,15 +167,7 @@ export async function putAvatar(userId: string, size: string, webp: Buffer): Pro
 // or falls back to a generated avatar). Avatars are public-read, so no signing
 // — which also makes the URL cacheable and usable by creds-less previews.
 export function publicAvatarUrl(userId: string, size: string): string | null {
-	if (publicOriginForTests) {
-		return `${publicOriginForTests}/${process.env.S3_BUCKET ?? "test-bucket"}/${avatarS3Key(userId, size)}`;
-	}
-	if (!process.env.S3_BUCKET) {
-		return null;
-	}
-	const publicEndpoint = process.env.S3_PUBLIC_ENDPOINT || process.env.S3_ENDPOINT || "https://s3.fr-par.scw.cloud";
-	// forcePathStyle: <endpoint>/<bucket>/<key>
-	return `${publicEndpoint.replace(/\/+$/, "")}/${process.env.S3_BUCKET}/${avatarS3Key(userId, size)}`;
+	return publicObjectUrl(avatarS3Key(userId, size));
 }
 
 // -- Public-reachability probe ------------------------------------------------

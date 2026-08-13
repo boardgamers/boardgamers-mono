@@ -7,6 +7,33 @@
 
 	export type GameInfoData = Partial<Pick<GameInfoFront, "_id">> & Omit<GameInfoFront, "_id">;
 
+	// Raw-file POST (bundle uploads, #268): the JSON api helper would stringify
+	// the File; the endpoint wants the raw bytes (same pattern as the avatar
+	// upload on the web app).
+	async function uploadRaw(path: string, file: File): Promise<{ url: string }> {
+		const res = await fetch(path, {
+			method: "POST",
+			credentials: "same-origin",
+			headers: { "Content-Type": "application/octet-stream" },
+			body: file,
+		});
+		const text = await res.text();
+		let data: unknown = {};
+		try {
+			data = JSON.parse(text);
+		} catch {
+			// Non-JSON error page (e.g. a proxy 502) — fall through to the generic message.
+		}
+		if (!res.ok) {
+			const message =
+				typeof data === "object" && data && "message" in data && typeof data.message === "string"
+					? data.message
+					: `Upload failed (${res.status}${res.statusText ? ` ${res.statusText}` : ""})`;
+			throw new Error(message);
+		}
+		return data as { url: string };
+	}
+
 	type OptionItem = {
 		name: string;
 		label: string;
@@ -98,6 +125,84 @@
 		value.engine = { ...value.engine!, package: { ...value.engine!.package, version: info.latest } };
 		upgrade["engine"] = undefined;
 		toast.success(`Updated ${info.pkg} to ${info.latest} — don't forget to save`);
+	}
+
+	// --- Bundle uploads (#268) ---
+	// Viewer uploads only fill in the form (Save persists); engine uploads save
+	// immediately — the endpoint reads name/version out of the tarball and must
+	// not fight unsaved form state.
+	let uploadingViewer: Record<string, boolean> = $state({});
+	let uploadingEngine = $state(false);
+
+	// The first picked .js is the entry point (→ viewer.url); every other .js is
+	// a dependency script, every .css a dependency stylesheet. Pre-existing
+	// dependency URLs are kept (uploaded ones appended) — viewer.url itself is
+	// replaced, since that's the file being swapped for the self-hosted bundle.
+	async function uploadViewerFiles(key: string, viewer: ViewerData, alternate: boolean, files: File[]) {
+		if (!value._id?.game || !value._id?.version) {
+			toast.error("Save the game first, then upload a viewer bundle");
+			return;
+		}
+		const jsFiles = files.filter((f) => f.name.endsWith(".js"));
+		const cssFiles = files.filter((f) => f.name.endsWith(".css"));
+		if (jsFiles.length === 0) {
+			toast.error("Pick at least a bundled viewer .js file (plus optional extra .js/.css)");
+			return;
+		}
+		uploadingViewer[key] = true;
+		try {
+			const base = `/api/admin/gameinfo/${value._id.game}/${value._id.version}/viewer/file`;
+			const suffix = alternate ? "&alternate=1" : "";
+			const urls = await Promise.all(
+				files.map(async (f) => ({
+					file: f,
+					url: (await uploadRaw(`${base}?filename=${encodeURIComponent(f.name)}${suffix}`, f)).url,
+				}))
+			);
+			viewer.url = urls.find((u) => u.file === jsFiles[0])!.url;
+			const depScripts = urls.filter((u) => jsFiles.includes(u.file) && u.file !== jsFiles[0]).map((u) => u.url);
+			const depStyles = urls.filter((u) => cssFiles.includes(u.file)).map((u) => u.url);
+			viewer.dependencies = {
+				scripts: [...(viewer.dependencies?.scripts ?? []), ...depScripts],
+				stylesheets: [...(viewer.dependencies?.stylesheets ?? []), ...depStyles],
+			};
+			toast.success(`Uploaded ${files.map((f) => f.name).join(" + ")} — don't forget to save`);
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Upload failed");
+		} finally {
+			uploadingViewer[key] = false;
+		}
+	}
+
+	async function uploadEngine(file: File) {
+		if (!value._id?.game || !value._id?.version) {
+			toast.error("Save the game first, then upload an engine tarball");
+			return;
+		}
+		uploadingEngine = true;
+		try {
+			const doc = await uploadRaw(`/api/admin/gameinfo/${value._id.game}/${value._id.version}/engine`, file);
+			const saved = doc as unknown as GameInfoData;
+			if (saved.engine?.package) {
+				value.engine = { ...value.engine!, package: { ...saved.engine.package } };
+			}
+			toast.success(`Uploaded ${file.name} — engine now installs from the hosted tarball`);
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Upload failed");
+		} finally {
+			uploadingEngine = false;
+		}
+	}
+
+	// Swap default ↔ alternate viewer (#268) and persist immediately through the
+	// normal save flow (the admin gameinfo upsert route). Only offered in edit
+	// mode with an alternate set.
+	function swapViewers() {
+		const alternate = value.viewer.alternate;
+		if (!alternate) return;
+		const { alternate: _dropped, ...primary } = value.viewer;
+		value.viewer = { ...alternate, alternate: primary };
+		handleSave();
 	}
 
 	function ensureViewer() {
@@ -337,6 +442,34 @@
 						{/if}
 					</div>
 					<input id={title === "Viewer" ? "viewer-url" : "alt-viewer-url"} bind:value={viewer.url} class={inputClass} />
+					<!-- Self-hosted bundle (#268): pick a pre-built viewer JS (+ optional
+					     CSS); uploads fill in URL/dependencies — Save persists them. -->
+					<div class="flex flex-wrap items-center gap-2 mt-1.5">
+						<label
+							class="{btnSmClass} cursor-pointer text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 {uploadingViewer[
+								title
+							]
+								? 'opacity-50 pointer-events-none'
+								: ''}"
+						>
+							{uploadingViewer[title] ? "Uploading…" : "Upload bundle…"}
+							<input
+								type="file"
+								accept=".js,.css"
+								multiple
+								class="hidden"
+								disabled={uploadingViewer[title]}
+								onchange={(e) => {
+									const files = [...(e.currentTarget.files ?? [])];
+									e.currentTarget.value = "";
+									uploadViewerFiles(title, viewer, title !== "Viewer", files);
+								}}
+							/>
+						</label>
+						<span class="text-xs text-gray-400"
+							>Pre-built bundle: first .js becomes the viewer URL, extra .js/.css become dependencies — hosted on S3</span
+						>
+					</div>
 				</div>
 				<div>
 					<label for={title === "Viewer" ? "viewer-toplevel" : "alt-viewer-toplevel"} class={labelClass}
@@ -399,12 +532,22 @@
 	<div>
 		{#if value.viewer.alternate}
 			{@render viewerFields(value.viewer.alternate, "Alternate Viewer")}
-			<button
-				onclick={() => {
-					value.viewer.alternate = undefined;
-				}}
-				class="{btnSmClass} text-red-600 mt-2">Remove alternate viewer</button
-			>
+			<div class="flex gap-2 mt-2">
+				<button
+					onclick={() => {
+						value.viewer.alternate = undefined;
+					}}
+					class="{btnSmClass} text-red-600">Remove alternate viewer</button
+				>
+				{#if mode === "edit"}
+					<button
+						onclick={swapViewers}
+						title="Swap the default and alternate viewers, then save"
+						class="{btnSmClass} text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900 hover:bg-amber-50 dark:hover:bg-amber-950"
+						>⇄ Make alternate the default viewer</button
+					>
+				{/if}
+			</div>
 		{:else}
 			<button
 				onclick={() => {
@@ -419,60 +562,96 @@
 	<!-- Engine -->
 	<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
 		<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">Engine</summary>
-		<div class="px-5 pb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-			<div>
-				<label for="engine-package-name" class={labelClass}>Package name</label>
-				<input
-					id="engine-package-name"
-					value={value.engine?.package.name ?? ""}
-					use:trim
-					oninput={(e) => {
-						value.engine = { ...value.engine!, package: { ...value.engine!.package, name: e.currentTarget.value } };
-					}}
-					class={inputClass}
-				/>
+		<div class="px-5 pb-4">
+			<!-- Self-hosted engine (#268): upload a pre-built `npm pack` tarball; the
+			     endpoint stores it on S3 and points engine.package at the hosted URL
+			     (saves immediately). -->
+			<div class="flex flex-wrap items-center gap-2 mb-3">
+				<label
+					class="{btnSmClass} cursor-pointer text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 {uploadingEngine
+						? 'opacity-50 pointer-events-none'
+						: ''}"
+				>
+					{uploadingEngine ? "Uploading…" : "Upload .tgz…"}
+					<input
+						type="file"
+						accept=".tgz"
+						class="hidden"
+						disabled={uploadingEngine}
+						onchange={(e) => {
+							const file = e.currentTarget.files?.[0];
+							e.currentTarget.value = "";
+							if (file) uploadEngine(file);
+						}}
+					/>
+				</label>
+				<span class="text-xs text-gray-400"
+					>Pre-built <code>npm pack</code> tarball (dist included) — saves immediately</span
+				>
+				{#if value.engine?.package.url}
+					<span class="text-xs text-emerald-600 dark:text-emerald-400 break-all"
+						>hosted: {value.engine.package.url}</span
+					>
+				{/if}
 			</div>
-			<div>
-				<div class="flex items-center justify-between mb-1">
-					<label for="engine-package-version" class="{labelClass} mb-0">Package version</label>
-					{#if upgrade["engine"]?.latest}
-						<button
-							onclick={applyEngineUpgrade}
-							class="cursor-pointer text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-0.5 rounded"
-						>
-							Update to {upgrade["engine"]?.latest}
-						</button>
-					{:else}
-						<button
-							onclick={checkEngineVersion}
-							disabled={upgrade["engine"]?.checking}
-							class="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-500 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-900 hover:bg-blue-50 dark:hover:bg-blue-950 disabled:opacity-50"
-						>
-							{upgrade["engine"]?.checking ? "Checking…" : "Check latest"}
-						</button>
-					{/if}
+			<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+				<div>
+					<label for="engine-package-name" class={labelClass}>Package name</label>
+					<input
+						id="engine-package-name"
+						value={value.engine?.package.name ?? ""}
+						use:trim
+						oninput={(e) => {
+							value.engine = { ...value.engine!, package: { ...value.engine!.package, name: e.currentTarget.value } };
+						}}
+						class={inputClass}
+					/>
 				</div>
-				<input
-					id="engine-package-version"
-					value={value.engine?.package.version ?? ""}
-					use:trim
-					oninput={(e) => {
-						value.engine = { ...value.engine!, package: { ...value.engine!.package, version: e.currentTarget.value } };
-					}}
-					class={inputClass}
-				/>
-			</div>
-			<div>
-				<label for="engine-entry-point" class={labelClass}>Entry point</label>
-				<input
-					id="engine-entry-point"
-					value={value.engine?.entryPoint ?? ""}
-					use:trim
-					oninput={(e) => {
-						value.engine = { ...value.engine!, entryPoint: e.currentTarget.value };
-					}}
-					class={inputClass}
-				/>
+				<div>
+					<div class="flex items-center justify-between mb-1">
+						<label for="engine-package-version" class="{labelClass} mb-0">Package version</label>
+						{#if upgrade["engine"]?.latest}
+							<button
+								onclick={applyEngineUpgrade}
+								class="cursor-pointer text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-0.5 rounded"
+							>
+								Update to {upgrade["engine"]?.latest}
+							</button>
+						{:else}
+							<button
+								onclick={checkEngineVersion}
+								disabled={upgrade["engine"]?.checking}
+								class="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-500 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-900 hover:bg-blue-50 dark:hover:bg-blue-950 disabled:opacity-50"
+							>
+								{upgrade["engine"]?.checking ? "Checking…" : "Check latest"}
+							</button>
+						{/if}
+					</div>
+					<input
+						id="engine-package-version"
+						value={value.engine?.package.version ?? ""}
+						use:trim
+						oninput={(e) => {
+							value.engine = {
+								...value.engine!,
+								package: { ...value.engine!.package, version: e.currentTarget.value },
+							};
+						}}
+						class={inputClass}
+					/>
+				</div>
+				<div>
+					<label for="engine-entry-point" class={labelClass}>Entry point</label>
+					<input
+						id="engine-entry-point"
+						value={value.engine?.entryPoint ?? ""}
+						use:trim
+						oninput={(e) => {
+							value.engine = { ...value.engine!, entryPoint: e.currentTarget.value };
+						}}
+						class={inputClass}
+					/>
+				</div>
 			</div>
 		</div>
 	</details>

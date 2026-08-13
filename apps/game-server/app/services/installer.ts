@@ -27,11 +27,18 @@ async function detectBotSupport(game: string, version: number) {
 // because the root package.json pins "packageManager: pnpm".
 function npm(args: string[]): Promise<void> {
 	return new Promise<void>((resolve, reject) => {
-		const process = spawn("npm", args, { shell: true, cwd: "./games" });
+		const child = spawn("npm", args, { shell: true, cwd: "./games" });
+		// npm's own error (E404 for a missing registry package, fetch failure for
+		// a tarball URL, …) — without it the log line only says "exited with 1".
+		let output = "";
+		child.stdout?.on("data", (d: Buffer) => (output += d.toString()));
+		child.stderr?.on("data", (d: Buffer) => (output += d.toString()));
 
-		process.on("error", reject);
-		process.on("close", (code) =>
-			code === 0 ? resolve() : reject(new Error(`npm ${args.join(" ")} exited with code ${code}`)),
+		child.on("error", reject);
+		child.on("close", (code) =>
+			code === 0
+				? resolve()
+				: reject(new Error(`npm ${args.join(" ")} exited with code ${code}\n${output.slice(-2000)}`)),
 		);
 	});
 }
@@ -81,8 +88,13 @@ export async function installNewGames() {
 			if (!game.engine?.package?.version || !game.engine?.package?.name) {
 				continue;
 			}
+			// engine.package.url (#268): an admin-uploaded npm-pack tarball hosted
+			// on S3 — npm installs remote tarballs under an alias directly
+			// (`npm install <alias>@https://…/pkg.tgz`). The URL is content-hashed,
+			// so a re-upload is a new spec → re-install into the same alias.
+			const spec = game.engine.package.url ?? `npm:${game.engine.package.name}@${game.engine.package.version}`;
 			wanted.set(engineKey(game._id.game, game._id.version, game.engine.package), {
-				spec: `npm:${game.engine.package.name}@${game.engine.package.version}`,
+				spec,
 				game: game._id.game,
 				version: game._id.version,
 			});
