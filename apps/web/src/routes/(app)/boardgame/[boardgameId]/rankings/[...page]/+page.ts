@@ -1,6 +1,6 @@
 import type { PageLoad } from "./$types";
 import { loadEloRankings } from "@/lib/elo-rankings.svelte";
-import { gameLabel } from "@/utils/game-label";
+import { gameDisplayName } from "@/utils/game-label";
 
 export const load: PageLoad = async ({ params, parent }) => {
 	const boardgameId = params.boardgameId;
@@ -8,7 +8,7 @@ export const load: PageLoad = async ({ params, parent }) => {
 	const skip = (currentPage - 1) * 15;
 	const [parentData, rankings] = await Promise.all([parent(), loadEloRankings({ boardgameId, count: 15, skip })]);
 
-	const label = gameLabel(parentData.gameInfo?.label ?? boardgameId);
+	const label = parentData.gameInfo ? gameDisplayName(parentData.gameInfo, { emoji: false }) : boardgameId;
 
 	return {
 		rankings,

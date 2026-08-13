@@ -1,6 +1,6 @@
 import type { PageLoad } from "./$types";
 import { loadGames, clearGamesCache } from "@/lib/games.svelte";
-import { gameLabel } from "@/utils/game-label";
+import { gameDisplayName } from "@/utils/game-label";
 
 export const load: PageLoad = async ({ params, url, parent }) => {
 	clearGamesCache();
@@ -13,7 +13,7 @@ export const load: PageLoad = async ({ params, url, parent }) => {
 		loadGames({ gameStatus: "active", boardgameId, store: true }),
 		loadGames({ gameStatus: "open", boardgameId, store: true }),
 	]);
-	const label = gameLabel(parentData.gameInfo?.label ?? boardgameId);
+	const label = parentData.gameInfo ? gameDisplayName(parentData.gameInfo, { emoji: false }) : boardgameId;
 
 	return {
 		featured,

@@ -306,9 +306,11 @@ export function webhookBackoffSeconds(failureCount: number): number {
 	return Math.min(WEBHOOK_BACKOFF_BASE_SECONDS * 2 ** Math.max(0, failureCount - 1), WEBHOOK_BACKOFF_MAX_SECONDS);
 }
 
-// game.name/version identify the GameInfo doc; label is filled in with its
-// human-readable name ("Gaia Project" for "gaia-project") by resolveGameLabels.
-export type WebhookGame = { _id: string; game: { name: string; version: number; label?: string } };
+// game.name/version identify the GameInfo doc; label/basedOn are filled in from it by
+// resolveGameLabels: label is the human-readable display name (the alias when the game
+// has one, e.g. "Gem Trader"), basedOn the canonical game an alias derives from
+// ("Splendor"). Both stay absent for games without a GameInfo doc.
+export type WebhookGame = { _id: string; game: { name: string; version: number; label?: string; basedOn?: string } };
 
 // game.version must be projected at every callsite that feeds a WebhookGame
 // (findGamesWithPlayersTurn projects everything but `data`; gamenotification.ts
@@ -321,19 +323,30 @@ function gameNames(games: WebhookGame[]): string {
 	return games.map((g) => `${displayName(g)} (${String(g._id)})`).join(", ");
 }
 
-// Batch-fills game.label from the GameInfo docs (one query for all the distinct
-// game+version pairs). Unknown games keep the slug as their name.
+// Batch-fills game.label (+ game.basedOn for aliased games, issue #106) from the
+// GameInfo docs (one query for all the distinct game+version pairs). Unknown games
+// keep the slug as their name.
 export async function resolveGameLabels<T extends WebhookGame>(games: T[]): Promise<T[]> {
 	if (games.length === 0) {
 		return games;
 	}
 	const keys = [...new Map(games.map((g) => [`${g.game.name}${g.game.version}`, g.game])).values()];
 	const infos = await colls.gameInfos
-		.find({ $or: keys.map((k) => ({ "_id.game": k.name, "_id.version": k.version })) }, { projection: { label: 1 } })
+		.find(
+			{ $or: keys.map((k) => ({ "_id.game": k.name, "_id.version": k.version })) },
+			{ projection: { label: 1, alias: 1 } },
+		)
 		.toArray();
-	const labels = new Map(infos.map((info) => [`${info._id.game}${info._id.version}`, info.label]));
+	const labels = new Map(
+		infos.map((info) => [
+			`${info._id.game}${info._id.version}`,
+			{ label: info.alias ?? info.label, basedOn: info.alias ? info.label : undefined },
+		]),
+	);
 	for (const game of games) {
-		game.game.label = labels.get(`${game.game.name}${game.game.version}`);
+		const resolved = labels.get(`${game.game.name}${game.game.version}`);
+		game.game.label = resolved?.label;
+		game.game.basedOn = resolved?.basedOn;
 	}
 	return games;
 }
@@ -365,6 +378,7 @@ export function buildWebhookPayload(
 					id: g._id,
 					game: g.game.name,
 					name: displayName(g),
+					...(g.game.basedOn ? { basedOn: g.game.basedOn } : {}),
 					url: `https://${env.site}/game/${g._id}`,
 				})),
 			};

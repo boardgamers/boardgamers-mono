@@ -21,6 +21,7 @@
 	import IconHourglass from "@/components/icons/IconHourglass.svelte";
 	import UserAvatar from "@/components/User/UserAvatar.svelte";
 	import UsernameLink from "@/components/User/UsernameLink.svelte";
+	import GameName from "@/components/GameName.svelte";
 	import SetupOptionBadge from "./SetupOptionBadge.svelte";
 	import IconArrowDown from "@/components/icons/IconArrowDown.svelte";
 	import IconArrowUp from "@/components/icons/IconArrowUp.svelte";
@@ -191,7 +192,7 @@
 <div class="container mx-auto px-4 pb-3">
 	<!-- Title: boardgame link (breadcrumb-style) + status -->
 	<div class="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-		<h1 class="mb-0">{context.gameInfo?.label}</h1>
+		<h1 class="mb-0"><GameName info={context.gameInfo} /></h1>
 		<span
 			class="rounded-full bg-blue-100 px-2.5 py-0.5 text-sm font-medium text-blue-800 dark:bg-blue-900/50 dark:text-blue-200"
 		>

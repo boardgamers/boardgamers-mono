@@ -8,6 +8,7 @@
 	import { account } from "@/lib/account.svelte";
 	import { live } from "@/lib/stores.svelte";
 	import { handleError } from "@/utils";
+	import GameName from "@/components/GameName.svelte";
 	import type { GameInfoFront, UserFront } from "@bgs/models";
 
 	const games = useLatestGameInfos() as GameInfoFront[];
@@ -91,7 +92,7 @@
 			data-sveltekit-preload-data="hover"
 			onclick={handleClick}
 		>
-			{game.label}
+			<GameName info={game} />
 			{#if isForgotten}
 				<span class="ms-1 text-xs font-normal text-gray-400">(hidden)</span>
 			{/if}

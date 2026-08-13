@@ -8,6 +8,7 @@
 	import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
 	import { logoClicks } from "@/lib/stores.svelte";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
+	import { gameEmoji } from "@/utils/game-label";
 	import { loadGames, type LoadGamesResult } from "@/lib/games.svelte";
 	import { isPromise } from "@bgs/utils";
 
@@ -116,7 +117,15 @@
 	function gameIcon(name: string) {
 		const game = gameInfos[gameInfoKey(name, "latest")];
 
-		return game?.label.trim().slice(0, game?.label.trim().indexOf(" "));
+		if (!game) {
+			return "";
+		}
+		if (game.alias) {
+			// Aliased games have no emoji of their own — a monogram of the alias reads better
+			// than the canonical game's emoji for a name the player may not recognize.
+			return game.alias[0].toUpperCase();
+		}
+		return gameEmoji(game.label);
 	}
 
 	// On narrow screens the avatar cluster would otherwise eat the name/timing

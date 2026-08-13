@@ -354,6 +354,34 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 		assert.deepStrictEqual(raw.games, [{ id: "g-unknown", game: "no-such-game", name: "no-such-game" }]);
 	});
 
+	it("an aliased game is shown under its alias, with the canonical name as basedOn", async () => {
+		// Issue #106: a trademarked game is displayed under its alias everywhere,
+		// webhooks included; the raw payload also exposes the rules source.
+		await colls.gameInfos.insertOne({
+			_id: { game: "splendor", version: 1 },
+			label: "💎 Splendor",
+			alias: "Gem Trader",
+			players: [2, 3, 4],
+			meta: { public: true },
+		});
+		const games = await resolveGameLabels([{ _id: "g-alias", game: { name: "splendor", version: 1 } }]);
+		assert.strictEqual(games[0].game.label, "Gem Trader");
+		assert.strictEqual(games[0].game.basedOn, "💎 Splendor");
+		const user = testUser({ account: { username: "hookalias" } });
+		const discord = z.object({ content: z.string() }).parse(buildWebhookPayload("discord", user, games));
+		assert.match(discord.content, /Gem Trader \(g-alias\)/);
+		assert.doesNotMatch(discord.content, /Splendor/);
+		const raw = z
+			.object({
+				games: z.array(
+					z.object({ id: z.string(), game: z.string(), name: z.string(), basedOn: z.string().optional() }).loose(),
+				),
+			})
+			.parse(buildWebhookPayload("raw", user, games));
+		const { url: _url, ...rawGame } = raw.games[0];
+		assert.deepStrictEqual(rawGame, { id: "g-alias", game: "splendor", name: "Gem Trader", basedOn: "💎 Splendor" });
+	});
+
 	it("resolveGameLabels is version-specific and leaves the games for the caller", async () => {
 		await colls.gameInfos.insertOne({
 			_id: { game: "versioned", version: 2 },

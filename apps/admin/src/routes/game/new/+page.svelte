@@ -8,6 +8,7 @@
 
 	let value: GameInfoData = $state({
 		label: "",
+		alias: undefined,
 		description: "",
 		rules: "",
 		viewer: {

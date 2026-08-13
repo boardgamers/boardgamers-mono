@@ -38,6 +38,11 @@ export const gameInfoSchema = z.object({
 		version: z.number(),
 	}),
 	label: z.string(),
+	// Public display name for games whose real name is trademarked (issue #106) —
+	// e.g. "Gem Trader" for a game labeled "Splendor". Wherever the game is shown,
+	// the alias is primary and the canonical label is noted as the rules source
+	// ("Splendor rules"). Games without an alias render as before.
+	alias: z.string().min(1).optional(),
 	description: z.string().optional(),
 	rules: z.string().optional(),
 	links: z
