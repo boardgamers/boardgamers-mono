@@ -233,7 +233,7 @@ export function sendConfirmationEmail(user: WithId<UserDoc>) {
 		html: `
     <p>Hello, we're delighted to have a new Gaia Project player among us!</p>
     <p>To finish your registration and confirm your account with us at ${env.site},
-     click <a href='http://${env.site}/confirm?key=${encodeURIComponent(user.security.confirmKey)}&email=${encodeURIComponent(user.account.email)}'>here</a>.</p>
+     click <a href='https://${env.site}/confirm?key=${encodeURIComponent(user.security.confirmKey)}&email=${encodeURIComponent(user.account.email)}'>here</a>.</p>
 
     <p>If you didn't create an account with us, ignore this email.</p>`,
 	});
@@ -248,7 +248,7 @@ export function sendResetEmail(user: WithId<UserDoc>) {
 		subject: "Forgotten password",
 		html: `
     <p>A password reset was asked for your account,
-    click <a href='http://${env.site}/reset?key=${encodeURIComponent(user.security.reset.key)}&email=${encodeURIComponent(user.account.email)}'>here</a> to reset your password.</p>
+    click <a href='https://${env.site}/reset?key=${encodeURIComponent(user.security.reset.key)}&email=${encodeURIComponent(user.account.email)}'>here</a> to reset your password.</p>
 
     <p>If this didn't come from you, ignore this email.</p>`,
 	});
@@ -535,8 +535,8 @@ export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
 				html: `
 	        <p>Hello ${freshUser.account.username}</p>
 	        <p>It's your turn on ${gameString},
-	        click <a href='http://${env.site}/user/${encodeURIComponent(freshUser.account.username)}'>here</a> to see your active games.</p>
-	        <p>You can also change your email settings and unsubscribe <a href='http://${env.site}/account'>here</a> with a simple click.</p>`,
+	        click <a href='https://${env.site}/user/${encodeURIComponent(freshUser.account.username)}'>here</a> to see your active games.</p>
+	        <p>You can also change your email settings and unsubscribe <a href='https://${env.site}/account'>here</a> with a simple click.</p>`,
 			}).catch(console.error);
 		}
 
