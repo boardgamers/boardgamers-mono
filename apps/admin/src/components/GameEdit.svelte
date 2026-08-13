@@ -135,18 +135,20 @@
 	let uploadingEngine = $state(false);
 
 	// The first picked .js is the entry point (→ viewer.url); every other .js is
-	// a dependency script, every .css a dependency stylesheet. Pre-existing
-	// dependency URLs are kept (uploaded ones appended) — viewer.url itself is
-	// replaced, since that's the file being swapped for the self-hosted bundle.
+	// a dependency script, every .css a dependency stylesheet, every .map a
+	// devtools sourcemap (hosted, referenced from the built .js via
+	// `//# sourceMappingURL=`). Pre-existing dependency URLs are kept (uploaded
+	// ones appended) — viewer.url itself is replaced, since that's the file
+	// being swapped for the self-hosted bundle.
 	async function uploadViewerFiles(key: string, viewer: ViewerData, alternate: boolean, files: File[]) {
 		if (!value._id?.game || !value._id?.version) {
 			toast.error("Save the game first, then upload a viewer bundle");
 			return;
 		}
 		const jsFiles = files.filter((f) => f.name.endsWith(".js"));
-		const cssFiles = files.filter((f) => f.name.endsWith(".css"));
-		if (jsFiles.length === 0) {
-			toast.error("Pick at least a bundled viewer .js file (plus optional extra .js/.css)");
+		const mapFiles = files.filter((f) => f.name.endsWith(".map"));
+		if (jsFiles.length === 0 && mapFiles.length === 0) {
+			toast.error("Pick at least a bundled viewer .js file (plus optional extra .js/.css/.map)");
 			return;
 		}
 		uploadingViewer[key] = true;
@@ -159,13 +161,18 @@
 					url: (await uploadRaw(`${base}?filename=${encodeURIComponent(f.name)}${suffix}`, f)).url,
 				}))
 			);
-			viewer.url = urls.find((u) => u.file === jsFiles[0])!.url;
-			const depScripts = urls.filter((u) => jsFiles.includes(u.file) && u.file !== jsFiles[0]).map((u) => u.url);
-			const depStyles = urls.filter((u) => cssFiles.includes(u.file)).map((u) => u.url);
-			viewer.dependencies = {
-				scripts: [...(viewer.dependencies?.scripts ?? []), ...depScripts],
-				stylesheets: [...(viewer.dependencies?.stylesheets ?? []), ...depStyles],
-			};
+			// No .js in this pick: the .map belongs to the already-configured
+			// viewer.url — leave URL/dependencies untouched.
+			if (jsFiles.length > 0) {
+				viewer.url = urls.find((u) => u.file === jsFiles[0])!.url;
+				const cssFiles = files.filter((f) => f.name.endsWith(".css"));
+				const depScripts = urls.filter((u) => jsFiles.includes(u.file) && u.file !== jsFiles[0]).map((u) => u.url);
+				const depStyles = urls.filter((u) => cssFiles.includes(u.file)).map((u) => u.url);
+				viewer.dependencies = {
+					scripts: [...(viewer.dependencies?.scripts ?? []), ...depScripts],
+					stylesheets: [...(viewer.dependencies?.stylesheets ?? []), ...depStyles],
+				};
+			}
 			toast.success(`Uploaded ${files.map((f) => f.name).join(" + ")} — don't forget to save`);
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Upload failed");
@@ -470,7 +477,7 @@
 							{uploadingViewer[title] ? "Uploading…" : "Upload bundle…"}
 							<input
 								type="file"
-								accept=".js,.css"
+								accept=".js,.css,.map"
 								multiple
 								class="hidden"
 								disabled={uploadingViewer[title]}
@@ -482,7 +489,9 @@
 							/>
 						</label>
 						<span class="text-xs text-gray-400"
-							>Pre-built bundle: first .js becomes the viewer URL, extra .js/.css become dependencies — hosted on S3</span
+							>Pre-built bundle: first .js becomes the viewer URL, extra .js/.css become dependencies — hosted on S3. An
+							optional .map is just hosted for devtools: have the built .js reference it via `//#
+							sourceMappingURL=&lt;map URL&gt;` (a bare `viewer.js.map` resolves against the hosted JS URL).</span
 						>
 					</div>
 				</div>
