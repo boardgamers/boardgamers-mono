@@ -9,7 +9,7 @@
 	let { data }: PageProps = $props();
 
 	let name = $state("");
-	let ttlDays = $state(30);
+	let ttlDays = $state(1);
 	let creating = $state(false);
 	// Raw token from the last creation — the api returns it exactly once.
 	let createdToken = $state<{ name: string; token: string } | null>(null);
