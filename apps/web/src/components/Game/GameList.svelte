@@ -125,9 +125,10 @@
 	// text on a 390px-wide screen with a 6-player game.
 	const MOBILE_AVATARS_LIMIT = 5;
 
-	// The engine contract has no move→text hook, so lastMoveInfo.move is raw notation:
-	// the move itself when it's a string (gaia), compact JSON otherwise. Object
-	// notation isn't readable in a list row — only surface string moves.
+	// lastMoveInfo.move is the engine's log line for the move (what the viewer
+	// shows), falling back to raw move notation when the engine logged nothing —
+	// e.g. an object-shaped move stringified. Raw object notation isn't readable in
+	// a list row, so only surface plain-text lines.
 	function lastMoveText(game: GameFront): { move: string; player: string } | null {
 		const info = game.lastMoveInfo;
 		if (!info || info.move.startsWith("{") || info.move.startsWith("[") || info.move.startsWith('"')) {

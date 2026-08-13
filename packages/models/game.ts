@@ -96,10 +96,10 @@ export const gameSchema = z.object({
 	lastMove: zDate().optional(),
 	// Denormalized summary of the last move, written by the game-server so listings
 	// can display it without loading game.data or replaying the engine. Null until
-	// the first move (game start sets it explicitly). The engine contract has no
-	// move→text hook and bot moves have no move argument, so `move` is the raw
-	// notation: the move itself when the player submits a string, else a compact
-	// JSON serialization.
+	// the first move (game start sets it explicitly). `move` is the engine's log
+	// line for the move (what the viewer shows), read from the log entries the move
+	// appended via logSlice; it falls back to the raw move notation when the engine
+	// logged nothing. Bounded to ~80 chars.
 	lastMoveInfo: z
 		.object({
 			player: zObjectId(),
