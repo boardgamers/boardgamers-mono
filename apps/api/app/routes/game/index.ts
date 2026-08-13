@@ -206,6 +206,14 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 		options[key] = val;
 	}
 
+	// Bots can fill every seat but one — but the remaining seat must go to a human.
+	// The creator only occupies it when `options.join` is set, so bots == players - 1
+	// without it would leave a game of only bots, playing itself.
+	assert(
+		botCount < players - 1 || options.join === true,
+		"There must be at least one human player — join the game yourself or leave a seat open",
+	);
+
 	const now = new Date();
 	const timing: GameDoc["options"]["timing"] = {
 		timePerMove,
