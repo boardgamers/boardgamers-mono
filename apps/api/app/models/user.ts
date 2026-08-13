@@ -306,11 +306,36 @@ export function webhookBackoffSeconds(failureCount: number): number {
 	return Math.min(WEBHOOK_BACKOFF_BASE_SECONDS * 2 ** Math.max(0, failureCount - 1), WEBHOOK_BACKOFF_MAX_SECONDS);
 }
 
-export type WebhookGame = { _id: string; game: { name: string } };
+// game.name/version identify the GameInfo doc; label is filled in with its
+// human-readable name ("Gaia Project" for "gaia-project") by resolveGameLabels.
+export type WebhookGame = { _id: string; game: { name: string; version: number; label?: string } };
 
+// game.version must be projected at every callsite that feeds a WebhookGame
+// (findGamesWithPlayersTurn projects everything but `data`; gamenotification.ts
+// projects "game.name" + "game.version").
+const displayName = (game: WebhookGame) => game.game.label ?? game.game.name;
+
+// One "Label (full game id)" entry per waiting game, so duplicates of the same
+// game type are all listed and distinguishable.
 function gameNames(games: WebhookGame[]): string {
-	const names = [...new Set(games.map((g) => g.game.name))];
-	return names.length <= 2 ? names.join(" & ") : `${names[0]} & ${names.length - 1} more`;
+	return games.map((g) => `${displayName(g)} (${String(g._id)})`).join(", ");
+}
+
+// Batch-fills game.label from the GameInfo docs (one query for all the distinct
+// game+version pairs). Unknown games keep the slug as their name.
+export async function resolveGameLabels<T extends WebhookGame>(games: T[]): Promise<T[]> {
+	if (games.length === 0) {
+		return games;
+	}
+	const keys = [...new Map(games.map((g) => [`${g.game.name}${g.game.version}`, g.game])).values()];
+	const infos = await colls.gameInfos
+		.find({ $or: keys.map((k) => ({ "_id.game": k.name, "_id.version": k.version })) }, { projection: { label: 1 } })
+		.toArray();
+	const labels = new Map(infos.map((info) => [`${info._id.game}${info._id.version}`, info.label]));
+	for (const game of games) {
+		game.game.label = labels.get(`${game.game.name}${game.game.version}`);
+	}
+	return games;
 }
 
 export function buildWebhookPayload(
@@ -336,7 +361,12 @@ export function buildWebhookPayload(
 				event: "turn",
 				user: user.account.username,
 				waitingCount: waiting,
-				games: games.map((g) => ({ id: g._id, name: g.game.name, url: `https://${env.site}/game/${g._id}` })),
+				games: games.map((g) => ({
+					id: g._id,
+					game: g.game.name,
+					name: displayName(g),
+					url: `https://${env.site}/game/${g._id}`,
+				})),
 			};
 	}
 }
@@ -376,7 +406,7 @@ export async function deliverGameNotificationWebhook(freshUser: WithId<UserDoc>,
 	try {
 		const result: unknown = await deliverWebhook(
 			freshUser,
-			buildWebhookPayload(webhook.format ?? "discord", freshUser, activeGames),
+			buildWebhookPayload(webhook.format ?? "discord", freshUser, await resolveGameLabels(activeGames)),
 		);
 		// The default fetch returns a SafeFetchResponse (status checked); test mocks
 		// resolve undefined → success.

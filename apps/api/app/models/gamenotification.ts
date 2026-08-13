@@ -18,7 +18,7 @@ export async function processCurrentMove() {
 		if (webhook?.url && (webhook.delay ?? 0) === 0) {
 			const gameIds = notifications.filter((n) => n.user?.equals(user._id)).map((n) => n.game);
 			for (const gameId of gameIds) {
-				const game = await colls.games.findOne({ _id: gameId }, { projection: { "game.name": 1 } });
+				const game = await colls.games.findOne({ _id: gameId }, { projection: { "game.name": 1, "game.version": 1 } });
 				if (game) {
 					await deliverGameNotificationWebhookImmediate(user, game).catch(console.error);
 				}

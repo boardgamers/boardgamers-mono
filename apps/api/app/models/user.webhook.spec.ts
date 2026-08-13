@@ -8,7 +8,9 @@ import { setSendmailForTests } from "../config/sendmail.ts";
 import { testGame, testUser } from "../config/test-helpers.ts";
 import { processCurrentMove } from "./gamenotification.ts";
 import {
+	buildWebhookPayload,
 	deliverGameNotificationWebhook,
+	resolveGameLabels,
 	sendGameNotificationEmail,
 	setWebhookFetchForTests,
 	webhookBackoffSeconds,
@@ -65,10 +67,11 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 		// Absent, not "": the sparse unique index on account.email indexes "".
 		delete user.account.email;
 		await colls.users.insertOne(user);
+		// The gaia-project GameInfo (label "Gaia Project") is seeded in before().
 		await colls.games.insertOne(
 			testGame({
 				_id: "hooked-game-1",
-				game: { name: "Gaia Project", version: 1 },
+				game: { name: "gaia-project", version: 1 },
 				status: "active",
 				players: [{ _id: userId }],
 				currentPlayers: [{ _id: userId, timerStart: past }],
@@ -86,9 +89,11 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 			.object({ content: z.string(), embeds: z.array(z.object({ title: z.string(), url: z.string() })) })
 			.parse(JSON.parse(calls[0].body));
 		assert.match(payload.content, /your turn/);
-		assert.match(payload.content, /Gaia Project/);
+		assert.match(payload.content, /Gaia Project \(hooked-game-1\)/, "display name + full game id");
+		assert.doesNotMatch(payload.content, /gaia-project/, "the display name replaces the internal slug");
 		assert.match(payload.content, /1 game waiting/);
-		assert.match(payload.embeds[0].title, /Gaia Project/);
+		assert.match(payload.embeds[0].title, /Gaia Project \(hooked-game-1\)/);
+		assert.doesNotMatch(payload.embeds[0].title, /gaia-project/);
 		assert.match(payload.embeds[0].url, /\/game\/hooked-game-1$/);
 
 		// Successful delivery leaves no failure state behind.
@@ -114,7 +119,17 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 		return userId;
 	};
 
-	const oneGame = [{ _id: "g1", game: { name: "Gaia Project" } }];
+	// game.name is the internal slug; the payload must show the GameInfo label.
+	const oneGame = [{ _id: "g1", game: { name: "gaia-project", version: 1 } }];
+
+	before(async () => {
+		await colls.gameInfos.insertOne({
+			_id: { game: "gaia-project", version: 1 },
+			label: "Gaia Project",
+			players: [2],
+			meta: { public: true },
+		});
+	});
 
 	it("a failure sets failingSince + nextRetryAt (backoff), without disabling", async () => {
 		const userId = await insertWebhookUser("hookfail", {
@@ -250,7 +265,7 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 		assert.strictEqual(calls.length, 0, "no delivery while enabled=false or inside the backoff window");
 	});
 
-	it("raw format carries event/user/waitingCount/games", async () => {
+	it("raw format carries event/user/waitingCount/games with slug + display name", async () => {
 		const userId = await insertWebhookUser("hookraw", {
 			url: "https://example.com/hook",
 			format: "raw",
@@ -264,17 +279,94 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 				event: z.string(),
 				user: z.string(),
 				waitingCount: z.number(),
-				games: z.array(z.object({ id: z.string(), name: z.string(), url: z.string() })),
+				games: z.array(z.object({ id: z.string(), game: z.string(), name: z.string(), url: z.string() })),
 			})
 			.parse(JSON.parse(calls[0].body));
 		assert.strictEqual(payload.event, "turn");
 		assert.strictEqual(payload.user, "hookraw");
 		assert.strictEqual(payload.waitingCount, 1);
 		assert.deepStrictEqual(
-			payload.games.map((g) => [g.id, g.name]),
-			[["g1", "Gaia Project"]],
+			payload.games.map((g) => [g.id, g.game, g.name]),
+			[["g1", "gaia-project", "Gaia Project"]],
+			"raw games[] keeps the slug in `game` and the display name in `name`",
 		);
 		assert.ok(payload.games[0].url.endsWith("/game/g1"));
+
+		// The full id stays in the raw payload even when it's a long ObjectId hex.
+		const longId = "0123456789abcdef01234567";
+		const raw = z
+			.object({ games: z.array(z.object({ id: z.string() })) })
+			.parse(
+				buildWebhookPayload("raw", (await colls.users.findOne({ _id: userId }))!, [
+					{ _id: longId, game: { name: "gaia-project", version: 1, label: "Gaia Project" } },
+				]),
+			);
+		assert.strictEqual(raw.games[0].id, longId, "raw games[].id is the full, untruncated id");
+	});
+
+	it("slack format shows the display name, not the slug", async () => {
+		const userId = await insertWebhookUser("hookslack", {
+			url: "https://hooks.slack.com/services/T/B/secret",
+			format: "slack",
+			enabled: true,
+		});
+		calls = [];
+		await deliverGameNotificationWebhook((await colls.users.findOne({ _id: userId }))!, oneGame);
+		assert.strictEqual(calls.length, 1);
+		const payload = z.object({ text: z.string() }).parse(JSON.parse(calls[0].body));
+		assert.match(payload.text, /Gaia Project \(g1\)/, "display name + full game id");
+		assert.doesNotMatch(payload.text, /gaia-project/);
+	});
+
+	it("multiple waiting games are each listed as Label (full id)", async () => {
+		const games = await resolveGameLabels([
+			{ _id: "abcdef1234567890", game: { name: "gaia-project", version: 1 } },
+			{ _id: "abcdef1234567891", game: { name: "gaia-project", version: 1 } },
+			{ _id: "game-b", game: { name: "no-such-game", version: 1 } },
+		]);
+		const user = testUser({ account: { username: "hookmulti" } });
+		const discord = z.object({ content: z.string() }).parse(buildWebhookPayload("discord", user, games));
+		assert.match(
+			discord.content,
+			/Gaia Project \(abcdef1234567890\), Gaia Project \(abcdef1234567891\), no-such-game \(game-b\)/,
+			"every waiting game is listed, with the full id telling duplicates apart",
+		);
+		assert.match(discord.content, /3 games waiting/);
+		// The raw payload keeps the FULL ids, untruncated.
+		const raw = z
+			.object({ games: z.array(z.object({ id: z.string(), game: z.string(), name: z.string() })) })
+			.parse(buildWebhookPayload("raw", user, games));
+		assert.deepStrictEqual(raw.games, [
+			{ id: "abcdef1234567890", game: "gaia-project", name: "Gaia Project" },
+			{ id: "abcdef1234567891", game: "gaia-project", name: "Gaia Project" },
+			{ id: "game-b", game: "no-such-game", name: "no-such-game" },
+		]);
+	});
+
+	it("games without a GameInfo doc fall back to the slug", async () => {
+		const games = await resolveGameLabels([{ _id: "g-unknown", game: { name: "no-such-game", version: 1 } }]);
+		const user = testUser({ account: { username: "hookunknown" } });
+		const discord = z.object({ content: z.string() }).parse(buildWebhookPayload("discord", user, games));
+		assert.match(discord.content, /no-such-game \(g-unknown\)/);
+		const raw = z
+			.object({ games: z.array(z.object({ id: z.string(), game: z.string(), name: z.string() })) })
+			.parse(buildWebhookPayload("raw", user, games));
+		assert.deepStrictEqual(raw.games, [{ id: "g-unknown", game: "no-such-game", name: "no-such-game" }]);
+	});
+
+	it("resolveGameLabels is version-specific and leaves the games for the caller", async () => {
+		await colls.gameInfos.insertOne({
+			_id: { game: "versioned", version: 2 },
+			label: "Versioned Two",
+			players: [2],
+			meta: { public: true },
+		});
+		const games = await resolveGameLabels([
+			{ _id: "gv1", game: { name: "versioned", version: 1 } },
+			{ _id: "gv2", game: { name: "versioned", version: 2 } },
+		]);
+		assert.strictEqual(games[0].game.label, undefined, "no label for an unknown version");
+		assert.strictEqual(games[1].game.label, "Versioned Two");
 	});
 
 	it("no webhook configured ⇒ no delivery, no error", async () => {
@@ -297,7 +389,7 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 			await colls.games.insertOne(
 				testGame({
 					_id: "immediate-game",
-					game: { name: "Gaia Project", version: 1 },
+					game: { name: "gaia-project", version: 1 },
 					status: "active",
 					players: [{ _id: userId }],
 					currentPlayers: [{ _id: userId, timerStart: new Date() }],
@@ -315,7 +407,7 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 
 			assert.strictEqual(calls.length, 1, "immediate webhook must fire on the turn event");
 			assert.strictEqual(calls[0].url, "https://discord.com/api/webhooks/9/secret");
-			assert.match(JSON.parse(calls[0].body).content, /Gaia Project/);
+			assert.match(JSON.parse(calls[0].body).content, /Gaia Project \(immediate-game\)/);
 		});
 
 		it("immediate webhook does not fire on the batched email pass", async () => {
@@ -336,7 +428,7 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 			await colls.games.insertOne(
 				testGame({
 					_id: "skip-batch-game",
-					game: { name: "Gaia Project", version: 1 },
+					game: { name: "gaia-project", version: 1 },
 					status: "active",
 					players: [{ _id: userId }],
 					currentPlayers: [{ _id: userId, timerStart: past }],
@@ -359,7 +451,7 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 			await colls.games.insertOne(
 				testGame({
 					_id: "batched-game",
-					game: { name: "Gaia Project", version: 1 },
+					game: { name: "gaia-project", version: 1 },
 					status: "active",
 					players: [{ _id: userId }],
 					currentPlayers: [{ _id: userId, timerStart: new Date() }],
@@ -387,7 +479,7 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 			await colls.games.insertOne(
 				testGame({
 					_id: "imm-fail-game",
-					game: { name: "Gaia Project", version: 1 },
+					game: { name: "gaia-project", version: 1 },
 					status: "active",
 					players: [{ _id: userId }],
 					currentPlayers: [{ _id: userId, timerStart: new Date() }],
