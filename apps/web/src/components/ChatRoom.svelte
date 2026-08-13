@@ -123,9 +123,10 @@
 	backdropClassName="!bg-transparent"
 	transitionType={fly}
 	transitionOptions={{ y: -300 }}
+	modalClassName="chat-modal-root"
 	class={"chat-modal" + ($sidebarOpen ? " sidebar-open" : "")}
 >
-	<ModalHeader {toggle} class="gap-2">
+	<ModalHeader {toggle} class="shrink-0 gap-2">
 		<IconChat size="1.25rem" class="shrink-0 text-gray-400" />
 		<span class="truncate font-semibold">{$currentGameId}</span>
 	</ModalHeader>
@@ -162,7 +163,7 @@
 			{/if}
 		{/each}
 	</div>
-	<ModalFooter class="p-3">
+	<ModalFooter class="shrink-0 p-3">
 		<form
 			onsubmit={(e) => {
 				e.preventDefault();
@@ -171,7 +172,8 @@
 			class="w-full"
 		>
 			<InputGroup>
-				<Input type="text" bind:value={currentMessage} placeholder="Type a message…" />
+				<!-- text-base: iOS Safari zooms the page on focus of inputs smaller than 16px -->
+				<Input type="text" bind:value={currentMessage} placeholder="Type a message…" class="text-base" />
 				<Button type="submit" color="primary">Send</Button>
 			</InputGroup>
 		</form>
