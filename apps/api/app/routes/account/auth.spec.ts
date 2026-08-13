@@ -311,8 +311,13 @@ describe("Account API — Hugging Face CIMD (no relay)", () => {
 });
 
 // A Koa ctx stub shaped for finishSocialAuth: cookie capture + redirect capture.
+// `cookies.set` keys the jar by name+domain like a browser: setRefreshCookie sets the
+// host-only cookie AND clears the legacy Domain= one (#153) — a name-only jar would
+// let the clear wipe the set. (The Domain variant stays out of `jar`, which models
+// the cookies the browser sends back on the response host.)
 function makeCtx(user: unknown) {
 	const jar: Record<string, string> = {};
+	const clearedDomains: string[] = [];
 	return {
 		state: { user },
 		protocol: "http",
@@ -320,9 +325,16 @@ function makeCtx(user: unknown) {
 		hostname: "bgs.test",
 		status: 0,
 		jar,
+		clearedDomains,
 		cookies: {
-			set(name: string, value: string | null) {
-				if (value === null) {
+			set(name: string, value: string | null, opts?: { domain?: string }) {
+				if (opts?.domain) {
+					// The Domain variant is a distinct cookie never sent back to this host —
+					// keep it out of `jar`, just record the clear (see above).
+					if (value === null) {
+						clearedDomains.push(opts.domain);
+					}
+				} else if (value === null) {
 					delete jar[name];
 				} else {
 					jar[name] = value;
@@ -356,6 +368,8 @@ describe("Account API — redirect-only social flow (#155)", () => {
 		assert.strictEqual(ctx.status, 303);
 		assert.strictEqual(ctx.redirectedTo, "http://bgs.test/account");
 		assert.match(ctx.jar.refreshToken ?? "", /"code"/, "session cookie set on the callback response");
+		// The transitional legacy-Domain cleanup rides along (#153, removal tracked in #283).
+		assert.deepStrictEqual(ctx.clearedDomains, [env.domain]);
 		// The session is real: the refresh code resolves in Mongo (stored hashed, #164).
 		const code = JSON.parse(ctx.jar.refreshToken).code;
 		const rt = await lookupRefreshToken(code);

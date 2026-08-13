@@ -683,7 +683,7 @@ describe("Account API — session cookie over a TLS-terminating proxy", () => {
 		"X-Forwarded-Proto": "https",
 	};
 
-	it("login through an https proxy sets a Secure, domain-scoped session cookie", async () => {
+	it("login through an https proxy sets a Secure, host-only session cookie (+ clears the legacy Domain one)", async () => {
 		const res = await fetch(`${baseURL()}/api/account/login`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json", ...proxyHeaders },
@@ -693,7 +693,12 @@ describe("Account API — session cookie over a TLS-terminating proxy", () => {
 		const setCookie = res.headers.get("set-cookie") ?? "";
 		assert.match(setCookie, /refreshToken=/);
 		assert.match(setCookie, /;\s*secure/i);
-		assert.match(setCookie, new RegExp(`;\\s*domain=${env.domain.replace(".", "\\.")}`, "i"));
+		// Host-only since apex step 5 (#153): the set cookie carries no Domain attribute…
+		const set = res.headers.getSetCookie().find((c) => c.startsWith("refreshToken=") && !/expires=Thu, 01 Jan 1970/i.test(c));
+		assert.ok(set, "expected the host-only session cookie set");
+		assert.doesNotMatch(set, /;\s*domain=/i);
+		// …and the transitional cleanup clears the legacy Domain=env.domain cookie.
+		assert.match(setCookie, new RegExp(`refreshToken=;.*;\\s*domain=${env.domain.replace(".", "\\.")}`, "i"));
 	});
 
 	it("the session cookie authenticates cookie-based calls (mint + /account)", async () => {

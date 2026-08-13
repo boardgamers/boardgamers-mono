@@ -1,23 +1,23 @@
-// Session-cookie domain scoping. Regression guard for the preview login bug: on PR
-// previews the player app (pr-<n>.boardgamers.space) and the admin panel
-// (admin-pr-<n>.boardgamers.space) are SIBLING hosts — neither is a subdomain of the
-// other (admin.pr-<n> is impossible: the *.boardgamers.space cert is single-level, see
-// infra/pr-preview/coyo-pr-preview.nginx.conf). The api sets the cookie Domain to
-// env.domain (pr-<n>.boardgamers.space), which the browser accepts on the player host
-// (host == Domain) but REJECTS on the admin host (RFC 6265 §5.1.3). The fix lives at the
-// preview proxy: coyo's vhost rewrites the cookie Domain per request host
-// (`proxy_cookie_domain … $host`), so each preview host stores a HOST-ONLY cookie and no
-// cookie ever carries the shared `boardgamers.space` ancestor (which would leak into prod).
-// These tests pin the api behaviour the proxy relies on + the sibling-host invariant.
+// Session-cookie domain scoping. Since apex step 5 (#153) the api sets the session
+// cookie HOST-ONLY (no Domain): apex boardgamers.space is the canonical host and the
+// cookie must never be sent to forum./admin./resources./grafana. subdomains. The
+// transitional hazard: users still carry a legacy `Domain=boardgamers.space` cookie
+// from pre-cutover deploys — a host-only cookie sorts BEFORE a Domain= one in the
+// Cookie header, so a stale Domain= cookie would linger and shadow/conflict. Hence
+// every set/clear also clears the legacy Domain variant (a deletion must repeat the
+// exact Domain the cookie was set with, or the browser ignores it). On PR previews the
+// coyo vhost (`proxy_cookie_domain … $host`, see infra/pr-preview) scopes everything
+// per preview host, so the player (pr-<n>) and admin (admin-pr-<n>) siblings never
+// share a cookie — and the Domain=boardgamers.space clear is rewritten away there too.
+// Removal of the Domain cleanup is tracked in #283 (120 days post-deploy).
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Koa from "koa";
 import env from "../config/env.ts";
 import { setRefreshCookie, clearRefreshCookie, parseRefreshCookie, SESSION_COOKIE } from "./session.ts";
 
-const PREVIEW_PR = "pr-171.boardgamers.space";
-const PREVIEW_ADMIN = "admin-pr-171.boardgamers.space";
 const PROD_DOMAIN = "boardgamers.space";
+const PROD_SUBDOMAIN = "forum.boardgamers.space";
 
 /** RFC 6265 §5.1.3 string-match: does a cookie with `Domain=domain` cover `host`? */
 function domainCovers(domain: string, host: string) {
@@ -49,61 +49,73 @@ async function setCookies(host: string, set: (ctx: InstanceType<Koa.Context>) =>
 	}
 }
 
-const cookieNamed = (cookies: string[], name: string) => {
-	const cookie = cookies.find((c) => c.startsWith(`${name}=`));
-	assert.ok(cookie, `expected a Set-Cookie for ${name}`);
-	return cookie;
-};
 const domainAttr = (cookie: string) => /;\s*domain=([^;]+)/i.exec(cookie)?.[1] ?? null;
+const isExpiredClear = (cookie: string) => /expires=Thu, 01 Jan 1970/i.test(cookie);
 
-describe("session cookie — Domain attribute (api emits env.domain; the preview proxy scopes it host-only)", () => {
-	it("emits Domain=env.domain, which covers the player preview host but NOT the sibling admin host", async () => {
-		// Spec runs with the api default env (no `domain` override), so env.domain is the
-		// production default "boardgamers.space". The api just stamps env.domain — it is the
-		// preview proxy (proxy_cookie_domain) that rewrites it to the request host. Assert
-		// the api behaviour the proxy depends on, then the sibling-host coverage invariant.
+/** Split the response's Set-Cookie headers into the host-only vs Domain=env.domain operations on the session cookie. */
+function sessionCookieOps(cookies: string[]) {
+	const session = cookies.filter((c) => c.startsWith(`${SESSION_COOKIE}=`));
+	return {
+		hostOnly: session.filter((c) => domainAttr(c) === null),
+		legacyDomain: session.filter((c) => domainAttr(c)?.toLowerCase() === env.domain.toLowerCase()),
+	};
+}
+
+describe("session cookie — host-only on apex + legacy Domain= cleanup (#153 step 5, removal #283)", () => {
+	it("set on the apex emits a host-only cookie (no Domain) AND clears the legacy Domain variant", async () => {
+		// env.domain is the production default "boardgamers.space" in specs.
 		assert.strictEqual(env.domain, PROD_DOMAIN);
-		const cookies = await setCookies(PREVIEW_ADMIN, (ctx) => setRefreshCookie(ctx, "code-123"));
-		const domain = domainAttr(cookieNamed(cookies, SESSION_COOKIE));
-		assert.strictEqual(domain?.toLowerCase(), env.domain.toLowerCase());
-		// A preview sets domain=pr-<n>.boardgamers.space: valid for the player host, invalid
-		// for the admin host — the exact reason the proxy must rewrite it (see below).
-		assert.ok(domainCovers(PREVIEW_PR, PREVIEW_PR), "player host == its env.domain → accepted");
-		assert.ok(!domainCovers(PREVIEW_PR, PREVIEW_ADMIN), "admin host is a sibling → would be rejected");
+		const cookies = await setCookies(PROD_DOMAIN, (ctx) => setRefreshCookie(ctx, "code-123"));
+		const ops = sessionCookieOps(cookies);
+		// The set: host-only (no Domain attribute), carrying the value.
+		assert.strictEqual(ops.hostOnly.length, 1);
+		assert.ok(!isExpiredClear(ops.hostOnly[0]));
+		assert.match(ops.hostOnly[0], /;\s*secure/i);
+		// The legacy cleanup: Domain=env.domain, expired.
+		assert.strictEqual(ops.legacyDomain.length, 1);
+		assert.ok(isExpiredClear(ops.legacyDomain[0]), "the legacy Domain cookie is expired (cleared)");
+		// The clear repeats the EXACT Domain the legacy cookie was set with — a mismatch
+		// would make the browser ignore the deletion.
+		assert.strictEqual(domainAttr(ops.legacyDomain[0]), env.domain);
 	});
 
-	it("clearRefreshCookie repeats the same Domain (a mismatched Domain would not clear the cookie)", async () => {
-		const cookies = await setCookies(PREVIEW_ADMIN, (ctx) => clearRefreshCookie(ctx));
-		assert.strictEqual(domainAttr(cookieNamed(cookies, SESSION_COOKIE))?.toLowerCase(), env.domain.toLowerCase());
+	it("set on a prod subdomain is likewise host-only + clears the legacy Domain variant", async () => {
+		const cookies = await setCookies(PROD_SUBDOMAIN, (ctx) => setRefreshCookie(ctx, "code-123"));
+		const ops = sessionCookieOps(cookies);
+		assert.strictEqual(ops.hostOnly.length, 1);
+		assert.strictEqual(ops.legacyDomain.length, 1);
+		assert.ok(isExpiredClear(ops.legacyDomain[0]));
 	});
 
-	it("localhost requests get a host-only cookie (no Domain attribute)", async () => {
-		const cookies = await setCookies("localhost", (ctx) => setRefreshCookie(ctx, "code-123"));
-		assert.strictEqual(domainAttr(cookieNamed(cookies, SESSION_COOKIE)), null);
+	it("clearRefreshCookie (logout) clears BOTH the host-only and the legacy Domain variant", async () => {
+		const cookies = await setCookies(PROD_DOMAIN, (ctx) => clearRefreshCookie(ctx));
+		const ops = sessionCookieOps(cookies);
+		assert.strictEqual(ops.hostOnly.length, 1);
+		assert.ok(isExpiredClear(ops.hostOnly[0]));
+		assert.strictEqual(ops.legacyDomain.length, 1);
+		assert.ok(isExpiredClear(ops.legacyDomain[0]));
+		assert.strictEqual(domainAttr(ops.legacyDomain[0]), env.domain);
 	});
 
-	it("the host-only invariant: a cookie must never carry the shared boardgamers.space ancestor on previews", () => {
-		// What the proxy rewrite achieves: after `proxy_cookie_domain … $host`, the stored
-		// cookie's Domain equals the request host, so it is host-only and scoped to exactly
-		// that preview host — never the prod domain, never shared between the two siblings.
-		for (const host of [PREVIEW_PR, PREVIEW_ADMIN]) {
-			assert.ok(domainCovers(host, host), `${host} stores its own host-only cookie`);
-			assert.ok(
-				!domainCovers(host, host === PREVIEW_PR ? PREVIEW_ADMIN : PREVIEW_PR),
-				`${host}'s cookie is NOT sent to the sibling host`,
-			);
-			assert.notStrictEqual(host, PROD_DOMAIN);
-			assert.ok(
-				host.endsWith(`.${PROD_DOMAIN}`),
-				"preview hosts live under the prod domain, but the cookie Domain must be the full host, not the ancestor",
-			);
+	it("localhost requests only ever touch the host-only cookie (local never set a Domain cookie)", async () => {
+		const ops: Array<(ctx: InstanceType<Koa.Context>) => void> = [
+			(ctx) => setRefreshCookie(ctx, "code-123"),
+			(ctx) => clearRefreshCookie(ctx),
+		];
+		for (const op of ops) {
+			const cookies = await setCookies("localhost", op);
+			const session = cookies.filter((c) => c.startsWith(`${SESSION_COOKIE}=`));
+			assert.strictEqual(session.length, 1);
+			assert.strictEqual(domainAttr(session[0]), null);
 		}
-		// The rejected alternative (cookieDomain=boardgamers.space) would leak to prod:
-		// a Domain=boardgamers.space cookie IS sent to www./admin.boardgamers.space.
-		assert.ok(
-			domainCovers(PROD_DOMAIN, "www.boardgamers.space"),
-			"this is exactly the prod-namespace pollution we avoid",
-		);
+	});
+
+	it("a host-only cookie is NOT sent to sibling subdomains — the cookie-isolation goal of #153", () => {
+		// No Domain attribute ⇒ the browser scopes the cookie to exactly the response host.
+		// (The legacy Domain=boardgamers.space cookie WAS sent to every subdomain — this is
+		// the prod-namespace pollution the migration removes.)
+		assert.ok(domainCovers(PROD_DOMAIN, "forum.boardgamers.space"), "the legacy Domain= cookie leaked to subdomains");
+		assert.ok(domainCovers(PROD_DOMAIN, "admin.boardgamers.space"));
 	});
 });
 
