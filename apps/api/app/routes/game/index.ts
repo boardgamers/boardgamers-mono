@@ -40,6 +40,26 @@ function makeBotPlayer(index: number, timePerGame: number | undefined): GameDoc[
 	};
 }
 
+// Once every seat is filled (and no invite is still pending), the game is either
+// ready to start, or waiting on the host to pick setup options (playerOrder "host").
+// Shared by the create and join routes so a game filled at creation (e.g. with bot
+// seats) starts exactly like one filled by the last join.
+async function markGameReadyIfFull(game: GameDoc): Promise<void> {
+	if (game.players.length !== game.options.setup.nbPlayers || game.players.some((pl) => pl.pending)) {
+		return;
+	}
+
+	if (game.options.setup.playerOrder === "host") {
+		game.currentPlayers = [{ _id: game.creator, timerStart: new Date(), deadline: addDays(new Date(), 1) }];
+	} else {
+		game.ready = true;
+	}
+
+	if (game.ready && !game.options.timing.scheduledStart) {
+		await notifyGameStart(game);
+	}
+}
+
 const newGameSchema = z.object({
 	game: z.object({
 		game: z.string(),
@@ -281,6 +301,8 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 		lastMove: now,
 	};
 
+	await markGameReadyIfFull(game);
+
 	await colls.games.insertOne(game);
 
 	// Creating a game re-pins its boardgame in the "My games" sidebar group.
@@ -458,6 +480,9 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
 			game.currentPlayers = (game.currentPlayers ?? []).filter((pl) => !pl._id.equals(existingPlayer._id));
 		} else {
 			assert(!existingPlayer, "You already joined the game");
+			// A game whose seats were all filled at creation (bots) is already ready:
+			// joining it would push it past its player count.
+			assert(!game.ready, "Game is starting");
 			assert(game.players.length < game.options.setup.nbPlayers, "Too many people have joined the game");
 			// Re-check on the freshly loaded doc: the range may have been added (or the
 			// player's elo changed) since the pre-lock check.
@@ -473,13 +498,7 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
 			});
 		}
 
-		if (game.players.length === game.options.setup.nbPlayers && !game.players.some((pl) => pl.pending)) {
-			if (game.options.setup.playerOrder === "host") {
-				game.currentPlayers = [{ _id: game.creator, timerStart: new Date(), deadline: addDays(new Date(), 1) }];
-			} else {
-				game.ready = true;
-			}
-		}
+		await markGameReadyIfFull(game);
 
 		await colls.games.replaceOne({ _id: game._id }, game);
 
@@ -487,10 +506,6 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
 		await colls.users.updateOne({ _id: user._id }, { $pull: { "settings.home.forgottenGames": game.game.name } });
 
 		ctx.state.game = game;
-
-		if (game.ready && !game.options.timing.scheduledStart) {
-			await notifyGameStart(game);
-		}
 	}
 	ctx.body = withoutData(ctx.state.game);
 });

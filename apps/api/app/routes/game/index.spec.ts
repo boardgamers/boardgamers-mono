@@ -103,8 +103,11 @@ describe("Game API", () => {
 			label: "Test 3P",
 			viewer: { url: "//test.com/test3", topLevelVariable: "test3" },
 			players: [2, 3],
-			meta: { public: true, needOwnership: true },
+			meta: { public: true, needOwnership: true, bots: true },
 		});
+		await colls.gamePreferences.insertOne(
+			testGamePrefs({ user: userId, game: "test3", access: { ownership: true }, elo: { value: 150, games: 10 } }),
+		);
 		authHeaders = await makeAuthHeaders(userId);
 		joinerAuthHeaders = await makeAuthHeaders(joinerId);
 		joiner2AuthHeaders = await makeAuthHeaders(joiner2Id);
@@ -234,6 +237,45 @@ describe("Game API", () => {
 			assert.strictEqual(await colls.games.countDocuments({ _id: "test-bots-all" }), 0);
 		});
 
+		it("should start the game when an invited player fills the last seat left by bots", async () => {
+			const createRes = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-bots-invite", {
+					game: { game: "test3", version: 1 },
+					players: 3,
+					bots: 1,
+					options: { join: true },
+				}),
+				authHeaders,
+			);
+			assert.strictEqual(createRes.ok, true, JSON.stringify(createRes.data));
+
+			const inviteeId = new ObjectId();
+			await colls.users.insertOne(
+				testUser({
+					_id: inviteeId,
+					account: { username: "invitee", email: "invitee@test.com", karma: 80 },
+					security: { confirmed: true },
+				}),
+			);
+			const inviteeAuth = await makeAuthHeaders(inviteeId);
+
+			const inviteRes = await api("POST", "/api/game/test-bots-invite/invite", { userId: inviteeId }, authHeaders);
+			assert.strictEqual(inviteRes.ok, true, JSON.stringify(inviteRes.data));
+
+			const joinRes = await api("POST", "/api/game/test-bots-invite/join", {}, inviteeAuth);
+			assert.strictEqual(joinRes.ok, true, JSON.stringify(joinRes.data));
+
+			const game = await colls.games.findOne({ _id: "test-bots-invite" });
+			assert.strictEqual(game?.players.length, 3, "Creator + bot + invited player");
+			assert.strictEqual(game?.ready, true, "Accepting the last invite starts the game");
+			assert.strictEqual(
+				await colls.gameNotifications.countDocuments({ game: "test-bots-invite", kind: "gameStarted" }),
+				1,
+			);
+		});
+
 		it("should create a game with bot players filling seats", async () => {
 			const res = await api("POST", "/api/game/new-game", newGameBody("test-bots", { bots: 1 }), authHeaders);
 
@@ -244,6 +286,7 @@ describe("Game API", () => {
 			const bot = game.players.find((pl) => pl.isBot);
 			assert.ok(bot, "One player should be flagged as bot");
 			assert.ok(bot.name.includes("bot"), "Bot name should be labeled");
+			assert.strictEqual(game.ready, true, "Creator + bot fill both seats — the game starts immediately");
 			assert.ok(
 				game.players.some((pl) => pl._id.equals(userId) && !pl.isBot),
 				"Creator is a human player",
@@ -272,10 +315,143 @@ describe("Game API", () => {
 
 			const game = await colls.games.findOne({ _id: "test-bots-join" });
 			assert.strictEqual(game?.players.length, 2, "Creator + 1 bot — the game is already full");
+			assert.strictEqual(game?.ready, true, "Full at creation — already starting");
 
 			const joinRes = await api("POST", "/api/game/test-bots-join/join", {}, joinerAuthHeaders);
 			assert.strictEqual(joinRes.ok, false, "No free seat left for another human");
-			assert.ok(errorMessage(joinRes.data)?.includes("Too many people"));
+			assert.strictEqual(errorMessage(joinRes.data), "Game is starting");
+		});
+
+		it("should reject joining a full game marked ready before its last seat was filled", async () => {
+			// Legacy room: a full game that was already marked ready (e.g. by the host
+			// picking setup options with playerOrder "host") must reject new joins even
+			// though "Too many people" would also match — the ready check comes first.
+			const createRes = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-bots-join2", { bots: 1, options: { join: true, playerOrder: "host" } }),
+				authHeaders,
+			);
+			assert.strictEqual(createRes.ok, true, JSON.stringify(createRes.data));
+
+			const startRes = await api("POST", "/api/game/test-bots-join2/start", {}, authHeaders);
+			assert.strictEqual(startRes.ok, true, JSON.stringify(startRes.data));
+			assert.strictEqual((await colls.games.findOne({ _id: "test-bots-join2" }))?.ready, true);
+
+			const joinRes = await api("POST", "/api/game/test-bots-join2/join", {}, joinerAuthHeaders);
+			assert.strictEqual(joinRes.ok, false);
+			assert.strictEqual(errorMessage(joinRes.data), "Game is starting");
+		});
+
+		it("should mark a game full at creation as ready and emit gameStarted", async () => {
+			// Shed the creator's earlier open bot games (they became ready at creation and
+			// still count towards the open-games cap).
+			await colls.games.deleteMany({ _id: { $in: ["test-bots", "test-bots-join", "test-bots-join2"] } });
+			const res = await api("POST", "/api/game/new-game", newGameBody("test-bots-full", { bots: 1 }), authHeaders);
+
+			assert.strictEqual(res.ok, true, JSON.stringify(res.data));
+			const game = await colls.games.findOne({ _id: "test-bots-full" });
+			assert.ok(game, "Game should be created");
+			assert.strictEqual(game.players.length, 2, "Creator + bot fill both seats");
+			assert.strictEqual(game.ready, true, "A game full at creation is ready, like after the last join");
+
+			const notif = await colls.gameNotifications.findOne({ game: "test-bots-full", kind: "gameStarted" });
+			assert.ok(notif, "gameStarted notification emitted so the game-server starts the game");
+
+			const chatMsg = await colls.chatMessages.findOne({ room: "test-bots-full", type: "system" });
+			assert.strictEqual(chatMsg?.data.text, "Game started");
+		});
+
+		it("should keep a bot game with free seats open (starts via join)", async () => {
+			const res = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-bots-notfull", {
+					game: { game: "test3", version: 1 },
+					players: 3,
+					bots: 1,
+				}),
+				authHeaders,
+			);
+
+			assert.strictEqual(res.ok, true, JSON.stringify(res.data));
+			const game = await colls.games.findOne({ _id: "test-bots-notfull" });
+			assert.ok(game, "Game should be created");
+			assert.strictEqual(game.players.length, 2, "Creator + bot, one seat still free");
+			assert.strictEqual(game.ready, false, "Game stays open, waiting for a human to join");
+			assert.strictEqual(
+				await colls.gameNotifications.countDocuments({ game: "test-bots-notfull", kind: "gameStarted" }),
+				0,
+				"No gameStarted notification yet",
+			);
+
+			const joinRes = await api("POST", "/api/game/test-bots-notfull/join", {}, joinerAuthHeaders);
+			assert.strictEqual(joinRes.ok, true, JSON.stringify(joinRes.data));
+			const joined = await colls.games.findOne({ _id: "test-bots-notfull" });
+			assert.strictEqual(joined?.ready, true, "The last human joining triggers the start, as before");
+			assert.strictEqual(
+				await colls.gameNotifications.countDocuments({ game: "test-bots-notfull", kind: "gameStarted" }),
+				1,
+			);
+		});
+
+		it('should wait for the host when a full-at-creation game has playerOrder "host"', async () => {
+			const res = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-bots-host", { bots: 1, options: { join: true, playerOrder: "host" } }),
+				authHeaders,
+			);
+
+			assert.strictEqual(res.ok, true, JSON.stringify(res.data));
+			const game = await colls.games.findOne({ _id: "test-bots-host" });
+			assert.ok(game, "Game should be created");
+			assert.strictEqual(game.ready, false, "Host still has to pick setup options");
+			assert.ok(
+				game.currentPlayers?.length === 1 && game.currentPlayers[0]._id.equals(userId),
+				"Creator is the current player, like after the last join",
+			);
+			assert.ok(game.currentPlayers[0].deadline, "With a deadline");
+			assert.strictEqual(
+				await colls.gameNotifications.countDocuments({ game: "test-bots-host", kind: "gameStarted" }),
+				0,
+				"No gameStarted notification until the host starts the game",
+			);
+
+			// The existing /start route picks up from there (it emits gameStarted).
+			const startRes = await api("POST", "/api/game/test-bots-host/start", {}, authHeaders);
+			assert.strictEqual(startRes.ok, true, JSON.stringify(startRes.data));
+			const started = await colls.games.findOne({ _id: "test-bots-host" });
+			assert.strictEqual(started?.ready, true);
+			assert.strictEqual(
+				await colls.gameNotifications.countDocuments({ game: "test-bots-host", kind: "gameStarted" }),
+				1,
+			);
+		});
+
+		it("should not emit gameStarted for a scheduled game full at creation", async () => {
+			const res = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-bots-scheduled", { bots: 1, scheduledStart: Date.now() + 3600 * 1000 }),
+				authHeaders,
+			);
+
+			assert.strictEqual(res.ok, true, JSON.stringify(res.data));
+			const game = await colls.games.findOne({ _id: "test-bots-scheduled" });
+			assert.ok(game, "Game should be created");
+			assert.strictEqual(game.ready, true, "Ready — the cron will start it at the scheduled date");
+			assert.strictEqual(
+				await colls.gameNotifications.countDocuments({ game: "test-bots-scheduled", kind: "gameStarted" }),
+				0,
+				"No gameStarted notification before the scheduled start",
+			);
+
+			// Full-at-creation bot games stay "open" (but ready) until the game-server
+			// picks them up — they still count towards the cap. Clean up behind them.
+			await colls.games.deleteMany({
+				_id: { $in: ["test-bots-full", "test-bots-notfull", "test-bots-host", "test-bots-invite"] },
+			});
 		});
 	});
 
@@ -347,92 +523,89 @@ describe("Game API", () => {
 
 			assert.strictEqual(res.ok, true, `Unexpected response: ${JSON.stringify(res.data)}`);
 		});
+	});
 
-		describe("elo range", () => {
-			before(async () => {
-				await colls.gamePreferences.updateOne(
-					{ user: userId, game: "test" },
-					{ $set: { elo: { value: 150, games: 10 } } },
-				);
-				await colls.gamePreferences.insertOne(
-					testGamePrefs({ user: userId, game: "test3", access: { ownership: true }, elo: { value: 150, games: 10 } }),
-				);
-			});
+	describe("elo range", () => {
+		before(async () => {
+			await colls.gamePreferences.updateOne(
+				{ user: userId, game: "test" },
+				{ $set: { elo: { value: 150, games: 10 } } },
+			);
+		});
 
-			it("should not create a game with an elo range narrower than 100", async () => {
-				const res = await api(
-					"POST",
-					"/api/game/new-game",
-					newGameBody("test-elo-narrow", { eloRange: { min: 100, max: 150 } }),
-					authHeaders,
-				);
+		it("should not create a game with an elo range narrower than 100", async () => {
+			const res = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-elo-narrow", { eloRange: { min: 100, max: 150 } }),
+				authHeaders,
+			);
 
-				assert.strictEqual(res.status, 422);
-				assert.strictEqual(errorMessage(res.data), "The Elo range must be at least 100 wide");
-			});
+			assert.strictEqual(res.status, 422);
+			assert.strictEqual(errorMessage(res.data), "The Elo range must be at least 100 wide");
+		});
 
-			it("should not create a game when the creator's elo is outside the range", async () => {
-				const res = await api(
-					"POST",
-					"/api/game/new-game",
-					newGameBody("test-elo-creator", { eloRange: { min: 200, max: 300 } }),
-					authHeaders,
-				);
+		it("should not create a game when the creator's elo is outside the range", async () => {
+			const res = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-elo-creator", { eloRange: { min: 200, max: 300 } }),
+				authHeaders,
+			);
 
-				assert.strictEqual(res.status, 422);
-				assert.ok(errorMessage(res.data)?.includes("must be within the game's Elo range"));
-			});
+			assert.strictEqual(res.status, 422);
+			assert.ok(errorMessage(res.data)?.includes("must be within the game's Elo range"));
+		});
 
-			it("should create a game with an elo range including the creator's elo", async () => {
-				const res = await api(
-					"POST",
-					"/api/game/new-game",
-					newGameBody("test-elo-ok", { eloRange: { min: 100, max: 300 } }),
-					authHeaders,
-				);
+		it("should create a game with an elo range including the creator's elo", async () => {
+			const res = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-elo-ok", { eloRange: { min: 100, max: 300 } }),
+				authHeaders,
+			);
 
-				assert.strictEqual(res.ok, true);
-				const game = await colls.games.findOne({ _id: "test-elo-ok" });
-				assert.deepStrictEqual(game?.options.meta?.eloRange, { min: 100, max: 300 });
-			});
+			assert.strictEqual(res.ok, true);
+			const game = await colls.games.findOne({ _id: "test-elo-ok" });
+			assert.deepStrictEqual(game?.options.meta?.eloRange, { min: 100, max: 300 });
+		});
 
-			it("should not let a player with elo outside the range join", async () => {
-				const res = await api("POST", "/api/game/test-elo-ok/join", {}, joinerAuthHeaders);
+		it("should not let a player with elo outside the range join", async () => {
+			const res = await api("POST", "/api/game/test-elo-ok/join", {}, joinerAuthHeaders);
 
-				assert.strictEqual(res.status, 422);
-				assert.ok(errorMessage(res.data)?.includes("outside this game's Elo range"));
-			});
+			assert.strictEqual(res.status, 422);
+			assert.ok(errorMessage(res.data)?.includes("outside this game's Elo range"));
+		});
 
-			it("should let a player with elo inside the range join", async () => {
-				const res = await api("POST", "/api/game/test-elo-ok/join", {}, joiner2AuthHeaders);
+		it("should let a player with elo inside the range join", async () => {
+			const res = await api("POST", "/api/game/test-elo-ok/join", {}, joiner2AuthHeaders);
+			assert.strictEqual(res.ok, true, JSON.stringify(res.data));
+			const game = await colls.games.findOne({ _id: "test-elo-ok" });
+			assert.ok(
+				game?.players.some((pl) => pl._id.equals(joiner2Id)),
+				"Joiner should be in the player list",
+			);
+		});
 
-				assert.strictEqual(res.ok, true, JSON.stringify(res.data));
-				const game = await colls.games.findOne({ _id: "test-elo-ok" });
-				assert.ok(
-					game?.players.some((pl) => pl._id.equals(joiner2Id)),
-					"Joiner should be in the player list",
-				);
-			});
+		it("should treat an unrated player as elo 0", async () => {
+			// The creator must be inside the range; their test3 elo pref lives on 150.
+			await colls.gamePreferences.updateOne({ user: userId, game: "test3" }, { $set: { elo: { value: 150 } } });
+			const createRes = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-elo-unrated", {
+					game: { game: "test3", version: 1 },
+					players: 3,
+					options: { join: false },
+					eloRange: { min: 100, max: 300 },
+				}),
+				authHeaders,
+			);
+			assert.strictEqual(createRes.ok, true, JSON.stringify(createRes.data));
 
-			it("should treat an unrated player as elo 0", async () => {
-				const createRes = await api(
-					"POST",
-					"/api/game/new-game",
-					newGameBody("test-elo-unrated", {
-						game: { game: "test3", version: 1 },
-						players: 3,
-						options: { join: false },
-						eloRange: { min: 100, max: 300 },
-					}),
-					authHeaders,
-				);
-				assert.strictEqual(createRes.ok, true);
-
-				const res = await api("POST", "/api/game/test-elo-unrated/join", {}, joiner3AuthHeaders);
-
-				assert.strictEqual(res.status, 422);
-				assert.ok(errorMessage(res.data)?.includes("Your Elo (0)"));
-			});
+			const res = await api("POST", "/api/game/test-elo-unrated/join", {}, joiner3AuthHeaders);
+			assert.strictEqual(res.status, 422);
+			assert.ok(errorMessage(res.data)?.includes("Your Elo (0)"));
 		});
 	});
 
