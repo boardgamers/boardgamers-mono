@@ -220,3 +220,56 @@ describe("GameList refresh on $logoClicks (#204)", () => {
 		}
 	});
 });
+
+describe("GameList last move (#208)", () => {
+	const T0 = 1_800_000_000_000;
+
+	function activeGame(lastMoveInfo: unknown) {
+		return {
+			_id: `g-lm-${++seq}`,
+			status: "active",
+			players: [{ _id: "u1" }, { _id: "u2", name: "terrans" }],
+			currentPlayers: [{ _id: "u1" }],
+			lastMove: new Date(T0 - 10 * 60 * 1000).toISOString(),
+			createdAt: new Date(T0 - 60 * 60 * 1000).toISOString(),
+			game: { name: `game-lm-${seq}` },
+			options: { setup: { nbPlayers: 2 }, timing: { timer: { start: 0, end: 0 } } },
+			lastMoveInfo,
+		} as never;
+	}
+
+	beforeEach(() => {
+		clearGamesCache();
+		getMock.mockReset();
+		document.body.innerHTML = "";
+	});
+
+	it("shows the last move for ongoing games, and skips it when missing or object-shaped", async () => {
+		mockApi(
+			[
+				activeGame({
+					player: "u2",
+					move: "terrans build m 1x0",
+					at: new Date(T0 - 10 * 60 * 1000).toISOString(),
+					moveNumber: 12,
+				}),
+				activeGame({
+					player: "u2",
+					move: '{"name":"Bid","data":15}',
+					at: new Date(T0 - 9 * 60 * 1000).toISOString(),
+					moveNumber: 3,
+				}),
+				activeGame(null),
+			],
+			3,
+		);
+		const { target, instance } = mountList({ gameStatus: "active", userId: "u1" });
+		await flushMicrotasks();
+
+		const chips = [...target.querySelectorAll(".last-move")];
+		expect(chips.length).toBe(1);
+		expect(chips[0].textContent?.replace(/\s+/g, " ")).toContain("terrans build m 1x0 by terrans");
+
+		unmount(instance as never);
+	});
+});

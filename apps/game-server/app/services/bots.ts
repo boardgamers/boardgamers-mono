@@ -96,7 +96,7 @@ async function runBotMoves(gameId: string): Promise<void> {
 
 				const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 				if (toSave) {
-					await afterMove(engine, game, toSave);
+					await afterMove(engine, game, toSave, false, { player: botIndex, move: null });
 				} else {
 					// The engine declined to persist the auto-played state — nothing more
 					// the driver can do without wedging the game.

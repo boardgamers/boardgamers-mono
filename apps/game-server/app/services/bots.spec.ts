@@ -187,6 +187,7 @@ describe("bot driver", () => {
 		await startGame("bot-game-1");
 		const started = await colls.games.findOne({ _id: "bot-game-1" });
 		assert.strictEqual(started?.status, "active");
+		assert.strictEqual(started?.lastMoveInfo, null, "No move yet at game start (#208)");
 		assert.strictEqual(started?.currentPlayers?.length, 1);
 		assert.ok(
 			started?.players[0].isBot && started.currentPlayers[0]._id.equals(started.players[0]._id),
@@ -221,6 +222,14 @@ describe("bot driver", () => {
 		});
 		assert.strictEqual(botNotifs, 0, "Bots never get currentMove notifications");
 		assert.ok(humanNotifs >= 1, "The human got their turn notification");
+
+		// Bot moves count for the standardized last-move field (#208). moveAI has no
+		// move argument, so the notation is empty — player/at/moveNumber still tracked.
+		assert.ok(game.lastMoveInfo, "The bot move was recorded");
+		assert.ok(game.lastMoveInfo.player.equals(game.players[0]._id), "Last mover is the bot");
+		assert.strictEqual(game.lastMoveInfo.move, "");
+		assert.strictEqual(game.lastMoveInfo.moveNumber, data?.moves[0]);
+		assert.ok(game.lastMoveInfo.at.getTime() > 0);
 	});
 
 	it("bots chain moves between themselves and the game ends with scores", async () => {
@@ -252,6 +261,10 @@ describe("bot driver", () => {
 			game.players.every((pl) => pl.ranking === 1),
 			"Rankings recorded",
 		);
+		assert.ok(game.lastMoveInfo, "The last bot move was recorded (#208)");
+		assert.ok(game.lastMoveInfo.player.equals(game.players[1]._id), "Player 2 played last (strict alternation)");
+		assert.strictEqual(game.lastMoveInfo.moveNumber, 6);
+
 		const endedNotifs = await colls.gameNotifications.countDocuments({ game: "bot-game-2", kind: "gameEnded" });
 		assert.strictEqual(endedNotifs, 1, "gameEnded notification emitted exactly once");
 		const moveNotifs = await colls.gameNotifications.countDocuments({ game: "bot-game-2", kind: "currentMove" });

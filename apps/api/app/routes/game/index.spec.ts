@@ -709,6 +709,51 @@ describe("Game API", () => {
 		);
 	});
 
+	it("should expose lastMoveInfo in the active game list (#208)", async () => {
+		const moverId = new ObjectId();
+		const at = new Date();
+		await colls.games.insertOne(
+			testGame({
+				_id: "list-lastmove",
+				creator: userId,
+				status: "active",
+				players: [
+					{ _id: moverId, name: "mover" },
+					{ _id: joinerId, name: "other" },
+				],
+				game: { name: "test", version: 1 },
+				lastMoveInfo: { player: moverId, move: "terrans build m 1x0", at, moveNumber: 12 },
+			}),
+		);
+		await colls.games.insertOne(
+			testGame({
+				_id: "list-no-move",
+				creator: userId,
+				status: "active",
+				players: [{ _id: moverId, name: "mover" }],
+				game: { name: "test", version: 1 },
+				lastMoveInfo: null,
+			}),
+		);
+
+		const res = await api("GET", "/api/game/status/active?boardgame=test", undefined, authHeaders);
+
+		assert.strictEqual(res.ok, true, JSON.stringify(res.data));
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- response body is untyped JSON
+		const games = res.data as {
+			_id: string;
+			lastMoveInfo?: { player: unknown; move: string; at: string; moveNumber: number } | null;
+		}[];
+		const withMove = games.find((g) => g._id === "list-lastmove");
+		assert.ok(withMove, "The game is in the list");
+		assert.strictEqual(withMove.lastMoveInfo?.move, "terrans build m 1x0");
+		assert.strictEqual(withMove.lastMoveInfo?.moveNumber, 12);
+		assert.strictEqual(withMove.lastMoveInfo?.player, moverId.toHexString());
+		const withoutMove = games.find((g) => g._id === "list-no-move");
+		assert.ok(withoutMove, "The no-move game is in the list");
+		assert.strictEqual(withoutMove.lastMoveInfo, null, "No move yet → explicitly null");
+	});
+
 	it("should record the game id in the error meta for game-scoped routes", async () => {
 		await colls.games.insertOne(
 			testGame({

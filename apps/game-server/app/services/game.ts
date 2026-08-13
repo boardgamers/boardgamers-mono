@@ -101,6 +101,7 @@ export async function startNextGame(): Promise<boolean> {
 			});
 
 			game.lastMove = new Date();
+			game.lastMoveInfo = null;
 
 			if (engine.round) {
 				const round = engine.round(gameData);
@@ -231,7 +232,26 @@ export async function processQuit(notification: GameNotificationDoc) {
 	}
 }
 
-export async function afterMove(engine: Engine, game: GameDoc, gameData: GameData, alreadyEnded = false) {
+// The engine contract has no move→text hook and bot moves have no move argument,
+// so the stored notation is the move itself when it's a string, a compact JSON
+// serialization for object moves, and "" for bots (moveAI takes no argument).
+function moveNotation(move: unknown): string {
+	if (typeof move === "string") {
+		return move;
+	}
+	if (move === null || move === undefined) {
+		return "";
+	}
+	return JSON.stringify(move);
+}
+
+export async function afterMove(
+	engine: Engine,
+	game: GameDoc,
+	gameData: GameData,
+	alreadyEnded = false,
+	lastMove?: { player: number; move: unknown },
+) {
 	const oldPlayers = game.currentPlayers ?? [];
 	const { timePerGame, timePerMove, timer } = game.options.timing;
 
@@ -321,6 +341,17 @@ export async function afterMove(engine: Engine, game: GameDoc, gameData: GameDat
 
 	game.lastMove = new Date();
 	game.data = JSON.parse(JSON.stringify(gameData));
+
+	if (lastMove !== undefined) {
+		const player = game.players[lastMove.player];
+		assert(player, `No player at index ${lastMove.player}`);
+		game.lastMoveInfo = {
+			player: player._id,
+			move: moveNotation(lastMove.move),
+			at: game.lastMove,
+			moveNumber: engine.logLength(gameData),
+		};
+	}
 
 	await colls.games.replaceOne({ _id: game._id }, game);
 

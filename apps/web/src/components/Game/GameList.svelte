@@ -125,6 +125,17 @@
 	// text on a 390px-wide screen with a 6-player game.
 	const MOBILE_AVATARS_LIMIT = 5;
 
+	// The engine contract has no move→text hook, so lastMoveInfo.move is raw notation:
+	// the move itself when it's a string (gaia), compact JSON otherwise. Object
+	// notation isn't readable in a list row — only surface string moves.
+	function lastMoveText(game: GameFront): { move: string; player: string } | null {
+		const info = game.lastMoveInfo;
+		if (!info || info.move.startsWith("{") || info.move.startsWith("[") || info.move.startsWith('"')) {
+			return null;
+		}
+		return { move: info.move, player: game.players.find((pl) => pl._id === info.player)?.name ?? "" };
+	}
+
 	// lastMove/createdAt are optional — fall back to "just now" when both are missing.
 	function lastActivity(game: GameFront): string {
 		const ts = new Date(game.lastMove ?? game.createdAt ?? now).getTime() || now;
@@ -204,6 +215,7 @@
 					{#each games as game (game._id)}
 						{@const timeLeft = game.status === "active" ? turnTimeLeft(game) : null}
 						{@const eloChange = playerEloChange(game)}
+						{@const lastMove = game.status === "active" ? lastMoveText(game) : null}
 						<li
 							class="game-item"
 							class:active-game={game.status === "active"}
@@ -251,7 +263,7 @@
 										{/if}
 									</div>
 									<small
-										class="flex items-center gap-1 whitespace-nowrap text-xs"
+										class="flex items-center gap-1 text-xs"
 										title={`${playTime(game)} ${duration(game.options.timing.timePerGame ?? 0)} + ${duration(
 											game.options.timing.timePerMove ?? 0
 										)} · ${timerWindow(game.options.timing.timer)}`}
@@ -261,18 +273,28 @@
 										{:else if game.status === "active"}
 											<!-- Ongoing games: last activity first, then time left on the current turn
 											     when the game has a per-turn clock (full timing on hover) -->
-											<span class="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+											<span class="flex shrink-0 items-center gap-1 whitespace-nowrap text-gray-500 dark:text-gray-400">
 												<IconClockHistory class="text-[0.8em]" />
 												{lastActivity(game)} ago
 											</span>
 											{#if timeLeft !== null}
 												<span
-													class="flex items-center gap-0.5 {turnUrgent(game, timeLeft)
+													class="flex shrink-0 items-center gap-0.5 whitespace-nowrap {turnUrgent(game, timeLeft)
 														? 'font-semibold text-amber-600 dark:text-amber-400'
 														: 'text-gray-500 dark:text-gray-400'}"
 												>
 													· ⏱ {timeLeft <= 0 ? "overdue" : `${compactDuration(timeLeft)} left`}
 												</span>
+											{/if}
+											{#if lastMove}
+												<!-- Non-mobile only (#208): hidden on small screens (see .last-move) -->
+												<span
+													class="last-move min-w-0 truncate text-gray-500 dark:text-gray-400"
+													title="{lastMove.player}: {lastMove.move}"
+													>· <span class="italic">{lastMove.move}</span>{#if lastMove.player}<span
+															class="last-move-by whitespace-nowrap">&nbsp;by {lastMove.player}</span
+														>{/if}</span
+												>
 											{/if}
 										{:else}
 											<IconClockHistory class="text-[0.8em]" />
@@ -434,5 +456,17 @@
 
 	.game-list .game-item .game-kind {
 		font-size: 1.8em;
+	}
+
+	/* Last-move chip (#208): non-mobile only, and it truncates instead of
+	   squeezing the activity/clock labels (which stay nowrap + shrink-0). */
+	.game-list .game-item .last-move-by {
+		opacity: 0.85;
+	}
+
+	@media (max-width: 639.98px) {
+		.game-list .game-item .last-move {
+			display: none;
+		}
 	}
 </style>
