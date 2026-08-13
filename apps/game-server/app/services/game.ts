@@ -293,7 +293,10 @@ function lastMoveText(engine: Engine, gameData: GameData, beforeLen: number, mov
 	try {
 		const afterLen = engine.logLength(gameData);
 		if (afterLen > beforeLen) {
-			const entries = logEntries(engine.logSlice(gameData, { start: beforeLen, end: afterLen }));
+			// Omit `end`: the slice is identical (start..logLength), and passing it would
+			// make powergrid/container/take6 replay the game to recompute historical
+			// availableMoves — pointless here (we only want the log lines).
+			const entries = logEntries(engine.logSlice(gameData, { start: beforeLen }));
 			for (let i = entries.length - 1; i >= 0; i--) {
 				const text = logEntryText(entries[i]).trim();
 				if (text) {
