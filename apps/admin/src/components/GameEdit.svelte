@@ -231,6 +231,9 @@
 			const links = Object.fromEntries(Object.entries(value.links).filter(([, url]) => url));
 			value.links = Object.keys(links).length > 0 ? links : undefined;
 		}
+		// An empty alias input clears the alias; it must reach the API as null (not a
+		// dropped undefined) so the upsert's $unset removes it from the doc.
+		value.alias = value.alias?.trim() || null;
 		onsave(value);
 	}
 
@@ -250,6 +253,18 @@
 		<div>
 			<label for="game-label" class={labelClass}>Label</label>
 			<input id="game-label" bind:value={value.label} class={inputClass} />
+		</div>
+		<div>
+			<label for="game-alias" class={labelClass}>Alias</label>
+			<input
+				id="game-alias"
+				bind:value={value.alias}
+				class={inputClass}
+				placeholder="Public display name (e.g. Gem Trader) — leave empty for none"
+			/>
+			<p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+				Shown everywhere instead of the label; the label is noted as the rules source ("&lt;Label&gt; rules").
+			</p>
 		</div>
 		{#if mode === "new"}
 			<div class="grid grid-cols-2 gap-4">

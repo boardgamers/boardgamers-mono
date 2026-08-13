@@ -2,6 +2,7 @@
 	import { resolve } from "$app/paths";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { pluralize } from "@/utils";
+	import { gameDisplayName } from "@/utils/game-label";
 	import type { GamePreferencesFront } from "@bgs/models";
 	import IconInfoCircleFill from "@/components/icons/IconInfoCircleFill.svelte";
 
@@ -12,7 +13,8 @@
 	// synchronously. Fall back to the raw game id if somehow missing.
 	const gameInfos = useGameInfos();
 	function gameName(game: string): string {
-		return gameInfos[gameInfoKey(game, "latest")]?.label ?? game;
+		const info = gameInfos[gameInfoKey(game, "latest")];
+		return info ? gameDisplayName(info) : game;
 	}
 </script>
 

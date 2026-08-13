@@ -8,6 +8,9 @@
 
 	let value: GameInfoData = $state({
 		label: "",
+		// null (not undefined) so a new game without an alias still sends the field —
+		// the API unsets null-valued clearable fields.
+		alias: null,
 		description: "",
 		rules: "",
 		viewer: {

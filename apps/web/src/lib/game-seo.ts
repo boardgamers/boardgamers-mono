@@ -2,7 +2,7 @@ import removeMarkdown from "remove-markdown";
 import { minBy, sortBy } from "lodash";
 import type { GameFront, GameInfoFront } from "@bgs/models";
 import type { JsonObject } from "type-fest";
-import { gameLabel } from "@/utils/game-label";
+import { gameDisplayName } from "@/utils/game-label";
 import { duration } from "@/utils/time";
 import { shareImageUrl, type SeoData } from "@/lib/seo";
 
@@ -11,7 +11,7 @@ const gameOptions = (game: { game: { options?: unknown } } | null | undefined): 
 	(game?.game.options ?? {}) as JsonObject;
 
 function label(gameInfo: GameInfoFront | null | undefined): string {
-	return gameLabel(gameInfo?.label ?? "");
+	return gameDisplayName(gameInfo, { emoji: false });
 }
 
 /**

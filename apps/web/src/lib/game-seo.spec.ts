@@ -66,6 +66,12 @@ describe("gameSeo", () => {
 		expect(seo.description).toContain("1 / 2 players");
 	});
 
+	it("uses the alias as the public name when the game has one (issue #106)", () => {
+		const aliased = { label: "💎 Splendor", alias: "Gem Trader" } as GameInfoFront;
+		const seo = gameSeo({ ...baseGame, status: "open" }, aliased);
+		expect(seo.title).toBe("Gem Trader game game-1");
+	});
+
 	it("open game with missing options/timing does not throw", () => {
 		const corrupt = {
 			...baseGame,

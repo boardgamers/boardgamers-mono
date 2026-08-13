@@ -5,6 +5,7 @@
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { getUserCardData, type UserCardData } from "@/lib/user-card.svelte";
 	import { pluralize } from "@/utils";
+	import { gameDisplayName } from "@/utils/game-label";
 	import { account } from "@/lib/account.svelte";
 
 	let { username, userId = null }: { username: string; userId?: string | null } = $props();
@@ -20,7 +21,8 @@
 
 	const gameInfos = useGameInfos();
 	function gameName(game: string): string {
-		return gameInfos[gameInfoKey(game, "latest")]?.label ?? game;
+		const info = gameInfos[gameInfoKey(game, "latest")];
+		return info ? gameDisplayName(info) : game;
 	}
 
 	let eloRatings = $derived(

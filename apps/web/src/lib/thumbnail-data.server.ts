@@ -5,7 +5,7 @@ import { apiFetch, get } from "@/lib/api";
 import { fetchGameInfo, fetchGameInfos } from "@/lib/game-info.svelte";
 import { countryFlag, countryName } from "@/lib/countries";
 import { firstSentence, siteName, truncate } from "@/lib/seo";
-import { gameEmoji, gameLabel } from "@/utils/game-label";
+import { gameBasedOn, gameDisplayName, gameEmoji } from "@/utils/game-label";
 import type { GameFront, GameInfoFront, GamePreferencesFront, UserFront } from "@bgs/models";
 
 // Card content for the /thumbnail/* pages, derived server-side from the db (via the API)
@@ -54,10 +54,12 @@ export async function loadBoardgameCard(boardgameId: string): Promise<CardData> 
 	if (!info) {
 		throw error(404, "Boardgame not found");
 	}
-	const label = gameLabel(info.label);
+	const label = gameDisplayName(info, { emoji: false });
+	const base = gameBasedOn(info);
 	const card: OgCardData = {
 		title: label,
-		subtitle: `Play ${label} online with other people!`,
+		// An aliased game leads with the alias; the canonical name is the rules source.
+		subtitle: base ? `Mechanics of ${base} — play online!` : `Play ${label} online with other people!`,
 		game: label,
 		emoji: gameEmoji(info.label),
 		description: firstSentence(info.description ?? ""),
@@ -74,9 +76,9 @@ export async function loadGameCard(gameId: string): Promise<CardData> {
 	}
 
 	const info = await fetchGameInfo(game.game.name, game.game.version);
-	const rawLabel = info?.label ?? game.game.name;
-	const label = gameLabel(rawLabel);
-	const emoji = gameEmoji(rawLabel);
+	const label = info ? gameDisplayName(info, { emoji: false }) : game.game.name;
+	const emoji = info ? gameEmoji(info.label) : gameEmoji(game.game.name);
+	const basedOn = gameBasedOn(info);
 	const gameOptions = crucialGameOptions(game, info);
 
 	let card: OgCardData;
@@ -88,7 +90,7 @@ export async function loadGameCard(gameId: string): Promise<CardData> {
 		const pace = timePerGame >= 24 * 3600 ? "Asynchronous" : "Live";
 		card = {
 			title: label,
-			subtitle: "Join and play online!",
+			subtitle: basedOn ? `Mechanics of ${basedOn} — join and play online!` : "Join and play online!",
 			game: label,
 			emoji,
 			players: `${game.players.length} / ${game.options.setup.nbPlayers} players joined`,
@@ -101,9 +103,9 @@ export async function loadGameCard(gameId: string): Promise<CardData> {
 		card = {
 			title: label,
 			subtitle:
-				game.status === "active"
+				(game.status === "active"
 					? `Round ${round} — ${game.players.length} players`
-					: `Finished — ${game.players.length} players`,
+					: `Finished — ${game.players.length} players`) + (basedOn ? ` · Mechanics of ${basedOn}` : ""),
 			game: label,
 			emoji,
 			players: `${game.players.length} players`,
@@ -171,7 +173,8 @@ export async function loadUserCard(username: string): Promise<CardData> {
 
 	// Top boardgame by games played (the hovercard sorts the same way), with its elo.
 	const top = elo.filter((pref) => pref.elo).sort((a, b) => (b.elo!.games ?? 0) - (a.elo!.games ?? 0))[0];
-	const topLabel = top ? gameLabel(gameInfos[`${top.game}/latest` as keyof typeof gameInfos]?.label ?? top.game) : "";
+	const topInfo = top ? gameInfos[`${top.game}/latest` as keyof typeof gameInfos] : undefined;
+	const topLabel = top ? (topInfo ? gameDisplayName(topInfo, { emoji: false }) : top!.game) : "";
 
 	const card: OgCardData = {
 		title: user.account.username,

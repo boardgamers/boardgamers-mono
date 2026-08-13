@@ -6,6 +6,7 @@
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import SanitizedHtml from "@/components/SanitizedHtml.svelte";
+	import GameName from "@/components/GameName.svelte";
 	import { randomGameName } from "@/data";
 	import { fade } from "svelte/transition";
 	import { untrack } from "svelte";
@@ -246,7 +247,7 @@
 
 {#if info}
 	<div class="container mx-auto px-4">
-		<h1 class="mb-2">{info.label}</h1>
+		<h1 class="mb-2"><GameName {info} /></h1>
 		<p class="mb-6 text-gray-500 dark:text-gray-400">
 			Set up a new game. Only the essentials are required — everything else has a sensible default.
 		</p>

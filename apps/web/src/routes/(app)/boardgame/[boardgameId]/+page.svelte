@@ -6,14 +6,13 @@
 	import marked from "marked";
 	import type { GameInfoFront } from "@bgs/models";
 	import { Button, Card } from "@/modules/cdk";
-	import { UserGameSettings, GameList, BoardgameElo, BoardgameLinks } from "@/components";
+	import { UserGameSettings, GameList, BoardgameElo, BoardgameLinks, GameName } from "@/components";
 	import { account } from "@/lib/account.svelte";
 	import { live } from "@/lib/stores.svelte";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { gamePreferences, useGamePreferencesFallback } from "@/lib/game-preferences.svelte";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
-	import { gameLabel } from "@/utils/game-label";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
 
@@ -47,7 +46,7 @@
 </script>
 
 <div class="container mx-auto px-4">
-	<h1 class="mb-4">{boardgame.label}</h1>
+	<h1 class="mb-4"><GameName info={boardgame} /></h1>
 
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 		<div>

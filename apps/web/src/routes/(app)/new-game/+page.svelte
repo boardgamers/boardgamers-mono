@@ -6,6 +6,7 @@
 	import ExpandableMarkdown from "@/components/ExpandableMarkdown.svelte";
 	import { useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
+	import { gameBasedOnLabel, gameDisplayName } from "@/utils/game-label";
 	import type { IterableElement } from "type-fest";
 	import type { PageProps } from "./$types";
 
@@ -43,11 +44,14 @@
 		{#each info as game (game._id.game)}
 			<div role="button">
 				<Card
-					header={game.label}
+					header={gameDisplayName(game)}
 					class="border-gray-300 h-full cursor-pointer transition-shadow hover:border-primary hover:shadow-lg dark:border-gray-600 dark:hover:border-primary-lighter"
 					onclick={() => onClick(game)}
 				>
 					<CardText>
+						{#if gameBasedOnLabel(game)}
+							<div class="mb-2 text-sm text-gray-500 dark:text-gray-400">{gameBasedOnLabel(game)}</div>
+						{/if}
 						<ExpandableMarkdown markdown={game.description} />
 					</CardText>
 					{#snippet footer()}

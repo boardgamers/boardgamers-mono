@@ -12,6 +12,7 @@
 	import IconCart from "../icons/IconCart.svelte";
 	import { post } from "@/lib/api";
 	import { gameInfoKey } from "@/lib/game-info.svelte";
+	import { gameDisplayName } from "@/utils/game-label";
 	import { developerSettings, devGameSettings } from "@/lib/stores.svelte";
 	import { gamePreferences, useGamePreferencesFallback } from "@/lib/game-preferences.svelte";
 
@@ -88,7 +89,7 @@
 	}
 </script>
 
-<Card class={classes} header={title || game.label}>
+<Card class={classes} header={title || gameDisplayName(game)}>
 	<CardText class="h-full flex flex-col">
 		<Loading loading={!prefs}>
 			<div class="grow space-y-3">

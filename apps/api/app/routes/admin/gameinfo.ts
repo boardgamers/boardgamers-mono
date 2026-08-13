@@ -14,10 +14,27 @@ router.get("/", async (ctx) => {
 		.toArray();
 });
 
+// Fields that are REMOVED from the doc when the admin sends them as null (the JSON
+// body can't carry undefined, so GameEdit sends null to clear). Anything else null
+// would fail the collection's schema validation — only alias is clearable for now.
+const NULLABLE_FIELDS = ["alias"] as const;
+
 async function upsert(ctx: Context) {
+	const body = omit(z.record(z.string(), z.unknown()).parse(ctx.request.body), "_id", "createdAt", "updatedAt");
+	const $unset: Record<string, true> = {};
+	for (const field of NULLABLE_FIELDS) {
+		if (body[field] === null) {
+			delete body[field];
+			$unset[field] = true;
+		}
+	}
+	const update: Record<string, unknown> = { $set: body };
+	if (Object.keys($unset).length > 0) {
+		update.$unset = $unset;
+	}
 	const game = await colls.gameInfos.findOneAndUpdate(
 		{ _id: { game: ctx.params.game, version: +ctx.params.version } },
-		{ $set: omit(z.record(z.string(), z.unknown()).parse(ctx.request.body), "_id", "createdAt", "updatedAt") },
+		update,
 		{ upsert: true, returnDocument: "after" },
 	);
 	ctx.body = game;
