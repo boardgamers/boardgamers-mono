@@ -3,7 +3,7 @@
 	import { Loading } from "@/modules/cdk";
 	import type { GameContext } from "@/routes/game/[gameId]/game-context";
 	import { createWatcher, handleError } from "@/utils";
-	import { getContext, onDestroy, onMount } from "svelte";
+	import { getContext, onDestroy, onMount, untrack } from "svelte";
 	import { loadGame } from "@/lib/game.svelte";
 	import { get, post } from "@/lib/api";
 	import {
@@ -49,20 +49,40 @@
 	);
 	let prefs = $derived(addDefaults(storedPrefs, context.gameInfo!));
 
+	// Derive alternateUI straight from the store. The `prefs` chain (storedPrefs → addDefaults)
+	// goes stale in the iframe component (a Svelte 5 chained-derived reactivity bug), so reading
+	// `prefs.preferences.alternateUI` for the iframe src/key never updated on toggle. Reading the
+	// store directly here recomputes reliably, which is what remounts the iframe live.
+	const alternateUI = $derived.by(() => {
+		const stored = $gamePreferences[gameName ?? ""] ?? ssrPrefs[gameName ?? ""];
+		return Boolean(addDefaults(stored as GamePreferencesFront, context.gameInfo!)?.preferences?.alternateUI);
+	});
+
 	// The theme is only pushed via postMessage — baking `dark` into the src would make it
 	// change with $currentTheme, and any src change reloads the iframe (and SSR/hydration
 	// can't agree on its value anyway).
+	let customUrl = $derived(
+		$developerSettings
+			? encodeURIComponent(
+					$devGameSettings[gameInfoKey(context.gameInfo?._id.game ?? "", context.gameInfo?._id.version ?? 0)]
+						?.viewerUrl ?? ""
+				)
+			: ""
+	);
 	let src = $derived.by(() => {
 		if (!context.gameInfo) return "";
-		const customUrl = $developerSettings
-			? encodeURIComponent(
-					$devGameSettings[gameInfoKey(context.gameInfo._id.game, context.gameInfo._id.version)]?.viewerUrl ?? ""
-				)
-			: "";
 		return `${resourcesLink}/game/${gameName}/${context.gameInfo._id.version}/iframe?alternate=${
-			prefs?.preferences?.alternateUI ? 1 : 0
+			alternateUI ? 1 : 0
 		}&customViewerUrl=${customUrl}`;
 	});
+
+	// Key the iframe on the viewer identity so toggling "Use alternate UI" actually remounts it:
+	// a same-element iframe whose `src` attribute changes is NOT reliably reloaded by the browser.
+	// Deliberately NOT keyed on the raw `src`/`customViewerUrl`: those read `localStorage`-backed dev
+	// settings (empty during SSR), so keying on them would remount the iframe right after hydration.
+	// `alternateUI` and `gameId` are SSR/hydration-stable. The remounted viewer re-emits `gameReady`,
+	// which re-runs the theme/user/preferences/avatars/state postMessage setup.
+	let viewerKey = $derived(`${gameId}:${alternateUI ? 1 : 0}`);
 
 	function postTheme() {
 		gameIframe?.contentWindow?.postMessage({ type: "theme", dark: $isDarkMode }, "*");
@@ -108,6 +128,19 @@
 		src;
 		gameId;
 		stateSent = false;
+	});
+
+	// The customViewerUrl dev override is intentionally NOT part of viewerKey (it's localStorage-backed,
+	// empty during SSR — keying on it would remount the iframe right after hydration). So when it changes
+	// (a dev edits the override, or hydration diverges from the SSR-rendered src), only the same-element
+	// `src` attribute changes, which the browser won't reload. Reload it manually when the iframe's current
+	// `src` no longer matches the target. No-op on the normal initial mount (attribute already === src).
+	$effect(() => {
+		customUrl;
+		const iframe = untrack(() => gameIframe);
+		if (iframe && src && iframe.getAttribute("src") !== src) {
+			iframe.src = src;
+		}
 	});
 
 	const onGameUpdated = createWatcher(() => {
@@ -246,7 +279,7 @@
 
 <Loading loading={!stateSent} />
 
-{#key gameId}
+{#key viewerKey}
 	<iframe
 		bind:this={gameIframe}
 		allow="cross-origin-isolated fullscreen"
