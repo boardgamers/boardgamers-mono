@@ -52,6 +52,17 @@
 		}
 	}
 
+	async function cancelGame() {
+		if (!game || !confirm(`Cancel game ${game._id}?`)) return;
+		try {
+			await api.post(`/admin/games/${encodeURIComponent(game._id)}/cancel`);
+			toast.success("Game cancelled");
+			await invalidateAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed to cancel");
+		}
+	}
+
 	async function replayGame() {
 		if (!game) return;
 		try {
@@ -306,6 +317,12 @@
 					<button
 						onclick={editGameData}
 						class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">Save JSON</button
+					>
+				{/if}
+				{#if game.status === "active"}
+					<button
+						onclick={cancelGame}
+						class="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium">Cancel</button
 					>
 				{/if}
 				<button

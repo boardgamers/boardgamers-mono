@@ -2,8 +2,25 @@ import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
 import { colls } from "../../config/db.ts";
+import locks from "../../config/locks.ts";
+import { cancelGame } from "../../services/game.ts";
 
 const router = new Router<Application.DefaultState, Context>();
+
+router.post("/:gameId/cancel", async (ctx) => {
+	await using _lock = await locks.lock("game-cancel", ctx.params.gameId);
+	const game = await colls.games.findOne({ _id: ctx.params.gameId });
+
+	if (!game) {
+		throw createError(404, "Game not found: " + ctx.params.gameId);
+	}
+	if (game.status !== "active") {
+		throw createError(409, "The game is not active");
+	}
+
+	await cancelGame(game, new Date(), "Game cancelled by an admin");
+	ctx.status = 200;
+});
 
 router.get("/:gameId", async (ctx) => {
 	const game = await colls.games.findOne({ _id: ctx.params.gameId });
