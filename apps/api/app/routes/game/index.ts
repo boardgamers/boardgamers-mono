@@ -608,7 +608,8 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
 		assert(game, createError(404));
 		assert(game.status === "active", "The game is not ongoing");
 
-		const player = game.players.find((pl) => pl._id.equals(user._id));
+		const playerIndex = game.players.findIndex((pl) => pl._id.equals(user._id));
+		const player = game.players[playerIndex];
 		assert(player, "You must be a player of the game to vote!");
 		assert(!player.voteCancel, "You already voted to cancel the game");
 
@@ -622,7 +623,8 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
 
 		// Bots auto-consent: no one can act for a bot, so it would otherwise block
 		// the vote forever. Only human players' votes are required.
-		if (game.players.every((pl) => pl.voteCancel || pl.dropped || pl.isBot)) {
+		const ended = game.players.every((pl) => pl.voteCancel || pl.dropped || pl.isBot);
+		if (ended) {
 			await colls.chatMessages.insertOne({
 				_id: new ObjectId(),
 				room: game._id,
@@ -634,7 +636,15 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
 			game.currentPlayers = [];
 		}
 
-		await colls.games.replaceOne({ _id: game._id }, game);
+		await colls.games.updateOne(
+			{ _id: game._id },
+			{
+				$set: {
+					[`players.${playerIndex}.voteCancel`]: true,
+					...(ended ? { status: "ended", cancelled: true, currentPlayers: [] } : {}),
+				},
+			},
+		);
 
 		if (game.status === "ended") {
 			// Possible concurrency issue if game is cancelled at the exact same time as being finished

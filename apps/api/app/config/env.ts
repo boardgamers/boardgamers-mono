@@ -128,11 +128,8 @@ export default {
 			: ("off" as "off" | "dry-run" | "delete"),
 	cleanupDeadUsersMaxAgeDays: Number(process.env.cleanupDeadUsersMaxAgeDays) || 365,
 	cleanupDeadUsersBatchSize: Number(process.env.cleanupDeadUsersBatchSize) || 50,
-	// Auto-cancel of stalled games (#94): a game is stalled when a current player's
-	// deadline passed (the window-aware "out of clock" signal). The sweep warns in
-	// chat first, then cancels the game (penalty-free) — it never drops players
-	// (the warning points the others at the manual drop). Games without a deadline
-	// (live/realtime games) are never touched.
+	// Inactivity sweep (#94): warn in chat, then cancel penalty-free. Never drops
+	// players; games without a deadline (live/realtime) are untouched.
 	autoCancelGraceMs: Number(process.env.autoCancelGraceMs) || 10 * 24 * 3600 * 1000,
 	autoCancelWarnMs: Number(process.env.autoCancelWarnMs) || 24 * 3600 * 1000,
 	mailing: {

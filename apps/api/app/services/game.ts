@@ -122,14 +122,6 @@ function activeHumanPlayers(game: Pick<GameDoc, "players">): PlayerInfo[] {
 	return game.players.filter((pl) => !pl.isBot && !pl.dropped && !pl.quit);
 }
 
-/**
- * Inactivity sweep for one game (#94): warn in chat once stalled past
- * autoCancelWarnMs, cancel past autoCancelGraceMs — never drops anyone. Stalled
- * = a current player's deadline passed; no deadline → untouched. `cancelWarn`
- * holds the warned episode's start, so it warns once per episode and re-warns
- * after a move. Locks `game-cancel:<id>` like the manual cancel/quit/drop routes
- * (the move path's `game:<id>` split is #280, self-healing).
- */
 export async function processStalledGame(gameId: string): Promise<void> {
 	await using _lock = await locks.lock("game-cancel", gameId);
 	const game = await colls.games.findOne({ _id: gameId });
@@ -140,8 +132,6 @@ export async function processStalledGame(gameId: string): Promise<void> {
 
 	const now = new Date();
 
-	// Stalled only when a current player's deadline has passed. No deadline →
-	// nothing to cancel on.
 	const expiredDeadlines = (game.currentPlayers ?? [])
 		.map((cp) => cp.deadline)
 		.filter((dl): dl is Date => dl !== undefined && dl.getTime() < now.getTime());
@@ -149,8 +139,7 @@ export async function processStalledGame(gameId: string): Promise<void> {
 		return;
 	}
 
-	// A stalled *current* human is who's waited on. A game stalled only on bots
-	// (a broken bot is a bug, not inactivity) is left alone for an admin fix.
+	// A bot whose clock expired is a bug, not inactivity — leave it for an admin.
 	const stalledPlayers = (game.currentPlayers ?? [])
 		.map((cp) => game.players.find((pl) => pl._id.equals(cp._id)))
 		.filter((pl): pl is PlayerInfo => pl !== undefined && !pl.isBot && !pl.dropped && !pl.quit);
@@ -158,7 +147,6 @@ export async function processStalledGame(gameId: string): Promise<void> {
 		return;
 	}
 
-	// The stall is clocked from the earliest expired deadline.
 	const stallSince = new Date(Math.min(...expiredDeadlines.map((dl) => dl.getTime())));
 	const stallAgeMs = now.getTime() - stallSince.getTime();
 
@@ -167,7 +155,7 @@ export async function processStalledGame(gameId: string): Promise<void> {
 		return;
 	}
 
-	if (stallAgeMs >= env.autoCancelWarnMs && game.cancelWarn?.getTime() !== stallSince.getTime()) {
+	if (stallAgeMs >= env.autoCancelWarnMs && !game.cancelWarn) {
 		const daysLeft = Math.max(1, Math.ceil((env.autoCancelGraceMs - stallAgeMs) / (24 * 3600 * 1000)));
 		const names = stalledPlayers.map((pl) => pl.name).join(", ") || "the current player(s)";
 		await colls.chatMessages.insertOne({
@@ -178,12 +166,12 @@ export async function processStalledGame(gameId: string): Promise<void> {
 				text: `This game will be cancelled for inactivity in ${daysLeft} day${daysLeft > 1 ? "s" : ""} if no move is played. Waiting on ${names} — the other players can drop the inactive player to keep the game going.`,
 			},
 		});
-		await colls.games.updateOne({ _id: game._id }, { $set: { cancelWarn: stallSince } });
+		await colls.games.updateOne({ _id: game._id }, { $set: { cancelWarn: true } });
 	}
 }
 
-// Cancel like the manual vote-to-cancel route does (same doc update + gameEnded
-// notification, so Elo/karma handling matches a player-agreed cancel).
+// Same shape as the manual vote-to-cancel route (status/cancelled/currentPlayers
+// + gameEnded notification), so Elo/karma handling matches a player-agreed cancel.
 async function cancelInactiveGame(game: GameDoc, now: Date): Promise<void> {
 	await colls.chatMessages.insertOne({
 		_id: new ObjectId(),
@@ -191,10 +179,7 @@ async function cancelInactiveGame(game: GameDoc, now: Date): Promise<void> {
 		type: "system",
 		data: { text: "Game cancelled for inactivity" },
 	});
-	game.status = "ended";
-	game.cancelled = true;
-	game.currentPlayers = [];
-	await colls.games.replaceOne({ _id: game._id }, game);
+	await colls.games.updateOne({ _id: game._id }, { $set: { status: "ended", cancelled: true, currentPlayers: [] } });
 	await colls.gameNotifications.insertOne({
 		kind: "gameEnded",
 		game: game._id,
@@ -205,11 +190,8 @@ async function cancelInactiveGame(game: GameDoc, now: Date): Promise<void> {
 	await emailCancelNotice(game);
 }
 
-// Best-effort email notice, after the cancel is committed and the chat system
-// message posted. Bots have no account (never emailed). Honors the same opt-in
-// as turn notifications (settings.mailing.game.activated), and sendmail itself
-// no-ops on installs without a mailing provider — so a failure here can never
-// roll back the cancel.
+// Best-effort email notice, after the cancel is committed. Bots have no account
+// and are never emailed; honors the same opt-in as turn notifications.
 async function emailCancelNotice(game: GameDoc): Promise<void> {
 	const users = await colls.users
 		.find(
@@ -241,21 +223,35 @@ async function emailCancelNotice(game: GameDoc): Promise<void> {
 }
 
 export async function processStalledGames(): Promise<void> {
-	// Prefilter (re-checked per game under the lock): a current player past the
-	// warn threshold. Nothing happens before the warn point, so a game seconds
-	// past its deadline is never fetched/locked. Dot-notation matches if any
-	// array element matches — fine for this single-condition check.
-	const candidates = await colls.games
-		.find(
-			{
-				status: "active",
-				"currentPlayers.deadline": { $lt: new Date(Date.now() - env.autoCancelWarnMs) },
-			},
-			{ projection: { _id: 1 } },
-		)
-		.toArray();
+	const now = Date.now();
+	const projection = { projection: { _id: 1 } };
 
-	for (const { _id } of candidates) {
+	// Unwarned games are candidates once past the warn threshold (to warn); already
+	// warned games only once past the grace threshold (to cancel).
+	const [toWarn, toCancel] = await Promise.all([
+		colls.games
+			.find(
+				{
+					status: "active",
+					cancelWarn: { $ne: true },
+					"currentPlayers.deadline": { $lt: new Date(now - env.autoCancelWarnMs) },
+				},
+				projection,
+			)
+			.toArray(),
+		colls.games
+			.find(
+				{
+					status: "active",
+					cancelWarn: true,
+					"currentPlayers.deadline": { $lt: new Date(now - env.autoCancelGraceMs) },
+				},
+				projection,
+			)
+			.toArray(),
+	]);
+
+	for (const { _id } of [...toWarn, ...toCancel]) {
 		try {
 			await processStalledGame(_id);
 		} catch (err) {

@@ -205,12 +205,11 @@ describe("processStalledGames — warn-then-auto-cancel for stalled games (#94)"
 		assert.match(chat?.data?.text ?? "", /alice/);
 		assert.match(chat?.data?.text ?? "", /drop the inactive player/);
 
-		// Warned, not cancelled, and the episode is marked with its stall start.
+		// Warned, not cancelled, and the warning is marked.
 		const game = await colls.games.findOne({ _id: "warn-point" });
 		assert.equal(game?.status, "active");
 		assert.equal(game?.cancelled, false);
-		assert.ok(game?.cancelWarn instanceof Date);
-		assert.equal(game?.cancelWarn?.getTime(), game?.currentPlayers?.[0]?.deadline?.getTime());
+		assert.equal(game?.cancelWarn, true);
 	});
 
 	it("cancels a game still stalled after the full grace period (penalty-free cancel shape)", async () => {
@@ -227,20 +226,63 @@ describe("processStalledGames — warn-then-auto-cancel for stalled games (#94)"
 		assert.match(chat?.data?.text ?? "", /cancelled for inactivity/);
 	});
 
-	it("the prefilter only selects games past the warn threshold (a seconds-old stall is skipped)", async () => {
-		// ES module exports are non-configurable, so a spy on processStalledGame
-		// is out — instead, re-derive the candidates with the very filter
-		// processStalledGames issues (kept in sync by mirroring it here).
-		const filter = {
-			status: "active",
-			"currentPlayers.deadline": { $lt: new Date(Date.now() - env.autoCancelWarnMs) },
-		};
-		const candidates = (await colls.games.find(filter, { projection: { _id: 1 } }).toArray()).map((g) => g._id);
+	it("the prefilter selects unwarned games past the warn threshold and warned games past grace", async () => {
+		// Self-contained fixtures (the shared games are mutated by the sweep tests
+		// above); cleaned up at the end. Mirrors the two prefilter queries.
+		const warnAgo = env.autoCancelWarnMs + 1000;
+		const graceAgo = env.autoCancelGraceMs + 1000;
+		const pfGame = (id: string, over: { deadline: Date; cancelWarn?: boolean }) =>
+			testGame({
+				_id: id,
+				game: { name: "test", version: 1 },
+				status: "active",
+				players: [{ _id: pA, name: "alice", remainingTime: 3600 }],
+				currentPlayers: [{ _id: pA, timerStart: new Date(), deadline: over.deadline }],
+				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing },
+				createdAt: subDays(new Date(), 60),
+				...(over.cancelWarn ? { cancelWarn: true } : {}),
+			});
+		const ids = ["pf-fresh", "pf-unwarned", "pf-warned-pregrace", "pf-warned-grace"];
+		await colls.games.insertMany([
+			pfGame("pf-fresh", { deadline: ago(new Date(), env.autoCancelWarnMs - 6000) }),
+			pfGame("pf-unwarned", { deadline: ago(new Date(), warnAgo) }),
+			pfGame("pf-warned-pregrace", { deadline: ago(new Date(), warnAgo), cancelWarn: true }),
+			pfGame("pf-warned-grace", { deadline: ago(new Date(), graceAgo), cancelWarn: true }),
+		]);
 
-		// fresh-stall's deadline passed 5s ago (< warn 10s) → not a candidate at
-		// all. bot-clock matches the prefilter (the per-game check is what leaves
-		// bot stalls alone), healthy/no-deadline and the ended full-grace don't.
-		assert.deepEqual(candidates.sort(), ["bot-clock", "warn-point"]);
+		const now = Date.now();
+		const projection = { projection: { _id: 1 } };
+		const toWarn = (
+			await colls.games
+				.find(
+					{
+						status: "active",
+						_id: { $in: ids },
+						cancelWarn: { $ne: true },
+						"currentPlayers.deadline": { $lt: new Date(now - env.autoCancelWarnMs) },
+					},
+					projection,
+				)
+				.toArray()
+		).map((g) => g._id);
+		const toCancel = (
+			await colls.games
+				.find(
+					{
+						status: "active",
+						_id: { $in: ids },
+						cancelWarn: true,
+						"currentPlayers.deadline": { $lt: new Date(now - env.autoCancelGraceMs) },
+					},
+					projection,
+				)
+				.toArray()
+		).map((g) => g._id);
+
+		assert.deepEqual(toWarn.sort(), ["pf-unwarned"]);
+		assert.deepEqual(toCancel.sort(), ["pf-warned-grace"]);
+
+		await colls.games.deleteMany({ _id: { $in: ids } });
 	});
 
 	it("never drops players: no dropPlayer notification anywhere", async () => {
@@ -288,6 +330,8 @@ describe("processStalledGames — warn-then-auto-cancel for stalled games (#94)"
 					"currentPlayers.0.timerStart": new Date(),
 					"currentPlayers.0.deadline": new Date(Date.now() + day),
 				},
+				// The game-server clears the warning marker on a move.
+				$unset: { cancelWarn: "" },
 			},
 		);
 		await processStalledGame("warn-point");
