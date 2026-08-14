@@ -170,14 +170,16 @@ export async function processStalledGame(gameId: string): Promise<void> {
 	}
 }
 
-// Same shape as the manual vote-to-cancel route (status/cancelled/currentPlayers
-// + gameEnded notification), so Elo/karma handling matches a player-agreed cancel.
-async function cancelInactiveGame(game: GameDoc, now: Date): Promise<void> {
+// Shared end-state for cancelling an active game: a system chat message, the
+// status/cancelled/currentPlayers mutation, and a gameEnded notification (so
+// Elo/karma + game-end processing run exactly as a player-agreed cancel). Used by
+// the inactivity auto-cancel and the admin cancel route.
+export async function cancelGame(game: GameDoc, now: Date, reasonText: string): Promise<void> {
 	await colls.chatMessages.insertOne({
 		_id: new ObjectId(),
 		room: game._id,
 		type: "system",
-		data: { text: "Game cancelled for inactivity" },
+		data: { text: reasonText },
 	});
 	await colls.games.updateOne({ _id: game._id }, { $set: { status: "ended", cancelled: true, currentPlayers: [] } });
 	await colls.gameNotifications.insertOne({
@@ -187,6 +189,10 @@ async function cancelInactiveGame(game: GameDoc, now: Date): Promise<void> {
 		createdAt: now,
 		updatedAt: now,
 	});
+}
+
+async function cancelInactiveGame(game: GameDoc, now: Date): Promise<void> {
+	await cancelGame(game, now, "Game cancelled for inactivity");
 	await emailCancelNotice(game);
 }
 
