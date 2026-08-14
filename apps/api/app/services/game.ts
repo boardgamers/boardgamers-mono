@@ -134,11 +134,12 @@ function activeHumanPlayers(game: Pick<GameDoc, "players">): PlayerInfo[] {
  * Once stalled, post a system chat warning ("will be cancelled in X days — the
  * other players can drop the inactive player to keep going") env.autoCancelWarnMs
  * after the deadline, then cancel if the game is still stalled after
- * env.autoCancelGraceMs. The warning is sent at most once per stall episode
- * (marker on the game doc); a game that moves and later stalls again gets a
- * fresh warning. Cancelling uses the manual vote-to-cancel shape (status=ended,
- * cancelled, currentPlayers=[], gameEnded notification), so it's penalty-free
- * (no Elo/karma).
+ * env.autoCancelGraceMs. The warning is sent at most once per stall episode,
+ * tracked by the `cancelWarn` marker field on the game doc (on the Zod schema,
+ * optional; set when the warning posts); a game that moves and later stalls
+ * again gets a fresh warning. Cancelling uses the manual vote-to-cancel shape
+ * (status=ended, cancelled, currentPlayers=[], gameEnded notification), so
+ * it's penalty-free (no Elo/karma).
  *
  * Locking: `game-cancel:<id>` — the same key the manual cancel/quit/drop routes use
  * (they're what these updates must serialize with). The game-server's move path
@@ -258,13 +259,21 @@ async function emailCancelNotice(game: GameDoc): Promise<void> {
 }
 
 export async function processStalledGames(): Promise<void> {
-	// Loose prefilter (re-checked per game under the lock): any active game with a
-	// current player whose deadline has already passed.
+	// Prefilter (re-checked per game under the lock): only games this sweep could
+	// actually act on — a current player whose deadline is at least
+	// env.autoCancelWarnMs old, i.e. past the warning threshold. Nothing happens
+	// before the warn point, so a game seconds past its deadline (days away from
+	// cancelling) is never fetched/locked.
+	//
+	// Games warned already (game.cancelWarn matches the stall episode) but not
+	// yet at the grace threshold still pass the prefilter — the marker embeds
+	// the stallSince ISO, which a query can't express — and are skipped cheaply
+	// by the per-game locked check.
 	const candidates = await colls.games
 		.find(
 			{
 				status: "active",
-				currentPlayers: { $elemMatch: { deadline: { $lt: new Date() } } },
+				currentPlayers: { $elemMatch: { deadline: { $lt: new Date(Date.now() - env.autoCancelWarnMs) } } },
 			},
 			{ projection: { _id: 1 } },
 		)

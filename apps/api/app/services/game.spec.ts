@@ -226,6 +226,22 @@ describe("processStalledGames — warn-then-auto-cancel for stalled games (#94)"
 		assert.match(chat?.data?.text ?? "", /cancelled for inactivity/);
 	});
 
+	it("the prefilter only selects games past the warn threshold (a seconds-old stall is skipped)", async () => {
+		// ES module exports are non-configurable, so a spy on processStalledGame
+		// is out — instead, re-derive the candidates with the very filter
+		// processStalledGames issues (kept in sync by mirroring it here).
+		const filter = {
+			status: "active",
+			currentPlayers: { $elemMatch: { deadline: { $lt: new Date(Date.now() - env.autoCancelWarnMs) } } },
+		};
+		const candidates = (await colls.games.find(filter, { projection: { _id: 1 } }).toArray()).map((g) => g._id);
+
+		// fresh-stall's deadline passed 5s ago (< warn 10s) → not a candidate at
+		// all. bot-clock matches the prefilter (the per-game check is what leaves
+		// bot stalls alone), healthy/no-deadline and the ended full-grace don't.
+		assert.deepEqual(candidates.sort(), ["bot-clock", "warn-point"]);
+	});
+
 	it("never drops players: no dropPlayer notification anywhere", async () => {
 		assert.equal(await colls.gameNotifications.countDocuments({ kind: "dropPlayer" }), 0);
 	});
