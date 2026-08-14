@@ -93,6 +93,9 @@ export const gameSchema = z.object({
 	status: gameStatusSchema,
 	ready: z.boolean().optional(),
 	cancelled: z.boolean().optional(),
+	// "Inactivity warning posted" marker for the current stall episode (#94): set by
+	// the auto-cancel sweep, so the chat warning is posted at most once per episode.
+	cancelWarn: z.string().optional(),
 	lastMove: zDate().optional(),
 	// Denormalized summary of the last move, written by the game-server so listings
 	// can display it without loading game.data or replaying the engine. Null until

@@ -1,6 +1,10 @@
 // Run via `pnpm test` (the package.json script), NOT bare `node --test` — see
 // routes/game/index.spec.ts. Fixtures are built inline via test-helpers, per repo
 // convention (no shared seed).
+//
+// Time travel: env.autoCancel* are shrunk in before() so a sweep sees "1 day
+// stalled" / "10 days stalled" fixtures without real waits (the env is read per
+// sweep, and processStalledGames is called directly — no fake timers needed).
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { ObjectId } from "mongodb";
@@ -9,31 +13,46 @@ import { colls, db } from "../config/db.ts";
 import env from "../config/env.ts";
 import { setSendmailForTests, type MailSendData } from "../config/sendmail.ts";
 import { testGame, testUser } from "../config/test-helpers.ts";
-import { processStalledGames } from "./game.ts";
+import { processStalledGame, processStalledGames } from "./game.ts";
 
 const day = 24 * 3600 * 1000;
 
-describe("processStalledGames — auto-drop / auto-cancel for inactivity (#94)", () => {
-	const active = { timePerGame: 2 * 24 * 3600, timePerMove: 3600, timer: { start: 0, end: 86400 } };
+// Push a deadline back into the past in place — DB writes keep BSON Date
+// instances, unlike replacing the field with a new Date.
+function ago(d: Date, ms: number): Date {
+	d.setTime(d.getTime() - ms);
+	return d;
+}
+
+// Scaled-down inactivity thresholds (real ms): grace 100s, idle backstop 1000s,
+// warn 10s. Fixture "days" are built from real seconds, so the fixture clock
+// runs ~864× fast: a deadline 25 fixture-hours back is ~104 real seconds back.
+const S = { grace: 100 * 1000, idle: 1000 * 1000, warn: 10 * 1000 };
+
+describe("processStalledGames — warn-then-auto-cancel for stalled games (#94)", () => {
+	// Timing windows scaled like the thresholds (timer.end: 86400s would map to 100
+	// real seconds → every "past" deadline would be jumped to the next window start,
+	// i.e. the future). 120s/90s keep past deadlines past and future ones future.
+	const timing = { timePerGame: 2 * 24 * 3600, timePerMove: 3600, timer: { start: 0, end: 120 } };
+	const liveTiming = { timePerGame: 600, timePerMove: 60, timer: { start: 0, end: 90 } };
 	const pA = new ObjectId();
 	const pB = new ObjectId();
 	const pC = new ObjectId();
+	const pD = new ObjectId();
 	const botId = new ObjectId();
-	let mails: MailSendData[];
-	// Snapshot of `mails` after the first sweep, before the idempotency test resets it.
-	let firstRunMails: MailSendData[] = [];
+	let mails: MailSendData[] = [];
+	const orig = { grace: 0, idle: 0, warn: 0 };
 
-	// staleCp(id) = deadline 10 days ago, timerStart 20 days ago — past the 10d
-	// grace only once 10+ days pass, so fixtures must idle 11d+ to trip it.
-	const staleCp = (id: ObjectId) => ({
-		_id: id,
-		timerStart: new Date(Date.now() - 20 * day),
-		deadline: new Date(Date.now() - 10 * day),
-	});
+	const activeCp = (id: ObjectId, deadline: Date) => ({ _id: id, timerStart: subDays(deadline, 1), deadline });
 
 	before(async () => {
 		await db().dropDatabase();
-		mails = [];
+		orig.grace = env.autoCancelGraceMs;
+		orig.idle = env.autoCancelIdleMs;
+		orig.warn = env.autoCancelWarnMs;
+		env.autoCancelGraceMs = S.grace;
+		env.autoCancelIdleMs = S.idle;
+		env.autoCancelWarnMs = S.warn;
 		setSendmailForTests(async (data) => {
 			mails.push(data);
 		});
@@ -48,41 +67,113 @@ describe("processStalledGames — auto-drop / auto-cancel for inactivity (#94)",
 			testUser({ _id: pB, account: { username: "bob" }, settings: { mailing: { game: { activated: false } } } }),
 			// Unconfirmed account → never emailed (same rule as turn notifications).
 			testUser({ _id: pC, account: { username: "carol" }, security: { confirmed: false } }),
+			// Opted-in second player, for the "everyone gets the cancel email" check.
+			testUser({
+				_id: pD,
+				account: { username: "dave" },
+				settings: { mailing: { game: { activated: true } } },
+				security: { confirmed: true },
+			}),
 		]);
 
 		await colls.games.insertMany([
-			// Stalled: A's deadline expired past the 10d grace (11d idle) → dropped; B continues.
+			// Warn point: deadline passed 25 real seconds ago (> warn 10s, < grace
+			// 100s) → warned, not cancelled. Dates are built in the future and
+			// shifted back in place (ago()) so DB writes keep them BSON Dates — a
+			// driver-serialized date would defeat getTime() comparisons.
 			testGame({
-				_id: "stall-drop",
+				_id: "warn-point",
 				game: { name: "test", version: 1 },
 				status: "active",
 				players: [
 					{ _id: pA, name: "alice", remainingTime: 3600 },
 					{ _id: pB, name: "bob", remainingTime: 3600 },
 				],
-				currentPlayers: [staleCp(pA)],
-				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing: active },
-				lastMove: subDays(new Date(), 11),
+				currentPlayers: [
+					{
+						_id: pA,
+						timerStart: ago(new Date(Date.now() + day), day + 25_000),
+						deadline: ago(new Date(Date.now() + day), day + 25_000),
+					},
+				],
+				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing },
+				lastMove: new Date(Date.now() - 25_000),
 				createdAt: subDays(new Date(), 60),
 			}),
-			// Stalled and every remaining human is inactive (one already dropped) → cancel.
+			// Freshly stalled: deadline passed 5 real seconds ago (< warn 10s) → untouched.
 			testGame({
-				_id: "stall-cancel",
+				_id: "fresh-stall",
 				game: { name: "test", version: 1 },
 				status: "active",
 				players: [
 					{ _id: pA, name: "alice", remainingTime: 3600 },
 					{ _id: pB, name: "bob", remainingTime: 3600 },
+				],
+				currentPlayers: [
+					{
+						_id: pA,
+						timerStart: ago(new Date(Date.now() + day), day + 5_000),
+						deadline: ago(new Date(Date.now() + day), day + 5_000),
+					},
+				],
+				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing },
+				lastMove: new Date(Date.now() - 5_000),
+				createdAt: subDays(new Date(), 60),
+			}),
+			// Full grace: deadline passed 110 real seconds ago (> grace 100s) → cancelled.
+			testGame({
+				_id: "full-grace",
+				game: { name: "test", version: 1 },
+				status: "active",
+				players: [
+					{ _id: pA, name: "alice", remainingTime: 3600 },
+					{ _id: pD, name: "dave", remainingTime: 3600 },
 					{ _id: pC, name: "carol", remainingTime: 0, dropped: true },
 				],
-				currentPlayers: [staleCp(pA), staleCp(pB)],
-				options: { setup: { seed: "s", nbPlayers: 3, playerOrder: "random" }, timing: active },
-				lastMove: subDays(new Date(), 11),
+				currentPlayers: [
+					{
+						_id: pA,
+						timerStart: ago(new Date(Date.now() + day), day + 110_000),
+						deadline: ago(new Date(Date.now() + day), day + 110_000),
+					},
+				],
+				options: { setup: { seed: "s", nbPlayers: 3, playerOrder: "random" }, timing },
+				lastMove: new Date(Date.now() - 110_000),
 				createdAt: subDays(new Date(), 60),
 			}),
-			// Active game: A's deadline is still in the future → untouched.
+			// Live/realtime game idle past the absolute backstop (1100s > idle
+			// 1000s) → cancelled outright (a live game is never warned first: the
+			// idle backstop already implies a fully-stalled game).
 			testGame({
-				_id: "stall-active",
+				_id: "live-abandoned",
+				game: { name: "test", version: 1 },
+				status: "active",
+				players: [
+					{ _id: pA, name: "alice", remainingTime: 500 },
+					{ _id: pB, name: "bob", remainingTime: 500 },
+				],
+				currentPlayers: [activeCp(pA, ago(new Date(Date.now() + day), day + 110_000))],
+				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing: liveTiming },
+				lastMove: new Date(Date.now() - 1_100_000),
+				createdAt: subDays(new Date(), 12),
+			}),
+			// Live game with a recent move → untouched.
+			testGame({
+				_id: "live-recent",
+				game: { name: "test", version: 1 },
+				status: "active",
+				players: [
+					{ _id: pA, name: "alice", remainingTime: 500 },
+					{ _id: pB, name: "bob", remainingTime: 500 },
+				],
+				currentPlayers: [{ _id: pA, timerStart: new Date(Date.now() - 60_000), deadline: new Date(Date.now() + day) }],
+				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing: liveTiming },
+				lastMove: new Date(Date.now() - 60_000),
+				createdAt: subDays(new Date(), 12),
+			}),
+			// Healthy game (deadline in the future) → untouched.
+			testGame({
+				_id: "healthy",
 				game: { name: "test", version: 1 },
 				status: "active",
 				players: [
@@ -90,230 +181,53 @@ describe("processStalledGames — auto-drop / auto-cancel for inactivity (#94)",
 					{ _id: pB, name: "bob", remainingTime: 3600 },
 				],
 				currentPlayers: [{ _id: pA, timerStart: new Date(), deadline: new Date(Date.now() + day) }],
-				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing: active },
+				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing },
 				lastMove: new Date(),
 				createdAt: subDays(new Date(), 60),
 			}),
-			// Live/realtime game (timePerGame ≤ live threshold), idle past
-			// autoCancelIdleMs → cancelled outright, no drops.
+			// A bot whose clock ran out never marks a stall (a broken bot is a bug,
+			// not inactivity) → untouched as long as the game moved recently.
 			testGame({
-				_id: "stall-live",
-				game: { name: "test", version: 1 },
-				status: "active",
-				players: [
-					{ _id: pA, name: "alice", remainingTime: 500 },
-					{ _id: pB, name: "bob", remainingTime: 500 },
-				],
-				currentPlayers: [staleCp(pA)],
-				options: {
-					setup: { seed: "s", nbPlayers: 2, playerOrder: "random" },
-					timing: { timePerGame: 600, timePerMove: 60, timer: { start: 0, end: 86400 } },
-				},
-				lastMove: subDays(new Date(), 11),
-				createdAt: subDays(new Date(), 12),
-			}),
-			// A bot whose clock ran out is never dropped (a broken bot is a bug, not
-			// inactivity); the game is left alone for an admin/engine fix.
-			testGame({
-				_id: "stall-bot",
+				_id: "bot-clock",
 				game: { name: "test", version: 1 },
 				status: "active",
 				players: [
 					{ _id: pA, name: "alice", remainingTime: 3600 },
 					{ _id: botId, name: "Rob (bot 1)", isBot: true, remainingTime: 3600 },
 				],
-				currentPlayers: [staleCp(botId)],
-				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing: active },
-				lastMove: subDays(new Date(), 11),
+				currentPlayers: [activeCp(botId, ago(new Date(Date.now() + day), day + 110_000))],
+				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing },
+				lastMove: new Date(),
 				createdAt: subDays(new Date(), 60),
-			}),
-			// Recent move but an expired deadline (clock restarted by a chat/ping):
-			// the absolute idle backstop protects it.
-			testGame({
-				_id: "stall-recent",
-				game: { name: "test", version: 1 },
-				status: "active",
-				players: [
-					{ _id: pA, name: "alice", remainingTime: 3600 },
-					{ _id: pB, name: "bob", remainingTime: 3600 },
-				],
-				currentPlayers: [staleCp(pA)],
-				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing: active },
-				lastMove: subDays(new Date(), 2),
-				createdAt: subDays(new Date(), 60),
-			}),
-			// Everyone inactive but the game is young (2d, minAge is 10d) → skipped
-			// until old enough to cancel.
-			testGame({
-				_id: "stall-young",
-				game: { name: "test", version: 1 },
-				status: "active",
-				players: [
-					{ _id: pA, name: "alice", remainingTime: 3600 },
-					{ _id: pB, name: "bob", remainingTime: 3600 },
-				],
-				currentPlayers: [staleCp(pA), staleCp(pB)],
-				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing: active },
-				lastMove: subDays(new Date(), 2),
-				createdAt: subDays(new Date(), 2),
 			}),
 		]);
 	});
 
 	after(async () => {
+		env.autoCancelGraceMs = orig.grace;
+		env.autoCancelIdleMs = orig.idle;
+		env.autoCancelWarnMs = orig.warn;
 		setSendmailForTests(null);
 		await db().dropDatabase();
 	});
 
-	it("drops the inactive current player in a stalled game (manual-drop notification shape)", async () => {
+	it("warns in chat ~24h after the deadline passes, naming the stalled player and the manual drop", async () => {
 		await processStalledGames();
 
-		const drops = await colls.gameNotifications.find({ game: "stall-drop", kind: "dropPlayer" }).toArray();
-		assert.equal(drops.length, 1);
-		assert.ok(drops[0].user?.equals(pA));
-		assert.equal(drops[0].processed, false);
-		assert.equal(drops[0].meta?.inactivity, true);
-		assert.ok(drops[0].meta?.deadline instanceof Date);
-		assert.ok(drops[0].meta?.timerStart instanceof Date);
-		assert.equal(drops[0].meta?.remainingTime, 3600);
+		const chat = await colls.chatMessages.findOne({ room: "warn-point", type: "system" });
+		assert.match(chat?.data?.text ?? "", /cancelled for inactivity in \d+ days?/);
+		assert.match(chat?.data?.text ?? "", /alice/);
+		assert.match(chat?.data?.text ?? "", /drop the inactive player/);
 
-		// The game doc itself is untouched: the game-server performs the drop
-		// (engine.dropPlayer → Elo/karma/chat, same as a manual drop).
-		const game = await colls.games.findOne({ _id: "stall-drop" });
+		// Warned, not cancelled, and the episode is marked.
+		const game = await colls.games.findOne({ _id: "warn-point" });
 		assert.equal(game?.status, "active");
 		assert.equal(game?.cancelled, false);
-		assert.equal(game?.players.find((pl) => pl._id.equals(pA))?.dropped, false);
-
-		const chat = await colls.chatMessages.findOne({ room: "stall-drop", type: "system" });
-		assert.match(chat?.data?.text ?? "", /alice will be dropped for inactivity/);
-
-		// Snapshot for the email test: the whole first sweep (drop + cancel) ran here.
-		firstRunMails = mails;
+		assert.match(game?.cancelWarn ?? "", /^deadline:/);
 	});
 
-	it("cancels a stalled game with no active human left (gameEnded, not drops)", async () => {
-		const game = await colls.games.findOne({ _id: "stall-cancel" });
-		assert.equal(game?.status, "ended");
-		assert.equal(game?.cancelled, true);
-		assert.deepEqual(game?.currentPlayers, []);
-
-		assert.equal(
-			await colls.gameNotifications.countDocuments({ game: "stall-cancel", kind: "gameEnded", processed: false }),
-			1,
-		);
-		assert.equal(await colls.gameNotifications.countDocuments({ game: "stall-cancel", kind: "dropPlayer" }), 0);
-
-		const chat = await colls.chatMessages.findOne({ room: "stall-cancel", type: "system" });
-		assert.match(chat?.data?.text ?? "", /cancelled/);
-	});
-
-	it("leaves active, bot-stalled, recently-moved and too-young games alone", async () => {
-		for (const id of ["stall-active", "stall-bot", "stall-recent", "stall-young"]) {
-			const game = await colls.games.findOne({ _id: id });
-			assert.equal(game?.status, "active", `${id} must stay active`);
-			assert.equal(game?.cancelled, false, `${id} must not be cancelled`);
-			assert.equal(
-				await colls.gameNotifications.countDocuments({ game: id, kind: { $in: ["dropPlayer", "gameEnded"] } }),
-				0,
-				`${id} must get no drop/end notification`,
-			);
-		}
-	});
-
-	it("emailed the affected players once (opted-in only), never the gameless bot", () => {
-		// From the first run (before the idempotency test's reset). alice was in all
-		// three handled games (dropped from stall-drop, cancelled stall-cancel and
-		// stall-live) → exactly 3 mails, all to her. bob (mailing off), carol
-		// (unconfirmed) and the bot (no account) got none.
-		assert.equal(firstRunMails.length, 3);
-		assert.ok(firstRunMails.every((m) => typeof m.to === "string" && m.to.includes("@test.com")));
-		assert.ok(firstRunMails.every((m) => m.subject?.includes("inactivity")));
-	});
-
-	it("is idempotent: a re-run drops/cancels nothing twice", async () => {
-		mails = [];
-		await processStalledGames();
-
-		assert.equal(await colls.gameNotifications.countDocuments({ game: "stall-drop", kind: "dropPlayer" }), 1);
-		assert.equal(await colls.gameNotifications.countDocuments({ game: "stall-cancel", kind: "gameEnded" }), 1);
-		assert.equal((await colls.games.findOne({ _id: "stall-cancel" }))?.status, "ended");
-		assert.equal((await colls.games.findOne({ _id: "stall-live" }))?.status, "ended");
-		assert.equal(mails.length, 0, "no second round of emails");
-	});
-});
-
-describe("processStalledGames — abandoned live games (#94 follow-up)", () => {
-	const liveTiming = { timePerGame: 600, timePerMove: 60, timer: { start: 0, end: 86400 } };
-	const pD = new ObjectId();
-	const pE = new ObjectId();
-	const origIdleMs = env.autoCancelIdleMs;
-
-	before(async () => {
-		// Shrink the idle bar so "recent" fixtures (2d) stay recent while
-		// "abandoned" ones (8d) trip it — the 10d default is too far out to
-		// express both sides comfortably.
-		env.autoCancelIdleMs = 3 * day;
-		await colls.users.insertMany([
-			testUser({ _id: pD, account: { username: "dave" } }),
-			testUser({ _id: pE, account: { username: "erin" } }),
-		]);
-		await colls.games.insertMany([
-			// Abandoned live game: last move 8 days ago → cancelled outright.
-			testGame({
-				_id: "live-cancel",
-				game: { name: "test", version: 1 },
-				status: "active",
-				players: [
-					{ _id: pD, name: "dave", remainingTime: 500 },
-					{ _id: pE, name: "erin", remainingTime: 500 },
-				],
-				currentPlayers: [{ _id: pD, timerStart: subDays(new Date(), 8), deadline: subDays(new Date(), 8) }],
-				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing: liveTiming },
-				lastMove: subDays(new Date(), 8),
-				createdAt: subDays(new Date(), 9),
-			}),
-			// Live game with a move 2 days ago (short of the 3d idle bar): recent
-			// enough → untouched.
-			testGame({
-				_id: "live-recent",
-				game: { name: "test", version: 1 },
-				status: "active",
-				players: [
-					{ _id: pD, name: "dave", remainingTime: 500 },
-					{ _id: pE, name: "erin", remainingTime: 500 },
-				],
-				currentPlayers: [{ _id: pD, timerStart: subDays(new Date(), 2), deadline: subDays(new Date(), 2) }],
-				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing: liveTiming },
-				lastMove: subDays(new Date(), 2),
-				createdAt: subDays(new Date(), 9),
-			}),
-			// Young abandoned live game: cancelled too — autoCancelMinAgeMs only
-			// gates the async cancel (its "young games resolve on their own"
-			// concern doesn't apply: live games never drop anyone).
-			testGame({
-				_id: "live-young",
-				game: { name: "test", version: 1 },
-				status: "active",
-				players: [
-					{ _id: pD, name: "dave", remainingTime: 500 },
-					{ _id: pE, name: "erin", remainingTime: 500 },
-				],
-				currentPlayers: [{ _id: pD, timerStart: subDays(new Date(), 8), deadline: subDays(new Date(), 8) }],
-				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing: liveTiming },
-				lastMove: subDays(new Date(), 8),
-				createdAt: subDays(new Date(), 9),
-			}),
-		]);
-	});
-
-	after(async () => {
-		env.autoCancelIdleMs = origIdleMs;
-	});
-
-	it("cancels an abandoned live game outright — never drops anyone", async () => {
-		await processStalledGames();
-
-		for (const id of ["live-cancel", "live-young"]) {
+	it("cancels a game still stalled after the full grace period (penalty-free cancel shape)", async () => {
+		for (const id of ["full-grace", "live-abandoned"]) {
 			const game = await colls.games.findOne({ _id: id });
 			assert.equal(game?.status, "ended", `${id} must be ended`);
 			assert.equal(game?.cancelled, true, `${id} must be cancelled`);
@@ -323,26 +237,80 @@ describe("processStalledGames — abandoned live games (#94 follow-up)", () => {
 				1,
 				`${id} must get a gameEnded notification`,
 			);
+			const chat = await colls.chatMessages.findOne({ room: id, type: "system" });
+			assert.match(chat?.data?.text ?? "", /cancelled for inactivity/, `${id} must get a cancel chat message`);
 		}
-		assert.equal(
-			await colls.gameNotifications.countDocuments({
-				game: { $in: ["live-cancel", "live-young"] },
-				kind: "dropPlayer",
-			}),
-			0,
-			"live games never drop anyone",
-		);
-		const chat = await colls.chatMessages.findOne({ room: "live-cancel", type: "system" });
-		assert.match(chat?.data?.text ?? "", /cancelled/);
 	});
 
-	it("leaves a recently-active live game alone", async () => {
-		const game = await colls.games.findOne({ _id: "live-recent" });
-		assert.equal(game?.status, "active");
-		assert.equal(game?.cancelled, false);
-		assert.equal(
-			await colls.gameNotifications.countDocuments({ game: "live-recent", kind: { $in: ["dropPlayer", "gameEnded"] } }),
-			0,
+	it("never drops players: no dropPlayer notification anywhere", async () => {
+		assert.equal(await colls.gameNotifications.countDocuments({ kind: "dropPlayer" }), 0);
+	});
+
+	it("leaves healthy, freshly-stalled, recent-live and bot-stalled games alone", async () => {
+		for (const id of ["healthy", "fresh-stall", "live-recent", "bot-clock"]) {
+			const game = await colls.games.findOne({ _id: id });
+			assert.equal(game?.status, "active", `${id} must stay active`);
+			assert.equal(game?.cancelWarn, undefined, `${id} must not be warned`);
+			assert.equal(await colls.chatMessages.countDocuments({ room: id }), 0, `${id} must get no chat message`);
+		}
+	});
+
+	it("emails the cancel notice to opted-in humans only (never bots, opt-outs or unconfirmed)", () => {
+		// full-grace: alice (opted-in) + dave (opted-in), carol dropped & unconfirmed.
+		// live-abandoned: alice (opted-in), bob (mailing off). → 3 mails, all opted-in.
+		assert.equal(mails.length, 3);
+		assert.ok(mails.every((m) => m.subject?.includes("cancelled for inactivity")));
+		const byGame = (id: string) => mails.filter((m) => m.subject?.includes(`Game ${id}:`));
+		assert.equal(byGame("full-grace").length, 2, "both opted-in players of full-grace emailed");
+		assert.equal(byGame("live-abandoned").length, 1, "only the opted-in player of live-abandoned emailed");
+	});
+
+	it("does not re-post the warning on a re-sweep (once per stall episode)", async () => {
+		await processStalledGames();
+
+		assert.equal(await colls.chatMessages.countDocuments({ room: "warn-point", type: "system" }), 1);
+		assert.equal(await colls.chatMessages.countDocuments({ room: "full-grace", type: "system" }), 1);
+		assert.equal(await colls.chatMessages.countDocuments({ room: "live-abandoned", type: "system" }), 1);
+		assert.equal(await colls.gameNotifications.countDocuments({ game: "full-grace", kind: "gameEnded" }), 1);
+	});
+
+	it("a move during grace resets the episode: no cancel, and a fresh warning on the next stall", async () => {
+		// Simulate a move: refresh lastMove and give the player a fresh future
+		// deadline — stalled no longer → the sweep leaves the game alone (per-game
+		// call: fresh-stall/full-grace ages are tuned for the very first sweep).
+		await colls.games.updateOne(
+			{ _id: "warn-point" },
+			{
+				$set: {
+					lastMove: new Date(),
+					"currentPlayers.0.timerStart": new Date(),
+					"currentPlayers.0.deadline": new Date(Date.now() + day),
+				},
+			},
 		);
+		await processStalledGame("warn-point");
+		let game = await colls.games.findOne({ _id: "warn-point" });
+		assert.equal(game?.status, "active", "a move during grace prevents the cancel");
+
+		// The player stalls again (new deadline, 25 real seconds in the past → past
+		// warn, short of grace) → a fresh warning is posted for the new episode.
+		await colls.games.updateOne(
+			{ _id: "warn-point" },
+			{
+				$set: {
+					lastMove: new Date(Date.now() - 25_000),
+					"currentPlayers.0.timerStart": ago(new Date(Date.now() + day), day + 25_000),
+					"currentPlayers.0.deadline": ago(new Date(Date.now() + day), day + 25_000),
+				},
+			},
+		);
+		await processStalledGame("warn-point");
+		assert.equal(
+			await colls.chatMessages.countDocuments({ room: "warn-point", type: "system" }),
+			2,
+			"a fresh warning is posted for the new stall episode",
+		);
+		game = await colls.games.findOne({ _id: "warn-point" });
+		assert.equal(game?.status, "active");
 	});
 });

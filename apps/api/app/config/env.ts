@@ -128,26 +128,15 @@ export default {
 			: ("off" as "off" | "dry-run" | "delete"),
 	cleanupDeadUsersMaxAgeDays: Number(process.env.cleanupDeadUsersMaxAgeDays) || 365,
 	cleanupDeadUsersBatchSize: Number(process.env.cleanupDeadUsersBatchSize) || 50,
-	// Auto-drop of inactive players in stalled async games / auto-cancel of games with
-	// no active human left (#94). A "live/realtime" game (timePerGame ≤ this) never
-	// drops anyone for inactivity (kicking a player mid-blitz is wrong); it can only
-	// be cancelled outright, via autoCancelIdleMs below.
-	autoCancelLiveThresholdSec: Number(process.env.autoCancelLiveThresholdSec) || 24 * 3600,
-	// A current player's deadline can pass + this grace before the sweep acts. Absorbs
-	// the daily paused timer window (deadline() maps it to the next window's start, so
-	// this is true overtime) and gives a generous "still time to move" buffer beyond the
-	// manual-drop bar (`POST /game/:id/drop/:userId`, deadline < now). This is the
-	// primary trigger for the async path — the precise "you're out of clock" signal.
+	// Auto-cancel of stalled games (#94): a game is stalled when a current player's
+	// deadline passed (the window-aware "out of clock" signal) or when no move
+	// happened for autoCancelIdleMs (absolute backstop — also covers deadline-less
+	// and live/realtime games). The sweep warns in chat after autoCancelWarnMs,
+	// then cancels the game (penalty-free) after autoCancelGraceMs. It never drops
+	// players — the warning points the others at the manual drop instead.
 	autoCancelGraceMs: Number(process.env.autoCancelGraceMs) || 10 * 24 * 3600 * 1000,
-	// Absolute "no move for this long = inactive/abandoned" backstop. For async games
-	// it drops a current player whose clock is stalled past this even without an
-	// expired deadline (and protects games with a move this recent, whatever the
-	// clocks say). For live games it is the cancel bar: idle past it = abandoned.
 	autoCancelIdleMs: Number(process.env.autoCancelIdleMs) || 10 * 24 * 3600 * 1000,
-	// Async games younger than this are never cancelled outright — the sweep leaves
-	// them alone and revisits once they're old enough (young games "that never
-	// really got going" are frequent and resolve on their own).
-	autoCancelMinAgeMs: Number(process.env.autoCancelMinAgeMs) || 10 * 24 * 3600 * 1000,
+	autoCancelWarnMs: Number(process.env.autoCancelWarnMs) || 24 * 3600 * 1000,
 	mailing: {
 		provider: "mailgun",
 		api: {
