@@ -12,7 +12,7 @@
 
 	let { data }: PageProps = $props();
 
-	let info = useLatestGameInfos();
+	let info = $derived.by(() => useLatestGameInfos());
 
 	// SSR: provide the SSR-fetched prefs map via context during init so the ownership
 	// classes render server-side (setContext must run at init; $effect does NOT run during

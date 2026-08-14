@@ -20,6 +20,14 @@ const GAME_INFOS_KEY = "gameInfos";
 export type GameInfoMap = Record<string, SetOptional<GameInfoFront, "viewer">>;
 
 /**
+ * The provided map is a `$state` proxy (created in the root layout component), so reads
+ * inside `$derived`/`$effect`/markup track it and re-run when a like toggles. `useGameInfos`
+ * returns it by reference — callers must NOT capture `map[key]` at init outside a reactive
+ * context, or they freeze the value.
+ */
+export type GameInfoState = GameInfoMap;
+
+/**
  * Browser-only shared store — the backing cache for `gameInfo()` (the non-component
  * fallback), `getGameInfo`, `mergeGameInfos`. NOT exported: component
  * list reads must go through the context (`useGameInfos`/`useGameInfo`/`useLatestGameInfos`).
@@ -40,6 +48,15 @@ export function useGameInfos(): GameInfoMap {
 	return hasContext(GAME_INFOS_KEY) ? getContext<GameInfoMap>(GAME_INFOS_KEY) : {};
 }
 
+/**
+ * Reactive list accessor: returns the context map so reads inside `$derived`/`$effect`
+ * track it. Unlike `useGameInfos` (same reference), the name documents the intent that
+ * the result is read reactively, not captured once.
+ */
+export function gameInfosState(): GameInfoMap {
+	return useGameInfos();
+}
+
 export function gameInfoKey(name: string, version: number | "latest"): string {
 	return `${name}/${version}`;
 }
@@ -58,7 +75,12 @@ export function useGameInfo(name: string, version: number | "latest" = "latest")
 	return useGameInfos()[gameInfoKey(name, version)];
 }
 
-/** Convenience for components: the latest-version info of every game from the list context. */
+/**
+ * Convenience for components: the latest-version info of every game from the list context.
+ * NOTE: reads the map once at call time. Call it inside a `$derived`/`$effect` (or another
+ * reactive context) if the result must track like/unlike updates — a bare `const x =
+ * useLatestGameInfos()` at component init freezes the snapshot.
+ */
 export function useLatestGameInfos(): SetOptional<GameInfoFront, "viewer">[] {
 	const map = useGameInfos();
 	return Object.keys(map)
@@ -67,11 +89,31 @@ export function useLatestGameInfos(): SetOptional<GameInfoFront, "viewer">[] {
 }
 
 /**
+ * Apply a client-side like/unlike to every entry for the game (all versions + `latest`).
+ * `likeCount` is shared across versions, so the map entries must move together — otherwise
+ * the sidebar/catalog (reading `/latest`) and the button disagree. Pure.
+ */
+export function applyGameLike<T extends SetOptional<GameInfoFront, "viewer">>(
+	map: Record<string, T>,
+	game: string,
+	like: { liked: boolean; likeCount: number },
+): Record<string, T> {
+	const prefix = `${game}/`;
+	const next = { ...map };
+	for (const key of Object.keys(next)) {
+		if (key.startsWith(prefix)) {
+			next[key] = { ...next[key], liked: like.liked, likeCount: like.likeCount };
+		}
+	}
+	return next;
+}
+
+/**
  * Build the keyed store map from the raw list — writing both `name/version` for every
  * version and `name/latest` for each game's highest version, preserving any already-loaded
  * `viewer` (the list endpoint omits it). Pure: returns a new object, touches nothing.
  */
-function buildGameInfoMap(games: Array<Omit<GameInfoFront, "viewer">>) {
+export function buildGameInfoMap(games: Array<Omit<GameInfoFront, "viewer">>) {
 	const map: Record<string, SetOptional<GameInfoFront, "viewer">> = {};
 	const latestGames = new Set(uniqBy(sortBy(games, "_id.version").reverse(), "_id.game"));
 
@@ -135,6 +177,14 @@ export async function getGameInfo(
 		return info;
 	}
 	return fetchGameInfo(game, version);
+}
+
+/** Browser-only: patch the legacy store's like fields for one game (all versions). */
+export function patchGameInfosLike(game: string, like: { liked: boolean; likeCount: number }) {
+	if (!browser) {
+		throw new Error("patchGameInfosLike must not run during SSR — shared store");
+	}
+	gameInfos.update((all) => applyGameLike(all, game, like));
 }
 
 /** Browser-only: merge full game-info docs into the reactive store. Never during SSR (shared state). */

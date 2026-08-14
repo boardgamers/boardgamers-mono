@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from "svelte";
 	import { page } from "$app/state";
 	import { Notifications } from "@/components";
 	import { provideGameInfos } from "@/lib/game-info.svelte";
@@ -12,8 +13,13 @@
 	// SSR: provide the game-info list via context during init so descendants render it
 	// server-side (setContext must run at init; $effect does NOT run during SSR). The load
 	// re-runs on invalidateAll, so a fresh page render re-provides fresh data.
-	const gameInfos = () => data.gameInfos ?? {};
-	provideGameInfos(gameInfos());
+	// `$state` so context reads are reactive: a like/unlike mutates this map in place (see
+	// applyGameLike) and every consumer (page header, sidebar badge, catalog) re-renders.
+	// `untrack`: the snapshot is intentionally the initial seed — a like-mutated map must NOT
+	// be clobbered when a same-identity revalidation re-runs the load (the "seed once per
+	// identity" contract in stores.svelte.ts).
+	const gameInfos = $state(untrack(() => data.gameInfos) ?? {});
+	provideGameInfos(gameInfos);
 
 	// Provide the timezone during component init too: $effect (and thus the
 	// provideTimezone in +layout.ts) does NOT run during SSR, and descendants read

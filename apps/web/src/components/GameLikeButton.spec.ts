@@ -19,7 +19,9 @@ import GameLikeButton from "./GameLikeButton.svelte";
 const postMock = vi.mocked(post);
 const delMock = vi.mocked(del);
 
-function mountButton(props: { liked?: boolean; likeCount?: number } = {}) {
+function mountButton(
+	props: { liked?: boolean; likeCount?: number; onlike?: (like: { liked: boolean; likeCount: number }) => void } = {},
+) {
 	const target = document.createElement("div");
 	document.body.appendChild(target);
 	const instance = mount(GameLikeButton as never, {
@@ -52,31 +54,31 @@ describe("GameLikeButton", () => {
 		unmount(instance as never);
 	});
 
-	it("likes via POST and reflects the returned state", async () => {
+	it("likes via POST and reports the returned state through onlike", async () => {
 		account.set({ _id: "u1" } as never);
 		postMock.mockResolvedValue({ liked: true, likeCount: 5 } as never);
-		const { target, instance } = mountButton({ liked: false, likeCount: 4 });
+		const onlike = vi.fn();
+		const { target, instance } = mountButton({ liked: false, likeCount: 4, onlike });
 
 		target.querySelector("button")!.click();
-		await vi.waitFor(() => expect(target.textContent).toContain("5"));
+		await vi.waitFor(() => expect(onlike).toHaveBeenCalledWith({ liked: true, likeCount: 5 }));
 
 		expect(postMock).toHaveBeenCalledWith("/boardgame/testgame/like");
 		expect(delMock).not.toHaveBeenCalled();
-		expect(target.querySelector("button")!.getAttribute("aria-pressed")).toBe("true");
 		unmount(instance as never);
 	});
 
-	it("unlikes via DELETE and reflects the returned state", async () => {
+	it("unlikes via DELETE and reports the returned state through onlike", async () => {
 		account.set({ _id: "u1" } as never);
 		delMock.mockResolvedValue({ liked: false, likeCount: 3 } as never);
-		const { target, instance } = mountButton({ liked: true, likeCount: 4 });
+		const onlike = vi.fn();
+		const { target, instance } = mountButton({ liked: true, likeCount: 4, onlike });
 
 		target.querySelector("button")!.click();
-		await vi.waitFor(() => expect(target.textContent).toContain("3"));
+		await vi.waitFor(() => expect(onlike).toHaveBeenCalledWith({ liked: false, likeCount: 3 }));
 
 		expect(delMock).toHaveBeenCalledWith("/boardgame/testgame/like");
 		expect(postMock).not.toHaveBeenCalled();
-		expect(target.querySelector("button")!.getAttribute("aria-pressed")).toBe("false");
 		unmount(instance as never);
 	});
 });

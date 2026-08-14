@@ -5,7 +5,19 @@
 	import { account } from "@/lib/stores.svelte";
 	import { handleError } from "@/utils";
 
-	let { gameId, liked, likeCount }: { gameId: string; liked: boolean; likeCount: number } = $props();
+	let {
+		gameId,
+		liked,
+		likeCount,
+		onlike,
+	}: {
+		gameId: string;
+		liked: boolean;
+		likeCount: number;
+		// Fired after a successful toggle, so the parent can propagate the new like
+		// state to every other read path (page snapshot, sidebar, catalog).
+		onlike?: (like: { liked: boolean; likeCount: number }) => void;
+	} = $props();
 
 	let user = $derived($account);
 	let pending = $state(false);
@@ -16,9 +28,10 @@
 		}
 		pending = true;
 		try {
-			({ liked, likeCount } = liked
+			const like = liked
 				? await del<{ liked: boolean; likeCount: number }>(`/boardgame/${gameId}/like`)
-				: await post<{ liked: boolean; likeCount: number }>(`/boardgame/${gameId}/like`));
+				: await post<{ liked: boolean; likeCount: number }>(`/boardgame/${gameId}/like`);
+			onlike?.(like);
 		} catch (err) {
 			handleError(err);
 		} finally {

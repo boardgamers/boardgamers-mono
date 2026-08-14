@@ -13,7 +13,7 @@
 	import IconHeartFill from "@/components/icons/IconHeartFill.svelte";
 	import type { GameInfoFront, UserFront } from "@bgs/models";
 
-	const games = useLatestGameInfos() as GameInfoFront[];
+	const games = $derived.by(() => useLatestGameInfos()) as GameInfoFront[];
 	let boardgameId = $derived(page!.params.boardgameId);
 
 	// Boardgames the player has played (open/active/ended), floated to the top and

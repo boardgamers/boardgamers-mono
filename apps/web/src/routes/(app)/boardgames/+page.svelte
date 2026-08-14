@@ -11,8 +11,10 @@
 
 	let { data }: PageProps = $props();
 
-	// Discovery ordering (#98): most liked first, display name breaks ties.
-	let info = $derived(
+	// Discovery ordering (#98): most liked first, display name breaks ties. `$derived.by`
+	// (not `$derived(...)`) because useLatestGameInfos reads reactive state — the function
+	// must run inside the derived for the read to be tracked.
+	let info = $derived.by(() =>
 		useLatestGameInfos()
 			.slice()
 			.sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0) || gameDisplayName(a).localeCompare(gameDisplayName(b)))
