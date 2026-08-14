@@ -115,6 +115,9 @@ export function applyGameLike<T extends SetOptional<GameInfoFront, "viewer">>(
  */
 export function buildGameInfoMap(games: Array<Omit<GameInfoFront, "viewer">>) {
 	const map: Record<string, SetOptional<GameInfoFront, "viewer">> = {};
+	// Function-local transient (identity membership check within this call), never read
+	// reactively — SvelteSet would buy nothing here.
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	const latestGames = new Set(uniqBy(sortBy(games, "_id.version").reverse(), "_id.game"));
 
 	for (const game of games) {
