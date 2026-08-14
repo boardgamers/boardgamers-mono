@@ -100,21 +100,7 @@
 		if (
 			await confirm("This vote cannot be taken back. If all active players vote to cancel, the game will be cancelled.")
 		) {
-			const voted = await post(`/game/${gameId}/cancel`).then(
-				() => true,
-				(err) => {
-					handleError(err);
-					return false;
-				}
-			);
-			// The cancel route answers 204 (no body), so apply the vote locally — otherwise
-			// the button stays enabled until a websocket push happens to refresh the game.
-			if (voted && context.game && userId) {
-				const me = context.game.players.find((pl) => pl._id === userId);
-				if (me) {
-					me.voteCancel = true;
-				}
-			}
+			await post(`/game/${gameId}/cancel`).catch(handleError);
 		}
 	}
 

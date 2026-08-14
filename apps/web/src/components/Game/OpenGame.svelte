@@ -172,10 +172,7 @@
 	});
 
 	const updateGameWatcher = createWatcher(async () => {
-		// `>=`, not `>`: the ws push carries the game's new `updatedAt` (the api's poll
-		// sends `lastUpdate = updatedAt`, never later), so a strict `>` never fires and a
-		// join/start never refreshes the lobby (or hands off to StartedGame) live.
-		if (context.game && gameId && $lastGameUpdate >= new Date(context.game.updatedAt ?? 0)) {
+		if (context.game && gameId && $lastGameUpdate > new Date(context.game.updatedAt ?? 0)) {
 			const [g, p] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
 
 			if (context.game && gameId === g._id) {
