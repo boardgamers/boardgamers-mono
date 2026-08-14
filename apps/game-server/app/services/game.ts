@@ -246,10 +246,11 @@ function moveNotation(move: unknown): string {
 	return JSON.stringify(move);
 }
 
-// A single log entry → plain text. Log entries' shape is engine-specific:
-// gaia uses plain strings, powergrid/container entries carry a plain-text
-// `simple` field, others may use `message`/`text`/`log`. Falls back to a
-// compact stringify of the entry.
+// A single log entry → plain text, or "" to skip it. Log entries' shape is
+// engine-specific: gaia uses plain strings, powergrid/container entries carry a
+// plain-text `simple` field, others may use `message`/`text`/`log`. `event` /
+// `phase` entries are engine phase noise (not the move) — skipped. An entry
+// with no usable text falls back to a compact stringify of itself.
 function logEntryText(entry: unknown): string {
 	if (typeof entry === "string") {
 		return entry;
@@ -257,6 +258,9 @@ function logEntryText(entry: unknown): string {
 	if (entry && typeof entry === "object" && !Array.isArray(entry)) {
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- log entries are engine-defined; probed defensively
 		const record = entry as Record<string, unknown>;
+		if (record.type === "event" || record.type === "phase") {
+			return "";
+		}
 		for (const key of ["simple", "message", "text", "log"]) {
 			const value: unknown = record[key];
 			if (typeof value === "string" && value) {

@@ -128,13 +128,19 @@
 	// lastMoveInfo.move is the engine's log line for the move (what the viewer
 	// shows), falling back to raw move notation when the engine logged nothing —
 	// e.g. an object-shaped move stringified. Raw object notation isn't readable in
-	// a list row, so only surface plain-text lines.
-	function lastMoveText(game: GameFront): { move: string; player: string } | null {
-		const info = game.lastMoveInfo;
-		if (!info || info.move.startsWith("{") || info.move.startsWith("[") || info.move.startsWith('"')) {
+	// a list row, so only surface plain-text lines. The mover's name is not shown
+	// inline — it's in the chip's tooltip (see the template).
+	function lastMoveText(game: GameFront): string | null {
+		const move = game.lastMoveInfo?.move;
+		if (!move || move.startsWith("{") || move.startsWith("[") || move.startsWith('"')) {
 			return null;
 		}
-		return { move: info.move, player: game.players.find((pl) => pl._id === info.player)?.name ?? "" };
+		return move;
+	}
+
+	function lastMovePlayer(game: GameFront): string {
+		const id = game.lastMoveInfo?.player;
+		return game.players.find((pl) => pl._id === id)?.name ?? "";
 	}
 
 	// lastMove/createdAt are optional — fall back to "just now" when both are missing.
@@ -288,14 +294,14 @@
 												</span>
 											{/if}
 											{#if lastMove}
-												<!-- Non-mobile only (#208): hidden on small screens (see .last-move) -->
+												<!-- Non-mobile only (#208): hidden on small screens (see .last-move). A
+												     distinct pill so it doesn't blend into the italic timing text. -->
 												<span
-													class="last-move min-w-0 truncate text-gray-500 dark:text-gray-400"
-													title="{lastMove.player}: {lastMove.move}"
-													>· <span class="italic">{lastMove.move}</span>{#if lastMove.player}<span
-															class="last-move-by whitespace-nowrap">&nbsp;by {lastMove.player}</span
-														>{/if}</span
+													class="last-move inline-flex min-w-0 max-w-56 items-center rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+													title="{lastMovePlayer(game)}: {lastMove}"
 												>
+													<span class="truncate">{lastMove}</span>
+												</span>
 											{/if}
 										{:else}
 											<IconClockHistory class="text-[0.8em]" />
@@ -459,12 +465,8 @@
 		font-size: 1.8em;
 	}
 
-	/* Last-move chip (#208): non-mobile only, and it truncates instead of
-	   squeezing the activity/clock labels (which stay nowrap + shrink-0). */
-	.game-list .game-item .last-move-by {
-		opacity: 0.85;
-	}
-
+	/* Last-move pill (#208): non-mobile only; it truncates instead of squeezing
+	   the activity/clock labels (which stay nowrap + shrink-0). */
 	@media (max-width: 639.98px) {
 		.game-list .game-item .last-move {
 			display: none;

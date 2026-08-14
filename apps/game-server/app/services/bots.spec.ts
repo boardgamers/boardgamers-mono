@@ -315,9 +315,12 @@ describe("bot driver", () => {
 				if (player !== data.current) throw new Error("not your turn");
 				data.moves[player]++;
 				// First move appends an object entry with a plain-text \`simple\` field
-				// (powergrid shape). Later moves append nothing → fallback to raw notation.
+				// (powergrid shape), then an \`event\` entry — the event is phase noise
+				// and must be skipped in favour of the move line. Later moves append
+				// nothing → fallback to raw notation.
 				if (data.moves[player] === 1) {
 					data.log.push({ type: "move", player, simple: "Rob banks a charge for 2 power." });
+					data.log.push({ type: "event", event: "A new card is drawn." });
 				}
 				data.current = (data.current + 1) % data.n;
 				return data;
@@ -354,8 +357,12 @@ describe("bot driver", () => {
 			return !!g && !g.players.some((pl) => pl.isBot && g.currentPlayers?.some((cp) => cp._id.equals(pl._id)));
 		});
 		const g = await colls.games.findOne({ _id: game });
-		assert.strictEqual(g?.lastMoveInfo?.move, "Rob banks a charge for 2 power.", "Object entry → simple text");
-		assert.strictEqual(g?.lastMoveInfo?.moveNumber, 1);
+		assert.strictEqual(
+			g?.lastMoveInfo?.move,
+			"Rob banks a charge for 2 power.",
+			"Object entry → simple text, event skipped",
+		);
+		assert.strictEqual(g?.lastMoveInfo?.moveNumber, 2, "move + event entries both counted");
 
 		fs.rmSync(dir2, { recursive: true, force: true });
 	});

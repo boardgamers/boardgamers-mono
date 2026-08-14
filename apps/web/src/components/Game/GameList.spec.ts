@@ -268,7 +268,11 @@ describe("GameList last move (#208)", () => {
 
 		const chips = [...target.querySelectorAll(".last-move")];
 		expect(chips.length).toBe(1);
-		expect(chips[0].textContent?.replace(/\s+/g, " ")).toContain("terrans build m 1x0 by terrans");
+		const chipText = chips[0].textContent?.replace(/\s+/g, " ") ?? "";
+		expect(chipText).toContain("terrans build m 1x0");
+		expect(chipText).not.toContain("by");
+		// The mover's name is only in the tooltip, not the visible text.
+		expect(chips[0].getAttribute("title")).toBe("terrans: terrans build m 1x0");
 
 		unmount(instance as never);
 	});
