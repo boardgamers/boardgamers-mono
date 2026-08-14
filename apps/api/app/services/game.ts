@@ -127,21 +127,18 @@ function activeHumanPlayers(game: Pick<GameDoc, "players">): PlayerInfo[] {
  * model — the sweep never drops anyone (that's the players'/game-server's call).
  *
  * A game is "stalled" when a current player's clock deadline has passed (the
- * window-aware `cp.deadline < now` signal) or when no move happened for
- * env.autoCancelIdleMs (absolute idle backstop — the only trigger for
- * deadline-less and live/realtime games).
+ * window-aware `cp.deadline < now` signal). Games without a deadline (live/
+ * realtime games, or any game whose current players have none) are never
+ * touched.
  *
  * Once stalled, post a system chat warning ("will be cancelled in X days — the
- * other players can drop the inactive player to keep going"), then cancel if the
- * game is still stalled after the grace period. A deadline stall warns after
- * env.autoCancelWarnMs and cancels after env.autoCancelGraceMs; an idle stall
- * warns as soon as the autoCancelIdleMs backstop trips and cancels
- * env.autoCancelLiveWarnMs later — so no game (live or async) is ever cancelled
- * without a prior in-chat warning and a chance to act. The warning is sent at
- * most once per stall episode (marker on the game doc); a game that moves and
- * later stalls again gets a fresh warning. Cancelling uses the manual
- * vote-to-cancel shape (status=ended, cancelled, currentPlayers=[], gameEnded
- * notification), so it's penalty-free (no Elo/karma).
+ * other players can drop the inactive player to keep going") env.autoCancelWarnMs
+ * after the deadline, then cancel if the game is still stalled after
+ * env.autoCancelGraceMs. The warning is sent at most once per stall episode
+ * (marker on the game doc); a game that moves and later stalls again gets a
+ * fresh warning. Cancelling uses the manual vote-to-cancel shape (status=ended,
+ * cancelled, currentPlayers=[], gameEnded notification), so it's penalty-free
+ * (no Elo/karma).
  *
  * Locking: `game-cancel:<id>` — the same key the manual cancel/quit/drop routes use
  * (they're what these updates must serialize with). The game-server's move path
@@ -158,50 +155,37 @@ export async function processStalledGame(gameId: string): Promise<void> {
 	}
 
 	const now = new Date();
-	// Idle reference: lastMove only. updatedAt is bumped by the sweep's own writes
-	// (the cancelWarn marker), so it can't measure inactivity; legacy docs without
-	// lastMove fall back to createdAt. A missing reference = just moved (idle 0).
-	const idleSince = game.lastMove ?? game.createdAt ?? now;
 
-	// A stalled *current* player is who's waited on (bots excluded: a broken bot is
-	// a bug, not inactivity — the game stays for an admin fix).
-	const stalledPlayers = (game.currentPlayers ?? [])
-		.map((cp) => game.players.find((pl) => pl._id.equals(cp._id)))
-		.filter((pl): pl is PlayerInfo => pl !== undefined && !pl.isBot && !pl.dropped && !pl.quit);
-
-	// Stalled when a current player's deadline passed, or when the game has been
-	// idle past the absolute backstop (covers deadline-less/live games).
+	// Stalled only when a current player's deadline has passed. No deadline →
+	// nothing to cancel on.
 	const expiredDeadlines = (game.currentPlayers ?? [])
 		.map((cp) => cp.deadline)
 		.filter((dl): dl is Date => dl !== undefined && dl.getTime() < now.getTime());
-	const idleTripped = now.getTime() - idleSince.getTime() >= env.autoCancelIdleMs;
-	if (expiredDeadlines.length === 0 && !idleTripped) {
+	if (expiredDeadlines.length === 0) {
 		return;
 	}
 
-	// An idle-past-the-backstop game is always an *idle* stall (a live game's cp
-	// deadline is long expired too, but its deadline trigger never fired in time —
-	// the whole game is abandoned, so it warns/cancels on the idle timeline).
-	// Otherwise a deadline stall, clocked from the earliest expired deadline.
-	const stalledByDeadline = expiredDeadlines.length > 0 && !idleTripped;
-	const stallSince = stalledByDeadline ? new Date(Math.min(...expiredDeadlines.map((dl) => dl.getTime()))) : idleSince;
+	// A stalled *current* human is who's waited on. A game stalled only on bots
+	// (a broken bot is a bug, not inactivity) is left alone for an admin fix.
+	const stalledPlayers = (game.currentPlayers ?? [])
+		.map((cp) => game.players.find((pl) => pl._id.equals(cp._id)))
+		.filter((pl): pl is PlayerInfo => pl !== undefined && !pl.isBot && !pl.dropped && !pl.quit);
+	if (stalledPlayers.length === 0) {
+		return;
+	}
+
+	// The stall is clocked from the earliest expired deadline.
+	const stallSince = new Date(Math.min(...expiredDeadlines.map((dl) => dl.getTime())));
 	const stallAgeMs = now.getTime() - stallSince.getTime();
-	const stallMarker = `${stalledByDeadline ? "deadline" : "idle"}:${stallSince.toISOString()}`;
+	const stallMarker = `deadline:${stallSince.toISOString()}`;
 
-	// Deadline stalls run warn→cancel on autoCancelWarnMs/autoCancelGraceMs. Idle
-	// stalls (deadline-less / live games) only *become* stalled at the
-	// autoCancelIdleMs backstop — so they warn once stalled and cancel
-	// autoCancelLiveWarnMs later: no game is cancelled without a prior warning.
-	const warnMs = stalledByDeadline ? env.autoCancelWarnMs : env.autoCancelIdleMs;
-	const graceMs = stalledByDeadline ? env.autoCancelGraceMs : env.autoCancelIdleMs + env.autoCancelLiveWarnMs;
-
-	if (stallAgeMs >= graceMs) {
+	if (stallAgeMs >= env.autoCancelGraceMs) {
 		await cancelInactiveGame(game, now);
 		return;
 	}
 
-	if (stallAgeMs >= warnMs && game.cancelWarn !== stallMarker) {
-		const daysLeft = Math.max(1, Math.ceil((graceMs - stallAgeMs) / (24 * 3600 * 1000)));
+	if (stallAgeMs >= env.autoCancelWarnMs && game.cancelWarn !== stallMarker) {
+		const daysLeft = Math.max(1, Math.ceil((env.autoCancelGraceMs - stallAgeMs) / (24 * 3600 * 1000)));
 		const names = stalledPlayers.map((pl) => pl.name).join(", ") || "the current player(s)";
 		await colls.chatMessages.insertOne({
 			_id: new ObjectId(),
@@ -274,24 +258,17 @@ async function emailCancelNotice(game: GameDoc): Promise<void> {
 }
 
 export async function processStalledGames(): Promise<void> {
-	// Loose prefilter (re-checked per game under the lock): anything idle long
-	// enough that a deadline + warn/grace may have run its course, plus anything
-	// past the absolute idle backstop. Legacy active docs predate lastMove (added
-	// later) → fall back to updatedAt like the per-game check does.
-	const now = Date.now();
-	const idleSince = (ms: number) => [
-		{ lastMove: { $lt: new Date(now - ms) } },
-		{ lastMove: { $exists: false }, updatedAt: { $lt: new Date(now - ms) } },
-	];
-	const candidates = await colls.games
-		.find(
-			{
-				status: "active",
-				$or: [...idleSince(Math.min(env.autoCancelWarnMs, env.autoCancelGraceMs)), ...idleSince(env.autoCancelIdleMs)],
-			},
-			{ projection: { _id: 1 } },
-		)
-		.toArray();
+// Loose prefilter (re-checked per game under the lock): any active game with a
+// current player whose deadline has already passed.
+const candidates = await colls.games
+	.find(
+		{
+			status: "active",
+			currentPlayers: { $elemMatch: { deadline: { $lt: new Date() } } },
+		},
+		{ projection: { _id: 1 } },
+	)
+	.toArray();
 
 	for (const { _id } of candidates) {
 		try {

@@ -129,18 +129,12 @@ export default {
 	cleanupDeadUsersMaxAgeDays: Number(process.env.cleanupDeadUsersMaxAgeDays) || 365,
 	cleanupDeadUsersBatchSize: Number(process.env.cleanupDeadUsersBatchSize) || 50,
 	// Auto-cancel of stalled games (#94): a game is stalled when a current player's
-	// deadline passed (the window-aware "out of clock" signal) or when no move
-	// happened for autoCancelIdleMs (absolute backstop — also covers deadline-less
-	// and live/realtime games). The sweep warns in chat first, then cancels the
-	// game (penalty-free) — it never drops players (the warning points the others
-	// at the manual drop). No game is cancelled without a prior in-chat warning.
+	// deadline passed (the window-aware "out of clock" signal). The sweep warns in
+	// chat first, then cancels the game (penalty-free) — it never drops players
+	// (the warning points the others at the manual drop). Games without a deadline
+	// (live/realtime games) are never touched.
 	autoCancelGraceMs: Number(process.env.autoCancelGraceMs) || 10 * 24 * 3600 * 1000,
-	autoCancelIdleMs: Number(process.env.autoCancelIdleMs) || 10 * 24 * 3600 * 1000,
 	autoCancelWarnMs: Number(process.env.autoCancelWarnMs) || 24 * 3600 * 1000,
-	// An idle-stalled game (deadline-less / live — its deadline trigger never
-	// fires) warns as soon as the autoCancelIdleMs backstop trips, then is
-	// cancelled this much later if still idle: the live game's warn window.
-	autoCancelLiveWarnMs: Number(process.env.autoCancelLiveWarnMs) || 24 * 3600 * 1000,
 	mailing: {
 		provider: "mailgun",
 		api: {
