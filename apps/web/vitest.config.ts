@@ -13,6 +13,7 @@ export default defineConfig({
 		conditions: ["browser"],
 		alias: {
 			"$app/environment": r("./src/lib/__mocks__/app-environment.ts"),
+			"$app/navigation": r("./src/lib/__mocks__/app-navigation.ts"),
 			"$app/paths": r("./src/lib/__mocks__/app-paths.ts"),
 			"@": r("./src"),
 			"@cdk": r("./src/modules/cdk"),
@@ -20,7 +21,8 @@ export default defineConfig({
 		},
 	},
 	test: {
-		include: ["src/**/*.spec.ts"],
+		// `*.spec.svelte.ts` is a spec that needs runes (`$state` fixtures); both are TS.
+		include: ["src/**/*.spec.ts", "src/**/*.spec.svelte.ts"],
 		setupFiles: ["./vitest.setup.ts"],
 		environment: "jsdom",
 	},

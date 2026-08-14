@@ -144,8 +144,24 @@
 	});
 
 	const onGameUpdated = createWatcher(() => {
-		if (context.game && $lastGameUpdate > new Date(context.game.updatedAt!)) {
+		// The ws push carries the game's new `updatedAt` (the api's poll sends
+		// `lastUpdate = updatedAt`, never later), so `>=` — a strict `>` never fires
+		// and the update is dropped entirely (a cancelled game never left the sidebar).
+		if (context.game && $lastGameUpdate >= new Date(context.game.updatedAt!)) {
 			postUpdatePresent();
+			// The viewer refetches its own state on `state:updated` (fetchState), but the
+			// surrounding app — sidebar vote-cancel button, "Game ended!", OpenGame →
+			// StartedGame transition, og:title — reads `context.game`, which only a fresh
+			// load updates. Skip the refetch while a replay is live: replay navigation
+			// owns the iframe's state then, and a `postGamedata()` would clobber it.
+			if (gameId && !context.replayData) {
+				loadGame(gameId).then((g) => {
+					if (g._id === context.game?._id && !(g.updatedAt! < context.game.updatedAt!)) {
+						context.game = g;
+						postGamedata();
+					}
+				}, handleError);
+			}
 		}
 	});
 
