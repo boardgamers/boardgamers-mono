@@ -258,17 +258,17 @@ async function emailCancelNotice(game: GameDoc): Promise<void> {
 }
 
 export async function processStalledGames(): Promise<void> {
-// Loose prefilter (re-checked per game under the lock): any active game with a
-// current player whose deadline has already passed.
-const candidates = await colls.games
-	.find(
-		{
-			status: "active",
-			currentPlayers: { $elemMatch: { deadline: { $lt: new Date() } } },
-		},
-		{ projection: { _id: 1 } },
-	)
-	.toArray();
+	// Loose prefilter (re-checked per game under the lock): any active game with a
+	// current player whose deadline has already passed.
+	const candidates = await colls.games
+		.find(
+			{
+				status: "active",
+				currentPlayers: { $elemMatch: { deadline: { $lt: new Date() } } },
+			},
+			{ projection: { _id: 1 } },
+		)
+		.toArray();
 
 	for (const { _id } of candidates) {
 		try {
