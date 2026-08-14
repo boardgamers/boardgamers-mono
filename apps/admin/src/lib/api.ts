@@ -108,7 +108,7 @@ async function request<T = unknown>(
 
 export const api = {
 	get: <T = unknown>(path: string) => request<T>("GET", path),
-	post: <T = unknown>(path: string, body?: unknown) => request<T>("POST", path, body),
-	put: <T = unknown>(path: string, body?: unknown) => request<T>("PUT", path, body),
+	post: <T = unknown>(path: string, body: unknown = {}) => request<T>("POST", path, body),
+	put: <T = unknown>(path: string, body: unknown = {}) => request<T>("PUT", path, body),
 	del: <T = unknown>(path: string) => request<T>("DELETE", path),
 };
