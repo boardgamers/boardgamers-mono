@@ -94,6 +94,7 @@ Only relevant when a coordinator runs several workers on one machine. **Never ru
 
 - One PR per worker; worker branches are `moon/<name>`.
 - **The coordinator never merges** — only the user merges. The coordinator prepares PRs and reports readiness.
+- **Keep a worker's worktree (and reviewer workers) alive until its PR is merged** — don't discard on "approved"/"ready"; follow-up edits and rebases reuse the checked-out worktree. Discard only after merge.
 - **Every PR gets an independent review by a fresh reviewer agent** (especially auth/security/proxy/data/public-facing changes): read-only review of the PR head reporting blockers/nits and a verdict (APPROVE / REQUEST-CHANGES). Author's own tests passing is not sufficient. The reviewer also verifies UI-PR screenshots match the claimed change.
 - **Keep the coordinator's local `main` fresh**: after each merge, `git fetch origin && git reset --hard origin/main` on the main checkout — workers branch off `origin/main` at spawn time, so a stale main risks reverting merged work. Re-check in-flight workers' bases after a merge and rebase if they overlap.
 
