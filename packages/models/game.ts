@@ -93,6 +93,9 @@ export const gameSchema = z.object({
 	status: gameStatusSchema,
 	ready: z.boolean().optional(),
 	cancelled: z.boolean().optional(),
+	// Set once the inactivity warning has been posted for the current stall (#94);
+	// cleared by the game-server on the next move.
+	cancelWarn: z.boolean().optional(),
 	lastMove: zDate().optional(),
 	// Denormalized summary of the last move, written by the game-server so listings
 	// can display it without loading game.data or replaying the engine. Null until
@@ -130,6 +133,8 @@ export const gameIndexes: IndexDescription[] = [
 		key: { status: 1, "options.timing.scheduledStart": 1 },
 		partialFilterExpression: { status: "open", "options.timing.scheduledStart": { $exists: true } },
 	},
+	// api: inactivity sweep prefilter (status + earliest expired deadline)
+	{ key: { status: 1, "currentPlayers.deadline": 1 } },
 	// api: open-games-per-creator cap on game creation
 	{ key: { creator: 1, status: 1 } },
 ];

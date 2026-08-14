@@ -410,6 +410,7 @@ export async function afterMove(
 	}
 
 	game.lastMove = new Date();
+	delete game.cancelWarn;
 	game.data = JSON.parse(JSON.stringify(gameData));
 
 	if (lastMove !== undefined) {
