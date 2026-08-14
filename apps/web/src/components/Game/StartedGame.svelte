@@ -148,11 +148,39 @@
 		}
 	});
 
+	// ws push carries lastUpdate === updatedAt (apps/api/app/ws.ts): ping on >=, refetch only on strictly-newer >.
 	const onGameUpdated = createWatcher(() => {
-		if (context.game && $lastGameUpdate > new Date(context.game.updatedAt!)) {
-			postUpdatePresent();
+		if (!context.game || $lastGameUpdate < new Date(context.game.updatedAt!)) {
+			return;
+		}
+		postUpdatePresent();
+
+		if (
+			gameId &&
+			$lastGameUpdate > new Date(context.game.updatedAt!) &&
+			context.game.status !== "ended" &&
+			!context.game.cancelled &&
+			!context.replayData
+		) {
+			refetchOnTransition(context.game);
 		}
 	});
+
+	// Keep the app-level game (sidebar vote-cancel, "Game ended!", og:title) in sync on a
+	// status/lobby transition. Never post `state` to the iframe here: it makes the viewer
+	// ask for the state right back, which is the recursion loop.
+	async function refetchOnTransition(prev: GameFront) {
+		const g = await loadGame(prev._id).catch(handleError);
+		if (g && g._id === context.game?._id && statusTransitioned(prev, g)) {
+			context.game = g;
+		}
+	}
+
+	function statusTransitioned(a: GameFront, b: GameFront): boolean {
+		return (
+			a.status !== b.status || Boolean(a.cancelled) !== Boolean(b.cancelled) || Boolean(a.ready) !== Boolean(b.ready)
+		);
+	}
 
 	$effect(() => {
 		$lastGameUpdate;
@@ -239,6 +267,11 @@
 			} else if (event.data.type === "displayReady") {
 				stateSent = true;
 			} else if (event.data.type === "fetchState") {
+				// The iframe made the move that produced `selfUpdate`'s state, so it already
+				// has it — re-serving it feeds the recursion.
+				if (selfUpdate === context.game?.updatedAt) {
+					return;
+				}
 				await loadGame(context.game?._id ?? "").then((g) => {
 					if (g._id === context.game?._id) {
 						context.game = g;
@@ -274,6 +307,9 @@
 		}
 	}
 
+	// `updatedAt` of the state the iframe owns through this tab's own move response (see addMove).
+	let selfUpdate: GameFront["updatedAt"] | undefined;
+
 	async function addMove(move: string) {
 		const { game: newGame, log } = await post<{ game: GameFront; log: LogObject }>(`/gameplay/${gameId}/move`, {
 			move,
@@ -281,13 +317,12 @@
 
 		if (newGame._id === gameId && !(newGame.updatedAt! < context.game?.updatedAt!)) {
 			context.game = newGame;
+			selfUpdate = newGame.updatedAt;
 			postGameLog(log);
 		}
 	}
 
-	// `credentialless` has no TS/HTML attribute type yet, and an attribute spread
-	// (`{...{ credentialless: true }}`) crashes components mounted in the vitest jsdom
-	// env — an action sidesteps both.
+	// See WORKAROUNDS.md for why an action instead of an attribute/spread.
 	function credentialless(node: HTMLIFrameElement) {
 		(node as any).credentialless = true;
 	}

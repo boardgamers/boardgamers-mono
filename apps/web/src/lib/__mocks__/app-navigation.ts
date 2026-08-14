@@ -6,3 +6,5 @@ export function goto(): Promise<void> {
 export function invalidateAll(): Promise<void> {
 	return Promise.resolve();
 }
+export function afterNavigate(): void {}
+export function beforeNavigate(): void {}
