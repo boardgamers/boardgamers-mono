@@ -8,7 +8,8 @@ import "./config/db.ts";
 import env from "./config/env.ts";
 import type { GameDoc } from "@bgs/models";
 import { colls } from "./config/db.ts";
-import { accessTokenPayloadSchema, findGamesWithPlayersTurn } from "./models/index.ts";
+import { accessTokenPayloadSchema } from "./models/index.ts";
+import { sendActiveGames } from "./services/ws-currentturn.ts";
 
 export const wss = new WebSocketServer({ port: env.listen.port.ws, host: env.listen.host });
 
@@ -121,7 +122,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
 
 					ws.user = new ObjectId(decoded.userId);
 					updateActivity(ws.user, true).catch(console.error);
-					sendActiveGames(ws);
+					sendActiveGames(ws).catch(console.error);
 				} catch {
 					ws.user = null;
 				}
@@ -151,21 +152,9 @@ setInterval(function ping() {
 		ws.isAlive = false;
 		ws.ping(() => {});
 
-		sendActiveGames(ws);
+		sendActiveGames(ws).catch(console.error);
 	}
 }, 20000);
-
-function sendActiveGames(ws: AugmentedWebSocket) {
-	if (ws.user) {
-		findGamesWithPlayersTurn(ws.user)
-			.project({ _id: 1 })
-			.toArray()
-			.then((gamesList) => {
-				ws.send(JSON.stringify({ command: "games:currentTurn", games: gamesList.map((game) => game._id) }));
-			})
-			.catch(console.error);
-	}
-}
 
 let lastChecked = ObjectId.createFromTime(Math.floor(Date.now() / 1000));
 

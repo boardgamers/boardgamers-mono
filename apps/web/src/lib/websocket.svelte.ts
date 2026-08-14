@@ -1,7 +1,8 @@
 import { browser } from "$app/environment";
 import { get as getStore } from "svelte/store";
 import { mintToken } from "./api";
-import { account, activeGames, chatMessages, currentGameId, lastGameUpdate, playerStatus, room } from "./stores.svelte";
+import { handleCurrentTurnGames } from "./active-games.svelte";
+import { account, chatMessages, currentGameId, lastGameUpdate, playerStatus, room } from "./stores.svelte";
 
 let ws: WebSocket | null = null;
 let interval: ReturnType<typeof setInterval>;
@@ -78,7 +79,7 @@ function connect() {
 		} else if (obj.command === "game:playerStatus") {
 			playerStatus.set(obj.players);
 		} else if (obj.command === "games:currentTurn") {
-			activeGames.set(obj.games);
+			handleCurrentTurnGames(obj.games);
 		}
 	};
 
