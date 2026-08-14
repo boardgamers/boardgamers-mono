@@ -123,29 +123,12 @@ function activeHumanPlayers(game: Pick<GameDoc, "players">): PlayerInfo[] {
 }
 
 /**
- * One inactivity sweep over an already-loaded game (#94), with a warn-then-cancel
- * model — the sweep never drops anyone (that's the players'/game-server's call).
- *
- * A game is "stalled" when a current player's clock deadline has passed (the
- * window-aware `cp.deadline < now` signal). Games without a deadline (live/
- * realtime games, or any game whose current players have none) are never
- * touched.
- *
- * Once stalled, post a system chat warning ("will be cancelled in X days — the
- * other players can drop the inactive player to keep going") env.autoCancelWarnMs
- * after the deadline, then cancel if the game is still stalled after
- * env.autoCancelGraceMs. The warning is sent at most once per stall episode,
- * tracked by the `cancelWarn` marker field on the game doc (on the Zod schema,
- * optional; set when the warning posts); a game that moves and later stalls
- * again gets a fresh warning. Cancelling uses the manual vote-to-cancel shape
- * (status=ended, cancelled, currentPlayers=[], gameEnded notification), so
- * it's penalty-free (no Elo/karma).
- *
- * Locking: `game-cancel:<id>` — the same key the manual cancel/quit/drop routes use
- * (they're what these updates must serialize with). The game-server's move path
- * locks `game:<id>` instead; that pre-existing split (#280) self-heals (read-
- * modify-write `replaceOne`, and the game-server no-ops on a non-active game) and
- * is unchanged here.
+ * Inactivity sweep for one game (#94): warn in chat once stalled past
+ * autoCancelWarnMs, cancel past autoCancelGraceMs — never drops anyone. Stalled
+ * = a current player's deadline passed; no deadline → untouched. `cancelWarn`
+ * holds the warned episode's start, so it warns once per episode and re-warns
+ * after a move. Locks `game-cancel:<id>` like the manual cancel/quit/drop routes
+ * (the move path's `game:<id>` split is #280, self-healing).
  */
 export async function processStalledGame(gameId: string): Promise<void> {
 	await using _lock = await locks.lock("game-cancel", gameId);
@@ -178,14 +161,13 @@ export async function processStalledGame(gameId: string): Promise<void> {
 	// The stall is clocked from the earliest expired deadline.
 	const stallSince = new Date(Math.min(...expiredDeadlines.map((dl) => dl.getTime())));
 	const stallAgeMs = now.getTime() - stallSince.getTime();
-	const stallMarker = `deadline:${stallSince.toISOString()}`;
 
 	if (stallAgeMs >= env.autoCancelGraceMs) {
 		await cancelInactiveGame(game, now);
 		return;
 	}
 
-	if (stallAgeMs >= env.autoCancelWarnMs && game.cancelWarn !== stallMarker) {
+	if (stallAgeMs >= env.autoCancelWarnMs && game.cancelWarn?.getTime() !== stallSince.getTime()) {
 		const daysLeft = Math.max(1, Math.ceil((env.autoCancelGraceMs - stallAgeMs) / (24 * 3600 * 1000)));
 		const names = stalledPlayers.map((pl) => pl.name).join(", ") || "the current player(s)";
 		await colls.chatMessages.insertOne({
@@ -196,7 +178,7 @@ export async function processStalledGame(gameId: string): Promise<void> {
 				text: `This game will be cancelled for inactivity in ${daysLeft} day${daysLeft > 1 ? "s" : ""} if no move is played. Waiting on ${names} — the other players can drop the inactive player to keep the game going.`,
 			},
 		});
-		await colls.games.updateOne({ _id: game._id }, { $set: { cancelWarn: stallMarker } });
+		await colls.games.updateOne({ _id: game._id }, { $set: { cancelWarn: stallSince } });
 	}
 }
 
@@ -259,21 +241,15 @@ async function emailCancelNotice(game: GameDoc): Promise<void> {
 }
 
 export async function processStalledGames(): Promise<void> {
-	// Prefilter (re-checked per game under the lock): only games this sweep could
-	// actually act on — a current player whose deadline is at least
-	// env.autoCancelWarnMs old, i.e. past the warning threshold. Nothing happens
-	// before the warn point, so a game seconds past its deadline (days away from
-	// cancelling) is never fetched/locked.
-	//
-	// Games warned already (game.cancelWarn matches the stall episode) but not
-	// yet at the grace threshold still pass the prefilter — the marker embeds
-	// the stallSince ISO, which a query can't express — and are skipped cheaply
-	// by the per-game locked check.
+	// Prefilter (re-checked per game under the lock): a current player past the
+	// warn threshold. Nothing happens before the warn point, so a game seconds
+	// past its deadline is never fetched/locked. Dot-notation matches if any
+	// array element matches — fine for this single-condition check.
 	const candidates = await colls.games
 		.find(
 			{
 				status: "active",
-				currentPlayers: { $elemMatch: { deadline: { $lt: new Date(Date.now() - env.autoCancelWarnMs) } } },
+				"currentPlayers.deadline": { $lt: new Date(Date.now() - env.autoCancelWarnMs) },
 			},
 			{ projection: { _id: 1 } },
 		)

@@ -205,11 +205,12 @@ describe("processStalledGames — warn-then-auto-cancel for stalled games (#94)"
 		assert.match(chat?.data?.text ?? "", /alice/);
 		assert.match(chat?.data?.text ?? "", /drop the inactive player/);
 
-		// Warned, not cancelled, and the episode is marked.
+		// Warned, not cancelled, and the episode is marked with its stall start.
 		const game = await colls.games.findOne({ _id: "warn-point" });
 		assert.equal(game?.status, "active");
 		assert.equal(game?.cancelled, false);
-		assert.match(game?.cancelWarn ?? "", /^deadline:/);
+		assert.ok(game?.cancelWarn instanceof Date);
+		assert.equal(game?.cancelWarn?.getTime(), game?.currentPlayers?.[0]?.deadline?.getTime());
 	});
 
 	it("cancels a game still stalled after the full grace period (penalty-free cancel shape)", async () => {
@@ -232,7 +233,7 @@ describe("processStalledGames — warn-then-auto-cancel for stalled games (#94)"
 		// processStalledGames issues (kept in sync by mirroring it here).
 		const filter = {
 			status: "active",
-			currentPlayers: { $elemMatch: { deadline: { $lt: new Date(Date.now() - env.autoCancelWarnMs) } } },
+			"currentPlayers.deadline": { $lt: new Date(Date.now() - env.autoCancelWarnMs) },
 		};
 		const candidates = (await colls.games.find(filter, { projection: { _id: 1 } }).toArray()).map((g) => g._id);
 
