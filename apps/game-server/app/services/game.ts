@@ -101,6 +101,7 @@ export async function startNextGame(): Promise<boolean> {
 			});
 
 			game.lastMove = new Date();
+			game.lastMoveInfo = null;
 
 			if (engine.round) {
 				const round = engine.round(gameData);
@@ -231,7 +232,96 @@ export async function processQuit(notification: GameNotificationDoc) {
 	}
 }
 
-export async function afterMove(engine: Engine, game: GameDoc, gameData: GameData, alreadyEnded = false) {
+const LAST_MOVE_MAX_LEN = 80;
+
+// Raw move notation, used when the log slice yields no readable line. Bots
+// auto-play without a move argument (moveAI takes none) → "".
+function moveNotation(move: unknown): string {
+	if (typeof move === "string") {
+		return move;
+	}
+	if (move === null || move === undefined) {
+		return "";
+	}
+	return JSON.stringify(move);
+}
+
+// A single log entry → plain text, or "" to skip it. Log entries' shape is
+// engine-specific: gaia uses plain strings, powergrid/container entries carry a
+// plain-text `simple` field, others may use `message`/`text`/`log`. `event` /
+// `phase` entries are engine phase noise (not the move) — skipped. An entry
+// with no usable text falls back to a compact stringify of itself.
+function logEntryText(entry: unknown): string {
+	if (typeof entry === "string") {
+		return entry;
+	}
+	if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- log entries are engine-defined; probed defensively
+		const record = entry as Record<string, unknown>;
+		if (record.type === "event" || record.type === "phase") {
+			return "";
+		}
+		for (const key of ["simple", "message", "text", "log"]) {
+			const value: unknown = record[key];
+			if (typeof value === "string" && value) {
+				return value;
+			}
+		}
+		return JSON.stringify(entry);
+	}
+	return String(entry);
+}
+
+// logSlice returns { log: [...] } on the engines in the platform contract, but
+// the type is `unknown` — pull the entries array out defensively.
+function logEntries(slice: unknown): unknown[] {
+	if (Array.isArray(slice)) {
+		return slice;
+	}
+	if (slice && typeof slice === "object" && "log" in slice) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- logSlice shape is engine-defined; guarded by Array.isArray
+		const log = (slice as Record<string, unknown>).log;
+		if (Array.isArray(log)) {
+			return log;
+		}
+	}
+	return [];
+}
+
+// Human-readable summary of the last move: the newest log line the move
+// produced (what the viewer shows), bounded to LAST_MOVE_MAX_LEN chars.
+// Falls back to the raw move notation when the log slice yields nothing
+// (engine produced no new entries). A move can append several entries
+// (auto-moves, event+move mixes) — the newest is the most descriptive.
+function lastMoveText(engine: Engine, gameData: GameData, beforeLen: number, move: unknown): string {
+	try {
+		const afterLen = engine.logLength(gameData);
+		if (afterLen > beforeLen) {
+			// Omit `end`: the slice is identical (start..logLength), and passing it would
+			// make powergrid/container/take6 replay the game to recompute historical
+			// availableMoves — pointless here (we only want the log lines).
+			const entries = logEntries(engine.logSlice(gameData, { start: beforeLen }));
+			for (let i = entries.length - 1; i >= 0; i--) {
+				const text = logEntryText(entries[i]).trim();
+				if (text) {
+					return text.length > LAST_MOVE_MAX_LEN ? text.slice(0, LAST_MOVE_MAX_LEN - 1) + "…" : text;
+				}
+			}
+		}
+	} catch {
+		// A misbehaving logSlice/logLength must never break the move — fall back below.
+	}
+	const raw = moveNotation(move);
+	return raw.length > LAST_MOVE_MAX_LEN ? raw.slice(0, LAST_MOVE_MAX_LEN - 1) + "…" : raw;
+}
+
+export async function afterMove(
+	engine: Engine,
+	game: GameDoc,
+	gameData: GameData,
+	alreadyEnded = false,
+	lastMove?: { player: number; move: unknown; logLengthBefore?: number },
+) {
 	const oldPlayers = game.currentPlayers ?? [];
 	const { timePerGame, timePerMove, timer } = game.options.timing;
 
@@ -321,6 +411,17 @@ export async function afterMove(engine: Engine, game: GameDoc, gameData: GameDat
 
 	game.lastMove = new Date();
 	game.data = JSON.parse(JSON.stringify(gameData));
+
+	if (lastMove !== undefined) {
+		const player = game.players[lastMove.player];
+		assert(player, `No player at index ${lastMove.player}`);
+		game.lastMoveInfo = {
+			player: player._id,
+			move: lastMoveText(engine, gameData, lastMove.logLengthBefore ?? engine.logLength(gameData), lastMove.move),
+			at: game.lastMove,
+			moveNumber: engine.logLength(gameData),
+		};
+	}
 
 	await colls.games.replaceOne({ _id: game._id }, game);
 

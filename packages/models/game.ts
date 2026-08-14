@@ -94,6 +94,21 @@ export const gameSchema = z.object({
 	ready: z.boolean().optional(),
 	cancelled: z.boolean().optional(),
 	lastMove: zDate().optional(),
+	// Denormalized summary of the last move, written by the game-server so listings
+	// can display it without loading game.data or replaying the engine. Null until
+	// the first move (game start sets it explicitly). `move` is the engine's log
+	// line for the move (what the viewer shows), read from the log entries the move
+	// appended via logSlice; it falls back to the raw move notation when the engine
+	// logged nothing. Bounded to ~80 chars.
+	lastMoveInfo: z
+		.object({
+			player: zObjectId(),
+			move: z.string(),
+			at: zDate(),
+			moveNumber: z.number(),
+		})
+		.nullable()
+		.optional(),
 	createdAt: zDate().optional(),
 	updatedAt: zDate().optional(),
 });

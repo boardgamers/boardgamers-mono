@@ -162,7 +162,7 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 			if (timePerMove !== undefined && timePerGame !== undefined && player && timePerMove <= 15 * 60) {
 				player.remainingTime = Math.min(timePerGame, (player.remainingTime ?? timePerGame) + timePerMove);
 			}
-			await afterMove(engine, game, toSave);
+			await afterMove(engine, game, toSave, false, { player: playerIndex, move, logLengthBefore: initialLogIndex });
 		}
 
 		ctx.body = {

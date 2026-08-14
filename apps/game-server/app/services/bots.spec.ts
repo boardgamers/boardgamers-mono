@@ -23,11 +23,12 @@ function makeEngine(dir: string) {
 	fs.writeFileSync(
 		path.join(dir, "engine.mjs"),
 		`export async function init(players) {
-			return { n: players, moves: Array(players).fill(0), current: 0 };
+			return { n: players, moves: Array(players).fill(0), current: 0, log: [] };
 		}
 		export async function move(data, move, player) {
 			if (player !== data.current) throw new Error("not your turn");
 			data.moves[player]++;
+			data.log.push("player " + player + " banks a charge");
 			data.current = (data.current + 1) % data.n;
 			return data;
 		}
@@ -44,10 +45,10 @@ function makeEngine(dir: string) {
 			return ended(data) ? undefined : data.current;
 		}
 		export function logLength(data) {
-			return data.moves.reduce((a, b) => a + b, 0);
+			return data.log.length;
 		}
-		export function logSlice(data) {
-			return { log: [], availableMoves: ["ai"] };
+		export function logSlice(data, options) {
+			return { log: data.log.slice(options?.start, options?.end), availableMoves: ["ai"] };
 		}
 		export async function dropPlayer(data, player) {
 			data.moves[player] = 3;
@@ -144,11 +145,13 @@ describe("bot driver", () => {
 		// Only clear this suite's own fixtures — the full suite runs several spec files
 		// concurrently against the same test db, and a dropDatabase() here would wipe
 		// another file's state mid-run.
-		await colls.games.deleteMany({ _id: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel"] } });
-		await colls.gameNotifications.deleteMany({
-			game: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel"] },
+		await colls.games.deleteMany({
+			_id: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel", "bot-game-log"] },
 		});
-		await colls.gameInfos.deleteMany({ "_id.game": { $in: [ENGINE_NAME, "bot-test-noai"] } });
+		await colls.gameNotifications.deleteMany({
+			game: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel", "bot-game-log"] },
+		});
+		await colls.gameInfos.deleteMany({ "_id.game": { $in: [ENGINE_NAME, "bot-test-noai", "bot-test-log"] } });
 		// Register the engine: getEngine/enginePath resolve via gameInfos.
 		await colls.gameInfos.insertOne({
 			_id: { game: ENGINE_NAME, version: ENGINE_VERSION },
@@ -187,6 +190,7 @@ describe("bot driver", () => {
 		await startGame("bot-game-1");
 		const started = await colls.games.findOne({ _id: "bot-game-1" });
 		assert.strictEqual(started?.status, "active");
+		assert.strictEqual(started?.lastMoveInfo, null, "No move yet at game start (#208)");
 		assert.strictEqual(started?.currentPlayers?.length, 1);
 		assert.ok(
 			started?.players[0].isBot && started.currentPlayers[0]._id.equals(started.players[0]._id),
@@ -221,6 +225,14 @@ describe("bot driver", () => {
 		});
 		assert.strictEqual(botNotifs, 0, "Bots never get currentMove notifications");
 		assert.ok(humanNotifs >= 1, "The human got their turn notification");
+
+		// Bot moves count for the standardized last-move field (#208), and the text is
+		// the engine's log line for that move (not raw notation) — read from logSlice.
+		assert.ok(game.lastMoveInfo, "The bot move was recorded");
+		assert.ok(game.lastMoveInfo.player.equals(game.players[0]._id), "Last mover is the bot");
+		assert.strictEqual(game.lastMoveInfo.move, "player 0 banks a charge", "Last-move text is the engine log line");
+		assert.strictEqual(game.lastMoveInfo.moveNumber, data?.moves[0]);
+		assert.ok(game.lastMoveInfo.at.getTime() > 0);
 	});
 
 	it("bots chain moves between themselves and the game ends with scores", async () => {
@@ -252,6 +264,11 @@ describe("bot driver", () => {
 			game.players.every((pl) => pl.ranking === 1),
 			"Rankings recorded",
 		);
+		assert.ok(game.lastMoveInfo, "The last bot move was recorded (#208)");
+		assert.ok(game.lastMoveInfo.player.equals(game.players[1]._id), "Player 2 played last (strict alternation)");
+		assert.strictEqual(game.lastMoveInfo.move, "player 1 banks a charge", "Last-move text is the newest log line");
+		assert.strictEqual(game.lastMoveInfo.moveNumber, 6);
+
 		const endedNotifs = await colls.gameNotifications.countDocuments({ game: "bot-game-2", kind: "gameEnded" });
 		assert.strictEqual(endedNotifs, 1, "gameEnded notification emitted exactly once");
 		const moveNotifs = await colls.gameNotifications.countDocuments({ game: "bot-game-2", kind: "currentMove" });
@@ -283,6 +300,71 @@ describe("bot driver", () => {
 		assert.ok(game);
 		assert.strictEqual(game.cancelled, true, "Bot auto-consents to the human's cancel vote");
 		assert.strictEqual(game.players[1].dropped, true);
+	});
+
+	it("derives the last-move text from powergrid-style object log entries, and falls back to raw notation on an empty slice", async () => {
+		// Engine whose log entries are objects ({simple} like powergrid) and whose
+		// bot produces no log entry on its second move (→ raw-notation fallback).
+		const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), "bgs-bot-engine-log-"));
+		fs.writeFileSync(
+			path.join(dir2, "engine.mjs"),
+			`export async function init(players) {
+				return { n: players, moves: Array(players).fill(0), current: 0, log: [] };
+			}
+			export async function move(data, move, player) {
+				if (player !== data.current) throw new Error("not your turn");
+				data.moves[player]++;
+				// First move appends an object entry with a plain-text \`simple\` field
+				// (powergrid shape), then an \`event\` entry — the event is phase noise
+				// and must be skipped in favour of the move line. Later moves append
+				// nothing → fallback to raw notation.
+				if (data.moves[player] === 1) {
+					data.log.push({ type: "move", player, simple: "Rob banks a charge for 2 power." });
+					data.log.push({ type: "event", event: "A new card is drawn." });
+				}
+				data.current = (data.current + 1) % data.n;
+				return data;
+			}
+			export async function moveAI(data, player) { return move(data, "ai", player); }
+			export function ended(data) { return data.moves.every((m) => m >= 2); }
+			export function scores(data) { return data.moves; }
+			export function currentPlayer(data) { return ended(data) ? undefined : data.current; }
+			export function logLength(data) { return data.log.length; }
+			export function logSlice(data, options) {
+				return { log: data.log.slice(options?.start, options?.end), availableMoves: [] };
+			}
+			export async function dropPlayer(data, player) { data.moves[player] = 2; return data; }`,
+		);
+		const game = "bot-game-log";
+		await colls.gameInfos.insertOne({
+			_id: { game: "bot-test-log", version: 1 },
+			label: "Bot test log",
+			viewer: { url: "//test/bot" },
+			players: [2],
+			meta: { public: true, bots: true },
+			engine: { package: { name: "@test/bot-log", version: "1.0.0" }, entryPoint: "engine.mjs" },
+		});
+		installEngine("bot-test-log", 1, "@test/bot-log", "1.0.0", path.join(dir2, "engine.mjs"));
+
+		await insertGame(game, [botPlayer("Rob (bot 1)"), humanPlayer("human")]);
+		// Re-point the game at the log engine
+		await colls.games.updateOne({ _id: game }, { $set: { "game.name": "bot-test-log", "game.version": 1 } });
+		await startGame(game);
+
+		// Bot plays move 1 → object entry with \`simple\` text is surfaced.
+		await waitFor(async () => {
+			const g = await colls.games.findOne({ _id: game });
+			return !!g && !g.players.some((pl) => pl.isBot && g.currentPlayers?.some((cp) => cp._id.equals(pl._id)));
+		});
+		const g = await colls.games.findOne({ _id: game });
+		assert.strictEqual(
+			g?.lastMoveInfo?.move,
+			"Rob banks a charge for 2 power.",
+			"Object entry → simple text, event skipped",
+		);
+		assert.strictEqual(g?.lastMoveInfo?.moveNumber, 2, "move + event entries both counted");
+
+		fs.rmSync(dir2, { recursive: true, force: true });
 	});
 
 	it("a broken moveAI leaves the game active (bot stuck), without looping", async () => {

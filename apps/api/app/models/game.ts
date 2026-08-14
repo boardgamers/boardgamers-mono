@@ -28,5 +28,6 @@ export const gameBasicsProjection = {
 	"data.round": 1,
 	"context.round": 1,
 	lastMove: 1,
+	lastMoveInfo: 1,
 	createdAt: 1,
 } as const;
