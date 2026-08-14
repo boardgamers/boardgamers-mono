@@ -62,6 +62,17 @@ describe("Boardgame API — game likes (#117)", () => {
 			// Game-level fields (label/players/likeCount) live on the metadata doc (#298).
 			await colls.gameMetadatas.insertOne({ _id: game, label: game, players: [2] });
 		}
+		// Two versions of one game: a like bumps the single per-game metadata doc,
+		// visible on every version's merged game-info (the #298 split makes the old
+		// "only one version's doc got the $inc" bug impossible by construction).
+		for (const version of [1, 2]) {
+			await colls.gameInfos.insertOne({
+				_id: { game: "likegame-multi", version },
+				viewer: { url: `//test.com/likegame-multi` },
+				meta: { public: true },
+			});
+		}
+		await colls.gameMetadatas.insertOne({ _id: "likegame-multi", label: "likegame-multi", players: [2] });
 		alice = await insertUserWithAuth("alice");
 		bob = await insertUserWithAuth("bob");
 	});
@@ -135,6 +146,38 @@ describe("Boardgame API — game likes (#117)", () => {
 
 		const other = await api("GET", "/api/boardgame/likegame-a", undefined, bob.authHeaders);
 		assert.strictEqual(z.object({ liked: z.boolean() }).parse(other.data).liked, false);
+	});
+
+	it("increments the single per-game likeCount, visible on every version", async () => {
+		const res = await api("POST", "/api/boardgame/likegame-multi/like", undefined, bob.authHeaders);
+		assert.deepStrictEqual(res.data, { liked: true, likeCount: 1 });
+		assert.strictEqual((await colls.gameMetadatas.findOne({ _id: "likegame-multi" }))?.likeCount, 1);
+
+		// Both versions' merged game-info expose the shared count.
+		const list = z
+			.array(infoListItem)
+			.parse((await api("GET", "/api/boardgame/info")).data)
+			.filter((i) => i._id.game === "likegame-multi");
+		assert.deepStrictEqual(
+			list.map((i) => i.likeCount),
+			[1, 1],
+		);
+	});
+
+	it("is idempotent on repeated likes across versions", async () => {
+		const res = await api("POST", "/api/boardgame/likegame-multi/like", undefined, bob.authHeaders);
+		assert.deepStrictEqual(res.data, { liked: true, likeCount: 1 });
+		assert.strictEqual((await colls.gameMetadatas.findOne({ _id: "likegame-multi" }))?.likeCount, 1);
+	});
+
+	it("decrements the per-game likeCount, idempotently", async () => {
+		const res = await api("DELETE", "/api/boardgame/likegame-multi/like", undefined, bob.authHeaders);
+		assert.deepStrictEqual(res.data, { liked: false, likeCount: 0 });
+		assert.strictEqual((await colls.gameMetadatas.findOne({ _id: "likegame-multi" }))?.likeCount, 0);
+
+		const again = await api("DELETE", "/api/boardgame/likegame-multi/like", undefined, bob.authHeaders);
+		assert.deepStrictEqual(again.data, { liked: false, likeCount: 0 });
+		assert.strictEqual((await colls.gameMetadatas.findOne({ _id: "likegame-multi" }))?.likeCount, 0);
 	});
 
 	after(() => db().dropDatabase());
