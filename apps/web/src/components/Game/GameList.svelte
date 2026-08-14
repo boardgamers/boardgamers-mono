@@ -2,7 +2,6 @@
 	import { resolve } from "$app/paths";
 	import { timerTime, defer, duration, niceDate, shortDuration, compactDuration, timerWindow } from "@/utils";
 	import type { GameFront } from "@bgs/models";
-	import { createWatcher } from "@/utils/watch";
 	import { Badge, Pagination, Loading } from "@/modules/cdk";
 	import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
 	import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
@@ -176,33 +175,69 @@
 		return secondsLeft <= timePerMove / 4;
 	}
 
-	const onCurrentPageChanged = createWatcher(() => load(false));
-
 	let firstRun = true;
 	let lastLogoClicks = $logoClicks;
+	let lastBoardgameId: string | undefined;
+	let lastUserId: string | undefined | null;
+	let lastSearch: string | undefined;
+	let lastPage = 0;
 
+	// A single effect drives every (re)load, reacting to the filters/refresh trigger
+	// (userId, boardgameId, search, $logoClicks) and to the page. Merging the two old
+	// effects (filter watcher + page watcher) is what fixes the bug: with them separate,
+	// navigating to a different boardgame while on a non-zero page fired *two* loads —
+	// the filter effect's `load(true)` (games + count) and the page watcher's
+	// `load(false)` (games only, `fetchCount:false`) — whose `games` overwrote the
+	// correct one while `count` stayed stale. One effect means one `load(true)` at
+	// page 0 for a filter change, refetching BOTH games and count.
+	//
+	// The effect reads `currentPage`, so the programmatic reset below re-runs it; that
+	// re-run is made a harmless no-op by the `lastPage` tracker (the re-run sees
+	// `pageChanged === false` and `filterChanged === false`).
 	$effect(() => {
 		userId;
 		boardgameId;
 		search;
 		const clicks = $logoClicks;
-		// Skip the first run — initial load already happened synchronously above.
+		const page = currentPage;
+
+		// Skip the very first run — the initial load already happened synchronously above.
+		// Seeding the change-trackers here (not at declaration) keeps them from
+		// "capturing the initial prop value" (Svelte would warn) and matches the effect.
 		if (firstRun) {
 			firstRun = false;
+			lastBoardgameId = boardgameId;
+			lastUserId = userId;
+			lastSearch = search;
+			lastPage = page;
 			return;
 		}
+
 		// A logo-click bump is a user-triggered refresh: bypass the games cache.
 		// Filter changes keep the cache (switching back to a seen filter is instant).
 		const isLogoRefresh = clicks !== lastLogoClicks;
+		const filterChanged =
+			boardgameId !== lastBoardgameId || userId !== lastUserId || search !== lastSearch || isLogoRefresh;
+		const pageChanged = page !== lastPage;
 		lastLogoClicks = clicks;
-		// Reset to the first page when the filter changes.
-		currentPage = 0;
-		load(true, isLogoRefresh);
-	});
 
-	$effect(() => {
-		currentPage;
-		onCurrentPageChanged();
+		if (filterChanged) {
+			// Reset to page 0 and refetch games + count for the new filter. Setting
+			// lastPage = 0 (the page we're resetting TO) is what makes the reset's effect
+			// re-run a no-op: it's subscribed to currentPage, so the `currentPage = 0`
+			// write re-runs this effect, but then sees page===lastPage===0 and
+			// filterChanged===false (the trackers were already advanced) → no second load.
+			lastBoardgameId = boardgameId;
+			lastUserId = userId;
+			lastSearch = search;
+			lastPage = 0;
+			currentPage = 0;
+			load(true, isLogoRefresh);
+		} else if (pageChanged) {
+			// Only the page changed: fetch the new page without a redundant count.
+			lastPage = page;
+			load(false);
+		}
 	});
 </script>
 
