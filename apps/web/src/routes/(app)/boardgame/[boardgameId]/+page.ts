@@ -25,7 +25,7 @@ export const load: PageLoad = async ({ params, parent }) => {
 
 	const lobbyGames = loadGames({ sample: true, gameStatus: "open", boardgameId, count: 5, store: true });
 
-	const [active, , , rankings] = await Promise.all([
+	const [active, featured, , rankings] = await Promise.all([
 		myActiveGames,
 		featuredGames,
 		lobbyGames,
@@ -49,9 +49,20 @@ export const load: PageLoad = async ({ params, parent }) => {
 		}
 	}
 
+	// Same fallback for "Featured games": when the boardgame has no ongoing games,
+	// show recently finished ones instead of an empty section.
+	let featuredFallback: "active" | "ended" = "active";
+	if (featured.games.length === 0) {
+		const ended = await loadGames({ gameStatus: "ended", count: 5, boardgameId, fetchCount: false, store: true });
+		if (ended.games.length > 0) {
+			featuredFallback = "ended";
+		}
+	}
+
 	return {
 		rankings,
 		myGamesStatus: myGamesFallback,
+		featuredStatus: featuredFallback,
 		seo: boardgameSeo(boardgameId, gameInfo),
 	};
 };
