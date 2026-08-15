@@ -2,7 +2,7 @@
 	import { getContext, onDestroy } from "svelte";
 	import { Button } from "@/modules/cdk";
 	import IconBug from "@/components/icons/IconBug.svelte";
-	import { DEBUG_INFO_MESSAGE, DEBUG_INFO_REQUEST, type GameDebugInfo } from "@/lib/debug-info";
+	import { DEBUG_INFO_MESSAGE, DEBUG_INFO_REQUEST } from "@/lib/debug-info";
 	import { notifier } from "@/lib/notifications.svelte";
 	import { developerSettings } from "@/lib/stores.svelte";
 	import { handleError } from "@/utils";
@@ -12,10 +12,10 @@
 	const { emitter } = context;
 
 	let pending = $state(false);
-	let pendingResolve: ((info: GameDebugInfo) => void) | undefined;
+	let pendingResolve: ((data: unknown) => void) | undefined;
 
-	function onDebugInfo(info: GameDebugInfo) {
-		pendingResolve?.(info);
+	function onDebugInfo(data: unknown) {
+		pendingResolve?.(data);
 		pendingResolve = undefined;
 		pending = false;
 	}
@@ -25,9 +25,9 @@
 		emitter.off(DEBUG_INFO_MESSAGE, onDebugInfo);
 	});
 
-	// The parent (StartedGame) owns the full context + the viewer's player index and
-	// preferences, so ask it to assemble the snapshot instead of duplicating that logic.
-	function requestDebugInfo(): Promise<GameDebugInfo> {
+	// The game's viewer owns the debug payload: StartedGame relays the request to the
+	// iframe, and the viewer (if it implements the protocol) answers with `debugInfo`.
+	function requestDebugInfo(): Promise<unknown> {
 		return new Promise((resolve, reject) => {
 			pendingResolve = resolve;
 			emitter.emit(DEBUG_INFO_REQUEST);
@@ -35,9 +35,9 @@
 				if (pendingResolve) {
 					pendingResolve = undefined;
 					pending = false;
-					reject(new Error("Timed out gathering debug info"));
+					reject(new Error("This game's viewer doesn't support copying debug info."));
 				}
-			}, 5000);
+			}, 4000);
 		});
 	}
 
@@ -47,19 +47,23 @@
 		}
 		pending = true;
 		try {
-			const info = await requestDebugInfo();
-			await navigator.clipboard.writeText(JSON.stringify(info, null, 2));
+			const data = await requestDebugInfo();
+			await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
 			notifier.success("Debug info copied to clipboard");
 		} catch (err) {
-			handleError(err);
+			if (err instanceof Error && err.message.includes("doesn't support")) {
+				notifier.info(err.message);
+			} else {
+				handleError(err);
+			}
 		} finally {
 			pending = false;
 		}
 	}
 </script>
 
-<!-- The snapshot embeds the full game state, which leaks hidden information in
-     hidden-information games — only offer it with developer settings enabled. -->
+<!-- Only offered with developer settings enabled: it's a debugging tool, and the
+     payload (chosen by the game's viewer) can be verbose. -->
 {#if $developerSettings}
 	<Button
 		color="secondary"

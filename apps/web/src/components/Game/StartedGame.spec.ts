@@ -1,7 +1,8 @@
-// Protocol test for the viewer↔game debug-info messages: when the viewer posts
-// `requestDebugInfo` (or the game-context emitter receives it — the DebugInfoButton
-// path), StartedGame must post a `debugInfo` message back to the iframe and emit the
-// same snapshot on the emitter.
+// Protocol test for the viewer↔game debug-info relay: an emitter `requestDebugInfo`
+// (from the DebugInfoButton FAB) must be forwarded to the game iframe, and a
+// `debugInfo` window message from the viewer must be routed back onto the
+// game-context emitter for the waiting FAB. The parent never assembles a payload
+// itself — the viewer owns it.
 import { flushSync, mount, unmount } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -33,7 +34,7 @@ vi.hoisted(() => {
 });
 
 import EventEmitter from "eventemitter3";
-import { DEBUG_INFO_MESSAGE, DEBUG_INFO_REQUEST, type GameDebugInfo } from "@/lib/debug-info";
+import { DEBUG_INFO_MESSAGE, DEBUG_INFO_REQUEST } from "@/lib/debug-info";
 import type { GameContext } from "@/routes/game/[gameId]/game-context";
 import StartedGame from "./StartedGame.svelte";
 
@@ -61,7 +62,7 @@ function makeContext(emitter: EventEmitter): GameContext {
 	} as unknown as GameContext;
 }
 
-describe("StartedGame debug-info protocol", () => {
+describe("StartedGame debug-info relay", () => {
 	let emitter: EventEmitter;
 	let target: HTMLDivElement;
 	let instance: Record<string, unknown> | undefined;
@@ -90,36 +91,19 @@ describe("StartedGame debug-info protocol", () => {
 		target.remove();
 	});
 
-	function postedDebugInfos(): GameDebugInfo[] {
-		return postMessage.mock.calls.filter(([msg]) => msg?.type === DEBUG_INFO_MESSAGE).map(([msg]) => msg.data);
-	}
-
-	it("answers a viewer `requestDebugInfo` window message with `debugInfo`", async () => {
-		const emitted = new Promise<GameDebugInfo>((resolve) => emitter.once(DEBUG_INFO_MESSAGE, resolve));
-
-		window.dispatchEvent(new window.MessageEvent("message", { data: { type: DEBUG_INFO_REQUEST } }));
-		await vi.waitFor(() => expect(postedDebugInfos()).toHaveLength(1));
-
-		const info = postedDebugInfos()[0];
-		expect(info.gameId).toBe(GAME_ID);
-		expect(info.gameName).toBe("gaia-project");
-		expect(info.gameVersion).toBe(3);
-		expect(info.gameStatus).toBe("active");
-		expect(info.state).toEqual({ round: 2 });
-		expect(info.log).toEqual(["p1 builds a mine"]);
-		expect(info.release).toBe("test");
-		expect(info.capturedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-
-		// The same snapshot is emitted on the context emitter for the FAB.
-		await expect(emitted).resolves.toEqual(info);
+	it("forwards an emitter `requestDebugInfo` (FAB click) to the game iframe", () => {
+		emitter.emit(DEBUG_INFO_REQUEST);
+		expect(postMessage).toHaveBeenCalledWith({ type: DEBUG_INFO_REQUEST }, "*");
 	});
 
-	it("answers an emitter `requestDebugInfo` (DebugInfoButton path)", async () => {
-		const emitted = new Promise<GameDebugInfo>((resolve) => emitter.once(DEBUG_INFO_MESSAGE, resolve));
+	it("routes a viewer `debugInfo` window message to the emitter, payload untouched", async () => {
+		const received = new Promise<unknown>((resolve) => emitter.once(DEBUG_INFO_MESSAGE, resolve));
+		const payload = { whatever: "the viewer wants", nested: { list: [1, 2] } };
 
-		emitter.emit(DEBUG_INFO_REQUEST);
-		await vi.waitFor(() => expect(postedDebugInfos()).toHaveLength(1));
+		window.dispatchEvent(new window.MessageEvent("message", { data: { type: DEBUG_INFO_MESSAGE, data: payload } }));
 
-		await expect(emitted).resolves.toMatchObject({ gameId: GAME_ID });
+		await expect(received).resolves.toEqual(payload);
+		// The parent must not post any payload of its own back to the viewer.
+		expect(postMessage.mock.calls.filter(([msg]) => msg?.type === DEBUG_INFO_MESSAGE)).toHaveLength(0);
 	});
 });

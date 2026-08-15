@@ -159,24 +159,21 @@ theme, a `src` change reloads it and loses the game state.
 
 See [Dark mode](#dark-mode).
 
-### debugInfo
+### requestDebugInfo
 
 ```ts
 window.addEventListener("message", (event) => {
-	if (event.data.type === "debugInfo") {
-		// event.data.data is the debug snapshot
+	if (event.data.type === "requestDebugInfo") {
+		// Answer with a debugInfo message (see the Uplink section)
 	}
 });
 ```
 
-Receive a JSON-serializable debug snapshot of the current game: `{ type: "debugInfo", data }`, sent in answer to a
-[requestDebugInfo](#requestdebuginfo) message. `data` contains the game id/name/version/status, the full game state
-(`game.data`), the current log, replay data if any, the viewer's player index, the active UI preferences, the viewer
-URL, the site's release id and a `capturedAt` timestamp.
+Sent when the user clicks the site's "copy debug info" floating action button on the game page (only shown when
+developer settings are enabled). The viewer should answer with a [debugInfo](#debuginfo) message.
 
-This powers the site's "copy debug info" floating action button on the game page (only shown when developer settings
-are enabled — the snapshot embeds the full game state, including hidden information). Viewers can use it to offer
-their own "copy debug info" affordance.
+Answering is **optional**: if the viewer doesn't implement the protocol, the FAB simply tells the user that this
+game's viewer doesn't support copying debug info.
 
 ## Uplink
 
@@ -270,13 +267,16 @@ When you want to edit preferences within the game itself and not BGS' sidebar
 emitter.emit('update:preference', data: {name: string, value: string | boolean | null})
 ```
 
-### requestDebugInfo
+### debugInfo
 
 ```ts
-window.parent.postMessage({ type: "requestDebugInfo" }, "*");
+window.parent.postMessage({ type: "debugInfo", data: <anything JSON-serializable> }, "*");
 ```
 
-Requests a debug snapshot of the current game. The application answers with a [debugInfo](#debuginfo) message.
+Answer to a [requestDebugInfo](#requestdebuginfo) message. `data` is the debug snapshot the site copies to the user's
+clipboard — **the payload shape is entirely up to the viewer** (typically the game state as the viewer sees it, the
+log, the viewer's version, ...). Since viewers only ever hold the state the site already sends them, there is no
+hidden-information concern.
 
 This is a raw `postMessage` to the site (like [theme](#theme) in the other direction), not an emitter event.
 

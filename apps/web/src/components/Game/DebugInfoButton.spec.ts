@@ -1,7 +1,9 @@
-// Tests for the "copy debug info" FAB. The button itself only brokers the request:
-// it emits `requestDebugInfo` on the game-context emitter (StartedGame answers with
-// the assembled snapshot, since it owns the player index / preferences / viewer URL),
-// then copies the result to the clipboard.
+// Tests for the "copy debug info" FAB. The button is a pure relay: it emits
+// `requestDebugInfo` on the game-context emitter (StartedGame forwards it to the
+// game iframe), waits for the viewer's `debugInfo` answer — the payload shape is
+// entirely the viewer's choice — and copies it to the clipboard. A viewer that
+// doesn't implement the protocol never answers, and the FAB degrades to a
+// "not supported" toast after a timeout.
 import { flushSync, mount, unmount } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,25 +20,18 @@ vi.mock("@/modules/cdk", async () => ({
 import EventEmitter from "eventemitter3";
 import { get } from "svelte/store";
 import { browser } from "$app/environment";
-import { DEBUG_INFO_MESSAGE, DEBUG_INFO_REQUEST, type GameDebugInfo } from "@/lib/debug-info";
+import { DEBUG_INFO_MESSAGE, DEBUG_INFO_REQUEST } from "@/lib/debug-info";
 import { toasts } from "@/lib/notifications.svelte";
 import { developerSettings } from "@/lib/stores.svelte";
 import type { GameContext } from "@/routes/game/[gameId]/game-context";
 import DebugInfoButton from "./DebugInfoButton.svelte";
 
-const DEBUG_INFO: GameDebugInfo = {
-	gameId: "game-1",
-	gameName: "gaia-project",
-	gameVersion: 3,
-	gameStatus: "active",
-	playerIndex: 0,
-	preferences: { alternateUI: false },
-	state: { round: 1 },
-	log: ["p1 builds a mine"],
-	replayData: undefined,
-	viewerUrl: "/resources/game/gaia-project/3/iframe",
-	release: "test",
-	capturedAt: "2026-01-01T00:00:00.000Z",
+// Whatever the game's viewer decides to send — the parent relays it verbatim.
+const VIEWER_DEBUG_INFO = {
+	game: "gaia-project",
+	round: 2,
+	players: [{ faction: "terrans" }, { faction: "xenos" }],
+	custom: { anything: ["goes", 1] },
 };
 
 function makeContext(emitter: EventEmitter): GameContext {
@@ -62,8 +57,7 @@ describe("DebugInfoButton", () => {
 		vi.useRealTimers();
 		emitter = new EventEmitter();
 		toasts.set([]);
-		// The FAB is gated on developer settings (the snapshot embeds the full game
-		// state, a cheat vector in hidden-information games) — off by default.
+		// The FAB is gated on developer settings — off by default.
 		developerSettings.set(false);
 		writeText.mockReset().mockResolvedValue(undefined);
 		vi.stubGlobal("navigator", { clipboard: { writeText } });
@@ -104,15 +98,15 @@ describe("DebugInfoButton", () => {
 		expect(target.querySelector("button")).toBeNull();
 	});
 
-	it("requests debug info over the emitter and copies the answer to the clipboard", async () => {
+	it("requests debug info and copies the viewer's answer to the clipboard", async () => {
 		developerSettings.set(true);
 		flushSync();
 
 		const requested = new Promise<void>((resolve) => {
 			emitter.on(DEBUG_INFO_REQUEST, () => {
 				resolve();
-				// StartedGame answers with the assembled snapshot.
-				emitter.emit(DEBUG_INFO_MESSAGE, DEBUG_INFO);
+				// The viewer answers with its own payload.
+				emitter.emit(DEBUG_INFO_MESSAGE, VIEWER_DEBUG_INFO);
 			});
 		});
 
@@ -121,7 +115,7 @@ describe("DebugInfoButton", () => {
 		await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
 
 		const written = writeText.mock.calls[0][0];
-		expect(JSON.parse(written)).toEqual(JSON.parse(JSON.stringify(DEBUG_INFO)));
+		expect(JSON.parse(written)).toEqual(VIEWER_DEBUG_INFO);
 		expect(written).toContain("\n"); // pretty-printed
 		// The success toast only fires in the browser-flavored run (notifier no-ops when
 		// `$app/environment`.browser is false — the default run).
@@ -134,7 +128,7 @@ describe("DebugInfoButton", () => {
 		developerSettings.set(true);
 		flushSync();
 		writeText.mockRejectedValue(new Error("clipboard permission denied"));
-		emitter.on(DEBUG_INFO_REQUEST, () => emitter.emit(DEBUG_INFO_MESSAGE, DEBUG_INFO));
+		emitter.on(DEBUG_INFO_REQUEST, () => emitter.emit(DEBUG_INFO_MESSAGE, VIEWER_DEBUG_INFO));
 
 		click();
 		if (browser) {
@@ -145,14 +139,14 @@ describe("DebugInfoButton", () => {
 		}
 	});
 
-	it("shows an error toast when no debug info answer comes back", async () => {
+	it("tells the user when the viewer doesn't support debug info (timeout)", async () => {
 		developerSettings.set(true);
 		flushSync();
 		vi.useFakeTimers();
 		click();
-		await vi.advanceTimersByTimeAsync(5000);
+		await vi.advanceTimersByTimeAsync(4000);
 		if (browser) {
-			expect(get(toasts).some((t) => t.kind === "alert")).toBe(true);
+			expect(get(toasts).some((t) => t.kind === "info" && t.text.includes("doesn't support"))).toBe(true);
 		}
 		expect(writeText).not.toHaveBeenCalled();
 	});
