@@ -134,6 +134,14 @@ describe("Admin gameinfo API — engine.package validation (#270)", () => {
 	});
 });
 
+const archInfo = (version: number) => ({
+	_id: { game: "archgame", version },
+	label: "Archive game",
+	players: [2],
+	viewer: { url: "//example.com/viewer.js" },
+	meta: { public: true },
+});
+
 // meta.archived marks a retired version: skipped by the game-server installer
 // and never the latest public pick, but its viewer keeps being served. It is
 // only toggled by the archive/unarchive actions (blocked while the version is
@@ -147,14 +155,6 @@ describe("Admin gameinfo API — archive/unarchive", () => {
 
 	after(() => db().dropDatabase());
 
-	const info = (version: number) => ({
-		_id: { game: "archgame", version },
-		label: "Archive game",
-		players: [2],
-		viewer: { url: "//example.com/viewer.js" },
-		meta: { public: true },
-	});
-
 	async function post(action: string, version: number) {
 		const res = await fetch(`${baseURL()}/api/admin/gameinfo/archgame/${version}/${action}`, {
 			method: "POST",
@@ -165,7 +165,7 @@ describe("Admin gameinfo API — archive/unarchive", () => {
 	}
 
 	it("archives a non-latest version with no ongoing games, and unarchives it", async () => {
-		await colls.gameInfos.insertMany([info(1), info(2)]);
+		await colls.gameInfos.insertMany([archInfo(1), archInfo(2)]);
 
 		const res = await post("archive", 1);
 		assert.strictEqual(res.status, 200, res.body);
@@ -241,7 +241,7 @@ describe("Admin gameinfo API — archive/unarchive", () => {
 		await fetch(`${baseURL()}/api/admin/gameinfo/archgame/1`, {
 			method: "PUT",
 			headers,
-			body: JSON.stringify({ ...info(1), meta: { public: true, archived: false } }),
+			body: JSON.stringify({ ...archInfo(1), meta: { public: true, archived: false } }),
 		});
 		let doc = await colls.gameInfos.findOne({ _id: { game: "archgame", version: 1 } });
 		assert.strictEqual(doc?.meta?.archived, true, "save must not clear the archived flag");
@@ -249,7 +249,7 @@ describe("Admin gameinfo API — archive/unarchive", () => {
 		await fetch(`${baseURL()}/api/admin/gameinfo/archgame/2`, {
 			method: "PUT",
 			headers,
-			body: JSON.stringify({ ...info(2), meta: { public: true, archived: true } }),
+			body: JSON.stringify({ ...archInfo(2), meta: { public: true, archived: true } }),
 		});
 		doc = await colls.gameInfos.findOne({ _id: { game: "archgame", version: 2 } });
 		assert.strictEqual(doc?.meta && "archived" in doc.meta, false, "save must not set the archived flag");
