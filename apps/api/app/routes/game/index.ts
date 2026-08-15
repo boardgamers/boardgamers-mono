@@ -113,8 +113,10 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 	} = body;
 	const options: Record<string, string | boolean> = {};
 
-	const versionDoc = await colls.gameInfos.findOne({ _id: gameInfoId });
-	const metadata = versionDoc ? await colls.gameMetadatas.findOne({ _id: gameInfoId.game }) : null;
+	const [versionDoc, metadata] = await Promise.all([
+		colls.gameInfos.findOne({ _id: gameInfoId }),
+		colls.gameMetadatas.findOne({ _id: gameInfoId.game }),
+	]);
 	const gameInfo = mergeGameInfo(versionDoc, metadata);
 
 	if (!gameInfo) {

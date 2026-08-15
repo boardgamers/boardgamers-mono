@@ -14,7 +14,7 @@ import { mergeGameInfo } from "../models/gameinfo.ts";
 const NOT_ARCHIVED = { "meta.archived": { $ne: true } } as const;
 
 export async function lastAccessibleVersion(game: string, user?: WithId<UserDoc>) {
-	const versionDoc = await (async () => {
+	const versionDocPromise = (async () => {
 		if (!user) {
 			return colls.gameInfos.findOne(
 				{ "_id.game": game, "meta.public": true, ...NOT_ARCHIVED },
@@ -42,10 +42,7 @@ export async function lastAccessibleVersion(game: string, user?: WithId<UserDoc>
 		);
 	})();
 
-	if (!versionDoc) {
-		return null;
-	}
-	const metadata = await colls.gameMetadatas.findOne({ _id: game });
+	const [versionDoc, metadata] = await Promise.all([versionDocPromise, colls.gameMetadatas.findOne({ _id: game })]);
 	return mergeGameInfo(versionDoc, metadata);
 }
 

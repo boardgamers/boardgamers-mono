@@ -331,19 +331,25 @@ export async function resolveGameLabels<T extends WebhookGame>(games: T[]): Prom
 		return games;
 	}
 	const keys = [...new Map(games.map((g) => [`${g.game.name}${g.game.version}`, g.game])).values()];
+	// label/alias also projected off the version docs: during the deploy-before-migration
+	// window `gameMetadatas` is still empty and the version docs carry the fields.
 	const infos = await colls.gameInfos
-		.find({ $or: keys.map((k) => ({ "_id.game": k.name, "_id.version": k.version })) }, { projection: { _id: 1 } })
+		.find({ $or: keys.map((k) => ({ "_id.game": k.name, "_id.version": k.version })) })
+		.project<{ _id: { game: string }; label?: string; alias?: string }>({ _id: 1, label: 1, alias: 1 })
 		.toArray();
-	const gamesPresent = new Set(infos.map((info) => info._id.game));
+	const versionByGame = new Map<string, { label?: string; alias?: string }>();
+	for (const info of infos) {
+		versionByGame.set(info._id.game, info);
+	}
 	const metas = await colls.gameMetadatas
-		.find({ _id: { $in: [...gamesPresent] } }, { projection: { label: 1, alias: 1 } })
+		.find({ _id: { $in: [...versionByGame.keys()] } }, { projection: { label: 1, alias: 1 } })
 		.toArray();
 	const metaByGame = new Map(metas.map((m) => [m._id, m]));
 	const labels = new Map(
-		[...gamesPresent].map((game) => {
-			const meta = metaByGame.get(game);
-			const label = meta?.alias ?? meta?.label;
-			return [game, { label, basedOn: meta?.alias ? meta?.label : undefined }];
+		[...versionByGame.entries()].map(([game, fallback]) => {
+			const meta = metaByGame.get(game) ?? fallback;
+			const label = meta.alias ?? meta.label;
+			return [game, { label, basedOn: meta.alias ? meta.label : undefined }];
 		}),
 	);
 	for (const game of games) {

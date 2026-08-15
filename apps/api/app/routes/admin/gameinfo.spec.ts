@@ -129,6 +129,52 @@ describe("Admin gameinfo API — split upsert (#298)", () => {
 		assert.strictEqual(metas.length, 1, "still a single metadata doc for the game");
 		assert.strictEqual(metas[0].label, "Split Game");
 	});
+
+	it("a round-tripped likeCount never lands on the version doc nor overwrites the counter", async () => {
+		await colls.gameMetadatas.updateOne({ _id: "splitgame" }, { $set: { likeCount: 5 } });
+
+		// The version page GETs the *merged* doc, so a save/duplicate round-trips
+		// likeCount (and timestamps) in the PUT body — all must be stripped.
+		await put("splitgame", 1, { viewer: { url: "//v1" }, meta: { public: true }, likeCount: 3 });
+
+		const version = await colls.gameInfos.findOne({ _id: { game: "splitgame", version: 1 } });
+		assert.ok(version && !("likeCount" in version), "likeCount not $set onto the version doc");
+		const meta = await colls.gameMetadatas.findOne({ _id: "splitgame" });
+		assert.strictEqual(meta?.likeCount, 5, "counter untouched by a version-page save");
+	});
+
+	it("the meta PUT ignores round-tripped server-managed fields and 404s on unknown games", async () => {
+		await colls.gameMetadatas.updateOne({ _id: "splitgame" }, { $set: { likeCount: 5 } });
+
+		// The boardgames editor round-trips the GET response: _id, timestamps and a
+		// (possibly stale) likeCount must all be ignored by the PUT.
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/splitgame/meta`, {
+			method: "PUT",
+			headers,
+			body: JSON.stringify({
+				_id: "splitgame",
+				label: "Split Game (edited)",
+				likeCount: 3,
+				createdAt: new Date(0).toISOString(),
+				updatedAt: new Date(0).toISOString(),
+			}),
+		});
+		assert.strictEqual(res.status, 200, await res.text().catch(() => ""));
+
+		const meta = await colls.gameMetadatas.findOne({ _id: "splitgame" });
+		assert.strictEqual(meta?.label, "Split Game (edited)");
+		assert.strictEqual(meta?.likeCount, 5, "stale round-tripped likeCount does not clobber the counter");
+		assert.notDeepEqual(meta?.updatedAt, new Date(0), "timestamps stay wrapper-managed");
+
+		// No version doc for the game ⇒ no orphan metadata doc.
+		const missing = await fetch(`${baseURL()}/api/admin/gameinfo/no-such-game/meta`, {
+			method: "PUT",
+			headers,
+			body: JSON.stringify({ label: "Ghost" }),
+		});
+		assert.strictEqual(missing.status, 404);
+		assert.strictEqual(await colls.gameMetadatas.findOne({ _id: "no-such-game" }), null);
+	});
 });
 
 // likeCount is game-scoped (#289): it lives on the single per-game metadata doc

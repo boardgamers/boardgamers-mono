@@ -52,7 +52,17 @@ router.get("/:game/meta", async (ctx) => {
 
 router.put("/:game/meta", async (ctx) => {
 	const game = ctx.params.game;
-	const body = metadataBodySchema.parse(ctx.request.body);
+	// The editor round-trips the GET response, so strip the server-managed fields:
+	// `_id` is immutable, timestamps are wrapper-managed, and `likeCount` is owned by
+	// the like/unlike service — a `$set` here would clobber it with a stale snapshot.
+	const body = omit(metadataBodySchema.parse(ctx.request.body), "_id", "createdAt", "updatedAt", "likeCount");
+
+	// Guard against orphan metadata docs (typo'd game name in scripted use): the
+	// game must exist as at least one version doc.
+	const exists = await colls.gameInfos.findOne({ "_id.game": game }, { projection: { _id: 1 } });
+	if (!exists) {
+		throw createError(404, `No game info for ${game} — save a version first`);
+	}
 
 	const $set: Record<string, unknown> = {};
 	const $unset: Record<string, true> = {};
@@ -114,7 +124,10 @@ function splitBody(body: Record<string, unknown>): {
 async function upsert(ctx: Context) {
 	const game = ctx.params.game;
 	const version = +ctx.params.version;
-	const body = omit(upsertBodySchema.parse(ctx.request.body), "_id", "createdAt", "updatedAt");
+	// `likeCount` is stripped for the same reason as the timestamps: the version page
+	// GETs the *merged* doc, so a save/duplicate round-trips it — without the strip it
+	// would be `$set` onto the version doc (the #289 shape all over again).
+	const body = omit(upsertBodySchema.parse(ctx.request.body), "_id", "createdAt", "updatedAt", "likeCount");
 	// meta is flattened into dotted paths: a whole-object `$set: { meta }` would
 	// wipe server-managed subfields — meta.archived (toggled only by the
 	// archive/unarchive action below, which has preconditions — a save must not

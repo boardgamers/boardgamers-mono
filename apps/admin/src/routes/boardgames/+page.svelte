@@ -7,7 +7,7 @@
 
 	let { data }: PageProps = $props();
 
-	type MetaData = Omit<GameMetadataDoc, "_id" | "createdAt" | "updatedAt">;
+	type MetaData = Omit<GameMetadataDoc, "_id" | "createdAt" | "updatedAt" | "likeCount">;
 
 	let selected = $state<string | null>(null);
 	let loading = $state(false);
@@ -23,7 +23,13 @@
 		meta = null;
 		try {
 			const doc = await api.get<GameMetadataDoc | null>(`/admin/gameinfo/${encodeURIComponent(game)}/meta`);
-			meta = doc ?? { label: game, players: [] };
+			if (doc) {
+				// Server-managed fields must not round-trip into the PUT body.
+				const { _id, createdAt, updatedAt, likeCount, ...editable } = doc;
+				meta = editable;
+			} else {
+				meta = { label: game, players: [] };
+			}
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed to load metadata");
 		} finally {
@@ -117,7 +123,7 @@
 					<div>
 						<span class={labelClass}>Expansions</span>
 						<div class="space-y-2">
-							{#each meta.expansions ?? [] as exp, i (exp.name)}
+							{#each meta.expansions ?? [] as exp, i (i)}
 								<div class="flex gap-2 items-center">
 									<input bind:value={exp.label} placeholder="Label" class="{inputClass} flex-1" />
 									<input bind:value={exp.name} placeholder="ID" class="{inputClass} flex-1" />

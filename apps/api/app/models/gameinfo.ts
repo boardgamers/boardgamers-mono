@@ -31,15 +31,12 @@ export function mergeGameInfo(version: GameVersionDoc | null, metadata: GameMeta
 }
 
 export async function findGameInfoWithVersion(game: string, version: number | "latest"): Promise<GameInfoDoc | null> {
-	const versionDoc =
+	// The metadata read only depends on `game`, so both queries run concurrently.
+	const [versionDoc, metadata] = await Promise.all([
 		version === "latest"
-			? await colls.gameInfos.findOne({ "_id.game": game }, { sort: { "_id.version": -1 } })
-			: await colls.gameInfos.findOne({ _id: { game, version } });
-
-	if (!versionDoc) {
-		return null;
-	}
-
-	const metadata = await colls.gameMetadatas.findOne({ _id: game });
+			? colls.gameInfos.findOne({ "_id.game": game }, { sort: { "_id.version": -1 } })
+			: colls.gameInfos.findOne({ _id: { game, version } }),
+		colls.gameMetadatas.findOne({ _id: game }),
+	]);
 	return mergeGameInfo(versionDoc, metadata);
 }

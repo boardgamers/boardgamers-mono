@@ -141,7 +141,11 @@ function splitGameInfo(info: SeedGameInfoDoc): {
 	const versionDoc: Record<string, unknown> = {};
 	const metadataDoc: Record<string, unknown> & { _id: string } = { _id: info._id.game };
 	for (const [key, value] of Object.entries(info)) {
-		if ((GAME_METADATA_FIELDS as readonly string[]).includes(key)) {
+		// likeCount is game-scoped but not in GAME_METADATA_FIELDS (the migration/admin
+		// route must never move or accept it) — a prod-fetched merged doc still carries
+		// it, and it belongs on the metadata doc. `liked` is the per-user flag (#289),
+		// meaningless in a seed.
+		if ((GAME_METADATA_FIELDS as readonly string[]).includes(key) || key === "likeCount") {
 			metadataDoc[key] = value;
 		} else if (key !== "liked") {
 			versionDoc[key] = value;
