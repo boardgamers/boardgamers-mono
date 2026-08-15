@@ -105,7 +105,13 @@
 
 	<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 		<div class="mt-3">
-			<GameList gameStatus="active" {boardgameId} topRecords perPage={5} title="Featured games" />
+			<GameList
+				gameStatus={data.featuredStatus ?? "active"}
+				{boardgameId}
+				topRecords
+				perPage={5}
+				title={data.featuredStatus === "ended" ? "Recently finished" : "Featured games"}
+			/>
 			<!-- <h3>Tournaments</h3>
       <p> No Tournament info available </p> -->
 		</div>
