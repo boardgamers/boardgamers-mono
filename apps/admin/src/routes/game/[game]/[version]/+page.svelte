@@ -71,9 +71,8 @@
 			// ApiError only carries message+status — the structured `error`/
 			// `count` fields of the ongoing-games 409 are recovered from the
 			// server message.
-			const ongoing = err instanceof ApiError && err.status === 409 && !archived
-				? /(\d+) ongoing game/.exec(err.message)
-				: null;
+			const ongoing =
+				err instanceof ApiError && err.status === 409 && !archived ? /(\d+) ongoing game/.exec(err.message) : null;
 			if (ongoing) {
 				if (!confirm(`There are still ${ongoing[1]} ongoing game(s) on this version. Archive anyway?`)) return;
 				try {
