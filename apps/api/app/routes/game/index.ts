@@ -119,6 +119,13 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 		return;
 	}
 
+	// Archived versions are retired: no new games on them (the engine isn't even
+	// installed on the game-server anymore). Old games keep working — only
+	// creation is blocked.
+	if (gameInfo.meta.archived) {
+		throw createError(409, `${gameInfoId.game} v${gameInfoId.version} is archived — no new games on this version`);
+	}
+
 	if (
 		!gameInfo.meta.public &&
 		!(await colls.gamePreferences.findOne({

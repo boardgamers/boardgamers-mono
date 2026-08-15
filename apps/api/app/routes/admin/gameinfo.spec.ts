@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
-import { testUser } from "../../config/test-helpers.ts";
+import { testGame, testUser } from "../../config/test-helpers.ts";
 import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
 
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
@@ -131,5 +131,127 @@ describe("Admin gameinfo API — engine.package validation (#270)", () => {
 	it("keeps the loose-record behavior for payloads without an engine", async () => {
 		const res = await upsert({ label: "No engine", customField: { nested: [1, 2] } });
 		assert.strictEqual(res.status, 200, res.body);
+	});
+});
+
+// meta.archived marks a retired version: skipped by the game-server installer
+// and never the latest public pick, but its viewer keeps being served. It is
+// only toggled by the archive/unarchive actions (blocked while the version is
+// the latest public one or has ongoing games) — never by a loose-record save.
+describe("Admin gameinfo API — archive/unarchive", () => {
+	let headers: Record<string, string>;
+
+	before(async () => {
+		headers = await makeAdminHeaders();
+	});
+
+	after(() => db().dropDatabase());
+
+	const info = (version: number) => ({
+		_id: { game: "archgame", version },
+		label: "Archive game",
+		players: [2],
+		viewer: { url: "//example.com/viewer.js" },
+		meta: { public: true },
+	});
+
+	async function post(action: string, version: number) {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/archgame/${version}/${action}`, {
+			method: "POST",
+			headers,
+			body: "{}",
+		});
+		return { status: res.status, body: await res.text() };
+	}
+
+	it("archives a non-latest version with no ongoing games, and unarchives it", async () => {
+		await colls.gameInfos.insertMany([info(1), info(2)]);
+
+		const res = await post("archive", 1);
+		assert.strictEqual(res.status, 200, res.body);
+		let doc = await colls.gameInfos.findOne({ _id: { game: "archgame", version: 1 } });
+		assert.strictEqual(doc?.meta?.archived, true);
+
+		const un = await post("unarchive", 1);
+		assert.strictEqual(un.status, 200, un.body);
+		doc = await colls.gameInfos.findOne({ _id: { game: "archgame", version: 1 } });
+		assert.strictEqual(doc?.meta && "archived" in doc.meta, false, "archived flag is removed from the doc");
+	});
+
+	it("rejects archiving the latest public version with 409", async () => {
+		const res = await post("archive", 2);
+		assert.strictEqual(res.status, 409, res.body);
+		assert.match(res.body, /latest public version/);
+	});
+
+	it("rejects archiving a version with ongoing games with 409", async () => {
+		await colls.games.insertOne(testGame({ _id: "arch-ongoing", game: { name: "archgame", version: 1 } }));
+
+		const res = await post("archive", 1);
+		assert.strictEqual(res.status, 409, res.body);
+		assert.match(res.body, /ongoing game/);
+
+		// Ended games don't block archiving.
+		await colls.games.updateOne({ _id: "arch-ongoing" }, { $set: { status: "ended" } });
+		const ok = await post("archive", 1);
+		assert.strictEqual(ok.status, 200, ok.body);
+	});
+
+	it("404s on an unknown version", async () => {
+		const res = await post("archive", 99);
+		assert.strictEqual(res.status, 404, res.body);
+	});
+
+	it("an archived version is excluded from latest-public picks and the public list", async () => {
+		// v1 is archived from the previous test; v2 is the current public version.
+		const boardgame = z
+			.object({ _id: z.object({ version: z.number() }) })
+			.parse(await (await fetch(`${baseURL()}/api/boardgame/archgame`)).json());
+		assert.strictEqual(boardgame._id.version, 2);
+
+		const list = z
+			.array(z.object({ _id: z.object({ game: z.string(), version: z.number() }) }))
+			.parse(await (await fetch(`${baseURL()}/api/boardgame/info`)).json());
+		assert.deepStrictEqual(
+			list.filter((g) => g._id.game === "archgame").map((g) => g._id.version),
+			[2],
+		);
+
+		// The versioned read path is untouched: old games on v1 stay replayable.
+		const versioned = await fetch(`${baseURL()}/api/boardgame/archgame/info/1`);
+		assert.strictEqual(versioned.status, 200);
+	});
+
+	it("blocks new-game creation on an archived version with 409", async () => {
+		const res = await fetch(`${baseURL()}/api/game/new-game`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({
+				game: { game: "archgame", version: 1 },
+				gameId: "arch-new",
+				players: 2,
+				timePerGame: 86400,
+				timePerMove: 3600,
+			}),
+		});
+		assert.strictEqual(res.status, 409, await res.text().catch(() => ""));
+	});
+
+	it("the upsert body cannot set or clear meta.archived", async () => {
+		await fetch(`${baseURL()}/api/admin/gameinfo/archgame/1`, {
+			method: "PUT",
+			headers,
+			body: JSON.stringify({ ...info(1), meta: { public: true, archived: false } }),
+		});
+		let doc = await colls.gameInfos.findOne({ _id: { game: "archgame", version: 1 } });
+		assert.strictEqual(doc?.meta?.archived, true, "save must not clear the archived flag");
+
+		await fetch(`${baseURL()}/api/admin/gameinfo/archgame/2`, {
+			method: "PUT",
+			headers,
+			body: JSON.stringify({ ...info(2), meta: { public: true, archived: true } }),
+		});
+		doc = await colls.gameInfos.findOne({ _id: { game: "archgame", version: 2 } });
+		assert.strictEqual(doc?.meta && "archived" in doc.meta, false, "save must not set the archived flag");
 	});
 });

@@ -57,12 +57,42 @@
 			toast.error(err instanceof Error ? err.message : "Failed to delete");
 		}
 	}
+
+	// Preconditions (not latest public, no ongoing games) are enforced server-side;
+	// a 409 surfaces the reason in the toast.
+	async function toggleArchive() {
+		const archived = !!value?.meta?.archived;
+		const action = archived ? "unarchive" : "archive";
+		if (!confirm(`${archived ? "Unarchive" : "Archive"} ${gameId} v${version}?`)) return;
+		try {
+			await api.post(`/admin/gameinfo/${gameId}/${version}/${action}`);
+			toast.success(archived ? "Unarchived" : "Archived");
+			await loadGames();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : `Failed to ${action}`);
+		}
+	}
 </script>
 
 {#if value}
 	<div>
 		<div class="flex items-center gap-4 mb-6">
 			<h2 class="text-xl font-bold">{value.label} <span class="text-gray-400 font-normal">v{version}</span></h2>
+			{#if value.meta?.archived}
+				<span
+					class="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+				>
+					Archived
+				</span>
+			{/if}
+			<button
+				onclick={toggleArchive}
+				class="px-3 py-1.5 text-sm rounded-lg font-medium {value.meta?.archived
+					? 'bg-gray-600 hover:bg-gray-700 text-white'
+					: 'bg-amber-600 hover:bg-amber-700 text-white'}"
+			>
+				{value.meta?.archived ? "Unarchive" : "Archive"}
+			</button>
 			<div class="ml-auto text-sm">
 				<WebLink path={`/boardgame/${gameId}`} />
 			</div>

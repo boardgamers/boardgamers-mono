@@ -122,7 +122,9 @@
 							title="{g._id.game} v{g._id.version}"
 						>
 							{#if emoji}<span class="flex-shrink-0">{emoji}</span>{/if}
-							<span class="truncate flex-1">{name || g._id.game}</span>
+							<span class="truncate flex-1 {g.meta?.archived ? 'line-through text-gray-400' : ''}">
+								{name || g._id.game}
+							</span>
 							<span class="text-gray-400 flex-shrink-0">v{g._id.version}</span>
 						</a>
 					{/each}

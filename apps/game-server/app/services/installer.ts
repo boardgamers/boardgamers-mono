@@ -85,7 +85,9 @@ export async function installNewGames() {
 		await initIfNeeded();
 
 		const currentPkg = JSON.parse((await fs.readFile("./games/package.json")).toString("utf-8"));
-		const infos = await colls.gameInfos.find({}, { projection: { engine: 1, "meta.bots": 1 } }).toArray();
+		const infos = await colls.gameInfos
+			.find({}, { projection: { engine: 1, "meta.bots": 1, "meta.archived": 1 } })
+			.toArray();
 
 		// Desired dependencies, keyed by a name unique per game+version+package
 		// version (engineKey). Because the key changes whenever the engine package
@@ -95,6 +97,13 @@ export async function installNewGames() {
 		const wanted = new Map<string, { spec: string; game: string; version: number }>();
 		for (const game of infos) {
 			if (!game.engine?.package?.version || !game.engine?.package?.name) {
+				continue;
+			}
+			// Archived versions don't need a local engine: nothing new runs on them
+			// (not the latest public version, no ongoing games — enforced by the
+			// admin archive action). Leaving them out of `wanted` also makes the
+			// stale-prune below uninstall a previously-installed copy.
+			if (game.meta?.archived) {
 				continue;
 			}
 			// engine.package.url (#268): an admin-uploaded npm-pack tarball hosted
