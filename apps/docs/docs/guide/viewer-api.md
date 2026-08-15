@@ -84,6 +84,12 @@ Get the user's specific UI preferences for this game.
 
 For example, for Gaia Project, there are two UI preferences: whether to use flat buildings, and whether to keep the original color for the planets.
 
+#### devMode
+
+On top of the game's own preferences, the platform injects a `devMode: true` key when the user has developer
+settings enabled on their device (the same toggle that shows the "copy debug info" button). When developer settings
+are off, the key is entirely absent — check `preferences.devMode === true`.
+
 ### player
 
 ```ts
@@ -172,6 +178,9 @@ developer settings are enabled). The viewer should answer by emitting [debugInfo
 
 Answering is **optional**: if the viewer doesn't implement the protocol, the FAB simply tells the user that this
 game's viewer doesn't support copying debug info.
+
+Developer settings are also surfaced to the viewer as a transient [`devMode`](#devmode) key on the preferences
+payload, so viewers can expose interactive debug UI of their own, not just answer snapshot requests.
 
 ## Uplink
 
