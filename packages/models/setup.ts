@@ -10,7 +10,7 @@ import {
 	chatMessageSchema,
 } from "./chatmessage.ts";
 import { GAMES_COLLECTION, gameIndexes, gameSchema } from "./game.ts";
-import { GAME_INFOS_COLLECTION, gameInfoSchema } from "./gameinfo.ts";
+import { GAME_INFOS_COLLECTION, GAME_METADATAS_COLLECTION, gameVersionSchema, gameMetadataSchema } from "./gameinfo.ts";
 import { GAME_NOTIFICATIONS_COLLECTION, gameNotificationIndexes, gameNotificationSchema } from "./gamenotification.ts";
 import { GAME_PREFERENCES_COLLECTION, gamePreferencesIndexes, gamePreferencesSchema } from "./gamepreferences.ts";
 import { IMAGES_COLLECTION, imageIndexes, imageSchema } from "./image.ts";
@@ -531,7 +531,8 @@ export async function ensureValidation(db: Db) {
 		[CHANGELOGS_COLLECTION, changelogSchema],
 		[CHAT_MESSAGES_COLLECTION, chatMessageSchema],
 		[GAMES_COLLECTION, gameSchema],
-		[GAME_INFOS_COLLECTION, gameInfoSchema],
+		[GAME_INFOS_COLLECTION, gameVersionSchema],
+		[GAME_METADATAS_COLLECTION, gameMetadataSchema],
 		[GAME_NOTIFICATIONS_COLLECTION, gameNotificationSchema],
 		[GAME_PREFERENCES_COLLECTION, gamePreferencesSchema],
 		[IMAGES_COLLECTION, imageSchema],

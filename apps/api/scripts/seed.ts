@@ -1,7 +1,7 @@
 // Test credentials in the seeded DB (fixtures/User.json) — every user's password is
 // literally "password". E.g. log in with admin@test.com / password.
-import type { GameDoc, GameInfoDoc, GameNotificationDoc, UserDoc } from "@bgs/models";
-import { gameInfoSchema, gamePreferencesSchema, settingsSchema, userSchema } from "@bgs/models";
+import type { GameDoc, GameInfoDoc, GameMetadataDoc, GameNotificationDoc, UserDoc } from "@bgs/models";
+import { GAME_METADATA_FIELDS, gameInfoSchema, gamePreferencesSchema, settingsSchema, userSchema } from "@bgs/models";
 import type { ZodType } from "zod";
 import { env } from "../app/config/index.ts";
 import initDb, { closeDb, db } from "../app/config/db.ts";
@@ -95,6 +95,17 @@ export async function seed({ collections, drop }: SeedOptions = {}) {
 			continue;
 		}
 
+		if (collection === "GameInfo") {
+			// Split each merged GameInfo into a version doc (`gameinfos`) + a per-game
+			// metadata doc (`gamemetadatas`) (#298). The merged fixture still carries the
+			// game-level fields, so strip them off the version docs and derive the
+			// metadata docs from the game's max version (the fixture has one version
+			// per game anyway).
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- `items` was parsed through gameInfoSchema (or fetchGameInfos), which guarantees the compound `_id`
+			await seedGameInfo(items as SeedGameInfoDoc[], drop);
+			continue;
+		}
+
 		if (insertMissingById) {
 			console.log(`Inserting missing item(s) into collection ${collection} (existing docs left untouched)`);
 			await Promise.all(
@@ -121,6 +132,53 @@ export async function seed({ collections, drop }: SeedOptions = {}) {
 	}
 }
 
+type SeedGameInfoDoc = Record<string, unknown> & { _id: { game: string; version: number } };
+
+function splitGameInfo(info: SeedGameInfoDoc): {
+	versionDoc: Record<string, unknown>;
+	metadataDoc: Record<string, unknown> & { _id: string };
+} {
+	const versionDoc: Record<string, unknown> = {};
+	const metadataDoc: Record<string, unknown> & { _id: string } = { _id: info._id.game };
+	for (const [key, value] of Object.entries(info)) {
+		if ((GAME_METADATA_FIELDS as readonly string[]).includes(key)) {
+			metadataDoc[key] = value;
+		} else if (key !== "liked") {
+			versionDoc[key] = value;
+		}
+	}
+	return { versionDoc, metadataDoc };
+}
+
+async function seedGameInfo(items: SeedGameInfoDoc[], drop: boolean | undefined) {
+	const versions = db().collection("gameinfos");
+	const metadatas = db().collection("gamemetadatas");
+
+	if (drop) {
+		await versions.deleteMany({});
+		await metadatas.deleteMany({});
+	} else {
+		// Keep parity with the generic path: don't clobber an already-seeded db.
+		if ((await versions.estimatedDocumentCount()) > 0 && (await metadatas.estimatedDocumentCount()) > 0) {
+			console.warn("Collection GameInfo is not empty, skipping");
+			return;
+		}
+	}
+
+	const versionDocs: Record<string, unknown>[] = [];
+	const metadataDocs = new Map<string, Record<string, unknown>>();
+	for (const item of items) {
+		const { versionDoc, metadataDoc } = splitGameInfo(item);
+		versionDocs.push(versionDoc);
+		if (!metadataDocs.has(metadataDoc._id)) {
+			metadataDocs.set(metadataDoc._id, metadataDoc);
+		}
+	}
+	await versions.insertMany(versionDocs);
+	await metadatas.insertMany([...metadataDocs.values()]);
+	console.log(`Inserting ${versionDocs.length} game version(s) + ${metadataDocs.size} game metadata doc(s)`);
+}
+
 async function seedStartableGame(drop?: boolean) {
 	const games = db().collection<GameDoc>("games");
 
@@ -132,14 +190,18 @@ async function seedStartableGame(drop?: boolean) {
 		return;
 	}
 
-	const gameInfo = await db()
+	const versionDoc = await db()
 		.collection<GameInfoDoc>("gameinfos")
 		.findOne({ "_id.game": "gaia-project" }, { sort: { "_id.version": -1 } });
 
-	if (!gameInfo) {
+	if (!versionDoc) {
 		console.warn("No gaia-project game info seeded; skipping startable game");
 		return;
 	}
+
+	const metadata = await db().collection<GameMetadataDoc>("gamemetadatas").findOne({ _id: "gaia-project" });
+	const { _id: _metadataId, ...metadataFields } = metadata ?? {};
+	const gameInfo: GameInfoDoc = { ...versionDoc, ...metadataFields } as GameInfoDoc;
 
 	const users = await db().collection<UserDoc>("users").find({}).limit(4).toArray();
 

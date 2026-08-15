@@ -332,19 +332,22 @@ export async function resolveGameLabels<T extends WebhookGame>(games: T[]): Prom
 	}
 	const keys = [...new Map(games.map((g) => [`${g.game.name}${g.game.version}`, g.game])).values()];
 	const infos = await colls.gameInfos
-		.find(
-			{ $or: keys.map((k) => ({ "_id.game": k.name, "_id.version": k.version })) },
-			{ projection: { label: 1, alias: 1 } },
-		)
+		.find({ $or: keys.map((k) => ({ "_id.game": k.name, "_id.version": k.version })) }, { projection: { _id: 1 } })
 		.toArray();
+	const gamesPresent = new Set(infos.map((info) => info._id.game));
+	const metas = await colls.gameMetadatas
+		.find({ _id: { $in: [...gamesPresent] } }, { projection: { label: 1, alias: 1 } })
+		.toArray();
+	const metaByGame = new Map(metas.map((m) => [m._id, m]));
 	const labels = new Map(
-		infos.map((info) => [
-			`${info._id.game}${info._id.version}`,
-			{ label: info.alias ?? info.label, basedOn: info.alias ? info.label : undefined },
-		]),
+		[...gamesPresent].map((game) => {
+			const meta = metaByGame.get(game);
+			const label = meta?.alias ?? meta?.label;
+			return [game, { label, basedOn: meta?.alias ? meta?.label : undefined }];
+		}),
 	);
 	for (const game of games) {
-		const resolved = labels.get(`${game.game.name}${game.game.version}`);
+		const resolved = labels.get(game.game.name);
 		game.game.label = resolved?.label;
 		game.game.basedOn = resolved?.basedOn;
 	}

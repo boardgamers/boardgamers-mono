@@ -1,4 +1,4 @@
-import { engineVersionSchema, gameInfoSchema, npmPackageNameSchema } from "@bgs/models";
+import { engineVersionSchema, gameInfoSchema, GAME_METADATA_FIELDS, npmPackageNameSchema } from "@bgs/models";
 import { omit } from "@bgs/utils/object";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -18,16 +18,72 @@ import { gameBundleS3Key, publicObjectUrl, putObject, s3Enabled } from "../../se
 const router = new Router<Application.DefaultState, Context>();
 
 router.get("/", async (ctx) => {
-	ctx.body = await colls.gameInfos
-		.find({}, { projection: { _id: 1, label: 1, "meta.archived": 1 } })
+	const versions = await colls.gameInfos
+		.find({}, { projection: { _id: 1, "meta.archived": 1 } })
 		.sort({ "_id.game": 1, "_id.version": -1 })
 		.toArray();
+	const metas = await colls.gameMetadatas.find({}, { projection: { label: 1, alias: 1 } }).toArray();
+	const metaByGame = new Map(metas.map((m) => [m._id, m]));
+	ctx.body = versions.map((v) => {
+		const meta = metaByGame.get(v._id.game);
+		return { _id: v._id, label: meta?.label ?? v._id.game, alias: meta?.alias, meta: v.meta };
+	});
+});
+
+// The per-game metadata (label/alias/description/rules/links/players/expansions)
+// is edited from the boardgame list page, not a version page (#298). Accept a
+// subset of `gameMetadataSchema`; `alias: null` clears it (same upsert convention
+// as the version route). Kept loose like the version route: only the fields the
+// admin actually edits are validated, the rest round-trips untouched.
+const metadataBodySchema = z.looseObject({
+	label: gameInfoSchema.shape.label.optional(),
+	alias: gameInfoSchema.shape.alias.nullable().optional(),
+	description: gameInfoSchema.shape.description.optional(),
+	rules: gameInfoSchema.shape.rules.optional(),
+	links: gameInfoSchema.shape.links.optional(),
+	players: gameInfoSchema.shape.players.optional(),
+	expansions: gameInfoSchema.shape.expansions.optional(),
+});
+
+router.get("/:game/meta", async (ctx) => {
+	const doc = await colls.gameMetadatas.findOne({ _id: ctx.params.game });
+	ctx.body = doc ?? null;
+});
+
+router.put("/:game/meta", async (ctx) => {
+	const game = ctx.params.game;
+	const body = metadataBodySchema.parse(ctx.request.body);
+
+	const $set: Record<string, unknown> = {};
+	const $unset: Record<string, true> = {};
+	for (const [key, value] of Object.entries(body)) {
+		if (value === null) {
+			$unset[key] = true;
+		} else {
+			$set[key] = value;
+		}
+	}
+
+	const doc = await colls.gameMetadatas.findOneAndUpdate(
+		{ _id: game },
+		{
+			$setOnInsert: { _id: game },
+			...(Object.keys($set).length ? { $set } : {}),
+			...(Object.keys($unset).length ? { $unset } : {}),
+		},
+		{ upsert: true, returnDocument: "after" },
+	);
+	ctx.body = doc;
 });
 
 // Fields that are REMOVED from the doc when the admin sends them as null (the JSON
 // body can't carry undefined, so GameEdit sends null to clear). Anything else null
 // would fail the collection's schema validation — only alias is clearable for now.
 const NULLABLE_FIELDS = ["alias"] as const;
+
+// Game-level fields live in `gameMetadatas`; everything else is version-scoped and
+// lives in `gameInfos` (#298). `_id` is handled separately (version doc gets the
+// `{ game, version }` compound id, metadata doc gets the bare game name).
 
 // The game-server installer spawns `npm install <name>@<version>` from
 // engine.package — a loose record here let shell metacharacters in the package
@@ -39,9 +95,26 @@ const upsertBodySchema = z.looseObject({
 	engine: gameInfoSchema.shape.engine, // optional, like on gameInfo
 });
 
+function splitBody(body: Record<string, unknown>): {
+	metadata: Record<string, unknown>;
+	version: Record<string, unknown>;
+} {
+	const metadata: Record<string, unknown> = {};
+	const version: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(body)) {
+		if ((GAME_METADATA_FIELDS as readonly string[]).includes(key)) {
+			metadata[key] = value;
+		} else {
+			version[key] = value;
+		}
+	}
+	return { metadata, version };
+}
+
 async function upsert(ctx: Context) {
+	const game = ctx.params.game;
+	const version = +ctx.params.version;
 	const body = omit(upsertBodySchema.parse(ctx.request.body), "_id", "createdAt", "updatedAt");
-	const $unset: Record<string, true> = {};
 	// meta is flattened into dotted paths: a whole-object `$set: { meta }` would
 	// wipe server-managed subfields — meta.archived (toggled only by the
 	// archive/unarchive action below, which has preconditions — a save must not
@@ -55,22 +128,39 @@ async function upsert(ctx: Context) {
 		}
 		delete body.meta;
 	}
+	const { metadata, version: versionFields } = splitBody(body);
+
+	const metadataUnset: Record<string, true> = {};
 	for (const field of NULLABLE_FIELDS) {
-		if (body[field] === null) {
-			delete body[field];
-			$unset[field] = true;
+		if (metadata[field] === null) {
+			delete metadata[field];
+			metadataUnset[field] = true;
 		}
 	}
-	const update: Record<string, unknown> = { $set: body };
-	if (Object.keys($unset).length > 0) {
-		update.$unset = $unset;
-	}
-	const game = await colls.gameInfos.findOneAndUpdate(
-		{ _id: { game: ctx.params.game, version: +ctx.params.version } },
-		update,
+
+	const versionDoc = await colls.gameInfos.findOneAndUpdate(
+		{ _id: { game, version } },
+		{ $set: versionFields },
 		{ upsert: true, returnDocument: "after" },
 	);
-	ctx.body = game;
+
+	if (versionDoc) {
+		// `_id` is fixed by the filter; it must go through `$setOnInsert` (never
+		// `$set` — Mongo rejects mutating the immutable `_id`). Only metadata fields
+		// actually present in the request are `$set`, so a version-page save that
+		// doesn't carry game-level fields leaves existing metadata untouched (#298).
+		const metadataUpdate: Record<string, unknown> = { $setOnInsert: { _id: game } };
+		if (Object.keys(metadata).length > 0) {
+			metadataUpdate.$set = metadata;
+		}
+		if (Object.keys(metadataUnset).length > 0) {
+			metadataUpdate.$unset = metadataUnset;
+		}
+		await colls.gameMetadatas.updateOne({ _id: game }, metadataUpdate, { upsert: true });
+	}
+
+	const merged = await findGameInfoWithVersion(game, version);
+	ctx.body = merged ?? versionDoc;
 }
 
 // oxlint-disable no-async-endpoint-handlers -- Express-specific rule; Koa awaits async middleware natively

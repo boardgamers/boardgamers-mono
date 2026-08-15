@@ -12,6 +12,7 @@ import {
 	authEmailOnCooldown,
 	createAccessToken,
 	findGamesWithPlayersTurn,
+	findGameInfoWithVersion,
 	isAvatarStyle,
 	isUserAdmin,
 	lookupRefreshToken,
@@ -432,7 +433,7 @@ router.post("/games/:game/preferences/:version", loggedIn, async (ctx) => {
 		.record(z.string(), z.unknown())
 		.and(z.object({ alternateUI: z.boolean().optional() }))
 		.parse(ctx.request.body);
-	const gameInfo = await colls.gameInfos.findOne({ _id: { game: ctx.params.game, version: +ctx.params.version } });
+	const gameInfo = await findGameInfoWithVersion(ctx.params.game, +ctx.params.version);
 
 	if (!gameInfo) {
 		return;

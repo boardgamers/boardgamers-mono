@@ -1,8 +1,39 @@
+import type { GameInfoDoc, GameMetadataDoc, GameVersionDoc } from "@bgs/models";
 import { colls } from "../config/db.ts";
 
-export async function findGameInfoWithVersion(game: string, version: number | "latest") {
-	if (version === "latest") {
-		return colls.gameInfos.findOne({ "_id.game": game }, { sort: { "_id.version": -1 } });
+/**
+ * Merge a version doc with its game's metadata doc into the `GameInfo` shape the
+ * API serves. `meta` (version-scoped access/bots) and `viewer`/`engine` come from
+ * the version doc; `label`/`description`/`players`/options… come from the single
+ * per-game metadata doc (#298).
+ *
+ * Deploy-before-migration tolerant: migrations run on api-cron boot *after* code
+ * ships, so there is a window where `gameMetadatas` doesn't exist yet and the
+ * version doc still carries the game-level fields. Fall back to a bare version doc
+ * then — its shape is a superset of `GameInfo` until the migration strips it.
+ */
+export function mergeGameInfo(version: GameVersionDoc | null, metadata: GameMetadataDoc | null): GameInfoDoc | null {
+	if (!version) {
+		return null;
 	}
-	return colls.gameInfos.findOne({ _id: { game, version } });
+	if (!metadata) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- pre-migration fallback: the version doc still carries the game-level fields
+		return version as GameInfoDoc;
+	}
+	const { _id: _metadataId, ...metadataFields } = metadata;
+	return { ...version, ...metadataFields };
+}
+
+export async function findGameInfoWithVersion(game: string, version: number | "latest"): Promise<GameInfoDoc | null> {
+	const versionDoc =
+		version === "latest"
+			? await colls.gameInfos.findOne({ "_id.game": game }, { sort: { "_id.version": -1 } })
+			: await colls.gameInfos.findOne({ _id: { game, version } });
+
+	if (!versionDoc) {
+		return null;
+	}
+
+	const metadata = await colls.gameMetadatas.findOne({ _id: game });
+	return mergeGameInfo(versionDoc, metadata);
 }

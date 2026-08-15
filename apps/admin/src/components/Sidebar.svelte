@@ -113,6 +113,14 @@
 					>
 						+ New game
 					</a>
+					<a
+						href={resolve("/boardgames")}
+						class="px-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive('/boardgames')
+							? 'bg-gray-100 dark:bg-gray-800 font-semibold'
+							: ''}"
+					>
+						Boardgame metadata
+					</a>
 					{#each activeGames as g (`${g._id.game}/${g._id.version}`)}
 						{@const href = resolve("/game/[game]/[version]", { game: g._id.game, version: String(g._id.version) })}
 						{@const { emoji, name } = gameLabelParts(g.label)}

@@ -51,9 +51,14 @@
 		onsave: (data: GameInfoData) => void;
 		ondelete?: () => void;
 		onduplicate?: () => void;
+		// Game-level metadata (label/alias/description/rules/links/players/expansions)
+		// is edited centrally from the boardgame list page, NOT from a version page
+		// (#298). When true, those fields render read-only and are stripped from the
+		// save payload so a version-page save never mutates shared metadata.
+		metadataReadOnly?: boolean;
 	}
 
-	let { mode, value = $bindable(), onsave, ondelete, onduplicate }: Props = $props();
+	let { mode, value = $bindable(), onsave, ondelete, onduplicate, metadataReadOnly = false }: Props = $props();
 
 	const inputClass =
 		"w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -332,11 +337,23 @@
 		option.items = (option.items ?? []).filter((_, i) => i !== idx);
 	}
 
+	// Game-level metadata fields (hoisted to `gameMetadatas` in #298); when
+	// `metadataReadOnly` the version page renders them read-only and never saves them.
+	const METADATA_FIELDS = ["label", "alias", "description", "rules", "links", "players", "expansions"] as const;
+
 	function handleSave() {
 		for (const setting of value.settings ?? []) {
 			if (!(setting as OptionItem).faction) {
 				delete (setting as OptionItem).faction;
 			}
+		}
+		if (metadataReadOnly) {
+			const payload: GameInfoData = { ...value };
+			for (const field of METADATA_FIELDS) {
+				delete payload[field];
+			}
+			onsave(payload);
+			return;
 		}
 		// Drop empty links; rebuild the object so tsgo is happy deleting optional keys.
 		if (value.links) {
@@ -364,7 +381,7 @@
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 		<div>
 			<label for="game-label" class={labelClass}>Label</label>
-			<input id="game-label" bind:value={value.label} class={inputClass} />
+			<input id="game-label" bind:value={value.label} class={inputClass} disabled={metadataReadOnly} />
 		</div>
 		<div>
 			<label for="game-alias" class={labelClass}>Alias</label>
@@ -373,6 +390,7 @@
 				bind:value={value.alias}
 				class={inputClass}
 				placeholder="Public display name (e.g. Gem Trader) — leave empty for none"
+				disabled={metadataReadOnly}
 			/>
 			<p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
 				Shown everywhere instead of the label; the label is noted as the rules source ("&lt;Label&gt; rules").
@@ -423,13 +441,18 @@
 						type="number"
 						bind:value={value.players[i]}
 						class="w-12 bg-transparent text-center focus:outline-none"
+						disabled={metadataReadOnly}
 					/>
-					<button onclick={() => removePlayer(i)} class="text-red-500 hover:text-red-400 ml-1">&times;</button>
+					{#if !metadataReadOnly}
+						<button onclick={() => removePlayer(i)} class="text-red-500 hover:text-red-400 ml-1">&times;</button>
+					{/if}
 				</div>
 			{/each}
-			<button onclick={addPlayer} class="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-500 font-medium"
-				>+ Add</button
-			>
+			{#if !metadataReadOnly}
+				<button onclick={addPlayer} class="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-500 font-medium"
+					>+ Add</button
+				>
+			{/if}
 		</div>
 	</div>
 
@@ -709,6 +732,7 @@
 						}}
 						placeholder={field.placeholder}
 						class={inputClass}
+						disabled={metadataReadOnly}
 					/>
 				</div>
 			{/each}
@@ -716,14 +740,31 @@
 	</details>
 
 	<!-- Description & Rules -->
-	<MarkdownEditor bind:value={value.description} label="Description (Markdown)" rows={4} />
-	<MarkdownEditor bind:value={value.rules} label="Rules (Markdown)" rows={8} />
+	{#if metadataReadOnly}
+		{#if value.description}
+			<div class="space-y-1">
+				<label class="block text-sm font-medium">Description</label>
+				<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.description}</p>
+			</div>
+		{/if}
+		{#if value.rules}
+			<div class="space-y-1">
+				<label class="block text-sm font-medium">Rules</label>
+				<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.rules}</p>
+			</div>
+		{/if}
+	{:else}
+		<MarkdownEditor bind:value={value.description} label="Description (Markdown)" rows={4} />
+		<MarkdownEditor bind:value={value.rules} label="Rules (Markdown)" rows={8} />
+	{/if}
 
 	<!-- Expansions, Options, Preferences, Settings -->
 	{#each [{ key: "expansions" as const, label: "Expansions", showType: false, showFaction: false, showCategory: false }, { key: "options" as const, label: "Options", showType: true, showFaction: false, showCategory: false }, { key: "preferences" as const, label: "Preferences", showType: true, showFaction: false, showCategory: true }, { key: "settings" as const, label: "Settings", showType: true, showFaction: true, showCategory: false }] as section (section.key)}
 		<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
 			<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">{section.label}</summary>
 			<div class="px-5 pb-4 space-y-3">
+				<!-- `expansions` is game-level metadata (#298): read-only on version pages. -->
+				{@const readOnly = metadataReadOnly && section.key === "expansions"}
 				{#each value[section.key] ?? [] as item, i (i)}
 					{@const items = value[section.key] as OptionItem[]}
 					<div
@@ -742,7 +783,12 @@
 							<div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
 								<div>
 									<label for={section.key + "-" + i + "-id"} class={labelClass}>{section.label.slice(0, -1)} ID</label>
-									<input id={section.key + "-" + i + "-id"} bind:value={(item as OptionItem).name} class={inputClass} />
+									<input
+										id={section.key + "-" + i + "-id"}
+										bind:value={(item as OptionItem).name}
+										class={inputClass}
+										disabled={readOnly}
+									/>
 								</div>
 								<div>
 									<label for={section.key + "-" + i + "-name"} class={labelClass}
@@ -752,6 +798,7 @@
 										id={section.key + "-" + i + "-name"}
 										bind:value={(item as OptionItem).label}
 										class={inputClass}
+										disabled={readOnly}
 									/>
 								</div>
 
@@ -823,36 +870,38 @@
 								{/if}
 							</div>
 
-							<!-- Reorder & Delete -->
-							<div class="flex flex-col gap-1 pt-5 items-center">
-								<span
-									draggable="true"
-									role="button"
-									tabindex="-1"
-									aria-label="Drag to reorder"
-									title="Drag to reorder"
-									class="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1 select-none leading-none"
-									ondragstart={(e) => handleDragStart(e, section.key, i)}
-									ondragend={handleDragEnd}>⠿</span
-								>
-								<button
-									onclick={() => moveItem(section.key, i, -1)}
-									disabled={i === 0}
-									class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-25"
-									title="Move up">&#9650;</button
-								>
-								<button
-									onclick={() => moveItem(section.key, i, 1)}
-									disabled={i === items.length - 1}
-									class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-25"
-									title="Move down">&#9660;</button
-								>
-								<button
-									onclick={() => removeListItem(section.key, i)}
-									class="{btnSmClass} text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-									title="Delete">&times;</button
-								>
-							</div>
+							{#if !readOnly}
+								<!-- Reorder & Delete -->
+								<div class="flex flex-col gap-1 pt-5 items-center">
+									<span
+										draggable="true"
+										role="button"
+										tabindex="-1"
+										aria-label="Drag to reorder"
+										title="Drag to reorder"
+										class="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1 select-none leading-none"
+										ondragstart={(e) => handleDragStart(e, section.key, i)}
+										ondragend={handleDragEnd}>⠿</span
+									>
+									<button
+										onclick={() => moveItem(section.key, i, -1)}
+										disabled={i === 0}
+										class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-25"
+										title="Move up">&#9650;</button
+									>
+									<button
+										onclick={() => moveItem(section.key, i, 1)}
+										disabled={i === items.length - 1}
+										class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-25"
+										title="Move down">&#9660;</button
+									>
+									<button
+										onclick={() => removeListItem(section.key, i)}
+										class="{btnSmClass} text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+										title="Delete">&times;</button
+									>
+								</div>
+							{/if}
 						</div>
 
 						<!-- Select items sub-list -->
@@ -903,12 +952,14 @@
 					</div>
 				{/each}
 
-				<button
-					onclick={() => addListItem(section.key)}
-					class="{btnSmClass} text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-				>
-					+ Add {section.label.slice(0, -1).toLowerCase()}
-				</button>
+				{#if !readOnly}
+					<button
+						onclick={() => addListItem(section.key)}
+						class="{btnSmClass} text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+					>
+						+ Add {section.label.slice(0, -1).toLowerCase()}
+					</button>
+				{/if}
 			</div>
 		</details>
 	{/each}

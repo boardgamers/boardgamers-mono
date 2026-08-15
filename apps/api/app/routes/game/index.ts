@@ -14,6 +14,7 @@ import locks from "../../config/locks.ts";
 import { zObjectId } from "../../utils/zod.ts";
 import { notifyGameStart } from "../../services/game.ts";
 import { getUserElo } from "../../services/elo.ts";
+import { mergeGameInfo } from "../../models/gameinfo.ts";
 import { isAdmin, isConfirmed, loggedIn } from "../utils.ts";
 import listings, { myBoardgames } from "./listings.ts";
 
@@ -112,7 +113,9 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 	} = body;
 	const options: Record<string, string | boolean> = {};
 
-	const gameInfo = await colls.gameInfos.findOne({ _id: gameInfoId });
+	const versionDoc = await colls.gameInfos.findOne({ _id: gameInfoId });
+	const metadata = versionDoc ? await colls.gameMetadatas.findOne({ _id: gameInfoId.game }) : null;
+	const gameInfo = mergeGameInfo(versionDoc, metadata);
 
 	if (!gameInfo) {
 		ctx.status = 404;

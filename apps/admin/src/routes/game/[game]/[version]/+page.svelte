@@ -114,7 +114,7 @@
 				<WebLink path={`/boardgame/${gameId}`} />
 			</div>
 		</div>
-		<GameEdit mode="edit" bind:value onsave={save} onduplicate={duplicate} ondelete={remove} />
+		<GameEdit mode="edit" bind:value onsave={save} onduplicate={duplicate} ondelete={remove} metadataReadOnly />
 	</div>
 {:else}
 	<div class="flex items-center justify-center h-32">

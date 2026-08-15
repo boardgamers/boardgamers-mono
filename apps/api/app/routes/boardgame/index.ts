@@ -1,10 +1,11 @@
 import createError from "http-errors";
-import type { GamePreferencesDoc } from "@bgs/models";
+import type { GamePreferencesDoc, GameVersionDoc } from "@bgs/models";
 import type { Context } from "koa";
 import Router from "koa-router";
-import type { PickDeep } from "type-fest";
+import type { PickDeep, SetOptional } from "type-fest";
 import { colls } from "../../config/db.ts";
 import { lastAccessibleVersion } from "../../services/gameinfo.ts";
+import { findGameInfoWithVersion, mergeGameInfo } from "../../models/gameinfo.ts";
 import { queryCount, skipCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -12,14 +13,7 @@ const router = new Router<Application.DefaultState, Context>();
 router.param("boardgame", async (boardgame, ctx, next) => {
 	// Latest public, non-archived version (same pick as lastAccessibleVersion —
 	// an archived version is never the current one).
-	let foundGame = await colls.gameInfos.findOne(
-		{ "_id.game": boardgame, "meta.public": true, "meta.archived": { $ne: true } },
-		{ sort: { "_id.version": -1 } },
-	);
-
-	if (!foundGame) {
-		foundGame = await lastAccessibleVersion(ctx.params.boardgame, ctx.state.user);
-	}
+	let foundGame = await lastAccessibleVersion(ctx.params.boardgame, ctx.state.user);
 
 	if (!foundGame) {
 		throw createError(404, "Boardgame not found");
@@ -45,7 +39,7 @@ router.get("/info", async (ctx) => {
 	// list, so an archived doc here could be offered at game creation. Old games
 	// on an archived version don't read this list — they fetch their exact
 	// version doc via /boardgame/:game/info/:version.
-	ctx.body = await colls.gameInfos
+	const versions = await colls.gameInfos
 		.find({
 			"meta.archived": { $ne: true },
 			$or: [
@@ -53,9 +47,17 @@ router.get("/info", async (ctx) => {
 				...ownGames.map((game) => ({ _id: { game: game.game, version: game.access!.maxVersion } })),
 			],
 		})
-		.project({ viewer: 0 })
+		.project<SetOptional<GameVersionDoc, "viewer">>({ viewer: 0 })
 		.sort({ "_id.game": 1, "_id.version": -1 })
 		.toArray();
+	const metas = await colls.gameMetadatas.find({}).toArray();
+	const metaByGame = new Map(metas.map((m) => [m._id, m]));
+	// The list projection drops `viewer` (the endpoint never serves it), so the
+	// merged doc legitimately lacks it — mergeGameInfo only spreads fields through.
+	ctx.body = versions.map((v) =>
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- viewer is intentionally omitted from the list
+		mergeGameInfo(v as GameVersionDoc, metaByGame.get(v._id.game) ?? null),
+	);
 });
 
 router.get("/:boardgame", (ctx) => {
@@ -125,9 +127,7 @@ router.get("/:boardgame/elo/count", async (ctx) => {
 });
 
 router.get("/:boardgame/info/:version", async (ctx) => {
-	const game = await colls.gameInfos.findOne({
-		_id: { game: ctx.params.boardgame, version: +ctx.params.version },
-	});
+	const game = await findGameInfoWithVersion(ctx.params.boardgame, +ctx.params.version);
 
 	if (game) {
 		ctx.body = game;
