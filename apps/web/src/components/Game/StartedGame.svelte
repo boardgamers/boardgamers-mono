@@ -125,6 +125,7 @@
 
 	$effect(() => {
 		prefs;
+		$developerSettings;
 		postPreferences();
 	});
 
@@ -178,10 +179,13 @@
 
 	function postPreferences() {
 		if (gameIframe && prefs) {
-			gameIframe.contentWindow?.postMessage(
-				{ type: "preferences", preferences: JSON.parse(JSON.stringify(prefs.preferences)) },
-				"*"
-			);
+			// devMode is a transient wire-level flag for the viewer (device-local dev settings),
+			// not a persisted preference — only added when on, viewers check `devMode === true`.
+			const preferences = {
+				...JSON.parse(JSON.stringify(prefs.preferences)),
+				...($developerSettings ? { devMode: true } : {}),
+			};
+			gameIframe.contentWindow?.postMessage({ type: "preferences", preferences }, "*");
 		}
 	}
 

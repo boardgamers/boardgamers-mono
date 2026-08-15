@@ -35,6 +35,7 @@ vi.hoisted(() => {
 
 import EventEmitter from "eventemitter3";
 import { DEBUG_INFO_MESSAGE, DEBUG_INFO_REQUEST } from "@/lib/debug-info";
+import { developerSettings } from "@/lib/stores.svelte";
 import type { GameContext } from "@/routes/game/[gameId]/game-context";
 import StartedGame from "./StartedGame.svelte";
 
@@ -105,5 +106,64 @@ describe("StartedGame debug-info relay", () => {
 		await expect(received).resolves.toEqual(payload);
 		// The parent must not post any payload of its own back to the viewer.
 		expect(postMessage.mock.calls.filter(([msg]) => msg?.type === DEBUG_INFO_MESSAGE)).toHaveLength(0);
+	});
+});
+
+// The device-local developer-settings flag rides along on the preferences message as a
+// transient `devMode: true` — never persisted, and absent (not false) when settings are off.
+describe("StartedGame preferences posting", () => {
+	let emitter: EventEmitter;
+	let target: HTMLDivElement;
+	let instance: Record<string, unknown> | undefined;
+	let postMessage: ReturnType<typeof vi.fn>;
+
+	function lastPreferences(): Record<string, unknown> {
+		const calls = postMessage.mock.calls.filter(([msg]) => msg?.type === "preferences");
+		expect(calls.length).toBeGreaterThan(0);
+		return calls.at(-1)![0].preferences;
+	}
+
+	beforeEach(() => {
+		developerSettings.set(false);
+		emitter = new EventEmitter();
+		target = document.createElement("div");
+		document.body.appendChild(target);
+		instance = mount(StartedGame as never, {
+			target,
+			props: {},
+			context: new Map<string, unknown>([
+				["game", makeContext(emitter)],
+				// postPreferences is a no-op without prefs for the game; seed via the SSR context
+				// fallback (the gamePreferences store is client-only and guarded in the SSR run).
+				["gamePreferences", { "gaia-project": { preferences: { sound: true } } }],
+			]),
+		}) as Record<string, unknown>;
+		flushSync();
+		postMessage = vi.fn();
+		const iframe = target.querySelector("iframe")!;
+		Object.defineProperty(iframe, "contentWindow", { value: { postMessage }, configurable: true });
+	});
+
+	afterEach(() => {
+		developerSettings.set(false);
+		if (instance) {
+			unmount(instance as never);
+			instance = undefined;
+		}
+		target.remove();
+	});
+
+	it("omits devMode entirely when developer settings are off", () => {
+		window.dispatchEvent(new window.MessageEvent("message", { data: { type: "gameReady" } }));
+		expect("devMode" in lastPreferences()).toBe(false);
+	});
+
+	it("adds devMode: true when developer settings are on, and re-posts on toggle", () => {
+		window.dispatchEvent(new window.MessageEvent("message", { data: { type: "gameReady" } }));
+		expect("devMode" in lastPreferences()).toBe(false);
+
+		developerSettings.set(true);
+		flushSync();
+		expect(lastPreferences().devMode).toBe(true);
 	});
 });
