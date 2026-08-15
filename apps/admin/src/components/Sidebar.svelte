@@ -8,6 +8,10 @@
 
 	let gamesOpen = $state(true);
 	let pagesOpen = $state(true);
+	let archivedOpen = $state(false);
+
+	const activeGames = $derived(data.games.filter((g) => !g.meta?.archived));
+	const archivedGames = $derived(data.games.filter((g) => g.meta?.archived));
 
 	function isActive(href: string): boolean {
 		return page.url.pathname === href;
@@ -109,7 +113,7 @@
 					>
 						+ New game
 					</a>
-					{#each data.games as g (`${g._id.game}/${g._id.version}`)}
+					{#each activeGames as g (`${g._id.game}/${g._id.version}`)}
 						{@const href = resolve("/game/[game]/[version]", { game: g._id.game, version: String(g._id.version) })}
 						{@const { emoji, name } = gameLabelParts(g.label)}
 						<a
@@ -126,6 +130,43 @@
 							<span class="text-gray-400 flex-shrink-0">v{g._id.version}</span>
 						</a>
 					{/each}
+					{#if archivedGames.length > 0}
+						<button
+							onclick={() => (archivedOpen = !archivedOpen)}
+							class="w-full flex items-center justify-between px-3 py-1.5 rounded-md text-xs font-medium text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+						>
+							Archived ({archivedGames.length})
+							<svg
+								class="w-3.5 h-3.5 transition-transform {archivedOpen ? 'rotate-90' : ''}"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg
+							>
+						</button>
+						{#if archivedOpen}
+							{#each archivedGames as g (`${g._id.game}/${g._id.version}`)}
+								{@const href = resolve("/game/[game]/[version]", {
+									game: g._id.game,
+									version: String(g._id.version),
+								})}
+								{@const { emoji, name } = gameLabelParts(g.label)}
+								<a
+									{href}
+									class="flex items-center gap-2 pl-6 pr-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive(
+										href
+									)
+										? 'bg-gray-100 dark:bg-gray-800 font-semibold'
+										: ''}"
+									title="{g._id.game} v{g._id.version}"
+								>
+									{#if emoji}<span class="flex-shrink-0">{emoji}</span>{/if}
+									<span class="truncate flex-1 line-through text-gray-400">{name || g._id.game}</span>
+									<span class="text-gray-400 flex-shrink-0">v{g._id.version}</span>
+								</a>
+							{/each}
+						{/if}
+					{/if}
 				</div>
 			{/if}
 		</div>

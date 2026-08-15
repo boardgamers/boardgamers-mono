@@ -15,7 +15,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { colls, closeDb } from "../config/db.ts";
+import { colls } from "../config/db.ts";
 import { engineKey, enginePath } from "./engines.ts";
 import { installNewGames, npm } from "./installer.ts";
 
@@ -48,6 +48,63 @@ function makeTarball() {
 	execFileSync("npm", ["pack", "--pack-destination", dir], { cwd: pkgDir, stdio: "pipe" });
 	fs.renameSync(path.join(dir, `test-installer-bundle-${PKG.version}.tgz`), tarballPath);
 }
+
+// Archived versions are excluded from the install set: their engine is never
+// installed, and a previously-installed copy is pruned as stale. Uses a fake
+// (uninstallable) package name so the test fails loudly if the archived engine
+// is ever npm-installed.
+describe("installer — archived versions are not installed", () => {
+	const ARCH_GAME = "installer-archived-test";
+	const ARCH_PKG = { name: "@test/installer-archived-bundle", version: "9.9.9" };
+
+	before(async () => {
+		// Same isolation as the #268 suite: installNewGames() considers every
+		// gameInfo with an engine.
+		await colls.gameInfos.deleteMany({ "meta.archived": { $ne: true } });
+		await colls.gameInfos.deleteMany({ "_id.game": ARCH_GAME });
+		await colls.gameInfos.insertOne({
+			_id: { game: ARCH_GAME, version: 1 },
+			label: "Archived installer test",
+			viewer: { url: "//test/installer-archived" },
+			players: [2],
+			meta: { public: true, archived: true, bots: true },
+			engine: { package: ARCH_PKG, entryPoint: "dist/engine.mjs" },
+		});
+	});
+
+	after(async () => {
+		await colls.gameInfos.deleteMany({ "_id.game": ARCH_GAME });
+	});
+
+	it("skips the archived engine and prunes a previously-installed alias", { timeout: 120_000 }, async () => {
+		const key = engineKey(ARCH_GAME, 1, ARCH_PKG);
+		const pkgPath = path.join("games", "package.json");
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- package.json is untyped by nature
+		const pkgBefore = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as { dependencies?: Record<string, string> };
+		const hadKey = key in (pkgBefore.dependencies ?? {});
+
+		// Simulate a previously-installed engine for the now-archived version.
+		fs.mkdirSync(path.join("games", "node_modules", key), { recursive: true });
+		if (!hadKey) {
+			pkgBefore.dependencies = { ...pkgBefore.dependencies, [key]: `npm:${ARCH_PKG.name}@${ARCH_PKG.version}` };
+			fs.writeFileSync(pkgPath, JSON.stringify(pkgBefore));
+		}
+
+		try {
+			await installNewGames();
+
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- package.json is untyped by nature
+			const pkgAfter = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as { dependencies?: Record<string, string> };
+			assert.ok(!(key in (pkgAfter.dependencies ?? {})), "archived engine alias is pruned from games/package.json");
+			assert.ok(!fs.existsSync(path.join("games", "node_modules", key)), "archived engine directory is removed");
+		} finally {
+			// Restore games/package.json exactly as found (spec files share ./games).
+			if (!hadKey) {
+				fs.writeFileSync(pkgPath, JSON.stringify(pkgBefore));
+			}
+		}
+	});
+});
 
 describe("installer — engine uploaded as tarball URL (#268)", () => {
 	before(async () => {
@@ -86,7 +143,6 @@ describe("installer — engine uploaded as tarball URL (#268)", () => {
 	after(async () => {
 		await colls.gameInfos.deleteMany({ "_id.game": GAME });
 		server.close();
-		await closeDb();
 		fs.rmSync(dir, { recursive: true, force: true });
 		// Leave ./games as the installer found it (no uploaded-engine alias).
 		fs.rmSync(path.join("games", "node_modules", engineKey(GAME, VERSION, PKG)), { recursive: true, force: true });

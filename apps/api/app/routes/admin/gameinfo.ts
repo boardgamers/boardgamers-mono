@@ -12,13 +12,14 @@ import Router from "koa-router";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
 import { findGameInfoWithVersion } from "../../models/index.ts";
+import { lastAccessibleVersion } from "../../services/gameinfo.ts";
 import { gameBundleS3Key, publicObjectUrl, putObject, s3Enabled } from "../../services/s3.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
 router.get("/", async (ctx) => {
 	ctx.body = await colls.gameInfos
-		.find({}, { projection: { _id: 1, label: 1 } })
+		.find({}, { projection: { _id: 1, label: 1, "meta.archived": 1 } })
 		.sort({ "_id.game": 1, "_id.version": -1 })
 		.toArray();
 });
@@ -41,6 +42,19 @@ const upsertBodySchema = z.looseObject({
 async function upsert(ctx: Context) {
 	const body = omit(upsertBodySchema.parse(ctx.request.body), "_id", "createdAt", "updatedAt");
 	const $unset: Record<string, true> = {};
+	// meta is flattened into dotted paths: a whole-object `$set: { meta }` would
+	// wipe server-managed subfields — meta.archived (toggled only by the
+	// archive/unarchive action below, which has preconditions — a save must not
+	// set or clear it) and meta.bots (auto-detected by the game-server
+	// installer).
+	if (body.meta && typeof body.meta === "object") {
+		for (const [key, value] of Object.entries(body.meta)) {
+			if (key !== "archived") {
+				body[`meta.${key}`] = value;
+			}
+		}
+		delete body.meta;
+	}
 	for (const field of NULLABLE_FIELDS) {
 		if (body[field] === null) {
 			delete body[field];
@@ -75,6 +89,76 @@ router.get("/:game/:version", async (ctx) => {
 	if (game) {
 		ctx.body = game;
 	} // else 404
+});
+
+// -- Archive / unarchive -------------------------------------------------------
+// An archived version is skipped by the game-server engine installer (and a
+// previously-installed engine is pruned) and is never picked as the latest
+// public version, but its viewer keeps being served so old games stay
+// replayable. Preconditions (409): the version must not be the current latest
+// public one — a hard block, archiving the current version is never allowed.
+// Ongoing games are a soft block: without an override the route answers 409
+// with a structured body ({ error: "ongoing_games", count, message }) so the
+// admin UI can confirm-and-proceed; the caller acknowledges by re-POSTing with
+// { force: true }, which skips the ongoing-games check and archives anyway.
+// The action never touches the ongoing games themselves.
+const archiveBodySchema = z.object({ force: z.boolean().optional() }).nullish();
+
+router.post("/:game/:version/archive", async (ctx) => {
+	const game = ctx.params.game;
+	const version = +ctx.params.version;
+	const force = archiveBodySchema.parse(ctx.request.body)?.force === true;
+
+	const info = await colls.gameInfos.findOne({ _id: { game, version } }, { projection: { _id: 1 } });
+	if (!info) {
+		throw createError(404, `No game info for ${game} v${version}`);
+	}
+
+	const latest = await lastAccessibleVersion(game);
+	if (latest?._id.version === version) {
+		throw createError(409, `Cannot archive ${game} v${version}: it is the latest public version`);
+	}
+
+	if (!force) {
+		const ongoing = await colls.games.countDocuments({
+			"game.name": game,
+			"game.version": version,
+			status: { $in: ["open", "active"] },
+		});
+		if (ongoing > 0) {
+			// Not thrown through createError: the global error handler only keeps
+			// `message`, and the admin UI needs the structured error/count fields.
+			ctx.status = 409;
+			ctx.body = {
+				error: "ongoing_games",
+				count: ongoing,
+				message: `Cannot archive ${game} v${version}: ${ongoing} ongoing game(s) on this version`,
+			};
+			return;
+		}
+	}
+
+	ctx.body = await colls.gameInfos.findOneAndUpdate(
+		{ _id: { game, version } },
+		{ $set: { "meta.archived": true } },
+		{ returnDocument: "after" },
+	);
+});
+
+router.post("/:game/:version/unarchive", async (ctx) => {
+	const game = ctx.params.game;
+	const version = +ctx.params.version;
+
+	const info = await colls.gameInfos.findOne({ _id: { game, version } }, { projection: { _id: 1 } });
+	if (!info) {
+		throw createError(404, `No game info for ${game} v${version}`);
+	}
+
+	ctx.body = await colls.gameInfos.findOneAndUpdate(
+		{ _id: { game, version } },
+		{ $unset: { "meta.archived": true } },
+		{ returnDocument: "after" },
+	);
 });
 
 // -- Bundle uploads (#268) ------------------------------------------------------

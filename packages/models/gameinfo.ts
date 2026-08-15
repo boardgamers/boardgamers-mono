@@ -104,6 +104,12 @@ export const gameInfoSchema = z.object({
 		// at game creation. Auto-detected by the game-server installer (probes the
 		// engine's entry point for a moveAI export on install / for unprobed engines).
 		bots: z.boolean().optional(),
+		// Retired version: the game-server installer skips it (and prunes a
+		// previously-installed engine) and it is never picked as the latest public
+		// version, but its viewer keeps being served so old games stay replayable.
+		// Only settable via the admin archive action — blocked while the version is
+		// the latest public one or has ongoing games.
+		archived: z.boolean().optional(),
 	}),
 	createdAt: zDate().optional(),
 	updatedAt: zDate().optional(),

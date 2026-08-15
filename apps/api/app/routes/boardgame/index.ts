@@ -10,8 +10,10 @@ import { queryCount, skipCount } from "../utils.ts";
 const router = new Router<Application.DefaultState, Context>();
 
 router.param("boardgame", async (boardgame, ctx, next) => {
+	// Latest public, non-archived version (same pick as lastAccessibleVersion —
+	// an archived version is never the current one).
 	let foundGame = await colls.gameInfos.findOne(
-		{ "_id.game": boardgame, "meta.public": true },
+		{ "_id.game": boardgame, "meta.public": true, "meta.archived": { $ne: true } },
 		{ sort: { "_id.version": -1 } },
 	);
 
@@ -38,8 +40,14 @@ router.get("/info", async (ctx) => {
 				.project<PickDeep<GamePreferencesDoc, "game" | "access.maxVersion">>({ game: 1, "access.maxVersion": 1 })
 				.toArray()
 		: [];
+	// Archived versions are excluded (same "never the current version" rule as
+	// lastAccessibleVersion): the web computes each game's "latest" from this
+	// list, so an archived doc here could be offered at game creation. Old games
+	// on an archived version don't read this list — they fetch their exact
+	// version doc via /boardgame/:game/info/:version.
 	ctx.body = await colls.gameInfos
 		.find({
+			"meta.archived": { $ne: true },
 			$or: [
 				{ "meta.public": true },
 				...ownGames.map((game) => ({ _id: { game: game.game, version: game.access!.maxVersion } })),

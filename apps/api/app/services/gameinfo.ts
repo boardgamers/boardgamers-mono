@@ -3,9 +3,21 @@ import type { WithId } from "mongodb";
 import type { PickDeep } from "type-fest";
 import { colls } from "../config/db.ts";
 
+// An archived version is never the "current" one: it stays readable (viewer
+// served, old games replayable) but is excluded from every latest-public pick.
+// The admin archive action already refuses to archive the current latest public
+// version; this filter is defence-in-depth so an archived doc can never leak
+// back in (e.g. after versions above it are deleted). The filter is applied to
+// the public branch only — a private-grant version (access.maxVersion) stays
+// reachable for its grantees, since archiving blocks on having no ongoing games.
+const NOT_ARCHIVED = { "meta.archived": { $ne: true } } as const;
+
 export async function lastAccessibleVersion(game: string, user?: WithId<UserDoc>) {
 	if (!user) {
-		return colls.gameInfos.findOne({ "_id.game": game, "meta.public": true }, { sort: { "_id.version": -1 } });
+		return colls.gameInfos.findOne(
+			{ "_id.game": game, "meta.public": true, ...NOT_ARCHIVED },
+			{ sort: { "_id.version": -1 } },
+		);
 	}
 
 	const pref = await colls.gamePreferences.findOne<PickDeep<GamePreferencesDoc, "access.maxVersion">>(
@@ -17,12 +29,15 @@ export async function lastAccessibleVersion(game: string, user?: WithId<UserDoc>
 		return colls.gameInfos.findOne(
 			{
 				"_id.game": game,
-				$or: [{ "meta.public": true }, { "_id.version": pref.access!.maxVersion }],
+				$or: [{ "meta.public": true, ...NOT_ARCHIVED }, { "_id.version": pref.access!.maxVersion }],
 			},
 			{ sort: { "_id.version": -1 } },
 		);
 	} else {
-		return colls.gameInfos.findOne({ "_id.game": game, "meta.public": true }, { sort: { "_id.version": -1 } });
+		return colls.gameInfos.findOne(
+			{ "_id.game": game, "meta.public": true, ...NOT_ARCHIVED },
+			{ sort: { "_id.version": -1 } },
+		);
 	}
 }
 
@@ -38,7 +53,7 @@ export async function latestAccessibleGames<T>(userId?: T) {
 			_id: string;
 			version: number;
 		}>([
-			{ $match: { "meta.public": true } },
+			{ $match: { "meta.public": true, ...NOT_ARCHIVED } },
 			{ $sort: { "_id.game": 1, "_id.version": -1 } },
 			{ $project: { _id: 1 } },
 			{ $group: { _id: "$_id.game", version: { $first: "$_id.version" } } },

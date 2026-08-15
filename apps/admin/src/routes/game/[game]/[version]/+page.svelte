@@ -2,7 +2,7 @@
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { untrack } from "svelte";
-	import { api } from "$lib/api.ts";
+	import { api, ApiError } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { loadGames } from "$lib/stores.svelte.ts";
 	import GameEdit, { type GameInfoData } from "$components/GameEdit.svelte";
@@ -57,12 +57,59 @@
 			toast.error(err instanceof Error ? err.message : "Failed to delete");
 		}
 	}
+
+	// Preconditions are enforced server-side. Archiving the latest public version
+	// is a hard 409 (toast only); ongoing games are a soft 409 the admin can
+	// confirm-and-proceed past by retrying with { force: true }.
+	async function toggleArchive() {
+		const archived = !!value?.meta?.archived;
+		const action = archived ? "unarchive" : "archive";
+		if (!confirm(`${archived ? "Unarchive" : "Archive"} ${gameId} v${version}?`)) return;
+		try {
+			await api.post(`/admin/gameinfo/${gameId}/${version}/${action}`);
+		} catch (err) {
+			// ApiError only carries message+status — the structured `error`/
+			// `count` fields of the ongoing-games 409 are recovered from the
+			// server message.
+			const ongoing =
+				err instanceof ApiError && err.status === 409 && !archived ? /(\d+) ongoing game/.exec(err.message) : null;
+			if (ongoing) {
+				if (!confirm(`There are still ${ongoing[1]} ongoing game(s) on this version. Archive anyway?`)) return;
+				try {
+					await api.post(`/admin/gameinfo/${gameId}/${version}/${action}`, { force: true });
+				} catch (retryErr) {
+					toast.error(retryErr instanceof Error ? retryErr.message : `Failed to ${action}`);
+					return;
+				}
+			} else {
+				toast.error(err instanceof Error ? err.message : `Failed to ${action}`);
+				return;
+			}
+		}
+		toast.success(archived ? "Unarchived" : "Archived");
+		await loadGames();
+	}
 </script>
 
 {#if value}
 	<div>
 		<div class="flex items-center gap-4 mb-6">
 			<h2 class="text-xl font-bold">{value.label} <span class="text-gray-400 font-normal">v{version}</span></h2>
+			{#if value.meta?.archived}
+				<span
+					class="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+				>
+					Archived
+				</span>
+			{/if}
+			<button
+				onclick={toggleArchive}
+				class="px-3 py-1.5 text-sm rounded-lg font-medium {value.meta?.archived
+					? 'bg-gray-600 hover:bg-gray-700 text-white'
+					: 'bg-amber-600 hover:bg-amber-700 text-white'}"
+			>
+				{value.meta?.archived ? "Unarchive" : "Archive"}
+			</button>
 			<div class="ml-auto text-sm">
 				<WebLink path={`/boardgame/${gameId}`} />
 			</div>
