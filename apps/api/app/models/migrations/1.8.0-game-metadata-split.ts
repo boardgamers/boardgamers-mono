@@ -8,11 +8,14 @@ import type { Migration } from "./index.ts";
 // factions); the metadata doc takes the identity fields (label/alias/description/
 // rules/links/players/expansions).
 //
-// Idempotent: metadata is upserted from the game's max-version doc (the one the
-// UI renders) with `$setOnInsert`, so a re-run (or a doc already written by the
-// admin upsert route before this migration ran) leaves an existing metadata doc
-// untouched. The `$unset` of the game-level fields off every version doc is a
-// no-op when they're already gone.
+// Backfill is `$setOnInsert` from the game's max-version doc (the one the UI
+// renders). This is safe because `gameMetadatas` docs are only ever written
+// COMPLETE — by this migration, or by the admin metadata route outside a deploy
+// (nothing writes `gamemetadatas` during the deploy window, so a partial doc
+// can't pre-exist the migration). `$setOnInsert` means a re-run, or a doc already
+// written complete by the admin route, is left untouched — and `likeCount` (not
+// in GAME_METADATA_FIELDS) is never touched either way. The `$unset` of the
+// game-level fields off every version doc is a no-op once they're gone.
 
 export const migration: Migration = {
 	async up() {

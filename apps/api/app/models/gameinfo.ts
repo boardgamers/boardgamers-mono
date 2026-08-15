@@ -11,6 +11,12 @@ import { colls } from "../config/db.ts";
  * ships, so there is a window where `gameMetadatas` doesn't exist yet and the
  * version doc still carries the game-level fields. Fall back to a bare version doc
  * then — its shape is a superset of `GameInfo` until the migration strips it.
+ *
+ * Assumption: a non-null `metadata` doc is always COMPLETE. `gameMetadatas` docs
+ * are only ever written whole — by the migration, or by the admin metadata route
+ * outside a deploy (nothing writes `gamemetadatas` during the deploy window, so a
+ * partial doc can't pre-exist the migration). We therefore spread the metadata
+ * fields directly rather than merging per-field.
  */
 export function mergeGameInfo(version: GameVersionDoc | null, metadata: GameMetadataDoc | null): GameInfoDoc | null {
 	if (!version) {

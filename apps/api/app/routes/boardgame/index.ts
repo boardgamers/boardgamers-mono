@@ -11,9 +11,17 @@ import { queryCount, skipCount } from "../utils.ts";
 const router = new Router<Application.DefaultState, Context>();
 
 router.param("boardgame", async (boardgame, ctx, next) => {
-	// Latest public, non-archived version (same pick as lastAccessibleVersion —
-	// an archived version is never the current one).
-	let foundGame = await lastAccessibleVersion(ctx.params.boardgame, ctx.state.user);
+	// NOTE (#298): this used to be a two-step pick — a direct `gameInfos` query for
+	// the latest public non-archived version, falling back to `lastAccessibleVersion`
+	// for private grants. Post-split the version doc alone is no longer sufficient:
+	// the routes below serve `foundBoardgame` as the merged GameInfo (label/players/
+	// likeCount…), which needs the metadata join. `lastAccessibleVersion` already
+	// does that join AND covers the public pick (it queries the latest public
+	// non-archived version first, then the private-grant version), so we call it
+	// directly. Behavior is unchanged for public games; the only difference is the
+	// private-grant path now also returns a merged doc (previously it could serve a
+	// bare version doc missing the game-level fields).
+	const foundGame = await lastAccessibleVersion(boardgame, ctx.state.user);
 
 	if (!foundGame) {
 		throw createError(404, "Boardgame not found");
