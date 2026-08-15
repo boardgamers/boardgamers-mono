@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { OpenGame, StartedGame, ChatRoom } from "@/components";
+	import { OpenGame, StartedGame, ChatRoom, DebugInfoButton } from "@/components";
 	import type { GameFront } from "@bgs/models";
 	import { getContext } from "svelte";
 	import type { GameContext } from "./game-context";
@@ -28,5 +28,6 @@
 	<OpenGame />
 {:else}
 	<StartedGame />
+	<DebugInfoButton />
 {/if}
 <ChatRoom room={gameId} />
