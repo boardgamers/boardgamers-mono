@@ -16,6 +16,7 @@
 	import { isDarkMode } from "@/lib/theme";
 	import { account as user } from "@/lib/account.svelte";
 	import { devGameSettings, developerSettings, lastGameUpdate } from "@/lib/stores.svelte";
+	import { DEBUG_INFO_MESSAGE, DEBUG_INFO_REQUEST, gatherDebugInfo } from "@/lib/debug-info";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
@@ -88,9 +89,13 @@
 		gameIframe?.contentWindow?.postMessage({ type: "theme", dark: $isDarkMode }, "*");
 	}
 
-	function postUser() {
+	function viewerPlayerIndex(): number | undefined {
 		const index = context.game?.players.findIndex((pl) => pl._id === $user?._id);
-		const message = { type: "player", player: { index: index !== -1 ? index : undefined } };
+		return index !== undefined && index !== -1 ? index : undefined;
+	}
+
+	function postUser() {
+		const message = { type: "player", player: { index: viewerPlayerIndex() } };
 		gameIframe?.contentWindow?.postMessage(message, "*");
 	}
 
@@ -180,6 +185,21 @@
 		}
 	}
 
+	function postDebugInfo() {
+		const data = gatherDebugInfo(context, {
+			playerIndex: viewerPlayerIndex(),
+			preferences: prefs?.preferences,
+			viewerUrl: src || undefined,
+		});
+		gameIframe?.contentWindow?.postMessage({ type: DEBUG_INFO_MESSAGE, data }, "*");
+		// DebugInfoButton (sibling of the iframe) listens for this to copy the same snapshot.
+		emitter.emit(DEBUG_INFO_MESSAGE, data);
+	}
+
+	// DebugInfoButton requests a snapshot over the emitter (the iframe window message
+	// with the same type is handled in handleGameMessage).
+	emitter.on(DEBUG_INFO_REQUEST, postDebugInfo);
+
 	emitter.on("replay:start", () => {
 		gameIframe?.contentWindow?.postMessage({ type: "replay:start" }, "*");
 	});
@@ -194,6 +214,7 @@
 	});
 
 	onDestroy(() => {
+		emitter.off(DEBUG_INFO_REQUEST, postDebugInfo);
 		emitter.off("replay:start");
 		emitter.off("replay:to");
 		emitter.off("replay:end");
@@ -243,6 +264,8 @@
 				context.log = event.data.data;
 			} else if (event.data.type === "replay:info") {
 				context.replayData = event.data.data;
+			} else if (event.data.type === DEBUG_INFO_REQUEST) {
+				postDebugInfo();
 			} else if (event.data.type === "updatePreference") {
 				if (context.game) {
 					updatePreference(
@@ -269,6 +292,13 @@
 		}
 	}
 
+	// `credentialless` has no TS/HTML attribute type yet, and an attribute spread
+	// (`{...{ credentialless: true }}`) crashes components mounted in the vitest jsdom
+	// env — an action sidesteps both.
+	function credentialless(node: HTMLIFrameElement) {
+		(node as any).credentialless = true;
+	}
+
 	// During SSR the iframe is ready before we are
 	onMount(() => {
 		gameIframe?.contentWindow?.postMessage({ type: "askReady" }, "*");
@@ -283,7 +313,7 @@
 	<iframe
 		bind:this={gameIframe}
 		allow="cross-origin-isolated fullscreen"
-		{...{ credentialless: true } as any}
+		use:credentialless
 		id="game-iframe"
 		title="Game UX"
 		sandbox="allow-scripts allow-same-origin allow-orientation-lock"

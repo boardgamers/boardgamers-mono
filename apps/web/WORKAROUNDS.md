@@ -44,3 +44,13 @@ renders such a leaf should stub it via
 `vi.mock("@/components/icons/Icon….svelte", () => import("@/lib/__mocks__/IconStub.svelte"))`
 (see `src/components/Game/GameList.spec.ts`). Revisit if the mount env is fixed
 (upgrading `svelte` / the vitest plugin, or dropping the rest-spread from the leaves).
+
+## `credentialless` iframe flag set via a Svelte action
+
+`StartedGame.svelte` sets the (untyped) `credentialless` iframe property with a
+`use:credentialless` action instead of an attribute spread (`{...{ credentialless: true } as any}`):
+spread attributes crash components mounted in the vitest jsdom env
+(`TypeError: Cannot convert undefined or null to object` — same family as the leaf
+`$props()` rest-spread issue documented on the `src/lib/__mocks__` stubs). If the
+jsdom/spread issue is ever fixed, the action can go back to a spread (or a plain
+attribute once TS types it).
