@@ -187,10 +187,6 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
               gameObj.emit(event.data.type, event.data.to);
               break;
             }
-            case 'requestDebugInfo': {
-              gameObj.emit('requestDebugInfo');
-              break;
-            }
           }
         });
         gameObj.on('move', move => {
@@ -220,9 +216,6 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
         });
         gameObj.on('replay:info', data => {
           parent.postMessage({type: 'replay:info', data}, '*');
-        });
-        gameObj.on('debugInfo', data => {
-          parent.postMessage({type: 'debugInfo', data}, '*');
         });
 
         // Get height of document

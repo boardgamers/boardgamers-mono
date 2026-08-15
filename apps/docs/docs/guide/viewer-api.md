@@ -87,8 +87,8 @@ For example, for Gaia Project, there are two UI preferences: whether to use flat
 #### devMode
 
 On top of the game's own preferences, the platform injects a `devMode: true` key when the user has developer
-settings enabled on their device (the same toggle that shows the "copy debug info" button). When developer settings
-are off, the key is entirely absent — check `preferences.devMode === true`.
+settings enabled on their device. When developer settings are off, the key is entirely absent — check
+`preferences.devMode === true`.
 
 ### player
 
@@ -164,23 +164,6 @@ The viewer must apply the theme live, **without reloading the iframe** — never
 theme, a `src` change reloads it and loses the game state.
 
 See [Dark mode](#dark-mode).
-
-### requestDebugInfo
-
-```ts
-emitter.on("requestDebugInfo", () => {
-	// Answer by emitting debugInfo (see the Uplink section)
-});
-```
-
-Sent when the user clicks the site's "copy debug info" floating action button on the game page (only shown when
-developer settings are enabled). The viewer should answer by emitting [debugInfo](#debuginfo).
-
-Answering is **optional**: if the viewer doesn't implement the protocol, the FAB simply tells the user that this
-game's viewer doesn't support copying debug info.
-
-Developer settings are also surfaced to the viewer as a transient [`devMode`](#devmode) key on the preferences
-payload, so viewers can expose interactive debug UI of their own, not just answer snapshot requests.
 
 ## Uplink
 
@@ -272,25 +255,6 @@ When you want to edit preferences within the game itself and not BGS' sidebar
 
 ```ts
 emitter.emit('update:preference', data: {name: string, value: string | boolean | null})
-```
-
-### debugInfo
-
-```ts
-emitter.emit("debugInfo", data);
-```
-
-Answer to a [requestDebugInfo](#requestdebuginfo) event. `data` is the debug snapshot the site copies to the user's
-clipboard — **the payload shape is entirely up to the viewer** (typically the game state as the viewer sees it, the
-log, the viewer's version, ...), as long as it is JSON-serializable. Since viewers only ever hold the state the site
-already sends them, there is no hidden-information concern.
-
-A minimal implementation:
-
-```ts
-emitter.on("requestDebugInfo", () => {
-	emitter.emit("debugInfo", { state: currentState, log: currentLog, viewerVersion: "1.2.3" });
-});
 ```
 
 ## Dark mode

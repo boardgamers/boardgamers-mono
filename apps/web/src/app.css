@@ -323,12 +323,6 @@
 	transition: all 0.3s ease;
 }
 
-/* Debug-info FAB: bottom-left, mirroring the right-side FABs. */
-.sidebar-fab.debug-button {
-	right: auto;
-	left: var(--fab-right);
-}
-
 .sidebar-fab.chat-button.sidebar-open {
 	right: calc(var(--fab-right) + var(--sidebar-width));
 }

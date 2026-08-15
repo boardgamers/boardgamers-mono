@@ -1,4 +1,3 @@
-export { default as DebugInfoButton } from "./DebugInfoButton.svelte";
 export { default as GameList } from "./GameList.svelte";
 export * from "./GameSidebar";
 export { default as GameSidebar } from "./GameSidebar.svelte";

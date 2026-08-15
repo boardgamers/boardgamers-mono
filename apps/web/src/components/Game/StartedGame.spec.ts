@@ -1,8 +1,3 @@
-// Protocol test for the viewer↔game debug-info relay: an emitter `requestDebugInfo`
-// (from the DebugInfoButton FAB) must be forwarded to the game iframe, and a
-// `debugInfo` window message from the viewer must be routed back onto the
-// game-context emitter for the waiting FAB. The parent never assembles a payload
-// itself — the viewer owns it.
 import { flushSync, mount, unmount } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -34,7 +29,6 @@ vi.hoisted(() => {
 });
 
 import EventEmitter from "eventemitter3";
-import { DEBUG_INFO_MESSAGE, DEBUG_INFO_REQUEST } from "@/lib/debug-info";
 import { developerSettings } from "@/lib/stores.svelte";
 import type { GameContext } from "@/routes/game/[gameId]/game-context";
 import StartedGame from "./StartedGame.svelte";
@@ -62,52 +56,6 @@ function makeContext(emitter: EventEmitter): GameContext {
 		log: ["p1 builds a mine"],
 	} as unknown as GameContext;
 }
-
-describe("StartedGame debug-info relay", () => {
-	let emitter: EventEmitter;
-	let target: HTMLDivElement;
-	let instance: Record<string, unknown> | undefined;
-	let postMessage: ReturnType<typeof vi.fn>;
-
-	beforeEach(() => {
-		emitter = new EventEmitter();
-		target = document.createElement("div");
-		document.body.appendChild(target);
-		instance = mount(StartedGame as never, {
-			target,
-			props: {},
-			context: new Map([["game", makeContext(emitter)]]),
-		}) as Record<string, unknown>;
-		flushSync();
-		postMessage = vi.fn();
-		const iframe = target.querySelector("iframe")!;
-		Object.defineProperty(iframe, "contentWindow", { value: { postMessage }, configurable: true });
-	});
-
-	afterEach(() => {
-		if (instance) {
-			unmount(instance as never);
-			instance = undefined;
-		}
-		target.remove();
-	});
-
-	it("forwards an emitter `requestDebugInfo` (FAB click) to the game iframe", () => {
-		emitter.emit(DEBUG_INFO_REQUEST);
-		expect(postMessage).toHaveBeenCalledWith({ type: DEBUG_INFO_REQUEST }, "*");
-	});
-
-	it("routes a viewer `debugInfo` window message to the emitter, payload untouched", async () => {
-		const received = new Promise<unknown>((resolve) => emitter.once(DEBUG_INFO_MESSAGE, resolve));
-		const payload = { whatever: "the viewer wants", nested: { list: [1, 2] } };
-
-		window.dispatchEvent(new window.MessageEvent("message", { data: { type: DEBUG_INFO_MESSAGE, data: payload } }));
-
-		await expect(received).resolves.toEqual(payload);
-		// The parent must not post any payload of its own back to the viewer.
-		expect(postMessage.mock.calls.filter(([msg]) => msg?.type === DEBUG_INFO_MESSAGE)).toHaveLength(0);
-	});
-});
 
 // The device-local developer-settings flag rides along on the preferences message as a
 // transient `devMode: true` — never persisted, and absent (not false) when settings are off.

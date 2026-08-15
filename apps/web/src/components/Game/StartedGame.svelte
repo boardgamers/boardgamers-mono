@@ -16,7 +16,6 @@
 	import { isDarkMode } from "@/lib/theme";
 	import { account as user } from "@/lib/account.svelte";
 	import { devGameSettings, developerSettings, lastGameUpdate } from "@/lib/stores.svelte";
-	import { DEBUG_INFO_MESSAGE, DEBUG_INFO_REQUEST } from "@/lib/debug-info";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
@@ -206,13 +205,6 @@
 		}
 	}
 
-	// The "copy debug info" FAB asks for a snapshot over the emitter; relay the request
-	// to the viewer, which owns the debug payload. Its `debugInfo` answer is routed back
-	// to the emitter in handleGameMessage.
-	emitter.on(DEBUG_INFO_REQUEST, () => {
-		gameIframe?.contentWindow?.postMessage({ type: DEBUG_INFO_REQUEST }, "*");
-	});
-
 	emitter.on("replay:start", () => {
 		gameIframe?.contentWindow?.postMessage({ type: "replay:start" }, "*");
 	});
@@ -227,7 +219,6 @@
 	});
 
 	onDestroy(() => {
-		emitter.off(DEBUG_INFO_REQUEST);
 		emitter.off("replay:start");
 		emitter.off("replay:to");
 		emitter.off("replay:end");
@@ -283,9 +274,6 @@
 				context.log = event.data.data;
 			} else if (event.data.type === "replay:info") {
 				context.replayData = event.data.data;
-			} else if (event.data.type === DEBUG_INFO_MESSAGE) {
-				// The viewer's answer to a debug-info request — route it to the waiting FAB.
-				emitter.emit(DEBUG_INFO_MESSAGE, event.data.data);
 			} else if (event.data.type === "updatePreference") {
 				if (context.game) {
 					updatePreference(
