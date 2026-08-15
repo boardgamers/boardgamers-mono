@@ -165,9 +165,10 @@ describe("GameList boardgameId navigation pagination", () => {
 		await settle(target, ["pg-10", "pg-11"], "12");
 
 		const gaiaCalls = () =>
-			getMock.mock.calls.filter(
-				([url, params]) => (params as Record<string, unknown>).boardgame === "gaia-project",
-			) as [string, Record<string, unknown>][];
+			getMock.mock.calls.filter(([, params]) => (params as Record<string, unknown>).boardgame === "gaia-project") as [
+				string,
+				Record<string, unknown>,
+			][];
 
 		const before = getMock.mock.calls.length;
 		harBoardgameId.set("gaia-project");

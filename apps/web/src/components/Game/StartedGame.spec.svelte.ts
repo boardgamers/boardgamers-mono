@@ -1,7 +1,6 @@
-// Regression test for the #290 recursion: the ws push following the viewer's own
-// move, and the viewer's echo `fetchState`, must not make the host refetch or re-post
-// `state` — while a real status transition (cancel/end) must refresh `context.game`
-// live. Mounts the real StartedGame in jsdom with a fake game context.
+// Live-update invariants (see #290/#292): refetch exactly when a push is strictly
+// newer than our copy, adopt then ping the viewer, and only post `state` on request.
+// Mounts the real StartedGame in jsdom with a fake game context.
 import { flushSync, mount, unmount } from "svelte";
 import type { Writable } from "svelte/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -137,51 +136,78 @@ describe("StartedGame live updates", () => {
 		return { context, target, instance };
 	}
 
-	it("does not loop when the ws push follows the viewer's own move", async () => {
+	it("ignores a push that only echoes what we already hold (own move, page-load echo)", async () => {
 		const t0 = new Date("2026-08-14T00:00:00Z");
 		const t1 = new Date("2026-08-14T00:01:00Z");
 		const { context, instance } = mountGame(makeGame(t0));
 
-		// Viewer is up and has the initial state.
 		await receiveFromViewer("gameReady");
 		expect(posted.some((m) => m.type === "state")).toBe(true);
+		posted = [];
 
-		// The viewer plays a move: the host posts it and stores the fresh state locally.
-		postMock.mockResolvedValue({ game: makeGame(t1), log: { start: 0, data: [] } } as never);
+		// The ws layer re-sends the current updatedAt on subscribe: equal ⇒ no-op.
+		lastGameUpdateStore.set(t0);
+		await flushMicrotasks();
+		expect(posted).toEqual([]);
+		expect(getMock).not.toHaveBeenCalled();
+
+		// The viewer plays a move: the response carries the *stored* updatedAt (and no
+		// `data` — the route omits it), so the ws echo of the move compares equal.
+		postMock.mockResolvedValue({ game: makeGame(t1, { data: undefined }), log: { start: 0, data: [] } } as never);
 		await receiveFromViewer("gameMove", { move: "move pass" });
 		expect(posted.some((m) => m.type === "gameLog")).toBe(true);
 		expect(new Date((context.game as { updatedAt: string }).updatedAt).getTime()).toBe(t1.getTime());
-
-		// Let effects triggered by the `context.game` assignment settle before the reset.
 		await flushMicrotasks();
 		posted = [];
 		getMock.mockClear();
 
 		lastGameUpdateStore.set(t1);
 		await flushMicrotasks();
-		expect(posted.some((m) => m.type === "state:updated")).toBe(true);
-		// …but the host must NOT refetch nor re-post `state`: the push carries exactly
-		// the timestamp we already hold (the iframe made the move and has the state).
-		expect(posted.some((m) => m.type === "state")).toBe(false);
+		// No ping, no refetch, no `state` post: the iframe made the move and has the state.
+		expect(posted).toEqual([]);
 		expect(getMock).not.toHaveBeenCalled();
 
-		// The refetch (if any) settled without touching context.game…
-		expect(new Date((context.game as { updatedAt: string }).updatedAt).getTime()).toBe(t1.getTime());
+		unmount(instance as never);
+	});
 
-		// Cycle breaker: the viewer asks for the state it already owns (it made the
-		// move); re-serving it fed the recursion.
+	it("refetches once on a strictly-newer push, adopts the fresh game, then pings the viewer", async () => {
+		const t0 = new Date("2026-08-14T00:00:00Z");
+		const t1 = new Date("2026-08-14T00:05:00Z");
+		const { context, instance } = mountGame(makeGame(t0));
+
+		await receiveFromViewer("gameReady");
+		await flushMicrotasks();
+		posted = [];
+		getMock.mockClear();
+
+		// Another player's move lands.
+		getMock.mockResolvedValue(makeGame(t1, { data: { round: 2 } }) as never);
+		lastGameUpdateStore.set(t1);
+		await flushMicrotasks();
+
+		// Exactly one refetch (adopting the fresh doc must not re-trigger the watcher),
+		// the app-level game advances, and the viewer only gets the cheap ping — never
+		// an unprompted `state` post. (Adoption may also re-post player/avatar info.)
+		expect(getMock).toHaveBeenCalledTimes(1);
+		expect(getMock).toHaveBeenCalledWith(`/gameplay/g1`);
+		expect(new Date((context.game as { updatedAt: string }).updatedAt).getTime()).toBe(t1.getTime());
+		expect(posted.filter((m) => m.type === "state:updated")).toHaveLength(1);
+		expect(posted.some((m) => m.type === "state")).toBe(false);
+
+		// The viewer answers the ping with fetchState: served from the already-fresh
+		// context.game, without another round-trip.
 		getMock.mockClear();
 		await receiveFromViewer("fetchState");
 		expect(getMock).not.toHaveBeenCalled();
-		expect(posted.some((m) => m.type === "state")).toBe(false);
+		const statePost = posted.find((m) => m.type === "state");
+		expect(statePost?.state).toEqual({ round: 2 });
 
 		unmount(instance as never);
 	});
 
 	it("propagates a cancel/end to the app-level game live (sidebar, og:title)", async () => {
 		const t0 = new Date("2026-08-14T00:00:00Z");
-		const t1 = new Date("2026-08-14T00:05:00Z");
-		const t2 = new Date("2026-08-14T00:06:00Z");
+		const t1 = new Date("2026-08-14T00:06:00Z");
 		const { context, instance } = mountGame(makeGame(t0));
 
 		await receiveFromViewer("gameReady");
@@ -189,50 +215,41 @@ describe("StartedGame live updates", () => {
 		posted = [];
 		getMock.mockClear();
 
-		// Another player's move lands: the push is strictly newer than our state, so the
-		// host refetches — no status change, so context.game stays put (no clobber).
-		getMock.mockResolvedValue(makeGame(t1) as never);
+		// All cancel votes landed: the push carries the cancel's updatedAt.
+		getMock.mockResolvedValue(makeGame(t1, { cancelled: true, status: "ended" }) as never);
 		lastGameUpdateStore.set(t1);
 		await flushMicrotasks();
-		expect(getMock).toHaveBeenCalledWith(`/gameplay/g1`);
-		expect(new Date((context.game as { updatedAt: string }).updatedAt).getTime()).toBe(t0.getTime());
 
-		// The game then gets cancelled (all votes landed): the next push carries its
-		// updatedAt, and the refetch sees the status/cancelled transition.
-		getMock.mockClear();
-		getMock.mockResolvedValue(makeGame(t2, { cancelled: true }) as never);
-		lastGameUpdateStore.set(t2);
-		await flushMicrotasks();
-
-		expect(getMock).toHaveBeenCalledWith(`/gameplay/g1`);
 		expect((context.game as { cancelled?: boolean }).cancelled).toBe(true);
-		// The iframe only gets the cheap `state:updated` ping — never a `state` post,
-		// so there is nothing for the viewer to answer with `fetchState`.
 		expect(posted.some((m) => m.type === "state:updated")).toBe(true);
 		expect(posted.some((m) => m.type === "state")).toBe(false);
 
 		unmount(instance as never);
 	});
 
-	it("keeps serving fetchState for genuinely external updates", async () => {
+	it("refetches before serving fetchState when our copy has no data (own move stripped it)", async () => {
 		const t0 = new Date("2026-08-14T00:00:00Z");
 		const t1 = new Date("2026-08-14T00:02:00Z");
 		const { instance } = mountGame(makeGame(t0));
 
 		await receiveFromViewer("gameReady");
+		postMock.mockResolvedValue({ game: makeGame(t1, { data: undefined }), log: { start: 0, data: [] } } as never);
+		await receiveFromViewer("gameMove", { move: "move pass" });
+		await flushMicrotasks();
 		posted = [];
+		getMock.mockClear();
 
-		// No self-move happened, so a fetchState means the iframe is behind (external
-		// move, remount): serve the fresh state as before.
-		getMock.mockResolvedValue(makeGame(t1) as never);
+		// e.g. a replay:end resync right after our own move.
+		getMock.mockResolvedValue(makeGame(t1, { data: { round: 3 } }) as never);
 		await receiveFromViewer("fetchState");
 		expect(getMock).toHaveBeenCalledWith(`/gameplay/g1`);
-		expect(posted.some((m) => m.type === "state")).toBe(true);
+		const statePost = posted.find((m) => m.type === "state");
+		expect(statePost?.state).toEqual({ round: 3 });
 
 		unmount(instance as never);
 	});
 
-	it("does not refetch or clobber the iframe state during a live replay", async () => {
+	it("keeps the app-level game fresh during a replay without posting state to the iframe", async () => {
 		const t0 = new Date("2026-08-14T00:00:00Z");
 		const t1 = new Date("2026-08-14T00:03:00Z");
 		const { context, instance } = mountGame(makeGame(t0));
@@ -248,8 +265,10 @@ describe("StartedGame live updates", () => {
 		lastGameUpdateStore.set(t1);
 		await flushMicrotasks();
 
-		expect(getMock).not.toHaveBeenCalled();
-		expect((context.game as { cancelled?: boolean }).cancelled).toBe(false);
+		// The refetch only touches context.game — nothing is posted that could clobber
+		// the replay (the viewer ignores `state:updated` pings while replaying).
+		expect((context.game as { cancelled?: boolean }).cancelled).toBe(true);
+		expect(posted.some((m) => m.type === "state")).toBe(false);
 
 		unmount(instance as never);
 	});

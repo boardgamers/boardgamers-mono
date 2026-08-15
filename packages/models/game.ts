@@ -112,8 +112,8 @@ export const gameSchema = z.object({
 		})
 		.nullable()
 		.optional(),
-	createdAt: zDate().optional(),
-	updatedAt: zDate().optional(),
+	createdAt: zDate(),
+	updatedAt: zDate(),
 });
 
 export type GameDoc = z.output<typeof gameSchema>;

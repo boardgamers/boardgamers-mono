@@ -148,38 +148,27 @@
 		}
 	});
 
-	// ws push carries lastUpdate === updatedAt (apps/api/app/ws.ts): ping on >=, refetch only on strictly-newer >.
+	// Pushes and our copy both carry the stored `updatedAt`, so strictly newer ⇔ we're
+	// stale: refetch the app-level game, then ping the viewer. Strict `>` and `untrack`
+	// both keep this from re-triggering itself (the #290 recursion).
 	const onGameUpdated = createWatcher(() => {
-		if (!context.game || $lastGameUpdate < new Date(context.game.updatedAt!)) {
+		const game = untrack(() => context.game);
+		if (!game || $lastGameUpdate <= new Date(game.updatedAt)) {
 			return;
 		}
-		postUpdatePresent();
-
-		if (
-			gameId &&
-			$lastGameUpdate > new Date(context.game.updatedAt!) &&
-			context.game.status !== "ended" &&
-			!context.game.cancelled &&
-			!context.replayData
-		) {
-			refetchOnTransition(context.game);
-		}
+		refreshGame(game._id);
 	});
 
-	// Keep the app-level game (sidebar vote-cancel, "Game ended!", og:title) in sync on a
-	// status/lobby transition. Never post `state` to the iframe here: it makes the viewer
-	// ask for the state right back, which is the recursion loop.
-	async function refetchOnTransition(prev: GameFront) {
-		const g = await loadGame(prev._id).catch(handleError);
-		if (g && g._id === context.game?._id && statusTransitioned(prev, g)) {
+	async function refreshGame(id: string) {
+		const g = await loadGame(id).catch(handleError);
+		if (!g || g._id !== context.game?._id) {
+			return;
+		}
+		if (!(g.updatedAt < context.game.updatedAt)) {
+			// App-level only; nothing is posted to the iframe, so a live replay isn't clobbered.
 			context.game = g;
 		}
-	}
-
-	function statusTransitioned(a: GameFront, b: GameFront): boolean {
-		return (
-			a.status !== b.status || Boolean(a.cancelled) !== Boolean(b.cancelled) || Boolean(a.ready) !== Boolean(b.ready)
-		);
+		postUpdatePresent();
 	}
 
 	$effect(() => {
@@ -267,17 +256,18 @@
 			} else if (event.data.type === "displayReady") {
 				stateSent = true;
 			} else if (event.data.type === "fetchState") {
-				// The iframe made the move that produced `selfUpdate`'s state, so it already
-				// has it — re-serving it feeds the recursion.
-				if (selfUpdate === context.game?.updatedAt) {
-					return;
-				}
-				await loadGame(context.game?._id ?? "").then((g) => {
-					if (g._id === context.game?._id) {
-						context.game = g;
-						postGamedata();
+				// Serve from `context.game` (the watcher keeps it fresh) — except right after
+				// our own move, whose response omits `data`: refetch first then.
+				if (context.game && context.game.data === undefined) {
+					const g = await loadGame(context.game._id);
+					if (g._id !== context.game._id) {
+						return;
 					}
-				});
+					if (!(g.updatedAt < context.game.updatedAt)) {
+						context.game = g;
+					}
+				}
+				postGamedata();
 			} else if (event.data.type === "fetchLog") {
 				const logData = await get<LogObject>(`/gameplay/${context.game?._id}/log`, { params: event.data.data }).then(
 					(r) => r.data
@@ -307,17 +297,14 @@
 		}
 	}
 
-	// `updatedAt` of the state the iframe owns through this tab's own move response (see addMove).
-	let selfUpdate: GameFront["updatedAt"] | undefined;
-
 	async function addMove(move: string) {
 		const { game: newGame, log } = await post<{ game: GameFront; log: LogObject }>(`/gameplay/${gameId}/move`, {
 			move,
 		});
 
-		if (newGame._id === gameId && !(newGame.updatedAt! < context.game?.updatedAt!)) {
+		// Guard against a slow move response racing a fresher refetch.
+		if (newGame._id === gameId && (!context.game || !(newGame.updatedAt < context.game.updatedAt))) {
 			context.game = newGame;
-			selfUpdate = newGame.updatedAt;
 			postGameLog(log);
 		}
 	}
