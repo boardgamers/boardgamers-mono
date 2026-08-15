@@ -20,6 +20,7 @@ import { get } from "svelte/store";
 import { browser } from "$app/environment";
 import { DEBUG_INFO_MESSAGE, DEBUG_INFO_REQUEST, type GameDebugInfo } from "@/lib/debug-info";
 import { toasts } from "@/lib/notifications.svelte";
+import { developerSettings } from "@/lib/stores.svelte";
 import type { GameContext } from "@/routes/game/[gameId]/game-context";
 import DebugInfoButton from "./DebugInfoButton.svelte";
 
@@ -61,6 +62,9 @@ describe("DebugInfoButton", () => {
 		vi.useRealTimers();
 		emitter = new EventEmitter();
 		toasts.set([]);
+		// The FAB is gated on developer settings (the snapshot embeds the full game
+		// state, a cheat vector in hidden-information games) — off by default.
+		developerSettings.set(false);
 		writeText.mockReset().mockResolvedValue(undefined);
 		vi.stubGlobal("navigator", { clipboard: { writeText } });
 		target = document.createElement("div");
@@ -88,7 +92,22 @@ describe("DebugInfoButton", () => {
 		flushSync();
 	}
 
+	it("only renders when developer settings are enabled", () => {
+		expect(target.querySelector("button")).toBeNull();
+
+		developerSettings.set(true);
+		flushSync();
+		expect(target.querySelector("button")).not.toBeNull();
+
+		developerSettings.set(false);
+		flushSync();
+		expect(target.querySelector("button")).toBeNull();
+	});
+
 	it("requests debug info over the emitter and copies the answer to the clipboard", async () => {
+		developerSettings.set(true);
+		flushSync();
+
 		const requested = new Promise<void>((resolve) => {
 			emitter.on(DEBUG_INFO_REQUEST, () => {
 				resolve();
@@ -112,6 +131,8 @@ describe("DebugInfoButton", () => {
 	});
 
 	it("shows an error toast when the clipboard write is rejected", async () => {
+		developerSettings.set(true);
+		flushSync();
 		writeText.mockRejectedValue(new Error("clipboard permission denied"));
 		emitter.on(DEBUG_INFO_REQUEST, () => emitter.emit(DEBUG_INFO_MESSAGE, DEBUG_INFO));
 
@@ -125,6 +146,8 @@ describe("DebugInfoButton", () => {
 	});
 
 	it("shows an error toast when no debug info answer comes back", async () => {
+		developerSettings.set(true);
+		flushSync();
 		vi.useFakeTimers();
 		click();
 		await vi.advanceTimersByTimeAsync(5000);

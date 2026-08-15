@@ -159,6 +159,25 @@ theme, a `src` change reloads it and loses the game state.
 
 See [Dark mode](#dark-mode).
 
+### debugInfo
+
+```ts
+window.addEventListener("message", (event) => {
+	if (event.data.type === "debugInfo") {
+		// event.data.data is the debug snapshot
+	}
+});
+```
+
+Receive a JSON-serializable debug snapshot of the current game: `{ type: "debugInfo", data }`, sent in answer to a
+[requestDebugInfo](#requestdebuginfo) message. `data` contains the game id/name/version/status, the full game state
+(`game.data`), the current log, replay data if any, the viewer's player index, the active UI preferences, the viewer
+URL, the site's release id and a `capturedAt` timestamp.
+
+This powers the site's "copy debug info" floating action button on the game page (only shown when developer settings
+are enabled — the snapshot embeds the full game state, including hidden information). Viewers can use it to offer
+their own "copy debug info" affordance.
+
 ## Uplink
 
 This is all the info that your viewer gives to the app.
@@ -250,6 +269,16 @@ When you want to edit preferences within the game itself and not BGS' sidebar
 ```ts
 emitter.emit('update:preference', data: {name: string, value: string | boolean | null})
 ```
+
+### requestDebugInfo
+
+```ts
+window.parent.postMessage({ type: "requestDebugInfo" }, "*");
+```
+
+Requests a debug snapshot of the current game. The application answers with a [debugInfo](#debuginfo) message.
+
+This is a raw `postMessage` to the site (like [theme](#theme) in the other direction), not an emitter event.
 
 ## Dark mode
 

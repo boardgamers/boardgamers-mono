@@ -4,6 +4,7 @@
 	import IconBug from "@/components/icons/IconBug.svelte";
 	import { DEBUG_INFO_MESSAGE, DEBUG_INFO_REQUEST, type GameDebugInfo } from "@/lib/debug-info";
 	import { notifier } from "@/lib/notifications.svelte";
+	import { developerSettings } from "@/lib/stores.svelte";
 	import { handleError } from "@/utils";
 	import type { GameContext } from "@/routes/game/[gameId]/game-context";
 
@@ -57,13 +58,17 @@
 	}
 </script>
 
-<Button
-	color="secondary"
-	onclick={copyDebugInfo}
-	disabled={pending}
-	class="!rounded-full sidebar-fab debug-button"
-	title="Copy debug info"
-	aria-label="Copy debug info"
->
-	<IconBug size="1.5rem" />
-</Button>
+<!-- The snapshot embeds the full game state, which leaks hidden information in
+     hidden-information games — only offer it with developer settings enabled. -->
+{#if $developerSettings}
+	<Button
+		color="secondary"
+		onclick={copyDebugInfo}
+		disabled={pending}
+		class="!rounded-full sidebar-fab debug-button"
+		title="Copy debug info"
+		aria-label="Copy debug info"
+	>
+		<IconBug size="1.5rem" />
+	</Button>
+{/if}
