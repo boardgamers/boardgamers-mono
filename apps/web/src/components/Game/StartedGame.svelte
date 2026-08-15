@@ -264,9 +264,7 @@
 				}
 				postGamedata();
 			} else if (event.data.type === "fetchLog") {
-				const logData = await get<LogObject>(`/gameplay/${context.game?._id}/log`, { params: event.data.data }).then(
-					(r) => r.data
-				);
+				const logData = await get<LogObject>(`/gameplay/${context.game?._id}/log`, event.data.data).then((r) => r.data);
 				postGameLog(logData);
 			} else if (event.data.type === "addLog") {
 				context.log = [...context.log, ...event.data.data];
