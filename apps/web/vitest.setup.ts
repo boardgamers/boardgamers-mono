@@ -20,3 +20,19 @@ vi.stubGlobal("window", dom.window);
 vi.stubGlobal("document", dom.window.document);
 vi.stubGlobal("localStorage", dom.window.localStorage);
 vi.stubGlobal("navigator", dom.window.navigator);
+
+// jsdom doesn't implement matchMedia, but modules like `lib/theme.ts` call it at
+// module scope when the browser branch is active (SANITIZE_TEST_BROWSER=1). Stub it
+// on the jsdom window here — a stub inside a spec file would land after that spec's
+// ESM imports hoist.
+if (!dom.window.matchMedia) {
+	dom.window.matchMedia = ((query: string) => ({
+		matches: false,
+		media: query,
+		addEventListener() {},
+		removeEventListener() {},
+		addListener() {},
+		removeListener() {},
+		dispatchEvent: () => false,
+	})) as typeof window.matchMedia;
+}

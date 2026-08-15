@@ -424,7 +424,16 @@ export async function afterMove(
 		};
 	}
 
-	await colls.games.replaceOne({ _id: game._id }, game);
+	// withAutoUpdatedAt stamps a *copy*, so read the stored `updatedAt` back: the move
+	// route returns `game` to the client, which compares it against ws pushes — a stale
+	// stamp makes the client's own echo look like an external update.
+	const stored = await colls.games.findOneAndReplace({ _id: game._id }, game, {
+		returnDocument: "after",
+		projection: { updatedAt: 1 },
+	});
+	if (stored?.updatedAt) {
+		game.updatedAt = stored.updatedAt;
+	}
 
 	const amNow = new Date();
 	for (const player of game.currentPlayers ?? []) {

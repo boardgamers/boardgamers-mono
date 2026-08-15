@@ -22,7 +22,8 @@ export default defineConfig({
 		},
 	},
 	test: {
-		include: ["src/**/*.spec.ts"],
+		// `*.spec.svelte.ts` is a spec that needs runes (`$state` fixtures); both are TS.
+		include: ["src/**/*.spec.ts", "src/**/*.spec.svelte.ts"],
 		setupFiles: ["./vitest.setup.ts"],
 		environment: "jsdom",
 	},

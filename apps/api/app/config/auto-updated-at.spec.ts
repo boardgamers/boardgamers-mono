@@ -12,6 +12,8 @@ describe("withAutoUpdatedAt", () => {
 		const player = testPlayer({ _id: new ObjectId() });
 		const game = testGame({ _id: gameId, game: { name: "test", version: 1 }, players: [player] });
 		game.updatedAt = old;
+		// The createdAt tests below assert on a doc that lacks it.
+		Reflect.deleteProperty(game, "createdAt");
 		await colls.games.insertOne(game);
 	});
 

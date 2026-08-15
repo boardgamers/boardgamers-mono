@@ -25,7 +25,7 @@
 	import SetupOptionBadge from "./SetupOptionBadge.svelte";
 	import IconArrowDown from "@/components/icons/IconArrowDown.svelte";
 	import IconArrowUp from "@/components/icons/IconArrowUp.svelte";
-	import { getContext } from "svelte";
+	import { getContext, untrack } from "svelte";
 	import type { GameContext } from "@/routes/game/[gameId]/game-context";
 	import { playerOrderText } from "@/data/playerOrders";
 	import { account as user } from "@/lib/account.svelte";
@@ -172,10 +172,13 @@
 	});
 
 	const updateGameWatcher = createWatcher(async () => {
-		if (context.game && gameId && $lastGameUpdate > new Date(context.game.updatedAt ?? 0)) {
-			const [g, p] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
+		// Strictly newer push ⇔ we're stale. Strict `>` and `untrack` both keep the
+		// refetch from re-triggering this effect.
+		const game = untrack(() => context.game);
+		if (game && $lastGameUpdate > new Date(game.updatedAt)) {
+			const [g, p] = await Promise.all([loadGame(game._id), loadGamePlayers(game._id)]);
 
-			if (context.game && gameId === g._id) {
+			if (g._id === context.game?._id) {
 				context.game = g;
 				context.players = p;
 			}

@@ -149,11 +149,28 @@
 		}
 	});
 
+	// Pushes and our copy both carry the stored `updatedAt`, so strictly newer ⇔ we're
+	// stale: refetch the app-level game, then ping the viewer. Strict `>` and `untrack`
+	// both keep this from re-triggering itself (the #290 recursion).
 	const onGameUpdated = createWatcher(() => {
-		if (context.game && $lastGameUpdate > new Date(context.game.updatedAt!)) {
-			postUpdatePresent();
+		const game = untrack(() => context.game);
+		if (!game || $lastGameUpdate <= new Date(game.updatedAt)) {
+			return;
 		}
+		refreshGame(game._id);
 	});
+
+	async function refreshGame(id: string) {
+		const g = await loadGame(id).catch(handleError);
+		if (!g || g._id !== context.game?._id) {
+			return;
+		}
+		if (!(g.updatedAt < context.game.updatedAt)) {
+			// App-level only; nothing is posted to the iframe, so a live replay isn't clobbered.
+			context.game = g;
+		}
+		postUpdatePresent();
+	}
 
 	$effect(() => {
 		$lastGameUpdate;
@@ -243,12 +260,18 @@
 			} else if (event.data.type === "displayReady") {
 				stateSent = true;
 			} else if (event.data.type === "fetchState") {
-				await loadGame(context.game?._id ?? "").then((g) => {
-					if (g._id === context.game?._id) {
-						context.game = g;
-						postGamedata();
+				// Serve from `context.game` (the watcher keeps it fresh) — except right after
+				// our own move, whose response omits `data`: refetch first then.
+				if (context.game && context.game.data === undefined) {
+					const g = await loadGame(context.game._id);
+					if (g._id !== context.game._id) {
+						return;
 					}
-				});
+					if (!(g.updatedAt < context.game.updatedAt)) {
+						context.game = g;
+					}
+				}
+				postGamedata();
 			} else if (event.data.type === "fetchLog") {
 				const logData = await get<LogObject>(`/gameplay/${context.game?._id}/log`, { params: event.data.data }).then(
 					(r) => r.data
@@ -283,15 +306,14 @@
 			move,
 		});
 
-		if (newGame._id === gameId && !(newGame.updatedAt! < context.game?.updatedAt!)) {
+		// Guard against a slow move response racing a fresher refetch.
+		if (newGame._id === gameId && (!context.game || !(newGame.updatedAt < context.game.updatedAt))) {
 			context.game = newGame;
 			postGameLog(log);
 		}
 	}
 
-	// `credentialless` has no TS/HTML attribute type yet, and an attribute spread
-	// (`{...{ credentialless: true }}`) crashes components mounted in the vitest jsdom
-	// env — an action sidesteps both.
+	// See WORKAROUNDS.md for why an action instead of an attribute/spread.
 	function credentialless(node: HTMLIFrameElement) {
 		(node as any).credentialless = true;
 	}

@@ -73,6 +73,8 @@ export function testGame(
 		ready: false,
 		cancelled: false,
 		data: null,
+		createdAt: new Date(),
+		updatedAt: new Date(),
 		context: { round: 0 },
 		options: {
 			setup: { seed: "test", nbPlayers: 2, playerOrder: "random" },
