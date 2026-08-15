@@ -144,8 +144,9 @@ const archInfo = (version: number) => ({
 
 // meta.archived marks a retired version: skipped by the game-server installer
 // and never the latest public pick, but its viewer keeps being served. It is
-// only toggled by the archive/unarchive actions (blocked while the version is
-// the latest public one or has ongoing games) — never by a loose-record save.
+// only toggled by the archive/unarchive actions (hard-blocked while the version
+// is the latest public one; ongoing games need a force override) — never by a
+// loose-record save.
 describe("Admin gameinfo API — archive/unarchive", () => {
 	let headers: Record<string, string>;
 
@@ -155,11 +156,11 @@ describe("Admin gameinfo API — archive/unarchive", () => {
 
 	after(() => db().dropDatabase());
 
-	async function post(action: string, version: number) {
+	async function post(action: string, version: number, body: Record<string, unknown> = {}) {
 		const res = await fetch(`${baseURL()}/api/admin/gameinfo/archgame/${version}/${action}`, {
 			method: "POST",
 			headers,
-			body: "{}",
+			body: JSON.stringify(body),
 		});
 		return { status: res.status, body: await res.text() };
 	}
@@ -184,12 +185,26 @@ describe("Admin gameinfo API — archive/unarchive", () => {
 		assert.match(res.body, /latest public version/);
 	});
 
-	it("rejects archiving a version with ongoing games with 409", async () => {
+	it("soft-blocks archiving a version with ongoing games unless forced", async () => {
 		await colls.games.insertOne(testGame({ _id: "arch-ongoing", game: { name: "archgame", version: 1 } }));
 
+		// No force: 409 with a structured body naming the ongoing-games count.
 		const res = await post("archive", 1);
 		assert.strictEqual(res.status, 409, res.body);
-		assert.match(res.body, /ongoing game/);
+		const conflict = z
+			.object({ error: z.literal("ongoing_games"), count: z.number(), message: z.string() })
+			.parse(JSON.parse(res.body));
+		assert.strictEqual(conflict.count, 1);
+		assert.match(conflict.message, /ongoing game/);
+		let doc = await colls.gameInfos.findOne({ _id: { game: "archgame", version: 1 } });
+		assert.strictEqual(doc?.meta && "archived" in doc.meta, false, "not archived without force");
+
+		// force: true archives despite the ongoing game.
+		const forced = await post("archive", 1, { force: true });
+		assert.strictEqual(forced.status, 200, forced.body);
+		doc = await colls.gameInfos.findOne({ _id: { game: "archgame", version: 1 } });
+		assert.strictEqual(doc?.meta?.archived, true);
+		await colls.gameInfos.updateOne({ _id: { game: "archgame", version: 1 } }, { $unset: { "meta.archived": true } });
 
 		// Ended games don't block archiving.
 		await colls.games.updateOne({ _id: "arch-ongoing" }, { $set: { status: "ended" } });

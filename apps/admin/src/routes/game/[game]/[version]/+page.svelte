@@ -2,7 +2,7 @@
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { untrack } from "svelte";
-	import { api } from "$lib/api.ts";
+	import { api, ApiError } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { loadGames } from "$lib/stores.svelte.ts";
 	import GameEdit, { type GameInfoData } from "$components/GameEdit.svelte";
@@ -58,19 +58,37 @@
 		}
 	}
 
-	// Preconditions (not latest public, no ongoing games) are enforced server-side;
-	// a 409 surfaces the reason in the toast.
+	// Preconditions are enforced server-side. Archiving the latest public version
+	// is a hard 409 (toast only); ongoing games are a soft 409 the admin can
+	// confirm-and-proceed past by retrying with { force: true }.
 	async function toggleArchive() {
 		const archived = !!value?.meta?.archived;
 		const action = archived ? "unarchive" : "archive";
 		if (!confirm(`${archived ? "Unarchive" : "Archive"} ${gameId} v${version}?`)) return;
 		try {
 			await api.post(`/admin/gameinfo/${gameId}/${version}/${action}`);
-			toast.success(archived ? "Unarchived" : "Archived");
-			await loadGames();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : `Failed to ${action}`);
+			// ApiError only carries message+status — the structured `error`/
+			// `count` fields of the ongoing-games 409 are recovered from the
+			// server message.
+			const ongoing = err instanceof ApiError && err.status === 409 && !archived
+				? /(\d+) ongoing game/.exec(err.message)
+				: null;
+			if (ongoing) {
+				if (!confirm(`There are still ${ongoing[1]} ongoing game(s) on this version. Archive anyway?`)) return;
+				try {
+					await api.post(`/admin/gameinfo/${gameId}/${version}/${action}`, { force: true });
+				} catch (retryErr) {
+					toast.error(retryErr instanceof Error ? retryErr.message : `Failed to ${action}`);
+					return;
+				}
+			} else {
+				toast.error(err instanceof Error ? err.message : `Failed to ${action}`);
+				return;
+			}
 		}
+		toast.success(archived ? "Unarchived" : "Archived");
+		await loadGames();
 	}
 </script>
 

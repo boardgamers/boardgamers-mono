@@ -96,11 +96,18 @@ router.get("/:game/:version", async (ctx) => {
 // previously-installed engine is pruned) and is never picked as the latest
 // public version, but its viewer keeps being served so old games stay
 // replayable. Preconditions (409): the version must not be the current latest
-// public one and must have no ongoing games — open games can be closed or moved
-// to the new version first; this action never touches them itself.
+// public one — a hard block, archiving the current version is never allowed.
+// Ongoing games are a soft block: without an override the route answers 409
+// with a structured body ({ error: "ongoing_games", count, message }) so the
+// admin UI can confirm-and-proceed; the caller acknowledges by re-POSTing with
+// { force: true }, which skips the ongoing-games check and archives anyway.
+// The action never touches the ongoing games themselves.
+const archiveBodySchema = z.object({ force: z.boolean().optional() }).nullish();
+
 router.post("/:game/:version/archive", async (ctx) => {
 	const game = ctx.params.game;
 	const version = +ctx.params.version;
+	const force = archiveBodySchema.parse(ctx.request.body)?.force === true;
 
 	const info = await colls.gameInfos.findOne({ _id: { game, version } }, { projection: { _id: 1 } });
 	if (!info) {
@@ -112,13 +119,23 @@ router.post("/:game/:version/archive", async (ctx) => {
 		throw createError(409, `Cannot archive ${game} v${version}: it is the latest public version`);
 	}
 
-	const ongoing = await colls.games.countDocuments({
-		"game.name": game,
-		"game.version": version,
-		status: { $in: ["open", "active"] },
-	});
-	if (ongoing > 0) {
-		throw createError(409, `Cannot archive ${game} v${version}: ${ongoing} ongoing game(s) on this version`);
+	if (!force) {
+		const ongoing = await colls.games.countDocuments({
+			"game.name": game,
+			"game.version": version,
+			status: { $in: ["open", "active"] },
+		});
+		if (ongoing > 0) {
+			// Not thrown through createError: the global error handler only keeps
+			// `message`, and the admin UI needs the structured error/count fields.
+			ctx.status = 409;
+			ctx.body = {
+				error: "ongoing_games",
+				count: ongoing,
+				message: `Cannot archive ${game} v${version}: ${ongoing} ongoing game(s) on this version`,
+			};
+			return;
+		}
 	}
 
 	ctx.body = await colls.gameInfos.findOneAndUpdate(
