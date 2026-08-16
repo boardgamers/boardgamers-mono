@@ -132,9 +132,9 @@ describe("cookie-CSRF guard (app.ts)", () => {
 	it("isSameSiteOrigin: subdomains of the site domain count as same-site", async () => {
 		const { isSameSiteOrigin } = await import("../app.ts");
 		const ctx = { hostname: "boardgamers.space" };
-		assert.ok(isSameSiteOrigin(ctx, "https://www.boardgamers.space"));
 		assert.ok(isSameSiteOrigin(ctx, "https://boardgamers.space"));
-		assert.ok(isSameSiteOrigin({ hostname: "www.boardgamers.space" }, "https://forum.boardgamers.space"));
+		assert.ok(isSameSiteOrigin(ctx, "https://forum.boardgamers.space"));
+		assert.ok(isSameSiteOrigin({ hostname: "www.boardgamers.space" }, "https://boardgamers.space"));
 		assert.equal(isSameSiteOrigin(ctx, "https://evil.com"), false);
 		assert.equal(isSameSiteOrigin(ctx, "https://boardgamers.space.evil.com"), false);
 		assert.equal(isSameSiteOrigin(ctx, "not-a-url"), false);
