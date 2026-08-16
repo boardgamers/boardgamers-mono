@@ -538,6 +538,14 @@
 			Version
 		</h3>
 
+		<!-- Public is version-scoped (a game can have a public v1 + a beta v2): only
+     public versions are listed and open to everyone — non-public versions stay
+     reachable for users with an access grant. -->
+		<label class="flex items-center gap-2 text-sm font-medium">
+			<input type="checkbox" bind:checked={value.public} class="rounded" /> Public
+			<span class="font-normal text-gray-400">— listed & open to everyone (per version)</span>
+		</label>
+
 		<!-- Faction Avatars -->
 		<label class="flex items-center gap-2 text-sm">
 			<input type="checkbox" bind:checked={value.factions!.avatars} class="rounded" /> Faction avatars
@@ -786,16 +794,6 @@
 						/>
 					</div>
 				</div>
-			</div>
-		</details>
-
-		<!-- Meta (version-scoped access flags) -->
-		<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
-			<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">Meta</summary>
-			<div class="px-5 pb-4 space-y-3">
-				<label class="flex items-center gap-2 text-sm">
-					<input type="checkbox" bind:checked={value.meta.public} class="rounded" /> Public
-				</label>
 			</div>
 		</details>
 

@@ -156,7 +156,8 @@ describe("bot driver", () => {
 		await colls.gameInfos.insertOne({
 			_id: { game: ENGINE_NAME, version: ENGINE_VERSION },
 			viewer: { url: "//test/bot" },
-			meta: { public: true, bots: true },
+			public: true,
+			meta: { bots: true },
 			engine: { package: { name: "@test/bot", version: "1.0.0" }, entryPoint: path.basename(entryPoint) },
 		});
 		// engines.ts resolves ../../games/node_modules/<engineKey>/<entryPoint> — place
@@ -337,7 +338,8 @@ describe("bot driver", () => {
 		await colls.gameInfos.insertOne({
 			_id: { game: "bot-test-log", version: 1 },
 			viewer: { url: "//test/bot" },
-			meta: { public: true, bots: true },
+			public: true,
+			meta: { bots: true },
 			engine: { package: { name: "@test/bot-log", version: "1.0.0" }, entryPoint: "engine.mjs" },
 		});
 		installEngine("bot-test-log", 1, "@test/bot-log", "1.0.0", path.join(dir2, "engine.mjs"));
@@ -380,7 +382,8 @@ describe("bot driver", () => {
 		await colls.gameInfos.insertOne({
 			_id: { game: "bot-test-noai", version: 1 },
 			viewer: { url: "//test/bot" },
-			meta: { public: true, bots: true },
+			public: true,
+			meta: { bots: true },
 			engine: { package: { name: "@test/bot-noai", version: "1.0.0" }, entryPoint: "engine.mjs" },
 		});
 		installEngine("bot-test-noai", 1, "@test/bot-noai", "1.0.0", path.join(noAiDir, "engine.mjs"));

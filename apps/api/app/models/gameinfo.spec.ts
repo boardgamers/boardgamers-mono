@@ -9,7 +9,8 @@ import { mergeGameInfo } from "./gameinfo.ts";
 const versionDoc: GameVersionDoc = {
 	_id: { game: "splendor", version: 2 },
 	viewer: { url: "//v2" },
-	meta: { public: true, bots: true },
+	public: true,
+	meta: { bots: true },
 };
 
 const metadataDoc: GameMetadataDoc = {
@@ -36,7 +37,8 @@ describe("mergeGameInfo (#298)", () => {
 		assert.equal(merged.likeCount, 7, "game-scoped likeCount surfaces on the merged game-info");
 		// Version-scoped fields come from the version doc.
 		assert.deepEqual(merged.viewer, { url: "//v2" });
-		assert.deepEqual(merged.meta, { public: true, bots: true });
+		assert.equal(merged.public, true);
+		assert.deepEqual(merged.meta, { bots: true });
 		assert.deepEqual(merged._id, { game: "splendor", version: 2 });
 	});
 

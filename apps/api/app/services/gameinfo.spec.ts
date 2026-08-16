@@ -24,7 +24,7 @@ describe("GameInfoService", () => {
 				["powergrid", 1],
 			]);
 
-			await colls.gameInfos.updateOne({ _id: { game: "container", version: 1 } }, { $set: { "meta.public": false } });
+			await colls.gameInfos.updateOne({ _id: { game: "container", version: 1 } }, { $set: { public: false } });
 
 			games = await latestAccessibleGames();
 
@@ -45,7 +45,7 @@ describe("GameInfoService", () => {
 				["powergrid", 1],
 			]);
 
-			await colls.gameInfos.updateOne({ _id: { game: "container", version: 1 } }, { $set: { "meta.public": false } });
+			await colls.gameInfos.updateOne({ _id: { game: "container", version: 1 } }, { $set: { public: false } });
 			await colls.gamePreferences.updateOne(
 				{ user: user._id, game: "container" },
 				{ $set: { "access.maxVersion": 1 } },

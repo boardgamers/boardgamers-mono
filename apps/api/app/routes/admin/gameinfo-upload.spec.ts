@@ -96,7 +96,8 @@ function gameInfoFixture(): GameInfoDoc {
 		viewer: { url: "//cdn.jsdelivr.net/npm/old-viewer@1/dist/viewer.js" },
 		engine: { package: { name: "registry-engine", version: "1.0.0" }, entryPoint: "dist/wrapper.js" },
 		players: [2],
-		meta: { public: true },
+		public: true,
+		meta: {},
 	};
 }
 

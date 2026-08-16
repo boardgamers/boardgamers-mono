@@ -94,14 +94,16 @@ describe("Game API", () => {
 		await colls.gameInfos.insertOne({
 			_id: { game: "test", version: 1 },
 			viewer: { url: "//test.com/test", topLevelVariable: "test" },
-			meta: { public: true },
+			public: true,
+			meta: {},
 		});
 		// Game-level fields (label/players/needOwnership) live on the metadata doc (#298).
 		await colls.gameMetadatas.insertOne({ _id: "test", label: "Test", players: [2], needOwnership: true });
 		await colls.gameInfos.insertOne({
 			_id: { game: "test3", version: 1 },
 			viewer: { url: "//test.com/test3", topLevelVariable: "test3" },
-			meta: { public: true, bots: true },
+			public: true,
+			meta: { bots: true },
 		});
 		await colls.gameMetadatas.insertOne({ _id: "test3", label: "Test 3P", players: [2, 3], needOwnership: true });
 		await colls.gamePreferences.insertOne(

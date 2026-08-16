@@ -43,7 +43,7 @@
 		players: [2, 3, 4],
 		expansions: [],
 		needOwnership: true,
-		meta: { public: false },
+		public: false,
 	});
 
 	async function save(data: GameInfoData) {

@@ -14,9 +14,8 @@
 		},
 		"expansions": [],
 		"label": " 🌏 Gaia Project",
-		"meta": {
-			"public": true
-		},
+		"public": true,
+		"meta": {},
 		"needOwnership": true,
 		"options": [
 			{
@@ -207,9 +206,8 @@
 			},
 			"entryPoint": "dist/wrapper.js"
 		},
-		"meta": {
-			"public": true
-		},
+		"public": true,
+		"meta": {},
 		"needOwnership": true,
 		"players": [3, 4, 5],
 		"description": "Container board game.",
@@ -240,9 +238,8 @@
 			"avatars": false
 		},
 		"label": "⚡️ Powergrid",
-		"meta": {
-			"public": true
-		},
+		"public": true,
+		"meta": {},
 		"needOwnership": true,
 		"options": [
 			{

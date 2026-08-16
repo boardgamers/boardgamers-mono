@@ -49,7 +49,7 @@ router.get("/info", async (ctx) => {
 		.find({
 			"meta.archived": { $ne: true },
 			$or: [
-				{ "meta.public": true },
+				{ public: true },
 				...ownGames.map((game) => ({ _id: { game: game.game, version: game.access!.maxVersion } })),
 			],
 		})

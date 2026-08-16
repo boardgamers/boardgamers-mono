@@ -13,6 +13,7 @@ import { migration as avatarsToS3 } from "./1.5.0-avatars-to-s3.ts";
 import { migration as seedChangelogs } from "./1.6.0-seed-changelogs.ts";
 import { migration as dropChangelogTitles } from "./1.7.0-drop-changelog-titles.ts";
 import { migration as gameMetadataSplit } from "./1.8.0-game-metadata-split.ts";
+import { migration as hoistPublicFlag } from "./1.9.0-hoist-public-flag.ts";
 
 export type Migration = {
 	up(): Promise<void>;
@@ -33,6 +34,7 @@ const migrationMap: Record<string, Migration> = {
 	"1.6.0": seedChangelogs,
 	"1.7.0": dropChangelogTitles,
 	"1.8.0": gameMetadataSplit,
+	"1.9.0": hoistPublicFlag,
 };
 
 export const migrations: [string, Migration][] = Object.entries(migrationMap).sort(([a], [b]) => semver.compare(a, b));
