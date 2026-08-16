@@ -1,13 +1,18 @@
-import type { HandleFetch } from "@sveltejs/kit";
-import { describe, expect, it } from "vitest";
-import { handleFetch, requestContextStorage } from "./hooks.server";
+import type { Handle, HandleFetch } from "@sveltejs/kit";
+import { describe, expect, it, vi } from "vitest";
+import { handle, handleFetch, requestContextStorage } from "./hooks.server";
+
+vi.mock("@bgs/utils/log", () => ({ logEvent: vi.fn() }));
+const { logEvent } = await import("@bgs/utils/log");
+const mockLogEvent = vi.mocked(logEvent);
 
 type Captured = { url: string; headers: Headers };
 
 // jsdom's AbortSignal doesn't satisfy node's Request constructor, so pass a
-// signal-less stub — handleFetch only reads request.url and request.headers.
+// signal-less stub — handleFetch only reads request.url and request.headers
+// (handle also reads request.method).
 function makeRequest(url: string, headers: Record<string, string> = {}) {
-	return { url, headers: new Headers(headers) } as Request;
+	return { url, method: "GET", headers: new Headers(headers) } as Request;
 }
 
 /** Minimal event stub — handleFetch only reads event.url + event.request's cookie header. */
@@ -168,5 +173,60 @@ describe("handleFetch (SSR /api proxy)", () => {
 			ctx: { requestId: "req-from-handle", clientIp: "203.0.113.9" },
 		});
 		expect(captured[0].headers.get("x-request-id")).toBe("req-from-handle");
+	});
+});
+
+describe("handle (request log line)", () => {
+	const callHandle = async (headers: Record<string, string>, status = 200) => {
+		mockLogEvent.mockClear();
+		const event = {
+			request: makeRequest("https://boardgamers.space/games", headers),
+			url: new URL("https://boardgamers.space/games"),
+			locals: {},
+			getClientAddress: () => "203.0.113.9",
+		};
+		const response = await handle({
+			event,
+			resolve: () => Promise.resolve(new Response("ok", { status })),
+		} as unknown as Parameters<Handle>[0]);
+		const requestLog = mockLogEvent.mock.calls.find(([, msg]) => msg === "request");
+		return { response, fields: requestLog?.[2] as Record<string, unknown> | undefined };
+	};
+
+	it("logs ua + referer (and lang) on the request line", async () => {
+		const { fields } = await callHandle({
+			"user-agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/120.0",
+			referer: "https://google.com/search?q=boardgamers",
+			"accept-language": "fr-FR,fr;q=0.9",
+		});
+		expect(fields).toMatchObject({
+			source: "web",
+			method: "GET",
+			path: "/games",
+			status: 200,
+			ua: "Mozilla/5.0 (X11; Linux x86_64) Chrome/120.0",
+			referer: "https://google.com/search?q=boardgamers",
+			lang: "fr",
+		});
+	});
+
+	it("omits ua/referer/lang when the headers are absent", async () => {
+		const { fields } = await callHandle({});
+		expect(fields).toBeDefined();
+		expect(fields).not.toHaveProperty("ua");
+		expect(fields).not.toHaveProperty("referer");
+		expect(fields).not.toHaveProperty("lang");
+	});
+
+	it("truncates an absurdly long user-agent", async () => {
+		const long = `Mozilla/5.0 ${"x".repeat(500)}`;
+		const { fields } = await callHandle({ "user-agent": long });
+		expect(fields?.ua).toBe(long.slice(0, 200));
+	});
+
+	it("still resolves the response and stamps x-request-id", async () => {
+		const { response } = await callHandle({ "user-agent": "test-agent" });
+		expect(response.status).toBe(200);
+		expect(response.headers.get("x-request-id")).toBeTruthy();
 	});
 });

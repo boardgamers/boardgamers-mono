@@ -4,6 +4,7 @@ import type { Handle, HandleFetch } from "@sveltejs/kit";
 import { logEvent } from "@bgs/utils/log";
 import { backendUrl } from "@/lib/backend-url.server";
 import { parsePreferredLanguage } from "@/lib/accept-language";
+import { logHeader } from "@/lib/log-header";
 import { extractCookie } from "@/utils/extract-cookie";
 
 interface RequestContext {
@@ -55,6 +56,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// line to Loki — that's the i18n-prioritization data source (see
 		// src/lib/accept-language.ts). Omitted when the header is absent/uncountable.
 		const lang = parsePreferredLanguage(event.request.headers.get("accept-language"));
+		// ua (User-Agent) + referer ride the same line — bot/scraper vs browser
+		// traffic and where it comes from (see src/lib/log-header.ts). Bounded and
+		// omitted when absent; the client IP is deliberately NOT logged here.
+		const ua = logHeader(event.request.headers.get("user-agent"));
+		const referer = logHeader(event.request.headers.get("referer"));
 		logEvent(status >= 500 ? "error" : status >= 400 ? "warn" : "info", "request", {
 			source: "web",
 			method: event.request.method,
@@ -63,6 +69,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 			durationMs,
 			requestId,
 			...(lang ? { lang } : {}),
+			...(ua ? { ua } : {}),
+			...(referer ? { referer } : {}),
 		});
 
 		response.headers.set("x-request-id", requestId);
