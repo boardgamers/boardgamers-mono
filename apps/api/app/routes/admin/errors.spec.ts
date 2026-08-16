@@ -52,6 +52,7 @@ describe("Admin errors listing", () => {
 		const search = params ? `?${new URLSearchParams(params)}` : "";
 		const res = await fetch(`${baseURL()}/api/admin/errors${search}`, { headers: adminHeaders });
 		assert.equal(res.status, 200);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Response.json() is untyped
 		return res.json() as Promise<{ errors: { meta?: { source?: string } }[]; total: number }>;
 	}
 
