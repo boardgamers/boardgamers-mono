@@ -50,7 +50,7 @@ Execute a move by `player`.
 
 Throw an error if the move is invalid.
 
-Note that if you implement [toSave](#tosave) to not save the result, you can send the result to the UI without storing the modified game state in the database. It is useful when you want to allow the user to play around and only confirm at the very end.
+Note that if you implement [toSave](#tosave) to not save the result, you can send the result to the UI without storing the modified game state in the database. It is useful when you want to allow the user to play around and only confirm at the very end. If your game supports undoing moves, this is the **required** way to implement it — see [Undo and tentative moves](#undo-and-tentative-moves).
 
 ### ended
 
@@ -247,6 +247,33 @@ Middleware to process data to be stored in the database.
 
 Return `undefined` to NOT store the data. It can happen for example
 when a player executes a move without confirming it, a dry run so to speak.
+
+The platform grants the per-move time increment (`timePerMove`) only when `toSave`
+returns a state — a move whose result is not saved costs nothing and grants nothing.
+
+#### Undo and tentative moves
+
+If your game lets a player undo, implement it with the tentative-turn model
+(as gaia-project does), never as an engine move that mutates the saved state:
+
+- The viewer accumulates the current turn locally and resends the **whole turn so
+  far** on every action; the engine replays it from the last saved state.
+- While the turn is incomplete (still undoable), `toSave` returns `undefined`: the
+  tentative state is returned to the acting player's viewer but never persisted, and
+  no time increment is granted.
+- Undo is the viewer truncating its turn buffer and resending (or nothing at all,
+  when the buffer empties — the saved state _is_ the turn start).
+- Once the turn completes (the player can no longer undo), `toSave` returns the
+  state: it is persisted, broadcast, and the increment is granted — once per real turn.
+
+Do **not** implement undo as a move that pops entries from the saved log:
+
+- the platform persists per move and grants the increment per saved move, so a
+  player can farm time by repeatedly moving and undoing, and the undo itself is
+  rewarded;
+- the saved log must grow monotonically — incremental log consumers
+  (`logLength`/`logSlice` bookkeeping, last-move info) assume entries are never
+  removed.
 
 ### messages
 
