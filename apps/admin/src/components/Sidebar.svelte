@@ -10,8 +10,38 @@
 	let pagesOpen = $state(true);
 	let archivedOpen = $state(false);
 
-	const activeGames = $derived(data.games.filter((g) => !g.meta?.archived));
-	const archivedGames = $derived(data.games.filter((g) => g.meta?.archived));
+	// One sidebar entry per boardgame (not per version): group the version docs by
+	// game, linking each game to its latest (highest-version) doc. A game with any
+	// active version is active; a game whose every version is archived is archived.
+	interface BoardgameEntry {
+		game: string;
+		label: string;
+		alias?: string;
+		latestVersion: number;
+		archived: boolean;
+	}
+	const boardgames = $derived.by(() => {
+		const byGame: Record<string, BoardgameEntry> = {};
+		for (const g of data.games) {
+			const existing = byGame[g._id.game];
+			const archived = !!g.meta?.archived;
+			if (!existing) {
+				byGame[g._id.game] = {
+					game: g._id.game,
+					label: g.label,
+					alias: g.alias,
+					latestVersion: g._id.version,
+					archived,
+				};
+			} else {
+				existing.latestVersion = Math.max(existing.latestVersion, g._id.version);
+				existing.archived = existing.archived && archived;
+			}
+		}
+		return Object.values(byGame);
+	});
+	const activeGames = $derived(boardgames.filter((g) => !g.archived));
+	const archivedGames = $derived(boardgames.filter((g) => g.archived));
 
 	function isActive(href: string): boolean {
 		return page.url.pathname === href;
@@ -113,8 +143,8 @@
 					>
 						+ New game
 					</a>
-					{#each activeGames as g (`${g._id.game}/${g._id.version}`)}
-						{@const href = resolve("/game/[game]/[version]", { game: g._id.game, version: String(g._id.version) })}
+					{#each activeGames as g (g.game)}
+						{@const href = resolve("/game/[game]/[version]", { game: g.game, version: String(g.latestVersion) })}
 						{@const { emoji, name } = gameLabelParts(g.label)}
 						<a
 							{href}
@@ -123,11 +153,10 @@
 							)
 								? 'bg-gray-100 dark:bg-gray-800 font-semibold'
 								: ''}"
-							title="{g._id.game} v{g._id.version}"
+							title={g.game}
 						>
 							{#if emoji}<span class="flex-shrink-0">{emoji}</span>{/if}
-							<span class="truncate flex-1">{name || g._id.game}</span>
-							<span class="text-gray-400 flex-shrink-0">v{g._id.version}</span>
+							<span class="truncate flex-1">{name || g.game}</span>
 						</a>
 					{/each}
 					{#if archivedGames.length > 0}
@@ -145,11 +174,8 @@
 							>
 						</button>
 						{#if archivedOpen}
-							{#each archivedGames as g (`${g._id.game}/${g._id.version}`)}
-								{@const href = resolve("/game/[game]/[version]", {
-									game: g._id.game,
-									version: String(g._id.version),
-								})}
+							{#each archivedGames as g (g.game)}
+								{@const href = resolve("/game/[game]/[version]", { game: g.game, version: String(g.latestVersion) })}
 								{@const { emoji, name } = gameLabelParts(g.label)}
 								<a
 									{href}
@@ -158,11 +184,10 @@
 									)
 										? 'bg-gray-100 dark:bg-gray-800 font-semibold'
 										: ''}"
-									title="{g._id.game} v{g._id.version}"
+									title={g.game}
 								>
 									{#if emoji}<span class="flex-shrink-0">{emoji}</span>{/if}
-									<span class="truncate flex-1 line-through text-gray-400">{name || g._id.game}</span>
-									<span class="text-gray-400 flex-shrink-0">v{g._id.version}</span>
+									<span class="truncate flex-1 line-through text-gray-400">{name || g.game}</span>
 								</a>
 							{/each}
 						{/if}

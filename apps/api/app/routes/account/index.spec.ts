@@ -105,10 +105,10 @@ describe("Account API — country", () => {
 	it("exposes the country in boardgame rankings", async () => {
 		await colls.gameInfos.insertOne({
 			_id: { game: "countrygame", version: 1 },
-			label: "Country Game",
-			players: [2],
-			meta: { public: true, needOwnership: false },
+			meta: { public: true },
 		});
+		// Game-level fields (label/players) live on the metadata doc (#298).
+		await colls.gameMetadatas.insertOne({ _id: "countrygame", label: "Country Game", players: [2] });
 		await colls.gamePreferences.insertOne(
 			testGamePrefs({ user: userId, game: "countrygame", elo: { value: 120, games: 3 } }),
 		);

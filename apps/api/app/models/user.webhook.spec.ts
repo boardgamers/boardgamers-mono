@@ -125,10 +125,10 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 	before(async () => {
 		await colls.gameInfos.insertOne({
 			_id: { game: "gaia-project", version: 1 },
-			label: "Gaia Project",
-			players: [2],
 			meta: { public: true },
 		});
+		// Game-level metadata (label/players) lives on `gameMetadatas` (#298).
+		await colls.gameMetadatas.insertOne({ _id: "gaia-project", label: "Gaia Project", players: [2] });
 	});
 
 	it("a failure sets failingSince + nextRetryAt (backoff), without disabling", async () => {
@@ -359,10 +359,13 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 		// webhooks included; the raw payload also exposes the rules source.
 		await colls.gameInfos.insertOne({
 			_id: { game: "splendor", version: 1 },
+			meta: { public: true },
+		});
+		await colls.gameMetadatas.insertOne({
+			_id: "splendor",
 			label: "💎 Splendor",
 			alias: "Gem Trader",
 			players: [2, 3, 4],
-			meta: { public: true },
 		});
 		const games = await resolveGameLabels([{ _id: "g-alias", game: { name: "splendor", version: 1 } }]);
 		assert.strictEqual(games[0].game.label, "Gem Trader");
@@ -382,19 +385,35 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 		assert.deepStrictEqual(rawGame, { id: "g-alias", game: "splendor", name: "Gem Trader", basedOn: "💎 Splendor" });
 	});
 
-	it("resolveGameLabels is version-specific and leaves the games for the caller", async () => {
+	it("resolveGameLabels resolves by game (labels are shared across versions)", async () => {
+		// Label is game-level metadata (#298): every version of a game shares it.
 		await colls.gameInfos.insertOne({
 			_id: { game: "versioned", version: 2 },
-			label: "Versioned Two",
-			players: [2],
 			meta: { public: true },
 		});
+		await colls.gameMetadatas.insertOne({ _id: "versioned", label: "Versioned Two", players: [2] });
 		const games = await resolveGameLabels([
 			{ _id: "gv1", game: { name: "versioned", version: 1 } },
 			{ _id: "gv2", game: { name: "versioned", version: 2 } },
 		]);
-		assert.strictEqual(games[0].game.label, undefined, "no label for an unknown version");
+		assert.strictEqual(games[0].game.label, "Versioned Two");
 		assert.strictEqual(games[1].game.label, "Versioned Two");
+	});
+
+	it("resolveGameLabels falls back to the version doc during the deploy-before-migration window", async () => {
+		// Pre-migration state: no metadata doc yet, the version doc still carries
+		// label/alias. Inserted untyped — GameVersionDoc no longer has these fields.
+		await db()
+			.collection("gameinfos")
+			.insertOne({
+				_id: { game: "presplit", version: 1 },
+				label: "Pre Split",
+				alias: "Pre Alias",
+				meta: { public: true },
+			});
+		const games = await resolveGameLabels([{ _id: "gps", game: { name: "presplit", version: 1 } }]);
+		assert.strictEqual(games[0].game.label, "Pre Alias");
+		assert.strictEqual(games[0].game.basedOn, "Pre Split");
 	});
 
 	it("no webhook configured ⇒ no delivery, no error", async () => {

@@ -51,9 +51,28 @@
 		onsave: (data: GameInfoData) => void;
 		ondelete?: () => void;
 		onduplicate?: () => void;
+		// Game-level metadata (label/alias/description/rules/links/players/needOwnership)
+		// is centrally-managed game metadata (#298). When true, those fields render
+		// read-only and are stripped from the save payload so a version-page save never
+		// mutates shared metadata.
+		metadataReadOnly?: boolean;
+		// Which group(s) to render. "all" (default) shows the Game group then the
+		// Version group (used by the new-game form). "game" shows only the game-level
+		// metadata section; "version" shows only the version-level config — the game
+		// page renders the two as separate sections (metadata on top, version config in
+		// a per-version tab).
+		sections?: "all" | "game" | "version";
 	}
 
-	let { mode, value = $bindable(), onsave, ondelete, onduplicate }: Props = $props();
+	let {
+		mode,
+		value = $bindable(),
+		onsave,
+		ondelete,
+		onduplicate,
+		metadataReadOnly = false,
+		sections = "all",
+	}: Props = $props();
 
 	const inputClass =
 		"w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -332,11 +351,25 @@
 		option.items = (option.items ?? []).filter((_, i) => i !== idx);
 	}
 
+	// Game-level metadata fields (hoisted to `gameMetadatas` in #298); when
+	// `metadataReadOnly` the version page renders them read-only and never saves them.
+	// `expansions` is version-scoped (a setup option that can differ per version), so
+	// it is NOT stripped here.
+	const METADATA_FIELDS = ["label", "alias", "description", "rules", "links", "players", "needOwnership"] as const;
+
 	function handleSave() {
 		for (const setting of value.settings ?? []) {
 			if (!(setting as OptionItem).faction) {
 				delete (setting as OptionItem).faction;
 			}
+		}
+		if (metadataReadOnly) {
+			const payload: GameInfoData = { ...value };
+			for (const field of METADATA_FIELDS) {
+				delete payload[field];
+			}
+			onsave(payload);
+			return;
 		}
 		// Drop empty links; rebuild the object so tsgo is happy deleting optional keys.
 		if (value.links) {
@@ -360,558 +393,627 @@
 </script>
 
 <div class="space-y-6">
-	<!-- Basic Info -->
-	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-		<div>
-			<label for="game-label" class={labelClass}>Label</label>
-			<input id="game-label" bind:value={value.label} class={inputClass} />
-		</div>
-		<div>
-			<label for="game-alias" class={labelClass}>Alias</label>
-			<input
-				id="game-alias"
-				bind:value={value.alias}
-				class={inputClass}
-				placeholder="Public display name (e.g. Gem Trader) — leave empty for none"
-			/>
-			<p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
-				Shown everywhere instead of the label; the label is noted as the rules source ("&lt;Label&gt; rules").
-			</p>
-		</div>
-		{#if mode === "new"}
-			<div class="grid grid-cols-2 gap-4">
-				<div>
-					<label for="game-id" class={labelClass}>Game ID</label>
-					<input
-						id="game-id"
-						value={value._id?.game ?? ""}
-						use:trim
-						oninput={(e) => {
-							value._id = { game: e.currentTarget.value, version: value._id?.version ?? 1 };
-						}}
-						class={inputClass}
-					/>
-				</div>
-				<div>
-					<label for="game-version" class={labelClass}>Version</label>
-					<input
-						id="game-version"
-						type="number"
-						value={value._id?.version ?? 1}
-						oninput={(e) => {
-							value._id = { game: value._id?.game ?? "", version: Number(e.currentTarget.value) };
-						}}
-						class={inputClass}
-					/>
-				</div>
+	{#if sections !== "version"}
+		<!-- ===== Game-level metadata (shared by all versions; #298) ===== -->
+		<h3
+			class="text-sm font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-200 dark:border-gray-800 pb-1"
+		>
+			Game
+		</h3>
+
+		<!-- Basic Info -->
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+			<div>
+				<label for="game-label" class={labelClass}>Label</label>
+				<input id="game-label" bind:value={value.label} class={inputClass} disabled={metadataReadOnly} />
 			</div>
-		{:else}
-			<div class="flex items-end gap-2 text-sm text-gray-500 pb-2">
-				{value._id?.game} v{value._id?.version}
+			<div>
+				<label for="game-alias" class={labelClass}>Alias</label>
+				<input
+					id="game-alias"
+					bind:value={value.alias}
+					class={inputClass}
+					placeholder="Public display name (e.g. Gem Trader) — leave empty for none"
+					disabled={metadataReadOnly}
+				/>
+				<p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+					Shown everywhere instead of the label; the label is noted as the rules source ("&lt;Label&gt; rules").
+				</p>
 			</div>
-		{/if}
-	</div>
-
-	<!-- Players -->
-	<div>
-		<label for="player-0" class={labelClass}>Players</label>
-		<div class="flex flex-wrap gap-2 items-center">
-			{#each value.players as _, i (i)}
-				<div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-1.5 text-sm">
-					<input
-						id={"player-" + i}
-						type="number"
-						bind:value={value.players[i]}
-						class="w-12 bg-transparent text-center focus:outline-none"
-					/>
-					<button onclick={() => removePlayer(i)} class="text-red-500 hover:text-red-400 ml-1">&times;</button>
+			{#if mode === "new"}
+				<div class="grid grid-cols-2 gap-4">
+					<div>
+						<label for="game-id" class={labelClass}>Game ID</label>
+						<input
+							id="game-id"
+							value={value._id?.game ?? ""}
+							use:trim
+							oninput={(e) => {
+								value._id = { game: e.currentTarget.value, version: value._id?.version ?? 1 };
+							}}
+							class={inputClass}
+						/>
+					</div>
+					<div>
+						<label for="game-version" class={labelClass}>Version</label>
+						<input
+							id="game-version"
+							type="number"
+							value={value._id?.version ?? 1}
+							oninput={(e) => {
+								value._id = { game: value._id?.game ?? "", version: Number(e.currentTarget.value) };
+							}}
+							class={inputClass}
+						/>
+					</div>
 				</div>
-			{/each}
-			<button onclick={addPlayer} class="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-500 font-medium"
-				>+ Add</button
-			>
+			{:else if sections !== "game"}
+				<!-- Version-independent metadata: the "game vN" line is only meaningful when
+			     the version group is also shown (or on a version page). -->
+				<div class="flex items-end gap-2 text-sm text-gray-500 pb-2">
+					{value._id?.game} v{value._id?.version}
+				</div>
+			{/if}
 		</div>
-	</div>
 
-	<!-- Faction Avatars -->
-	<label class="flex items-center gap-2 text-sm">
-		<input type="checkbox" bind:checked={value.factions!.avatars} class="rounded" /> Faction avatars
-	</label>
-
-	<!-- Viewer (primary) -->
-	{#snippet viewerFields(viewer: ViewerData, title: string)}
-		<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
-			<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">{title}</summary>
-			<div class="px-5 pb-4 space-y-3">
-				<div>
-					<div class="flex items-center justify-between mb-1">
-						<label for={title === "Viewer" ? "viewer-url" : "alt-viewer-url"} class="{labelClass} mb-0">URL</label>
-						{#if upgrade[title]?.latest}
-							<button
-								onclick={() => applyViewerUpgrade(title, viewer)}
-								class="cursor-pointer text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-0.5 rounded"
-							>
-								Update to {upgrade[title]?.latest}
-							</button>
-						{:else}
-							<button
-								onclick={() => checkViewerVersion(title, viewer)}
-								disabled={upgrade[title]?.checking}
-								class="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-500 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-900 hover:bg-blue-50 dark:hover:bg-blue-950 disabled:opacity-50"
-							>
-								{upgrade[title]?.checking ? "Checking…" : "Check latest"}
-							</button>
+		<!-- Players -->
+		<div>
+			<label for="player-0" class={labelClass}>Players</label>
+			<div class="flex flex-wrap gap-2 items-center">
+				{#each value.players as _, i (i)}
+					<div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-1.5 text-sm">
+						<input
+							id={"player-" + i}
+							type="number"
+							bind:value={value.players[i]}
+							class="w-12 bg-transparent text-center focus:outline-none"
+							disabled={metadataReadOnly}
+						/>
+						{#if !metadataReadOnly}
+							<button onclick={() => removePlayer(i)} class="text-red-500 hover:text-red-400 ml-1">&times;</button>
 						{/if}
 					</div>
-					<input id={title === "Viewer" ? "viewer-url" : "alt-viewer-url"} bind:value={viewer.url} class={inputClass} />
-					<!-- Self-hosted bundle (#268): pick a pre-built viewer JS (+ optional
-					     CSS); uploads fill in URL/dependencies — Save persists them. -->
-					<div class="flex flex-wrap items-center gap-2 mt-1.5">
-						<label
-							class="{btnSmClass} cursor-pointer text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 {uploadingViewer[
-								title
-							]
-								? 'opacity-50 pointer-events-none'
-								: ''}"
-						>
-							{uploadingViewer[title] ? "Uploading…" : "Upload bundle…"}
-							<input
-								type="file"
-								accept=".js,.css,.map"
-								multiple
-								class="hidden"
-								disabled={uploadingViewer[title]}
-								onchange={(e) => {
-									const files = [...(e.currentTarget.files ?? [])];
-									e.currentTarget.value = "";
-									uploadViewerFiles(title, viewer, title !== "Viewer", files);
-								}}
-							/>
-						</label>
-						<span class="text-xs text-gray-400"
-							>Pre-built bundle: first .js becomes the viewer URL, extra .js/.css become dependencies — hosted on S3. An
-							optional .map is just hosted for devtools: have the built .js reference it via `//#
-							sourceMappingURL=&lt;map URL&gt;` (a bare `viewer.js.map` resolves against the hosted JS URL).</span
-						>
-					</div>
-				</div>
-				<div>
-					<label for={title === "Viewer" ? "viewer-toplevel" : "alt-viewer-toplevel"} class={labelClass}
-						>Top-level variable</label
+				{/each}
+				{#if !metadataReadOnly}
+					<button onclick={addPlayer} class="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-500 font-medium"
+						>+ Add</button
 					>
-					<input
-						id={title === "Viewer" ? "viewer-toplevel" : "alt-viewer-toplevel"}
-						bind:value={viewer.topLevelVariable}
-						class={inputClass}
-					/>
-				</div>
+				{/if}
+			</div>
+		</div>
 
-				<!-- Dependencies -->
-				{#each ["scripts", "stylesheets"] as depType (depType)}
+		<!-- Requires ownership (game-level: a property of the game, not the version) -->
+		<label class="flex items-center gap-2 text-sm">
+			<input type="checkbox" bind:checked={value.needOwnership} class="rounded" disabled={metadataReadOnly} /> Requires ownership
+		</label>
+
+		<!-- Links -->
+		<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+			<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">Links</summary>
+			<div class="px-5 pb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+				{#each [{ key: "source" as const, label: "Source code URL", placeholder: "https://github.com/…" }, { key: "bgg" as const, label: "BoardGameGeek URL", placeholder: "https://boardgamegeek.com/boardgame/…" }, { key: "publisher" as const, label: "Publisher URL", placeholder: "https://…" }, { key: "buy" as const, label: "Buy URL (affiliate)", placeholder: "https://…" }] as field (field.key)}
 					<div>
-						<label for={(title === "Viewer" ? "viewer" : "alt-viewer") + "-" + depType + "-0"} class={labelClass}
-							>{depType[0].toUpperCase()}{depType.slice(1)}</label
-						>
-						{#each viewer.dependencies?.[depType as "scripts" | "stylesheets"] ?? [] as _, di (di)}
-							<div class="flex gap-2 mb-1">
-								<input
-									id={(title === "Viewer" ? "viewer" : "alt-viewer") + "-" + depType + "-" + di}
-									bind:value={viewer.dependencies![depType as "scripts" | "stylesheets"][di]}
-									class="{inputClass} flex-1"
-									placeholder="{depType.slice(0, -1)} URL"
-								/>
-								<button
-									onclick={() => removeDep(viewer, depType as "scripts" | "stylesheets", di)}
-									class="{btnSmClass} text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">&times;</button
-								>
-							</div>
-						{/each}
-						<button
-							onclick={() => addDep(viewer, depType as "scripts" | "stylesheets")}
-							class="{btnSmClass} text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 mt-1"
-						>
-							+ Add {depType.slice(0, -1)}
-						</button>
+						<label for={"link-" + field.key} class={labelClass}>{field.label}</label>
+						<input
+							id={"link-" + field.key}
+							value={value.links?.[field.key] ?? ""}
+							use:trim
+							oninput={(e) => {
+								value.links = { ...value.links, [field.key]: e.currentTarget.value };
+							}}
+							placeholder={field.placeholder}
+							class={inputClass}
+							disabled={metadataReadOnly}
+						/>
 					</div>
 				{/each}
+			</div>
+		</details>
 
-				<div class="flex gap-4 pt-1">
-					<label class="flex items-center gap-2 text-sm">
-						<input type="checkbox" bind:checked={viewer.replayable} class="rounded" /> Replayable
+		<!-- Description & Rules -->
+		{#if metadataReadOnly}
+			{#if value.description}
+				<div class="space-y-1">
+					<span class="block text-sm font-medium">Description</span>
+					<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.description}</p>
+				</div>
+			{/if}
+			{#if value.rules}
+				<div class="space-y-1">
+					<span class="block text-sm font-medium">Rules</span>
+					<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.rules}</p>
+				</div>
+			{/if}
+		{:else}
+			<MarkdownEditor bind:value={value.description} label="Description (Markdown)" rows={4} />
+			<MarkdownEditor bind:value={value.rules} label="Rules (Markdown)" rows={8} />
+		{/if}
+	{/if}
+
+	{#if sections !== "game"}
+		<!-- ===== Version-level config (this engine/viewer version only) ===== -->
+		<h3
+			class="text-sm font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-200 dark:border-gray-800 pb-1 pt-2"
+		>
+			Version
+		</h3>
+
+		<!-- Faction Avatars -->
+		<label class="flex items-center gap-2 text-sm">
+			<input type="checkbox" bind:checked={value.factions!.avatars} class="rounded" /> Faction avatars
+		</label>
+
+		<!-- Viewer (primary) -->
+		{#snippet viewerFields(viewer: ViewerData, title: string)}
+			<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+				<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">{title}</summary>
+				<div class="px-5 pb-4 space-y-3">
+					<div>
+						<div class="flex items-center justify-between mb-1">
+							<label for={title === "Viewer" ? "viewer-url" : "alt-viewer-url"} class="{labelClass} mb-0">URL</label>
+							{#if upgrade[title]?.latest}
+								<button
+									onclick={() => applyViewerUpgrade(title, viewer)}
+									class="cursor-pointer text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-0.5 rounded"
+								>
+									Update to {upgrade[title]?.latest}
+								</button>
+							{:else}
+								<button
+									onclick={() => checkViewerVersion(title, viewer)}
+									disabled={upgrade[title]?.checking}
+									class="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-500 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-900 hover:bg-blue-50 dark:hover:bg-blue-950 disabled:opacity-50"
+								>
+									{upgrade[title]?.checking ? "Checking…" : "Check latest"}
+								</button>
+							{/if}
+						</div>
+						<input
+							id={title === "Viewer" ? "viewer-url" : "alt-viewer-url"}
+							bind:value={viewer.url}
+							class={inputClass}
+						/>
+						<!-- Self-hosted bundle (#268): pick a pre-built viewer JS (+ optional
+					     CSS); uploads fill in URL/dependencies — Save persists them. -->
+						<div class="flex flex-wrap items-center gap-2 mt-1.5">
+							<label
+								class="{btnSmClass} cursor-pointer text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 {uploadingViewer[
+									title
+								]
+									? 'opacity-50 pointer-events-none'
+									: ''}"
+							>
+								{uploadingViewer[title] ? "Uploading…" : "Upload bundle…"}
+								<input
+									type="file"
+									accept=".js,.css,.map"
+									multiple
+									class="hidden"
+									disabled={uploadingViewer[title]}
+									onchange={(e) => {
+										const files = [...(e.currentTarget.files ?? [])];
+										e.currentTarget.value = "";
+										uploadViewerFiles(title, viewer, title !== "Viewer", files);
+									}}
+								/>
+							</label>
+							<span class="text-xs text-gray-400"
+								>Pre-built bundle: first .js becomes the viewer URL, extra .js/.css become dependencies — hosted on S3.
+								An optional .map is just hosted for devtools: have the built .js reference it via `//#
+								sourceMappingURL=&lt;map URL&gt;` (a bare `viewer.js.map` resolves against the hosted JS URL).</span
+							>
+						</div>
+					</div>
+					<div>
+						<label for={title === "Viewer" ? "viewer-toplevel" : "alt-viewer-toplevel"} class={labelClass}
+							>Top-level variable</label
+						>
+						<input
+							id={title === "Viewer" ? "viewer-toplevel" : "alt-viewer-toplevel"}
+							bind:value={viewer.topLevelVariable}
+							class={inputClass}
+						/>
+					</div>
+
+					<!-- Dependencies -->
+					{#each ["scripts", "stylesheets"] as depType (depType)}
+						<div>
+							<label for={(title === "Viewer" ? "viewer" : "alt-viewer") + "-" + depType + "-0"} class={labelClass}
+								>{depType[0].toUpperCase()}{depType.slice(1)}</label
+							>
+							{#each viewer.dependencies?.[depType as "scripts" | "stylesheets"] ?? [] as _, di (di)}
+								<div class="flex gap-2 mb-1">
+									<input
+										id={(title === "Viewer" ? "viewer" : "alt-viewer") + "-" + depType + "-" + di}
+										bind:value={viewer.dependencies![depType as "scripts" | "stylesheets"][di]}
+										class="{inputClass} flex-1"
+										placeholder="{depType.slice(0, -1)} URL"
+									/>
+									<button
+										onclick={() => removeDep(viewer, depType as "scripts" | "stylesheets", di)}
+										class="{btnSmClass} text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">&times;</button
+									>
+								</div>
+							{/each}
+							<button
+								onclick={() => addDep(viewer, depType as "scripts" | "stylesheets")}
+								class="{btnSmClass} text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 mt-1"
+							>
+								+ Add {depType.slice(0, -1)}
+							</button>
+						</div>
+					{/each}
+
+					<div class="flex gap-4 pt-1">
+						<label class="flex items-center gap-2 text-sm">
+							<input type="checkbox" bind:checked={viewer.replayable} class="rounded" /> Replayable
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							<input type="checkbox" bind:checked={viewer.fullScreen} class="rounded" /> Full screen
+						</label>
+						<label class="flex items-center gap-2 text-sm">
+							<input type="checkbox" bind:checked={viewer.trusted} class="rounded" /> Trusted
+						</label>
+					</div>
+				</div>
+			</details>
+		{/snippet}
+
+		{@render viewerFields(value.viewer, "Viewer")}
+
+		<!-- Alternate Viewer -->
+		<div>
+			{#if value.viewer.alternate}
+				{@render viewerFields(value.viewer.alternate, "Alternate Viewer")}
+				<div class="flex gap-2 mt-2">
+					<button
+						onclick={() => {
+							value.viewer.alternate = undefined;
+						}}
+						class="{btnSmClass} text-red-600">Remove alternate viewer</button
+					>
+					{#if mode === "edit"}
+						<button
+							onclick={swapViewers}
+							title="Swap the default and alternate viewers, then save"
+							class="{btnSmClass} text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900 hover:bg-amber-50 dark:hover:bg-amber-950"
+							>⇄ Make alternate the default viewer</button
+						>
+					{/if}
+				</div>
+			{:else}
+				<button
+					onclick={() => {
+						ensureAlternateViewer();
+						value.viewer = { ...value.viewer };
+					}}
+					class="{btnSmClass} text-blue-600">+ Add alternate viewer</button
+				>
+			{/if}
+		</div>
+
+		<!-- Engine -->
+		<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+			<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">Engine</summary>
+			<div class="px-5 pb-4">
+				<!-- Self-hosted engine (#268): upload a pre-built `npm pack` tarball; the
+			     endpoint stores it on S3 and points engine.package at the hosted URL
+			     (saves immediately). -->
+				<div class="flex flex-wrap items-center gap-2 mb-3">
+					<label
+						class="{btnSmClass} cursor-pointer text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 {uploadingEngine
+							? 'opacity-50 pointer-events-none'
+							: ''}"
+					>
+						{uploadingEngine ? "Uploading…" : "Upload .tgz…"}
+						<input
+							type="file"
+							accept=".tgz"
+							class="hidden"
+							disabled={uploadingEngine}
+							onchange={(e) => {
+								const file = e.currentTarget.files?.[0];
+								e.currentTarget.value = "";
+								if (file) uploadEngine(file);
+							}}
+						/>
 					</label>
-					<label class="flex items-center gap-2 text-sm">
-						<input type="checkbox" bind:checked={viewer.fullScreen} class="rounded" /> Full screen
-					</label>
-					<label class="flex items-center gap-2 text-sm">
-						<input type="checkbox" bind:checked={viewer.trusted} class="rounded" /> Trusted
-					</label>
+					<span class="text-xs text-gray-400"
+						>Pre-built <code>npm pack</code> tarball (dist included) — saves immediately</span
+					>
+					{#if value.engine?.package.url}
+						<span class="text-xs text-emerald-600 dark:text-emerald-400 break-all"
+							>hosted: {value.engine.package.url}</span
+						>
+					{/if}
+				</div>
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+					<div>
+						<label for="engine-package-name" class={labelClass}>Package name</label>
+						<input
+							id="engine-package-name"
+							value={value.engine?.package.name ?? ""}
+							use:trim
+							oninput={(e) => {
+								value.engine = { ...value.engine!, package: { ...value.engine!.package, name: e.currentTarget.value } };
+							}}
+							class={inputClass}
+						/>
+					</div>
+					<div>
+						<div class="flex items-center justify-between mb-1">
+							<label for="engine-package-version" class="{labelClass} mb-0">Package version</label>
+							{#if upgrade["engine"]?.latest}
+								<button
+									onclick={applyEngineUpgrade}
+									class="cursor-pointer text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-0.5 rounded"
+								>
+									Update to {upgrade["engine"]?.latest}
+								</button>
+							{:else}
+								<button
+									onclick={checkEngineVersion}
+									disabled={upgrade["engine"]?.checking}
+									class="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-500 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-900 hover:bg-blue-50 dark:hover:bg-blue-950 disabled:opacity-50"
+								>
+									{upgrade["engine"]?.checking ? "Checking…" : "Check latest"}
+								</button>
+							{/if}
+						</div>
+						<input
+							id="engine-package-version"
+							value={value.engine?.package.version ?? ""}
+							use:trim
+							oninput={(e) => {
+								value.engine = {
+									...value.engine!,
+									package: { ...value.engine!.package, version: e.currentTarget.value },
+								};
+							}}
+							class={inputClass}
+						/>
+					</div>
+					<div>
+						<label for="engine-entry-point" class={labelClass}>Entry point</label>
+						<input
+							id="engine-entry-point"
+							value={value.engine?.entryPoint ?? ""}
+							use:trim
+							oninput={(e) => {
+								value.engine = { ...value.engine!, entryPoint: e.currentTarget.value };
+							}}
+							class={inputClass}
+						/>
+					</div>
 				</div>
 			</div>
 		</details>
-	{/snippet}
 
-	{@render viewerFields(value.viewer, "Viewer")}
-
-	<!-- Alternate Viewer -->
-	<div>
-		{#if value.viewer.alternate}
-			{@render viewerFields(value.viewer.alternate, "Alternate Viewer")}
-			<div class="flex gap-2 mt-2">
-				<button
-					onclick={() => {
-						value.viewer.alternate = undefined;
-					}}
-					class="{btnSmClass} text-red-600">Remove alternate viewer</button
-				>
-				{#if mode === "edit"}
-					<button
-						onclick={swapViewers}
-						title="Swap the default and alternate viewers, then save"
-						class="{btnSmClass} text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900 hover:bg-amber-50 dark:hover:bg-amber-950"
-						>⇄ Make alternate the default viewer</button
-					>
-				{/if}
-			</div>
-		{:else}
-			<button
-				onclick={() => {
-					ensureAlternateViewer();
-					value.viewer = { ...value.viewer };
-				}}
-				class="{btnSmClass} text-blue-600">+ Add alternate viewer</button
-			>
-		{/if}
-	</div>
-
-	<!-- Engine -->
-	<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
-		<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">Engine</summary>
-		<div class="px-5 pb-4">
-			<!-- Self-hosted engine (#268): upload a pre-built `npm pack` tarball; the
-			     endpoint stores it on S3 and points engine.package at the hosted URL
-			     (saves immediately). -->
-			<div class="flex flex-wrap items-center gap-2 mb-3">
-				<label
-					class="{btnSmClass} cursor-pointer text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900 hover:bg-emerald-50 dark:hover:bg-emerald-950 {uploadingEngine
-						? 'opacity-50 pointer-events-none'
-						: ''}"
-				>
-					{uploadingEngine ? "Uploading…" : "Upload .tgz…"}
-					<input
-						type="file"
-						accept=".tgz"
-						class="hidden"
-						disabled={uploadingEngine}
-						onchange={(e) => {
-							const file = e.currentTarget.files?.[0];
-							e.currentTarget.value = "";
-							if (file) uploadEngine(file);
-						}}
-					/>
-				</label>
-				<span class="text-xs text-gray-400"
-					>Pre-built <code>npm pack</code> tarball (dist included) — saves immediately</span
-				>
-				{#if value.engine?.package.url}
-					<span class="text-xs text-emerald-600 dark:text-emerald-400 break-all"
-						>hosted: {value.engine.package.url}</span
-					>
-				{/if}
-			</div>
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-				<div>
-					<label for="engine-package-name" class={labelClass}>Package name</label>
-					<input
-						id="engine-package-name"
-						value={value.engine?.package.name ?? ""}
-						use:trim
-						oninput={(e) => {
-							value.engine = { ...value.engine!, package: { ...value.engine!.package, name: e.currentTarget.value } };
-						}}
-						class={inputClass}
-					/>
-				</div>
-				<div>
-					<div class="flex items-center justify-between mb-1">
-						<label for="engine-package-version" class="{labelClass} mb-0">Package version</label>
-						{#if upgrade["engine"]?.latest}
-							<button
-								onclick={applyEngineUpgrade}
-								class="cursor-pointer text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-0.5 rounded"
-							>
-								Update to {upgrade["engine"]?.latest}
-							</button>
-						{:else}
-							<button
-								onclick={checkEngineVersion}
-								disabled={upgrade["engine"]?.checking}
-								class="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-500 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-900 hover:bg-blue-50 dark:hover:bg-blue-950 disabled:opacity-50"
-							>
-								{upgrade["engine"]?.checking ? "Checking…" : "Check latest"}
-							</button>
-						{/if}
-					</div>
-					<input
-						id="engine-package-version"
-						value={value.engine?.package.version ?? ""}
-						use:trim
-						oninput={(e) => {
-							value.engine = {
-								...value.engine!,
-								package: { ...value.engine!.package, version: e.currentTarget.value },
-							};
-						}}
-						class={inputClass}
-					/>
-				</div>
-				<div>
-					<label for="engine-entry-point" class={labelClass}>Entry point</label>
-					<input
-						id="engine-entry-point"
-						value={value.engine?.entryPoint ?? ""}
-						use:trim
-						oninput={(e) => {
-							value.engine = { ...value.engine!, entryPoint: e.currentTarget.value };
-						}}
-						class={inputClass}
-					/>
-				</div>
-			</div>
-		</div>
-	</details>
-
-	<!-- Meta -->
-	<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
-		<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">Meta</summary>
-		<div class="px-5 pb-4 space-y-3">
-			<label class="flex items-center gap-2 text-sm">
-				<input type="checkbox" bind:checked={value.meta.public} class="rounded" /> Public
-			</label>
-			<label class="flex items-center gap-2 text-sm">
-				<input type="checkbox" bind:checked={value.meta.needOwnership} class="rounded" /> Requires ownership
-			</label>
-		</div>
-	</details>
-
-	<!-- Links -->
-	<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
-		<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">Links</summary>
-		<div class="px-5 pb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-			{#each [{ key: "source" as const, label: "Source code URL", placeholder: "https://github.com/…" }, { key: "bgg" as const, label: "BoardGameGeek URL", placeholder: "https://boardgamegeek.com/boardgame/…" }, { key: "publisher" as const, label: "Publisher URL", placeholder: "https://…" }, { key: "buy" as const, label: "Buy URL (affiliate)", placeholder: "https://…" }] as field (field.key)}
-				<div>
-					<label for={"link-" + field.key} class={labelClass}>{field.label}</label>
-					<input
-						id={"link-" + field.key}
-						value={value.links?.[field.key] ?? ""}
-						use:trim
-						oninput={(e) => {
-							value.links = { ...value.links, [field.key]: e.currentTarget.value };
-						}}
-						placeholder={field.placeholder}
-						class={inputClass}
-					/>
-				</div>
-			{/each}
-		</div>
-	</details>
-
-	<!-- Description & Rules -->
-	<MarkdownEditor bind:value={value.description} label="Description (Markdown)" rows={4} />
-	<MarkdownEditor bind:value={value.rules} label="Rules (Markdown)" rows={8} />
-
-	<!-- Expansions, Options, Preferences, Settings -->
-	{#each [{ key: "expansions" as const, label: "Expansions", showType: false, showFaction: false, showCategory: false }, { key: "options" as const, label: "Options", showType: true, showFaction: false, showCategory: false }, { key: "preferences" as const, label: "Preferences", showType: true, showFaction: false, showCategory: true }, { key: "settings" as const, label: "Settings", showType: true, showFaction: true, showCategory: false }] as section (section.key)}
+		<!-- Meta (version-scoped access flags) -->
 		<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
-			<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">{section.label}</summary>
+			<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">Meta</summary>
 			<div class="px-5 pb-4 space-y-3">
-				{#each value[section.key] ?? [] as item, i (i)}
-					{@const items = value[section.key] as OptionItem[]}
-					<div
-						data-draggable-card
-						role="listitem"
-						class="border rounded-lg p-3 space-y-2 transition-colors {isDropTarget(section.key, i)
-							? 'border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/30'
-							: 'border-gray-100 dark:border-gray-800'}"
-						ondragover={(e) => handleDragOver(e, section.key, i)}
-						ondrop={(e) => {
-							e.preventDefault();
-							handleDrop(section.key, i, (from, to) => setList(section.key, reorder(getList(section.key), from, to)));
-						}}
-					>
-						<div class="flex gap-2 items-start">
-							<div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
-								<div>
-									<label for={section.key + "-" + i + "-id"} class={labelClass}>{section.label.slice(0, -1)} ID</label>
-									<input id={section.key + "-" + i + "-id"} bind:value={(item as OptionItem).name} class={inputClass} />
-								</div>
-								<div>
-									<label for={section.key + "-" + i + "-name"} class={labelClass}
-										>{section.label.slice(0, -1)} name</label
-									>
-									<input
-										id={section.key + "-" + i + "-name"}
-										bind:value={(item as OptionItem).label}
-										class={inputClass}
-									/>
-								</div>
+				<label class="flex items-center gap-2 text-sm">
+					<input type="checkbox" bind:checked={value.meta.public} class="rounded" /> Public
+				</label>
+			</div>
+		</details>
 
-								{#if section.showType}
+		<!-- Options/Preferences/Settings/Expansions share one card renderer. All four are
+	     version-level setup sections (expansions is a setup option that can differ per
+	     version), so they stay editable on version pages. -->
+		{#snippet sectionCard(section: {
+			key: "expansions" | "options" | "preferences" | "settings";
+			label: string;
+			showType: boolean;
+			showFaction: boolean;
+			showCategory: boolean;
+		})}
+			<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+				<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">{section.label}</summary>
+				<div class="px-5 pb-4 space-y-3">
+					{#each value[section.key] ?? [] as item, i (i)}
+						{@const items = value[section.key] as OptionItem[]}
+						<div
+							data-draggable-card
+							role="listitem"
+							class="border rounded-lg p-3 space-y-2 transition-colors {isDropTarget(section.key, i)
+								? 'border-blue-400 dark:border-blue-500 bg-blue-50/50 dark:bg-blue-950/30'
+								: 'border-gray-100 dark:border-gray-800'}"
+							ondragover={(e) => handleDragOver(e, section.key, i)}
+							ondrop={(e) => {
+								e.preventDefault();
+								handleDrop(section.key, i, (from, to) => setList(section.key, reorder(getList(section.key), from, to)));
+							}}
+						>
+							<div class="flex gap-2 items-start">
+								<div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
 									<div>
-										<label for={section.key + "-" + i + "-type"} class={labelClass}>Type</label>
-										<select
-											id={section.key + "-" + i + "-type"}
-											bind:value={(item as OptionItem).type}
-											class={inputClass}
+										<label for={section.key + "-" + i + "-id"} class={labelClass}>{section.label.slice(0, -1)} ID</label
 										>
-											<option value="checkbox">checkbox</option>
-											<option value="select">select</option>
-											<option value="hidden">hidden</option>
-											<option value="category">category</option>
-										</select>
-									</div>
-								{/if}
-
-								{#if section.showType && (item as OptionItem).type === "checkbox" && section.key !== "settings"}
-									<div>
-										<label class="flex items-center gap-2 text-sm mt-2">
-											<input type="checkbox" bind:checked={(item as OptionItem).default as boolean} class="rounded" /> Default
-											value
-										</label>
-									</div>
-								{/if}
-
-								{#if section.showType && (item as OptionItem).type === "select" && section.key !== "settings"}
-									<div>
-										<label for={section.key + "-" + i + "-default"} class={labelClass}>Default</label>
-										<select
-											id={section.key + "-" + i + "-default"}
-											bind:value={(item as OptionItem).default}
-											class={inputClass}
-										>
-											{#each (item as OptionItem).items ?? [] as opt (opt.name)}
-												<option value={opt.name}>{opt.label}</option>
-											{/each}
-										</select>
-									</div>
-								{/if}
-
-								{#if section.showCategory && (item as OptionItem).type !== "category"}
-									<div>
-										<label for={section.key + "-" + i + "-category"} class={labelClass}>Category</label>
-										<select
-											id={section.key + "-" + i + "-category"}
-											bind:value={(item as OptionItem).category}
-											class={inputClass}
-										>
-											<option value={undefined}>None</option>
-											{#each items.filter((x) => x.type === "category") as cat (cat.name)}
-												<option value={cat.name}>{cat.label}</option>
-											{/each}
-										</select>
-									</div>
-								{/if}
-
-								{#if section.showFaction}
-									<div>
-										<label for={section.key + "-" + i + "-faction"} class={labelClass}>Faction</label>
 										<input
-											id={section.key + "-" + i + "-faction"}
-											bind:value={(item as OptionItem).faction}
+											id={section.key + "-" + i + "-id"}
+											bind:value={(item as OptionItem).name}
 											class={inputClass}
 										/>
 									</div>
-								{/if}
-							</div>
-
-							<!-- Reorder & Delete -->
-							<div class="flex flex-col gap-1 pt-5 items-center">
-								<span
-									draggable="true"
-									role="button"
-									tabindex="-1"
-									aria-label="Drag to reorder"
-									title="Drag to reorder"
-									class="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1 select-none leading-none"
-									ondragstart={(e) => handleDragStart(e, section.key, i)}
-									ondragend={handleDragEnd}>⠿</span
-								>
-								<button
-									onclick={() => moveItem(section.key, i, -1)}
-									disabled={i === 0}
-									class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-25"
-									title="Move up">&#9650;</button
-								>
-								<button
-									onclick={() => moveItem(section.key, i, 1)}
-									disabled={i === items.length - 1}
-									class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-25"
-									title="Move down">&#9660;</button
-								>
-								<button
-									onclick={() => removeListItem(section.key, i)}
-									class="{btnSmClass} text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-									title="Delete">&times;</button
-								>
-							</div>
-						</div>
-
-						<!-- Select items sub-list -->
-						{#if section.showType && (item as OptionItem).type === "select"}
-							{@const subKey = `${section.key}#${i}`}
-							<div class="ml-4 mt-2 border-l-2 border-gray-200 dark:border-gray-700 pl-4 space-y-2">
-								<span class="text-xs font-semibold text-gray-500">Items for {(item as OptionItem).name || "..."}</span>
-								{#each (item as OptionItem).items ?? [] as subItem, j (j)}
-									<div
-										data-draggable-card
-										role="listitem"
-										class="flex gap-2 items-center rounded-lg transition-colors {isDropTarget(subKey, j)
-											? 'ring-2 ring-blue-400 dark:ring-blue-500'
-											: ''}"
-										ondragover={(e) => handleDragOver(e, subKey, j)}
-										ondrop={(e) => {
-											e.preventDefault();
-											handleDrop(subKey, j, (from, to) => {
-												(item as OptionItem).items = reorder((item as OptionItem).items ?? [], from, to);
-											});
-										}}
-									>
-										<span
-											draggable="true"
-											role="button"
-											tabindex="-1"
-											aria-label="Drag to reorder"
-											title="Drag to reorder"
-											class="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 select-none leading-none"
-											ondragstart={(e) => handleDragStart(e, subKey, j)}
-											ondragend={handleDragEnd}>⠿</span
+									<div>
+										<label for={section.key + "-" + i + "-name"} class={labelClass}
+											>{section.label.slice(0, -1)} name</label
 										>
-										<input bind:value={subItem.name} placeholder="ID" class="{inputClass} flex-1" />
-										<input bind:value={subItem.label} placeholder="Label" class="{inputClass} flex-1" />
-										<button onclick={() => removeSelectItem(item as OptionItem, j)} class="{btnSmClass} text-red-600"
-											>&times;</button
-										>
+										<input
+											id={section.key + "-" + i + "-name"}
+											bind:value={(item as OptionItem).label}
+											class={inputClass}
+										/>
 									</div>
-								{/each}
-								<button
-									onclick={() => addSelectItem(item as OptionItem)}
-									class="{btnSmClass} text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-								>
-									+ Add item
-								</button>
-							</div>
-						{/if}
-					</div>
-				{/each}
 
-				<button
-					onclick={() => addListItem(section.key)}
-					class="{btnSmClass} text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-				>
-					+ Add {section.label.slice(0, -1).toLowerCase()}
-				</button>
-			</div>
-		</details>
-	{/each}
+									{#if section.showType}
+										<div>
+											<label for={section.key + "-" + i + "-type"} class={labelClass}>Type</label>
+											<select
+												id={section.key + "-" + i + "-type"}
+												bind:value={(item as OptionItem).type}
+												class={inputClass}
+											>
+												<option value="checkbox">checkbox</option>
+												<option value="select">select</option>
+												<option value="hidden">hidden</option>
+												<option value="category">category</option>
+											</select>
+										</div>
+									{/if}
+
+									{#if section.showType && (item as OptionItem).type === "checkbox" && section.key !== "settings"}
+										<div>
+											<label class="flex items-center gap-2 text-sm mt-2">
+												<input type="checkbox" bind:checked={(item as OptionItem).default as boolean} class="rounded" /> Default
+												value
+											</label>
+										</div>
+									{/if}
+
+									{#if section.showType && (item as OptionItem).type === "select" && section.key !== "settings"}
+										<div>
+											<label for={section.key + "-" + i + "-default"} class={labelClass}>Default</label>
+											<select
+												id={section.key + "-" + i + "-default"}
+												bind:value={(item as OptionItem).default}
+												class={inputClass}
+											>
+												{#each (item as OptionItem).items ?? [] as opt (opt.name)}
+													<option value={opt.name}>{opt.label}</option>
+												{/each}
+											</select>
+										</div>
+									{/if}
+
+									{#if section.showCategory && (item as OptionItem).type !== "category"}
+										<div>
+											<label for={section.key + "-" + i + "-category"} class={labelClass}>Category</label>
+											<select
+												id={section.key + "-" + i + "-category"}
+												bind:value={(item as OptionItem).category}
+												class={inputClass}
+											>
+												<option value={undefined}>None</option>
+												{#each items.filter((x) => x.type === "category") as cat (cat.name)}
+													<option value={cat.name}>{cat.label}</option>
+												{/each}
+											</select>
+										</div>
+									{/if}
+
+									{#if section.showFaction}
+										<div>
+											<label for={section.key + "-" + i + "-faction"} class={labelClass}>Faction</label>
+											<input
+												id={section.key + "-" + i + "-faction"}
+												bind:value={(item as OptionItem).faction}
+												class={inputClass}
+											/>
+										</div>
+									{/if}
+								</div>
+
+								<!-- Reorder & Delete -->
+								<div class="flex flex-col gap-1 pt-5 items-center">
+									<span
+										draggable="true"
+										role="button"
+										tabindex="-1"
+										aria-label="Drag to reorder"
+										title="Drag to reorder"
+										class="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1 select-none leading-none"
+										ondragstart={(e) => handleDragStart(e, section.key, i)}
+										ondragend={handleDragEnd}>⠿</span
+									>
+									<button
+										onclick={() => moveItem(section.key, i, -1)}
+										disabled={i === 0}
+										class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-25"
+										title="Move up">&#9650;</button
+									>
+									<button
+										onclick={() => moveItem(section.key, i, 1)}
+										disabled={i === items.length - 1}
+										class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-25"
+										title="Move down">&#9660;</button
+									>
+									<button
+										onclick={() => removeListItem(section.key, i)}
+										class="{btnSmClass} text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+										title="Delete">&times;</button
+									>
+								</div>
+							</div>
+
+							<!-- Select items sub-list -->
+							{#if section.showType && (item as OptionItem).type === "select"}
+								{@const subKey = `${section.key}#${i}`}
+								<div class="ml-4 mt-2 border-l-2 border-gray-200 dark:border-gray-700 pl-4 space-y-2">
+									<span class="text-xs font-semibold text-gray-500">Items for {(item as OptionItem).name || "..."}</span
+									>
+									{#each (item as OptionItem).items ?? [] as subItem, j (j)}
+										<div
+											data-draggable-card
+											role="listitem"
+											class="flex gap-2 items-center rounded-lg transition-colors {isDropTarget(subKey, j)
+												? 'ring-2 ring-blue-400 dark:ring-blue-500'
+												: ''}"
+											ondragover={(e) => handleDragOver(e, subKey, j)}
+											ondrop={(e) => {
+												e.preventDefault();
+												handleDrop(subKey, j, (from, to) => {
+													(item as OptionItem).items = reorder((item as OptionItem).items ?? [], from, to);
+												});
+											}}
+										>
+											<span
+												draggable="true"
+												role="button"
+												tabindex="-1"
+												aria-label="Drag to reorder"
+												title="Drag to reorder"
+												class="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 select-none leading-none"
+												ondragstart={(e) => handleDragStart(e, subKey, j)}
+												ondragend={handleDragEnd}>⠿</span
+											>
+											<input bind:value={subItem.name} placeholder="ID" class="{inputClass} flex-1" />
+											<input bind:value={subItem.label} placeholder="Label" class="{inputClass} flex-1" />
+											<button onclick={() => removeSelectItem(item as OptionItem, j)} class="{btnSmClass} text-red-600"
+												>&times;</button
+											>
+										</div>
+									{/each}
+									<button
+										onclick={() => addSelectItem(item as OptionItem)}
+										class="{btnSmClass} text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+									>
+										+ Add item
+									</button>
+								</div>
+							{/if}
+						</div>
+					{/each}
+
+					<button
+						onclick={() => addListItem(section.key)}
+						class="{btnSmClass} text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+					>
+						+ Add {section.label.slice(0, -1).toLowerCase()}
+					</button>
+				</div>
+			</details>
+		{/snippet}
+
+		<!-- Version-level setup sections. `expansions` is version-scoped (a setup option
+	     that can be implemented in only some versions), so it is editable here even on
+	     version pages — unlike the game-level metadata in the Game group above. -->
+		{#each [{ key: "expansions" as const, label: "Expansions", showType: false, showFaction: false, showCategory: false }, { key: "options" as const, label: "Options", showType: true, showFaction: false, showCategory: false }, { key: "preferences" as const, label: "Preferences", showType: true, showFaction: false, showCategory: true }, { key: "settings" as const, label: "Settings", showType: true, showFaction: true, showCategory: false }] as section (section.key)}
+			{@render sectionCard(section)}
+		{/each}
+	{/if}
 
 	<!-- Actions -->
 	<div class="flex gap-2 pt-2">

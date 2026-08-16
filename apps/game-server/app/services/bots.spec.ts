@@ -155,9 +155,7 @@ describe("bot driver", () => {
 		// Register the engine: getEngine/enginePath resolve via gameInfos.
 		await colls.gameInfos.insertOne({
 			_id: { game: ENGINE_NAME, version: ENGINE_VERSION },
-			label: "Bot test",
 			viewer: { url: "//test/bot" },
-			players: [2, 3],
 			meta: { public: true, bots: true },
 			engine: { package: { name: "@test/bot", version: "1.0.0" }, entryPoint: path.basename(entryPoint) },
 		});
@@ -338,9 +336,7 @@ describe("bot driver", () => {
 		const game = "bot-game-log";
 		await colls.gameInfos.insertOne({
 			_id: { game: "bot-test-log", version: 1 },
-			label: "Bot test log",
 			viewer: { url: "//test/bot" },
-			players: [2],
 			meta: { public: true, bots: true },
 			engine: { package: { name: "@test/bot-log", version: "1.0.0" }, entryPoint: "engine.mjs" },
 		});
@@ -383,9 +379,7 @@ describe("bot driver", () => {
 		const noAiGame = "bot-game-noai";
 		await colls.gameInfos.insertOne({
 			_id: { game: "bot-test-noai", version: 1 },
-			label: "Bot test no AI",
 			viewer: { url: "//test/bot" },
-			players: [2],
 			meta: { public: true, bots: true },
 			engine: { package: { name: "@test/bot-noai", version: "1.0.0" }, entryPoint: "engine.mjs" },
 		});

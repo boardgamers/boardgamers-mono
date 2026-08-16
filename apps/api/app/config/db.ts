@@ -12,8 +12,10 @@ import {
 	DELETED_USERS_COLLECTION,
 	type GameDoc,
 	GAMES_COLLECTION,
-	type GameInfoDoc,
+	type GameVersionDoc,
 	GAME_INFOS_COLLECTION,
+	type GameMetadataDoc,
+	GAME_METADATAS_COLLECTION,
 	type GameNotificationDoc,
 	GAME_NOTIFICATIONS_COLLECTION,
 	type GamePreferencesDoc,
@@ -65,7 +67,8 @@ export const colls = {} as {
 	chatMessages: Collection<ChatMessageDoc>;
 	deletedUsers: Collection<DeletedUserDoc>;
 	games: Collection<GameDoc>;
-	gameInfos: Collection<GameInfoDoc>;
+	gameInfos: Collection<GameVersionDoc>;
+	gameMetadatas: Collection<GameMetadataDoc>;
 	gameNotifications: Collection<GameNotificationDoc>;
 	gamePreferences: Collection<GamePreferencesDoc>;
 	images: Collection<ImageDoc>;
@@ -89,7 +92,8 @@ function initColls(database: Db) {
 		chatMessages: database.collection<ChatMessageDoc>(CHAT_MESSAGES_COLLECTION),
 		deletedUsers: database.collection<DeletedUserDoc>(DELETED_USERS_COLLECTION),
 		games: withAutoUpdatedAt(database.collection<GameDoc>(GAMES_COLLECTION)),
-		gameInfos: withAutoUpdatedAt(database.collection<GameInfoDoc>(GAME_INFOS_COLLECTION)),
+		gameInfos: withAutoUpdatedAt(database.collection<GameVersionDoc>(GAME_INFOS_COLLECTION)),
+		gameMetadatas: withAutoUpdatedAt(database.collection<GameMetadataDoc>(GAME_METADATAS_COLLECTION)),
 		gameNotifications: withAutoUpdatedAt(database.collection<GameNotificationDoc>(GAME_NOTIFICATIONS_COLLECTION)),
 		gamePreferences: withAutoUpdatedAt(database.collection<GamePreferencesDoc>(GAME_PREFERENCES_COLLECTION)),
 		images: withAutoUpdatedAt(database.collection<ImageDoc>(IMAGES_COLLECTION)),

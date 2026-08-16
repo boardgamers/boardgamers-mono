@@ -2,6 +2,7 @@ import type { UserDoc, GamePreferencesDoc } from "@bgs/models";
 import type { WithId } from "mongodb";
 import type { PickDeep } from "type-fest";
 import { colls } from "../config/db.ts";
+import { mergeGameInfo } from "../models/gameinfo.ts";
 
 // An archived version is never the "current" one: it stays readable (viewer
 // served, old games replayable) but is excluded from every latest-public pick.
@@ -13,32 +14,36 @@ import { colls } from "../config/db.ts";
 const NOT_ARCHIVED = { "meta.archived": { $ne: true } } as const;
 
 export async function lastAccessibleVersion(game: string, user?: WithId<UserDoc>) {
-	if (!user) {
+	const versionDocPromise = (async () => {
+		if (!user) {
+			return colls.gameInfos.findOne(
+				{ "_id.game": game, "meta.public": true, ...NOT_ARCHIVED },
+				{ sort: { "_id.version": -1 } },
+			);
+		}
+
+		const pref = await colls.gamePreferences.findOne<PickDeep<GamePreferencesDoc, "access.maxVersion">>(
+			{ user: user._id, game, "access.maxVersion": { $exists: true } },
+			{ projection: { "access.maxVersion": 1 } },
+		);
+
+		if (pref) {
+			return colls.gameInfos.findOne(
+				{
+					"_id.game": game,
+					$or: [{ "meta.public": true, ...NOT_ARCHIVED }, { "_id.version": pref.access!.maxVersion }],
+				},
+				{ sort: { "_id.version": -1 } },
+			);
+		}
 		return colls.gameInfos.findOne(
 			{ "_id.game": game, "meta.public": true, ...NOT_ARCHIVED },
 			{ sort: { "_id.version": -1 } },
 		);
-	}
+	})();
 
-	const pref = await colls.gamePreferences.findOne<PickDeep<GamePreferencesDoc, "access.maxVersion">>(
-		{ user: user._id, game, "access.maxVersion": { $exists: true } },
-		{ projection: { "access.maxVersion": 1 } },
-	);
-
-	if (pref) {
-		return colls.gameInfos.findOne(
-			{
-				"_id.game": game,
-				$or: [{ "meta.public": true, ...NOT_ARCHIVED }, { "_id.version": pref.access!.maxVersion }],
-			},
-			{ sort: { "_id.version": -1 } },
-		);
-	} else {
-		return colls.gameInfos.findOne(
-			{ "_id.game": game, "meta.public": true, ...NOT_ARCHIVED },
-			{ sort: { "_id.version": -1 } },
-		);
-	}
+	const [versionDoc, metadata] = await Promise.all([versionDocPromise, colls.gameMetadatas.findOne({ _id: game })]);
+	return mergeGameInfo(versionDoc, metadata);
 }
 
 export async function latestAccessibleGames<T>(userId?: T) {

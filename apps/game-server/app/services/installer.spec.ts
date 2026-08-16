@@ -64,9 +64,7 @@ describe("installer — archived versions are not installed", () => {
 		await colls.gameInfos.deleteMany({ "_id.game": ARCH_GAME });
 		await colls.gameInfos.insertOne({
 			_id: { game: ARCH_GAME, version: 1 },
-			label: "Archived installer test",
 			viewer: { url: "//test/installer-archived" },
-			players: [2],
 			meta: { public: true, archived: true, bots: true },
 			engine: { package: ARCH_PKG, entryPoint: "dist/engine.mjs" },
 		});
@@ -132,9 +130,7 @@ describe("installer — engine uploaded as tarball URL (#268)", () => {
 		await colls.gameInfos.deleteMany({ "_id.game": GAME });
 		await colls.gameInfos.insertOne({
 			_id: { game: GAME, version: VERSION },
-			label: "Installer test",
 			viewer: { url: "//test/installer" },
-			players: [2],
 			meta: { public: true },
 			engine: { package: { ...PKG, url: tarballUrl }, entryPoint: "dist/engine.mjs" },
 		});

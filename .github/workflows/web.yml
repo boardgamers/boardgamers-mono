@@ -1,0 +1,61 @@
+name: Web
+
+on:
+  push:
+    paths:
+      - ".github/workflows/web.yml"
+      - "apps/web/**"
+      - "apps/admin/**"
+      - "packages/**"
+    branches:
+      - main
+  pull_request:
+    paths:
+      - ".github/workflows/web.yml"
+      - "apps/web/**"
+      - "apps/admin/**"
+      - "packages/**"
+
+permissions:
+  contents: read
+
+jobs:
+  # Production `vite build` for the player frontend. svelte-check (the `check`
+  # script) does NOT catch everything the rollup build does — e.g. a `{@const}`
+  # that is not the immediate child of an {#if}/{#each}/… block passes svelte-check
+  # but fails `vite build` (this broke the pr-303 preview env). Build in CI so that
+  # class of error is caught before merge.
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: corepack enable
+      - run: pnpm install --filter {./}...
+      # svelte-kit sync generates .svelte-kit/tsconfig.json (gitignored) — the build
+      # and svelte-check need it.
+      - run: npx svelte-kit sync
+      - run: pnpm run build
+      - run: pnpm run check
+
+  # Same production-build guard for the admin panel.
+  admin:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: corepack enable
+      - run: pnpm install --filter {./}...
+      - run: npx svelte-kit sync
+      - run: pnpm run build
+      - run: pnpm run check
