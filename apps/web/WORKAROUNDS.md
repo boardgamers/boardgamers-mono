@@ -44,6 +44,7 @@ renders such a leaf should stub it via
 `vi.mock("@/components/icons/Icon….svelte", () => import("@/lib/__mocks__/IconStub.svelte"))`
 (see `src/components/Game/GameList.spec.ts`). Revisit if the mount env is fixed
 (upgrading `svelte` / the vitest plugin, or dropping the rest-spread from the leaves).
+Last checked on svelte 5.56.8 + vite-plugin-svelte 7.2.0 (#118): still broken.
 
 ## `credentialless` iframe flag set via a Svelte action
 
