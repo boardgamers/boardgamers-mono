@@ -143,7 +143,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 		return;
 	}
 
-	if (gameInfo.meta.needOwnership) {
+	if (gameInfo.needOwnership) {
 		assert(
 			await colls.gamePreferences.findOne({
 				game: gameInfoId.game,

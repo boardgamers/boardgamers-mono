@@ -35,7 +35,7 @@ function seedPreSplit() {
 				players: [2, 3, 4],
 				expansions: [{ label: "Exp", name: "exp" }],
 				viewer: { url: "//v2" },
-				meta: { public: true, bots: true },
+				meta: { public: true, bots: true, needOwnership: true },
 			},
 			{
 				_id: { game: "other-game", version: 1 },
@@ -69,8 +69,9 @@ describe("migration 1.8.0 — game metadata/version split (#298)", () => {
 		assert.equal(split.description, "v2 description");
 		assert.equal(split.rules, "the rules");
 		assert.deepEqual(split.players, [2, 3, 4]);
-		assert.deepEqual(split.expansions, [{ label: "Exp", name: "exp" }]);
+		assert.ok(!("expansions" in split), "expansions is version-scoped — not moved to the metadata doc");
 		assert.deepEqual(split.links, { bgg: "https://boardgamegeek.com/boardgame/1" });
+		assert.equal(split.needOwnership, true, "needOwnership is sourced from meta.needOwnership onto the metadata doc");
 		const other = metas.find((m) => m._id === "other-game")!;
 		assert.equal(other.label, "Other Game");
 		assert.deepEqual(other.players, [3]);
@@ -80,12 +81,19 @@ describe("migration 1.8.0 — game metadata/version split (#298)", () => {
 		assert.strictEqual(versions.length, 3);
 		for (const v of versions) {
 			for (const field of GAME_METADATA_FIELDS) {
-				assert.ok(!(field in v), `version doc ${v._id.game} v${v._id.version} still has ${field}`);
+				// needOwnership is stripped from `meta`; the rest from the top level.
+				const holder: Record<string, unknown> = field === "needOwnership" ? (v.meta ?? {}) : v;
+				assert.ok(!(field in holder), `version doc ${v._id.game} v${v._id.version} still has ${field}`);
 			}
 		}
 		const v2 = versions.find((v) => v._id.game === "split-game" && v._id.version === 2)!;
 		assert.deepEqual(v2.viewer, { url: "//v2" });
-		assert.deepEqual(v2.meta, { public: true, bots: true });
+		assert.deepEqual(v2.expansions, [{ label: "Exp", name: "exp" }], "expansions stays on the version doc");
+		assert.deepEqual(
+			v2.meta,
+			{ public: true, bots: true },
+			"meta keeps only version-scoped flags (needOwnership stripped)",
+		);
 	});
 
 	it("is idempotent: a re-run does not overwrite an existing metadata doc nor re-strip versions", async () => {

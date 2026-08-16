@@ -27,7 +27,7 @@
 	}
 
 	const onClick = async (gameInfo: IterableElement<typeof info>) => {
-		if (gameInfo.meta.needOwnership && !owns(gameInfo._id.game)) {
+		if (gameInfo.needOwnership && !owns(gameInfo._id.game)) {
 			await confirm(
 				"You need to have game ownership to host a new game. You can set game ownership in your account settings."
 			);

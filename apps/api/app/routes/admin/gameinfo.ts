@@ -30,7 +30,7 @@ router.get("/", async (ctx) => {
 	});
 });
 
-// The per-game metadata (label/alias/description/rules/links/players/expansions)
+// The per-game metadata (label/alias/description/rules/links/players/needOwnership)
 // is edited from the boardgame list page, not a version page (#298). Accept a
 // subset of `gameMetadataSchema`; `alias: null` clears it (same upsert convention
 // as the version route). Kept loose like the version route: only the fields the
@@ -42,7 +42,7 @@ const metadataBodySchema = z.looseObject({
 	rules: gameInfoSchema.shape.rules.optional(),
 	links: gameInfoSchema.shape.links.optional(),
 	players: gameInfoSchema.shape.players.optional(),
-	expansions: gameInfoSchema.shape.expansions.optional(),
+	needOwnership: gameInfoSchema.shape.needOwnership.optional(),
 });
 
 router.get("/:game/meta", async (ctx) => {

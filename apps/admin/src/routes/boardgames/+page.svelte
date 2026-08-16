@@ -62,8 +62,8 @@
 <div class="space-y-6">
 	<h2 class="text-xl font-bold">Boardgame metadata</h2>
 	<p class="text-sm text-gray-500 dark:text-gray-400">
-		Game-level fields (label, description, rules, player counts, expansions) are shared by every version and edited
-		here.
+		Game-level fields (label, description, rules, player counts, ownership) are shared by every version and edited
+		here. Expansions are version-scoped (a setup option that can differ per version) and edited on the version page.
 	</p>
 
 	<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -115,27 +115,6 @@
 							{/each}
 							<button onclick={addPlayer} class="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-500 font-medium"
 								>+ Add</button
-							>
-						</div>
-					</div>
-
-					<!-- Expansions -->
-					<div>
-						<span class={labelClass}>Expansions</span>
-						<div class="space-y-2">
-							{#each meta.expansions ?? [] as exp, i (i)}
-								<div class="flex gap-2 items-center">
-									<input bind:value={exp.label} placeholder="Label" class="{inputClass} flex-1" />
-									<input bind:value={exp.name} placeholder="ID" class="{inputClass} flex-1" />
-									<button
-										onclick={() => (meta.expansions = meta.expansions!.filter((_, j) => j !== i))}
-										class="text-red-600">&times;</button
-									>
-								</div>
-							{/each}
-							<button
-								onclick={() => (meta.expansions = [...(meta.expansions ?? []), { label: "", name: "" }])}
-								class="text-sm text-blue-600">+ Add expansion</button
 							>
 						</div>
 					</div>

@@ -76,12 +76,14 @@ export const gameVersionSchema = z.object({
 		})
 		.optional(),
 	// Engine-defined configuration: these describe how the engine exposes its
-	// options/preferences/factions, so they change with the engine and stay
-	// version-scoped (unlike the game's identity/rules/player counts, which are
-	// game-level metadata).
+	// options/preferences/factions/expansions, so they change with the engine and
+	// stay version-scoped (unlike the game's identity/rules/player counts, which are
+	// game-level metadata). `expansions` in particular is a setup option that can be
+	// implemented in only some versions (new content added in a later version).
 	preferences: z.array(gameInfoOptionSchema).optional(),
 	settings: z.array(gameInfoOptionSchema.extend({ faction: z.string().optional() })).optional(),
 	options: z.array(gameInfoOptionSchema).optional(),
+	expansions: z.array(z.object({ label: z.string(), name: z.string() })).optional(),
 	factions: z
 		.object({
 			avatars: z.boolean().optional(),
@@ -89,7 +91,6 @@ export const gameVersionSchema = z.object({
 		.optional(),
 	meta: z.object({
 		public: z.boolean(),
-		needOwnership: z.boolean().optional(),
 		// Set when the game's engine implements `moveAI` — enables adding bot players
 		// at game creation. Auto-detected by the game-server installer (probes the
 		// engine's entry point for a moveAI export on install / for unprobed engines).
@@ -129,7 +130,10 @@ export const gameMetadataSchema = z.object({
 		})
 		.optional(),
 	players: z.array(z.number()),
-	expansions: z.array(z.object({ label: z.string(), name: z.string() })).optional(),
+	// Whether playing the game requires owning the physical board game. Game-scoped
+	// (a property of the game itself, not of any engine version), so it lives on the
+	// per-game metadata doc — surfaced on the merged game-info as `needOwnership`.
+	needOwnership: z.boolean().optional(),
 	// Number of users who liked the game. Game-scoped (a like targets the game, not
 	// a version), so it lives on the single per-game metadata doc — this makes the
 	// #289 multi-version likeCount bug (a `$inc` bumping only one version's doc)
@@ -149,8 +153,8 @@ export type GameMetadataDoc = z.output<typeof gameMetadataSchema>;
 
 // The game-level keys hoisted out of `gameInfos` into `gameMetadatas` (#298):
 // identity + player counts. Engine-defined configuration (preferences/settings/
-// options/factions) stays version-scoped. Shared by the storage split and the
-// migration + admin route that route a field to one collection or the other.
+// options/expansions/factions) stays version-scoped. Shared by the storage split
+// and the migration + admin route that route a field to one collection or the other.
 export const GAME_METADATA_FIELDS = [
 	"label",
 	"alias",
@@ -158,7 +162,7 @@ export const GAME_METADATA_FIELDS = [
 	"rules",
 	"links",
 	"players",
-	"expansions",
+	"needOwnership",
 ] as const;
 
 // The merged document the API serves and the app passes around: a version doc plus
@@ -173,7 +177,7 @@ export const gameInfoSchema = gameVersionSchema.merge(
 		rules: true,
 		links: true,
 		players: true,
-		expansions: true,
+		needOwnership: true,
 		likeCount: true,
 	}),
 );

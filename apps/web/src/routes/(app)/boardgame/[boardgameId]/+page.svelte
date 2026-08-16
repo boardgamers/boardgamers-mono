@@ -28,7 +28,7 @@
 	let boardgame = $derived(infos[gameInfoKey(boardgameId, "latest")] as GameInfoFront);
 	const ssrPrefs = useGamePreferencesFallback();
 	let hasOwnership = $derived(($gamePreferences[boardgameId] ?? ssrPrefs[boardgameId])?.access?.ownership);
-	let needOwnership = $derived(boardgame?.meta?.needOwnership);
+	let needOwnership = $derived(boardgame?.needOwnership);
 
 	let rules = $state(false);
 	// Placeholder href for the rules/description toggle (click is intercepted).

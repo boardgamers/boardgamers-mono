@@ -339,7 +339,9 @@
 
 	// Game-level metadata fields (hoisted to `gameMetadatas` in #298); when
 	// `metadataReadOnly` the version page renders them read-only and never saves them.
-	const METADATA_FIELDS = ["label", "alias", "description", "rules", "links", "players", "expansions"] as const;
+	// `expansions` is version-scoped (a setup option that can differ per version), so
+	// it is NOT stripped here.
+	const METADATA_FIELDS = ["label", "alias", "description", "rules", "links", "players", "needOwnership"] as const;
 
 	function handleSave() {
 		for (const setting of value.settings ?? []) {
@@ -377,6 +379,12 @@
 </script>
 
 <div class="space-y-6">
+	<!-- ===== Game-level metadata (shared by all versions; #298) ===== -->
+	<!-- Edited centrally on the boardgame list page; read-only here on version pages. -->
+	<h3 class="text-sm font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-200 dark:border-gray-800 pb-1">
+		Game
+	</h3>
+
 	<!-- Basic Info -->
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 		<div>
@@ -455,6 +463,61 @@
 			{/if}
 		</div>
 	</div>
+
+	<!-- Requires ownership (game-level: a property of the game, not the version) -->
+	<label class="flex items-center gap-2 text-sm">
+		<input type="checkbox" bind:checked={value.needOwnership} class="rounded" disabled={metadataReadOnly} /> Requires
+		ownership
+	</label>
+
+	<!-- Links -->
+	<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+		<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">Links</summary>
+		<div class="px-5 pb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+			{#each [{ key: "source" as const, label: "Source code URL", placeholder: "https://github.com/…" }, { key: "bgg" as const, label: "BoardGameGeek URL", placeholder: "https://boardgamegeek.com/boardgame/…" }, { key: "publisher" as const, label: "Publisher URL", placeholder: "https://…" }, { key: "buy" as const, label: "Buy URL (affiliate)", placeholder: "https://…" }] as field (field.key)}
+				<div>
+					<label for={"link-" + field.key} class={labelClass}>{field.label}</label>
+					<input
+						id={"link-" + field.key}
+						value={value.links?.[field.key] ?? ""}
+						use:trim
+						oninput={(e) => {
+							value.links = { ...value.links, [field.key]: e.currentTarget.value };
+						}}
+						placeholder={field.placeholder}
+						class={inputClass}
+						disabled={metadataReadOnly}
+					/>
+				</div>
+			{/each}
+		</div>
+	</details>
+
+	<!-- Description & Rules -->
+	{#if metadataReadOnly}
+		{#if value.description}
+			<div class="space-y-1">
+				<span class="block text-sm font-medium">Description</span>
+				<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.description}</p>
+			</div>
+		{/if}
+		{#if value.rules}
+			<div class="space-y-1">
+				<span class="block text-sm font-medium">Rules</span>
+				<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.rules}</p>
+			</div>
+		{/if}
+	{:else}
+		<MarkdownEditor bind:value={value.description} label="Description (Markdown)" rows={4} />
+		<MarkdownEditor bind:value={value.rules} label="Rules (Markdown)" rows={8} />
+	{/if}
+
+	<!-- ===== Version-level config (this engine/viewer version only) ===== -->
+	<h3
+		class="text-sm font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-200 dark:border-gray-800 pb-1 pt-2"
+	>
+		Version
+	</h3>
 
 	<!-- Faction Avatars -->
 	<label class="flex items-center gap-2 text-sm">
@@ -703,65 +766,20 @@
 		</div>
 	</details>
 
-	<!-- Meta -->
+	<!-- Meta (version-scoped access flags) -->
 	<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
 		<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">Meta</summary>
 		<div class="px-5 pb-4 space-y-3">
 			<label class="flex items-center gap-2 text-sm">
 				<input type="checkbox" bind:checked={value.meta.public} class="rounded" /> Public
 			</label>
-			<label class="flex items-center gap-2 text-sm">
-				<input type="checkbox" bind:checked={value.meta.needOwnership} class="rounded" /> Requires ownership
-			</label>
 		</div>
 	</details>
 
-	<!-- Links -->
-	<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
-		<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">Links</summary>
-		<div class="px-5 pb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-			{#each [{ key: "source" as const, label: "Source code URL", placeholder: "https://github.com/…" }, { key: "bgg" as const, label: "BoardGameGeek URL", placeholder: "https://boardgamegeek.com/boardgame/…" }, { key: "publisher" as const, label: "Publisher URL", placeholder: "https://…" }, { key: "buy" as const, label: "Buy URL (affiliate)", placeholder: "https://…" }] as field (field.key)}
-				<div>
-					<label for={"link-" + field.key} class={labelClass}>{field.label}</label>
-					<input
-						id={"link-" + field.key}
-						value={value.links?.[field.key] ?? ""}
-						use:trim
-						oninput={(e) => {
-							value.links = { ...value.links, [field.key]: e.currentTarget.value };
-						}}
-						placeholder={field.placeholder}
-						class={inputClass}
-						disabled={metadataReadOnly}
-					/>
-				</div>
-			{/each}
-		</div>
-	</details>
-
-	<!-- Description & Rules -->
-	{#if metadataReadOnly}
-		{#if value.description}
-			<div class="space-y-1">
-				<span class="block text-sm font-medium">Description</span>
-				<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.description}</p>
-			</div>
-		{/if}
-		{#if value.rules}
-			<div class="space-y-1">
-				<span class="block text-sm font-medium">Rules</span>
-				<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.rules}</p>
-			</div>
-		{/if}
-	{:else}
-		<MarkdownEditor bind:value={value.description} label="Description (Markdown)" rows={4} />
-		<MarkdownEditor bind:value={value.rules} label="Rules (Markdown)" rows={8} />
-	{/if}
-
-	<!-- Expansions, Options, Preferences, Settings -->
-	{#each [{ key: "expansions" as const, label: "Expansions", showType: false, showFaction: false, showCategory: false }, { key: "options" as const, label: "Options", showType: true, showFaction: false, showCategory: false }, { key: "preferences" as const, label: "Preferences", showType: true, showFaction: false, showCategory: true }, { key: "settings" as const, label: "Settings", showType: true, showFaction: true, showCategory: false }] as section (section.key)}
-		<!-- `expansions` is game-level metadata (#298): read-only on version pages. -->
-		{@const readOnly = metadataReadOnly && section.key === "expansions"}
+	<!-- Options/Preferences/Settings/Expansions share one card renderer. All four are
+	     version-level setup sections (expansions is a setup option that can differ per
+	     version), so they stay editable on version pages. -->
+	{#snippet sectionCard(section: { key: "expansions" | "options" | "preferences" | "settings"; label: string; showType: boolean; showFaction: boolean; showCategory: boolean })}
 		<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
 			<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">{section.label}</summary>
 			<div class="px-5 pb-4 space-y-3">
@@ -787,7 +805,6 @@
 										id={section.key + "-" + i + "-id"}
 										bind:value={(item as OptionItem).name}
 										class={inputClass}
-										disabled={readOnly}
 									/>
 								</div>
 								<div>
@@ -798,7 +815,6 @@
 										id={section.key + "-" + i + "-name"}
 										bind:value={(item as OptionItem).label}
 										class={inputClass}
-										disabled={readOnly}
 									/>
 								</div>
 
@@ -870,8 +886,7 @@
 								{/if}
 							</div>
 
-							{#if !readOnly}
-								<!-- Reorder & Delete -->
+						<!-- Reorder & Delete -->
 								<div class="flex flex-col gap-1 pt-5 items-center">
 									<span
 										draggable="true"
@@ -901,7 +916,6 @@
 										title="Delete">&times;</button
 									>
 								</div>
-							{/if}
 						</div>
 
 						<!-- Select items sub-list -->
@@ -952,16 +966,21 @@
 					</div>
 				{/each}
 
-				{#if !readOnly}
-					<button
-						onclick={() => addListItem(section.key)}
-						class="{btnSmClass} text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-					>
-						+ Add {section.label.slice(0, -1).toLowerCase()}
-					</button>
-				{/if}
+				<button
+					onclick={() => addListItem(section.key)}
+					class="{btnSmClass} text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+				>
+					+ Add {section.label.slice(0, -1).toLowerCase()}
+				</button>
 			</div>
 		</details>
+	{/snippet}
+
+	<!-- Version-level setup sections. `expansions` is version-scoped (a setup option
+	     that can be implemented in only some versions), so it is editable here even on
+	     version pages — unlike the game-level metadata in the Game group above. -->
+	{#each [{ key: "expansions" as const, label: "Expansions", showType: false, showFaction: false, showCategory: false }, { key: "options" as const, label: "Options", showType: true, showFaction: false, showCategory: false }, { key: "preferences" as const, label: "Preferences", showType: true, showFaction: false, showCategory: true }, { key: "settings" as const, label: "Settings", showType: true, showFaction: true, showCategory: false }] as section (section.key)}
+		{@render sectionCard(section)}
 	{/each}
 
 	<!-- Actions -->
