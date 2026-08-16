@@ -62,8 +62,8 @@
 <div class="space-y-6">
 	<h2 class="text-xl font-bold">Boardgame metadata</h2>
 	<p class="text-sm text-gray-500 dark:text-gray-400">
-		Game-level fields (label, description, rules, player counts, ownership) are shared by every version and edited
-		here. Expansions are version-scoped (a setup option that can differ per version) and edited on the version page.
+		Game-level fields (label, description, rules, player counts, ownership) are shared by every version and edited here.
+		Expansions are version-scoped (a setup option that can differ per version) and edited on the version page.
 	</p>
 
 	<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">

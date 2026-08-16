@@ -381,7 +381,9 @@
 <div class="space-y-6">
 	<!-- ===== Game-level metadata (shared by all versions; #298) ===== -->
 	<!-- Edited centrally on the boardgame list page; read-only here on version pages. -->
-	<h3 class="text-sm font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-200 dark:border-gray-800 pb-1">
+	<h3
+		class="text-sm font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-200 dark:border-gray-800 pb-1"
+	>
 		Game
 	</h3>
 
@@ -466,8 +468,7 @@
 
 	<!-- Requires ownership (game-level: a property of the game, not the version) -->
 	<label class="flex items-center gap-2 text-sm">
-		<input type="checkbox" bind:checked={value.needOwnership} class="rounded" disabled={metadataReadOnly} /> Requires
-		ownership
+		<input type="checkbox" bind:checked={value.needOwnership} class="rounded" disabled={metadataReadOnly} /> Requires ownership
 	</label>
 
 	<!-- Links -->
@@ -779,7 +780,13 @@
 	<!-- Options/Preferences/Settings/Expansions share one card renderer. All four are
 	     version-level setup sections (expansions is a setup option that can differ per
 	     version), so they stay editable on version pages. -->
-	{#snippet sectionCard(section: { key: "expansions" | "options" | "preferences" | "settings"; label: string; showType: boolean; showFaction: boolean; showCategory: boolean })}
+	{#snippet sectionCard(section: {
+		key: "expansions" | "options" | "preferences" | "settings";
+		label: string;
+		showType: boolean;
+		showFaction: boolean;
+		showCategory: boolean;
+	})}
 		<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
 			<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">{section.label}</summary>
 			<div class="px-5 pb-4 space-y-3">
@@ -801,11 +808,7 @@
 							<div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
 								<div>
 									<label for={section.key + "-" + i + "-id"} class={labelClass}>{section.label.slice(0, -1)} ID</label>
-									<input
-										id={section.key + "-" + i + "-id"}
-										bind:value={(item as OptionItem).name}
-										class={inputClass}
-									/>
+									<input id={section.key + "-" + i + "-id"} bind:value={(item as OptionItem).name} class={inputClass} />
 								</div>
 								<div>
 									<label for={section.key + "-" + i + "-name"} class={labelClass}
@@ -886,36 +889,36 @@
 								{/if}
 							</div>
 
-						<!-- Reorder & Delete -->
-								<div class="flex flex-col gap-1 pt-5 items-center">
-									<span
-										draggable="true"
-										role="button"
-										tabindex="-1"
-										aria-label="Drag to reorder"
-										title="Drag to reorder"
-										class="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1 select-none leading-none"
-										ondragstart={(e) => handleDragStart(e, section.key, i)}
-										ondragend={handleDragEnd}>⠿</span
-									>
-									<button
-										onclick={() => moveItem(section.key, i, -1)}
-										disabled={i === 0}
-										class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-25"
-										title="Move up">&#9650;</button
-									>
-									<button
-										onclick={() => moveItem(section.key, i, 1)}
-										disabled={i === items.length - 1}
-										class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-25"
-										title="Move down">&#9660;</button
-									>
-									<button
-										onclick={() => removeListItem(section.key, i)}
-										class="{btnSmClass} text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-										title="Delete">&times;</button
-									>
-								</div>
+							<!-- Reorder & Delete -->
+							<div class="flex flex-col gap-1 pt-5 items-center">
+								<span
+									draggable="true"
+									role="button"
+									tabindex="-1"
+									aria-label="Drag to reorder"
+									title="Drag to reorder"
+									class="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1 select-none leading-none"
+									ondragstart={(e) => handleDragStart(e, section.key, i)}
+									ondragend={handleDragEnd}>⠿</span
+								>
+								<button
+									onclick={() => moveItem(section.key, i, -1)}
+									disabled={i === 0}
+									class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-25"
+									title="Move up">&#9650;</button
+								>
+								<button
+									onclick={() => moveItem(section.key, i, 1)}
+									disabled={i === items.length - 1}
+									class="{btnSmClass} text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-25"
+									title="Move down">&#9660;</button
+								>
+								<button
+									onclick={() => removeListItem(section.key, i)}
+									class="{btnSmClass} text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+									title="Delete">&times;</button
+								>
+							</div>
 						</div>
 
 						<!-- Select items sub-list -->
