@@ -77,6 +77,22 @@ describe("Admin Loki proxy", () => {
 		assert.equal(lokiUrl.searchParams.get("time"), String(Math.floor(end / 1000)));
 	});
 
+	it("requestsByLanguage is an instant query grouping web requests by lang over 7d", async () => {
+		const { status, lokiUrl } = await query("requestsByLanguage");
+		assert.equal(status, 200);
+		// Instant vector: single-timestamp evaluation (start === end), no step.
+		assert.equal(lokiUrl.pathname, "/loki/api/v1/query");
+		assert.equal(lokiUrl.searchParams.get("start"), lokiUrl.searchParams.get("end"));
+		assert.equal(lokiUrl.searchParams.has("step"), false);
+		const logql = lokiUrl.searchParams.get("query") ?? "";
+		// Groups by the `lang` field the web request logger emits, over a 7d window,
+		// scoped to web requests (the Accept-Language capture lives in the web SSR).
+		assert.ok(logql.includes("by (lang)"), logql);
+		assert.ok(logql.includes('source="web"'), logql);
+		assert.ok(logql.includes("[7d]"), logql);
+		assert.ok(logql.includes("| json"), logql);
+	});
+
 	it("passes a step param and expands $__interval for query_range queries", async () => {
 		for (const key of ["requestRate", "errorRate", "latency"]) {
 			const { status, lokiUrl } = await query(key);
