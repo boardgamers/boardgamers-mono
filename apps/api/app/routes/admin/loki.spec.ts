@@ -93,6 +93,27 @@ describe("Admin Loki proxy", () => {
 		assert.ok(logql.includes("| json"), logql);
 	});
 
+	it("topReferers / topUserAgents are instant topk queries over web requests (7d)", async () => {
+		for (const [key, field] of [
+			["topReferers", "referer"],
+			["topUserAgents", "ua"],
+		] as const) {
+			const { status, lokiUrl } = await query(key);
+			assert.equal(status, 200, key);
+			// Instant vector: single-timestamp evaluation, no step.
+			assert.equal(lokiUrl.pathname, "/loki/api/v1/query", key);
+			assert.equal(lokiUrl.searchParams.get("start"), lokiUrl.searchParams.get("end"), key);
+			assert.equal(lokiUrl.searchParams.has("step"), false, key);
+			const logql = lokiUrl.searchParams.get("query") ?? "";
+			assert.ok(logql.includes("topk("), `${key}: ${logql}`);
+			assert.ok(logql.includes(`by (${field})`), `${key}: ${logql}`);
+			assert.ok(logql.includes('source="web"'), `${key}: ${logql}`);
+			assert.ok(logql.includes("[7d]"), `${key}: ${logql}`);
+			// Empty values are excluded so "no header" doesn't dominate the top-N.
+			assert.ok(logql.includes(`| ${field} != ""`), `${key}: ${logql}`);
+		}
+	});
+
 	it("passes a step param and expands $__interval for query_range queries", async () => {
 		for (const key of ["requestRate", "errorRate", "latency"]) {
 			const { status, lokiUrl } = await query(key);

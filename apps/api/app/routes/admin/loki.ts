@@ -69,6 +69,21 @@ const QUERIES: Record<string, { type: "query" | "query_range"; logql: string }> 
 		type: "query",
 		logql: 'sum by (lang) (count_over_time({job="pm2", msg="request", source="web"} | json [7d]))',
 	},
+	// Top referers (where web traffic comes from) over the last week. Empty referers
+	// (direct/navigations) are excluded. The web SSR logs the raw Referer header as
+	// `referer` (#313); grouped as-is (full URL) — noisy long tails simply don't make
+	// the top-N. Instant vector → single-timestamp eval (see requestsByLanguage).
+	topReferers: {
+		type: "query",
+		logql:
+			'topk(15, sum by (referer) (count_over_time({job="pm2", msg="request", source="web"} | json | referer != "" [7d])))',
+	},
+	// Top user-agents over the last week — lets the admin spot scrapers/bots vs real
+	// browsers. The web SSR logs a bounded User-Agent as `ua` (#313).
+	topUserAgents: {
+		type: "query",
+		logql: 'topk(15, sum by (ua) (count_over_time({job="pm2", msg="request", source="web"} | json | ua != "" [7d])))',
+	},
 };
 
 // Hard cap on the queried window. Instant queries below always collapse to a
