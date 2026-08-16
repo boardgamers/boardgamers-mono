@@ -137,6 +137,8 @@
 
 	const sortedSlowEndpoints = $derived([...slowEndpoints].sort((a, b) => b.value - a.value));
 	const sortedErrorEndpoints = $derived([...errorEndpoints].sort((a, b) => b.value - a.value));
+	// .toSorted (not .sort): statusCounts is $state — an in-place sort would mutate it.
+	const sortedStatusCounts = $derived(statusCounts.toSorted((a, b) => a.status.localeCompare(b.status)));
 
 	async function loadMoreErrors() {
 		if (dbErrorsLoading) return;
@@ -251,7 +253,7 @@
 				<p class="text-sm text-gray-400">No request logs found — deploy the JSON logger first.</p>
 			{:else}
 				<div class="space-y-2">
-					{#each statusCounts.sort((a, b) => a.status.localeCompare(b.status)) as s (s.status)}
+					{#each sortedStatusCounts as s (s.status)}
 						<div class="flex items-center gap-3">
 							<span class="text-sm font-mono w-12">{s.status}</span>
 							<div class="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-6 overflow-hidden">
