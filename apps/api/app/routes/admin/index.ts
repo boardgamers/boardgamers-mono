@@ -211,14 +211,24 @@ const errorsQuerySchema = z.object({
 	limit: z.coerce.number().int().min(1).max(100).default(20),
 	// Filter by error name — e.g. name=EngineTimeoutError lists game-engine hangs/timeouts.
 	name: z.string().optional(),
+	// client = browser-reported errors (meta.source "web-client"); server = everything else.
+	source: z.enum(["all", "server", "client"]).default("all"),
 });
 
 // GET /api/admin/errors — genuine errors from the apierrors DB collection
 // (uncaught exceptions, assertion failures — not routine 4xx HTTP responses).
 // Supports pagination: ?page=1&limit=20 → { errors: [...], total, page, limit }
 router.get("/errors", async (ctx) => {
-	const { page, limit, name } = errorsQuerySchema.parse(ctx.query);
-	const filter = name ? { "error.name": name } : {};
+	const { page, limit, name, source } = errorsQuerySchema.parse(ctx.query);
+	const filter: Record<string, unknown> = {};
+	if (name) {
+		filter["error.name"] = name;
+	}
+	if (source === "client") {
+		filter["meta.source"] = "web-client";
+	} else if (source === "server") {
+		filter["meta.source"] = { $ne: "web-client" };
+	}
 	const [errors, total] = await Promise.all([
 		colls.apiErrors
 			.find(filter, {

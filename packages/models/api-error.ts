@@ -56,7 +56,10 @@ export type ApiErrorFront = Jsonify<ApiErrorDoc>;
 
 export const API_ERRORS_COLLECTION = "apierrors";
 
-export const apiErrorsCollectionOptions = { size: 10 * 1000 * 1000, max: 10000 };
+// 100k entries ≈ 100 MB. Raising an existing capped collection's size/max
+// recreates it (see ensureCappedCollection) — capped collections can't be
+// resized in place, and the error history is disposable by design.
+export const apiErrorsCollectionOptions = { size: 100 * 1000 * 1000, max: 100000 };
 
 export const apiErrorIndexes: IndexDescription[] = [
 	// api + game-server: admin error listing per user

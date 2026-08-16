@@ -27,10 +27,26 @@ import { DELETED_USERS_COLLECTION, deletedUserIndexes, deletedUserSchema } from 
 import { zodToMongoSchema } from "./mongo-schema.ts";
 
 async function ensureCappedCollection(db: Db, name: string, options: { size: number; max?: number }) {
-	const existing = await db.listCollections({ name }).toArray();
+	const existing = await db.listCollections({ name }, { nameOnly: false }).toArray();
 	if (existing.length === 0) {
 		await db.createCollection(name, { capped: true, ...options });
+		return;
 	}
+	// MongoDB can't resize a capped collection in place (collMod's cappedSize
+	// only grows the storage alloc, never the document cap). When the declared
+	// size/max diverge from the live options, drop and recreate. DESTRUCTIVE:
+	// only used for disposable history collections (errors, chat, logs) whose
+	// data is safe to lose on a cap change.
+	const live = existing[0].options ?? {};
+	if (live.capped === true && live.size === options.size && live.max === options.max) {
+		return;
+	}
+	console.warn(
+		`[ensureCollections] ${name}: capped options changed ` +
+			`(size ${String(live.size)} → ${options.size}, max ${String(live.max)} → ${String(options.max)}) — recreating (existing entries are dropped)`,
+	);
+	await db.dropCollection(name);
+	await db.createCollection(name, { capped: true, ...options });
 }
 
 export async function ensureCollections(db: Db) {

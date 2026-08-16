@@ -131,4 +131,27 @@ describe("Admin Loki proxy", () => {
 		assert.equal(status, 400);
 		assert.equal(lokiUrl, undefined, "Loki must not be contacted");
 	});
+
+	it("logsByRequestId substitutes a validated requestId into the LogQL", async () => {
+		const requestId = "123e4567-e89b-42d3-a456-426614174000";
+		const { status, lokiUrl } = await query("logsByRequestId", { requestId });
+		assert.equal(status, 200);
+		assert.equal(lokiUrl.pathname, "/loki/api/v1/query_range");
+		const logql = lokiUrl.searchParams.get("query") ?? "";
+		assert.ok(logql.includes(`requestId="${requestId}"`), logql);
+		assert.ok(!logql.includes("$requestId"), logql);
+	});
+
+	it("logsByRequestId rejects a missing or malformed requestId without contacting Loki", async () => {
+		for (const params of [
+			{},
+			{ requestId: "not-a-uuid" },
+			// LogQL injection attempt: would break out of the quoted matcher
+			{ requestId: '123e4567-e89b-42d3-a456-426614174000" | drop' },
+		]) {
+			const { status, lokiUrl } = await query("logsByRequestId", params);
+			assert.equal(status, 400, JSON.stringify(params));
+			assert.equal(lokiUrl, undefined, "Loki must not be contacted");
+		}
+	});
 });
