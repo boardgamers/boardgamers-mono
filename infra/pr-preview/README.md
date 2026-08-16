@@ -84,9 +84,10 @@ Local dev uses the MinIO service from the root `docker-compose.yml` instead
   lineage `wildcard.boardgamers.space` (venv at `/opt/certbot-dns` for the
   dns-namecheap plugin; renewals go through `/usr/local/bin/certbot-renew`),
   bgs cron for the seed.
-  - The `pr-preview` vhost carries `gzip on; gzip_proxied any; …` (#127) so SSR
-    HTML and API JSON are compressed even though the env app servers also
-    compress. When syncing `coyo-pr-preview.nginx.conf` to coyo:
+  - Compression of proxied responses (SSR HTML, API JSON) is enabled at the
+    http level in coyo's `/etc/nginx/nginx.conf` via `gzip on` + `gzip_proxied any`
+    (#127), so the `pr-preview` vhost needs no gzip block of its own. When syncing
+    `coyo-pr-preview.nginx.conf` to coyo:
     `sudo cp … /etc/nginx/sites-available/pr-preview && sudo nginx -t && sudo systemctl reload nginx`.
 
 ## GitHub side

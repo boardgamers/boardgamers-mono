@@ -34,28 +34,12 @@ server {
   # prod box. See #153.
   server_name www.boardgamers.space;
 
-  # Compress proxied responses (issue #127). gzip_proxied is required: without it
-  # nginx does not gzip responses that come from a proxy upstream. JSON/api
-  # payloads are the big win; the rest mirrors the stock nginx.conf type list.
-  # The live vhost on the prod box must carry these same directives.
-  gzip on;
-  gzip_comp_level 5;
-  gzip_min_length 1024;
-  gzip_proxied any;
-  gzip_vary on;
-  gzip_types
-    text/plain
-    text/css
-    text/xml
-    application/json
-    application/javascript
-    application/x-javascript
-    application/xml
-    application/xml+rss
-    image/svg+xml
-    font/ttf
-    font/otf
-    application/vnd.ms-fontobject;
+  # Compression of proxied responses (SSR HTML, admin SPA, API JSON) is handled
+  # at the http level on the prod box: /etc/nginx/nginx.conf has `gzip on` and
+  # — the critical part — `gzip_proxied any` (issue #127). Without gzip_proxied,
+  # nginx refuses to gzip responses that come from a proxy upstream. No
+  # per-vhost gzip block is needed (and adding one would collide with the
+  # http-level directives as "duplicate").
 
   index index.html;
 
