@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Handle, HandleFetch } from "@sveltejs/kit";
 import { logEvent } from "@bgs/utils/log";
+import { backendUrl } from "@/lib/backend-url.server";
 import { extractCookie } from "@/utils/extract-cookie";
 
 interface RequestContext {
@@ -62,27 +63,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return response;
 	});
 };
-
-function backendUrl(override: string | undefined, defaultPort: number): string {
-	const raw = (override ?? import.meta.env.VITE_backend ?? "127.0.0.1").replace(/^https?:\/\//, "");
-	// Bare IPv6 (contains multiple colons, no brackets) has no port — a naive split(":")
-	// would shred it. Otherwise split host:port on the last colon only.
-	const isBareIpv6 = !raw.startsWith("[") && (raw.match(/:/g)?.length ?? 0) > 1;
-	// A bracketed IPv6 literal keeps its brackets; only a "]:" suffix is a port.
-	const idx = isBareIpv6
-		? -1
-		: raw.startsWith("[")
-			? raw.indexOf("]:") === -1
-				? -1
-				: raw.indexOf("]:") + 1
-			: raw.lastIndexOf(":");
-	const host = idx === -1 ? raw : raw.slice(0, idx);
-	const port = idx === -1 ? undefined : raw.slice(idx + 1);
-	const ip = host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
-	// Port 443 means TLS — lets SSR fetch a preview/prod API over https.
-	const proto = (port ?? String(defaultPort)) === "443" ? "https" : "http";
-	return `${proto}://${ip}:${port ?? defaultPort}`;
-}
 
 // Forwarding/tracking headers that must never travel from the client to the api on the
 // SSR proxy hop — each is either re-added authoritatively below (x-forwarded-for) or

@@ -47,10 +47,11 @@ const socialFeedbackSchema = z.object({
 // preview envs their social login simply isn't wired up (acceptable; only HF
 // works on previews).
 //
-// External dependency (#248): nginx must route /auth/* to the api (it currently
-// routes only /api/*), and each provider's OAuth app must list the new
-// /auth/<provider>/callback redirect URI. Until then these routes are only
-// reachable directly on the api port.
+// Reachability (#248): the web app proxies /auth/* here (apps/web
+// src/routes/auth/[...path]/+server.ts) — prod nginx only routes /api/* to the api,
+// so no nginx change is needed (PR-preview nginx routes /auth/* directly; both paths
+// are equivalent). Each provider's OAuth app must list the /auth/<provider>/callback
+// redirect URI.
 // ---------------------------------------------------------------------------
 
 // The web app shares the API's origin (vite proxy in dev, nginx in prod), so the
