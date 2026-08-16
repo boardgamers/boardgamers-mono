@@ -360,13 +360,9 @@ export async function afterMove(
 			assert(player, `No player at index ${playerNumber}`);
 			const oldPlayer = oldPlayers.find((p) => p._id.equals(player._id));
 			if (oldPlayer) {
-				// The player moved but is still current (e.g. everyone else passed and
-				// they're playing several turns in a row — issue #12). Charge the time
-				// they spent since timerStart, then restart their clock and push the
-				// deadline out from their (already-incremented) remainingTime. Without
-				// this the deadline stays frozen at its original value: the visible
-				// clock and the inactivity auto-cancel expire while they're actively
-				// playing, dropping them mid-game.
+				// Mover is still current (issue #12): charge elapsed think-time, then
+				// restart clock + deadline from the already-incremented remainingTime,
+				// else the deadline stays frozen and they get dropped mid-game.
 				player.remainingTime = Math.max(
 					(player.remainingTime ?? timePerGame ?? 0) - elapsedSeconds(oldPlayer.timerStart, timer),
 					0,

@@ -39,6 +39,16 @@ function makeEngine(): Engine {
 		currentPlayer: (data) => (moves(data) >= 99 ? undefined : 0),
 		logLength: (data) => moves(data),
 		logSlice: () => ({ log: [], availableMoves: [] }),
+		setPlayerMetaData: (data) => data,
+		setPlayerSettings: (data) => data,
+		playerSettings: () => ({}),
+		rankings: () => [1, 2],
+		round: () => 0,
+		cancelled: () => false,
+		factions: () => ["p0", "p1"],
+		messages: (data) => ({ messages: [], data }),
+		replay: (data) => data,
+		stats: () => ({}),
 	};
 }
 
