@@ -5,6 +5,9 @@
 //   GET    /envs                      -> [{pr, sha, status, ports, url, createdAt}]
 //   PUT    /envs/:pr   {sha}          create (or update to a new sha); 409 when full
 //                                       update swaps the container but KEEPS the env db
+//                                       400 when sha isn't a full 40-char commit hash;
+//                                       500 when the env container fails to start
+//                                       (message carries the unit log tail)
 //   DELETE /envs/:pr                  tear down (container + db)
 //   POST   /seed                      import newest dumps/template as bgs-preview-template
 //
@@ -175,6 +178,34 @@ async function createEnv(pr, sha) {
 		IMAGE,
 	]);
 
+	// Catch instant boot crashes (bad sha, missing dump, …) before claiming success:
+	// without this, state gets an entry for a dead container and nginx 502s. The
+	// entrypoint's long in-container build runs AFTER the process starts, so
+	// "running" means "booted", not "ready" — a short poll is the right check.
+	const BOOT_TIMEOUT_MS = 10_000;
+	const deadline = Date.now() + BOOT_TIMEOUT_MS;
+	let status = await containerStatus(pr);
+	while (status !== "running" && Date.now() < deadline) {
+		await new Promise((r) => setTimeout(r, 1000));
+		status = await containerStatus(pr);
+	}
+	if (status !== "running") {
+		// Grab the failure reason before tearing down: the unit's journal has the
+		// entrypoint's output even after the --rm container is gone.
+		const logTail = await sh("journalctl", [
+			"--user",
+			"-u",
+			`bgs-pr-${pr}`,
+			"-n",
+			"30",
+			"--no-pager",
+		]).catch((e) => `journalctl failed: ${e.message}`);
+		await stopContainer(pr);
+		const err = new Error(`env container failed to start (status: ${status}): ${logTail}`);
+		err.status = 500;
+		throw err;
+	}
+
 	// Re-read and replace, not push, so a retried PUT never leaves a duplicate entry
 	// for the same PR.
 	const fresh = loadState();
@@ -341,7 +372,11 @@ const server = createServer(async (req, res) => {
 				let body = "";
 				for await (const chunk of req) body += chunk;
 				const { sha } = JSON.parse(body || "{}");
-				if (!sha || !/^[0-9a-f]{7,64}$/i.test(sha)) return json(res, 400, { error: "bad sha" });
+				// Full 40-char sha only: the entrypoint does `git fetch origin "$SHA"`, which
+				// needs a complete hash — a short sha or branch name fetches nothing and the
+				// container dies on boot.
+				if (!sha || !/^[0-9a-f]{40}$/.test(sha))
+					return json(res, 400, { error: "sha must be a full 40-char commit hash" });
 				return json(res, 200, await withPrLock(pr, () => createEnv(pr, sha)));
 			}
 			if (req.method === "DELETE") {
