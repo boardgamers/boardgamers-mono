@@ -25,9 +25,9 @@ export const GET: RequestHandler = ({ url }) => {
 			// Shown on HF's consent screen. Depends on #140 (og-logo-icon), which adds
 			// apps/web/static/logo.png — until that lands on main this 404s (HF just skips it).
 			logo_uri: `${url.origin}/logo.png`,
-			// Must be the api-mounted callback path (nginx routes /api/* to the api; a bare
-			// /auth/... hits the web SPA and 404s). Matches the api's socialCallbackUrl().
-			redirect_uris: [`${url.origin}/api/account/auth/huggingface/callback`],
+			// The api-mounted callback path (#248: top-level /auth, nginx routes /auth/*
+			// to the api). Matches the api's socialCallbackUrl().
+			redirect_uris: [`${url.origin}/auth/huggingface/callback`],
 			grant_types: ["authorization_code"],
 			response_types: ["code"],
 			// Public client: PKCE only, no shared secret (CIMD forbids secret-based auth).

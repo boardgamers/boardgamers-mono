@@ -29,9 +29,9 @@ if (process.env.NODE_ENV === "test") {
 export default {
 	script: false,
 	domain,
-	// Canonical site host (#153): the apex. Drives social OAuth callback URLs and
-	// email links. Until nginx makes the apex canonical (www still is), set
-	// site=www.boardgamers.space in the prod env to roll back.
+	// Canonical site host (#153): the apex — nginx 308-redirects www to it. Drives
+	// social OAuth callback URLs and email links. `site` only overrides this for
+	// non-standard deployments; prod leaves it unset.
 	site: process.env.site || domain,
 	// Base URL of the web app (login page, consent page). The OAuth2 authorize
 	// endpoint redirects there when the caller has no session or no recorded consent.
@@ -164,7 +164,7 @@ export default {
 		},
 		// Hugging Face uses CIMD (Client ID Metadata Documents): the client_id is the
 		// env's own `/.well-known/oauth-cimd` URL (served by the web app), computed at
-		// request time in routes/account/auth.ts — no env/registration needed at all.
+		// request time in routes/auth.ts — no env/registration needed at all.
 	},
 	silent: false,
 };

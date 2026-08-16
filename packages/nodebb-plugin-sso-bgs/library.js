@@ -723,7 +723,7 @@ function withPromptNone(req, opts) {
  * state:{prompt:"none", returnTo}}` under the strategy's session key. That key
  * is `oauth2:<authorize-url-hostname>` (passport-oauth2 derives it from the
  * configured authorization URL — here the PROVIDER's host, e.g.
- * `oauth2:www.boardgamers.space`, not the forum's). We don't read the config
+ * `oauth2:boardgamers.space`, not the forum's). We don't read the config
  * here (this gate is sync), so scan the session for any PKCE entry carrying
  * the prompt=none marker — there is exactly one such entry per attempt.
  *
