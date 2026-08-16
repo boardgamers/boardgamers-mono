@@ -192,14 +192,9 @@ async function createEnv(pr, sha) {
 	if (status !== "running") {
 		// Grab the failure reason before tearing down: the unit's journal has the
 		// entrypoint's output even after the --rm container is gone.
-		const logTail = await sh("journalctl", [
-			"--user",
-			"-u",
-			`bgs-pr-${pr}`,
-			"-n",
-			"30",
-			"--no-pager",
-		]).catch((e) => `journalctl failed: ${e.message}`);
+		const logTail = await sh("journalctl", ["--user", "-u", `bgs-pr-${pr}`, "-n", "30", "--no-pager"]).catch(
+			(e) => `journalctl failed: ${e.message}`,
+		);
 		await stopContainer(pr);
 		const err = new Error(`env container failed to start (status: ${status}): ${logTail}`);
 		err.status = 500;
