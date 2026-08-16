@@ -2,7 +2,7 @@
 	import { resolve } from "$app/paths";
 	import type { Pathname } from "$app/types";
 	import { page } from "$app/state";
-	import { useLatestGameInfos } from "@/lib/game-info.svelte";
+	import { byGamePopularity, useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { logoClick } from "@/lib/stores.svelte";
 	import { post } from "@/lib/api";
 	import { account } from "@/lib/account.svelte";
@@ -42,10 +42,6 @@
 		saveForgotten(forgotten.filter((g) => g !== id));
 	}
 
-	// Sort by the DISPLAYED name (alias when set) so the ordering matches what the player reads.
-	const byLabel = (a: GameInfoFront, b: GameInfoFront) => gameDisplayName(a).localeCompare(gameDisplayName(b));
-	// Discovery ordering (#98): most liked first, display name breaks ties.
-	const byPopularity = (a: GameInfoFront, b: GameInfoFront) => (b.likeCount ?? 0) - (a.likeCount ?? 0) || byLabel(a, b);
 	const rank = (id: string) => {
 		const i = myBoardgames.indexOf(id);
 		return i === -1 ? Number.MAX_SAFE_INTEGER : i;
@@ -54,7 +50,8 @@
 	let topGames = $derived(
 		games.filter((g) => pinnedIds.includes(g._id.game)).sort((a, b) => rank(a._id.game) - rank(b._id.game))
 	);
-	let otherGames = $derived(games.filter((g) => !pinnedIds.includes(g._id.game)).sort(byPopularity));
+	// Discovery ordering (#98): my likes first, then most liked, display name breaks ties.
+	let otherGames = $derived(games.filter((g) => !pinnedIds.includes(g._id.game)).sort(byGamePopularity));
 
 	const refreshGamesRoute = "/refresh-games";
 
@@ -152,6 +149,7 @@
 <ul class="hidden w-[250px] shrink-0 divide-y divide-gray-200 dark:divide-gray-700 lg:block">
 	{#key boardgameId}
 		{#if topGames.length > 0}
+			<li class="px-4 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">My games</li>
 			{#each topGames as game (game._id.game)}
 				{@render gameItem(game, true)}
 			{/each}

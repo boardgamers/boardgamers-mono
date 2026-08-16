@@ -4,21 +4,17 @@
 	import { resolve } from "$app/paths";
 	import ExpandableMarkdown from "@/components/ExpandableMarkdown.svelte";
 	import IconHeartFill from "@/components/icons/IconHeartFill.svelte";
-	import { useLatestGameInfos } from "@/lib/game-info.svelte";
+	import { byGamePopularity, useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
 	import { gameBasedOnLabel, gameDisplayName } from "@/utils/game-label";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
 
-	// Discovery ordering (#98): most liked first, display name breaks ties. `$derived.by`
-	// (not `$derived(...)`) because useLatestGameInfos reads reactive state — the function
-	// must run inside the derived for the read to be tracked.
-	let info = $derived.by(() =>
-		useLatestGameInfos()
-			.slice()
-			.sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0) || gameDisplayName(a).localeCompare(gameDisplayName(b)))
-	);
+	// Discovery ordering (#98): my likes first, then most liked, display name breaks
+	// ties. `$derived.by` (not `$derived(...)`) because useLatestGameInfos reads reactive
+	// state — the function must run inside the derived for the read to be tracked.
+	let info = $derived.by(() => useLatestGameInfos().slice().sort(byGamePopularity));
 
 	// SSR: provide the SSR-fetched prefs map via context during init so the ownership
 	// classes render server-side (setContext must run at init; $effect does NOT run during

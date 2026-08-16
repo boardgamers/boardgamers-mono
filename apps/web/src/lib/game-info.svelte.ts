@@ -6,6 +6,7 @@ import { get as getStore } from "svelte/store";
 import type { SetOptional } from "type-fest";
 import { clientWritable } from "./stores.svelte";
 import { get } from "./api";
+import { gameDisplayName } from "@/utils/game-label";
 
 /**
  * The game-info LIST (no `viewer` — the list endpoint omits it) is provided via Svelte
@@ -86,6 +87,22 @@ export function useLatestGameInfos(): SetOptional<GameInfoFront, "viewer">[] {
 	return Object.keys(map)
 		.filter((key) => key.endsWith("/latest"))
 		.map((key) => map[key]);
+}
+
+/**
+ * Discovery ordering (#98): games the current user liked first, then most-liked,
+ * display name (alias-aware) breaking ties. Comparator — callers sort a COPY
+ * (`list.slice().sort(byGamePopularity)`), never the shared store array.
+ */
+export function byGamePopularity(
+	a: Pick<GameInfoFront, "label" | "alias"> & Partial<Pick<GameInfoFront, "liked" | "likeCount">>,
+	b: Pick<GameInfoFront, "label" | "alias"> & Partial<Pick<GameInfoFront, "liked" | "likeCount">>,
+): number {
+	return (
+		Number(b.liked ?? false) - Number(a.liked ?? false) ||
+		(b.likeCount ?? 0) - (a.likeCount ?? 0) ||
+		gameDisplayName(a).localeCompare(gameDisplayName(b))
+	);
 }
 
 /**

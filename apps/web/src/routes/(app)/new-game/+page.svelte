@@ -4,7 +4,7 @@
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import ExpandableMarkdown from "@/components/ExpandableMarkdown.svelte";
-	import { useLatestGameInfos } from "@/lib/game-info.svelte";
+	import { byGamePopularity, useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
 	import { gameBasedOnLabel, gameDisplayName } from "@/utils/game-label";
 	import type { IterableElement } from "type-fest";
@@ -12,7 +12,8 @@
 
 	let { data }: PageProps = $props();
 
-	let info = $derived.by(() => useLatestGameInfos());
+	// Same discovery ordering as /boardgames (#98): my likes first, then most liked.
+	let info = $derived.by(() => useLatestGameInfos().slice().sort(byGamePopularity));
 
 	// SSR: provide the SSR-fetched prefs map via context during init so the ownership
 	// classes render server-side (setContext must run at init; $effect does NOT run during

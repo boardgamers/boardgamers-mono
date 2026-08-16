@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GameInfoFront } from "@bgs/models";
-import { applyGameLike } from "./game-info.svelte";
+import { applyGameLike, byGamePopularity } from "./game-info.svelte";
 
 // Regression for the "count resets to 0 after like + refresh" bug: the toggle response
 // must be applied to every map entry of the game (all versions + `latest`) — `likeCount`
@@ -33,5 +33,44 @@ describe("applyGameLike", () => {
 	it("is a no-op for games absent from the map", () => {
 		const map = { "container/latest": entry("container", 2, 7) };
 		expect(applyGameLike(map, "unknown", { liked: true, likeCount: 1 })).toEqual(map);
+	});
+});
+
+// The /boardgames + /new-game discovery ordering (#98).
+describe("byGamePopularity", () => {
+	const game = (label: string, likeCount?: number, liked?: boolean) =>
+		({ label, likeCount, liked }) as unknown as GameInfoFront;
+
+	it("puts games the user liked first, then most-liked, then A-Z", () => {
+		const list = [game("🐑 Catan", 3), game("🚀 Gaia Project", 10), game("🏭 Power Grid", 1, true), game("🎲 Azul")];
+
+		expect(
+			list
+				.slice()
+				.sort(byGamePopularity)
+				.map((g) => g.label),
+		).toEqual([
+			"🏭 Power Grid", // liked by me — first despite fewer likes
+			"🚀 Gaia Project", // then likeCount desc
+			"🐑 Catan",
+			"🎲 Azul", // no likes last
+		]);
+	});
+
+	it("breaks likeCount ties by display name (alias-aware)", () => {
+		const list = [
+			game("Zooloretto", 2),
+			// The DISPLAYED name is what sorts: the alias ("Gem Trader"), not the canonical
+			// label ("Splendor") — it lands before "Zooloretto" where "Splendor" would not.
+			{ label: "Splendor", alias: "Gem Trader", likeCount: 2 } as unknown as GameInfoFront,
+			game("Azul", 2),
+		];
+
+		expect(
+			list
+				.slice()
+				.sort(byGamePopularity)
+				.map((g) => g.alias ?? g.label),
+		).toEqual(["Azul", "Gem Trader", "Zooloretto"]);
 	});
 });
