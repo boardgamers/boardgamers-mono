@@ -743,13 +743,13 @@
 	{#if metadataReadOnly}
 		{#if value.description}
 			<div class="space-y-1">
-				<label class="block text-sm font-medium">Description</label>
+				<span class="block text-sm font-medium">Description</span>
 				<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.description}</p>
 			</div>
 		{/if}
 		{#if value.rules}
 			<div class="space-y-1">
-				<label class="block text-sm font-medium">Rules</label>
+				<span class="block text-sm font-medium">Rules</span>
 				<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.rules}</p>
 			</div>
 		{/if}
@@ -760,11 +760,11 @@
 
 	<!-- Expansions, Options, Preferences, Settings -->
 	{#each [{ key: "expansions" as const, label: "Expansions", showType: false, showFaction: false, showCategory: false }, { key: "options" as const, label: "Options", showType: true, showFaction: false, showCategory: false }, { key: "preferences" as const, label: "Preferences", showType: true, showFaction: false, showCategory: true }, { key: "settings" as const, label: "Settings", showType: true, showFaction: true, showCategory: false }] as section (section.key)}
+		<!-- `expansions` is game-level metadata (#298): read-only on version pages. -->
+		{@const readOnly = metadataReadOnly && section.key === "expansions"}
 		<details open class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
 			<summary class="px-5 py-3 cursor-pointer text-sm font-semibold">{section.label}</summary>
 			<div class="px-5 pb-4 space-y-3">
-				<!-- `expansions` is game-level metadata (#298): read-only on version pages. -->
-				{@const readOnly = metadataReadOnly && section.key === "expansions"}
 				{#each value[section.key] ?? [] as item, i (i)}
 					{@const items = value[section.key] as OptionItem[]}
 					<div
