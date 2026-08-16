@@ -85,7 +85,9 @@
 			// #24292e (GitHub dark) vanishes in dark mode; this gray reads on both themes.
 			github: "#6b7280", // gray
 			huggingface: "#f59e0b", // amber
-			admin: "#ec4899", // pink (was purple — too close to the new discord violet)
+			// pink (was purple — too close to the new discord violet). Reachable: the
+			// /api/admin/login-as route stamps loginMethod:"admin" on the refresh token.
+			admin: "#ec4899",
 			unknown: "#9ca3af", // light gray
 		})[method] ?? "#14b8a6";
 
@@ -592,9 +594,11 @@
 					</div>
 				</div>
 			{:else}
-				<div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+				<!-- The card is half-width (lg:grid-cols-2), so the referer/UA tables stack
+				     vertically — splitting ~550px into two columns crams the counts. -->
+				<div class="grid grid-cols-1 gap-6">
 					<!-- Top referers -->
-					<div class="overflow-x-auto">
+					<div class="overflow-x-auto min-w-0">
 						<h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
 							Top referers
 						</h4>
@@ -612,11 +616,11 @@
 								<tbody>
 									{#each refererStats as r (r.referer)}
 										<tr class="border-b border-gray-50 dark:border-gray-800/50">
-											<td class="py-2 pr-4 font-medium truncate max-w-[220px]" title={r.referer}
+											<td class="py-2 pr-4 font-medium truncate max-w-[280px]" title={r.referer}
 												>{refererLabel(r.referer)}</td
 											>
-											<td class="py-2 pr-4 text-right">{r.count.toLocaleString()}</td>
-											<td class="py-2 text-right text-gray-500">
+											<td class="py-2 pr-4 text-right whitespace-nowrap">{r.count.toLocaleString()}</td>
+											<td class="py-2 text-right text-gray-500 whitespace-nowrap">
 												{refererTotal > 0 ? Math.round((r.count / refererTotal) * 100) : 0}%
 											</td>
 										</tr>
@@ -626,7 +630,7 @@
 						{/if}
 					</div>
 					<!-- Top user-agents -->
-					<div class="overflow-x-auto">
+					<div class="overflow-x-auto min-w-0">
 						<h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
 							Top user-agents
 						</h4>
@@ -644,7 +648,7 @@
 								<tbody>
 									{#each uaStats as u (u.ua)}
 										<tr class="border-b border-gray-50 dark:border-gray-800/50">
-											<td class="py-2 pr-4 font-medium truncate max-w-[260px]" title={u.ua}>
+											<td class="py-2 pr-4 font-medium truncate max-w-[280px]" title={u.ua}>
 												{u.ua}
 												{#if isLikelyBot(u.ua)}
 													<span
@@ -653,8 +657,8 @@
 													>
 												{/if}
 											</td>
-											<td class="py-2 pr-4 text-right">{u.count.toLocaleString()}</td>
-											<td class="py-2 text-right text-gray-500">
+											<td class="py-2 pr-4 text-right whitespace-nowrap">{u.count.toLocaleString()}</td>
+											<td class="py-2 text-right text-gray-500 whitespace-nowrap">
 												{uaTotal > 0 ? Math.round((u.count / uaTotal) * 100) : 0}%
 											</td>
 										</tr>
