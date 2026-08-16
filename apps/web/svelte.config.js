@@ -21,7 +21,14 @@ const config = {
 	preprocess: vitePreprocess(),
 
 	kit: {
-		adapter: adapter({ out: process.env.WEB_ADAPTER_OUT ?? "build" }),
+		adapter: adapter({
+			out: process.env.WEB_ADAPTER_OUT ?? "build",
+			// Precompress static assets + prerendered pages (.gz/.br next to each file,
+			// served by sirv per Accept-Encoding). Already the adapter default — set
+			// explicitly so it can't be lost in an adapter upgrade (#127). SSR HTML is
+			// NOT compressed here; that's nginx's job (gzip directive, see #127).
+			precompress: true,
+		}),
 		alias: {
 			"@": "src",
 			"@cdk": "src/modules/cdk",
