@@ -45,8 +45,23 @@ async function ensureCappedCollection(db: Db, name: string, options: { size: num
 		`[ensureCollections] ${name}: capped options changed ` +
 			`(size ${String(live.size)} → ${options.size}, max ${String(live.max)} → ${String(options.max)}) — recreating (existing entries are dropped)`,
 	);
-	await db.dropCollection(name);
-	await db.createCollection(name, { capped: true, ...options });
+	// Boot race: sibling PM2 processes run this concurrently. Tolerate the
+	// sibling having already dropped (26) or already recreated (48) — same
+	// pattern as reconcileIndexes' 85/86 tolerance.
+	try {
+		await db.dropCollection(name);
+	} catch (err) {
+		if (errorCode(err) !== NAMESPACE_NOT_FOUND) {
+			throw err;
+		}
+	}
+	try {
+		await db.createCollection(name, { capped: true, ...options });
+	} catch (err) {
+		if (errorCode(err) !== NAMESPACE_EXISTS) {
+			throw err;
+		}
+	}
 }
 
 export async function ensureCollections(db: Db) {
@@ -73,6 +88,7 @@ export async function ensureCollections(db: Db) {
 
 const NAMESPACE_NOT_FOUND = 26; // collection doesn't exist (fresh/test db)
 const INDEX_NOT_FOUND = 27; // IndexNotFound — a sibling process already dropped it
+const NAMESPACE_EXISTS = 48; // NamespaceExists — a sibling process already recreated it
 const INDEX_KEY_SPECS_CONFLICT = 85; // IndexKeySpecsConflict — same name, different shape exists
 const INDEX_OPTIONS_CONFLICT = 86; // IndexOptionsConflict — same name being built with other options
 

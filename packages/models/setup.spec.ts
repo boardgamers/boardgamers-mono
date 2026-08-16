@@ -294,6 +294,17 @@ describe("ensureCollections", () => {
 		await ensureCollections(db);
 		assert.equal(await db.collection(API_ERRORS_COLLECTION).countDocuments(), 1);
 	});
+
+	it("tolerates a concurrent recreate (NamespaceExists from a sibling process)", async () => {
+		await db.dropDatabase();
+		await db.createCollection(API_ERRORS_COLLECTION, { capped: true, size: 10 * 1000 * 1000, max: 10000 });
+		// Two boots racing the same recreate: both see the old options, both drop,
+		// both create — the loser must no-op, not crash.
+		await Promise.all([ensureCollections(db), ensureCollections(db)]);
+		const options = await cappedOptions();
+		assert.equal(options?.size, apiErrorsCollectionOptions.size);
+		assert.equal(options?.max, apiErrorsCollectionOptions.max);
+	});
 });
 
 describe("planIndexChanges", () => {

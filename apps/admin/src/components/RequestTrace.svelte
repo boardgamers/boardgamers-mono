@@ -107,14 +107,21 @@
 		return Array.isArray(stack) ? stack.filter((s): s is string => typeof s === "string") : [];
 	}
 
+	// Same strict shape the Loki proxy enforces server-side — the id is
+	// interpolated into a LogQL string in the Grafana link, so only build the
+	// link for UUID-shaped ids (the proxy would 400 anything else anyway).
+	const REQUEST_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 	const grafanaUrl = $derived(
-		`https://grafana.boardgamers.space/explore?left=${encodeURIComponent(
-			JSON.stringify({
-				datasource: "Loki",
-				queries: [{ expr: `{job="pm2"} | json | requestId="${requestId}"` }],
-				range: { from: "now-6h", to: "now" },
-			})
-		)}`
+		REQUEST_ID_RE.test(requestId)
+			? `https://grafana.boardgamers.space/explore?left=${encodeURIComponent(
+					JSON.stringify({
+						datasource: "Loki",
+						queries: [{ expr: `{job="pm2"} | json | requestId="${requestId}"` }],
+						range: { from: "now-6h", to: "now" },
+					})
+				)}`
+			: null
 	);
 
 	loadTrace();
@@ -134,13 +141,15 @@
 				<p class="font-mono text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{requestId}</p>
 			</div>
 			<div class="flex items-center gap-3 flex-shrink-0">
-				<!-- eslint-disable svelte/no-navigation-without-resolve -- external Grafana URL (target=_blank), resolve() is for internal paths; the rule's report range spans the whole multi-line tag -->
-				<a
-					href={grafanaUrl}
-					target="_blank"
-					rel="noopener"
-					class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Open in Grafana →</a
-				>
+				{#if grafanaUrl}
+					<!-- eslint-disable svelte/no-navigation-without-resolve -- external Grafana URL (target=_blank), resolve() is for internal paths; the rule's report range spans the whole multi-line tag -->
+					<a
+						href={grafanaUrl}
+						target="_blank"
+						rel="noopener"
+						class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Open in Grafana →</a
+					>
+				{/if}
 				<button
 					onclick={onclose}
 					class="px-2.5 py-1 text-sm rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
