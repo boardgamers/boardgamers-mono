@@ -64,6 +64,8 @@ jobs:
         id: env
         env:
           PREVIEW_SECRET: ${{ secrets.PREVIEW_SECRET }}
+          # preview-api requires a full 40-char sha (its entrypoint git-fetches it);
+          # head.sha already is one — manual callers must not pass a short sha.
           SHA: ${{ github.event.pull_request.head.sha }}
           PR: ${{ github.event.pull_request.number }}
         run: |
