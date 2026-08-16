@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 import { MongoClient, type Db } from "mongodb";
 import { JWT_REFRESH_TOKENS_COLLECTION } from "./jwtrefreshtoken.ts";
-import { ensureIndexes, planIndexChanges, reconcileIndexes, type IndexAction } from "./setup.ts";
+import { API_ERRORS_COLLECTION, apiErrorsCollectionOptions } from "./api-error.ts";
+import { ensureCollections, ensureIndexes, planIndexChanges, reconcileIndexes, type IndexAction } from "./setup.ts";
 
 assert.strictEqual(process.env.NODE_ENV, "test");
 
@@ -246,6 +247,63 @@ describe("ensureIndexes", () => {
 
 		// Boot is idempotent again afterwards.
 		assert.deepEqual(await ensureIndexes(db), []);
+	});
+});
+
+describe("ensureCollections", () => {
+	const cappedOptions = async () =>
+		(await db.listCollections({ name: API_ERRORS_COLLECTION }, { nameOnly: false }).toArray())[0]?.options;
+
+	it("creates the capped apierrors collection on a fresh database", async () => {
+		await db.dropDatabase();
+		await ensureCollections(db);
+		const options = await cappedOptions();
+		assert.equal(options?.capped, true);
+		assert.equal(options?.size, apiErrorsCollectionOptions.size);
+		assert.equal(options?.max, apiErrorsCollectionOptions.max);
+	});
+
+	it("is a no-op when the live capped options already match", async () => {
+		await ensureCollections(db);
+		await db
+			.collection(API_ERRORS_COLLECTION)
+			.insertOne({ error: { name: "E", message: "m", stack: [] }, request: { url: "/", method: "GET", body: "" } });
+		await ensureCollections(db);
+		assert.equal(await db.collection(API_ERRORS_COLLECTION).countDocuments(), 1, "collection must not be recreated");
+	});
+
+	it("recreates the collection when the declared size/max diverge", async () => {
+		await db.dropDatabase();
+		// The pre-100k shape.
+		await db.createCollection(API_ERRORS_COLLECTION, { capped: true, size: 10 * 1000 * 1000, max: 10000 });
+		await db
+			.collection(API_ERRORS_COLLECTION)
+			.insertOne({ error: { name: "E", message: "m", stack: [] }, request: { url: "/", method: "GET", body: "" } });
+
+		await ensureCollections(db);
+
+		const options = await cappedOptions();
+		assert.equal(options?.size, apiErrorsCollectionOptions.size);
+		assert.equal(options?.max, apiErrorsCollectionOptions.max);
+		assert.equal(await db.collection(API_ERRORS_COLLECTION).countDocuments(), 0, "old entries are dropped");
+
+		// Idempotent: a second run leaves the recreated collection alone.
+		await db
+			.collection(API_ERRORS_COLLECTION)
+			.insertOne({ error: { name: "E", message: "m", stack: [] }, request: { url: "/", method: "GET", body: "" } });
+		await ensureCollections(db);
+		assert.equal(await db.collection(API_ERRORS_COLLECTION).countDocuments(), 1);
+	});
+
+	it("tolerates a concurrent recreate (NamespaceExists from a sibling process)", async () => {
+		await db.dropDatabase();
+		await db.createCollection(API_ERRORS_COLLECTION, { capped: true, size: 10 * 1000 * 1000, max: 10000 });
+		// Two boots racing the same recreate: both see the old options, both drop,
+		// both create — the loser must no-op, not crash.
+		await Promise.all([ensureCollections(db), ensureCollections(db)]);
+		const options = await cappedOptions();
+		assert.equal(options?.size, apiErrorsCollectionOptions.size);
+		assert.equal(options?.max, apiErrorsCollectionOptions.max);
 	});
 });
 

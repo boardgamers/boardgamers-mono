@@ -27,9 +27,40 @@ import { DELETED_USERS_COLLECTION, deletedUserIndexes, deletedUserSchema } from 
 import { zodToMongoSchema } from "./mongo-schema.ts";
 
 async function ensureCappedCollection(db: Db, name: string, options: { size: number; max?: number }) {
-	const existing = await db.listCollections({ name }).toArray();
+	const existing = await db.listCollections({ name }, { nameOnly: false }).toArray();
 	if (existing.length === 0) {
 		await db.createCollection(name, { capped: true, ...options });
+		return;
+	}
+	// MongoDB can't resize a capped collection in place (collMod's cappedSize
+	// only grows the storage alloc, never the document cap). When the declared
+	// size/max diverge from the live options, drop and recreate. DESTRUCTIVE:
+	// only used for disposable history collections (errors, chat, logs) whose
+	// data is safe to lose on a cap change.
+	const live = existing[0].options ?? {};
+	if (live.capped === true && live.size === options.size && live.max === options.max) {
+		return;
+	}
+	console.warn(
+		`[ensureCollections] ${name}: capped options changed ` +
+			`(size ${String(live.size)} → ${options.size}, max ${String(live.max)} → ${String(options.max)}) — recreating (existing entries are dropped)`,
+	);
+	// Boot race: sibling PM2 processes run this concurrently. Tolerate the
+	// sibling having already dropped (26) or already recreated (48) — same
+	// pattern as reconcileIndexes' 85/86 tolerance.
+	try {
+		await db.dropCollection(name);
+	} catch (err) {
+		if (errorCode(err) !== NAMESPACE_NOT_FOUND) {
+			throw err;
+		}
+	}
+	try {
+		await db.createCollection(name, { capped: true, ...options });
+	} catch (err) {
+		if (errorCode(err) !== NAMESPACE_EXISTS) {
+			throw err;
+		}
 	}
 }
 
@@ -57,6 +88,7 @@ export async function ensureCollections(db: Db) {
 
 const NAMESPACE_NOT_FOUND = 26; // collection doesn't exist (fresh/test db)
 const INDEX_NOT_FOUND = 27; // IndexNotFound — a sibling process already dropped it
+const NAMESPACE_EXISTS = 48; // NamespaceExists — a sibling process already recreated it
 const INDEX_KEY_SPECS_CONFLICT = 85; // IndexKeySpecsConflict — same name, different shape exists
 const INDEX_OPTIONS_CONFLICT = 86; // IndexOptionsConflict — same name being built with other options
 

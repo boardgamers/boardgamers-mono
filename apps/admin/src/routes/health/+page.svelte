@@ -1,9 +1,11 @@
 <script lang="ts">
-	import { invalidateAll } from "$app/navigation";
+	import { goto, invalidateAll } from "$app/navigation";
+	import { page } from "$app/state";
 	import { untrack } from "svelte";
 	import { api, ApiError } from "$lib/api.ts";
+	import RequestTrace from "$components/RequestTrace.svelte";
 	import type { PageProps } from "./$types";
-	import type { ApiErrorEntry } from "./+page.ts";
+	import type { ApiErrorEntry, ErrorSource } from "./+page.ts";
 
 	interface LokiInstantResult {
 		status: string;
@@ -26,9 +28,11 @@
 		source: string;
 		level: string;
 		status?: string;
+		method?: string;
 		path?: string;
 		route?: string;
 		ip?: string;
+		error?: string;
 		requestId?: string;
 	}
 
@@ -47,6 +51,7 @@
 
 	const health = $derived(data.health);
 	const dbErrorsTotal = $derived(health.dbErrorsTotal);
+	const errorSource = $derived(health.errorSource);
 	let dbErrorsPage = $state(1);
 	let dbErrorsLoading = $state(false);
 	// Mutable (loadMoreErrors appends pages); the $effect re-syncs it whenever the
@@ -54,11 +59,26 @@
 	let allDbErrors = $state<ApiErrorEntry[]>(untrack(() => [...data.health.dbErrors]));
 	let hasMoreDbErrors = $derived(allDbErrors.length < dbErrorsTotal);
 
+	// Request-id drill-in: the id of the trace modal currently open, if any.
+	let traceRequestId = $state<string | null>(null);
+
 	$effect(() => {
-		// Reset on refresh
+		// Reset on refresh / source-filter change
 		allDbErrors = [...health.dbErrors];
 		dbErrorsPage = 1;
 	});
+
+	function setErrorSource(source: ErrorSource) {
+		const params = new URLSearchParams(page.url.searchParams);
+		if (source === "all") {
+			params.delete("source");
+		} else {
+			params.set("source", source);
+		}
+		const query = params.toString();
+		// eslint-disable-next-line svelte/no-navigation-without-resolve -- same-page query-string update; resolve() is for route paths
+		goto(`${page.url.pathname}${query ? `?${query}` : ""}`, { keepFocus: true, noScroll: true });
+	}
 
 	// --- Loki-backed panels, fetched client-side ---------------------------
 	// `undefined` = still loading, `null` = Loki unavailable. Keeping these out of
@@ -92,6 +112,7 @@
 			return;
 		}
 
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- allSettled above verified every promise fulfilled
 		const fulfilled = results as PromiseFulfilledResult<LokiInstantResult | LokiRangeResult>[];
 		const status = fulfilled[0] as PromiseFulfilledResult<LokiInstantResult>;
 		const slow = fulfilled[1] as PromiseFulfilledResult<LokiInstantResult>;
@@ -124,9 +145,11 @@
 					source: (parsed.source as string) ?? stream.metric.source ?? "?",
 					level: (parsed.level as string) ?? stream.metric.level ?? "?",
 					status: parsed.status != null ? String(parsed.status) : undefined,
+					method: (parsed.method as string) ?? undefined,
 					path: (parsed.path as string) ?? undefined,
 					route: (parsed.route as string) ?? undefined,
 					ip: (parsed.ip as string) ?? undefined,
+					error: (parsed.error as string) ?? undefined,
 					requestId: (parsed.requestId as string) ?? undefined,
 				};
 			})
@@ -145,7 +168,7 @@
 		dbErrorsLoading = true;
 		try {
 			const res = await api.get<{ errors: ApiErrorEntry[]; total: number }>(
-				`/admin/errors?page=${dbErrorsPage + 1}&limit=20`
+				`/admin/errors?page=${dbErrorsPage + 1}&limit=20&source=${errorSource}`
 			);
 			allDbErrors = [...allDbErrors, ...res.errors];
 			dbErrorsPage++;
@@ -169,6 +192,11 @@
 		const ms = Math.floor(ts / 1_000_000);
 		const d = new Date(ms);
 		return d.toLocaleTimeString();
+	}
+
+	function formatDateTime(ts: number): string {
+		const d = new Date(Math.floor(ts / 1_000_000));
+		return `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
 	}
 
 	const totalRequests = $derived(statusCounts.reduce((a, b) => a + b.count, 0));
@@ -326,15 +354,30 @@
 		</div>
 	{/if}
 
-	<!-- Server errors from DB (genuine exceptions, not routine 4xx) -->
-	{#if allDbErrors.length > 0}
-		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
-			<h3 class="text-sm font-semibold mb-3">Server Errors ({allDbErrors.length} of {dbErrorsTotal})</h3>
+	<!-- Errors from DB (genuine exceptions, not routine 4xx) -->
+	<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+		<div class="flex items-center justify-between gap-4 mb-3 flex-wrap">
+			<h3 class="text-sm font-semibold">Errors ({allDbErrors.length} of {dbErrorsTotal})</h3>
+			<div class="flex rounded-lg border border-gray-300 dark:border-gray-700 overflow-hidden text-xs">
+				{#each ["all", "server", "client"] as const as source (source)}
+					<button
+						onclick={() => setErrorSource(source)}
+						class="px-3 py-1.5 capitalize transition-colors {errorSource === source
+							? 'bg-blue-600 text-white'
+							: 'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300'}">{source}</button
+					>
+				{/each}
+			</div>
+		</div>
+		{#if allDbErrors.length === 0}
+			<p class="text-sm text-gray-400">No errors{errorSource === "all" ? "" : ` (${errorSource})`} 🎉</p>
+		{:else}
 			<div class="overflow-x-auto">
 				<table class="w-full text-sm">
 					<thead>
 						<tr class="text-left text-xs text-gray-400 border-b border-gray-200 dark:border-gray-800">
 							<th class="pb-2 font-medium">Time</th>
+							<th class="pb-2 font-medium">Source</th>
 							<th class="pb-2 font-medium">Error</th>
 							<th class="pb-2 font-medium">Status</th>
 							<th class="pb-2 font-medium">Method</th>
@@ -344,9 +387,18 @@
 					</thead>
 					<tbody>
 						{#each allDbErrors as err (String(err._id))}
+							{@const isClient = err.meta?.source === "web-client"}
 							<tr class="border-b border-gray-100 dark:border-gray-800/50">
 								<td class="py-2 text-xs text-gray-400 whitespace-nowrap"
 									>{err.createdAt ? new Date(err.createdAt).toLocaleString() : "—"}</td
+								>
+								<td class="py-2"
+									><span
+										class="text-xs px-1.5 py-0.5 rounded {isClient
+											? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400'
+											: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}"
+										>{isClient ? "client" : "server"}</span
+									></td
 								>
 								<td class="py-2"
 									><span
@@ -364,7 +416,18 @@
 								>
 								<td class="py-2 font-mono text-xs">{err.request.method}</td>
 								<td class="py-2 font-mono text-xs truncate max-w-[200px]">{err.request.url}</td>
-								<td class="py-2 font-mono text-[10px] text-gray-400 truncate max-w-[120px]">{err.request.id ?? "—"}</td>
+								<td class="py-2 font-mono text-xs truncate max-w-[140px]">
+									{#if err.request.id}
+										<button
+											onclick={() => (traceRequestId = err.request.id ?? null)}
+											title={`Trace request ${err.request.id}`}
+											class="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+											>{err.request.id.slice(0, 8)}…</button
+										>
+									{:else}
+										<span class="text-gray-400">—</span>
+									{/if}
+								</td>
 							</tr>
 						{/each}
 					</tbody>
@@ -379,8 +442,8 @@
 					{dbErrorsLoading ? "Loading…" : `Load more (${dbErrorsTotal - allDbErrors.length} remaining)`}
 				</button>
 			{/if}
-		</div>
-	{/if}
+		{/if}
+	</div>
 
 	{#if lokiAvailable}
 		<!-- Recent log stream (Loki) -->
@@ -397,42 +460,50 @@
 			{#if recentErrors.length === 0}
 				<p class="text-sm text-gray-400">No recent errors</p>
 			{:else}
-				<div class="space-y-1.5 max-h-96 overflow-y-auto">
+				<div class="space-y-1 max-h-[32rem] overflow-y-auto">
 					<!-- Index in key: the same requestId can appear twice (two PM2 workers log the
 					     same request, or a request logs both a warn and an error line), which would
 					     throw Svelte's each_key_duplicate. -->
 					{#each recentErrors.slice(0, 50) as err, i (`${i}:${err.requestId ?? `${err.timestamp}:${err.line}`}`)}
-						<div class="flex items-start gap-2 text-xs py-1.5 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800/50">
+						<div
+							class="flex items-center gap-2.5 text-sm py-1.5 px-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800/50"
+						>
 							<span
-								class="px-1.5 py-0.5 rounded font-mono text-[10px] font-medium flex-shrink-0 {err.level === 'error'
+								class="px-1.5 py-0.5 rounded font-mono text-xs font-medium flex-shrink-0 {err.level === 'error'
 									? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
 									: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'}">{err.level}</span
 							>
+							<span class="text-gray-400 font-mono text-xs flex-shrink-0" title={formatDateTime(err.timestamp)}
+								>{formatTime(err.timestamp)}</span
+							>
+							<span class="text-gray-500 dark:text-gray-400 text-xs w-16 flex-shrink-0 truncate">{err.source}</span>
+							{#if err.method}
+								<span class="font-mono text-xs flex-shrink-0">{err.method}</span>
+							{/if}
+							{#if err.route ?? err.path}
+								<span class="font-mono text-xs truncate max-w-[260px]" title={err.route ?? err.path}
+									>{err.route ?? err.path}</span
+								>
+							{/if}
 							{#if err.status}
 								<span
-									class="px-1.5 py-0.5 rounded font-mono text-[10px] font-medium flex-shrink-0 {Number(err.status) >=
-									500
+									class="px-1.5 py-0.5 rounded font-mono text-xs font-medium flex-shrink-0 {Number(err.status) >= 500
 										? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
 										: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400'}">{err.status}</span
 								>
 							{/if}
-							<span class="text-gray-400 font-mono w-16 flex-shrink-0">{formatTime(err.timestamp)}</span>
-							<span class="text-gray-500 dark:text-gray-400 w-20 flex-shrink-0">{err.source}</span>
-							{#if err.route ?? err.path}
-								<span
-									class="text-gray-400 dark:text-gray-500 font-mono text-[10px] flex-shrink-0 truncate max-w-[180px]"
-									>{err.route ?? err.path}</span
-								>
-							{:else}
-								<span class="flex-1 truncate">{err.line}</span>
-							{/if}
+							<span class="flex-1 truncate text-gray-600 dark:text-gray-300" title={err.error ?? err.line}
+								>{err.error ?? err.line}</span
+							>
 							{#if err.ip}
-								<span class="text-gray-400 dark:text-gray-500 font-mono text-[10px] flex-shrink-0">{err.ip}</span>
+								<span class="text-gray-400 dark:text-gray-500 font-mono text-xs flex-shrink-0">{err.ip}</span>
 							{/if}
 							{#if err.requestId}
-								<span
-									class="text-gray-400 dark:text-gray-500 font-mono text-[10px] flex-shrink-0 truncate max-w-[100px]"
-									title={err.requestId}>{err.requestId}</span
+								<button
+									onclick={() => (traceRequestId = err.requestId ?? null)}
+									title={`Trace request ${err.requestId}`}
+									class="text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs flex-shrink-0 cursor-pointer"
+									>{err.requestId.slice(0, 8)}…</button
 								>
 							{/if}
 						</div>
@@ -442,3 +513,7 @@
 		</div>
 	{/if}
 </div>
+
+{#if traceRequestId}
+	<RequestTrace requestId={traceRequestId} onclose={() => (traceRequestId = null)} />
+{/if}

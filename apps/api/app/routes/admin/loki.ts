@@ -59,6 +59,13 @@ const QUERIES: Record<string, { type: "query" | "query_range"; logql: string }> 
 		type: "query_range",
 		logql: '{job="pm2", level=~"error|warn"} | json | status != 401',
 	},
+	// Every log line tied to one request: the msg="request" access line, any
+	// msg="upstream" lines, and warn/error lines. $requestId is substituted from
+	// the validated `requestId` query param (see REQUEST_ID_RE below).
+	logsByRequestId: {
+		type: "query_range",
+		logql: '{job="pm2"} | json | requestId="$requestId"',
+	},
 	// Preferred-language distribution of web requests over the last week (instant
 	// vector). The web SSR logs each request's primary Accept-Language subtag as
 	// `lang` (apps/web/src/lib/accept-language.ts); `| json` surfaces it. Feeds the
@@ -97,6 +104,11 @@ function computeStepSeconds(start: number, end: number): number {
 	return Math.max(15, Math.round((end - start) / 1000 / 60));
 }
 
+// Request ids are UUIDs (randomUUID() in the api/game-server/web layers), with
+// an x-request-id header able to supply one. Anything outside this strict
+// shape is rejected BEFORE it can reach the LogQL string — LogQL injection-safe.
+const REQUEST_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const router = new Router<Application.DefaultState, Context>();
 
 // GET /api/admin/loki/query/:key — runs a pre-built LogQL query
@@ -118,6 +130,14 @@ router.get("/query/:key", async (ctx) => {
 
 	const url = new URL(`${LOKI_URL}/loki/api/v1/${query.type}`);
 	let logql = query.logql;
+
+	if (logql.includes("$requestId")) {
+		const requestId = ctx.query.requestId;
+		if (typeof requestId !== "string" || !REQUEST_ID_RE.test(requestId)) {
+			throw createError(400, "requestId must be a UUID");
+		}
+		logql = logql.replaceAll("$requestId", requestId);
+	}
 
 	if (query.type === "query") {
 		// Instant queries: the LogQL already carries its lookback ([1h]), so the
