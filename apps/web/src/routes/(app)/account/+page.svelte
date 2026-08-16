@@ -343,7 +343,7 @@
 					<Button
 						color={social}
 						disabled={!!(user.account.social && user.account.social[social])}
-						href={`/api/account/auth/${social}` as Pathname}
+						href={`/auth/${social}` as Pathname}
 						aria-disabled={!!(user.account.social && user.account.social[social])}
 						rel="external"
 					>

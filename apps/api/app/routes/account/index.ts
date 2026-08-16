@@ -38,12 +38,9 @@ import { loggedIn, loggedOut, rateLimitAttempt } from "../utils.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { resolveAllowedAddresses, assertSafeUrlScheme } from "../../services/safefetch.ts";
 import { putAvatar, s3Enabled } from "../../services/s3.ts";
-import auth from "./auth.ts";
 import { sendAuthInfo } from "./utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
-
-router.use("/auth", auth.routes(), auth.allowedMethods());
 
 /**
  * Server-side SSRF validation for a user-supplied notification webhook URL (#85/#33):

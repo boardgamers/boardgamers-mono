@@ -4,13 +4,13 @@ import jwt from "jsonwebtoken";
 import passport from "koa-passport";
 import type { WithId } from "mongodb";
 import type { UserDoc } from "@bgs/models";
-import "../../config/passport.ts";
-import { colls, db } from "../../config/db.ts";
-import env from "../../config/env.ts";
-import { testUser } from "../../config/test-helpers.ts";
-import { lookupRefreshToken } from "../../models/jwtrefreshtokens.ts";
-import { verifySocialProfile } from "../../config/passport.ts";
-import { createOAuthState, verifyOAuthState } from "../../models/oauthflows.ts";
+import "../config/passport.ts";
+import { colls, db } from "../config/db.ts";
+import env from "../config/env.ts";
+import { testUser } from "../config/test-helpers.ts";
+import { lookupRefreshToken } from "../models/jwtrefreshtokens.ts";
+import { verifySocialProfile } from "../config/passport.ts";
+import { createOAuthState, verifyOAuthState } from "../models/oauthflows.ts";
 
 type SocialFeedback = {
 	createSocialAccount: boolean;
@@ -207,7 +207,7 @@ describe("Account API — Hugging Face social auth (CIMD)", () => {
 
 describe("Account API — PKCE authorize redirects", () => {
 	it("the /github entrypoint redirects to GitHub's authorize URL with a PKCE challenge", async () => {
-		const res = await fetch(`${baseURL()}/api/account/auth/github`, { redirect: "manual" });
+		const res = await fetch(`${baseURL()}/auth/github`, { redirect: "manual" });
 		assert.strictEqual(res.status, 302);
 		const location = res.headers.get("location") ?? "";
 		assert.ok(
@@ -224,7 +224,7 @@ describe("Account API — PKCE authorize redirects", () => {
 	});
 
 	it("the /huggingface entrypoint redirects to HF's authorize URL with a CIMD client_id + PKCE challenge", async () => {
-		const res = await fetch(`${baseURL()}/api/account/auth/huggingface`, { redirect: "manual" });
+		const res = await fetch(`${baseURL()}/auth/huggingface`, { redirect: "manual" });
 		assert.strictEqual(res.status, 302);
 		const location = res.headers.get("location") ?? "";
 		assert.ok(
@@ -240,16 +240,17 @@ describe("Account API — PKCE authorize redirects", () => {
 		assert.match(url.searchParams.get("state") ?? "", /^[A-Za-z0-9_-]{10,}$/);
 	});
 
-	it("the HF handshake advertises the api-mounted callback (nginx routes /api/* to the api)", async () => {
-		// Regression: the callback must be /api/account/auth/huggingface/callback, NOT the bare
-		// /auth/huggingface/callback (which nginx routes to the web SPA → 404). #138 bug.
-		const res = await fetch(`${baseURL()}/api/account/auth/huggingface`, { redirect: "manual" });
+	it("the HF handshake advertises the top-level /auth callback (#248)", async () => {
+		// Regression: the callback must be /auth/huggingface/callback — historically it
+		// moved from the bare /auth/… (which nginx routed to the web SPA → 404, #138 bug)
+		// to /api/account/auth/…, and #248 moved it back to /auth/… (now api-served).
+		const res = await fetch(`${baseURL()}/auth/huggingface`, { redirect: "manual" });
 		const url = new URL(res.headers.get("location") ?? "");
 		const redirectUri = new URL(url.searchParams.get("redirect_uri") ?? "");
 		assert.strictEqual(
 			redirectUri.pathname,
-			"/api/account/auth/huggingface/callback",
-			"redirect_uri must be the api-mounted callback that nginx routes to the api (not bare /auth/…)",
+			"/auth/huggingface/callback",
+			"redirect_uri must be the api-mounted /auth callback (requires nginx to route /auth/* to the api)",
 		);
 		assert.strictEqual(redirectUri.hostname, new URL(baseURL()).hostname);
 	});
@@ -258,7 +259,7 @@ describe("Account API — PKCE authorize redirects", () => {
 		// Hitting the real callback path must reach the api router. With an invalid/unknown
 		// state the PKCE flow throws → the global error handler records it and returns
 		// the error message (it must NOT be a 404 from an unmounted route).
-		const res = await fetch(`${baseURL()}/api/account/auth/huggingface/callback?code=nope&state=nope`, {
+		const res = await fetch(`${baseURL()}/auth/huggingface/callback?code=nope&state=nope`, {
 			redirect: "manual",
 		});
 		assert.notStrictEqual(res.status, 404, "callback route must be mounted (not 404)");
@@ -269,7 +270,7 @@ describe("Account API — PKCE authorize redirects", () => {
 	});
 
 	it("persists the PKCE state server-side in Mongo, single-use", async () => {
-		const res = await fetch(`${baseURL()}/api/account/auth/huggingface`, { redirect: "manual" });
+		const res = await fetch(`${baseURL()}/auth/huggingface`, { redirect: "manual" });
 		const state = new URL(res.headers.get("location") ?? "").searchParams.get("state");
 		assert.ok(state, "state handle present on the authorize URL");
 
@@ -285,7 +286,7 @@ describe("Account API — PKCE authorize redirects", () => {
 	});
 
 	it("the old relay routes are gone (no /relay/callback, no returnTo)", async () => {
-		const res = await fetch(`${baseURL()}/api/account/auth/relay/callback?code=nope`, { redirect: "manual" });
+		const res = await fetch(`${baseURL()}/auth/relay/callback?code=nope`, { redirect: "manual" });
 		// koa-router matches /:provider/callback for "relay" → PKCE callback without a
 		// valid state → 303 to /login?error=. Either way it must NOT be a relay exchange.
 		assert.notStrictEqual(res.status, 401, "no relay ticket exchange anymore");
@@ -300,7 +301,7 @@ describe("Account API — Hugging Face CIMD (no relay)", () => {
 		// CIMD doc and does HF login directly, so returnTo must NOT trigger any relay behavior —
 		// the flow just starts a normal direct handshake for this origin.
 		const res = await fetch(
-			`${baseURL()}/api/account/auth/huggingface?returnTo=${encodeURIComponent("https://pr-42.boardgamers.space")}`,
+			`${baseURL()}/auth/huggingface?returnTo=${encodeURIComponent("https://pr-42.boardgamers.space")}`,
 			{ redirect: "manual" },
 		);
 		assert.strictEqual(res.status, 302);
@@ -450,7 +451,7 @@ describe("Account API — PKCE OAuth round-trip", () => {
 
 	// Hit the real callback route with a valid PKCE state.
 	async function pkceCallbackReq(provider: string, state: string) {
-		return fetch(`${baseURL()}/api/account/auth/${provider}/callback?code=pkce-code&state=${state}`, {
+		return fetch(`${baseURL()}/auth/${provider}/callback?code=pkce-code&state=${state}`, {
 			redirect: "manual",
 		});
 	}
@@ -580,7 +581,7 @@ describe("Account API — PKCE OAuth round-trip", () => {
 
 	it("a provider error redirect (?error=access_denied) → 403 with the description", async () => {
 		const res = await fetch(
-			`${baseURL()}/api/account/auth/github/callback?error=access_denied&error_description=The+user+denied+access`,
+			`${baseURL()}/auth/github/callback?error=access_denied&error_description=The+user+denied+access`,
 			{ redirect: "manual" },
 		);
 		assert.strictEqual(res.status, 403);
@@ -590,7 +591,7 @@ describe("Account API — PKCE OAuth round-trip", () => {
 	});
 
 	it("a provider error redirect without description → 403 with the error code", async () => {
-		const res = await fetch(`${baseURL()}/api/account/auth/github/callback?error=server_error`, {
+		const res = await fetch(`${baseURL()}/auth/github/callback?error=server_error`, {
 			redirect: "manual",
 		});
 		assert.strictEqual(res.status, 403);

@@ -164,7 +164,7 @@ export default {
 		},
 		// Hugging Face uses CIMD (Client ID Metadata Documents): the client_id is the
 		// env's own `/.well-known/oauth-cimd` URL (served by the web app), computed at
-		// request time in routes/account/auth.ts — no env/registration needed at all.
+		// request time in routes/auth.ts — no env/registration needed at all.
 	},
 	silent: false,
 };

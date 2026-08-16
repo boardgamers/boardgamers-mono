@@ -3,11 +3,11 @@ import createError from "http-errors";
 import passport from "koa-passport";
 import Router from "koa-router";
 import { z } from "zod";
-import { createPendingSignup } from "../../models/oauthflows.ts";
-import { verifySocialProfile } from "../../config/passport.ts";
-import { pkceStart, pkceCallback, githubConfig, huggingfaceConfig } from "../../config/pkce.ts";
-import { sendAuthInfo } from "./utils.ts";
-import env from "../../config/env.ts";
+import { createPendingSignup } from "../models/oauthflows.ts";
+import { verifySocialProfile } from "../config/passport.ts";
+import { pkceStart, pkceCallback, githubConfig, huggingfaceConfig } from "../config/pkce.ts";
+import { sendAuthInfo } from "./account/utils.ts";
+import env from "../config/env.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -19,13 +19,14 @@ const socialFeedbackSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Redirect-only OAuth (no client-side "Signing you in…" interstitial, #155)
+// Redirect-only OAuth (no client-side "Signing you in…" interstitial, #155),
+// mounted at the top-level /auth (no /api/account prefix, #248).
 //
 // The API owns the whole round-trip with full navigations only:
-//   1. GET /api/account/auth/<provider> — store PKCE state server-side (Mongo,
+//   1. GET /auth/<provider> — store PKCE state server-side (Mongo,
 //      see config/pkce.ts) and redirect to the provider.
 //   2. The provider-registered callback is the API itself:
-//      /api/account/auth/<provider>/callback?code=…&state=…
+//      /auth/<provider>/callback?code=…&state=…
 //   3. The callback exchanges the code, verifies state+PKCE, then 303s:
 //        - existing/linked user → Set-Cookie session (sendAuthInfo), /account
 //        - new user             → /signup?ticket=<single-use, 15-min server-side
@@ -39,23 +40,27 @@ const socialFeedbackSchema = z.object({
 //
 // Hugging Face needs NO registered callback at all: it uses CIMD, where the
 // client_id is the env's own /.well-known/oauth-cimd URL (served by the web app)
-// and that doc names the env's own /api/account/auth/huggingface/callback as the
+// and that doc names the env's own /auth/huggingface/callback as the
 // redirect. So each environment (prod + every PR preview) does HF login directly
 // — there is no prod redirect-relay. The other providers (google/discord/facebook/
 // github) still require pre-registered OAuth apps with fixed callbacks, so on
 // preview envs their social login simply isn't wired up (acceptable; only HF
 // works on previews).
+//
+// External dependency (#248): nginx must route /auth/* to the api (it currently
+// routes only /api/*), and each provider's OAuth app must list the new
+// /auth/<provider>/callback redirect URI. Until then these routes are only
+// reachable directly on the api port.
 // ---------------------------------------------------------------------------
 
 // The web app shares the API's origin (vite proxy in dev, nginx in prod), so the
 // request origin is the right base for post-auth redirects.
 const webUrl = (ctx: Context, path: string) => `${ctx.protocol}://${ctx.host}${path}`;
 
-// The provider callback must point at the api-mounted route (this router is mounted at
-// /api/account/auth). nginx routes only /api/* to the api — a bare /auth/... falls
-// through to the web SPA and 404s. This must also match the CIMD doc's redirect_uris.
+// The provider callback is this router's own route (mounted at /auth). This must
+// also match the CIMD doc's redirect_uris.
 function socialCallbackUrl(ctx: Context, provider: string): string {
-	return `${ctx.protocol}://${ctx.hostname}/api/account/auth/${provider}/callback`;
+	return `${ctx.protocol}://${ctx.hostname}/auth/${provider}/callback`;
 }
 
 // --- Passport-based providers (discord, google, facebook) ---

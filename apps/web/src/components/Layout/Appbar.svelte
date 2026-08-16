@@ -73,11 +73,11 @@
 	// /.well-known/oauth-cimd doc is the client_id and names this origin's callback, so
 	// every environment — prod and PR previews alike — logs in directly, no prod relay.
 	const socialProviders = [
-		{ name: "Google", href: "/api/account/auth/google", icon: IconGoogle },
-		{ name: "Discord", href: "/api/account/auth/discord", icon: IconDiscord },
-		{ name: "Facebook", href: "/api/account/auth/facebook", icon: IconFacebook },
-		{ name: "GitHub", href: "/api/account/auth/github", icon: IconGithub },
-		{ name: "Hugging Face", href: "/api/account/auth/huggingface", icon: IconHuggingFace },
+		{ name: "Google", href: "/auth/google", icon: IconGoogle },
+		{ name: "Discord", href: "/auth/discord", icon: IconDiscord },
+		{ name: "Facebook", href: "/auth/facebook", icon: IconFacebook },
+		{ name: "GitHub", href: "/auth/github", icon: IconGithub },
+		{ name: "Hugging Face", href: "/auth/huggingface", icon: IconHuggingFace },
 	];
 
 	let admin = $derived(user?.authority === "admin");

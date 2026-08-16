@@ -308,10 +308,10 @@ function makeSocialStrategy<T extends Strategy>(
 				clientID: id,
 				clientSecret: secret,
 				passReqToCallback: true,
-				// The api serves the callback at /api/account/auth/<provider>/callback
-				// (router mounted /api/account → /auth). nginx routes only /api/* to the api;
-				// a bare /auth/... hits the web SPA and 404s.
-				callbackURL: `https://${env.site}/api/account/auth/${provider}/callback`,
+				// The api serves the callback at /auth/<provider>/callback (top-level
+				// router, #248). Requires nginx to route /auth/* to the api and the
+				// provider's OAuth app to list this redirect URI.
+				callbackURL: `https://${env.site}/auth/${provider}/callback`,
 			},
 			function (
 				req: { user?: WithId<UserDoc> },
