@@ -59,6 +59,16 @@ const QUERIES: Record<string, { type: "query" | "query_range"; logql: string }> 
 		type: "query_range",
 		logql: '{job="pm2", level=~"error|warn"} | json | status != 401',
 	},
+	// Preferred-language distribution of web requests over the last week (instant
+	// vector). The web SSR logs each request's primary Accept-Language subtag as
+	// `lang` (apps/web/src/lib/accept-language.ts); `| json` surfaces it. Feeds the
+	// admin users page's i18n-prioritization section. Instant type so the 7d
+	// lookback evaluates at a single timestamp (the 6h MAX_WINDOW_MS cap applies
+	// only to query_range).
+	requestsByLanguage: {
+		type: "query",
+		logql: 'sum by (lang) (count_over_time({job="pm2", msg="request", source="web"} | json [7d]))',
+	},
 };
 
 // Hard cap on the queried window. Instant queries below always collapse to a

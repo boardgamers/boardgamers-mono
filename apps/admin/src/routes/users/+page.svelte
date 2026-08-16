@@ -30,6 +30,21 @@
 		newUsersByDay: { date: string; count: number }[];
 	}
 
+	interface CountryStats {
+		countries: { country: string; count: number }[];
+		unset: number;
+		engagement: { newsletter: number; webhook: number; discord: number; bio: number };
+	}
+
+	// Instant-vector Loki response (same shape the health page parses).
+	interface LokiInstantResult {
+		status: string;
+		data: {
+			resultType: "vector";
+			result: { metric: Record<string, string>; value: [number, string] }[];
+		};
+	}
+
 	let query = $state("");
 	let results: UserResult[] = $state([]);
 	let searching = $state(false);
@@ -81,6 +96,22 @@
 
 	let stats = $state<UserStats | null>(null);
 	let loginMethods = $state<LoginMethods | null>(null);
+	let countryStats = $state<CountryStats | null>(null);
+
+	// Languages (Accept-Language) — loaded client-side from the Loki proxy so the
+	// page never hangs on Loki latency. `undefined` = loading, `null` = unavailable.
+	let langStats = $state<{ language: string; count: number }[] | null | undefined>(undefined);
+
+	// Languages the site is actually translated into. The i18n support list — extend
+	// as translations land; the checkmark in the table reads from this.
+	const SUPPORTED_LANGUAGES: readonly string[] = ["en"];
+
+	// Country code → display name, localized in English (no new dep).
+	const countryNames = new Intl.DisplayNames(["en"], { type: "region" });
+	const countryName = (code: string) => countryNames.of(code) ?? code;
+	// Language code → display name, localized in English (no new dep).
+	const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
+	const languageName = (code: string) => languageNames.of(code) ?? code;
 
 	const trendMax = $derived(
 		Math.max(1, ...(loginMethods?.trend.loginsByWeek ?? []).flatMap((w) => Object.values(w).slice(1).map(Number)))
@@ -130,6 +161,28 @@
 			stats = await api.get<UserStats>("/admin/users/stats");
 		} catch {
 			stats = null;
+		}
+	}
+
+	async function loadCountryStats() {
+		try {
+			countryStats = await api.get<CountryStats>("/admin/users/countries");
+		} catch {
+			countryStats = null;
+		}
+	}
+
+	// Client-side (like the health page's Loki panels): a Loki outage or slow query
+	// must not block the rest of the page — degrade to a "Loki unavailable" note.
+	async function loadLanguageStats() {
+		try {
+			const res = await api.get<LokiInstantResult>("/admin/loki/query/requestsByLanguage");
+			langStats = (res.data.result ?? [])
+				.map((r) => ({ language: r.metric.lang ?? "?", count: Math.round(Number(r.value[1])) }))
+				.filter((l) => l.language !== "?" && l.count > 0)
+				.sort((a, b) => b.count - a.count);
+		} catch {
+			langStats = null;
 		}
 	}
 
@@ -199,9 +252,16 @@
 	const maxCount = $derived(Math.max(1, ...(stats?.newUsersByDay ?? []).map((d) => d.count)));
 	const confirmedPct = $derived(stats ? Math.round((stats.confirmedUsers / Math.max(stats.totalUsers, 1)) * 100) : 0);
 
+	// % shares are computed over users who SET a country (the meaningful denominator).
+	const countrySetTotal = $derived((countryStats?.countries ?? []).reduce((acc, c) => acc + c.count, 0));
+	// Total language-tagged requests, for per-language shares.
+	const langTotal = $derived((langStats ?? []).reduce((acc, l) => acc + l.count, 0));
+
 	loadAdmins();
 	loadStats();
 	loadLoginMethods();
+	loadCountryStats();
+	loadLanguageStats();
 </script>
 
 <svelte:head>
@@ -272,6 +332,151 @@
 			{/if}
 		</div>
 	{/if}
+
+	<!-- Engagement / feature adoption -->
+	{#if countryStats && stats}
+		{@const total = Math.max(stats.totalUsers, 1)}
+		{@const engagementRows = [
+			{ label: "Newsletter enabled", count: countryStats.engagement.newsletter },
+			{ label: "Discord linked", count: countryStats.engagement.discord },
+			{ label: "Country set", count: countrySetTotal },
+			{ label: "Bio written", count: countryStats.engagement.bio },
+			{ label: "Notification webhook", count: countryStats.engagement.webhook },
+		].sort((a, b) => b.count - a.count)}
+		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+			<h3 class="text-sm font-semibold mb-1">Engagement</h3>
+			<p class="text-xs text-gray-400 mb-4">Feature adoption across all {stats.totalUsers.toLocaleString()} users.</p>
+			<div class="overflow-x-auto md:w-1/2">
+				<table class="w-full text-sm">
+					<thead>
+						<tr class="border-b border-gray-100 dark:border-gray-800 text-left text-xs text-gray-500 uppercase">
+							<th class="py-2 pr-4">Feature</th>
+							<th class="py-2 pr-4 text-right">Users</th>
+							<th class="py-2 text-right">% of all</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each engagementRows as row (row.label)}
+							<tr class="border-b border-gray-50 dark:border-gray-800/50">
+								<td class="py-2 pr-4 font-medium">{row.label}</td>
+								<td class="py-2 pr-4 text-right">{row.count.toLocaleString()}</td>
+								<td class="py-2 text-right text-gray-500">{Math.round((row.count / total) * 100)}%</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Users by country -->
+	{#if countryStats}
+		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+			<h3 class="text-sm font-semibold mb-1">Users by country</h3>
+			<p class="text-xs text-gray-400 mb-4">
+				Self-chosen country on user profiles. Shares are over the {countrySetTotal.toLocaleString()} users who set one — {countryStats.unset.toLocaleString()}
+				users ({countrySetTotal + countryStats.unset > 0
+					? Math.round((countryStats.unset / (countrySetTotal + countryStats.unset)) * 100)
+					: 0}% of all) haven't.
+			</p>
+			{#if countryStats.countries.length > 0}
+				<div class="overflow-x-auto md:w-1/2">
+					<table class="w-full text-sm">
+						<thead>
+							<tr class="border-b border-gray-100 dark:border-gray-800 text-left text-xs text-gray-500 uppercase">
+								<th class="py-2 pr-4">Country</th>
+								<th class="py-2 pr-4 text-right">Users</th>
+								<th class="py-2 text-right">Share</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each countryStats.countries as c (c.country)}
+								<tr class="border-b border-gray-50 dark:border-gray-800/50">
+									<td class="py-2 pr-4 font-medium">
+										{countryName(c.country)} <span class="text-gray-400 font-normal">({c.country})</span>
+									</td>
+									<td class="py-2 pr-4 text-right">{c.count.toLocaleString()}</td>
+									<td class="py-2 text-right text-gray-500">
+										{countrySetTotal > 0 ? Math.round((c.count / countrySetTotal) * 100) : 0}%
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{:else}
+				<p class="text-sm text-gray-400">No users have set a country yet.</p>
+			{/if}
+		</div>
+	{/if}
+
+	<!-- Languages (Accept-Language) — which languages to translate first -->
+	<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+		<div class="flex items-center justify-between mb-1">
+			<h3 class="text-sm font-semibold">Languages (Accept-Language)</h3>
+			<a
+				href="https://grafana.boardgamers.space/d/bgs-health"
+				target="_blank"
+				rel="noopener"
+				class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Open in Grafana →</a
+			>
+		</div>
+		<p class="text-xs text-gray-400 mb-4">
+			Visitors' preferred browser language over the last 7 days (from web request logs). Use it to decide which
+			languages an i18n effort should target first.
+		</p>
+		{#if langStats === undefined}
+			<div class="flex items-center gap-2 text-sm text-gray-400">
+				<div class="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+				Loading language stats…
+			</div>
+		{:else if langStats === null}
+			<div
+				class="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl"
+			>
+				<span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+				<div class="text-sm">
+					<span class="font-medium text-amber-700 dark:text-amber-400">Loki is unavailable.</span>
+					<span class="text-amber-600 dark:text-amber-500/80"> Language stats come from request logs.</span>
+				</div>
+			</div>
+		{:else if langStats.length === 0}
+			<p class="text-sm text-gray-400">No language data yet — the web request logger needs to record some traffic.</p>
+		{:else}
+			<div class="overflow-x-auto md:w-1/2">
+				<table class="w-full text-sm">
+					<thead>
+						<tr class="border-b border-gray-100 dark:border-gray-800 text-left text-xs text-gray-500 uppercase">
+							<th class="py-2 pr-4">Language</th>
+							<th class="py-2 pr-4 text-right">Requests</th>
+							<th class="py-2 pr-4 text-right">Share</th>
+							<th class="py-2 text-right" title="Site has a translation for this language">Translated</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each langStats as l (l.language)}
+							<tr class="border-b border-gray-50 dark:border-gray-800/50">
+								<td class="py-2 pr-4 font-medium">
+									{languageName(l.language)} <span class="text-gray-400 font-normal">({l.language})</span>
+								</td>
+								<td class="py-2 pr-4 text-right">{l.count.toLocaleString()}</td>
+								<td class="py-2 pr-4 text-right text-gray-500">
+									{langTotal > 0 ? Math.round((l.count / langTotal) * 100) : 0}%
+								</td>
+								<td class="py-2 text-right">
+									{#if SUPPORTED_LANGUAGES.includes(l.language)}
+										<span class="text-green-500" title="Translated">✓</span>
+									{:else}
+										<span class="text-gray-300 dark:text-gray-600" title="No translation">—</span>
+									{/if}
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		{/if}
+	</div>
 
 	<!-- Search -->
 	<div class="relative">

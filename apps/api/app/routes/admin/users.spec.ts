@@ -124,6 +124,86 @@ describe("Admin users API", () => {
 		});
 	});
 
+	describe("GET /admin/users/countries", () => {
+		const jpId = new ObjectId();
+		const jp2Id = new ObjectId();
+		const caId = new ObjectId();
+		const unsetId = new ObjectId();
+		const engagedId = new ObjectId();
+
+		before(async () => {
+			// JP/CA are used by no other spec (the account country spec uses FR/BR), so
+			// these exact counts can't drift when the suite shares one db.
+			await colls.users.insertOne(testUser({ _id: jpId, account: { country: "JP" } }));
+			await colls.users.insertOne(testUser({ _id: jp2Id, account: { country: "JP" } }));
+			await colls.users.insertOne(testUser({ _id: caId, account: { country: "CA" } }));
+			// Explicitly no country — testUser leaves account.country undefined.
+			await colls.users.insertOne(testUser({ _id: unsetId }));
+			// One user with every engagement signal on, to assert the counts move. Its
+			// lastLogin stays at the epoch default (older bucket) — the login-methods
+			// spec below accounts for it in older.discord.
+			await colls.users.insertOne(
+				testUser({
+					_id: engagedId,
+					account: { country: "JP", bio: "hello", social: { discord: "engaged-discord-1" } },
+					settings: {
+						mailing: { newsletter: true },
+						notifications: { webhook: { url: "https://discord.test/hook", format: "discord", enabled: true } },
+					},
+				}),
+			);
+		});
+
+		it("rejects non-admin callers", async () => {
+			const res = await api("GET", "/api/admin/users/countries");
+			assert.strictEqual(res.status, 403);
+		});
+
+		it("aggregates users by country, sorted desc, with an unset count", async () => {
+			const res = await api("GET", "/api/admin/users/countries", adminHeaders);
+			assert.strictEqual(res.status, 200);
+
+			interface CountriesBody {
+				countries: { country: string; count: number }[];
+				unset: number;
+			}
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			const body = res.data as CountriesBody;
+
+			const byCountry = new Map(body.countries.map((c) => [c.country, c.count]));
+			assert.strictEqual(byCountry.get("JP"), 3);
+			assert.strictEqual(byCountry.get("CA"), 1);
+
+			// Sorted desc by count.
+			const counts = body.countries.map((c) => c.count);
+			assert.deepStrictEqual(
+				counts,
+				[...counts].sort((a, b) => b - a),
+			);
+
+			// unsetId has no country; the fixtures from the outer before() (adminId,
+			// userId, otherUserId) don't set one either. Use >= for suite-shared drift.
+			assert.ok(body.unset >= 4, `expected >= 4 unset, got ${body.unset}`);
+		});
+
+		it("returns engagement counts (newsletter, webhook, discord, bio)", async () => {
+			const res = await api("GET", "/api/admin/users/countries", adminHeaders);
+			assert.strictEqual(res.status, 200);
+
+			interface CountriesBody {
+				engagement: { newsletter: number; webhook: number; discord: number; bio: number };
+			}
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			const { engagement } = res.data as CountriesBody;
+
+			// engagedId contributes one of each; other specs may add more (>= not ===).
+			assert.ok(engagement.newsletter >= 1, `newsletter: ${engagement.newsletter}`);
+			assert.ok(engagement.webhook >= 1, `webhook: ${engagement.webhook}`);
+			assert.ok(engagement.discord >= 1, `discord: ${engagement.discord}`);
+			assert.ok(engagement.bio >= 1, `bio: ${engagement.bio}`);
+		});
+	});
+
 	describe("GET /admin/users/login-methods", () => {
 		const recentPasswordId = new ObjectId();
 		const oldGoogleId = new ObjectId();
@@ -200,7 +280,9 @@ describe("Admin users API", () => {
 			assert.strictEqual(body.perMethod.recent.google, 1);
 			assert.strictEqual(body.perMethod.older.google, 1);
 			assert.strictEqual(body.perMethod.recent.discord, 1);
-			assert.strictEqual(body.perMethod.older.discord, 0);
+			// The countries spec's engagedId fixture links discord with an epoch lastLogin
+			// (older bucket), so older.discord is 1, not 0.
+			assert.strictEqual(body.perMethod.older.discord, 1);
 			assert.strictEqual(body.perMethod.recent.github, 1);
 			assert.strictEqual(body.perMethod.older.github, 0);
 			assert.strictEqual(body.perMethod.recent.huggingface, 0);
@@ -220,7 +302,10 @@ describe("Admin users API", () => {
 			};
 			// ["password"]: recentPasswordId (recent) + otherUserId (older — resetPassword gave it a hash)
 			assert.deepStrictEqual(combo(["password"]), { methods: ["password"], recent: 1, older: 1 });
+			// ["google"]: oldGoogleId (older). No standalone-google fixture is recent.
 			assert.deepStrictEqual(combo(["google"]), { methods: ["google"], recent: 0, older: 1 });
+			// ["discord"]: the countries spec's engagedId fixture (older, epoch lastLogin).
+			assert.deepStrictEqual(combo(["discord"]), { methods: ["discord"], recent: 0, older: 1 });
 			assert.deepStrictEqual(combo(["password", "google", "discord"]), {
 				methods: ["password", "google", "discord"],
 				recent: 1,

@@ -1,9 +1,36 @@
 <script lang="ts">
 	import { invalidateAll } from "$app/navigation";
 	import { untrack } from "svelte";
-	import { api } from "$lib/api.ts";
+	import { api, ApiError } from "$lib/api.ts";
 	import type { PageProps } from "./$types";
 	import type { ApiErrorEntry } from "./+page.ts";
+
+	interface LokiInstantResult {
+		status: string;
+		data: {
+			resultType: "vector";
+			result: { metric: Record<string, string>; value: [number, string] }[];
+		};
+	}
+	interface LokiRangeResult {
+		status: string;
+		data: {
+			resultType: "matrix" | "streams";
+			result: { metric: Record<string, string>; values: [number, string][] }[];
+		};
+	}
+
+	interface RecentError {
+		timestamp: number;
+		line: string;
+		source: string;
+		level: string;
+		status?: string;
+		path?: string;
+		route?: string;
+		ip?: string;
+		requestId?: string;
+	}
 
 	let { data }: PageProps = $props();
 
@@ -12,18 +39,13 @@
 	async function refresh() {
 		refreshing = true;
 		try {
-			await invalidateAll();
+			await Promise.all([invalidateAll(), loadLoki()]);
 		} finally {
 			refreshing = false;
 		}
 	}
 
 	const health = $derived(data.health);
-	const lokiAvailable = $derived(health.lokiAvailable);
-	const statusCounts = $derived(health.statusCounts);
-	const slowEndpoints = $derived([...health.slowEndpoints].sort((a, b) => b.value - a.value));
-	const errorEndpoints = $derived([...health.errorEndpoints].sort((a, b) => b.value - a.value));
-	const recentErrors = $derived(health.recentErrors);
 	const dbErrorsTotal = $derived(health.dbErrorsTotal);
 	let dbErrorsPage = $state(1);
 	let dbErrorsLoading = $state(false);
@@ -37,6 +59,84 @@
 		allDbErrors = [...health.dbErrors];
 		dbErrorsPage = 1;
 	});
+
+	// --- Loki-backed panels, fetched client-side ---------------------------
+	// `undefined` = still loading, `null` = Loki unavailable. Keeping these out of
+	// the SSR `load` means the page renders the DB summary immediately and the
+	// Loki panels fill in when (and if) Loki answers.
+	let lokiLoading = $state(true);
+	let lokiAvailable = $state<boolean | null>(null);
+	let statusCounts = $state<{ status: string; count: number }[]>([]);
+	let slowEndpoints = $state<{ route: string; value: number }[]>([]);
+	let errorEndpoints = $state<{ route: string; value: number }[]>([]);
+	let recentErrors = $state<RecentError[]>([]);
+
+	async function loadLoki() {
+		lokiLoading = true;
+		const results = await Promise.allSettled([
+			api.get<LokiInstantResult>("/admin/loki/query/statusCounts"),
+			api.get<LokiInstantResult>("/admin/loki/query/slowEndpoints"),
+			api.get<LokiInstantResult>("/admin/loki/query/errorEndpoints"),
+			api.get<LokiRangeResult>("/admin/loki/query/recentErrors?limit=50"),
+		]);
+
+		// All four queries hit the same Loki instance. A 502/503 means Loki itself is
+		// down — degrade gracefully. Any other failure (401, 500, network) is a real
+		// error, but it still shouldn't blank the whole page — treat it as unavailable.
+		const lokiDown = results.some(
+			(r) => r.status === "rejected" && r.reason instanceof ApiError && [502, 503].includes(r.reason.status)
+		);
+		if (lokiDown || !results.every((r) => r.status === "fulfilled")) {
+			lokiAvailable = false;
+			lokiLoading = false;
+			return;
+		}
+
+		const fulfilled = results as PromiseFulfilledResult<LokiInstantResult | LokiRangeResult>[];
+		const status = fulfilled[0] as PromiseFulfilledResult<LokiInstantResult>;
+		const slow = fulfilled[1] as PromiseFulfilledResult<LokiInstantResult>;
+		const errors = fulfilled[2] as PromiseFulfilledResult<LokiInstantResult>;
+		const logs = fulfilled[3] as PromiseFulfilledResult<LokiRangeResult>;
+
+		statusCounts = (status.value.data.result ?? []).map((r) => ({
+			status: r.metric.status ?? "?",
+			count: Math.round(Number(r.value[1])),
+		}));
+		slowEndpoints = (slow.value.data.result ?? []).map((r) => ({
+			route: r.metric.route ?? r.metric.path ?? "?",
+			value: Math.round(Number(r.value[1])),
+		}));
+		errorEndpoints = (errors.value.data.result ?? []).map((r) => ({
+			route: r.metric.route ?? r.metric.path ?? "?",
+			value: Math.round(Number(r.value[1])),
+		}));
+		recentErrors = (logs.value.data.result ?? []).flatMap((stream) =>
+			(stream.values ?? []).map(([ts, line]) => {
+				let parsed: Record<string, unknown> = {};
+				try {
+					parsed = JSON.parse(line);
+				} catch {
+					// non-JSON line (morgan format, stack trace)
+				}
+				return {
+					timestamp: ts,
+					line: typeof parsed.msg === "string" ? (parsed as { msg: string }).msg : line,
+					source: (parsed.source as string) ?? stream.metric.source ?? "?",
+					level: (parsed.level as string) ?? stream.metric.level ?? "?",
+					status: parsed.status != null ? String(parsed.status) : undefined,
+					path: (parsed.path as string) ?? undefined,
+					route: (parsed.route as string) ?? undefined,
+					ip: (parsed.ip as string) ?? undefined,
+					requestId: (parsed.requestId as string) ?? undefined,
+				};
+			})
+		);
+		lokiAvailable = true;
+		lokiLoading = false;
+	}
+
+	const sortedSlowEndpoints = $derived([...slowEndpoints].sort((a, b) => b.value - a.value));
+	const sortedErrorEndpoints = $derived([...errorEndpoints].sort((a, b) => b.value - a.value));
 
 	async function loadMoreErrors() {
 		if (dbErrorsLoading) return;
@@ -74,6 +174,8 @@
 	const errorCount = $derived(
 		statusCounts.filter((s) => Number(s.status) >= 400 && s.status !== "401").reduce((a, b) => a + b.count, 0)
 	);
+
+	loadLoki();
 </script>
 
 <div class="space-y-6">
@@ -90,7 +192,14 @@
 		</button>
 	</div>
 
-	{#if !lokiAvailable}
+	{#if lokiLoading}
+		<div
+			class="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl"
+		>
+			<div class="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+			<div class="text-sm text-gray-400">Loading request metrics…</div>
+		</div>
+	{:else if !lokiAvailable}
 		<div
 			class="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl"
 		>
@@ -129,9 +238,9 @@
 			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
 				<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Slowest Endpoint</div>
 				<div class="text-2xl font-bold mt-1">
-					{slowEndpoints[0]?.value ?? "—"}<span class="text-sm font-normal text-gray-400">ms</span>
+					{sortedSlowEndpoints[0]?.value ?? "—"}<span class="text-sm font-normal text-gray-400">ms</span>
 				</div>
-				<div class="text-xs text-gray-400 mt-0.5 truncate">{slowEndpoints[0]?.route ?? ""}</div>
+				<div class="text-xs text-gray-400 mt-0.5 truncate">{sortedSlowEndpoints[0]?.route ?? ""}</div>
 			</div>
 		</div>
 
@@ -162,7 +271,7 @@
 			<!-- Slowest endpoints -->
 			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
 				<h3 class="text-sm font-semibold mb-3">Top 10 Slowest Endpoints (avg ms, 1h)</h3>
-				{#if slowEndpoints.length === 0}
+				{#if sortedSlowEndpoints.length === 0}
 					<p class="text-sm text-gray-400">No data</p>
 				{:else}
 					<div class="overflow-x-auto">
@@ -174,7 +283,7 @@
 								</tr>
 							</thead>
 							<tbody>
-								{#each slowEndpoints as e (e.route)}
+								{#each sortedSlowEndpoints as e (e.route)}
 									<tr class="border-b border-gray-100 dark:border-gray-800/50">
 										<td class="py-2 font-mono text-xs truncate max-w-[200px]">{e.route}</td>
 										<td class="py-2 text-right font-medium">{e.value}</td>
@@ -189,7 +298,7 @@
 			<!-- Endpoints with most errors -->
 			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
 				<h3 class="text-sm font-semibold mb-3">Endpoints with Most Errors (1h)</h3>
-				{#if errorEndpoints.length === 0}
+				{#if sortedErrorEndpoints.length === 0}
 					<p class="text-sm text-gray-400">No errors 🎉</p>
 				{:else}
 					<div class="overflow-x-auto">
@@ -201,7 +310,7 @@
 								</tr>
 							</thead>
 							<tbody>
-								{#each errorEndpoints as e (e.route)}
+								{#each sortedErrorEndpoints as e (e.route)}
 									<tr class="border-b border-gray-100 dark:border-gray-800/50">
 										<td class="py-2 font-mono text-xs truncate max-w-[200px]">{e.route}</td>
 										<td class="py-2 text-right font-medium text-red-500">{e.value}</td>

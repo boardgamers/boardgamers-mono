@@ -96,6 +96,45 @@ router.get("/stats", async (ctx) => {
 	};
 });
 
+// GET /api/admin/users/countries — users grouped by their self-chosen country
+// (account.country, 2-letter ISO code), plus the count of users who never set one
+// (so the admin sees how representative the breakdown is). Also returns a handful
+// of cheap engagement counts (feature adoption across the user base).
+router.get("/countries", async (ctx) => {
+	const [grouped, newsletter, webhook, discord, bio] = await Promise.all([
+		colls.users
+			.aggregate<{ _id: string | null; count: number }>([
+				{ $group: { _id: "$account.country", count: { $sum: 1 } } },
+				{ $sort: { count: -1 } },
+			])
+			.toArray(),
+		colls.users.countDocuments({ "settings.mailing.newsletter": true }),
+		// The stored webhook carries the (secret) URL; hasWebhook is serialization-only
+		// and never stored, so count on the URL's presence.
+		colls.users.countDocuments({ "settings.notifications.webhook.url": { $exists: true } }),
+		colls.users.countDocuments({ "account.social.discord": { $exists: true } }),
+		// bio defaults to "" — a non-empty one means the user wrote something.
+		colls.users.countDocuments({ "account.bio": { $exists: true, $ne: "" } }),
+	]);
+
+	let unset = 0;
+	const countries: { country: string; count: number }[] = [];
+	for (const { _id, count } of grouped) {
+		// $group buckets missing and null account.country under a null _id.
+		if (typeof _id === "string" && _id.length === 2) {
+			countries.push({ country: _id, count });
+		} else {
+			unset += count;
+		}
+	}
+
+	ctx.body = {
+		countries,
+		unset,
+		engagement: { newsletter, webhook, discord, bio },
+	};
+});
+
 // GET /api/admin/users/deleted — paginated list of archived (soft-deleted) users,
 // most recently archived first. Read-only: restore is manual via the DB.
 const deletedUsersQuerySchema = z.object({
