@@ -119,6 +119,10 @@
 						</div>
 					</div>
 
+					<label class="flex items-center gap-2 text-sm">
+						<input type="checkbox" bind:checked={meta.needOwnership} class="rounded" /> Requires ownership
+					</label>
+
 					<div>
 						<button onclick={save} class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
 							Save
