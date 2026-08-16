@@ -27,7 +27,7 @@ const collectionMap: Record<string, string> = {
 // Fixtures are plain JSON, so id/date fields arrive as strings. Parsing each
 // item through its document schema applies the zObjectId()/zDate() transforms,
 // turning them into real ObjectId/Date values before insert — otherwise the API
-// (which queries by ObjectId) never matches a string _id. See WORKAROUNDS.md.
+// (which queries by ObjectId) never matches a string _id.
 const schemaMap: Record<string, ZodType> = {
 	User: userSchema,
 	GameInfo: gameInfoSchema,

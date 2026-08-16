@@ -37,7 +37,7 @@ Historically the api stamped the session cookie `Domain=env.domain`; it had no p
 
 Koa 2.x only treats Node streams / `Buffer` / string / object as `ctx.body`. A BSON `Binary` (how the Mongo driver returns binary fields) falls through to `JSON.stringify` and serializes as a base64 JSON string.
 
-The avatar route's uploaded-avatar branch coerces the stored upload to a Node `Buffer` for this reason. Avatars are tiny so buffering is fine. (The dicebear branch used to hit the same issue with `fetch()`'s WHATWG `ReadableStream` — gone since #175 made generation local: it now sets a plain string.)
+The avatar route's uploaded-avatar branch coerces the stored upload to a Node `Buffer` for this reason. Avatars are tiny so buffering is fine.
 
 Covered by `app/routes/user/index.spec.ts`. Keep this note until we migrate off Koa to a framework that handles binary bodies natively (Hono, etc.), then revisit the call site.
 
