@@ -129,6 +129,19 @@ export function timerWindow(timer?: { start: number; end: number }): string {
 	return timer?.start !== timer?.end ? `${timerTime(timer?.start ?? 0)}–${timerTime(timer?.end ?? 0)}` : "24h";
 }
 
+/**
+ * A game is "live" (real-time) when each player's whole-game clock fits in a
+ * sitting — under a day — so it's meant to be played in one go. Longer clocks
+ * (a day or more per player) are "asynchronous": players move over days.
+ * Matches the new-game timing presets, which jump from 6h straight to 24h.
+ */
+export const LIVE_GAME_MAX_TIME_PER_GAME = 24 * 3600;
+export type GamePace = "live" | "async";
+
+export function gamePace(timePerGame: number | undefined): GamePace {
+	return (timePerGame ?? 0) < LIVE_GAME_MAX_TIME_PER_GAME ? "live" : "async";
+}
+
 export function dateTime(date: Date): string {
 	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(
 		2,
