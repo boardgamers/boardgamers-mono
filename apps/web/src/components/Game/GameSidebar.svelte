@@ -12,7 +12,7 @@
 	import type { GameContext } from "@/routes/game/[gameId]/game-context";
 	import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
 	import UsernameLink from "@/components/User/UsernameLink.svelte";
-	import SetupOptionBadge from "./SetupOptionBadge.svelte";
+	import SetupOptionBadge, { isNonDefaultSetupOption } from "./SetupOptionBadge.svelte";
 	import SanitizedHtml from "../SanitizedHtml.svelte";
 	import { post } from "@/lib/api";
 	import { account } from "@/lib/account.svelte";
@@ -238,11 +238,11 @@
 
 	<ReplayControls />
 
-	{#if (gameInfo.options ?? []).some((x) => !!gameOptions()[x.name])}
+	{#if (gameInfo.options ?? []).some((x) => isNonDefaultSetupOption(x, gameOptions()[x.name]))}
 		<div class="mt-3">
 			<h3 class="mb-1">Setup options</h3>
 			<div class="flex flex-wrap gap-1">
-				{#each (gameInfo.options ?? []).filter((x) => !!gameOptions()[x.name]) as pref (pref.name)}
+				{#each (gameInfo.options ?? []).filter( (x) => isNonDefaultSetupOption(x, gameOptions()[x.name]) ) as pref (pref.name)}
 					<SetupOptionBadge {pref} value={gameOptions()[pref.name]} />
 				{/each}
 			</div>

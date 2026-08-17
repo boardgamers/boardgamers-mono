@@ -415,4 +415,71 @@ describe("GameList open-row setup badges (#55)", () => {
 
 		unmount(instance as never);
 	});
+
+	// Only an admin-set `default` hides a badge: gaia-project's `default: "standard"`
+	// hides "Map layout: Standard", but powergrid's map has no `default` — "Germany"
+	// is just the first item, so "Map: Germany" still badges. A checkbox's default
+	// is unchecked unless `default === true`.
+	it("hides only options set to their admin-marked default value", async () => {
+		mockApi(
+			[
+				// Options at their admin-marked default (layout) or unset (fastBid stays on).
+				openGame("g-defaults", { layout: "standard", variant: "original", fastBid: true }),
+				// Non-default values → badges.
+				openGame("g-deviations", { layout: "xshape", variant: "recharged", fastBid: false }),
+			],
+			2,
+		);
+		const gameInfos = {
+			[gameInfoKey(GAME_NAME, 1)]: {
+				_id: { game: GAME_NAME, version: 1 },
+				options: [
+					{
+						name: "layout",
+						label: "Map layout",
+						type: "select",
+						// Explicit default, like gaia-project's gameinfo.
+						default: "standard",
+						items: [
+							{ name: "standard", label: "Standard" },
+							{ name: "xshape", label: "X shape" },
+						],
+					},
+					{
+						name: "variant",
+						label: "Variant",
+						type: "select",
+						// No `default` (like powergrid's gameinfo) → always badges, even the first item.
+						items: [
+							{ name: "original", label: "Original" },
+							{ name: "recharged", label: "Recharged" },
+						],
+					},
+					// default: true — a checked checkbox only badges when it deviates.
+					{ name: "fastBid", label: "Fast bid", type: "checkbox", default: true },
+				],
+			},
+		} as unknown as GameInfoMap;
+		const target = document.createElement("div");
+		document.body.appendChild(target);
+		const instance = mount(GameListHarness as never, { target, props: { gameStatus: "open", gameInfos } });
+		flushSync();
+		await waitForGames(target, ["g-defaults", "g-deviations"]);
+
+		const rows = [...target.querySelectorAll(".game-item")];
+		const defaults = rows.find((row) => row.textContent?.includes("g-defaults"))!;
+		// layout is at its admin-marked default (hidden); variant has no default
+		// (badges even at the first item); fastBid is checked = its default (hidden).
+		expect(
+			[...defaults.querySelectorAll(".setup-badge")].map((el) => el.textContent?.replace(/\s+/g, " ").trim()),
+		).toEqual(["Variant: Original"]);
+
+		const deviations = rows.find((row) => row.textContent?.includes("g-deviations"))!;
+		const badges = [...deviations.querySelectorAll(".setup-badge")].map((el) =>
+			el.textContent?.replace(/\s+/g, " ").trim(),
+		);
+		expect(badges).toEqual(["Map layout: X shape", "Variant: Recharged"]);
+
+		unmount(instance as never);
+	});
 });
