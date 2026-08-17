@@ -10,6 +10,7 @@ vi.mock("./api", () => ({ get: vi.fn() }));
 
 import { get } from "./api";
 import { clearGamesCache, loadGames } from "./games.svelte";
+import { LIVE_GAME_MAX_TIME_PER_GAME } from "@/utils";
 
 const getMock = vi.mocked(get);
 
@@ -19,6 +20,12 @@ function mockApi(games: unknown[] = [], total = 0) {
 
 function fetchedUrls(): string[] {
 	return getMock.mock.calls.map(([url]) => url as string);
+}
+
+/** The query object passed to `get` for the games (non-count) fetch. */
+function gamesQuery(): Record<string, unknown> {
+	const call = getMock.mock.calls.find(([url]) => !(url as string).endsWith("/count"));
+	return (call?.[1] ?? {}) as Record<string, unknown>;
 }
 
 describe("loadGames cache", () => {
@@ -80,5 +87,33 @@ describe("loadGames cache", () => {
 		await loadGames({ gameStatus: "active" });
 
 		expect(getMock).toHaveBeenCalledTimes(4);
+	});
+});
+
+// #55: the pace filter maps to a timePerGame bound server-side — live games have a
+// sub-day clock, async games a day-or-more clock. Lock the boundary (24h) here.
+describe("loadGames pace filter (#55)", () => {
+	beforeEach(() => {
+		clearGamesCache();
+		getMock.mockReset();
+		mockApi([], 0);
+	});
+
+	it("pace: live maps to maxDuration just under a day", async () => {
+		await loadGames({ gameStatus: "open", pace: "live" });
+		expect(gamesQuery().maxDuration).toBe(LIVE_GAME_MAX_TIME_PER_GAME - 1);
+		expect(gamesQuery().minDuration).toBeUndefined();
+	});
+
+	it("pace: async maps to minDuration of a day", async () => {
+		await loadGames({ gameStatus: "open", pace: "async" });
+		expect(gamesQuery().minDuration).toBe(LIVE_GAME_MAX_TIME_PER_GAME);
+		expect(gamesQuery().maxDuration).toBeUndefined();
+	});
+
+	it("no pace sends no duration bound", async () => {
+		await loadGames({ gameStatus: "open" });
+		expect(gamesQuery().minDuration).toBeUndefined();
+		expect(gamesQuery().maxDuration).toBeUndefined();
 	});
 });

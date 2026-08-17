@@ -7,6 +7,7 @@
 	import type { Pathname } from "$app/types";
 	import { page } from "$app/state";
 	import { debounce } from "lodash";
+	import type { GamePace } from "@/utils";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -40,6 +41,11 @@
 	$effect(() => {
 		applySearch(searchInput);
 	});
+
+	// Live/async pace filter (#55) — "" = no filter. Passed to each GameList, which
+	// maps it to a server-side timePerGame bound.
+	let pace = $state<"" | GamePace>("");
+	let paceFilter = $derived<GamePace | undefined>(pace === "" ? undefined : pace);
 </script>
 
 <div class="container mx-auto px-4">
@@ -52,6 +58,13 @@
 				></NavItem
 			>
 		</Nav>
+		<div class="w-full sm:w-40">
+			<Input type="select" bind:value={pace} aria-label="Filter by game pace">
+				<option value="">All paces</option>
+				<option value="live">⚡ Live</option>
+				<option value="async">🐢 Async</option>
+			</Input>
+		</div>
 		<div class="w-full sm:w-64">
 			<Input
 				type="search"
@@ -71,10 +84,10 @@
 			class:hidden={animating}
 		>
 			<div class="mb-2">
-				<GameList gameStatus="open" title="Lobby" boardgameId={data.boardgameId} {search} />
+				<GameList gameStatus="open" title="Lobby" boardgameId={data.boardgameId} pace={paceFilter} {search} />
 			</div>
 			<div class="mb-2">
-				<GameList gameStatus="active" title="Ongoing" boardgameId={data.boardgameId} {search} />
+				<GameList gameStatus="active" title="Ongoing" boardgameId={data.boardgameId} pace={paceFilter} {search} />
 			</div>
 		</div>
 	{:else}

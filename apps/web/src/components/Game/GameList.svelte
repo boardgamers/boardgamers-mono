@@ -1,6 +1,15 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import { timerTime, defer, duration, niceDate, shortDuration, compactDuration, timerWindow } from "@/utils";
+	import {
+		timerTime,
+		defer,
+		duration,
+		niceDate,
+		shortDuration,
+		compactDuration,
+		timerWindow,
+		type GamePace,
+	} from "@/utils";
 	import type { GameFront } from "@bgs/models";
 	import { Badge, Pagination, Loading } from "@/modules/cdk";
 	import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
@@ -23,6 +32,7 @@
 		userId = undefined,
 		minDuration = undefined,
 		maxDuration = undefined,
+		pace = undefined,
 		search = undefined,
 		class: className = "",
 	}: {
@@ -35,6 +45,8 @@
 		userId?: string | undefined | null;
 		minDuration?: number | undefined;
 		maxDuration?: number | undefined;
+		/** Live/async timing filter applied server-side (maps to a timePerGame bound). */
+		pace?: GamePace | undefined;
 		search?: string | undefined;
 		// Applied to the outer wrapper (e.g. `min-w-0` so the list can shrink inside a
 		// grid/flex cell instead of forcing the layout wide on mobile).
@@ -60,6 +72,7 @@
 				sample,
 				minDuration,
 				maxDuration,
+				pace,
 				count: perPage,
 				skip: currentPage * perPage,
 				fetchCount,
@@ -193,6 +206,7 @@
 	let lastLogoClicks = $logoClicks;
 	let lastBoardgameId: string | undefined;
 	let lastUserId: string | undefined | null;
+	let lastPace: GamePace | undefined;
 	let lastSearch: string | undefined;
 	let lastPage = 0;
 
@@ -211,6 +225,7 @@
 	$effect(() => {
 		userId;
 		boardgameId;
+		pace;
 		search;
 		const clicks = $logoClicks;
 		const page = currentPage;
@@ -222,6 +237,7 @@
 			firstRun = false;
 			lastBoardgameId = boardgameId;
 			lastUserId = userId;
+			lastPace = pace;
 			lastSearch = search;
 			lastPage = page;
 			return;
@@ -231,7 +247,11 @@
 		// Filter changes keep the cache (switching back to a seen filter is instant).
 		const isLogoRefresh = clicks !== lastLogoClicks;
 		const filterChanged =
-			boardgameId !== lastBoardgameId || userId !== lastUserId || search !== lastSearch || isLogoRefresh;
+			boardgameId !== lastBoardgameId ||
+			userId !== lastUserId ||
+			pace !== lastPace ||
+			search !== lastSearch ||
+			isLogoRefresh;
 		const pageChanged = page !== lastPage;
 		lastLogoClicks = clicks;
 
@@ -243,6 +263,7 @@
 			// filterChanged===false (the trackers were already advanced) → no second load.
 			lastBoardgameId = boardgameId;
 			lastUserId = userId;
+			lastPace = pace;
 			lastSearch = search;
 			lastPage = 0;
 			currentPage = 0;

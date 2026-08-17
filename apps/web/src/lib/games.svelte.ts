@@ -3,6 +3,7 @@ import { SvelteMap } from "svelte/reactivity";
 import { get as getStore } from "svelte/store";
 import { account } from "./stores.svelte";
 import { get } from "./api";
+import { LIVE_GAME_MAX_TIME_PER_GAME, type GamePace } from "@/utils";
 
 export type LoadGamesParams = {
 	boardgameId?: string;
@@ -12,6 +13,8 @@ export type LoadGamesParams = {
 	count?: number;
 	minDuration?: number;
 	maxDuration?: number;
+	/** Live/async timing filter — maps to a min/max on timePerGame. Overrides min/maxDuration. */
+	pace?: GamePace;
 	gameStatus: GameStatus;
 	fetchCount?: boolean;
 	store?: boolean;
@@ -38,6 +41,7 @@ export function loadGames({
 	skip = 0,
 	minDuration,
 	maxDuration,
+	pace,
 	sample,
 	userId,
 	boardgameId,
@@ -47,6 +51,16 @@ export function loadGames({
 	refresh = false,
 	search,
 }: LoadGamesParams) {
+	// The pace filter maps to a timePerGame bound: live games have a sub-day clock,
+	// async games a day-or-more clock.
+	if (pace === "live") {
+		maxDuration = LIVE_GAME_MAX_TIME_PER_GAME - 1;
+		minDuration = undefined;
+	} else if (pace === "async") {
+		minDuration = LIVE_GAME_MAX_TIME_PER_GAME;
+		maxDuration = undefined;
+	}
+
 	const queryParams = {
 		count,
 		skip,
