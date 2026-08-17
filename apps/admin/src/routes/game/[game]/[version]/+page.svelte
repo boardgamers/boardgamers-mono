@@ -248,7 +248,10 @@
 							: 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'}"
 					>
 						v{v.version}{#if v.archived}
-							<span class="ml-1 text-xs text-amber-600 dark:text-amber-400">(archived)</span>{/if}
+							<span
+								class="ml-1.5 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+								>archived</span
+							>{/if}
 					</a>
 				{/each}
 			</nav>

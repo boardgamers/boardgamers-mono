@@ -510,23 +510,28 @@
 			</div>
 		</details>
 
-		<!-- Description & Rules -->
+		<!-- Description & Rules: each is full-width and mostly empty, so on large
+		     screens they sit side-by-side to reclaim the wasted vertical space. -->
 		{#if metadataReadOnly}
-			{#if value.description}
-				<div class="space-y-1">
-					<span class="block text-sm font-medium">Description</span>
-					<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.description}</p>
-				</div>
-			{/if}
-			{#if value.rules}
-				<div class="space-y-1">
-					<span class="block text-sm font-medium">Rules</span>
-					<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.rules}</p>
-				</div>
-			{/if}
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+				{#if value.description}
+					<div class="space-y-1">
+						<span class="block text-sm font-medium">Description</span>
+						<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.description}</p>
+					</div>
+				{/if}
+				{#if value.rules}
+					<div class="space-y-1">
+						<span class="block text-sm font-medium">Rules</span>
+						<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.rules}</p>
+					</div>
+				{/if}
+			</div>
 		{:else}
-			<MarkdownEditor bind:value={value.description} label="Description (Markdown)" rows={4} />
-			<MarkdownEditor bind:value={value.rules} label="Rules (Markdown)" rows={8} />
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+				<MarkdownEditor bind:value={value.description} label="Description (Markdown)" rows={6} />
+				<MarkdownEditor bind:value={value.rules} label="Rules (Markdown)" rows={10} />
+			</div>
 		{/if}
 	{/if}
 
@@ -538,18 +543,18 @@
 			Version
 		</h3>
 
-		<!-- Public is version-scoped (a game can have a public v1 + a beta v2): only
-     public versions are listed and open to everyone — non-public versions stay
-     reachable for users with an access grant. -->
-		<label class="flex items-center gap-2 text-sm font-medium">
-			<input type="checkbox" bind:checked={value.public} class="rounded" /> Public
-			<span class="font-normal text-gray-400">— listed & open to everyone (per version)</span>
-		</label>
-
-		<!-- Faction Avatars -->
-		<label class="flex items-center gap-2 text-sm">
-			<input type="checkbox" bind:checked={value.factions!.avatars} class="rounded" /> Faction avatars
-		</label>
+		<!-- Version-level flags. Public is version-scoped (a game can have a public v1 +
+	     a beta v2): only public versions are listed and open to everyone — non-public
+	     versions stay reachable for users with an access grant. -->
+		<div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+			<label class="flex items-center gap-2 text-sm font-medium">
+				<input type="checkbox" bind:checked={value.public} class="rounded" /> Public
+				<span class="font-normal text-gray-400">— listed & open to everyone (per version)</span>
+			</label>
+			<label class="flex items-center gap-2 text-sm">
+				<input type="checkbox" bind:checked={value.factions!.avatars} class="rounded" /> Faction avatars
+			</label>
+		</div>
 
 		<!-- Viewer (primary) -->
 		{#snippet viewerFields(viewer: ViewerData, title: string)}
@@ -678,7 +683,7 @@
 						onclick={() => {
 							value.viewer.alternate = undefined;
 						}}
-						class="{btnSmClass} text-red-600">Remove alternate viewer</button
+						class="{btnSmClass} text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">Remove alternate viewer</button
 					>
 					{#if mode === "edit"}
 						<button
@@ -979,8 +984,9 @@
 											>
 											<input bind:value={subItem.name} placeholder="ID" class="{inputClass} flex-1" />
 											<input bind:value={subItem.label} placeholder="Label" class="{inputClass} flex-1" />
-											<button onclick={() => removeSelectItem(item as OptionItem, j)} class="{btnSmClass} text-red-600"
-												>&times;</button
+											<button
+												onclick={() => removeSelectItem(item as OptionItem, j)}
+												class="{btnSmClass} text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">&times;</button
 											>
 										</div>
 									{/each}
