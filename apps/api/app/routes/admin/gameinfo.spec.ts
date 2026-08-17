@@ -127,21 +127,6 @@ describe("Admin gameinfo API — split upsert (#298)", () => {
 		assert.ok(version && !("label" in version), "version doc does not carry the label");
 	});
 
-	it("a pre-hoist body carrying meta.public is flattened to top-level public (deploy window)", async () => {
-		// A stale admin bundle still sends the OLD shape { meta: { public } }: the
-		// upsert must hoist it onto the top-level field, never persist the nested form.
-		const merged = await put("oldshape", 1, { viewer: { url: "//v1" }, meta: { public: true } });
-
-		assert.strictEqual(merged.public, true, "returned doc exposes top-level public");
-		// `meta` may be absent entirely on a fresh doc (nothing server-managed set
-		// yet) — what matters is the nested flag is flattened, never stored.
-		assert.ok(!merged.meta || !("public" in merged.meta), "returned doc's meta does not carry public");
-
-		const version = await colls.gameInfos.findOne({ _id: { game: "oldshape", version: 1 } });
-		assert.strictEqual(version?.public, true, "stored doc has top-level public");
-		assert.ok(!version?.meta || !("public" in version.meta), "meta.public is not persisted");
-	});
-
 	it("creating a second version shares the one metadata doc", async () => {
 		await put("splitgame", 2, { viewer: { url: "//v2" }, public: true, meta: {} });
 		const metas = await colls.gameMetadatas.find({ _id: "splitgame" }).toArray();

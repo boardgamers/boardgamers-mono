@@ -403,23 +403,6 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 		assert.strictEqual(games[1].game.label, "Versioned Two");
 	});
 
-	it("resolveGameLabels falls back to the version doc during the deploy-before-migration window", async () => {
-		// Pre-migration state: no metadata doc yet, the version doc still carries
-		// label/alias. Inserted untyped — GameVersionDoc no longer has these fields.
-		await db()
-			.collection("gameinfos")
-			.insertOne({
-				_id: { game: "presplit", version: 1 },
-				label: "Pre Split",
-				alias: "Pre Alias",
-				public: true,
-				meta: {},
-			});
-		const games = await resolveGameLabels([{ _id: "gps", game: { name: "presplit", version: 1 } }]);
-		assert.strictEqual(games[0].game.label, "Pre Alias");
-		assert.strictEqual(games[0].game.basedOn, "Pre Split");
-	});
-
 	it("no webhook configured ⇒ no delivery, no error", async () => {
 		assert.strictEqual(WEBHOOK_DISABLE_AFTER_MS, 24 * 3600 * 1000);
 		const ghost = testUser({ settings: {} });

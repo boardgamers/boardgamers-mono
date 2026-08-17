@@ -138,12 +138,6 @@ async function upsert(ctx: Context) {
 			if (key === "archived") {
 				continue;
 			}
-			// `public` was hoisted out of `meta` to a top-level version field — a
-			// pre-hoist client (deploy window) still sends it under `meta`.
-			if (key === "public") {
-				body.public ??= value;
-				continue;
-			}
 			body[`meta.${key}`] = value;
 		}
 		delete body.meta;
