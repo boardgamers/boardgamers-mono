@@ -217,10 +217,15 @@
    `:global(.dark) .foo` (kept scoped for specificity). */
 
 /* ---------- Setup-option badges (game sidebar + open-game lobby) ---------- */
-/* Match the game-sidebar badge: inline (whitespace respected), bold, white text (including links). */
+/* Match the game-sidebar badge: inline (whitespace respected), bold, white text (including links)
+   on the sidebar-badge gray (#6c757d, 4.8:1 against white). The Badge component's own
+   secondary variant (gray-200) is far too light for white text in light mode (1.1:1),
+   so the background is pinned here — including dark mode, where the white-text rule
+   would otherwise sit on gray-700. */
 .setup-badge {
 	display: inline;
 	font-weight: bold;
+	background-color: #6c757d;
 }
 .setup-badge,
 .setup-badge a {
