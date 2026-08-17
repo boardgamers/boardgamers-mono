@@ -218,6 +218,51 @@ router.post("/:userId/elo/:game", async (ctx) => {
 	ctx.status = 200;
 });
 
+// GET /api/admin/users/:userId/access — the private betas this user is in:
+// one entry per (user, game) gamePreferences doc carrying an access.maxVersion
+// grant, with the game's label for display.
+router.get("/:userId/access", async (ctx) => {
+	const userId = new ObjectId(ctx.params.userId);
+
+	if (!(await colls.users.countDocuments({ _id: userId }))) {
+		ctx.status = 404;
+		return;
+	}
+
+	const grants = await colls.gamePreferences
+		.find({ user: userId, "access.maxVersion": { $exists: true } }, { projection: { game: 1, "access.maxVersion": 1 } })
+		.sort({ game: 1 })
+		.toArray();
+
+	const metas = await colls.gameMetadatas
+		.find({ _id: { $in: grants.map((g) => g.game) } }, { projection: { label: 1 } })
+		.toArray();
+	const labelByGame = new Map(metas.map((m) => [m._id, m.label]));
+
+	ctx.body = grants.map((g) => ({
+		game: g.game,
+		label: labelByGame.get(g.game) ?? g.game,
+		maxVersion: g.access!.maxVersion!,
+	}));
+});
+
+// DELETE /api/admin/users/:userId/access/:game — revoke a beta grant: the user
+// falls back to the latest public version (see lastAccessibleVersion).
+router.delete("/:userId/access/:game", async (ctx) => {
+	const userId = new ObjectId(ctx.params.userId);
+
+	if (!(await colls.users.countDocuments({ _id: userId }))) {
+		ctx.status = 404;
+		return;
+	}
+
+	await colls.gamePreferences.updateOne(
+		{ user: userId, game: ctx.params.game },
+		{ $unset: { "access.maxVersion": true } },
+	);
+	ctx.status = 200;
+});
+
 router.post("/:userId/access/grant", async (ctx) => {
 	const { game, version } = z
 		.object({

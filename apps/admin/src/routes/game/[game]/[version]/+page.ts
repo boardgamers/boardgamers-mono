@@ -6,10 +6,19 @@ export interface VersionTab {
 	archived: boolean;
 }
 
+// One user holding a private-beta grant for this game.
+export interface BetaUser {
+	userId: string;
+	username: string | null;
+	maxVersion: number;
+}
+
 export async function load({ params }: { params: { game: string; version: string } }): Promise<{
 	value: GameInfoFront | null;
 	metadata: GameMetadataDoc | null;
 	versions: VersionTab[];
+	latestVersion: number;
+	betaUsers: BetaUser[];
 }> {
 	const [value, metadata, listed] = await Promise.all([
 		api.get<GameInfoFront>(`/admin/gameinfo/${params.game}/${params.version}`).catch(() => null),
@@ -23,5 +32,11 @@ export async function load({ params }: { params: { game: string; version: string
 		.filter((v) => v._id.game === params.game)
 		.map((v) => ({ version: v._id.version, archived: !!v.meta?.archived }))
 		.sort((a, b) => b.version - a.version);
-	return { value, metadata, versions };
+	const latestVersion = versions[0]?.version ?? 0;
+	// Beta grants only make sense while the latest version is not public.
+	const showBeta = !!value && !value.public && +params.version === latestVersion;
+	const betaUsers = showBeta
+		? await api.get<BetaUser[]>(`/admin/gameinfo/${encodeURIComponent(params.game)}/beta-users`).catch(() => [])
+		: [];
+	return { value, metadata, versions, latestVersion, betaUsers };
 }

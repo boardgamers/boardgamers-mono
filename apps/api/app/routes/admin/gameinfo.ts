@@ -9,9 +9,10 @@ import { promisify } from "node:util";
 import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
+import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
-import { findGameInfoWithVersion } from "../../models/index.ts";
+import { findByEmail, findByUsername, findGameInfoWithVersion } from "../../models/index.ts";
 import { lastAccessibleVersion } from "../../services/gameinfo.ts";
 import { gameBundleS3Key, publicObjectUrl, putObject, s3Enabled } from "../../services/s3.ts";
 
@@ -176,6 +177,85 @@ async function upsert(ctx: Context) {
 	const merged = await findGameInfoWithVersion(game, version);
 	ctx.body = merged ?? versionDoc;
 }
+
+// -- Private beta grants -------------------------------------------------------
+// Beta access is a per-(user, game) gamePreferences `access.maxVersion` grant:
+// the grantee sees versions up to maxVersion even when they are not public
+// (lastAccessibleVersion). These routes only manage the grants — access
+// semantics stay in services/gameinfo.ts. They are registered BEFORE
+// /:game/:version, which would otherwise swallow "beta-users" as a version.
+
+// GET /api/admin/gameinfo/:game/beta-users — users holding a grant for this game.
+router.get("/:game/beta-users", async (ctx) => {
+	const game = ctx.params.game;
+
+	if (!(await colls.gameInfos.countDocuments({ "_id.game": game }))) {
+		throw createError(404, `No game info for ${game}`);
+	}
+
+	const grants = await colls.gamePreferences
+		.find({ game, "access.maxVersion": { $exists: true } }, { projection: { user: 1, "access.maxVersion": 1 } })
+		.toArray();
+
+	const users = await colls.users
+		.find({ _id: { $in: grants.map((g) => g.user) } }, { projection: { "account.username": 1 } })
+		.toArray();
+	const usernameById = new Map(users.map((u) => [u._id.toHexString(), u.account.username]));
+
+	ctx.body = grants
+		.map((g) => ({
+			userId: g.user,
+			username: usernameById.get(g.user.toHexString()) ?? null,
+			maxVersion: g.access!.maxVersion!,
+		}))
+		.sort((a, b) => (a.username ?? "").localeCompare(b.username ?? ""));
+});
+
+// POST /api/admin/gameinfo/:game/beta-users — invite a user (username or email)
+// to the beta: grants access to the latest version. No-op when the latest
+// version is public (there is no beta to join), mirroring the user-centric
+// grant route.
+router.post("/:game/beta-users", async (ctx) => {
+	const game = ctx.params.game;
+	const { usernameOrEmail } = z.object({ usernameOrEmail: z.string().min(1) }).parse(ctx.request.body);
+
+	const gameInfo = await findGameInfoWithVersion(game, "latest");
+	if (!gameInfo) {
+		throw createError(404, `No game info for ${game}`);
+	}
+
+	const user = usernameOrEmail.includes("@")
+		? await findByEmail(usernameOrEmail)
+		: await findByUsername(usernameOrEmail);
+	if (!user) {
+		throw createError(404, `User not found: ${usernameOrEmail}`);
+	}
+
+	if (!gameInfo.public) {
+		await colls.gamePreferences.updateOne(
+			{ user: user._id, game },
+			{ $set: { "access.maxVersion": gameInfo._id.version } },
+			{ upsert: true },
+		);
+	}
+
+	ctx.body = { userId: user._id, username: user.account.username, maxVersion: gameInfo._id.version };
+});
+
+// DELETE /api/admin/gameinfo/:game/beta-users/:userId — revoke a user's grant.
+router.delete("/:game/beta-users/:userId", async (ctx) => {
+	const game = ctx.params.game;
+
+	if (!(await colls.gameInfos.countDocuments({ "_id.game": game }))) {
+		throw createError(404, `No game info for ${game}`);
+	}
+
+	await colls.gamePreferences.updateOne(
+		{ user: new ObjectId(ctx.params.userId), game },
+		{ $unset: { "access.maxVersion": true } },
+	);
+	ctx.status = 200;
+});
 
 // oxlint-disable no-async-endpoint-handlers -- Express-specific rule; Koa awaits async middleware natively
 router.post("/:game/:version", upsert);
