@@ -37,6 +37,7 @@
 
 	let gameId = $state(randomId());
 	let showAdvanced = $state(false);
+	let description = $state("");
 	let seed = $state("");
 	let numPlayers = $state(2);
 	let numBots = $state(0);
@@ -100,6 +101,7 @@
 			},
 			gameId,
 			players: numPlayers,
+			description: description.trim() ? description.trim() : (undefined as string | undefined),
 			bots: numBots > 0 ? numBots : (undefined as number | undefined),
 			timePerMove,
 			timePerGame,
@@ -323,6 +325,23 @@
 						/>
 						<small class="text-xs text-gray-500 dark:text-gray-400"
 							>A name for your game (letters, numbers, hyphens).</small
+						>
+					</div>
+
+					<div class="mb-4">
+						<label for="description" class="mb-1 block font-medium"
+							>Description <span class="font-normal text-gray-500 dark:text-gray-400">(optional)</span></label
+						>
+						<Input
+							type="textarea"
+							id="description"
+							maxlength="1000"
+							rows="3"
+							bind:value={description}
+							placeholder="Casual game, beginners welcome — one move a day is fine!"
+						/>
+						<small class="text-xs text-gray-500 dark:text-gray-400"
+							>A note about your game, shown on its page. Markdown supported.</small
 						>
 					</div>
 

@@ -193,7 +193,7 @@
 </script>
 
 <div class="container mx-auto px-4 pb-3">
-	<!-- Title: boardgame link (breadcrumb-style) + status -->
+	<!-- Header: boardgame name, status, seats, host, and the host's own description -->
 	<div class="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
 		<h1 class="mb-0"><GameName info={context.gameInfo} /></h1>
 		<span
@@ -206,6 +206,13 @@
 		</span>
 	</div>
 	<p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
+		🌱 {gameId}
+		· Hosted by
+		<UsernameLink
+			username={context.players.find((pl) => pl._id === context.game?.creator)?.name ?? "?"}
+			userId={context.game?.creator}
+		/>
+		·
 		<a href={resolve("/(app)/boardgame/[boardgameId]", { boardgameId: context.gameInfo?._id.game ?? "" })}
 			>About the game</a
 		>
@@ -215,234 +222,214 @@
 		>
 	</p>
 
-	<!-- Intro description (no heading — reads as lead copy) -->
-	{#if context.gameInfo?.description}
-		<div class="prose dark:prose-invert mb-5 max-w-2xl">
-			<SanitizedHtml html={marked(context.gameInfo.description)} />
+	{#if context.game?.description}
+		<div
+			class="prose dark:prose-invert mb-4 max-w-2xl rounded-lg border border-primary/30 bg-primary/5 p-4 dark:bg-primary/10"
+		>
+			<SanitizedHtml html={marked(context.game.description)} />
 		</div>
 	{/if}
 
-	<div class="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
-		<div>
-			<h3
-				class="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
-			>
-				<IconList /> About this game
-			</h3>
-			<ul class="space-y-1.5 text-sm">
-				<li class="flex items-center gap-2">
-					<IconPerson class="text-gray-400" />
-					<span>
-						Hosted by
-						<UsernameLink
-							username={context.players.find((pl) => pl._id === context.game?.creator)?.name ?? "?"}
-							userId={context.game?.creator}
-							class="font-medium"
-						/>
-					</span>
-				</li>
-				<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-					<IconClockHistory class="text-gray-400" />
-					<span title="Timezone">Plays {shortPlayTime()}</span>
-				</li>
-				{#if context.game?.options.setup.seed}
-					<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-						<span title="Game seed">🌱 {context.game.options.setup.seed}</span>
+	<div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+		<div class="flex flex-col gap-4">
+			<!-- Game setup: timing, join restrictions, setup options -->
+			<section class="rounded-lg border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+				<h3
+					class="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
+				>
+					<IconHourglass /> Game setup
+				</h3>
+				<ul class="space-y-1.5 text-sm">
+					<li>
+						<b>{duration(context.game?.options.timing.timePerGame ?? 0)}</b> per player,
+						<b>+{duration(context.game?.options.timing.timePerMove ?? 0)}</b> per move
 					</li>
-				{/if}
-				{#if typeof context.game?.options.meta?.minimumKarma === "number"}
 					<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-						<span title="Minimum karma to join the game"
-							>☯️ requires {context.game.options.meta.minimumKarma} karma</span
-						>
+						<IconClockHistory class="text-gray-400" />
+						<span title="Timezone">Clock runs {playTime()}</span>
 					</li>
-				{/if}
-				{#if context.game?.options.meta?.eloRange}
-					<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-						<span title="Elo range required to join the game"
-							>📈 Elo between {context.game.options.meta.eloRange.min} and {context.game.options.meta.eloRange
-								.max}</span
-						>
-					</li>
-				{/if}
-			</ul>
+					{#if typeof context.game?.options.meta?.minimumKarma === "number"}
+						<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+							<span title="Minimum karma to join the game"
+								>☯️ requires {context.game.options.meta.minimumKarma} karma</span
+							>
+						</li>
+					{/if}
+					{#if context.game?.options.meta?.eloRange}
+						<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+							<span title="Elo range required to join the game"
+								>📈 Elo between {context.game.options.meta.eloRange.min} and {context.game.options.meta.eloRange
+									.max}</span
+							>
+						</li>
+					{/if}
+					{#if context.game?.options.timing.scheduledStart}
+						<li class="font-medium">
+							Scheduled to start on {niceDate(context.game.options.timing.scheduledStart)} at
+							{new Date(context.game.options.timing.scheduledStart).toLocaleTimeString("en")}
+						</li>
+					{/if}
+				</ul>
 
-			{#if context.game?.options.timing.scheduledStart}
-				<p class="mt-2 text-sm font-medium">
-					Scheduled to start on {niceDate(context.game.options.timing.scheduledStart)} at
-					{new Date(context.game.options.timing.scheduledStart).toLocaleTimeString("en")}
-				</p>
+				<div class="mt-3 flex flex-wrap gap-1">
+					<Badge color="secondary" class="setup-badge"
+						>{playerOrderText(context.game?.options.setup.playerOrder ?? "random")}</Badge
+					>
+					{#each (context.gameInfo?.options ?? []).filter((x) => !!gameOptions(context.game)[x.name]) as pref (pref.name)}
+						<SetupOptionBadge {pref} value={gameOptions(context.game)[pref.name]} />
+					{/each}
+					{#each context.game?.game.expansions ?? [] as expansion, i (i)}
+						<Badge color="info"
+							><SanitizedHtml
+								html={oneLineMarked(context.gameInfo?.expansions?.find((xp) => xp.name === expansion)?.label ?? "")}
+							/></Badge
+						>
+					{/each}
+				</div>
+			</section>
+
+			<!-- About the boardgame: its description + rules links -->
+			{#if context.gameInfo?.description || context.gameInfo?.rules}
+				<section class="rounded-lg border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+					<h3
+						class="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
+					>
+						<IconList /> About &amp; rules
+					</h3>
+					{#if context.gameInfo?.description}
+						<div class="prose prose-sm dark:prose-invert max-w-none">
+							<SanitizedHtml html={marked(context.gameInfo.description)} />
+						</div>
+					{/if}
+					{#if context.gameInfo?.rules}
+						<div class="prose prose-sm dark:prose-invert mt-2 max-w-none">
+							<SanitizedHtml html={marked(context.gameInfo.rules)} />
+						</div>
+					{/if}
+				</section>
 			{/if}
 		</div>
 
-		<div>
-			<h3
-				class="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
-			>
-				<IconHourglass /> Timer
+		<!-- Players + status -->
+		<section class="rounded-lg border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+			<h3 class="mb-3">
+				Players
+				<span class="ml-1 text-base font-normal text-gray-500 dark:text-gray-400">
+					{context.game?.players.length ?? 0} / {context.game?.options.setup.nbPlayers ?? 0}
+				</span>
 			</h3>
-			<ul class="space-y-1.5 text-sm">
-				<li>
-					<b>{duration(context.game?.options.timing.timePerGame ?? 0)}</b> per player,
-					<b>+{duration(context.game?.options.timing.timePerMove ?? 0)}</b> per move
-				</li>
-				<li class="text-gray-500 dark:text-gray-400">Clock runs {playTime()}</li>
-			</ul>
 
-			{#if context.gameInfo?.rules}
-				<h4 class="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Rules</h4>
-				<div class="prose prose-sm dark:prose-invert max-w-none">
-					<SanitizedHtml html={marked(context.gameInfo.rules)} />
+			{#if context.game && context.game.players.length > 0}
+				<ul class="mb-3 space-y-2">
+					{#each context.game.players as player (player._id)}
+						{@const info = context.players.find((pl) => pl._id === player._id)}
+						<li class="flex items-center gap-2">
+							{#if player.isBot}
+								<span
+									class="flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700"
+									style="height: 2rem; width: 2rem"
+									title={player.name}>🤖</span
+								>
+								<span class="font-medium">{player.name}</span>
+								<span
+									class="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+									>bot</span
+								>
+							{:else}
+								<UserAvatar userId={player._id} username={info?.name ?? "?"} size="2rem" />
+								<UsernameLink username={info?.name ?? "?"} userId={player._id} class="font-medium" />
+								<span class="text-sm text-gray-500 dark:text-gray-400">{info?.elo} elo</span>
+								{#if typeof info?.karma === "number"}
+									<span class="text-sm text-gray-500 dark:text-gray-400" title="Karma">☯️ {info.karma}</span>
+								{/if}
+							{/if}
+							{#if player.pending}
+								<span
+									class="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+									>invited</span
+								>
+							{/if}
+							{#if player._id === context.game?.creator}
+								<span class="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary dark:text-primary-lighter"
+									>host</span
+								>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			{/if}
+
+			{#if context.game && context.game.options.setup.nbPlayers > context.game.players.length}
+				<p class="mb-3 text-sm text-gray-600 dark:text-gray-300">
+					⏳ Waiting on <b
+						>{pluralize(context.game.options.setup.nbPlayers - context.game.players.length, "more player")}</b
+					> to start.
+				</p>
+				{#if $user?._id === context.game.creator && (1 || context.game.options.timing.scheduledStart)}
+					<FormGroup>
+						<label for="invite">Invite player</label>
+						<Dropdown isOpen={Boolean(isOpen && foundUsers.length)} toggle={() => (isOpen = !isOpen)}>
+							<DropdownToggle tag="div" class="inline-block">
+								<Input
+									id="invite"
+									bind:value={query}
+									onkeydown={(e) => e.key === "Enter" && invite((e.target as HTMLInputElement).value, true)}
+								/>
+							</DropdownToggle>
+							<DropdownMenu>
+								{#each foundUsers as result (result._id)}
+									<DropdownItem onclick={() => invite(result._id)}>{result.account.username}</DropdownItem>
+								{/each}
+							</DropdownMenu>
+						</Dropdown>
+					</FormGroup>
+				{/if}
+			{:else if context.game && !context.game.ready}
+				{#if $user?._id === context.game.creator}
+					{#if context.game.options.setup.playerOrder === "host"}
+						<h3>Select player order</h3>
+						{#each playerOrder as playerIndex, i (i)}
+							<div>
+								- {context.game.players[playerIndex].name}
+								<span
+									onclick={() => moveUp(playerIndex)}
+									role="button"
+									tabindex="0"
+									onkeydown={(e) => e.key === "Enter" && moveUp(playerIndex)}><IconArrowUp /></span
+								>
+								<span
+									onclick={() => moveDown(playerIndex)}
+									role="button"
+									tabindex="0"
+									onkeydown={(e) => e.key === "Enter" && moveDown(playerIndex)}><IconArrowDown /></span
+								>
+							</div>
+						{/each}
+						<Button color="primary" onclick={start} class="mt-4">Start the game!</Button>
+					{/if}
+				{:else if context.game.players.some((p) => p.pending)}
+					<p class="text-sm text-gray-600 dark:text-gray-300">Waiting on some players to accept the invitation.</p>
+				{:else}
+					<p class="text-sm"><b>Waiting on host for final settings</b></p>
+				{/if}
+			{:else if context.game?.options.timing.scheduledStart}
+				<p class="text-sm text-gray-600 dark:text-gray-300">Waiting on scheduled start.</p>
+			{/if}
+
+			{#if !canStart && context.game}
+				<div class="mt-3 flex gap-2 border-t border-gray-200 pt-3 dark:border-gray-700">
+					{#if context.game.players.some((pl) => pl._id === $user?._id)}
+						{#if context.game.players.find((pl) => pl._id === $user?._id)?.pending}
+							<Button color="accent" onclick={join}>Accept invitation</Button>
+							<Button color="secondary" onclick={leave}>Refuse invitation</Button>
+						{:else}
+							<Button color="warning" onclick={leave}>Leave</Button>
+						{/if}
+					{:else}
+						<Button color="accent" onclick={join}>Join!</Button>
+					{/if}
 				</div>
 			{/if}
-		</div>
+		</section>
 	</div>
-
-	{#if (context.game?.game.expansions?.length ?? 0) > 0}
-		<div class="mt-3">
-			<h3>Expansions</h3>
-			{#each context.game!.game.expansions as expansion, i (i)}
-				<Badge color="info"
-					><SanitizedHtml
-						html={oneLineMarked(context.gameInfo?.expansions?.find((xp) => xp.name === expansion)?.label ?? "")}
-					/></Badge
-				>
-			{/each}
-		</div>
-	{/if}
-
-	<div class="mt-3">
-		<h3>Setup options</h3>
-
-		<div class="flex flex-wrap gap-1">
-			<Badge color="secondary" class="setup-badge"
-				>{playerOrderText(context.game?.options.setup.playerOrder ?? "random")}</Badge
-			>
-			{#each (context.gameInfo?.options ?? []).filter((x) => !!gameOptions(context.game)[x.name]) as pref (pref.name)}
-				<SetupOptionBadge {pref} value={gameOptions(context.game)[pref.name]} />
-			{/each}
-		</div>
-	</div>
-
-	<!-- Players + status -->
-	<div class="my-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-		<h3 class="mb-3">
-			Players
-			<span class="ml-1 text-base font-normal text-gray-500 dark:text-gray-400">
-				{context.game?.players.length ?? 0} / {context.game?.options.setup.nbPlayers ?? 0}
-			</span>
-		</h3>
-
-		{#if context.game && context.game.players.length > 0}
-			<ul class="mb-3 space-y-2">
-				{#each context.game.players as player (player._id)}
-					{@const info = context.players.find((pl) => pl._id === player._id)}
-					<li class="flex items-center gap-2">
-						{#if player.isBot}
-							<span
-								class="flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700"
-								style="height: 2rem; width: 2rem"
-								title={player.name}>🤖</span
-							>
-							<span class="font-medium">{player.name}</span>
-							<span
-								class="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-								>bot</span
-							>
-						{:else}
-							<UserAvatar userId={player._id} username={info?.name ?? "?"} size="2rem" />
-							<UsernameLink username={info?.name ?? "?"} userId={player._id} class="font-medium" />
-							<span class="text-sm text-gray-500 dark:text-gray-400">{info?.elo} elo</span>
-							{#if typeof info?.karma === "number"}
-								<span class="text-sm text-gray-500 dark:text-gray-400" title="Karma">☯️ {info.karma}</span>
-							{/if}
-						{/if}
-						{#if player.pending}
-							<span
-								class="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-								>invited</span
-							>
-						{/if}
-						{#if player._id === context.game?.creator}
-							<span class="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary dark:text-primary-lighter"
-								>host</span
-							>
-						{/if}
-					</li>
-				{/each}
-			</ul>
-		{/if}
-
-		{#if context.game && context.game.options.setup.nbPlayers > context.game.players.length}
-			<p class="mb-3 text-sm text-gray-600 dark:text-gray-300">
-				⏳ Waiting on <b
-					>{pluralize(context.game.options.setup.nbPlayers - context.game.players.length, "more player")}</b
-				> to start.
-			</p>
-			{#if $user?._id === context.game.creator && (1 || context.game.options.timing.scheduledStart)}
-				<FormGroup>
-					<label for="invite">Invite player</label>
-					<Dropdown isOpen={Boolean(isOpen && foundUsers.length)} toggle={() => (isOpen = !isOpen)}>
-						<DropdownToggle tag="div" class="inline-block">
-							<Input
-								id="invite"
-								bind:value={query}
-								onkeydown={(e) => e.key === "Enter" && invite((e.target as HTMLInputElement).value, true)}
-							/>
-						</DropdownToggle>
-						<DropdownMenu>
-							{#each foundUsers as result (result._id)}
-								<DropdownItem onclick={() => invite(result._id)}>{result.account.username}</DropdownItem>
-							{/each}
-						</DropdownMenu>
-					</Dropdown>
-				</FormGroup>
-			{/if}
-		{:else if context.game && !context.game.ready}
-			{#if $user?._id === context.game.creator}
-				{#if context.game.options.setup.playerOrder === "host"}
-					<h3>Select player order</h3>
-					{#each playerOrder as playerIndex, i (i)}
-						<div>
-							- {context.game.players[playerIndex].name}
-							<span
-								onclick={() => moveUp(playerIndex)}
-								role="button"
-								tabindex="0"
-								onkeydown={(e) => e.key === "Enter" && moveUp(playerIndex)}><IconArrowUp /></span
-							>
-							<span
-								onclick={() => moveDown(playerIndex)}
-								role="button"
-								tabindex="0"
-								onkeydown={(e) => e.key === "Enter" && moveDown(playerIndex)}><IconArrowDown /></span
-							>
-						</div>
-					{/each}
-					<Button color="primary" onclick={start} class="mt-4">Start the game!</Button>
-				{/if}
-			{:else if context.game.players.some((p) => p.pending)}
-				<p class="text-sm text-gray-600 dark:text-gray-300">Waiting on some players to accept the invitation.</p>
-			{:else}
-				<p class="text-sm"><b>Waiting on host for final settings</b></p>
-			{/if}
-		{:else if context.game?.options.timing.scheduledStart}
-			<p class="text-sm text-gray-600 dark:text-gray-300">Waiting on scheduled start.</p>
-		{/if}
-	</div>
-
-	{#if !canStart && context.game}
-		<div class="flex gap-2">
-			{#if context.game.players.some((pl) => pl._id === $user?._id)}
-				{#if context.game.players.find((pl) => pl._id === $user?._id)?.pending}
-					<Button color="accent" onclick={join}>Accept invitation</Button>
-					<Button color="secondary" onclick={leave}>Refuse invitation</Button>
-				{:else}
-					<Button color="warning" onclick={leave}>Leave</Button>
-				{/if}
-			{:else}
-				<Button color="accent" onclick={join}>Join!</Button>
-			{/if}
-		</div>
-	{/if}
 </div>

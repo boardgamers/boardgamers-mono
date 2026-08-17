@@ -85,6 +85,9 @@ const newGameSchema = z.object({
 		.nullable(),
 	scheduledStart: z.number().optional(),
 	seed: z.string().regex(gameIdPattern).optional(),
+	// Creator-authored free text shown on the open-game page (markdown, sanitized
+	// on render). Trimmed; empty means "no description".
+	description: z.string().trim().max(1000).optional(),
 	options: z.record(z.string(), z.union([z.string(), z.boolean()])).optional(),
 });
 
@@ -110,6 +113,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 		minimumKarma,
 		eloRange,
 		scheduledStart,
+		description,
 	} = body;
 	const options: Record<string, string | boolean> = {};
 
@@ -296,6 +300,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 		creator: user._id,
 		players: initialPlayers,
 		currentPlayers: [],
+		...(description ? { description } : {}),
 		data: {},
 		context: { round: 0 },
 		options: {

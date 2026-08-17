@@ -42,6 +42,10 @@ export const gameSchema = z.object({
 	_id: z.string(),
 	players: z.array(playerInfoSchema),
 	creator: zObjectId(),
+	// Creator-authored free text for THIS open game (e.g. "casual, beginners
+	// welcome"), distinct from the boardgame's own description. Markdown — always
+	// sanitize on render.
+	description: z.string().max(1000).optional(),
 	currentPlayers: z
 		.array(
 			z.object({
