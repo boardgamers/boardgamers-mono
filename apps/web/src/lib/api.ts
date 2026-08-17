@@ -1,3 +1,5 @@
+import { error } from "@sveltejs/kit";
+
 const BASE = "/api";
 
 /**
@@ -32,6 +34,22 @@ export class ApiError extends Error {
 		this.name = "ApiError";
 		this.status = status;
 	}
+}
+
+/**
+ * Convert a failed api call into SvelteKit's `error()` so a `load` renders the error
+ * page with the api's status instead of a generic 500: an `ApiError` (any api response
+ * >= 400) keeps its status and message; anything else becomes a 500.
+ *
+ * Use as `.catch(toKitError)` on a `get()`/`post()` inside a load function — or call
+ * `toKitError(err, fallbackMessage)` to override the message. Re-throwing the ApiError
+ * itself would make SvelteKit turn it into a 500 regardless of its actual status.
+ */
+export function toKitError(err: unknown, fallbackMessage = "Request failed"): never {
+	if (err instanceof ApiError) {
+		throw error(err.status, err.message);
+	}
+	throw error(500, err instanceof Error ? err.message : fallbackMessage);
 }
 
 export type Token = { code: string; expiresAt: number };

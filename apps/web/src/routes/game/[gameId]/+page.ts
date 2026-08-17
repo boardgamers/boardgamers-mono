@@ -3,24 +3,18 @@ import type { PageLoad } from "./$types";
 import { loadGame, loadGamePlayers, loadGameSettings } from "@/lib/game.svelte";
 import { getGameInfo } from "@/lib/game-info.svelte";
 import { getGamePreferences } from "@/lib/game-preferences.svelte";
-import { ApiError } from "@/lib/api";
+import { toKitError } from "@/lib/api";
 import { gameSeo } from "@/lib/game-seo";
 
 export const load: PageLoad = async ({ params, parent }) => {
 	const gameId = params.gameId;
 
-	let game, players;
-	try {
-		[game, players] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
-	} catch (err) {
-		// Preserve the gameplay API's status: a 404 means the game doesn't exist, but a
-		// 500 (e.g. engine failed to load) is a server error and must render as such,
-		// not be masked as a "not found".
-		if (err instanceof ApiError && err.status === 404) {
-			throw error(404, "Game not found");
-		}
-		throw error(err instanceof ApiError ? err.status : 500, err instanceof Error ? err.message : "Failed to load game");
-	}
+	// Preserve the gameplay API's status: a 404 means the game doesn't exist, but a
+	// 500 (e.g. engine failed to load) is a server error and must render as such,
+	// not be masked as a "not found".
+	const [game, players] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]).catch((err) =>
+		toKitError(err, "Failed to load game"),
+	);
 
 	// game.game can be absent on legacy/corrupt docs — Mongo validation is "warn"/"moderate",
 	// so the schema is not enforced on existing data. Guard before dereferencing.
