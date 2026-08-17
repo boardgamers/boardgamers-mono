@@ -5,6 +5,7 @@ import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { testUser } from "../../config/test-helpers.ts";
 import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
+import { REFERER_ORIGIN_RE, REFERER_ORIGIN_RE_LOGQL, refererOrigin } from "./loki.ts";
 
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
 
@@ -93,25 +94,63 @@ describe("Admin Loki proxy", () => {
 		assert.ok(logql.includes("| json"), logql);
 	});
 
-	it("topReferers / topUserAgents are instant topk queries over web requests (7d)", async () => {
-		for (const [key, field] of [
-			["topReferers", "referer"],
-			["topUserAgents", "ua"],
-		] as const) {
-			const { status, lokiUrl } = await query(key);
-			assert.equal(status, 200, key);
-			// Instant vector: single-timestamp evaluation, no step.
-			assert.equal(lokiUrl.pathname, "/loki/api/v1/query", key);
-			assert.equal(lokiUrl.searchParams.get("start"), lokiUrl.searchParams.get("end"), key);
-			assert.equal(lokiUrl.searchParams.has("step"), false, key);
-			const logql = lokiUrl.searchParams.get("query") ?? "";
-			assert.ok(logql.includes("topk("), `${key}: ${logql}`);
-			assert.ok(logql.includes(`by (${field})`), `${key}: ${logql}`);
-			assert.ok(logql.includes('source="web"'), `${key}: ${logql}`);
-			assert.ok(logql.includes("[7d]"), `${key}: ${logql}`);
-			// Empty values are excluded so "no header" doesn't dominate the top-N.
-			assert.ok(logql.includes(`| ${field} != ""`), `${key}: ${logql}`);
-		}
+	it("topReferers groups by referer ORIGIN (host) extracted via label_format, not the full URL", async () => {
+		const { status, lokiUrl } = await query("topReferers");
+		assert.equal(status, 200);
+		// Instant vector: single-timestamp evaluation, no step.
+		assert.equal(lokiUrl.pathname, "/loki/api/v1/query");
+		assert.equal(lokiUrl.searchParams.get("start"), lokiUrl.searchParams.get("end"));
+		assert.equal(lokiUrl.searchParams.has("step"), false);
+		const logql = lokiUrl.searchParams.get("query") ?? "";
+		assert.ok(logql.includes("topk("), logql);
+		assert.ok(logql.includes("by (origin)"), logql);
+		assert.ok(!logql.includes("by (referer)"), logql);
+		assert.ok(logql.includes('source="web"'), logql);
+		assert.ok(logql.includes("[7d]"), logql);
+		// Empty referers are excluded so "no header" doesn't dominate the top-N.
+		assert.ok(logql.includes('| referer != ""'), logql);
+		// The host extraction happens in a label_format stage, with the same regex
+		// REFERER_ORIGIN_RE documents (the refererOrigin spec below pins the behavior).
+		assert.ok(logql.includes("label_format origin="), logql);
+		assert.ok(logql.includes(REFERER_ORIGIN_RE_LOGQL), logql);
+		assert.ok(logql.includes('"${1}"'), logql);
+		// A leading "www." is stripped for cleaner grouping (other subdomains kept).
+		// Spelled "^www[.]" because a backslash-escaped dot would need a double
+		// backslash inside the Go template string, which Loki's parser rejects.
+		assert.ok(logql.includes('regexReplaceAll "^www[.]"'), logql);
+	});
+
+	it("topUserAgents is an instant topk query over web requests (7d)", async () => {
+		const { status, lokiUrl } = await query("topUserAgents");
+		assert.equal(status, 200);
+		// Instant vector: single-timestamp evaluation, no step.
+		assert.equal(lokiUrl.pathname, "/loki/api/v1/query");
+		assert.equal(lokiUrl.searchParams.get("start"), lokiUrl.searchParams.get("end"));
+		assert.equal(lokiUrl.searchParams.has("step"), false);
+		const logql = lokiUrl.searchParams.get("query") ?? "";
+		assert.ok(logql.includes("topk("), logql);
+		assert.ok(logql.includes("by (ua)"), logql);
+		assert.ok(logql.includes('source="web"'), logql);
+		assert.ok(logql.includes("[7d]"), logql);
+		// Empty values are excluded so "no header" doesn't dominate the top-N.
+		assert.ok(logql.includes('| ua != ""'), logql);
+	});
+
+	it("refererOrigin extracts the host (the regex the LogQL label_format mirrors)", () => {
+		// The JS regex literal and the LogQL string spelling must stay equivalent —
+		// they differ only in escaping (\/ in the literal vs // in the template).
+		assert.equal(REFERER_ORIGIN_RE.source, REFERER_ORIGIN_RE_LOGQL.replaceAll("//", "\\/\\/"));
+		// Full URLs → bare host, path/query/fragment dropped.
+		assert.equal(refererOrigin("https://boardgamegeek.com/thread/999"), "boardgamegeek.com");
+		assert.equal(refererOrigin("https://www.reddit.com/r/boardgames/?q=1#x"), "reddit.com");
+		assert.equal(refererOrigin("http://google.com"), "google.com");
+		// Only a leading "www." is stripped; other subdomains stay distinct.
+		assert.equal(refererOrigin("https://old.reddit.com/r/x"), "old.reddit.com");
+		// Ports don't fragment the grouping.
+		assert.equal(refererOrigin("http://localhost:8612/games"), "localhost");
+		// Scheme-less / malformed referers fall back to the raw value (kept, not dropped).
+		assert.equal(refererOrigin("boardgamegeek.com"), "boardgamegeek.com");
+		assert.equal(refererOrigin("not a url"), "not a url");
 	});
 
 	it("passes a step param and expands $__interval for query_range queries", async () => {

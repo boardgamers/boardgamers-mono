@@ -135,7 +135,7 @@
 	// page never hangs on Loki latency. `undefined` = loading, `null` = unavailable.
 	let langStats = $state<{ language: string; count: number }[] | null | undefined>(undefined);
 
-	// Traffic (top referers + user-agents) — same client-side Loki pattern.
+	// Traffic (top referer sites + user-agents) — same client-side Loki pattern.
 	let refererStats = $state<{ referer: string; count: number }[] | null | undefined>(undefined);
 	let uaStats = $state<{ ua: string; count: number }[] | null | undefined>(undefined);
 
@@ -144,16 +144,6 @@
 	const BOT_PATTERN =
 		/bot|crawler|spider|scrape|slurp|python|curl|wget|httpclient|headless|phantom|axios|go-http|java\//i;
 	const isLikelyBot = (ua: string) => BOT_PATTERN.test(ua);
-
-	// Referer → a compact "host (+ path)" label; full URLs are too noisy to read.
-	const refererLabel = (referer: string) => {
-		try {
-			const u = new URL(referer);
-			return u.host + (u.pathname !== "/" ? u.pathname : "");
-		} catch {
-			return referer;
-		}
-	};
 
 	// Languages the site is actually translated into. The i18n support list — extend
 	// as translations land; the checkmark in the table reads from this.
@@ -239,12 +229,14 @@
 		}
 	}
 
-	// Top referers + user-agents, same client-side Loki pattern.
+	// Top referer sites + user-agents, same client-side Loki pattern. The
+	// topReferers query groups by extracted origin (see loki.ts), so its series
+	// carry an `origin` label — a bare host like "boardgamegeek.com".
 	async function loadTrafficStats() {
 		try {
 			const res = await api.get<LokiInstantResult>("/admin/loki/query/topReferers");
 			refererStats = (res.data.result ?? [])
-				.map((r) => ({ referer: r.metric.referer ?? "?", count: Math.round(Number(r.value[1])) }))
+				.map((r) => ({ referer: r.metric.origin ?? "?", count: Math.round(Number(r.value[1])) }))
 				.filter((x) => x.referer !== "?" && x.count > 0)
 				.sort((a, b) => b.count - a.count);
 		} catch {
@@ -575,7 +567,7 @@
 				>
 			</div>
 			<p class="text-xs text-gray-400 mb-4">
-				Top referers and user-agents over the last 7 days (from web request logs) — where traffic comes from, and a
+				Top referer sites and user-agents over the last 7 days (from web request logs) — where traffic comes from, and a
 				quick way to spot scrapers.
 			</p>
 			{#if refererStats === undefined || uaStats === undefined}
@@ -597,10 +589,10 @@
 				<!-- The card is half-width (lg:grid-cols-2), so the referer/UA tables stack
 				     vertically — splitting ~550px into two columns crams the counts. -->
 				<div class="grid grid-cols-1 gap-6">
-					<!-- Top referers -->
+					<!-- Top referer sites (grouped by origin/host, not full URL) -->
 					<div class="overflow-x-auto min-w-0">
 						<h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-							Top referers
+							Top referers by site
 						</h4>
 						{#if refererStats.length === 0}
 							<p class="text-sm text-gray-400">No referer data yet.</p>
@@ -608,7 +600,7 @@
 							<table class="w-full text-sm">
 								<thead>
 									<tr class="border-b border-gray-100 dark:border-gray-800 text-left text-xs text-gray-500 uppercase">
-										<th class="py-2 pr-4">Referer</th>
+										<th class="py-2 pr-4">Site</th>
 										<th class="py-2 pr-4 text-right">Requests</th>
 										<th class="py-2 text-right">Share</th>
 									</tr>
@@ -616,9 +608,7 @@
 								<tbody>
 									{#each refererStats as r (r.referer)}
 										<tr class="border-b border-gray-50 dark:border-gray-800/50">
-											<td class="py-2 pr-4 font-medium truncate max-w-[280px]" title={r.referer}
-												>{refererLabel(r.referer)}</td
-											>
+											<td class="py-2 pr-4 font-medium truncate max-w-[280px]" title={r.referer}>{r.referer}</td>
 											<td class="py-2 pr-4 text-right whitespace-nowrap">{r.count.toLocaleString()}</td>
 											<td class="py-2 text-right text-gray-500 whitespace-nowrap">
 												{refererTotal > 0 ? Math.round((r.count / refererTotal) * 100) : 0}%

@@ -18,6 +18,20 @@ function isLokiDown(err: unknown): boolean {
 	return cause instanceof Error && /ECONNREFUSED|ENOTFOUND|EAI_AGAIN/.test(cause.message);
 }
 
+// Referer URL → bare host ("origin"), e.g. "https://www.reddit.com/r/x" →
+// "reddit.com". Scheme and path/query are dropped; a leading "www." is
+// stripped but other subdomains stay distinct. A referer that isn't a URL
+// (spammers send junk) is kept as-is rather than dropped. Kept as a plain
+// regex so the spec can exercise the exact same extraction the LogQL below
+// applies via label_format + regexReplaceAll (Go template, positional args —
+// the pipeline form `.referer | regexReplaceAll …` silently no-ops in Loki).
+export const REFERER_ORIGIN_RE = /^(?:https?:\/\/)?([^/:?#]+).*$/;
+// Same pattern as a string for the LogQL below — in a JS regex literal / must
+// be escaped (\/), but the LogQL template wants the plain spelling (://). Both
+// MUST stay equivalent; the spec asserts the LogQL contains this string.
+export const REFERER_ORIGIN_RE_LOGQL = "^(?:https?://)?([^/:?#]+).*$";
+export const refererOrigin = (referer: string) => referer.replace(REFERER_ORIGIN_RE, "$1").replace(/^www\./, "");
+
 // Pre-built LogQL queries for the admin health dashboard. The admin panel
 // never sends raw LogQL — it picks a key from this map and the server adds
 // time bounds. This keeps the proxy read-only and prevents LogQL injection.
@@ -76,14 +90,15 @@ const QUERIES: Record<string, { type: "query" | "query_range"; logql: string }> 
 		type: "query",
 		logql: 'sum by (lang) (count_over_time({job="pm2", msg="request", source="web"} | json [7d]))',
 	},
-	// Top referers (where web traffic comes from) over the last week. Empty referers
-	// (direct/navigations) are excluded. The web SSR logs the raw Referer header as
-	// `referer` (#313); grouped as-is (full URL) — noisy long tails simply don't make
-	// the top-N. Instant vector → single-timestamp eval (see requestsByLanguage).
+	// Top referer SITES (where web traffic comes from) over the last week, grouped
+	// by origin/host rather than full URL — per-URL grouping buries the signal
+	// ("which site sends us traffic?") under long-tail paths. Empty referers
+	// (direct/navigations) are excluded. The web SSR logs the raw Referer header
+	// as `referer` (#313); label_format extracts the host (see REFERER_ORIGIN_RE).
+	// Instant vector → single-timestamp eval (see requestsByLanguage).
 	topReferers: {
 		type: "query",
-		logql:
-			'topk(15, sum by (referer) (count_over_time({job="pm2", msg="request", source="web"} | json | referer != "" [7d])))',
+		logql: `topk(15, sum by (origin) (count_over_time({job="pm2", msg="request", source="web"} | json | referer != "" | label_format origin=\`{{ regexReplaceAll "^www[.]" (regexReplaceAll "${REFERER_ORIGIN_RE_LOGQL}" .referer "\${1}") "" }}\` [7d])))`,
 	},
 	// Top user-agents over the last week — lets the admin spot scrapers/bots vs real
 	// browsers. The web SSR logs a bounded User-Agent as `ua` (#313).
