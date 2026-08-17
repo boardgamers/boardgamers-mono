@@ -415,4 +415,67 @@ describe("GameList open-row setup badges (#55)", () => {
 
 		unmount(instance as never);
 	});
+
+	// Options set to their default are noise ("Map: original") — only non-default
+	// choices badge. The default is the option's `default` when it names a select
+	// item, else the first item (the new-game form's pre-fill); a checkbox's
+	// default is unchecked unless `default === true`.
+	it("hides options set to their default value", async () => {
+		mockApi(
+			[
+				// Every option at its default → no badges.
+				openGame("g-defaults", { layout: "standard", variant: "original", fastBid: true }),
+				// Non-default values → badges.
+				openGame("g-deviations", { layout: "xshape", variant: "recharged", fastBid: false }),
+			],
+			2,
+		);
+		const gameInfos = {
+			[gameInfoKey(GAME_NAME, 1)]: {
+				_id: { game: GAME_NAME, version: 1 },
+				options: [
+					{
+						name: "layout",
+						label: "Map layout",
+						type: "select",
+						// Explicit default, like gaia-project's gameinfo.
+						default: "standard",
+						items: [
+							{ name: "standard", label: "Standard" },
+							{ name: "xshape", label: "X shape" },
+						],
+					},
+					{
+						name: "variant",
+						label: "Variant",
+						type: "select",
+						// No `default` (like powergrid's gameinfo) → first item is the default.
+						items: [
+							{ name: "original", label: "Original" },
+							{ name: "recharged", label: "Recharged" },
+						],
+					},
+					// default: true — a checked checkbox only badges when it deviates.
+					{ name: "fastBid", label: "Fast bid", type: "checkbox", default: true },
+				],
+			},
+		} as unknown as GameInfoMap;
+		const target = document.createElement("div");
+		document.body.appendChild(target);
+		const instance = mount(GameListHarness as never, { target, props: { gameStatus: "open", gameInfos } });
+		flushSync();
+		await waitForGames(target, ["g-defaults", "g-deviations"]);
+
+		const rows = [...target.querySelectorAll(".game-item")];
+		const defaults = rows.find((row) => row.textContent?.includes("g-defaults"))!;
+		expect(defaults.querySelectorAll(".setup-badge").length).toBe(0);
+
+		const deviations = rows.find((row) => row.textContent?.includes("g-deviations"))!;
+		const badges = [...deviations.querySelectorAll(".setup-badge")].map((el) =>
+			el.textContent?.replace(/\s+/g, " ").trim(),
+		);
+		expect(badges).toEqual(["Map layout: X shape", "Variant: Recharged"]);
+
+		unmount(instance as never);
+	});
 });

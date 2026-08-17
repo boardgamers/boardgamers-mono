@@ -21,7 +21,7 @@
 	import UserAvatar from "@/components/User/UserAvatar.svelte";
 	import UsernameLink from "@/components/User/UsernameLink.svelte";
 	import GameName from "@/components/GameName.svelte";
-	import SetupOptionBadge from "./SetupOptionBadge.svelte";
+	import SetupOptionBadge, { isNonDefaultSetupOption } from "./SetupOptionBadge.svelte";
 	import IconArrowDown from "@/components/icons/IconArrowDown.svelte";
 	import IconArrowUp from "@/components/icons/IconArrowUp.svelte";
 	import { getContext, untrack } from "svelte";
@@ -270,7 +270,7 @@
 					<Badge color="secondary" class="setup-badge"
 						>{playerOrderText(context.game?.options.setup.playerOrder ?? "random")}</Badge
 					>
-					{#each (context.gameInfo?.options ?? []).filter((x) => !!gameOptions(context.game)[x.name]) as pref (pref.name)}
+					{#each (context.gameInfo?.options ?? []).filter( (x) => isNonDefaultSetupOption(x, gameOptions(context.game)[x.name]) ) as pref (pref.name)}
 						<SetupOptionBadge {pref} value={gameOptions(context.game)[pref.name]} />
 					{/each}
 					{#each context.game?.game.expansions ?? [] as expansion, i (i)}

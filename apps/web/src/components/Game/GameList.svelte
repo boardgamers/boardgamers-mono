@@ -14,7 +14,7 @@
 	import { Badge, Pagination, Loading } from "@/modules/cdk";
 	import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
 	import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
-	import SetupOptionBadge from "./SetupOptionBadge.svelte";
+	import SetupOptionBadge, { isNonDefaultSetupOption } from "./SetupOptionBadge.svelte";
 	import { logoClicks, logoClick } from "@/lib/stores.svelte";
 	import IconDice from "@/components/icons/IconDice.svelte";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
@@ -140,11 +140,11 @@
 		return (game.game.options ?? {}) as JsonObject;
 	}
 
-	/** The setup options to badge on an open row: the game-info options this game set. */
+	/** The setup options to badge on an open row: the game-info options set to a non-default value. */
 	function setupOptions(game: GameFront) {
 		const info = gameInfos[gameInfoKey(game.game.name, game.game.version)];
 		const set = gameOptions(game);
-		return (info?.options ?? []).filter((opt) => !!set[opt.name]);
+		return (info?.options ?? []).filter((opt) => isNonDefaultSetupOption(opt, set[opt.name]));
 	}
 
 	// On narrow screens the avatar cluster would otherwise eat the name/timing
