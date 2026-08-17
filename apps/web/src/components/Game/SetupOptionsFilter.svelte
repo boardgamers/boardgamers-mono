@@ -21,21 +21,19 @@
 		optionFilter?: SetupOptionFilter | undefined;
 	} = $props();
 
-	// Filterable setup options: selects and checkboxes (categories/hidden are form
-	// structure, not game options).
-	let filterOptions = $derived((info?.options ?? []).filter((opt) => opt.type === "select" || opt.type === "checkbox"));
+	// Filterable setup options: only the multi-valued `select` options (map /
+	// variant / …). Checkboxes are left out — a checkbox-heavy game would clutter
+	// the bar with one two-choice select per flag, and filtering "games with flag
+	// X on" is rarely useful (categories/hidden are form structure, not options).
+	let filterOptions = $derived((info?.options ?? []).filter((opt) => opt.type === "select"));
 
-	// Selection state: "" = no filter, otherwise the required value (item name for
-	// selects, "true" for checkboxes). Initialized with an entry per option — a
-	// `bind:value` into a missing key is undefined, which Svelte rejects (Input's
-	// `value` has a fallback). Rebuilt when the option set changes (navigating
-	// between boardgames swaps `info` under the same component instance).
+	// Selection state: "" = no filter, otherwise the required item name. Initialized
+	// with an entry per option — a `bind:value` into a missing key is undefined,
+	// which Svelte rejects (Input's `value` has a fallback). Rebuilt when the option
+	// set changes (navigating between boardgames swaps `info` under the same
+	// component instance).
 	const initialSelections = untrack(() =>
-		Object.fromEntries(
-			(info?.options ?? [])
-				.filter((opt) => opt.type === "select" || opt.type === "checkbox")
-				.map((opt) => [opt.name, ""])
-		)
+		Object.fromEntries((info?.options ?? []).filter((opt) => opt.type === "select").map((opt) => [opt.name, ""]))
 	);
 	let selections = $state<Record<string, string>>(initialSelections);
 
@@ -53,7 +51,7 @@
 		for (const opt of filterOptions) {
 			const value = selections[opt.name];
 			if (value) {
-				next[opt.name] = opt.type === "checkbox" ? true : value;
+				next[opt.name] = value;
 			}
 		}
 		optionFilter = Object.keys(next).length > 0 ? next : undefined;
@@ -78,15 +76,10 @@
 	{#each filterOptions as opt (opt.name)}
 		<div class="w-full sm:w-60">
 			<Input type="select" bind:value={selections[opt.name]} aria-label={`Filter by ${plain(opt.label)}`}>
-				{#if opt.type === "checkbox"}
-					<option value="">{plain(opt.label)}: any</option>
-					<option value="true">{plain(opt.label)}</option>
-				{:else}
-					<option value="">{plain(opt.label)}: any</option>
-					{#each opt.items ?? [] as item (item.name)}
-						<option value={item.name}>{plain(item.label)}</option>
-					{/each}
-				{/if}
+				<option value="">{plain(opt.label)}: any</option>
+				{#each opt.items ?? [] as item (item.name)}
+					<option value={item.name}>{plain(item.label)}</option>
+				{/each}
 			</Input>
 		</div>
 	{/each}

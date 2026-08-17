@@ -4,8 +4,10 @@
      (same route component, new param, so `$state` inside GameList persists). -->
 <script lang="ts" module>
 	import { writable } from "svelte/store";
+	import type { SetupOptionFilter } from "@/lib/games.svelte";
 	export const harBoardgameId = writable<string | undefined>(undefined);
 	export const harUserId = writable<string | undefined>(undefined);
+	export const harOptionFilter = writable<SetupOptionFilter | undefined>(undefined);
 </script>
 
 <script lang="ts">
@@ -28,4 +30,4 @@
 	}
 </script>
 
-<GameList {gameStatus} {title} boardgameId={$harBoardgameId} userId={$harUserId} />
+<GameList {gameStatus} {title} boardgameId={$harBoardgameId} userId={$harUserId} optionFilter={$harOptionFilter} />

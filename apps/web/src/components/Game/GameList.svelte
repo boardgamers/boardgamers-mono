@@ -232,6 +232,7 @@
 	let lastBoardgameId: string | undefined;
 	let lastUserId: string | undefined | null;
 	let lastPace: GamePace | undefined;
+	let lastOptionFilter: string | undefined;
 	let lastSearch: string | undefined;
 	let lastPage = 0;
 
@@ -252,6 +253,9 @@
 		boardgameId;
 		pace;
 		search;
+		// optionFilter is an object the parent rebuilds on each change, so track it by
+		// value (its JSON), not by reference — a new-but-equal object must not refetch.
+		const optionFilterKey = optionFilter ? JSON.stringify(optionFilter) : undefined;
 		const clicks = $logoClicks;
 		const page = currentPage;
 
@@ -263,6 +267,7 @@
 			lastBoardgameId = boardgameId;
 			lastUserId = userId;
 			lastPace = pace;
+			lastOptionFilter = optionFilterKey;
 			lastSearch = search;
 			lastPage = page;
 			return;
@@ -275,6 +280,7 @@
 			boardgameId !== lastBoardgameId ||
 			userId !== lastUserId ||
 			pace !== lastPace ||
+			optionFilterKey !== lastOptionFilter ||
 			search !== lastSearch ||
 			isLogoRefresh;
 		const pageChanged = page !== lastPage;
@@ -289,6 +295,7 @@
 			lastBoardgameId = boardgameId;
 			lastUserId = userId;
 			lastPace = pace;
+			lastOptionFilter = optionFilterKey;
 			lastSearch = search;
 			lastPage = 0;
 			currentPage = 0;
@@ -306,7 +313,9 @@
 		<h3 class="font-semibold">
 			{title}
 			{#if !topRecords && !sample}
-				<span class="text-xs">({count})</span>
+				<!-- With a client-side setup-options filter the server count is the
+				     pre-filter total — show the number of rows actually displayed. -->
+				<span class="text-xs">({optionFilter ? displayedGames.length : count})</span>
 			{/if}
 		</h3>
 		<div>
