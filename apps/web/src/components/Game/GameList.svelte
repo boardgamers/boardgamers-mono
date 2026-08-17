@@ -438,7 +438,9 @@
 										{/if}
 									</div>
 								{:else}
-									<div class="me-3 text-right" style="line-height: 1.1;">
+									<!-- "time ago" is hidden on mobile (#55): it eats horizontal room the
+									     setup-option/restriction badges need. Kept from sm: up. -->
+									<div class="me-3 hidden text-right sm:block" style="line-height: 1.1;">
 										<small class="text-gray-500 dark:text-gray-400">
 											{shortDuration(Math.floor((now - new Date(game.createdAt ?? "").getTime()) / 1000))} ago
 										</small>
