@@ -89,19 +89,27 @@ export const gameVersionSchema = z.object({
 			avatars: z.boolean().optional(),
 		})
 		.optional(),
-	meta: z.object({
-		public: z.boolean(),
-		// Set when the game's engine implements `moveAI` — enables adding bot players
-		// at game creation. Auto-detected by the game-server installer (probes the
-		// engine's entry point for a moveAI export on install / for unprobed engines).
-		bots: z.boolean().optional(),
-		// Retired version: the game-server installer skips it (and prunes a
-		// previously-installed engine) and it is never picked as the latest public
-		// version, but its viewer keeps being served so old games stay replayable.
-		// Only settable via the admin archive action — blocked while the version is
-		// the latest public one or has ongoing games.
-		archived: z.boolean().optional(),
-	}),
+	// Whether this version is listed and open to everyone. Version-scoped (NOT
+	// game-scoped): a game can have a public v1 and a beta v2 — non-public
+	// versions stay reachable for users with an `access.maxVersion` grant.
+	public: z.boolean(),
+	meta: z
+		.object({
+			// Set when the game's engine implements `moveAI` — enables adding bot players
+			// at game creation. Auto-detected by the game-server installer (probes the
+			// engine's entry point for a moveAI export on install / for unprobed engines).
+			bots: z.boolean().optional(),
+			// Retired version: the game-server installer skips it (and prunes a
+			// previously-installed engine) and it is never picked as the latest public
+			// version, but its viewer keeps being served so old games stay replayable.
+			// Only settable via the admin archive action — blocked while the version is
+			// the latest public one or has ongoing games.
+			archived: z.boolean().optional(),
+			// Default (not optional): `meta` holds only server-managed flags now
+			// (installer-set `bots`, archive-action `archived`), so producer payloads
+			// legitimately omit it — but readers can rely on it being an object.
+		})
+		.prefault({}),
 	createdAt: zDate().optional(),
 	updatedAt: zDate().optional(),
 });

@@ -20,7 +20,8 @@ describe("Response compression (issue #127)", () => {
 			label: "Compression Test — ".repeat(100),
 			viewer: { url: "//test.com/compression-test", topLevelVariable: "compressionTest" },
 			players: [2],
-			meta: { public: true, needOwnership: false },
+			public: true,
+			meta: {},
 		});
 
 		// Raw undici request: fetch's automatic decompression would strip the

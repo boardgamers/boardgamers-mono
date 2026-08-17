@@ -3,7 +3,7 @@ import { colls } from "../config/db.ts";
 
 /**
  * Merge a version doc with its game's metadata doc into the `GameInfo` shape the
- * API serves. `meta` (version-scoped access/bots) and `viewer`/`engine` come from
+ * API serves. `public`/`meta` (version-scoped flags) and `viewer`/`engine` come from
  * the version doc; `label`/`description`/`players`/options… come from the single
  * per-game metadata doc (#298).
  *

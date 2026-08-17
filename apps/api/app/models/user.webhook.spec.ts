@@ -125,7 +125,8 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 	before(async () => {
 		await colls.gameInfos.insertOne({
 			_id: { game: "gaia-project", version: 1 },
-			meta: { public: true },
+			public: true,
+			meta: {},
 		});
 		// Game-level metadata (label/players) lives on `gameMetadatas` (#298).
 		await colls.gameMetadatas.insertOne({ _id: "gaia-project", label: "Gaia Project", players: [2] });
@@ -359,7 +360,8 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 		// webhooks included; the raw payload also exposes the rules source.
 		await colls.gameInfos.insertOne({
 			_id: { game: "splendor", version: 1 },
-			meta: { public: true },
+			public: true,
+			meta: {},
 		});
 		await colls.gameMetadatas.insertOne({
 			_id: "splendor",
@@ -389,7 +391,8 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 		// Label is game-level metadata (#298): every version of a game shares it.
 		await colls.gameInfos.insertOne({
 			_id: { game: "versioned", version: 2 },
-			meta: { public: true },
+			public: true,
+			meta: {},
 		});
 		await colls.gameMetadatas.insertOne({ _id: "versioned", label: "Versioned Two", players: [2] });
 		const games = await resolveGameLabels([
@@ -409,7 +412,8 @@ describe("user webhook — your-turn delivery (#85/#33)", () => {
 				_id: { game: "presplit", version: 1 },
 				label: "Pre Split",
 				alias: "Pre Alias",
-				meta: { public: true },
+				public: true,
+				meta: {},
 			});
 		const games = await resolveGameLabels([{ _id: "gps", game: { name: "presplit", version: 1 } }]);
 		assert.strictEqual(games[0].game.label, "Pre Alias");

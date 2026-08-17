@@ -48,7 +48,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	// Latest public version of each boardgame.
 	const boardgames = new Map<string, SetOptional<GameInfoFront, "viewer">>();
 	for (const info of gameInfos) {
-		if (!info.meta?.public) {
+		if (!info.public) {
 			continue;
 		}
 		const existing = boardgames.get(info._id.game);

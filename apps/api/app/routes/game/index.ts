@@ -132,7 +132,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 	}
 
 	if (
-		!gameInfo.meta.public &&
+		!gameInfo.public &&
 		!(await colls.gamePreferences.findOne({
 			game: gameInfoId.game,
 			user: user._id,

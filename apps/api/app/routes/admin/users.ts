@@ -234,7 +234,7 @@ router.post("/:userId/access/grant", async (ctx) => {
 		return;
 	}
 
-	if (gameInfo.meta.public) {
+	if (gameInfo.public) {
 		ctx.status = 200;
 		return;
 	}

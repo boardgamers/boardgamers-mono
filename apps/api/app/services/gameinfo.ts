@@ -17,7 +17,7 @@ export async function lastAccessibleVersion(game: string, user?: WithId<UserDoc>
 	const versionDocPromise = (async () => {
 		if (!user) {
 			return colls.gameInfos.findOne(
-				{ "_id.game": game, "meta.public": true, ...NOT_ARCHIVED },
+				{ "_id.game": game, public: true, ...NOT_ARCHIVED },
 				{ sort: { "_id.version": -1 } },
 			);
 		}
@@ -31,13 +31,13 @@ export async function lastAccessibleVersion(game: string, user?: WithId<UserDoc>
 			return colls.gameInfos.findOne(
 				{
 					"_id.game": game,
-					$or: [{ "meta.public": true, ...NOT_ARCHIVED }, { "_id.version": pref.access!.maxVersion }],
+					$or: [{ public: true, ...NOT_ARCHIVED }, { "_id.version": pref.access!.maxVersion }],
 				},
 				{ sort: { "_id.version": -1 } },
 			);
 		}
 		return colls.gameInfos.findOne(
-			{ "_id.game": game, "meta.public": true, ...NOT_ARCHIVED },
+			{ "_id.game": game, public: true, ...NOT_ARCHIVED },
 			{ sort: { "_id.version": -1 } },
 		);
 	})();
@@ -58,7 +58,7 @@ export async function latestAccessibleGames<T>(userId?: T) {
 			_id: string;
 			version: number;
 		}>([
-			{ $match: { "meta.public": true, ...NOT_ARCHIVED } },
+			{ $match: { public: true, ...NOT_ARCHIVED } },
 			{ $sort: { "_id.game": 1, "_id.version": -1 } },
 			{ $project: { _id: 1 } },
 			{ $group: { _id: "$_id.game", version: { $first: "$_id.version" } } },

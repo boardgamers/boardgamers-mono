@@ -13,7 +13,8 @@ const baseInfo = {
 	label: " 💎 Splendor",
 	players: [2, 3, 4],
 	viewer: { url: "//example.com/viewer.js" },
-	meta: { public: true },
+	public: true,
+	meta: {},
 };
 
 async function makeAdminHeaders() {
@@ -90,7 +91,9 @@ describe("Admin gameinfo API — split upsert (#298)", () => {
 			headers,
 			body: JSON.stringify(body),
 		});
-		assert.strictEqual(res.status, 200, await res.text().catch(() => ""));
+		const text = await res.text();
+		assert.strictEqual(res.status, 200, text);
+		return JSON.parse(text) as unknown;
 	}
 
 	it("a version-page save omitting metadata fields does not clear them", async () => {
@@ -102,7 +105,8 @@ describe("Admin gameinfo API — split upsert (#298)", () => {
 			rules: "the rules",
 			players: [2, 3],
 			viewer: { url: "//v1" },
-			meta: { public: true },
+			public: true,
+			meta: {},
 		});
 		let meta = await colls.gameMetadatas.findOne({ _id: "splitgame" });
 		assert.strictEqual(meta?.label, "Split Game");
@@ -110,7 +114,7 @@ describe("Admin gameinfo API — split upsert (#298)", () => {
 
 		// A re-PUT carrying only version fields (what the version page sends after
 		// GameEdit strips game-level metadata) must leave the metadata doc intact.
-		await put("splitgame", 1, { viewer: { url: "//v1-updated" }, meta: { public: true } });
+		await put("splitgame", 1, { viewer: { url: "//v1-updated" }, public: true, meta: {} });
 		meta = await colls.gameMetadatas.findOne({ _id: "splitgame" });
 		assert.strictEqual(meta?.label, "Split Game", "label not cleared by a metadata-less save");
 		assert.strictEqual(meta?.alias, "Split Alias", "alias not cleared");
@@ -123,8 +127,23 @@ describe("Admin gameinfo API — split upsert (#298)", () => {
 		assert.ok(version && !("label" in version), "version doc does not carry the label");
 	});
 
+	it("a pre-hoist body carrying meta.public is flattened to top-level public (deploy window)", async () => {
+		// A stale admin bundle still sends the OLD shape { meta: { public } }: the
+		// upsert must hoist it onto the top-level field, never persist the nested form.
+		const merged = await put("oldshape", 1, { viewer: { url: "//v1" }, meta: { public: true } });
+
+		assert.strictEqual(merged.public, true, "returned doc exposes top-level public");
+		// `meta` may be absent entirely on a fresh doc (nothing server-managed set
+		// yet) — what matters is the nested flag is flattened, never stored.
+		assert.ok(!merged.meta || !("public" in merged.meta), "returned doc's meta does not carry public");
+
+		const version = await colls.gameInfos.findOne({ _id: { game: "oldshape", version: 1 } });
+		assert.strictEqual(version?.public, true, "stored doc has top-level public");
+		assert.ok(!version?.meta || !("public" in version.meta), "meta.public is not persisted");
+	});
+
 	it("creating a second version shares the one metadata doc", async () => {
-		await put("splitgame", 2, { viewer: { url: "//v2" }, meta: { public: true } });
+		await put("splitgame", 2, { viewer: { url: "//v2" }, public: true, meta: {} });
 		const metas = await colls.gameMetadatas.find({ _id: "splitgame" }).toArray();
 		assert.strictEqual(metas.length, 1, "still a single metadata doc for the game");
 		assert.strictEqual(metas[0].label, "Split Game");
@@ -135,7 +154,7 @@ describe("Admin gameinfo API — split upsert (#298)", () => {
 
 		// The version page GETs the *merged* doc, so a save/duplicate round-trips
 		// likeCount (and timestamps) in the PUT body — all must be stripped.
-		await put("splitgame", 1, { viewer: { url: "//v1" }, meta: { public: true }, likeCount: 3 });
+		await put("splitgame", 1, { viewer: { url: "//v1" }, public: true, meta: {}, likeCount: 3 });
 
 		const version = await colls.gameInfos.findOne({ _id: { game: "splitgame", version: 1 } });
 		assert.ok(version && !("likeCount" in version), "likeCount not $set onto the version doc");
@@ -188,7 +207,8 @@ describe("Boardgame info — likeCount surfaces from game metadata (#289/#298)",
 		await colls.gameInfos.insertOne({
 			_id: { game: "likedgame", version: 1 },
 			viewer: { url: "//v1" },
-			meta: { public: true },
+			public: true,
+			meta: {},
 		});
 		await colls.gameMetadatas.insertOne({ _id: "likedgame", label: "Liked Game", players: [2], likeCount: 7 });
 
@@ -274,7 +294,8 @@ const archInfo = (version: number) => ({
 	label: "Archive game",
 	players: [2],
 	viewer: { url: "//example.com/viewer.js" },
-	meta: { public: true },
+	public: true,
+	meta: {},
 });
 
 // meta.archived marks a retired version: skipped by the game-server installer
@@ -391,7 +412,7 @@ describe("Admin gameinfo API — archive/unarchive", () => {
 		await fetch(`${baseURL()}/api/admin/gameinfo/archgame/1`, {
 			method: "PUT",
 			headers,
-			body: JSON.stringify({ ...archInfo(1), meta: { public: true, archived: false } }),
+			body: JSON.stringify({ ...archInfo(1), meta: { archived: false } }),
 		});
 		let doc = await colls.gameInfos.findOne({ _id: { game: "archgame", version: 1 } });
 		assert.strictEqual(doc?.meta?.archived, true, "save must not clear the archived flag");
@@ -399,7 +420,7 @@ describe("Admin gameinfo API — archive/unarchive", () => {
 		await fetch(`${baseURL()}/api/admin/gameinfo/archgame/2`, {
 			method: "PUT",
 			headers,
-			body: JSON.stringify({ ...archInfo(2), meta: { public: true, archived: true } }),
+			body: JSON.stringify({ ...archInfo(2), meta: { archived: true } }),
 		});
 		doc = await colls.gameInfos.findOne({ _id: { game: "archgame", version: 2 } });
 		assert.strictEqual(doc?.meta && "archived" in doc.meta, false, "save must not set the archived flag");
