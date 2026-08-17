@@ -5,11 +5,13 @@
 	import { Badge, Pagination, Loading } from "@/modules/cdk";
 	import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
 	import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
+	import SetupOptionBadge from "./SetupOptionBadge.svelte";
 	import { logoClicks } from "@/lib/stores.svelte";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { gameBadge } from "@/utils/game-label";
 	import { loadGames, type LoadGamesResult } from "@/lib/games.svelte";
 	import { isPromise } from "@bgs/utils";
+	import type { JsonObject } from "type-fest";
 
 	let {
 		title = "Games",
@@ -115,6 +117,18 @@
 	const gameInfos = useGameInfos();
 	function gameIcon(name: string) {
 		return gameBadge(gameInfos[gameInfoKey(name, "latest")]);
+	}
+
+	/** Game-specific setup options, keyed by option name (from the game's own options object). */
+	function gameOptions(game: GameFront): JsonObject {
+		return (game.game.options ?? {}) as JsonObject;
+	}
+
+	/** The setup options to badge on an open row: the game-info options this game set. */
+	function setupOptions(game: GameFront) {
+		const info = gameInfos[gameInfoKey(game.game.name, game.game.version)];
+		const set = gameOptions(game);
+		return (info?.options ?? []).filter((opt) => !!set[opt.name]);
 	}
 
 	// On narrow screens the avatar cluster would otherwise eat the name/timing
@@ -276,85 +290,121 @@
 								     name is the only child allowed to truncate, so the elo chip and the avatar
 								     stack always keep their room on long names. -->
 								<div class="me-auto min-w-0 flex-1" style="line-height: 1.1">
-									<div class="flex items-center">
-										{#if game.status === "active"}
-											<Badge color="contrast" class="me-2 text-xs text-white">R{game.context?.round ?? 0}</Badge>
-										{:else if game.status === "open"}
+									{#if game.status === "open"}
+										<!-- Open row (#55): ONE wrapping line — seats chip, name, clock, then the
+									     setup-option/restriction badges flow right after instead of stacking on
+									     their own lines. No "created X ago" (dropped entirely). -->
+										{@const meta = game.options.meta}
+										{@const opts = setupOptions(game)}
+										<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
 											<span
-												class="me-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/60 dark:text-blue-200"
+												class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/60 dark:text-blue-200"
 											>
 												{game.players.length}/{game.options.setup.nbPlayers}
 											</span>
-										{/if}
-										<span class="game-name min-w-0 truncate">
-											{game._id}
-										</span>
-										{#if eloChange}
-											<!-- shrink-0 + whitespace-nowrap: the chip never wraps or gets squeezed, so the
-											     name truncates before it instead of overlapping on narrow screens. -->
-											<span
-												class="ms-1.5 inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-1.5 py-0.5 text-xs font-semibold {eloChange.delta >=
-												0
-													? 'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-200'
-													: 'bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200'}"
-												title={eloChange.label}
-												aria-label={eloChange.label}
+											<span class="game-name min-w-0 truncate">
+												{game._id}
+											</span>
+											<small
+												class="flex shrink-0 items-center gap-1 whitespace-nowrap text-gray-500 dark:text-gray-400"
+												title={`${playTime(game)} ${duration(game.options.timing.timePerGame ?? 0)} + ${duration(
+													game.options.timing.timePerMove ?? 0
+												)} · ${timerWindow(game.options.timing.timer)}`}
 											>
-												{eloChange.text}
-											</span>
-										{/if}
-									</div>
-									<small
-										class="flex items-center gap-1 text-xs"
-										title={`${playTime(game)} ${duration(game.options.timing.timePerGame ?? 0)} + ${duration(
-											game.options.timing.timePerMove ?? 0
-										)} · ${timerWindow(game.options.timing.timer)}`}
-									>
-										{#if game.status === "ended"}
-											<span class="text-gray-500 dark:text-gray-400">finished · {niceDate(game.lastMove ?? "")}</span>
-										{:else if game.status === "active"}
-											<!-- Ongoing games: last activity first, then time left on the current turn
-											     when the game has a per-turn clock (full timing on hover) -->
-											<span class="flex shrink-0 items-center gap-1 whitespace-nowrap text-gray-500 dark:text-gray-400">
 												<IconClockHistory class="text-[0.8em]" />
-												{lastActivity(game)} ago
+												{compactDuration(game.options.timing.timePerGame ?? 0)}+{compactDuration(
+													game.options.timing.timePerMove ?? 0
+												)}
+												{#if game.options.timing.scheduledStart}
+													· starts on {niceDate(game.options.timing.scheduledStart)} at
+													{new Date(game.options.timing.scheduledStart)
+														.getHours()
+														.toString()
+														.padStart(2, "0")}h{new Date(game.options.timing.scheduledStart)
+														.getMinutes()
+														.toString()
+														.padStart(2, "0")}
+												{/if}
+											</small>
+											<!-- Setup options + join restrictions at a glance: see what you're joining
+										     (and its requirements) without opening the game. -->
+											{#each opts as pref (pref.name)}
+												<SetupOptionBadge {pref} value={gameOptions(game)[pref.name]} />
+											{/each}
+											{#if meta?.minimumKarma !== undefined}
+												<Badge color="secondary" class="setup-badge" title="Minimum karma to join"
+													>☯️ {meta.minimumKarma}+ karma</Badge
+												>
+											{/if}
+											{#if meta?.eloRange}
+												<Badge color="secondary" class="setup-badge" title="Elo range required to join"
+													>📈 {meta.eloRange.min}–{meta.eloRange.max} elo</Badge
+												>
+											{/if}
+										</div>
+									{:else}
+										<!-- Active/ended rows: stacked name line + info line. -->
+										<div class="flex items-center">
+											{#if game.status === "active"}
+												<Badge color="contrast" class="me-2 text-xs text-white">R{game.context?.round ?? 0}</Badge>
+											{/if}
+											<span class="game-name min-w-0 truncate">
+												{game._id}
 											</span>
-											{#if timeLeft !== null}
+											{#if eloChange}
+												<!-- shrink-0 + whitespace-nowrap: the chip never wraps or gets squeezed, so the
+											     name truncates before it instead of overlapping on narrow screens. -->
 												<span
-													class="flex shrink-0 items-center gap-0.5 whitespace-nowrap {turnUrgent(game, timeLeft)
-														? 'font-semibold text-amber-600 dark:text-amber-400'
-														: 'text-gray-500 dark:text-gray-400'}"
+													class="ms-1.5 inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-1.5 py-0.5 text-xs font-semibold {eloChange.delta >=
+													0
+														? 'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-200'
+														: 'bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200'}"
+													title={eloChange.label}
+													aria-label={eloChange.label}
 												>
-													· ⏱ {timeLeft <= 0 ? "overdue" : `${compactDuration(timeLeft)} left`}
+													{eloChange.text}
 												</span>
 											{/if}
-											{#if lastMove}
-												<!-- Non-mobile only (#208): hidden on small screens (see .last-move). A
-												     distinct pill so it doesn't blend into the italic timing text. -->
-												<span
-													class="last-move inline-flex min-w-0 max-w-56 items-center rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
-													title="{lastMovePlayer(game)}: {lastMove}"
-												>
-													<span class="truncate">{lastMove}</span>
-												</span>
-											{/if}
-										{:else}
-											<IconClockHistory class="text-[0.8em]" />
-											{compactDuration(game.options.timing.timePerGame ?? 0)}+{compactDuration(
+										</div>
+										<small
+											class="flex items-center gap-1 text-xs"
+											title={`${playTime(game)} ${duration(game.options.timing.timePerGame ?? 0)} + ${duration(
 												game.options.timing.timePerMove ?? 0
-											)}
-											{#if game.options.timing.scheduledStart}
-												· starts on {niceDate(game.options.timing.scheduledStart)} at
-												{new Date(game.options.timing.scheduledStart)
-													.getHours()
-													.toString()
-													.padStart(2, "0")}}h{new Date(game.options.timing.scheduledStart)
-													.getMinutes()
-													.toString()
-													.padStart(2, "0")}
+											)} · ${timerWindow(game.options.timing.timer)}`}
+										>
+											{#if game.status === "ended"}
+												<span class="text-gray-500 dark:text-gray-400">finished · {niceDate(game.lastMove ?? "")}</span>
+											{:else}
+												<!-- Ongoing games: last activity first, then time left on the current turn
+											     when the game has a per-turn clock (full timing on hover) -->
+												<span
+													class="flex shrink-0 items-center gap-1 whitespace-nowrap text-gray-500 dark:text-gray-400"
+												>
+													<IconClockHistory class="text-[0.8em]" />
+													{lastActivity(game)} ago
+												</span>
+												{#if timeLeft !== null}
+													<span
+														class="flex shrink-0 items-center gap-0.5 whitespace-nowrap {turnUrgent(game, timeLeft)
+															? 'font-semibold text-amber-600 dark:text-amber-400'
+															: 'text-gray-500 dark:text-gray-400'}"
+													>
+														· ⏱ {timeLeft <= 0 ? "overdue" : `${compactDuration(timeLeft)} left`}
+													</span>
+												{/if}
+												{#if lastMove}
+													<!-- Non-mobile only (#208): hidden on small screens (see .last-move). A
+												     distinct pill so it doesn't blend into the italic timing text. -->
+													<span
+														class="last-move inline-flex min-w-0 max-w-56 items-center rounded-full bg-gray-100 px-2 py-0.5 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+														title="{lastMovePlayer(game)}: {lastMove}"
+													>
+														<span class="truncate">{lastMove}</span>
+													</span>
+												{/if}
 											{/if}
-										{/if}
-									</small>
+										</small>
+									{/if}
 								</div>
 
 								{#if game.status !== "open"}
@@ -378,12 +428,6 @@
 												+{game.players.length - MOBILE_AVATARS_LIMIT}
 											</span>
 										{/if}
-									</div>
-								{:else}
-									<div class="me-3 text-right" style="line-height: 1.1;">
-										<small class="text-gray-500 dark:text-gray-400">
-											{shortDuration(Math.floor((now - new Date(game.createdAt ?? "").getTime()) / 1000))} ago
-										</small>
 									</div>
 								{/if}
 							</a>
