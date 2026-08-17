@@ -375,7 +375,144 @@
 				<div class="text-2xl font-bold mt-1">{stats.adminUsers}</div>
 			</div>
 		</div>
+	{/if}
 
+	<!-- User management: search + admins come first (the actionable part of the
+	     page); the analytics below are informational. -->
+	<!-- Search -->
+	<div class="relative">
+		<div class="relative">
+			<svg
+				class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+			>
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+				/>
+			</svg>
+			<input
+				bind:value={query}
+				oninput={search}
+				{onkeydown}
+				placeholder="Search by username or email..."
+				class="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+				autocomplete="off"
+			/>
+			{#if searching}
+				<div class="absolute right-3 top-1/2 -translate-y-1/2">
+					<div class="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+				</div>
+			{/if}
+		</div>
+
+		{#if results.length > 0}
+			<div
+				class="absolute z-10 mt-2 w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-lg overflow-hidden"
+			>
+				{#each results as user, i (user._id)}
+					<button
+						class="w-full px-4 py-3 text-left flex items-center gap-3 transition-colors {i === selected
+							? 'bg-blue-50 dark:bg-blue-900/30'
+							: 'hover:bg-gray-50 dark:hover:bg-gray-800'}"
+						onclick={() => select(user.account.username)}
+						onmouseenter={() => (selected = i)}
+					>
+						<div
+							class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-medium text-gray-500 dark:text-gray-400 flex-shrink-0"
+						>
+							{user.account.username.charAt(0).toUpperCase()}
+						</div>
+						<div class="min-w-0 flex-1">
+							<div class="font-medium text-sm truncate">
+								{user.account.username}
+								{#if user.authority === "admin"}
+									<span
+										class="ml-1 px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded"
+										>admin</span
+									>
+								{/if}
+							</div>
+							<div class="text-xs text-gray-500 truncate">{user.account.email}</div>
+						</div>
+						<svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+						</svg>
+					</button>
+				{/each}
+			</div>
+		{:else if query.length >= 2 && !searching}
+			<p class="mt-3 text-sm text-gray-500">No users found.</p>
+		{/if}
+	</div>
+
+	{#if query.length < 2}
+		<p class="text-sm text-gray-400">Search for users by username or email to view and manage their account.</p>
+	{/if}
+
+	<!-- Admins -->
+	<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+		<div class="px-5 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+			<h3 class="text-sm font-semibold">
+				Admins
+				<span class="text-gray-400 font-normal">({admins.length})</span>
+			</h3>
+			{#if loadingAdmins}
+				<div class="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+			{/if}
+		</div>
+		{#if admins.length > 0}
+			<div class="divide-y divide-gray-100 dark:divide-gray-800">
+				{#each admins as admin (admin._id)}
+					<div class="px-5 py-3 flex items-center gap-3">
+						<div
+							class="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-sm font-medium text-purple-600 dark:text-purple-400 flex-shrink-0"
+						>
+							{admin.account.username.charAt(0).toUpperCase()}
+						</div>
+						<div class="min-w-0 flex-1">
+							<button
+								onclick={() => select(admin.account.username)}
+								class="font-medium text-sm text-blue-600 dark:text-blue-400 hover:underline truncate"
+							>
+								{admin.account.username}
+							</button>
+							<div class="flex items-center gap-2 text-xs text-gray-500">
+								<span
+									class="inline-block w-1.5 h-1.5 rounded-full {admin.security?.lastOnline &&
+									Date.now() - new Date(admin.security.lastOnline).getTime() < 60000
+										? 'bg-green-500'
+										: 'bg-gray-400'}"
+								></span>
+								<span class="truncate"
+									>seen {timeAgo(admin.security?.lastActive ?? admin.security?.lastLogin?.date)}</span
+								>
+								{#if admin.games.total > 0}
+									<span class="text-gray-400">· {admin.games.total} games</span>
+								{/if}
+							</div>
+						</div>
+						<button
+							onclick={() => demote(admin._id, admin.account.username)}
+							disabled={promoting === admin._id}
+							class="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg disabled:opacity-50 flex-shrink-0"
+						>
+							{promoting === admin._id ? "…" : "Demote"}
+						</button>
+					</div>
+				{/each}
+			</div>
+		{:else if !loadingAdmins}
+			<p class="px-5 py-4 text-sm text-gray-500">No admins found.</p>
+		{/if}
+	</div>
+
+	<!-- Analytics (informational): charts, breakdowns, languages, traffic, login methods. -->
+	{#if stats}
 		<!-- New users chart -->
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
 			<h3 class="text-sm font-semibold mb-4">New users — last 30 days</h3>
@@ -660,138 +797,6 @@
 				</div>
 			{/if}
 		</div>
-	</div>
-
-	<!-- Search -->
-	<div class="relative">
-		<div class="relative">
-			<svg
-				class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke="currentColor"
-			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-				/>
-			</svg>
-			<input
-				bind:value={query}
-				oninput={search}
-				{onkeydown}
-				placeholder="Search by username or email..."
-				class="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-				autocomplete="off"
-			/>
-			{#if searching}
-				<div class="absolute right-3 top-1/2 -translate-y-1/2">
-					<div class="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-				</div>
-			{/if}
-		</div>
-
-		{#if results.length > 0}
-			<div
-				class="absolute z-10 mt-2 w-full bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-lg overflow-hidden"
-			>
-				{#each results as user, i (user._id)}
-					<button
-						class="w-full px-4 py-3 text-left flex items-center gap-3 transition-colors {i === selected
-							? 'bg-blue-50 dark:bg-blue-900/30'
-							: 'hover:bg-gray-50 dark:hover:bg-gray-800'}"
-						onclick={() => select(user.account.username)}
-						onmouseenter={() => (selected = i)}
-					>
-						<div
-							class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-medium text-gray-500 dark:text-gray-400 flex-shrink-0"
-						>
-							{user.account.username.charAt(0).toUpperCase()}
-						</div>
-						<div class="min-w-0 flex-1">
-							<div class="font-medium text-sm truncate">
-								{user.account.username}
-								{#if user.authority === "admin"}
-									<span
-										class="ml-1 px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded"
-										>admin</span
-									>
-								{/if}
-							</div>
-							<div class="text-xs text-gray-500 truncate">{user.account.email}</div>
-						</div>
-						<svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-						</svg>
-					</button>
-				{/each}
-			</div>
-		{:else if query.length >= 2 && !searching}
-			<p class="mt-3 text-sm text-gray-500">No users found.</p>
-		{/if}
-	</div>
-
-	{#if query.length < 2}
-		<p class="text-sm text-gray-400">Search for users by username or email to view and manage their account.</p>
-	{/if}
-
-	<!-- Admins -->
-	<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-		<div class="px-5 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-			<h3 class="text-sm font-semibold">
-				Admins
-				<span class="text-gray-400 font-normal">({admins.length})</span>
-			</h3>
-			{#if loadingAdmins}
-				<div class="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-			{/if}
-		</div>
-		{#if admins.length > 0}
-			<div class="divide-y divide-gray-100 dark:divide-gray-800">
-				{#each admins as admin (admin._id)}
-					<div class="px-5 py-3 flex items-center gap-3">
-						<div
-							class="w-9 h-9 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center text-sm font-medium text-purple-600 dark:text-purple-400 flex-shrink-0"
-						>
-							{admin.account.username.charAt(0).toUpperCase()}
-						</div>
-						<div class="min-w-0 flex-1">
-							<button
-								onclick={() => select(admin.account.username)}
-								class="font-medium text-sm text-blue-600 dark:text-blue-400 hover:underline truncate"
-							>
-								{admin.account.username}
-							</button>
-							<div class="flex items-center gap-2 text-xs text-gray-500">
-								<span
-									class="inline-block w-1.5 h-1.5 rounded-full {admin.security?.lastOnline &&
-									Date.now() - new Date(admin.security.lastOnline).getTime() < 60000
-										? 'bg-green-500'
-										: 'bg-gray-400'}"
-								></span>
-								<span class="truncate"
-									>seen {timeAgo(admin.security?.lastActive ?? admin.security?.lastLogin?.date)}</span
-								>
-								{#if admin.games.total > 0}
-									<span class="text-gray-400">· {admin.games.total} games</span>
-								{/if}
-							</div>
-						</div>
-						<button
-							onclick={() => demote(admin._id, admin.account.username)}
-							disabled={promoting === admin._id}
-							class="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg disabled:opacity-50 flex-shrink-0"
-						>
-							{promoting === admin._id ? "…" : "Demote"}
-						</button>
-					</div>
-				{/each}
-			</div>
-		{:else if !loadingAdmins}
-			<p class="px-5 py-4 text-sm text-gray-500">No admins found.</p>
-		{/if}
 	</div>
 
 	<!-- Login methods -->
