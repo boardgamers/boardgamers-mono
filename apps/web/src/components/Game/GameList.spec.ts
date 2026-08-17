@@ -25,6 +25,10 @@ vi.mock("@/lib/api", () => ({ get: vi.fn() }));
 vi.mock("@/components/icons/IconClockHistory.svelte", async () => ({
 	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
 }));
+// Same jsdom crash as IconClockHistory; the dice glyph isn't under test.
+vi.mock("@/components/icons/IconDice.svelte", async () => ({
+	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
+}));
 // Badge (rendered on the "active" branch) also crashes on its `{...rest}` spread in
 // jsdom; stub it so the #236 test can mount an active list. Pagination/Loading are
 // kept real.
@@ -275,6 +279,60 @@ describe("GameList last move (#208)", () => {
 		expect(chipText).not.toContain("by");
 		// The mover's name is only in the tooltip, not the visible text.
 		expect(chips[0].getAttribute("title")).toBe("terrans: terrans build m 1x0");
+
+		unmount(instance as never);
+	});
+});
+
+// Lobby discovery: a sampled list (the home-page Lobby) is capped at perPage, so
+// when the lobby holds more games the footer must say how many more there are,
+// link to the full list, and offer a dice re-roll that re-samples client-side
+// (logoClick → cache-bypassed refetch → the server $sample deals new games).
+describe("GameList lobby discovery", () => {
+	beforeEach(() => {
+		clearGamesCache();
+		getMock.mockReset();
+		document.body.innerHTML = "";
+	});
+
+	it("shows 'N more open games' when the lobby has more than the sample shows", async () => {
+		mockApi([fakeGame("g-a"), fakeGame("g-b")], 7);
+		const { target, instance } = mountList({ sample: true, perPage: 2 });
+		await waitForGames(target, ["g-a", "g-b"]);
+
+		const link = target.querySelector<HTMLAnchorElement>('a[href="/games"]');
+		expect(link?.textContent?.replace(/\s+/g, " ").trim()).toBe("5 more open games →");
+		expect(target.querySelector('button[aria-label^="Shuffle"]')).toBeTruthy();
+
+		unmount(instance as never);
+	});
+
+	it("hides the discovery footer when the sample covers the whole lobby", async () => {
+		mockApi([fakeGame("g-a"), fakeGame("g-b")], 2);
+		const { target, instance } = mountList({ sample: true, perPage: 2 });
+		await waitForGames(target, ["g-a", "g-b"]);
+
+		expect(target.querySelector('a[href="/games"]')).toBeNull();
+		expect(target.querySelector('button[aria-label^="Shuffle"]')).toBeNull();
+
+		unmount(instance as never);
+	});
+
+	it("the dice button re-samples client-side (cache-bypassed refetch, no reload)", async () => {
+		mockApi([fakeGame("g-old")], 6);
+		const { target, instance } = mountList({ sample: true, perPage: 2 });
+		await waitForGames(target, ["g-old"]);
+		const calls = getMock.mock.calls.length;
+
+		mockApi([fakeGame("g-new")], 6); // the server would deal a different sample
+		target.querySelector<HTMLButtonElement>('button[aria-label^="Shuffle"]')!.click();
+		flushSync();
+		await waitForGames(target, ["g-new"]);
+
+		// A real round trip, not the cached sample (a cache hit wouldn't call `get` at
+		// all). Strictly more than the initial load: other mounted lists (the home page
+		// has two) react to the same logoClicks bump with their own refetch.
+		expect(getMock.mock.calls.length).toBeGreaterThan(calls);
 
 		unmount(instance as never);
 	});

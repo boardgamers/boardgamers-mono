@@ -3,6 +3,7 @@
 // route params to substitute). Only the IDs actually exercised by specs are mapped.
 const routes: Record<string, string> = {
 	"/(app)": "/",
+	"/(app)/games": "/games",
 	"/(app)/login": "/login",
 };
 

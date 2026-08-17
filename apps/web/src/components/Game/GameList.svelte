@@ -15,7 +15,8 @@
 	import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
 	import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
 	import SetupOptionBadge from "./SetupOptionBadge.svelte";
-	import { logoClicks } from "@/lib/stores.svelte";
+	import { logoClicks, logoClick } from "@/lib/stores.svelte";
+	import IconDice from "@/components/icons/IconDice.svelte";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { gameBadge } from "@/utils/game-label";
 	import { loadGames, type LoadGamesResult } from "@/lib/games.svelte";
@@ -63,7 +64,9 @@
 
 	const load = defer(
 		(refetchCount: boolean, bypassCache = false) => {
-			const fetchCount = refetchCount && !topRecords && !sample;
+			// Sample lists also fetch the count: it's what powers the "N more open games"
+			// discovery affordance (the sample itself is capped at perPage).
+			const fetchCount = refetchCount && !topRecords;
 
 			const result = loadGames({
 				gameStatus,
@@ -455,7 +458,29 @@
 						</li>
 					{/each}
 				</ul>
-				{#if !topRecords && count > perPage}
+				{#if sample && count > games.length}
+					<!-- Lobby discovery: the sample is capped at perPage but the lobby holds
+					     more — say so, offer the full list, and a dice re-roll for a fresh sample
+					     (logoClick bumps $logoClicks, which this list reacts to with a cache
+					     bypass; the server $sample then deals different games). -->
+					<div class="mt-2 flex items-center justify-end gap-1 text-sm">
+						<a
+							href={resolve("/(app)/games")}
+							class="rounded px-2 py-1 font-medium text-accent hover:bg-gray-100 hover:underline dark:text-accent-lighter dark:hover:bg-gray-800"
+						>
+							{count - games.length} more open {count - games.length === 1 ? "game" : "games"} →
+						</a>
+						<button
+							type="button"
+							class="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-accent dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-accent-lighter"
+							title="Show a different random sample of open games"
+							aria-label="Shuffle the sample of open games"
+							onclick={() => logoClick()}
+						>
+							<IconDice />
+						</button>
+					</div>
+				{:else if !topRecords && !sample && count > perPage}
 					<Pagination {count} {perPage} bind:currentPage align="right" class="mt-2" />
 				{/if}
 			{:else}
