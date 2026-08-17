@@ -57,7 +57,7 @@ describe("Boardgame API — game likes (#117)", () => {
 			await colls.gameInfos.insertOne({
 				_id: { game, version: 1 },
 				viewer: { url: `//test.com/${game}` },
-				meta: { public: true },
+				public: true,
 			});
 			// Game-level fields (label/players/likeCount) live on the metadata doc (#298).
 			await colls.gameMetadatas.insertOne({ _id: game, label: game, players: [2] });
@@ -69,7 +69,7 @@ describe("Boardgame API — game likes (#117)", () => {
 			await colls.gameInfos.insertOne({
 				_id: { game: "likegame-multi", version },
 				viewer: { url: `//test.com/likegame-multi` },
-				meta: { public: true },
+				public: true,
 			});
 		}
 		await colls.gameMetadatas.insertOne({ _id: "likegame-multi", label: "likegame-multi", players: [2] });
@@ -192,7 +192,7 @@ describe("Game API — my-boardgames liked-first ordering (#117)", () => {
 			await colls.gameInfos.insertOne({
 				_id: { game, version: 1 },
 				viewer: { url: `//test.com/${game}` },
-				meta: { public: true },
+				public: true,
 			});
 			await colls.gameMetadatas.insertOne({ _id: game, label: game, players: [2] });
 		}
@@ -273,7 +273,7 @@ describe("Game API — my-boardgames liked-first ordering (#117)", () => {
 		await colls.gameInfos.insertOne({
 			_id: { game: "likegame-fresh", version: 1 },
 			viewer: { url: "//test.com/likegame-fresh" },
-			meta: { public: true },
+			public: true,
 		});
 		await colls.gameMetadatas.insertOne({ _id: "likegame-fresh", label: "likegame-fresh", players: [2] });
 		// Fresh like (now) outranks the suite's older likes/play history.
