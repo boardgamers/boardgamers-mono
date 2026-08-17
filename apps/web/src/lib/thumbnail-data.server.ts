@@ -6,6 +6,7 @@ import { fetchGameInfo, fetchGameInfos } from "@/lib/game-info.svelte";
 import { countryFlag, countryName } from "@/lib/countries";
 import { firstSentence, siteName, truncate } from "@/lib/seo";
 import { gameBasedOn, gameDisplayName, gameEmoji } from "@/utils/game-label";
+import { gamePace } from "@/utils/time";
 import type { GameFront, GameInfoFront, GamePreferencesFront, UserFront } from "@bgs/models";
 
 // Card content for the /thumbnail/* pages, derived server-side from the db (via the API)
@@ -85,7 +86,7 @@ export async function loadGameCard(gameId: string): Promise<CardData> {
 		// Subtitle stays short (the full pace is a chip) so it doesn't wrap; the pace chip is
 		// compact ("Asynchronous" / "Live") to leave room for the option chips on one row.
 		const timePerGame = game.options.timing.timePerGame ?? 0;
-		const pace = timePerGame >= 24 * 3600 ? "Asynchronous" : "Live";
+		const pace = gamePace(timePerGame) === "async" ? "Asynchronous" : "Live";
 		card = {
 			title: label,
 			subtitle: basedOn ? `Mechanics of ${basedOn} — join and play online!` : "Join and play online!",
