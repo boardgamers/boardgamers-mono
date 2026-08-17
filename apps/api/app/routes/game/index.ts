@@ -354,7 +354,11 @@ router.get("/:gameId/players", async (ctx) => {
 	const game = ctx.state.game!;
 	const ret = [];
 	const ids = [...game.players.map((pl) => pl._id), game.creator];
-	const userDocs = await colls.users.find({ _id: { $in: ids } }, { projection: { "account.username": 1 } }).toArray();
+	// Public fields only (username + karma — same public set as userPublicInfo). Never
+	// project email/security/private fields here; avatars are served separately by id.
+	const userDocs = await colls.users
+		.find({ _id: { $in: ids } }, { projection: { "account.username": 1, "account.karma": 1 } })
+		.toArray();
 	const gamePrefs = await colls.gamePreferences
 		.find({
 			game: game.game.name,
@@ -364,7 +368,13 @@ router.get("/:gameId/players", async (ctx) => {
 	for (const user of userDocs) {
 		const gamePref = gamePrefs.find((pref) => pref.user.equals(user._id));
 		// @fixme: Remove 'id' when fully moved to svelte frontend
-		ret.push({ id: user._id, _id: user._id, name: user.account.username, elo: gamePref?.elo?.value ?? 0 });
+		ret.push({
+			id: user._id,
+			_id: user._id,
+			name: user.account.username,
+			elo: gamePref?.elo?.value ?? 0,
+			karma: user.account.karma,
+		});
 	}
 	// Bots have no user document — surface them from the game's own player list.
 	for (const player of game.players) {

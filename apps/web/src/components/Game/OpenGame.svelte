@@ -353,6 +353,9 @@
 							<UserAvatar userId={player._id} username={info?.name ?? "?"} size="2rem" />
 							<UsernameLink username={info?.name ?? "?"} userId={player._id} class="font-medium" />
 							<span class="text-sm text-gray-500 dark:text-gray-400">{info?.elo} elo</span>
+							{#if typeof info?.karma === "number"}
+								<span class="text-sm text-gray-500 dark:text-gray-400" title="Karma">☯️ {info.karma}</span>
+							{/if}
 						{/if}
 						{#if player.pending}
 							<span

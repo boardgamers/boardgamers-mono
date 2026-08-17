@@ -1,15 +1,26 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import { timerTime, defer, duration, niceDate, shortDuration, compactDuration, timerWindow } from "@/utils";
+	import {
+		timerTime,
+		defer,
+		duration,
+		niceDate,
+		shortDuration,
+		compactDuration,
+		timerWindow,
+		type GamePace,
+	} from "@/utils";
 	import type { GameFront } from "@bgs/models";
 	import { Badge, Pagination, Loading } from "@/modules/cdk";
 	import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
 	import PlayerGameAvatar from "./PlayerGameAvatar.svelte";
+	import SetupOptionBadge from "./SetupOptionBadge.svelte";
 	import { logoClicks } from "@/lib/stores.svelte";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { gameBadge } from "@/utils/game-label";
 	import { loadGames, type LoadGamesResult } from "@/lib/games.svelte";
 	import { isPromise } from "@bgs/utils";
+	import type { JsonObject } from "type-fest";
 
 	let {
 		title = "Games",
@@ -21,6 +32,7 @@
 		userId = undefined,
 		minDuration = undefined,
 		maxDuration = undefined,
+		pace = undefined,
 		search = undefined,
 		class: className = "",
 	}: {
@@ -33,6 +45,8 @@
 		userId?: string | undefined | null;
 		minDuration?: number | undefined;
 		maxDuration?: number | undefined;
+		/** Live/async timing filter applied server-side (maps to a timePerGame bound). */
+		pace?: GamePace | undefined;
 		search?: string | undefined;
 		// Applied to the outer wrapper (e.g. `min-w-0` so the list can shrink inside a
 		// grid/flex cell instead of forcing the layout wide on mobile).
@@ -58,6 +72,7 @@
 				sample,
 				minDuration,
 				maxDuration,
+				pace,
 				count: perPage,
 				skip: currentPage * perPage,
 				fetchCount,
@@ -115,6 +130,18 @@
 	const gameInfos = useGameInfos();
 	function gameIcon(name: string) {
 		return gameBadge(gameInfos[gameInfoKey(name, "latest")]);
+	}
+
+	/** Game-specific setup options, keyed by option name (from the game's own options object). */
+	function gameOptions(game: GameFront): JsonObject {
+		return (game.game.options ?? {}) as JsonObject;
+	}
+
+	/** The setup options to badge on an open row: the game-info options this game set. */
+	function setupOptions(game: GameFront) {
+		const info = gameInfos[gameInfoKey(game.game.name, game.game.version)];
+		const set = gameOptions(game);
+		return (info?.options ?? []).filter((opt) => !!set[opt.name]);
 	}
 
 	// On narrow screens the avatar cluster would otherwise eat the name/timing
@@ -179,6 +206,7 @@
 	let lastLogoClicks = $logoClicks;
 	let lastBoardgameId: string | undefined;
 	let lastUserId: string | undefined | null;
+	let lastPace: GamePace | undefined;
 	let lastSearch: string | undefined;
 	let lastPage = 0;
 
@@ -197,6 +225,7 @@
 	$effect(() => {
 		userId;
 		boardgameId;
+		pace;
 		search;
 		const clicks = $logoClicks;
 		const page = currentPage;
@@ -208,6 +237,7 @@
 			firstRun = false;
 			lastBoardgameId = boardgameId;
 			lastUserId = userId;
+			lastPace = pace;
 			lastSearch = search;
 			lastPage = page;
 			return;
@@ -217,7 +247,11 @@
 		// Filter changes keep the cache (switching back to a seen filter is instant).
 		const isLogoRefresh = clicks !== lastLogoClicks;
 		const filterChanged =
-			boardgameId !== lastBoardgameId || userId !== lastUserId || search !== lastSearch || isLogoRefresh;
+			boardgameId !== lastBoardgameId ||
+			userId !== lastUserId ||
+			pace !== lastPace ||
+			search !== lastSearch ||
+			isLogoRefresh;
 		const pageChanged = page !== lastPage;
 		lastLogoClicks = clicks;
 
@@ -229,6 +263,7 @@
 			// filterChanged===false (the trackers were already advanced) → no second load.
 			lastBoardgameId = boardgameId;
 			lastUserId = userId;
+			lastPace = pace;
 			lastSearch = search;
 			lastPage = 0;
 			currentPage = 0;
@@ -355,6 +390,29 @@
 											{/if}
 										{/if}
 									</small>
+									{#if game.status === "open"}
+										{@const meta = game.options.meta}
+										{@const opts = setupOptions(game)}
+										{#if opts.length > 0 || meta?.minimumKarma !== undefined || meta?.eloRange}
+											<!-- Setup options + join restrictions at a glance (#55): see what you're
+												     joining (and its requirements) without opening the game. -->
+											<div class="mt-1 flex flex-wrap items-center gap-1">
+												{#each opts as pref (pref.name)}
+													<SetupOptionBadge {pref} value={gameOptions(game)[pref.name]} />
+												{/each}
+												{#if meta?.minimumKarma !== undefined}
+													<Badge color="secondary" class="setup-badge" title="Minimum karma to join"
+														>☯️ {meta.minimumKarma}+ karma</Badge
+													>
+												{/if}
+												{#if meta?.eloRange}
+													<Badge color="secondary" class="setup-badge" title="Elo range required to join"
+														>📈 {meta.eloRange.min}–{meta.eloRange.max} elo</Badge
+													>
+												{/if}
+											</div>
+										{/if}
+									{/if}
 								</div>
 
 								{#if game.status !== "open"}

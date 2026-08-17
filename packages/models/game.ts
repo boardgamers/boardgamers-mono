@@ -32,7 +32,11 @@ export const playerInfoSchema = z.object({
 });
 
 export type PlayerInfo = z.output<typeof playerInfoSchema>;
-export type PlayerInfoFront = Jsonify<PlayerInfo>;
+
+// The api's /game/:id/players payload augments the stored player info with public
+// per-user fields (karma — same public set as userPublicInfo). Optional so bots and
+// the raw game.players list (no user doc) need not carry it.
+export type PlayerInfoFront = Jsonify<PlayerInfo> & { karma?: number };
 
 export const gameSchema = z.object({
 	_id: z.string(),
