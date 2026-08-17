@@ -154,6 +154,58 @@ describe("Game API", () => {
 		assert.strictEqual(res.ok, true);
 	});
 
+	it("should expose public player info (karma, no private fields) on /players", async () => {
+		const createRes = await api("POST", "/api/game/new-game", newGameBody("test-playerinfo"), authHeaders);
+		assert.strictEqual(createRes.ok, true, JSON.stringify(createRes.data));
+		const joinRes = await api("POST", "/api/game/test-playerinfo/join", {}, joinerAuthHeaders);
+		assert.strictEqual(joinRes.ok, true, JSON.stringify(joinRes.data));
+
+		const res = await api("GET", "/api/game/test-playerinfo/players", undefined, authHeaders);
+		assert.strictEqual(res.ok, true);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- response body is untyped JSON
+		const players = res.data as Record<string, unknown>[];
+		const joiner = players.find((pl) => pl.name === "joiner");
+		assert.ok(joiner, "Joiner should be listed");
+		assert.strictEqual(joiner.karma, 80, "Karma is exposed");
+		assert.strictEqual(typeof joiner.elo, "number", "Elo is exposed");
+		// Only public fields — never email/security/private.
+		assert.strictEqual(joiner.email, undefined);
+		assert.strictEqual(joiner.security, undefined);
+		assert.strictEqual(joiner.account, undefined);
+	});
+
+	it("should store an optional creator description and reject an over-long one", async () => {
+		const description = "Casual game, **beginners welcome**! <script>alert(1)</script>";
+		const createRes = await api(
+			"POST",
+			"/api/game/new-game",
+			newGameBody("test-description", { description }),
+			authHeaders,
+		);
+		assert.strictEqual(createRes.ok, true, JSON.stringify(createRes.data));
+
+		const res = await api("GET", "/api/game/test-description", undefined, authHeaders);
+		assert.strictEqual(res.ok, true);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- response body is untyped JSON
+		const game = res.data as Record<string, unknown>;
+		// Stored verbatim (markdown source); sanitizing happens at render time.
+		assert.strictEqual(game.description, description);
+
+		const tooLong = await api(
+			"POST",
+			"/api/game/new-game",
+			newGameBody("test-description-long", { description: "x".repeat(1001) }),
+			authHeaders,
+		);
+		assert.strictEqual(tooLong.ok, false, "Over-long description is rejected");
+		assert.strictEqual(await colls.games.countDocuments({ _id: "test-description-long" }), 0);
+
+		const noDesc = await api("POST", "/api/game/new-game", newGameBody("test-no-description"), authHeaders);
+		assert.strictEqual(noDesc.ok, true, JSON.stringify(noDesc.data));
+		const noDescGame = await colls.games.findOne({ _id: "test-no-description" });
+		assert.strictEqual(noDescGame?.description, undefined, "Description stays absent when not provided");
+	});
+
 	it("should reject an empty-string seed (frontend omits seed instead)", async () => {
 		const res = await api(
 			"POST",

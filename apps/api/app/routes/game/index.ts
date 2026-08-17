@@ -85,6 +85,9 @@ const newGameSchema = z.object({
 		.nullable(),
 	scheduledStart: z.number().optional(),
 	seed: z.string().regex(gameIdPattern).optional(),
+	// Creator-authored free text shown on the open-game page (markdown, sanitized
+	// on render). Trimmed; empty means "no description".
+	description: z.string().trim().max(1000).optional(),
 	options: z.record(z.string(), z.union([z.string(), z.boolean()])).optional(),
 });
 
@@ -110,6 +113,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 		minimumKarma,
 		eloRange,
 		scheduledStart,
+		description,
 	} = body;
 	const options: Record<string, string | boolean> = {};
 
@@ -296,6 +300,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 		creator: user._id,
 		players: initialPlayers,
 		currentPlayers: [],
+		...(description ? { description } : {}),
 		data: {},
 		context: { round: 0 },
 		options: {
@@ -354,7 +359,11 @@ router.get("/:gameId/players", async (ctx) => {
 	const game = ctx.state.game!;
 	const ret = [];
 	const ids = [...game.players.map((pl) => pl._id), game.creator];
-	const userDocs = await colls.users.find({ _id: { $in: ids } }, { projection: { "account.username": 1 } }).toArray();
+	// Public fields only (username + karma — same public set as userPublicInfo). Never
+	// project email/security/private fields here; avatars are served separately by id.
+	const userDocs = await colls.users
+		.find({ _id: { $in: ids } }, { projection: { "account.username": 1, "account.karma": 1 } })
+		.toArray();
 	const gamePrefs = await colls.gamePreferences
 		.find({
 			game: game.game.name,
@@ -364,7 +373,13 @@ router.get("/:gameId/players", async (ctx) => {
 	for (const user of userDocs) {
 		const gamePref = gamePrefs.find((pref) => pref.user.equals(user._id));
 		// @fixme: Remove 'id' when fully moved to svelte frontend
-		ret.push({ id: user._id, _id: user._id, name: user.account.username, elo: gamePref?.elo?.value ?? 0 });
+		ret.push({
+			id: user._id,
+			_id: user._id,
+			name: user.account.username,
+			elo: gamePref?.elo?.value ?? 0,
+			karma: user.account.karma,
+		});
 	}
 	// Bots have no user document — surface them from the game's own player list.
 	for (const player of game.players) {
