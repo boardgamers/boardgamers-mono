@@ -412,6 +412,58 @@ describe("Admin gameinfo API — archive/unarchive", () => {
 	});
 });
 
+// Per-version ongoing-games counts (open + active), one aggregation — feeds the
+// badges on the admin game page's version tabs. Same semantics as the archive
+// route's ongoing-games check.
+describe("Admin gameinfo API — ongoing-games counts", () => {
+	let headers: Record<string, string>;
+
+	before(async () => {
+		headers = await makeAdminHeaders();
+		await colls.games.insertMany([
+			testGame({ _id: "og-1", game: { name: "countgame", version: 1 }, status: "open" }),
+			testGame({ _id: "og-2", game: { name: "countgame", version: 1 }, status: "active" }),
+			testGame({ _id: "og-3", game: { name: "countgame", version: 2 }, status: "active" }),
+			testGame({ _id: "og-4", game: { name: "countgame", version: 2 }, status: "ended" }),
+			testGame({ _id: "og-5", game: { name: "othergame", version: 1 }, status: "active" }),
+		]);
+	});
+
+	after(() => db().dropDatabase());
+
+	async function get(game: string, withAuth = true) {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/${game}/ongoing-games`, withAuth ? { headers } : {});
+		return { status: res.status, data: res.status === 200 ? await res.json() : null };
+	}
+
+	it("rejects non-admin callers", async () => {
+		assert.strictEqual((await get("countgame", false)).status, 403);
+	});
+
+	it("returns per-version counts of open + active games only", async () => {
+		const res = await get("countgame");
+		assert.strictEqual(res.status, 200);
+		assert.deepStrictEqual(res.data, [
+			{ version: 1, count: 2 },
+			{ version: 2, count: 1 },
+		]);
+	});
+
+	it("returns an empty list for a game with no ongoing games", async () => {
+		const res = await get("no-such-game");
+		assert.strictEqual(res.status, 200);
+		assert.deepStrictEqual(res.data, []);
+	});
+
+	it("is not swallowed by the /:game/:version route (#319 ordering)", async () => {
+		// If "ongoing-games" were routed as :version, the handler would coerce it
+		// to NaN and answer 404 — a 200 array proves the static segment wins.
+		const res = await get("othergame");
+		assert.strictEqual(res.status, 200);
+		assert.deepStrictEqual(res.data, [{ version: 1, count: 1 }]);
+	});
+});
+
 const betaInfo = (version: number, isPublic: boolean) => ({
 	_id: { game: "secretgame", version },
 	label: "Secret Game",

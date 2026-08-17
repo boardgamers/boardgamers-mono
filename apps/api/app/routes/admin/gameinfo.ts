@@ -257,6 +257,21 @@ router.delete("/:game/beta-users/:userId", async (ctx) => {
 	ctx.status = 200;
 });
 
+// GET /api/admin/gameinfo/:game/ongoing-games — per-version count of ongoing
+// (open + active) games, one $group aggregation (same semantics as the archive
+// route's per-version countDocuments below). Powers the count badges on the
+// admin game page's version tabs. Registered BEFORE /:game/:version, which
+// would otherwise swallow "ongoing-games" as a version (#319).
+router.get("/:game/ongoing-games", async (ctx) => {
+	const counts = await colls.games
+		.aggregate<{ _id: number; count: number }>([
+			{ $match: { "game.name": ctx.params.game, status: { $in: ["open", "active"] } } },
+			{ $group: { _id: "$game.version", count: { $sum: 1 } } },
+		])
+		.toArray();
+	ctx.body = counts.map((c) => ({ version: c._id, count: c.count })).sort((a, b) => a.version - b.version);
+});
+
 // oxlint-disable no-async-endpoint-handlers -- Express-specific rule; Koa awaits async middleware natively
 router.post("/:game/:version", upsert);
 router.put("/:game/:version", upsert);
