@@ -5,10 +5,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // clientWritable and throws when mutated with `browser: false`.
 vi.mock("$app/environment", () => ({ browser: true, dev: false, building: false, version: "test" }));
 vi.mock("@/lib/api", () => ({ post: vi.fn(), del: vi.fn() }));
-vi.mock("@/components/icons/IconHeart.svelte", async () => ({
+vi.mock("@/components/icons/IconMeeple.svelte", async () => ({
 	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
 }));
-vi.mock("@/components/icons/IconHeartFill.svelte", async () => ({
+vi.mock("@/components/icons/IconMeepleFill.svelte", async () => ({
 	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
 }));
 

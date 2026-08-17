@@ -3,7 +3,8 @@
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import ExpandableMarkdown from "@/components/ExpandableMarkdown.svelte";
-	import IconHeartFill from "@/components/icons/IconHeartFill.svelte";
+	import IconMeeple from "@/components/icons/IconMeeple.svelte";
+	import IconMeepleFill from "@/components/icons/IconMeepleFill.svelte";
 	import { byGamePopularity, useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
 	import { gameBasedOnLabel, gameDisplayName } from "@/utils/game-label";
@@ -64,11 +65,15 @@
 							{#if game.likeCount}
 								<span
 									class="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400"
-									class:text-red-500={game.liked}
-									class:dark:text-red-400={game.liked}
+									class:text-primary={game.liked}
+									class:dark:text-primary-lighter={game.liked}
 									title="{game.likeCount} like{game.likeCount === 1 ? '' : 's'}"
 								>
-									<IconHeartFill />
+									{#if game.liked}
+										<IconMeepleFill />
+									{:else}
+										<IconMeeple />
+									{/if}
 									{game.likeCount}
 								</span>
 							{/if}

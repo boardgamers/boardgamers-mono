@@ -1,6 +1,6 @@
 <script lang="ts">
-	import IconHeart from "@/components/icons/IconHeart.svelte";
-	import IconHeartFill from "@/components/icons/IconHeartFill.svelte";
+	import IconMeeple from "@/components/icons/IconMeeple.svelte";
+	import IconMeepleFill from "@/components/icons/IconMeepleFill.svelte";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
@@ -65,10 +65,10 @@
 <button
 	type="button"
 	class="inline-flex items-center gap-1 rounded border px-2 py-1 text-sm disabled:opacity-60"
-	class:border-red-300={liked}
-	class:text-red-500={liked}
-	class:dark:border-red-400={liked}
-	class:dark:text-red-400={liked}
+	class:border-primary={liked}
+	class:text-primary={liked}
+	class:dark:border-primary-lighter={liked}
+	class:dark:text-primary-lighter={liked}
 	class:border-gray-400={!liked}
 	class:text-gray-500={!liked}
 	class:dark:border-gray-600={!liked}
@@ -79,9 +79,9 @@
 	onclick={toggle}
 >
 	{#if liked}
-		<IconHeartFill />
+		<IconMeepleFill />
 	{:else}
-		<IconHeart />
+		<IconMeeple />
 	{/if}
 	<span>{likeCount}</span>
 </button>

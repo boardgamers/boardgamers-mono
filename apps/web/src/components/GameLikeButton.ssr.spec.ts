@@ -2,10 +2,10 @@
 import { render } from "svelte/server";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/components/icons/IconHeart.svelte", async () => ({
+vi.mock("@/components/icons/IconMeeple.svelte", async () => ({
 	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
 }));
-vi.mock("@/components/icons/IconHeartFill.svelte", async () => ({
+vi.mock("@/components/icons/IconMeepleFill.svelte", async () => ({
 	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
 }));
 

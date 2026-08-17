@@ -10,7 +10,8 @@
 	import { handleError } from "@/utils";
 	import { gameDisplayName } from "@/utils/game-label";
 	import GameName from "@/components/GameName.svelte";
-	import IconHeartFill from "@/components/icons/IconHeartFill.svelte";
+	import IconMeeple from "@/components/icons/IconMeeple.svelte";
+	import IconMeepleFill from "@/components/icons/IconMeepleFill.svelte";
 	import type { GameInfoFront, UserFront } from "@bgs/models";
 
 	const games = $derived.by(() => useLatestGameInfos()) as GameInfoFront[];
@@ -104,11 +105,15 @@
 				{#if game.likeCount}
 					<span
 						class="ms-1 flex shrink-0 items-center gap-0.5 self-center text-xs font-normal text-gray-400 dark:text-gray-500"
-						class:text-red-500={game.liked}
-						class:dark:text-red-400={game.liked}
+						class:text-primary={game.liked}
+						class:dark:text-primary-lighter={game.liked}
 						title="{game.likeCount} like{game.likeCount === 1 ? '' : 's'}"
 					>
-						<IconHeartFill size="0.75em" />
+						{#if game.liked}
+							<IconMeepleFill size="0.75em" />
+						{:else}
+							<IconMeeple size="0.75em" />
+						{/if}
 						{game.likeCount}
 					</span>
 				{/if}
