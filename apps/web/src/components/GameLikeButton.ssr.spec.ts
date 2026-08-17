@@ -11,27 +11,30 @@ vi.mock("@/components/icons/IconHeartFill.svelte", async () => ({
 
 import GameLikeButton from "./GameLikeButton.svelte";
 
-// Regression for the "likeCount isn't SSR'd" bug: the count is public data and must be
-// present in the server-rendered HTML, not pop in after a client refetch.
+// The button (and the viewer's liked state) must be in the server-rendered HTML for a
+// logged-in user — not pop in after hydration. The viewer comes from the `ssrUser` prop
+// (the page's SSR snapshot), since the client-only `$account` store is null during SSR.
 describe("GameLikeButton SSR", () => {
-	it("renders the like count server-side for anonymous users", () => {
+	it("renders the interactive button server-side for anonymous users (not liked)", () => {
 		const { body } = render(GameLikeButton, { props: { gameId: "gaia-project", liked: false, likeCount: 3 } });
+		expect(body).toContain("<button");
+		expect(body).toContain('aria-pressed="false"');
 		expect(body).toContain(">3</span>");
-		expect(body).toContain("3 likes");
 	});
 
-	// The interactive button needs the account store (clientWritable — browser-only), so
-	// SSR renders the anonymous read-only badge even for logged-in users; the count (the
-	// public data this regression covers) is present either way. The button swaps in at
-	// hydration once the seeded account store is readable.
-	it("renders the read-only badge server-side (button hydrates client-side)", () => {
-		const { body } = render(GameLikeButton, { props: { gameId: "gaia-project", liked: true, likeCount: 1 } });
-		expect(body).not.toContain("<button");
+	it("renders the button + liked state server-side for a logged-in user (ssrUser)", () => {
+		const ssrUser = { _id: "u1" } as never;
+		const { body } = render(GameLikeButton, {
+			props: { gameId: "gaia-project", liked: true, likeCount: 1, ssrUser },
+		});
+		expect(body).toContain("<button");
+		expect(body).toContain('aria-pressed="true"');
 		expect(body).toContain(">1</span>");
 	});
 
-	it("renders nothing server-side when the count is zero", () => {
+	it("renders the button server-side even when the count is zero", () => {
 		const { body } = render(GameLikeButton, { props: { gameId: "gaia-project", liked: false, likeCount: 0 } });
-		expect(body.replace(/<!--.*?-->/gs, "").trim()).toBe("");
+		expect(body).toContain("<button");
+		expect(body).toContain(">0</span>");
 	});
 });

@@ -1,8 +1,9 @@
 // Test stub for SvelteKit's virtual `$app/navigation` module (aliased in
-// vitest.config.ts). Navigation is a no-op in component specs.
-export function goto(): Promise<void> {
-	return Promise.resolve();
-}
+// vitest.config.ts). `goto` is a spy so specs can assert navigation (e.g. the
+// logged-out like button redirecting to /login); the rest are no-ops.
+import { vi } from "vitest";
+
+export const goto = vi.fn((): Promise<void> => Promise.resolve());
 export function invalidateAll(): Promise<void> {
 	return Promise.resolve();
 }

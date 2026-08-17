@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GameInfoFront } from "@bgs/models";
-import { applyGameLike, byGamePopularity } from "./game-info.svelte";
+import { applyGameLike, byGamePopularity, reseedGameInfoLikes } from "./game-info.svelte";
 
 // Regression for the "count resets to 0 after like + refresh" bug: the toggle response
 // must be applied to every map entry of the game (all versions + `latest`) — `likeCount`
@@ -33,6 +33,54 @@ describe("applyGameLike", () => {
 	it("is a no-op for games absent from the map", () => {
 		const map = { "container/latest": entry("container", 2, 7) };
 		expect(applyGameLike(map, "unknown", { liked: true, likeCount: 1 })).toEqual(map);
+	});
+});
+
+// Login/logout must clear/update the per-user `liked` state. The layout re-seeds the
+// game-info map from the fresh per-user /boardgame/info list on an identity change.
+describe("reseedGameInfoLikes", () => {
+	const entry = (game: string, likeCount?: number, liked?: boolean) =>
+		({ _id: { game, version: 1 }, likeCount, liked }) as unknown as GameInfoFront;
+
+	it("applies the fresh per-user liked state onto existing entries (login)", () => {
+		// Logged-out snapshot: nothing liked.
+		const map = {
+			"gaia-project/latest": entry("gaia-project", 5, false),
+			"take6/latest": entry("take6", 2, false),
+		};
+		// Fresh list after logging in as a user who likes gaia-project.
+		const fresh = {
+			"gaia-project/latest": entry("gaia-project", 5, true),
+			"take6/latest": entry("take6", 2, false),
+		};
+
+		const next = reseedGameInfoLikes(map, fresh);
+
+		expect(next["gaia-project/latest"]).toMatchObject({ liked: true, likeCount: 5 });
+		expect(next["take6/latest"]).toMatchObject({ liked: false, likeCount: 2 });
+	});
+
+	it("clears liked state on logout", () => {
+		const map = { "gaia-project/latest": entry("gaia-project", 5, true) };
+		const fresh = { "gaia-project/latest": entry("gaia-project", 5, false) };
+
+		expect(reseedGameInfoLikes(map, fresh)["gaia-project/latest"]).toMatchObject({ liked: false });
+	});
+
+	it("preserves an already-loaded viewer and adds new keys", () => {
+		const withViewer = { ...entry("gaia-project", 5, false), viewer: { url: "//v1" } } as unknown as GameInfoFront;
+		const map = { "gaia-project/latest": withViewer };
+		const fresh = {
+			"gaia-project/latest": entry("gaia-project", 6, true),
+			"container/latest": entry("container", 1, true),
+		};
+
+		const next = reseedGameInfoLikes(map, fresh);
+
+		expect(next["gaia-project/latest"]).toMatchObject({ liked: true, likeCount: 6, viewer: { url: "//v1" } });
+		expect(next["container/latest"]).toMatchObject({ liked: true, likeCount: 1 });
+		// Pure: the input map is untouched.
+		expect(map["gaia-project/latest"]).toBe(withViewer);
 	});
 });
 

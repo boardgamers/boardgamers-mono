@@ -79,6 +79,7 @@
 				liked={!!boardgame.liked}
 				likeCount={boardgame.likeCount ?? 0}
 				onlike={onLikeToggle}
+				ssrUser={user}
 			/>
 		{/if}
 	</h1>

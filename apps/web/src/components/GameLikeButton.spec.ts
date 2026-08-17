@@ -12,12 +12,15 @@ vi.mock("@/components/icons/IconHeartFill.svelte", async () => ({
 	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
 }));
 
+import { goto } from "$app/navigation";
+import { page } from "$app/state";
 import { del, post } from "@/lib/api";
 import { account } from "@/lib/stores.svelte";
 import GameLikeButton from "./GameLikeButton.svelte";
 
 const postMock = vi.mocked(post);
 const delMock = vi.mocked(del);
+const gotoMock = vi.mocked(goto);
 
 function mountButton(
 	props: { liked?: boolean; likeCount?: number; onlike?: (like: { liked: boolean; likeCount: number }) => void } = {},
@@ -36,21 +39,27 @@ describe("GameLikeButton", () => {
 	beforeEach(() => {
 		postMock.mockReset();
 		delMock.mockReset();
+		gotoMock.mockClear();
 		account.set(null);
+		// The vitest `$app/state` stub types `url` as a plain URL; svelte-check sees the real
+		// route-templated URL type, so cast to assign an arbitrary route.
+		page.url = new URL("http://localhost/boardgame/testgame") as never;
 		document.body.innerHTML = "";
 	});
 
-	it("renders no control for anonymous users with zero likes", () => {
+	it("always renders the button, even for anonymous users with zero likes", () => {
 		const { target, instance } = mountButton({ likeCount: 0 });
-		expect(target.querySelector("button")).toBeNull();
-		expect(target.textContent?.trim()).toBe("");
+		expect(target.querySelector("button")).not.toBeNull();
+		expect(target.textContent).toContain("0");
 		unmount(instance as never);
 	});
 
-	it("renders a read-only count for anonymous users", () => {
-		const { target, instance } = mountButton({ likeCount: 7 });
-		expect(target.querySelector("button")).toBeNull();
-		expect(target.textContent).toContain("7");
+	it("redirects a logged-out click to login (and back to the current page)", () => {
+		const { target, instance } = mountButton({ likeCount: 2 });
+		target.querySelector("button")!.click();
+		expect(gotoMock).toHaveBeenCalledWith("/login?redirect=%2Fboardgame%2Ftestgame");
+		expect(postMock).not.toHaveBeenCalled();
+		expect(delMock).not.toHaveBeenCalled();
 		unmount(instance as never);
 	});
 

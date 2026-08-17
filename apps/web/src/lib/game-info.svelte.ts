@@ -126,6 +126,25 @@ export function applyGameLike<T extends SetOptional<GameInfoFront, "viewer">>(
 }
 
 /**
+ * Re-seed the per-user like state (`liked` + `likeCount`) onto an existing game-info map
+ * after a login/logout. `liked` is per-user (the /boardgame/info join), so when the user
+ * identity changes the fresh list's like state is the new truth — applied onto the existing
+ * entries (preserving any already-loaded `viewer`), adding any new keys. Pure: returns a new
+ * object. The caller is responsible for only invoking this on an identity CHANGE, not a
+ * same-identity revalidation (which would clobber a client-side like-toggle — #293).
+ */
+export function reseedGameInfoLikes<T extends SetOptional<GameInfoFront, "viewer">>(
+	map: Record<string, T>,
+	fresh: Record<string, T>,
+): Record<string, T> {
+	const next = { ...map };
+	for (const [key, info] of Object.entries(fresh)) {
+		next[key] = key in next ? { ...next[key], liked: info.liked, likeCount: info.likeCount } : info;
+	}
+	return next;
+}
+
+/**
  * Build the keyed store map from the raw list — writing both `name/version` for every
  * version and `name/latest` for each game's highest version, preserving any already-loaded
  * `viewer` (the list endpoint omits it). Pure: returns a new object, touches nothing.
