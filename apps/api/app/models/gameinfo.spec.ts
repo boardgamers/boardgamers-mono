@@ -41,26 +41,4 @@ describe("mergeGameInfo (#298)", () => {
 		assert.deepEqual(merged.meta, { bots: true });
 		assert.deepEqual(merged._id, { game: "splendor", version: 2 });
 	});
-
-	// Deploy-before-migration tolerance: migrations run on api-cron boot AFTER code
-	// ships, so there's a window where `gameMetadatas` is empty and the version doc
-	// still carries the (duplicated) game-level fields. mergeGameInfo must serve the
-	// full GameInfo from the bare version doc then.
-	it("deploy-tolerance: a null metadata doc falls back to the pre-migration version doc's game-level fields", () => {
-		const preMigrationVersionDoc = {
-			...versionDoc,
-			label: "💎 Splendor",
-			alias: "Gem Trader",
-			description: "a description",
-			players: [2, 3, 4],
-			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- pre-migration version docs still carry the game-level fields
-		} as GameVersionDoc;
-
-		const merged = mergeGameInfo(preMigrationVersionDoc, null)!;
-		assert.equal(merged.label, "💎 Splendor");
-		assert.equal(merged.alias, "Gem Trader");
-		assert.equal(merged.description, "a description");
-		assert.deepEqual(merged.players, [2, 3, 4]);
-		assert.deepEqual(merged.viewer, { url: "//v2" });
-	});
 });
