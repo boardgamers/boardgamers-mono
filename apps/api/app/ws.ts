@@ -126,6 +126,11 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
 					ws.user = null;
 				}
 			}
+			// Application-level ping: lets the client detect a silently-dead connection (a proxy
+			// or mobile OS that dropped the socket without a close frame) and force a reconnect.
+			if (data.ping && ws.readyState === ws.OPEN) {
+				ws.send(JSON.stringify({ command: "pong" }));
+			}
 			if (data.online && ws.user) {
 				updateActivity(ws.user, true).catch(console.error);
 			}

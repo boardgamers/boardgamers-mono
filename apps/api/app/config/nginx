@@ -64,6 +64,13 @@ server {
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "Upgrade";
+    # MUST be set on the live vhost too: the default proxy_read_timeout (60s) kills an
+    # idle websocket (e.g. a backgrounded mobile tab) without a close frame, so the client
+    # never learns the socket died and never reconnects — chat then stays empty. Keep the
+    # connection open well beyond the client's 30s ping. The client now also detects a
+    # silently-dead socket via an application-level ping/pong and reconnects on its own.
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
   }
 
   location @static {
