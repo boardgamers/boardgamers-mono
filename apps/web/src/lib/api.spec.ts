@@ -44,7 +44,23 @@ describe("mintToken", () => {
 	afterEach(() => {
 		vi.unstubAllGlobals();
 		clearMintedTokens();
-		setClientSessionKnown(false);
+		setClientSessionKnown(undefined);
+	});
+
+	// Regression (#324): the flag starts unseeded — the game page's /gameplay/* loads
+	// race the layout load that seeds it, so "unknown" must attempt the mint (cold
+	// reload of /game/<id> otherwise fires without Authorization → blanked state).
+	it("attempts the mint while the session flag is not yet seeded", async () => {
+		const token = { code: "tok-0", expiresAt: Date.now() + 3600_000 };
+		const fetchMock = vi.fn().mockResolvedValue(
+			new Response(JSON.stringify(token), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			}),
+		);
+
+		await expect(mintToken("gameplay", fetchMock)).resolves.toEqual(token);
+		expect(fetchMock).toHaveBeenCalledOnce();
 	});
 
 	it("skips the /account/mint call entirely when there is no session cookie", async () => {

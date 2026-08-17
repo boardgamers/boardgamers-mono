@@ -36,17 +36,31 @@ async function requestFetch(): Promise<typeof fetch> {
  * `setClientSessionKnown`; on the server the current request's cookie is read
  * via `getRequestEvent()`. Outside a request (prerender, websocket, …) there
  * is no cookie to read — return true and let the call 401 → null as before.
+ *
+ * Seeded in two phases per layout load: synchronously at the top of the layout
+ * load from the SSR request's cookie *presence* (`data.hasCookie` — validity
+ * unknown, same semantics as the server-side check), then refined to the
+ * validated `user` by seedAccountFromSSR. The early sync seed matters: page
+ * loads (/game/<id>'s /gameplay/* fetches) run concurrently with the layout
+ * load, so on a cold load the mint decision fires before the async part of the
+ * layout load completes. Treating "unknown" as "no session" here once stripped
+ * the Authorization header from the first gameplay fetch for logged-in players
+ * (blanked game state) — so tri-state: `undefined` means "not seeded yet" and
+ * falls through to the mint attempt (which 401s → null for anonymous visitors).
  */
-let clientSessionKnown = false;
+let clientSessionKnown: boolean | undefined;
 
-/** Update the client-side session flag from the SSR layout's `user` (runs on every layout load). */
-export function setClientSessionKnown(known: boolean): void {
+/**
+ * Update the client-side session flag (runs on every layout load: first from cookie
+ * presence, then from the SSR layout's validated `user`).
+ */
+export function setClientSessionKnown(known: boolean | undefined): void {
 	clientSessionKnown = known;
 }
 
 async function hasSession(): Promise<boolean> {
 	if (!import.meta.env.SSR) {
-		return clientSessionKnown;
+		return clientSessionKnown ?? true;
 	}
 	const { currentRequestHasSession } = await import("./api.server");
 	return currentRequestHasSession();

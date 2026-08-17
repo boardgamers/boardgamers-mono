@@ -20,5 +20,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		user,
 		activeGames,
 		sidebarOpen: locals.sidebarOpen,
+		// Cookie presence (validity unknown) — seeds the client's mint gate before the
+		// validated `user` is applied (see +layout.ts / api.ts#setClientSessionKnown).
+		hasCookie: !!locals.refreshToken,
 	};
 };

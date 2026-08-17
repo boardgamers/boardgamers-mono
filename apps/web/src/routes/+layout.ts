@@ -5,12 +5,21 @@ import { fetchGameInfos } from "@/lib/game-info.svelte";
 import type { GameInfoFront } from "@bgs/models";
 import type { SetOptional } from "type-fest";
 import { initWebsocket } from "@/lib/websocket.svelte";
-import { get } from "@/lib/api";
+import { get, setClientSessionKnown } from "@/lib/api";
 import { initNProgress } from "@/lib/nprogress.svelte";
 import { initErrorReporting } from "@/lib/report-error.svelte";
 import "@/lib/theme";
 
 export const load: LayoutLoad = async ({ data }) => {
+	// Seed the mint gate from cookie presence *synchronously, before any await*: page
+	// loads (e.g. /game/<id>'s /gameplay/* fetches) run concurrently with this layout
+	// load, and their mint decision must not see a stale/unseeded flag on a cold load.
+	// Refined to the validated user below (seedAccountFromSSR) — a present-but-invalid
+	// cookie flips it back to false there.
+	if (browser) {
+		setClientSessionKnown(data?.hasCookie);
+	}
+
 	// Sidebar open is a non-sensitive UI preference — safe to set during SSR.
 	if (data?.sidebarOpen !== undefined) {
 		sidebarOpen.set(data.sidebarOpen);
