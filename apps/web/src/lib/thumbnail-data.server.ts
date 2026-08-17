@@ -1,7 +1,7 @@
 import { error } from "@sveltejs/kit";
 import removeMarkdown from "remove-markdown";
 import type { JsonObject } from "type-fest";
-import { apiFetch, get } from "@/lib/api";
+import { apiFetch, get, toKitError } from "@/lib/api";
 import { fetchGameInfo, fetchGameInfos } from "@/lib/game-info.svelte";
 import { countryFlag, countryName } from "@/lib/countries";
 import { firstSentence, siteName, truncate } from "@/lib/seo";
@@ -68,9 +68,7 @@ export async function loadBoardgameCard(boardgameId: string): Promise<CardData> 
 }
 
 export async function loadGameCard(gameId: string): Promise<CardData> {
-	const game = await get<GameFront>(`/game/${gameId}`).catch((err) => {
-		throw error(err?.status === 404 ? 404 : 500, "Game not found");
-	});
+	const game = await get<GameFront>(`/game/${gameId}`).catch(toKitError);
 	if (!game?.game) {
 		throw error(404, "Game data is incomplete");
 	}
@@ -157,12 +155,7 @@ function crucialGameOptions(game: GameFront, info: GameInfoFront | null | undefi
 export async function loadUserCard(username: string): Promise<CardData> {
 	// userPublicInfo: username, bio, karma, country. The avatar image is public via
 	// /api/user/<id>/avatar (uploaded webp, or the dicebear SVG), so embed it directly.
-	const user = await get<UserFront>(`/user/infoByName/${encodeURIComponent(username)}`).catch((err) => {
-		throw error(err?.status === 404 ? 404 : 500, "User not found");
-	});
-	if (!user) {
-		throw error(404, "User not found");
-	}
+	const user = await get<UserFront>(`/user/infoByName/${encodeURIComponent(username)}`).catch(toKitError);
 
 	const userId = user._id!;
 	const [elo, gameInfos, avatar] = await Promise.all([
