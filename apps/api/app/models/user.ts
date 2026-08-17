@@ -324,32 +324,21 @@ function gameNames(games: WebhookGame[]): string {
 }
 
 // Batch-fills game.label (+ game.basedOn for aliased games, issue #106) from the
-// GameInfo docs (one query for all the distinct game+version pairs). Unknown games
+// game metadata docs (one query for all the distinct games). Unknown games
 // keep the slug as their name.
 export async function resolveGameLabels<T extends WebhookGame>(games: T[]): Promise<T[]> {
 	if (games.length === 0) {
 		return games;
 	}
 	const keys = [...new Map(games.map((g) => [`${g.game.name}${g.game.version}`, g.game])).values()];
-	// label/alias also projected off the version docs: during the deploy-before-migration
-	// window `gameMetadatas` is still empty and the version docs carry the fields.
-	const infos = await colls.gameInfos
-		.find({ $or: keys.map((k) => ({ "_id.game": k.name, "_id.version": k.version })) })
-		.project<{ _id: { game: string }; label?: string; alias?: string }>({ _id: 1, label: 1, alias: 1 })
-		.toArray();
-	const versionByGame = new Map<string, { label?: string; alias?: string }>();
-	for (const info of infos) {
-		versionByGame.set(info._id.game, info);
-	}
+	// label/alias are game-level metadata (#298): one doc per game, shared across versions.
 	const metas = await colls.gameMetadatas
-		.find({ _id: { $in: [...versionByGame.keys()] } }, { projection: { label: 1, alias: 1 } })
+		.find({ _id: { $in: keys.map((k) => k.name) } }, { projection: { label: 1, alias: 1 } })
 		.toArray();
-	const metaByGame = new Map(metas.map((m) => [m._id, m]));
 	const labels = new Map(
-		[...versionByGame.entries()].map(([game, fallback]) => {
-			const meta = metaByGame.get(game) ?? fallback;
+		metas.map((meta) => {
 			const label = meta.alias ?? meta.label;
-			return [game, { label, basedOn: meta.alias ? meta.label : undefined }];
+			return [meta._id, { label, basedOn: meta.alias ? meta.label : undefined }];
 		}),
 	);
 	for (const game of games) {

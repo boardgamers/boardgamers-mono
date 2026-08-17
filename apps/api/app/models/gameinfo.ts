@@ -7,23 +7,19 @@ import { colls } from "../config/db.ts";
  * the version doc; `label`/`description`/`players`/options… come from the single
  * per-game metadata doc (#298).
  *
- * Deploy-before-migration tolerant: migrations run on api-cron boot *after* code
- * ships, so there is a window where `gameMetadatas` doesn't exist yet and the
- * version doc still carries the game-level fields. Fall back to a bare version doc
- * then — its shape is a superset of `GameInfo` until the migration strips it.
- *
  * Assumption: a non-null `metadata` doc is always COMPLETE. `gameMetadatas` docs
- * are only ever written whole — by the migration, or by the admin metadata route
- * outside a deploy (nothing writes `gamemetadatas` during the deploy window, so a
- * partial doc can't pre-exist the migration). We therefore spread the metadata
- * fields directly rather than merging per-field.
+ * are only ever written whole — by the migration, or by the admin metadata route.
+ * We therefore spread the metadata fields directly rather than merging per-field.
  */
 export function mergeGameInfo(version: GameVersionDoc | null, metadata: GameMetadataDoc | null): GameInfoDoc | null {
 	if (!version) {
 		return null;
 	}
 	if (!metadata) {
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- pre-migration fallback: the version doc still carries the game-level fields
+		// Metadata-less version docs no longer occur post-migration-1.8.0 (every
+		// write path upserts the metadata doc alongside); serve the bare version
+		// doc rather than 404 if one is ever deleted out from under a game.
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a bare version doc is a valid (metadata-less) GameInfo
 		return version as GameInfoDoc;
 	}
 	const { _id: _metadataId, ...metadataFields } = metadata;

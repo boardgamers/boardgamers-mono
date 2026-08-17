@@ -33,7 +33,7 @@ Don't read env vars/secrets directly — load them from files or env without pri
 - **Formatting** is enforced (`.prettierrc`: 120 cols, 2-space, `trailingComma: es5`). Don't hand-format.
 - **Document shapes live in `@bgs/models`** as Zod schemas: they define the types (`z.infer`) and are inserted in DB as validation schemas (`"warn"`).
 - **Tests**: colocated `*.spec.ts` with `node:test` (api/game-server); API tests run with `NODE_ENV=test` against a `…-test` db. Build fixtures inline via `app/config/test-helpers.ts`, no shared seed data.
-- **Workarounds**: log temporary shims in the project's `WORKAROUNDS.md`; check for removable entries when touching related code.
+- **Workarounds**: log temporary shims in the project's `WORKAROUNDS.md`; check for removable entries when touching related code. Any deploy-window / backward-compat shim (code tolerating a stale client, a pre-migration data shape, or an in-flight deploy) MUST get a `WORKAROUNDS.md` entry marked "removable once \<condition\>" when added, so it can be found and cleaned up after the window closes.
 - **Plans live in GitHub issues, not `docs/`**: open/update an issue with the plan; don't commit plan markdown files.
 
 ## Local dev services
