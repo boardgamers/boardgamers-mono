@@ -247,7 +247,10 @@
 							? 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-blue-600 dark:text-blue-400 -mb-px'
 							: 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'}"
 					>
-						v{v.version}{#if v.archived}
+						v{v.version}{#if v.ongoing > 0}<span
+								class="ml-1.5 px-1.5 py-px text-[10px] font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+								title="{v.ongoing} ongoing game{v.ongoing === 1 ? '' : 's'}">{v.ongoing}</span
+							>{/if}{#if v.archived}
 							<span
 								class="ml-1.5 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
 								>archived</span
