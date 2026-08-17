@@ -3,16 +3,16 @@
 
 	type SetupOption = NonNullable<GameInfoFront["options"]>[number];
 
-	// The option's effective default, mirroring the new-game form's pre-fill
-	// (new-game/+page.svelte updateSelects): a select's `default` when it names an
-	// item, else the first item; a checkbox is unchecked unless `default === true`.
-	// Options sitting at their default are noise on a game row ("Map: original"),
-	// so badges hide them — only non-default choices are badged.
+	// Only an admin-set `default` marks an option's default — there is no
+	// first-item fallback: Powergrid's map has no `default`, so "Map: Germany"
+	// still badges (Germany is just one of many maps), while gaia-project's
+	// `default: "standard"` hides "Map layout: Standard". A checkbox's default
+	// is unchecked unless `default === true`.
 	export function setupOptionDefault(pref: SetupOption): unknown {
-		if (pref.type === "select" && pref.items?.length) {
-			return typeof pref.default === "string" && pref.items.some((item) => item.name === pref.default)
+		if (pref.type === "select") {
+			return typeof pref.default === "string" && pref.items?.some((item) => item.name === pref.default)
 				? pref.default
-				: pref.items[0].name;
+				: undefined;
 		}
 		if (pref.type === "checkbox") {
 			return pref.default === true;
@@ -20,7 +20,7 @@
 		return undefined;
 	}
 
-	/** Whether the option's stored value differs from its default (i.e. worth badging). */
+	/** Whether the option's stored value differs from its admin-set default (i.e. worth badging). */
 	export function isNonDefaultSetupOption(pref: SetupOption, value: unknown): boolean {
 		return !!value && value !== setupOptionDefault(pref);
 	}

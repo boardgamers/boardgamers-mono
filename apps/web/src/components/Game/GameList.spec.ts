@@ -416,14 +416,14 @@ describe("GameList open-row setup badges (#55)", () => {
 		unmount(instance as never);
 	});
 
-	// Options set to their default are noise ("Map: original") — only non-default
-	// choices badge. The default is the option's `default` when it names a select
-	// item, else the first item (the new-game form's pre-fill); a checkbox's
-	// default is unchecked unless `default === true`.
-	it("hides options set to their default value", async () => {
+	// Only an admin-set `default` hides a badge: gaia-project's `default: "standard"`
+	// hides "Map layout: Standard", but powergrid's map has no `default` — "Germany"
+	// is just the first item, so "Map: Germany" still badges. A checkbox's default
+	// is unchecked unless `default === true`.
+	it("hides only options set to their admin-marked default value", async () => {
 		mockApi(
 			[
-				// Every option at its default → no badges.
+				// Options at their admin-marked default (layout) or unset (fastBid stays on).
 				openGame("g-defaults", { layout: "standard", variant: "original", fastBid: true }),
 				// Non-default values → badges.
 				openGame("g-deviations", { layout: "xshape", variant: "recharged", fastBid: false }),
@@ -449,7 +449,7 @@ describe("GameList open-row setup badges (#55)", () => {
 						name: "variant",
 						label: "Variant",
 						type: "select",
-						// No `default` (like powergrid's gameinfo) → first item is the default.
+						// No `default` (like powergrid's gameinfo) → always badges, even the first item.
 						items: [
 							{ name: "original", label: "Original" },
 							{ name: "recharged", label: "Recharged" },
@@ -468,7 +468,11 @@ describe("GameList open-row setup badges (#55)", () => {
 
 		const rows = [...target.querySelectorAll(".game-item")];
 		const defaults = rows.find((row) => row.textContent?.includes("g-defaults"))!;
-		expect(defaults.querySelectorAll(".setup-badge").length).toBe(0);
+		// layout is at its admin-marked default (hidden); variant has no default
+		// (badges even at the first item); fastBid is checked = its default (hidden).
+		expect(
+			[...defaults.querySelectorAll(".setup-badge")].map((el) => el.textContent?.replace(/\s+/g, " ").trim()),
+		).toEqual(["Variant: Original"]);
 
 		const deviations = rows.find((row) => row.textContent?.includes("g-deviations"))!;
 		const badges = [...deviations.querySelectorAll(".setup-badge")].map((el) =>
