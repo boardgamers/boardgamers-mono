@@ -31,14 +31,15 @@ async function requestFetch(): Promise<typeof fetch> {
  * Whether a session cookie is available to the current execution context, so
  * cookie-authed calls (mint) can be skipped instead of 401-ing for anonymous
  * visitors. In the browser the session cookie is httpOnly (invisible to JS),
- * so the client is seeded once at login/logout via `setClientSessionKnown`;
- * on the server the current request's cookie is read via `getRequestEvent()`.
- * Outside a request (prerender, websocket, …) there is no cookie to read —
- * return true and let the call 401 → null as before.
+ * so the flag is seeded from the SSR layout's `user` on every layout load
+ * (initial navigation and every revalidation, incl. login/logout) via
+ * `setClientSessionKnown`; on the server the current request's cookie is read
+ * via `getRequestEvent()`. Outside a request (prerender, websocket, …) there
+ * is no cookie to read — return true and let the call 401 → null as before.
  */
 let clientSessionKnown = false;
 
-/** Seed the client-side session flag from the SSR layout's `user` (login/logout re-seed). */
+/** Update the client-side session flag from the SSR layout's `user` (runs on every layout load). */
 export function setClientSessionKnown(known: boolean): void {
 	clientSessionKnown = known;
 }

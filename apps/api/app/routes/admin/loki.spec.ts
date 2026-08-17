@@ -168,6 +168,12 @@ describe("Admin Loki proxy", () => {
 			m[1].replaceAll("\\\\", "\\"),
 		);
 		assert.equal(patterns.length, 2, logql);
+		// Pin the extraction itself: the query double-escapes the [::1] brackets for
+		// LogQL's quoted string (`\\[` on the wire), and the replaceAll above must
+		// undo exactly one layer — a single `\[` in the JS regex (an escaped literal
+		// bracket), NOT `\\[` (which would match a literal backslash).
+		assert.ok(patterns[0].includes("\\[::1\\]"), JSON.stringify(patterns[0]));
+		assert.ok(!patterns[0].includes("\\\\[::1"), JSON.stringify(patterns[0]));
 		const excluded = (referer: string) => patterns.some((p) => new RegExp(p).test(referer));
 
 		// Internal OG-image renderer (headless Chromium → http loopback origin).
@@ -175,6 +181,9 @@ describe("Admin Loki proxy", () => {
 		assert.ok(excluded("http://127.0.0.1:8612/"));
 		assert.ok(excluded("http://localhost:8612/games"));
 		assert.ok(excluded("http://[::1]:8612/thumbnail"));
+		// …and NOT a referer with a literal backslash before the bracket (what the
+		// regex would require if the extraction left one escape layer too many).
+		assert.ok(!excluded("http://\\[::1]:8612/thumbnail"));
 		// Self-referers: in-site navigation, apex + subdomains.
 		assert.ok(excluded("https://boardgamers.space/"));
 		assert.ok(excluded("https://boardgamers.space/game/abc"));
