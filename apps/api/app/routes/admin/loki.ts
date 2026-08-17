@@ -95,10 +95,16 @@ const QUERIES: Record<string, { type: "query" | "query_range"; logql: string }> 
 	// ("which site sends us traffic?") under long-tail paths. Empty referers
 	// (direct/navigations) are excluded. The web SSR logs the raw Referer header
 	// as `referer` (#313); label_format extracts the host (see REFERER_ORIGIN_RE).
+	// Also excluded, neither being an external traffic source:
+	//  - loopback referers (127.0.0.1 / [::1] / localhost) — the internal OG-image
+	//    renderer (apps/web/src/lib/share-image.server.ts) navigates headless
+	//    Chromium to the plain-http loopback origin, and its sub-requests carry a
+	//    127.0.0.1 referer (~10% of all logged referers);
+	//  - self-referers (boardgamers.space + subdomains) — in-site navigation.
 	// Instant vector → single-timestamp eval (see requestsByLanguage).
 	topReferers: {
 		type: "query",
-		logql: `topk(15, sum by (origin) (count_over_time({job="pm2", msg="request", source="web"} | json | referer != "" | label_format origin=\`{{ regexReplaceAll "^www[.]" (regexReplaceAll "${REFERER_ORIGIN_RE_LOGQL}" .referer "\${1}") "" }}\` [7d])))`,
+		logql: `topk(15, sum by (origin) (count_over_time({job="pm2", msg="request", source="web"} | json | referer != "" | referer !~ "^https?://(127[.]0[.]0[.]1|localhost|\\\\[::1\\\\])(:[0-9]+)?/" | referer !~ "^https?://([a-z0-9-]+[.])*boardgamers[.]space([:/]|$)" | label_format origin=\`{{ regexReplaceAll "^www[.]" (regexReplaceAll "${REFERER_ORIGIN_RE_LOGQL}" .referer "\${1}") "" }}\` [7d])))`,
 	},
 	// Top user-agents over the last week — lets the admin spot scrapers/bots vs real
 	// browsers. The web SSR logs a bounded User-Agent as `ua` (#313).

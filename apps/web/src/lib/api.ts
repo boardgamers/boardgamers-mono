@@ -27,6 +27,31 @@ async function requestFetch(): Promise<typeof fetch> {
 	return currentEventFetch() ?? context.fetch;
 }
 
+/**
+ * Whether a session cookie is available to the current execution context, so
+ * cookie-authed calls (mint) can be skipped instead of 401-ing for anonymous
+ * visitors. In the browser the session cookie is httpOnly (invisible to JS),
+ * so the flag is seeded from the SSR layout's `user` on every layout load
+ * (initial navigation and every revalidation, incl. login/logout) via
+ * `setClientSessionKnown`; on the server the current request's cookie is read
+ * via `getRequestEvent()`. Outside a request (prerender, websocket, …) there
+ * is no cookie to read — return true and let the call 401 → null as before.
+ */
+let clientSessionKnown = false;
+
+/** Update the client-side session flag from the SSR layout's `user` (runs on every layout load). */
+export function setClientSessionKnown(known: boolean): void {
+	clientSessionKnown = known;
+}
+
+async function hasSession(): Promise<boolean> {
+	if (!import.meta.env.SSR) {
+		return clientSessionKnown;
+	}
+	const { currentRequestHasSession } = await import("./api.server");
+	return currentRequestHasSession();
+}
+
 export class ApiError extends Error {
 	readonly status: number;
 	constructor(message: string, status: number) {
@@ -147,6 +172,13 @@ export async function mintToken(scope: string, fetchFn?: typeof fetch): Promise<
 	const existing = mintedTokens[scope];
 	if (existing && existing.expiresAt > Date.now() + 5 * 60 * 1000) {
 		return existing;
+	}
+
+	// No session cookie → the mint would 401. Skip the roundtrip entirely;
+	// callers already treat a null token as "not logged in".
+	if (!(await hasSession())) {
+		delete mintedTokens[scope];
+		return null;
 	}
 
 	const doFetch = fetchFn ?? (await requestFetch());
