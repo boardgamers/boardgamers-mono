@@ -20,9 +20,14 @@ export const gameBasicsProjection = {
 	currentPlayers: 1,
 	"options.setup.nbPlayers": 1,
 	"options.timing": 1,
+	// Join restrictions (min karma / elo range) — shown on open-game rows (#55).
+	"options.meta.minimumKarma": 1,
+	"options.meta.eloRange": 1,
 	"game.expansions": 1,
 	"game.name": 1,
 	"game.version": 1,
+	// Setup options the creator chose — badged on open-game rows (#55).
+	"game.options": 1,
 	status: 1,
 	creator: 1,
 	"data.round": 1,

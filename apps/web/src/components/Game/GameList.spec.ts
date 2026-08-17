@@ -36,7 +36,9 @@ vi.mock("@/modules/cdk", async () => {
 import { get } from "@/lib/api";
 import { clearGamesCache, loadGames } from "@/lib/games.svelte";
 import { logoClick } from "@/lib/stores.svelte";
+import { gameInfoKey, type GameInfoMap } from "@/lib/game-info.svelte";
 import GameList from "./GameList.svelte";
+import GameListHarness from "./GameListHarness.svelte";
 
 const getMock = vi.mocked(get);
 let seq = 0;
@@ -273,6 +275,81 @@ describe("GameList last move (#208)", () => {
 		expect(chipText).not.toContain("by");
 		// The mover's name is only in the tooltip, not the visible text.
 		expect(chips[0].getAttribute("title")).toBe("terrans: terrans build m 1x0");
+
+		unmount(instance as never);
+	});
+});
+
+// #55: open rows badge the creator's setup options + join restrictions (min karma,
+// elo range) so players see what they're joining at a glance.
+describe("GameList open-row setup badges (#55)", () => {
+	const GAME_NAME = "game-badges";
+
+	function openGame(_id: string, gameOptions: Record<string, unknown> = {}, meta?: Record<string, unknown>) {
+		return {
+			_id,
+			status: "open",
+			players: [],
+			currentPlayers: [],
+			createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+			game: { name: GAME_NAME, version: 1, options: gameOptions },
+			options: { setup: { nbPlayers: 2 }, timing: { timer: { start: 0, end: 0 } }, meta },
+		} as never;
+	}
+
+	beforeEach(() => {
+		clearGamesCache();
+		getMock.mockReset();
+		document.body.innerHTML = "";
+	});
+
+	it("badges the chosen setup options and the karma/elo join restrictions", async () => {
+		mockApi(
+			[
+				openGame(
+					"g-badges",
+					{ layout: "xshape", auction: true },
+					{ minimumKarma: 30, eloRange: { min: 100, max: 300 } },
+				),
+				openGame("g-plain"),
+			],
+			2,
+		);
+		// The game-info list context normally comes from the root layout; the harness
+		// provides it during component init (setContext can't run after mount).
+		const gameInfos = {
+			[gameInfoKey(GAME_NAME, 1)]: {
+				_id: { game: GAME_NAME, version: 1 },
+				options: [
+					{
+						name: "layout",
+						label: "Map layout",
+						type: "select",
+						items: [
+							{ name: "standard", label: "Standard" },
+							{ name: "xshape", label: "X shape" },
+						],
+					},
+					{ name: "auction", label: "Auction", type: "checkbox" },
+				],
+			},
+		} as unknown as GameInfoMap;
+		const target = document.createElement("div");
+		document.body.appendChild(target);
+		const instance = mount(GameListHarness as never, { target, props: { gameStatus: "open", gameInfos } });
+		flushSync();
+		await waitForGames(target, ["g-badges", "g-plain"]);
+
+		const rows = [...target.querySelectorAll(".game-item")];
+		const badged = rows.find((row) => row.textContent?.includes("g-badges"))!;
+		const badges = [...badged.querySelectorAll(".setup-badge")].map((el) =>
+			el.textContent?.replace(/\s+/g, " ").trim(),
+		);
+		expect(badges).toEqual(["Map layout: X shape", "Auction", "☯️ 30+ karma", "📈 100–300 elo"]);
+
+		// No options/restrictions → no badge row at all.
+		const plain = rows.find((row) => row.textContent?.includes("g-plain"))!;
+		expect(plain.querySelectorAll(".setup-badge").length).toBe(0);
 
 		unmount(instance as never);
 	});
