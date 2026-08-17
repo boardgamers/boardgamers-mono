@@ -330,7 +330,7 @@ describe("GameList open-row setup badges (#55)", () => {
 							{ name: "xshape", label: "X shape" },
 						],
 					},
-					{ name: "auction", label: "Auction", type: "checkbox" },
+					{ name: "auction", label: "[Auction](/page/game-badges/auction) mode", type: "checkbox" },
 				],
 			},
 		} as unknown as GameInfoMap;
@@ -345,7 +345,11 @@ describe("GameList open-row setup badges (#55)", () => {
 		const badges = [...badged.querySelectorAll(".setup-badge")].map((el) =>
 			el.textContent?.replace(/\s+/g, " ").trim(),
 		);
-		expect(badges).toEqual(["Map layout: X shape", "Auction", "☯️ 30+ karma", "📈 100–300 elo"]);
+		expect(badges).toEqual(["Map layout: X shape", "Auction mode", "☯️ 30+ karma", "📈 100–300 elo"]);
+
+		// The row is itself an `<a>`; the badge's markdown links must be flattened to
+		// text — a nested `<a>` is invalid HTML and breaks hydration (layout shift).
+		expect(badged.querySelectorAll(".setup-badge a").length).toBe(0);
 
 		// No options/restrictions → no badge row at all.
 		const plain = rows.find((row) => row.textContent?.includes("g-plain"))!;
