@@ -17,7 +17,6 @@
 	import { Badge, Button, Dropdown, DropdownItem, DropdownMenu, DropdownToggle, FormGroup, Input } from "@/modules/cdk";
 	import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
 	import IconList from "@/components/icons/IconList.svelte";
-	import IconPerson from "@/components/icons/IconPerson.svelte";
 	import IconHourglass from "@/components/icons/IconHourglass.svelte";
 	import UserAvatar from "@/components/User/UserAvatar.svelte";
 	import UsernameLink from "@/components/User/UsernameLink.svelte";
@@ -46,14 +45,6 @@
 	/** Game-specific options, keyed by option name. */
 	const gameOptions = (game: { game: { options?: unknown } } | null | undefined): JsonObject =>
 		(game?.game.options ?? {}) as JsonObject;
-
-	const shortPlayTime = () => {
-		if (timer?.start !== timer?.end) {
-			return `${timerTime(timer?.start ?? 0)}-${timerTime(timer?.end ?? 0)}`;
-		} else {
-			return "24h";
-		}
-	};
 
 	const playTime = () => {
 		if (timer?.start !== undefined) {
@@ -206,8 +197,7 @@
 		</span>
 	</div>
 	<p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
-		🌱 {gameId}
-		· Hosted by
+		Hosted by
 		<UsernameLink
 			username={context.players.find((pl) => pl._id === context.game?.creator)?.name ?? "?"}
 			userId={context.game?.creator}
@@ -248,6 +238,11 @@
 						<IconClockHistory class="text-gray-400" />
 						<span title="Timezone">Clock runs {playTime()}</span>
 					</li>
+					{#if context.game?.options.setup.seed}
+						<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+							<span title="Game seed">🌱 {context.game.options.setup.seed}</span>
+						</li>
+					{/if}
 					{#if typeof context.game?.options.meta?.minimumKarma === "number"}
 						<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
 							<span title="Minimum karma to join the game"
