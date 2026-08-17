@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
+	import { goto, invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { untrack } from "svelte";
 	import { api, ApiError } from "$lib/api.ts";
@@ -13,6 +13,44 @@
 
 	const gameId = $derived(data.value?._id?.game ?? "");
 	const version = $derived(data.value?._id?.version ?? 0);
+	// Beta grants only make sense while the latest version is not public.
+	const showBeta = $derived(!!data.value && !data.value.public && version === data.latestVersion);
+	const betaUsers = $derived(data.betaUsers);
+
+	let inviteName = $state("");
+	let inviting = $state(false);
+	let removingBeta = $state<string | null>(null);
+	let confirmRemoveBeta = $state<string | null>(null);
+
+	async function inviteBeta() {
+		const usernameOrEmail = inviteName.trim();
+		if (!usernameOrEmail) return;
+		inviting = true;
+		try {
+			await api.post(`/admin/gameinfo/${encodeURIComponent(gameId)}/beta-users`, { usernameOrEmail });
+			toast.success(`Beta access granted to ${usernameOrEmail}`);
+			inviteName = "";
+			await invalidateAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed to invite");
+		} finally {
+			inviting = false;
+		}
+	}
+
+	async function removeBetaUser(userId: string, username: string | null) {
+		removingBeta = userId;
+		try {
+			await api.del(`/admin/gameinfo/${encodeURIComponent(gameId)}/beta-users/${userId}`);
+			toast.success(`Beta access removed for ${username ?? userId}`);
+			await invalidateAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed to remove");
+		} finally {
+			removingBeta = null;
+			confirmRemoveBeta = null;
+		}
+	}
 
 	// Editable (bind:value into GameEdit); re-synced from load data by the $effect.
 	// eslint-disable-next-line svelte/prefer-writable-derived -- GameEdit mutates `value` via bind:value; it is not purely derived from `data`.
@@ -126,6 +164,76 @@
 		<section class="space-y-4">
 			<GameEdit mode="edit" bind:value sections="game" onsave={saveMetadata} />
 		</section>
+
+		<!-- ===== Private beta (only while the latest version is not public) ===== -->
+		{#if showBeta}
+			<section class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+				<div class="px-5 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-2">
+					<h3 class="text-sm font-semibold">Private Beta ({betaUsers.length})</h3>
+					<span class="text-xs text-gray-500">latest version v{data.latestVersion} is not public</span>
+				</div>
+				{#if betaUsers.length > 0}
+					<div class="divide-y divide-gray-100 dark:divide-gray-800">
+						{#each betaUsers as betaUser (betaUser.userId)}
+							<div class="px-5 py-2.5 flex items-center gap-3 text-sm">
+								{#if betaUser.username}
+									<a
+										href={resolve("/user/[username]", { username: betaUser.username })}
+										class="font-medium text-blue-600 dark:text-blue-400 hover:underline"
+									>
+										{betaUser.username}
+									</a>
+								{:else}
+									<span class="font-mono text-xs text-gray-500">{betaUser.userId} (deleted user)</span>
+								{/if}
+								<span class="text-xs text-gray-500">access up to v{betaUser.maxVersion}</span>
+								<span class="ml-auto"></span>
+								{#if confirmRemoveBeta === betaUser.userId}
+									<button
+										onclick={() => removeBetaUser(betaUser.userId, betaUser.username)}
+										disabled={removingBeta === betaUser.userId}
+										class="px-3 py-1 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50"
+									>
+										{removingBeta === betaUser.userId ? "Removing…" : "Confirm remove"}
+									</button>
+									<button
+										onclick={() => (confirmRemoveBeta = null)}
+										class="px-3 py-1 text-xs font-medium bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg"
+									>
+										Cancel
+									</button>
+								{:else}
+									<button
+										onclick={() => (confirmRemoveBeta = betaUser.userId)}
+										class="px-3 py-1 text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/60 rounded-lg"
+									>
+										Remove
+									</button>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<p class="px-5 py-4 text-sm text-gray-500">No users in this beta yet.</p>
+				{/if}
+				<div class="px-5 py-3 border-t border-gray-200 dark:border-gray-800 flex items-center gap-2">
+					<input
+						bind:value={inviteName}
+						placeholder="Username or email"
+						class="w-64 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+						onkeydown={(e) => e.key === "Enter" && inviteBeta()}
+					/>
+					<button
+						onclick={inviteBeta}
+						disabled={inviting || !inviteName.trim()}
+						class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+					>
+						{inviting ? "Inviting…" : "Invite"}
+					</button>
+					<span class="text-xs text-gray-400">grants access up to v{data.latestVersion}</span>
+				</div>
+			</section>
+		{/if}
 
 		<!-- ===== Versions (tabbed, latest first) ===== -->
 		<section>

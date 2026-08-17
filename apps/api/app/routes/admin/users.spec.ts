@@ -7,6 +7,7 @@ import env from "../../config/env.ts";
 import { testUser } from "../../config/test-helpers.ts";
 import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
 import { generateHash, resetPassword } from "../../models/user.ts";
+import { lastAccessibleVersion } from "../../services/gameinfo.ts";
 
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
 
@@ -106,6 +107,66 @@ describe("Admin users API", () => {
 
 			assert.strictEqual(await colls.jwtRefreshTokens.countDocuments({ user: userId }), 0);
 			assert.strictEqual(await colls.jwtRefreshTokens.countDocuments({ user: otherUserId }), 1);
+		});
+	});
+
+	describe("beta access grants (GET/DELETE /admin/users/:userId/access)", () => {
+		const betaUserId = new ObjectId();
+		const betaUsername = "beta-tester";
+
+		before(async () => {
+			await colls.users.insertOne(
+				testUser({ _id: betaUserId, account: { username: betaUsername }, security: { slug: betaUsername } }),
+			);
+			await colls.gameInfos.insertMany([
+				{ _id: { game: "betagame", version: 1 }, viewer: { url: "//v1" }, public: true, meta: {} },
+				{ _id: { game: "betagame", version: 2 }, viewer: { url: "//v2" }, public: false, meta: {} },
+			]);
+			await colls.gameMetadatas.insertOne({ _id: "betagame", label: "Beta Game", players: [2] });
+			await colls.gamePreferences.insertOne({ user: betaUserId, game: "betagame", access: { maxVersion: 2 } });
+			// A doc without a grant (elo only) must not show up as a beta.
+			await colls.gamePreferences.insertOne({
+				user: betaUserId,
+				game: "othergame",
+				elo: { value: 1200, games: 3 },
+			});
+		});
+
+		it("rejects non-admin callers", async () => {
+			assert.strictEqual((await api("GET", `/api/admin/users/${betaUserId.toHexString()}/access`)).status, 403);
+			assert.strictEqual(
+				(await api("DELETE", `/api/admin/users/${betaUserId.toHexString()}/access/betagame`)).status,
+				403,
+			);
+		});
+
+		it("404s for an unknown user", async () => {
+			const unknown = new ObjectId().toHexString();
+			assert.strictEqual((await api("GET", `/api/admin/users/${unknown}/access`, adminHeaders)).status, 404);
+			assert.strictEqual(
+				(await api("DELETE", `/api/admin/users/${unknown}/access/betagame`, adminHeaders)).status,
+				404,
+			);
+		});
+
+		it("lists the user's beta grants with label and maxVersion", async () => {
+			const res = await api("GET", `/api/admin/users/${betaUserId.toHexString()}/access`, adminHeaders);
+			assert.strictEqual(res.status, 200);
+			assert.deepStrictEqual(res.data, [{ game: "betagame", label: "Beta Game", maxVersion: 2 }]);
+		});
+
+		it("revokes a grant: the user falls back to the latest public version", async () => {
+			const res = await api("DELETE", `/api/admin/users/${betaUserId.toHexString()}/access/betagame`, adminHeaders);
+			assert.strictEqual(res.status, 200);
+
+			const pref = await colls.gamePreferences.findOne({ user: betaUserId, game: "betagame" });
+			assert.strictEqual(pref?.access?.maxVersion, undefined);
+
+			const accessible = await lastAccessibleVersion("betagame", (await colls.users.findOne({ _id: betaUserId }))!);
+			assert.strictEqual(accessible?._id.version, 1);
+
+			const res2 = await api("GET", `/api/admin/users/${betaUserId.toHexString()}/access`, adminHeaders);
+			assert.deepStrictEqual(res2.data, []);
 		});
 	});
 

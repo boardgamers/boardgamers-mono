@@ -8,13 +8,31 @@
 	import WebLink from "$components/WebLink.svelte";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
-	import type { UserInfo, ArchivedUserInfo, ApiErrorItem } from "./+page.ts";
+	import type { UserInfo, ArchivedUserInfo, ApiErrorItem, BetaAccess } from "./+page.ts";
 
 	let { data }: PageProps = $props();
 
 	const user = $derived<UserInfo | null>(data.user);
 	const archived = $derived<ArchivedUserInfo | null>(data.archived);
 	const errors = $derived<ApiErrorItem[]>(data.errors);
+	const betas = $derived<BetaAccess[]>(data.betas);
+	let removingBeta = $state<string | null>(null);
+	let confirmRemoveBeta = $state<string | null>(null);
+
+	async function removeBeta(game: string) {
+		if (!user) return;
+		removingBeta = game;
+		try {
+			await api.del(`/admin/users/${user._id}/access/${encodeURIComponent(game)}`);
+			toast.success(`Beta access to ${game} removed`);
+			await invalidateAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed");
+		} finally {
+			removingBeta = null;
+			confirmRemoveBeta = null;
+		}
+	}
 	let expandedError = $state<string | null>(null);
 	let gameName = $state("");
 	let elo = $state(0);
@@ -26,6 +44,7 @@
 		try {
 			await api.post(`/admin/users/${user._id}/access/grant`, { type: "game", game, version: "latest" });
 			toast.success(`Access granted to ${game}`);
+			await invalidateAll();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed");
 		}
@@ -328,6 +347,53 @@
 					</button>
 				{/if}
 			</div>
+		</div>
+
+		<!-- Private Betas -->
+		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+			<div class="px-5 py-3 border-b border-gray-200 dark:border-gray-800">
+				<h3 class="text-sm font-semibold">Private Betas ({betas.length})</h3>
+			</div>
+			{#if betas.length > 0}
+				<div class="divide-y divide-gray-100 dark:divide-gray-800">
+					{#each betas as beta (beta.game)}
+						<div class="px-5 py-2.5 flex items-center gap-3 text-sm">
+							<a
+								href={resolve("/game/[game]/[version]", { game: beta.game, version: String(beta.maxVersion) })}
+								class="font-medium text-blue-600 dark:text-blue-400 hover:underline"
+							>
+								{beta.label}
+							</a>
+							<span class="text-xs text-gray-500">access up to v{beta.maxVersion}</span>
+							<span class="ml-auto"></span>
+							{#if confirmRemoveBeta === beta.game}
+								<button
+									onclick={() => removeBeta(beta.game)}
+									disabled={removingBeta === beta.game}
+									class="px-3 py-1 text-xs font-medium bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50"
+								>
+									{removingBeta === beta.game ? "Removing…" : "Confirm remove"}
+								</button>
+								<button
+									onclick={() => (confirmRemoveBeta = null)}
+									class="px-3 py-1 text-xs font-medium bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg"
+								>
+									Cancel
+								</button>
+							{:else}
+								<button
+									onclick={() => (confirmRemoveBeta = beta.game)}
+									class="px-3 py-1 text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/60 rounded-lg"
+								>
+									Remove
+								</button>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<p class="px-5 py-4 text-sm text-gray-500">No private beta access.</p>
+			{/if}
 		</div>
 
 		<!-- Boardgame Management -->

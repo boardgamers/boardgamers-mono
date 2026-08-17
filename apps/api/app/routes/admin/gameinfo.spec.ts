@@ -411,3 +411,137 @@ describe("Admin gameinfo API — archive/unarchive", () => {
 		assert.strictEqual(doc?.meta && "archived" in doc.meta, false, "save must not set the archived flag");
 	});
 });
+
+const betaInfo = (version: number, isPublic: boolean) => ({
+	_id: { game: "secretgame", version },
+	label: "Secret Game",
+	players: [2],
+	viewer: { url: "//example.com/viewer.js" },
+	public: isPublic,
+	meta: {},
+});
+
+// Private-beta management: the grants listed/created/revoked here are the same
+// per-(user, game) access.maxVersion docs the user-centric routes manage —
+// these are keyed by game, for the admin boardgame page.
+describe("Admin gameinfo API — private beta users", () => {
+	let headers: Record<string, string>;
+	const memberId = new ObjectId();
+	const inviteeId = new ObjectId();
+	const emailInviteeId = new ObjectId();
+
+	async function req(method: string, path: string, body?: unknown, withAuth = true) {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/${path}`, {
+			method,
+			...(withAuth ? { headers } : {}),
+			...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+		});
+		const text = await res.text();
+		let data: unknown = text;
+		try {
+			data = JSON.parse(text);
+		} catch {
+			// not JSON (empty 200)
+		}
+		return { status: res.status, data };
+	}
+
+	before(async () => {
+		headers = await makeAdminHeaders();
+		await colls.gameInfos.insertMany([betaInfo(1, true), betaInfo(2, false)]);
+		await colls.gameMetadatas.insertOne({ _id: "secretgame", label: "Secret Game", players: [2] });
+		await colls.users.insertOne(
+			testUser({ _id: memberId, account: { username: "beta-member" }, security: { slug: "beta-member" } }),
+		);
+		await colls.users.insertOne(
+			testUser({ _id: inviteeId, account: { username: "beta-invitee" }, security: { slug: "beta-invitee" } }),
+		);
+		await colls.users.insertOne(
+			testUser({
+				_id: emailInviteeId,
+				account: { username: "beta-email-invitee", email: "beta-email@test.com" },
+				security: { slug: "beta-email-invitee" },
+			}),
+		);
+		await colls.gamePreferences.insertOne({ user: memberId, game: "secretgame", access: { maxVersion: 2 } });
+		// Elo-only doc: no grant, must not be listed.
+		await colls.gamePreferences.insertOne({ user: inviteeId, game: "secretgame", elo: { value: 1000, games: 1 } });
+	});
+
+	after(() => db().dropDatabase());
+
+	it("rejects non-admin callers", async () => {
+		assert.strictEqual((await req("GET", "secretgame/beta-users", undefined, false)).status, 403);
+		assert.strictEqual((await req("POST", "secretgame/beta-users", { usernameOrEmail: "x" }, false)).status, 403);
+		assert.strictEqual(
+			(await req("DELETE", `secretgame/beta-users/${memberId.toHexString()}`, undefined, false)).status,
+			403,
+		);
+	});
+
+	it("404s for an unknown game", async () => {
+		assert.strictEqual((await req("GET", "no-such-game/beta-users")).status, 404);
+		assert.strictEqual((await req("POST", "no-such-game/beta-users", { usernameOrEmail: "beta-member" })).status, 404);
+		assert.strictEqual((await req("DELETE", `no-such-game/beta-users/${memberId.toHexString()}`)).status, 404);
+	});
+
+	it("lists users holding a grant, with username and maxVersion", async () => {
+		const res = await req("GET", "secretgame/beta-users");
+		assert.strictEqual(res.status, 200);
+		assert.deepStrictEqual(res.data, [{ userId: memberId.toHexString(), username: "beta-member", maxVersion: 2 }]);
+	});
+
+	it("invites by username: grants access to the latest (non-public) version", async () => {
+		const res = await req("POST", "secretgame/beta-users", { usernameOrEmail: "beta-invitee" });
+		assert.strictEqual(res.status, 200);
+		assert.deepStrictEqual(res.data, {
+			userId: inviteeId.toHexString(),
+			username: "beta-invitee",
+			maxVersion: 2,
+		});
+
+		const pref = await colls.gamePreferences.findOne({ user: inviteeId, game: "secretgame" });
+		assert.strictEqual(pref?.access?.maxVersion, 2);
+		// The elo already on the doc is untouched by the grant.
+		assert.strictEqual(pref?.elo?.value, 1000);
+	});
+
+	it("invites by email", async () => {
+		const res = await req("POST", "secretgame/beta-users", { usernameOrEmail: "beta-email@test.com" });
+		assert.strictEqual(res.status, 200);
+
+		const pref = await colls.gamePreferences.findOne({ user: emailInviteeId, game: "secretgame" });
+		assert.strictEqual(pref?.access?.maxVersion, 2);
+	});
+
+	it("404s inviting an unknown user", async () => {
+		assert.strictEqual((await req("POST", "secretgame/beta-users", { usernameOrEmail: "no-such-user" })).status, 404);
+		assert.strictEqual(
+			(await req("POST", "secretgame/beta-users", { usernameOrEmail: "nobody@test.com" })).status,
+			404,
+		);
+	});
+
+	it("revokes a user's grant", async () => {
+		const res = await req("DELETE", `secretgame/beta-users/${memberId.toHexString()}`);
+		assert.strictEqual(res.status, 200);
+
+		const pref = await colls.gamePreferences.findOne({ user: memberId, game: "secretgame" });
+		assert.strictEqual(pref?.access?.maxVersion, undefined);
+
+		const list = await req("GET", "secretgame/beta-users");
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const usernames = (list.data as { username: string }[]).map((u) => u.username);
+		assert.ok(!usernames.includes("beta-member"));
+	});
+
+	it("does not grant when the latest version is public", async () => {
+		await colls.gameInfos.insertOne(betaInfo(3, true));
+
+		const res = await req("POST", "secretgame/beta-users", { usernameOrEmail: "beta-member" });
+		assert.strictEqual(res.status, 200);
+
+		const pref = await colls.gamePreferences.findOne({ user: memberId, game: "secretgame" });
+		assert.strictEqual(pref?.access?.maxVersion, undefined, "no grant stored for a public latest version");
+	});
+});
