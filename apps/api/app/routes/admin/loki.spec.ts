@@ -109,6 +109,12 @@ describe("Admin Loki proxy", () => {
 		assert.ok(logql.includes("[7d]"), logql);
 		// Empty referers are excluded so "no header" doesn't dominate the top-N.
 		assert.ok(logql.includes('| referer != ""'), logql);
+		// Loopback referers (the internal OG-image renderer's Chromium navigates to
+		// the http://127.0.0.1:8612 origin) and self-referers (in-site navigation)
+		// are excluded — the stat answers "which EXTERNAL site sends us traffic".
+		assert.ok(logql.includes("| referer !~ "), logql);
+		assert.ok(logql.includes("127[.]0[.]0[.]1|localhost"), logql);
+		assert.ok(logql.includes("boardgamers[.]space"), logql);
 		// The host extraction happens in a label_format stage, with the same regex
 		// REFERER_ORIGIN_RE documents (the refererOrigin spec below pins the behavior).
 		assert.ok(logql.includes("label_format origin="), logql);
@@ -151,6 +157,34 @@ describe("Admin Loki proxy", () => {
 		// Scheme-less / malformed referers fall back to the raw value (kept, not dropped).
 		assert.equal(refererOrigin("boardgamegeek.com"), "boardgamegeek.com");
 		assert.equal(refererOrigin("not a url"), "not a url");
+	});
+
+	it("the topReferers exclusion regexes match loopback/self referers and keep external sites", async () => {
+		const { lokiUrl } = await query("topReferers");
+		const logql = lokiUrl.searchParams.get("query") ?? "";
+		// Extract the two `| referer !~ "<pattern>"` filters and evaluate them as JS
+		// regexes (both are RE2-compatible subsets: character classes, groups, anchors).
+		const patterns = [...logql.matchAll(/\| referer !~ "((?:\\.|[^"\\])*)"/g)].map((m) =>
+			m[1].replaceAll("\\\\", "\\"),
+		);
+		assert.equal(patterns.length, 2, logql);
+		const excluded = (referer: string) => patterns.some((p) => new RegExp(p).test(referer));
+
+		// Internal OG-image renderer (headless Chromium → http loopback origin).
+		assert.ok(excluded("http://127.0.0.1:8612/thumbnail/game/abc"));
+		assert.ok(excluded("http://127.0.0.1:8612/"));
+		assert.ok(excluded("http://localhost:8612/games"));
+		assert.ok(excluded("http://[::1]:8612/thumbnail"));
+		// Self-referers: in-site navigation, apex + subdomains.
+		assert.ok(excluded("https://boardgamers.space/"));
+		assert.ok(excluded("https://boardgamers.space/game/abc"));
+		assert.ok(excluded("https://www.boardgamers.space/games"));
+		assert.ok(excluded("https://forum.boardgamers.space/t/1"));
+		// Real external referers stay.
+		assert.ok(!excluded("https://boardgamegeek.com/thread/999"));
+		assert.ok(!excluded("https://www.reddit.com/r/boardgames/"));
+		assert.ok(!excluded("https://boardgamers.space.evil.com/phish"));
+		assert.ok(!excluded("http://google.com"));
 	});
 
 	it("passes a step param and expands $__interval for query_range queries", async () => {

@@ -2,6 +2,7 @@ import { browser } from "$app/environment";
 import type { ChatMessageFront, UserFront } from "@bgs/models";
 import { SvelteDate } from "svelte/reactivity";
 import { writable, type Writable } from "svelte/store";
+import { setClientSessionKnown } from "./api";
 
 /**
  * Per-user/session stores are client-only: they live in module scope, so on the server
@@ -92,6 +93,9 @@ let accountSeededFor: string | null | undefined;
  */
 export function seedAccountFromSSR(user: UserFront | null) {
 	if (!browser) return;
+	// Keep api.ts's session flag in sync so anonymous clients never attempt the
+	// cookie-authed /account/mint (the httpOnly cookie is invisible to JS).
+	setClientSessionKnown(!!user);
 	const id = user?._id ?? null;
 	if (accountSeededFor === id) return;
 	accountSeededFor = id;
