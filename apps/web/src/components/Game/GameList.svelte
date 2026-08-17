@@ -350,7 +350,7 @@
 											<!-- Setup options + join restrictions at a glance: see what you're joining
 										     (and its requirements) without opening the game. -->
 											{#each opts as pref (pref.name)}
-												<SetupOptionBadge {pref} value={gameOptions(game)[pref.name]} />
+												<SetupOptionBadge {pref} value={gameOptions(game)[pref.name]} noLinks />
 											{/each}
 											{#if meta?.minimumKarma !== undefined}
 												<Badge color="secondary" class="setup-badge" title="Minimum karma to join"

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import SanitizedHtml from "../SanitizedHtml.svelte";
-	import { oneLineMarked } from "@/utils";
+	import { oneLineMarked, oneLineMarkedNoLinks } from "@/utils";
 	import { Badge } from "@/modules/cdk";
 	import type { GameInfoFront } from "@bgs/models";
 	import type { JsonValue } from "type-fest";
@@ -12,10 +12,14 @@
 		pref,
 		value,
 		color = "secondary",
+		noLinks = false,
 	}: {
 		pref: NonNullable<GameInfoFront["options"]>[number];
 		value: unknown;
 		color?: string;
+		/** Strip `<a>` tags (keep their text). Required when the badge renders inside an
+		 * `<a>` (the open-game row): nested anchors are invalid HTML and break hydration. */
+		noLinks?: boolean;
 	} = $props();
 
 	let label = $derived.by(() => {
@@ -33,5 +37,7 @@
 </script>
 
 {#if label}
-	<Badge {color} class="setup-badge"><SanitizedHtml html={oneLineMarked(label)} /></Badge>
+	<Badge {color} class="setup-badge"
+		><SanitizedHtml html={noLinks ? oneLineMarkedNoLinks(label) : oneLineMarked(label)} /></Badge
+	>
 {/if}
