@@ -34,7 +34,10 @@
 	let user = $derived(live($account, ssrUser ?? null));
 	let pending = $state(false);
 
-	async function toggle() {
+	async function toggle(e: MouseEvent) {
+		// The button is nested inside clickable cards (e.g. /new-game, /boardgames) — don't
+		// let the like click bubble up and trigger the card's navigation.
+		e.stopPropagation();
 		if (pending) {
 			return;
 		}
