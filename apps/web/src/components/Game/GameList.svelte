@@ -22,7 +22,13 @@
 	import IconDice from "@/components/icons/IconDice.svelte";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { gameBadge } from "@/utils/game-label";
-	import { loadGames, gameListParams, type LoadGamesResult } from "@/lib/games.svelte";
+	import {
+		loadGames,
+		gameListParams,
+		matchesSetupOptions,
+		type LoadGamesResult,
+		type SetupOptionFilter,
+	} from "@/lib/games.svelte";
 	import { isPromise } from "@bgs/utils";
 	import type { JsonObject } from "type-fest";
 
@@ -37,6 +43,7 @@
 		minDuration = undefined,
 		maxDuration = undefined,
 		pace = undefined,
+		optionFilter = undefined,
 		search = undefined,
 		class: className = "",
 	}: {
@@ -51,6 +58,8 @@
 		maxDuration?: number | undefined;
 		/** Live/async timing filter applied server-side (maps to a timePerGame bound). */
 		pace?: GamePace | undefined;
+		/** Setup-options filter (option name → required value), applied client-side after the fetch. */
+		optionFilter?: SetupOptionFilter | undefined;
 		search?: string | undefined;
 		// Applied to the outer wrapper (e.g. `min-w-0` so the list can shrink inside a
 		// grid/flex cell instead of forcing the layout wide on mobile).
@@ -61,6 +70,8 @@
 	let count = $state(0);
 	let currentPage = $state(0);
 	let games = $state<GameFront[]>([]);
+	// Fetched rows, narrowed by the client-side setup-options filter for display.
+	let displayedGames = $derived(optionFilter ? games.filter((g) => matchesSetupOptions(g, optionFilter)) : games);
 	// Refreshed on each list (re)load so the relative-time labels ("last activity X
 	// ago", "⏱ Xh left", "created X ago") recompute on a refresh; static between loads.
 	let now = $state(Date.now());
@@ -79,6 +90,7 @@
 				page: currentPage,
 				pace,
 				search,
+				optionFilter,
 			});
 			const result = loadGames({
 				...params,
@@ -298,11 +310,11 @@
 			{/if}
 		</h3>
 		<div>
-			{#if games.length > 0}
+			{#if displayedGames.length > 0}
 				<ul
 					class="divide-y divide-accent/80 rounded-lg border border-accent/80 bg-white text-start dark:divide-accent/60 dark:border-accent/60 dark:bg-gray-900 game-list"
 				>
-					{#each games as game (game._id)}
+					{#each displayedGames as game (game._id)}
 						{@const timeLeft = game.status === "active" ? turnTimeLeft(game) : null}
 						{@const eloChange = playerEloChange(game)}
 						{@const lastMove = game.status === "active" ? lastMoveText(game) : null}
@@ -488,9 +500,9 @@
 				</ul>
 				{#if sample && count > games.length}
 					<!-- Lobby discovery: the sample is capped at perPage but the lobby holds
-					     more — say so, offer the full list, and a dice re-roll for a fresh sample
-					     (logoClick bumps $logoClicks, which this list reacts to with a cache
-					     bypass; the server $sample then deals different games). -->
+				     more — say so, offer the full list, and a dice re-roll for a fresh sample
+				     (logoClick bumps $logoClicks, which this list reacts to with a cache
+				     bypass; the server $sample then deals different games). -->
 					<div class="mt-2 flex items-center justify-end gap-1 text-sm">
 						<a
 							href={resolve("/(app)/games")}
@@ -508,7 +520,7 @@
 							<IconDice />
 						</button>
 					</div>
-				{:else if !topRecords && !sample && count > perPage}
+				{:else if !topRecords && !sample && !optionFilter && count > perPage}
 					<Pagination {count} {perPage} bind:currentPage align="right" class="mt-2" />
 				{/if}
 			{:else}

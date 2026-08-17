@@ -28,6 +28,25 @@ export type LoadGamesResult = {
 	total: number;
 };
 
+/**
+ * The chosen setup-option values of an open-games filter: option name → required
+ * value (`true` for checkbox options, the item name for select options).
+ */
+export type SetupOptionFilter = Record<string, string | true>;
+
+/**
+ * Client-side setup-options match (#55): a game passes when every filtered option
+ * is set to the wanted value in the game's own `game.options`. Checkbox options
+ * store `true` when on (absent when off), select options the chosen item name.
+ */
+export function matchesSetupOptions(game: GameFront, filter: SetupOptionFilter | undefined): boolean {
+	if (!filter) {
+		return true;
+	}
+	const options = (game.game.options ?? {}) as Record<string, unknown>;
+	return Object.entries(filter).every(([name, value]) => options[name] === value);
+}
+
 const gamesCache = new SvelteMap<string, LoadGamesResult>();
 
 export type GameListConfig = {
@@ -40,6 +59,8 @@ export type GameListConfig = {
 	page?: number;
 	pace?: GamePace;
 	search?: string;
+	/** Client-side setup-options filter (option name → required value). Widens the fetch. */
+	optionFilter?: SetupOptionFilter;
 };
 
 /** Maps a GameList's list config to loadGames params. Used by BOTH GameList's load
@@ -57,6 +78,7 @@ export function gameListParams({
 	page = 0,
 	pace,
 	search,
+	optionFilter,
 }: GameListConfig): LoadGamesParams {
 	return {
 		gameStatus,
@@ -64,8 +86,10 @@ export function gameListParams({
 		userId,
 		sample,
 		pace,
-		count: perPage,
-		skip: page * perPage,
+		// With a setup-options filter the narrowing happens client-side, so fetch
+		// beyond one page of candidates (the API caps at 100) to have rows to filter.
+		count: optionFilter ? 100 : perPage,
+		skip: optionFilter ? 0 : page * perPage,
 		// Sample lists also fetch the count: it's what powers the "N more open games"
 		// discovery affordance (the sample itself is capped at perPage).
 		fetchCount: !topRecords,

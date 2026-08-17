@@ -24,8 +24,11 @@ export const load: PageLoad = async ({ params, parent }) => {
 		store: true,
 	});
 
+	// Not `sample` (unlike the home lobby): the boardgame lobby lists every open game
+	// of this boardgame (recency-ordered, paginated) so the setup-options filter can
+	// see them all — and no optionFilter on SSR (the parent clears it on navigation).
 	const lobbyGames = loadGames({
-		...gameListParams({ gameStatus: "open", boardgameId, sample: true, perPage: 5 }),
+		...gameListParams({ gameStatus: "open", boardgameId, perPage: 5 }),
 		store: true,
 	});
 
