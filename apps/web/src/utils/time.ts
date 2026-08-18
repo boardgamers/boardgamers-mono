@@ -123,10 +123,28 @@ export function compactDuration(seconds: number): string {
 }
 
 /**
+ * Whether the game's daily clock window is a real restriction (the clock pauses
+ * overnight) versus running around the clock. timer.start/end are UTC
+ * seconds-since-midnight; "always" is stored two ways — start === end (the app's
+ * sentinel) or the API's near-full-day default { start: 0, end: 86399 } — so a
+ * window only counts as restricted when its active span is meaningfully under 24h.
+ */
+export function isRestrictedTimerWindow(timer?: { start: number; end: number }): boolean {
+	if (!timer || timer.start === timer.end) {
+		return false;
+	}
+	// Active span of the [start, end) window each day. Wrap-around windows
+	// (start > end, e.g. 22h–2h) run from start to midnight plus midnight to end.
+	const span = timer.start < timer.end ? timer.end - timer.start : 24 * 3600 - timer.start + timer.end;
+	// Under 24h by more than a minute → a genuine overnight pause.
+	return span < 24 * 3600 - 60;
+}
+
+/**
  * Daily timer window for a game, e.g. "19h–08h" or "24h".
  */
 export function timerWindow(timer?: { start: number; end: number }): string {
-	return timer?.start !== timer?.end ? `${timerTime(timer?.start ?? 0)}–${timerTime(timer?.end ?? 0)}` : "24h";
+	return isRestrictedTimerWindow(timer) ? `${timerTime(timer?.start ?? 0)}–${timerTime(timer?.end ?? 0)}` : "24h";
 }
 
 /**

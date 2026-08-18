@@ -8,6 +8,9 @@
 		shortDuration,
 		compactDuration,
 		timerWindow,
+		isRestrictedTimerWindow,
+		gamePace,
+		localTimezone,
 		type GamePace,
 	} from "@/utils";
 	import type { GameFront } from "@bgs/models";
@@ -320,12 +323,40 @@
 									     their own lines. No "created X ago" (dropped entirely). -->
 										{@const meta = game.options.meta}
 										{@const opts = setupOptions(game)}
+										{@const rowPace = gamePace(game.options.timing.timePerGame)}
 										<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
 											<span
 												class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/60 dark:text-blue-200"
 											>
 												{game.players.length}/{game.options.setup.nbPlayers}
 											</span>
+											<!-- Pace/timespan at a glance (#55 follow-up): same Live/Async
+											     categories as the pace filter (gamePace / LIVE_GAME_MAX_TIME_PER_GAME),
+										     so the row and the filter always agree. Title spells out the full
+										     per-game + per-move timing. -->
+											<span
+												class="rounded-full px-1.5 py-0.5 text-xs font-medium whitespace-nowrap {rowPace === 'live'
+													? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
+													: 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-200'}"
+												title={rowPace === "live"
+													? `Live game — meant to be played in one sitting (${duration(game.options.timing.timePerGame ?? 0)} per player)`
+													: `Asynchronous game — played over days (${duration(game.options.timing.timePerGame ?? 0)} per player)`}
+											>
+												{rowPace === "live" ? "⚡ Live" : "🐢 Async"}
+											</span>
+											<!-- Clock window: the time-of-day range the game clock ticks (it pauses
+												     overnight). Stored as UTC seconds-since-midnight; timerWindow() renders
+												     it in the viewer's own timezone, so a player can tell whether the game's
+												     active hours match their waking hours. Only shown when the window is a
+												     non-default restriction (start !== end); 24h clocks are omitted. -->
+											{#if isRestrictedTimerWindow(game.options.timing.timer)}
+												<span
+													class="rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200"
+													title={`Clock runs ${timerWindow(game.options.timing.timer)} daily (your local time, ${localTimezone()}), pauses overnight`}
+												>
+													🕐 {timerWindow(game.options.timing.timer)}
+												</span>
+											{/if}
 											<span class="game-name min-w-0 truncate">
 												{game._id}
 											</span>
@@ -339,16 +370,6 @@
 												{compactDuration(game.options.timing.timePerGame ?? 0)}+{compactDuration(
 													game.options.timing.timePerMove ?? 0
 												)}
-												{#if game.options.timing.scheduledStart}
-													· starts on {niceDate(game.options.timing.scheduledStart)} at
-													{new Date(game.options.timing.scheduledStart)
-														.getHours()
-														.toString()
-														.padStart(2, "0")}h{new Date(game.options.timing.scheduledStart)
-														.getMinutes()
-														.toString()
-														.padStart(2, "0")}
-												{/if}
 											</small>
 											<!-- Setup options + join restrictions at a glance: see what you're joining
 										     (and its requirements) without opening the game. -->

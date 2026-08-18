@@ -483,3 +483,121 @@ describe("GameList open-row setup badges (#55)", () => {
 		unmount(instance as never);
 	});
 });
+
+// Open rows show the game's pace/timespan (Live/Async) so players can tell a
+// one-sitting game from a multi-week one at a glance. The chip reuses gamePace()
+// (LIVE_GAME_MAX_TIME_PER_GAME) so it always agrees with the lobby's pace filter.
+describe("GameList open-row pace chip", () => {
+	function pacedGame(_id: string, timePerGame: number) {
+		return {
+			_id,
+			status: "open",
+			players: [],
+			currentPlayers: [],
+			createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+			game: { name: `game-${_id}`, version: 1 },
+			options: { setup: { nbPlayers: 2 }, timing: { timePerGame, timePerMove: 3600, timer: { start: 0, end: 0 } } },
+		} as never;
+	}
+
+	beforeEach(() => {
+		clearGamesCache();
+		getMock.mockReset();
+		document.body.innerHTML = "";
+	});
+
+	it("chips a live game ⚡ Live and an async game 🐢 Async", async () => {
+		mockApi(
+			[
+				pacedGame("g-live", 2 * 3600), // 2h/player < 24h → live
+				pacedGame("g-async", 3 * 86400), // 3d/player ≥ 24h → async
+			],
+			2,
+		);
+		const { target, instance } = mountList();
+		await waitForGames(target, ["g-live", "g-async"]);
+
+		const rows = [...target.querySelectorAll(".game-item")];
+		const live = rows.find((row) => row.textContent?.includes("g-live"))!;
+		const async = rows.find((row) => row.textContent?.includes("g-async"))!;
+
+		expect(live.textContent).toContain("⚡ Live");
+		expect(live.textContent).not.toContain("Async");
+		expect(async.textContent).toContain("🐢 Async");
+		expect(async.textContent).not.toContain("Live");
+
+		unmount(instance as never);
+	});
+
+	it("matches the pace filter boundary at LIVE_GAME_MAX_TIME_PER_GAME (24h)", async () => {
+		mockApi(
+			[
+				pacedGame("g-just-under", 86400 - 1), // < 24h → live
+				pacedGame("g-at-boundary", 86400), // ≥ 24h → async
+			],
+			2,
+		);
+		const { target, instance } = mountList();
+		await waitForGames(target, ["g-just-under", "g-at-boundary"]);
+
+		const rows = [...target.querySelectorAll(".game-item")];
+		expect(rows.find((row) => row.textContent?.includes("g-just-under"))!.textContent).toContain("⚡ Live");
+		expect(rows.find((row) => row.textContent?.includes("g-at-boundary"))!.textContent).toContain("🐢 Async");
+
+		unmount(instance as never);
+	});
+});
+
+// Games with a restricted daily clock window (timer.start !== timer.end) show the
+// window's time-of-day range — converted to the viewer's own timezone — as a
+// prominent chip, so a player can find games whose active hours match their waking
+// hours. Games with a 24h clock (start === end, the default) show no window chip.
+describe("GameList open-row clock-window chip", () => {
+	function windowedGame(_id: string, timer?: { start: number; end: number }) {
+		return {
+			_id,
+			status: "open",
+			players: [],
+			currentPlayers: [],
+			createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+			game: { name: `game-${_id}`, version: 1 },
+			options: {
+				setup: { nbPlayers: 2 },
+				timing: { timePerGame: 3 * 86400, timePerMove: 3600, timer: timer ?? { start: 0, end: 0 } },
+			},
+		} as never;
+	}
+
+	beforeEach(() => {
+		clearGamesCache();
+		getMock.mockReset();
+		document.body.innerHTML = "";
+	});
+
+	it("chips the clock window on a restricted-window game, none on a 24h game", async () => {
+		// 9h–22h UTC window (seconds since UTC midnight, as the engine stores it).
+		// The "always" game uses the API's real default { 0, 86399 } (near-full-day),
+		// which must NOT chip — only a genuine overnight restriction does.
+		mockApi(
+			[
+				windowedGame("g-window", { start: 9 * 3600, end: 22 * 3600 }),
+				windowedGame("g-always", { start: 0, end: 86399 }),
+			],
+			2,
+		);
+		const { target, instance } = mountList();
+		await waitForGames(target, ["g-window", "g-always"]);
+
+		const rows = [...target.querySelectorAll(".game-item")];
+		const windowed = rows.find((row) => row.textContent?.includes("g-window"))!;
+		const always = rows.find((row) => row.textContent?.includes("g-always"))!;
+
+		// The window chip is a 🕐 range (the exact hours are the viewer's local conversion).
+		expect(windowed.textContent).toMatch(/🕐 \d{2}h(\d{2})?–\d{2}h(\d{2})?/);
+		expect(always.textContent).not.toContain("🕐");
+		// The pace chip is independent of the clock window: both are async games here.
+		expect(always.textContent).toContain("🐢 Async");
+
+		unmount(instance as never);
+	});
+});
