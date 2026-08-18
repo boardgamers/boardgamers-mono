@@ -36,7 +36,7 @@
 				rel="external noopener noreferrer"
 				title="{entry.label} (opens in a new tab)"
 				aria-label="{entry.label} (opens in a new tab)"
-				class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-sm text-gray-500 no-underline transition-colors hover:bg-gray-100 hover:text-primary dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-primary-lighter"
+				class="inline-flex items-center gap-1 rounded-full px-1 py-1 text-sm text-gray-500 no-underline transition-colors hover:bg-gray-100 hover:text-primary sm:px-2 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-primary-lighter"
 			>
 				<entry.icon size="0.95em" />
 				<IconBoxArrowUpRight size="0.6em" class="opacity-60" />
