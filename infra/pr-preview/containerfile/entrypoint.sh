@@ -7,7 +7,7 @@
 #
 # Required env: PR (pr number), SHA (commit to check out), MONGO_URL.
 # Optional:     WEB_PORT (8612), API_PORT (50801), WS_PORT (50802), GS_PORT (50803),
-#               RESOURCES_PORT (50804).
+#               RESOURCES_PORT (50804), ADMIN_PORT (50805), DOCS_PORT (50806).
 set -euo pipefail
 
 : "${PR:?}" "${SHA:?}" "${MONGO_URL:?}"
@@ -17,6 +17,7 @@ WS_PORT="${WS_PORT:-50802}"
 GS_PORT="${GS_PORT:-50803}"
 RESOURCES_PORT="${RESOURCES_PORT:-50804}"
 ADMIN_PORT="${ADMIN_PORT:-50805}"
+DOCS_PORT="${DOCS_PORT:-50806}"
 DB="bgs-pr-${PR}"
 TEMPLATE="bgs-preview-template"
 
@@ -95,6 +96,9 @@ HOST=0.0.0.0 PORT="$WEB_PORT" node index.js &
 # Admin SPA (static, built above) on its own port; coyo routes admin-pr-<n> here.
 cd /repo
 ADMIN_ROOT=/repo/apps/admin/dist ADMIN_PORT="$ADMIN_PORT" node /usr/local/bin/serve-admin.mjs &
+# Self-hosted docs (no build step — plain node server.ts); coyo routes docs-pr-<n> here.
+cd /repo/apps/docs
+HOST=0.0.0.0 PORT="$DOCS_PORT" node server.ts &
 
 trap 'kill 0' TERM INT
 wait -n

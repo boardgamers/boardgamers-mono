@@ -68,6 +68,7 @@ mv apps/admin/dist-new apps/admin/dist
 rm -rf apps/admin/dist-old
 
 echo ":: reloading PM2 processes"
+# Picks up the new `docs` app (apps/docs/server.ts) on first deploy after this merge.
 pm2 reload ecosystem.config.cjs
 
 # Grafana provisions dashboards at startup only (no file watching).

@@ -46,6 +46,7 @@ const ports = (pr) => ({
 	ws: 15000 + Number(pr),
 	resources: 16000 + Number(pr),
 	admin: 17000 + Number(pr),
+	docs: 18000 + Number(pr),
 });
 
 // Env containers reach mongo the same way the host does (the preview-api runs on the
@@ -139,6 +140,8 @@ async function createEnv(pr, sha) {
 		`${BIND}:${p.resources}:${p.resources}`,
 		"-p",
 		`${BIND}:${p.admin}:${p.admin}`,
+		"-p",
+		`${BIND}:${p.docs}:${p.docs}`,
 		"-e",
 		`PR=${pr}`,
 		"-e",
@@ -157,6 +160,8 @@ async function createEnv(pr, sha) {
 		`RESOURCES_PORT=${p.resources}`,
 		"-e",
 		`ADMIN_PORT=${p.admin}`,
+		"-e",
+		`DOCS_PORT=${p.docs}`,
 		"-v",
 		`${ROOT}/dumps:/dumps:ro`,
 		"--security-opt",

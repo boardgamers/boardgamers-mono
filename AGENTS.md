@@ -12,7 +12,7 @@ Boardgamers — an online board game platform. pnpm workspace, Node ≥ 24, ESM 
 | `apps/admin`       | Admin panel (SvelteKit, modern)                                   |
 | `apps/api`         | REST API (Koa + MongoDB)                                          |
 | `apps/game-server` | Game engine runner / gameplay API                                 |
-| `apps/docs`        | Docs site                                                         |
+| `apps/docs`        | Self-hosted docs (Node server, markdown + HTML, agent-friendly)   |
 | `packages/models`  | Shared Zod schemas + Mongo collection definitions (`@bgs/models`) |
 | `packages/utils`   | Shared helpers (`@bgs/utils`)                                     |
 

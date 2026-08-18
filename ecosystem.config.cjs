@@ -93,6 +93,24 @@ module.exports = {
 			wait_ready: true,
 		},
 		{
+			// Self-hosted docs (replaces the old GitHub-Pages VuePress site). Single fork —
+			// the server is stateless and tiny; a cluster adds nothing. Nginx proxies
+			// docs.boardgamers.space here.
+			name: "docs",
+			script: "./server.ts",
+			cwd: "./apps/docs",
+			env: {
+				NODE_ENV: "production",
+				HOST: "::1",
+				PORT: 8613,
+			},
+			exec_mode: "fork",
+			instances: 1,
+			interpreter: NODE,
+			kill_timeout: 5000,
+			// No wait_ready: the docs server never sends the PM2 "ready" signal.
+		},
+		{
 			// Hang watchdog: polls game-server/api GET /health and `pm2 restart`s any app
 			// that stops answering (event-loop wedge — PM2 alone only restarts on exit).
 			// Runs under PM2 so the watchdog itself is supervised. See scripts/watchdog.ts

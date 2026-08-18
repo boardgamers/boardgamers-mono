@@ -28,14 +28,16 @@ sanitized dump of prod and never touches the live `bgs`.
 ```
 Internet ── coyo (62.210.93.85, the one public entry point)
               nginx:
-                pr-<n>.boardgamers.space  → minipc env ports (12/13/14/15/16000+n)
-                pr-preview-api...         → minipc preview-api (control plane)
+                pr-<n>.boardgamers.space       → minipc env ports (12/13/14/15/16000+n)
+                admin-pr-<n>.boardgamers.space → minipc env admin port (17000+n)
+                docs-pr-<n>.boardgamers.space  → minipc env docs port (18000+n)
+                pr-preview-api...              → minipc preview-api (control plane)
               certbot: wildcard *.boardgamers.space (dns-namecheap, auto-renew)
               cron 03:17: dump-and-ship.sh  (sanitized prod dump → minipc)
                     │ WireGuard 10.90.0.1 ↔ 10.90.0.2 (no inbound ports at home)
 minipc ── preview-api :9900 (control plane, WireGuard IP only)
           bgs-preview-mongo :27017 (holds all preview dbs; on the bgs-preview bridge)
-          bgs-pr-<n> containers (rootless Podman): web+api+game-server
+          bgs-pr-<n> containers (rootless Podman): web+api+game-server+admin+docs
 ```
 
 ## Network isolation
@@ -52,7 +54,7 @@ only host _loopback_ is firewalled off.
 ## Files here
 
 - `containerfile/` — the env image + entrypoint (checkout PR sha, seed db on first
-  boot, run web/api/game-server). One container per env = the sandbox boundary:
+  boot, run web/api/game-server/admin/docs). One container per env = the sandbox boundary:
   rootless, no-new-privileges, cap-drop ALL, mem/cpu/pids caps. The game-server
   `npm install`s third-party engines at runtime (`apps/game-server/app/services/installer.ts`),
   which is exactly why envs are containers with no published ports except via nginx.
@@ -119,6 +121,8 @@ cookie ever carries the shared `boardgamers.space` ancestor (which would leak in
 | 14000+n | env n game-server (gameplay)          |
 | 15000+n | env n websocket                       |
 | 16000+n | env n resources (game-viewer iframes) |
+| 17000+n | env n admin SPA                       |
+| 18000+n | env n docs (self-hosted docs server)  |
 
 nginx builds the upstream port by zero-padding the PR number to 3 digits
 (`12` + `099` for PR 99), so PRs must stay < 1000.

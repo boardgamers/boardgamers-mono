@@ -2,7 +2,7 @@
 
 Here is the architecture of the BGS platform. It is just here to provide a look at the environment your game will be running in.
 
-![Architecture](./architecture.png)
+![Architecture](/guide/architecture.png)
 
 Your game engine will be loaded through NPM, and a CDN will be used to load the UI of your game - inside a sandboxed iframe - to be served to the players.
 

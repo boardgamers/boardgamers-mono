@@ -1,22 +1,24 @@
 ---
-home: true
-heroImage: /logo.svg
-tagline: Docs for the boardgamers ecosystem
-actionText: Quick Start →
-actionLink: /guide/
-xfeatures:
-  - title: Hot game loading
-    details: Boardgames can be loaded and configured on the platform without any need for a restart
-  - title: Game engine utilities
-    details: We provide a module to help standardize turn-based game implementations
-  - title: Community
-    details: Check us out at <a href="//boardgamers.space">boardgamers.space</a>!
-footer: Made with ❤️
+title: BGS Docs
 ---
 
+<div class="hero">
+  <img src="/logo.svg" alt="BGS logo">
+  <p>Docs for the boardgamers ecosystem</p>
+  <a class="action-button" href="/guide">Quick Start →</a>
+</div>
+
 <div class="features">
-  <div class="feature" v-for="feat in $page.frontmatter.xfeatures">
-    <h2><a v-bind:href="feat.link">{{ feat.title }}</a></h2>
-    <p v-html=feat.details></p>
+  <div class="feature">
+    <h2>Hot game loading</h2>
+    <p>Boardgames can be loaded and configured on the platform without any need for a restart</p>
+  </div>
+  <div class="feature">
+    <h2>Game engine utilities</h2>
+    <p>We provide a module to help standardize turn-based game implementations</p>
+  </div>
+  <div class="feature">
+    <h2>Community</h2>
+    <p>Check us out at <a href="https://boardgamers.space">boardgamers.space</a>!</p>
   </div>
 </div>
