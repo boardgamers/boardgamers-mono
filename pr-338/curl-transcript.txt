@@ -1,0 +1,52 @@
+$ curl -s -H "Accept: text/html" http://127.0.0.1:8613/guide/architecture | head -4
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+
+$ curl -s -H "Accept: text/markdown" http://127.0.0.1:8613/guide/architecture | head -4
+# Architecture
+
+Here is the architecture of the BGS platform. It is just here to provide a look at the environment your game will be running in.
+
+
+$ curl -s http://127.0.0.1:8613/guide/architecture.md | head -4
+# Architecture
+
+Here is the architecture of the BGS platform. It is just here to provide a look at the environment your game will be running in.
+
+
+$ curl -s "http://127.0.0.1:8613/guide/architecture?format=md" | head -2
+# Architecture
+
+
+$ curl -s http://127.0.0.1:8613/guide/engine-api | head -2   # no Accept header → markdown (agent default)
+# Game engine API
+
+
+$ curl -s http://127.0.0.1:8613/llms.txt
+# BGS Docs
+
+> Docs for the boardgamers ecosystem (boardgamers.space) — how the platform works and how to add a game.
+
+Every page is available as raw markdown: append `.md` to its URL, or send `Accept: text/markdown`.
+
+## Docs
+
+- [BGS Docs](/.md)
+- [Config](/config.md)
+- [Introduction](/guide.md)
+- [Adding a game to Boardgamers](/guide/adding-a-game.md)
+- [Architecture](/guide/architecture.md)
+- [Game engine API](/guide/engine-api.md)
+- [Tic Tac Toe example](/guide/tictactoe.md)
+- [Viewer API](/guide/viewer-api.md)
+
+$ curl -s http://127.0.0.1:8613/health
+{"ok":true}
+$ curl -sI http://127.0.0.1:8613/guide/architecture.png | head -2
+HTTP/1.1 200 OK
+content-type: image/png
+
+$ curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8613/nope
+404
