@@ -6,6 +6,7 @@ import { backendUrl } from "@/lib/backend-url.server";
 import { parsePreferredLanguage } from "@/lib/accept-language";
 import { logHeader } from "@/lib/log-header";
 import { extractCookie } from "@/utils/extract-cookie";
+import { timezoneFromCookieHeader } from "@/lib/timezone";
 
 interface RequestContext {
 	requestId: string;
@@ -28,6 +29,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.host = event.url.host;
 	event.locals.refreshToken = refreshToken;
 	event.locals.sidebarOpen = sidebarOpen;
+	// Viewer's timezone, stamped into a cookie by the client (see src/lib/timezone).
+	// Seeds SSR time-of-day rendering so it matches client hydration (#339).
+	event.locals.timezone = timezoneFromCookieHeader(event.request.headers.get("cookie") ?? "") ?? "UTC";
 
 	return requestContextStorage.run({ requestId, clientIp }, async () => {
 		const start = Date.now();

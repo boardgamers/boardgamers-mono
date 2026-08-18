@@ -2,7 +2,8 @@
 	import { browser } from "$app/environment";
 	import { keyBy } from "lodash";
 	import { elapsedSeconds } from "@bgs/utils";
-	import { timerTime, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
+	import { timerTimeInTz, oneLineMarked, handleError, confirm, duration, shortDuration } from "@/utils";
+	import { viewerTimezone } from "@/lib/timezone";
 	import type { PlayerInfoFront } from "@bgs/models";
 	import type { JsonObject, JsonValue } from "type-fest";
 	import { Button, Badge } from "@/modules/cdk";
@@ -51,6 +52,10 @@
 	}
 
 	let alwaysActive = $derived(game?.options.timing.timer?.start === game?.options.timing.timer?.end);
+
+	// Viewer's timezone (context, init-only) — SSR renders the same clock window
+	// the client hydrates with (#339).
+	const tz = viewerTimezone();
 
 	let currentPlayersById = $derived(keyBy(game?.currentPlayers ?? [], "_id"));
 
@@ -172,7 +177,7 @@
 		<span>
 			{alwaysActive
 				? "24h"
-				: `${timerTime(game.options.timing.timer?.start ?? 0)}-${timerTime(game.options.timing.timer?.end ?? 0)}`}
+				: `${timerTimeInTz(game.options.timing.timer?.start ?? 0, tz)}-${timerTimeInTz(game.options.timing.timer?.end ?? 0, tz)}`}
 			/ {duration(game.options.timing.timePerGame ?? 0)} + {duration(game.options.timing.timePerMove ?? 0)}
 		</span>
 	</div>

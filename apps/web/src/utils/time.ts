@@ -7,6 +7,26 @@ export function timerTime(value: number): string {
 	}`;
 }
 
+/**
+ * timerTime in an explicit IANA timezone instead of the runtime's. The timer
+ * start/end are UTC seconds-since-midnight, so only the offset matters — the
+ * Intl API gives it directly for `tz` (today's, close enough for a daily
+ * window across DST transitions). Use via viewerTimezone() (src/lib/timezone)
+ * so SSR renders in the viewer's zone (from the `tz` cookie) and matches
+ * client hydration (#339).
+ */
+export function timerTimeInTz(value: number, tz: string): string {
+	const parts = new Intl.DateTimeFormat("en-US", {
+		timeZone: tz,
+		hour: "2-digit",
+		minute: "2-digit",
+		hourCycle: "h23",
+	}).formatToParts(value * 1000);
+	const hour = parts.find((p) => p.type === "hour")?.value ?? "00";
+	const minute = parts.find((p) => p.type === "minute")?.value ?? "00";
+	return `${hour}h${minute !== "00" ? minute : ""}`;
+}
+
 export function niceDate(date: string | Date): string {
 	if (!date) {
 		return date as any;
@@ -147,6 +167,13 @@ export function timerWindow(timer?: { start: number; end: number }): string {
 	return isRestrictedTimerWindow(timer) ? `${timerTime(timer?.start ?? 0)}–${timerTime(timer?.end ?? 0)}` : "24h";
 }
 
+/** timerWindow in an explicit timezone — see timerTimeInTz. */
+export function timerWindowInTz(timer: { start: number; end: number } | undefined, tz: string): string {
+	return isRestrictedTimerWindow(timer)
+		? `${timerTimeInTz(timer?.start ?? 0, tz)}–${timerTimeInTz(timer?.end ?? 0, tz)}`
+		: "24h";
+}
+
 /**
  * A game is "live" (real-time) when each player's whole-game clock fits in a
  * sitting — under a day — so it's meant to be played in one go. Longer clocks
@@ -165,8 +192,4 @@ export function dateTime(date: Date): string {
 		2,
 		"0",
 	)} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-}
-
-export function localTimezone(): string {
-	return typeof window === "undefined" ? "Europe/Paris" : new window.Intl.DateTimeFormat().resolvedOptions().timeZone;
 }

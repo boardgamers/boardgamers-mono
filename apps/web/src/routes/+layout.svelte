@@ -2,6 +2,7 @@
 	import { page } from "$app/state";
 	import { Notifications } from "@/components";
 	import { provideGameInfos } from "@/lib/game-info.svelte";
+	import { provideTimezone } from "@/lib/timezone";
 	import { absoluteUrl, resolveSeo, siteName, type SeoData } from "@/lib/seo";
 	import type { Snippet } from "svelte";
 	import type { LayoutProps } from "./$types";
@@ -13,6 +14,13 @@
 	// re-runs on invalidateAll, so a fresh page render re-provides fresh data.
 	const gameInfos = () => data.gameInfos ?? {};
 	provideGameInfos(gameInfos());
+
+	// Provide the timezone during component init too: $effect (and thus the
+	// provideTimezone in +layout.ts) does NOT run during SSR, and descendants read
+	// the context while rendering server-side (GameList's initial load is sync).
+	// The timezone is constant for the request — capturing the initial data is intended.
+	// svelte-ignore state_referenced_locally
+	provideTimezone(data.timezone ?? "UTC");
 
 	// Single source of truth for the head: `page.data.seo`, merged by SvelteKit from the
 	// page's load() BEFORE render, so the page's values are present when this head

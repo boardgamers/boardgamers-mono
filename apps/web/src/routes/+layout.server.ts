@@ -20,6 +20,9 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		user,
 		activeGames,
 		sidebarOpen: locals.sidebarOpen,
+		// Validated in hooks (tz cookie → IANA zone, "UTC" fallback) — serialized
+		// to the client so the layout provides the same zone on both sides (#339).
+		timezone: locals.timezone,
 		// Cookie presence (validity unknown) — seeds the client's mint gate before the
 		// validated `user` is applied (see +layout.ts / api.ts#setClientSessionKnown).
 		hasCookie: !!locals.refreshToken,
