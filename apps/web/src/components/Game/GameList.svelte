@@ -8,7 +8,9 @@
 		shortDuration,
 		compactDuration,
 		timerWindow,
+		isRestrictedTimerWindow,
 		gamePace,
+		localTimezone,
 		type GamePace,
 	} from "@/utils";
 	import type { GameFront } from "@bgs/models";
@@ -342,6 +344,19 @@
 											>
 												{rowPace === "live" ? "⚡ Live" : "🐢 Async"}
 											</span>
+											<!-- Clock window: the time-of-day range the game clock ticks (it pauses
+												     overnight). Stored as UTC seconds-since-midnight; timerWindow() renders
+												     it in the viewer's own timezone, so a player can tell whether the game's
+												     active hours match their waking hours. Only shown when the window is a
+												     non-default restriction (start !== end); 24h clocks are omitted. -->
+											{#if isRestrictedTimerWindow(game.options.timing.timer)}
+												<span
+													class="rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200"
+													title={`Clock runs ${timerWindow(game.options.timing.timer)} daily (your local time, ${localTimezone()}), pauses overnight`}
+												>
+													🕐 {timerWindow(game.options.timing.timer)}
+												</span>
+											{/if}
 											<span class="game-name min-w-0 truncate">
 												{game._id}
 											</span>
@@ -355,16 +370,6 @@
 												{compactDuration(game.options.timing.timePerGame ?? 0)}+{compactDuration(
 													game.options.timing.timePerMove ?? 0
 												)}
-												{#if game.options.timing.scheduledStart}
-													· starts on {niceDate(game.options.timing.scheduledStart)} at
-													{new Date(game.options.timing.scheduledStart)
-														.getHours()
-														.toString()
-														.padStart(2, "0")}h{new Date(game.options.timing.scheduledStart)
-														.getMinutes()
-														.toString()
-														.padStart(2, "0")}
-												{/if}
 											</small>
 											<!-- Setup options + join restrictions at a glance: see what you're joining
 										     (and its requirements) without opening the game. -->
