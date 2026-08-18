@@ -53,9 +53,9 @@
 			<Card class="border-gray-400 h-full dark:border-gray-600">
 				{#snippet headerContent()}
 					<div class="flex items-center">
-						<span class="min-w-20 flex-1"></span>
+						<span class="flex-1"></span>
 						<span class="font-semibold">{rules ? "Rules" : "Description"}</span>
-						<span class="min-w-20 flex flex-1 justify-end">
+						<span class="flex flex-1 justify-end">
 							<BoardgameLinks links={boardgame.links} />
 						</span>
 					</div>
