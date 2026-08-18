@@ -8,6 +8,7 @@
 		shortDuration,
 		compactDuration,
 		timerWindow,
+		gamePace,
 		type GamePace,
 	} from "@/utils";
 	import type { GameFront } from "@bgs/models";
@@ -320,11 +321,26 @@
 									     their own lines. No "created X ago" (dropped entirely). -->
 										{@const meta = game.options.meta}
 										{@const opts = setupOptions(game)}
+										{@const rowPace = gamePace(game.options.timing.timePerGame)}
 										<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
 											<span
 												class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/60 dark:text-blue-200"
 											>
 												{game.players.length}/{game.options.setup.nbPlayers}
+											</span>
+											<!-- Pace/timespan at a glance (#55 follow-up): same Live/Async
+											     categories as the pace filter (gamePace / LIVE_GAME_MAX_TIME_PER_GAME),
+										     so the row and the filter always agree. Title spells out the full
+										     per-game + per-move timing. -->
+											<span
+												class="rounded-full px-1.5 py-0.5 text-xs font-medium whitespace-nowrap {rowPace === 'live'
+													? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
+													: 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-200'}"
+												title={rowPace === "live"
+													? `Live game — meant to be played in one sitting (${duration(game.options.timing.timePerGame ?? 0)} per player)`
+													: `Asynchronous game — played over days (${duration(game.options.timing.timePerGame ?? 0)} per player)`}
+											>
+												{rowPace === "live" ? "⚡ Live" : "🐢 Async"}
 											</span>
 											<span class="game-name min-w-0 truncate">
 												{game._id}

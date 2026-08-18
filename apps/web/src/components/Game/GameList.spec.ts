@@ -483,3 +483,67 @@ describe("GameList open-row setup badges (#55)", () => {
 		unmount(instance as never);
 	});
 });
+
+// Open rows show the game's pace/timespan (Live/Async) so players can tell a
+// one-sitting game from a multi-week one at a glance. The chip reuses gamePace()
+// (LIVE_GAME_MAX_TIME_PER_GAME) so it always agrees with the lobby's pace filter.
+describe("GameList open-row pace chip", () => {
+	function pacedGame(_id: string, timePerGame: number) {
+		return {
+			_id,
+			status: "open",
+			players: [],
+			currentPlayers: [],
+			createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+			game: { name: `game-${_id}`, version: 1 },
+			options: { setup: { nbPlayers: 2 }, timing: { timePerGame, timePerMove: 3600, timer: { start: 0, end: 0 } } },
+		} as never;
+	}
+
+	beforeEach(() => {
+		clearGamesCache();
+		getMock.mockReset();
+		document.body.innerHTML = "";
+	});
+
+	it("chips a live game ⚡ Live and an async game 🐢 Async", async () => {
+		mockApi(
+			[
+				pacedGame("g-live", 2 * 3600), // 2h/player < 24h → live
+				pacedGame("g-async", 3 * 86400), // 3d/player ≥ 24h → async
+			],
+			2,
+		);
+		const { target, instance } = mountList();
+		await waitForGames(target, ["g-live", "g-async"]);
+
+		const rows = [...target.querySelectorAll(".game-item")];
+		const live = rows.find((row) => row.textContent?.includes("g-live"))!;
+		const async = rows.find((row) => row.textContent?.includes("g-async"))!;
+
+		expect(live.textContent).toContain("⚡ Live");
+		expect(live.textContent).not.toContain("Async");
+		expect(async.textContent).toContain("🐢 Async");
+		expect(async.textContent).not.toContain("Live");
+
+		unmount(instance as never);
+	});
+
+	it("matches the pace filter boundary at LIVE_GAME_MAX_TIME_PER_GAME (24h)", async () => {
+		mockApi(
+			[
+				pacedGame("g-just-under", 86400 - 1), // < 24h → live
+				pacedGame("g-at-boundary", 86400), // ≥ 24h → async
+			],
+			2,
+		);
+		const { target, instance } = mountList();
+		await waitForGames(target, ["g-just-under", "g-at-boundary"]);
+
+		const rows = [...target.querySelectorAll(".game-item")];
+		expect(rows.find((row) => row.textContent?.includes("g-just-under"))!.textContent).toContain("⚡ Live");
+		expect(rows.find((row) => row.textContent?.includes("g-at-boundary"))!.textContent).toContain("🐢 Async");
+
+		unmount(instance as never);
+	});
+});
