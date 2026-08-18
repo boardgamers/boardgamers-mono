@@ -10,6 +10,5 @@
 		"skipLibCheck": true,
 		"types": ["node"]
 	},
-	"include": ["app/**/*.ts", "server.ts"],
-	"exclude": ["**/*.spec.ts"]
+	"include": ["app/**/*.ts", "server.ts", "server.spec.ts"]
 }

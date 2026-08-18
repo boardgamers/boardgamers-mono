@@ -5,7 +5,7 @@ import { wantsMarkdown } from "./app/negotiate.ts";
 import { renderIndex, renderLlmsTxt, renderPage } from "./app/render.ts";
 
 const DOCS_DIR = fileURLToPath(new URL("./docs/", import.meta.url));
-const PORT = Number(process.env.PORT ?? process.env.port ?? 8613);
+const PORT = Number(process.env.PORT ?? process.env.port ?? 8620);
 const HOST = process.env.HOST ?? process.env.listenHost ?? "127.0.0.1";
 
 function send(res: import("node:http").ServerResponse, status: number, type: string, body: string | Buffer) {

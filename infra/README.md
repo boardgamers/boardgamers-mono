@@ -11,7 +11,7 @@ All apps run under PM2 as the `bgs` user, managed via `ecosystem.config.cjs` at 
 | `api`           | `apps/api`         | cluster | Koa REST API, 2 workers (+ `api-cron`)                 |
 | `game-server`   | `apps/game-server` | cluster | Gameplay API, 2 workers (+ `game-server-cron`)         |
 | `web`           | `apps/web`         | cluster | SvelteKit SSR, 2 instances                             |
-| `docs`          | `apps/docs`        | fork    | Self-hosted docs (markdown + HTML), port 8613          |
+| `docs`          | `apps/docs`        | fork    | Self-hosted docs (markdown + HTML), port 8620          |
 | `watchdog`      | `apps/game-server` | fork    | Hang detector — restarts unresponsive apps (see below) |
 | `pm2-logrotate` | (module)           | fork    | Rotates PM2 logs at 10 MB, 30-day retain               |
 
@@ -74,7 +74,7 @@ Nginx (root) fronts all public traffic. Prod is **full IPv6**: app processes bin
 - `boardgamers.space` / `www.boardgamers.space` → SvelteKit SSR (`[::1]:8612`)
 - `admin.boardgamers.space` → admin SPA (static files + `/api` proxy to `[::1]:50801`)
 - `resources.boardgamers.space` → resources API (`[::1]:50804`)
-- `docs.boardgamers.space` → self-hosted docs (`[::1]:8613`, PM2 `docs`)
+- `docs.boardgamers.space` → self-hosted docs (`[::1]:8620`, PM2 `docs`)
 - `forum.boardgamers.space` → NodeBB
 - `grafana.boardgamers.space` → Grafana (`127.0.0.1:3030`)
 

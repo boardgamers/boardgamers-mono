@@ -14,15 +14,15 @@ markdown** to agents:
 - `/llms.txt` → machine-readable index of every page as a markdown link
 
 ```bash
-curl -H "Accept: text/markdown" http://localhost:8613/guide/architecture
-curl http://localhost:8613/guide/architecture.md
+curl -H "Accept: text/markdown" http://localhost:8620/guide/architecture
+curl http://localhost:8620/guide/architecture.md
 ```
 
 ## Development
 
 ```bash
 pnpm install
-pnpm dev        # node --watch server.ts → http://localhost:8613
+pnpm dev        # node --watch server.ts → http://localhost:8620
 pnpm test       # node:test suite (negotiation, rendering, routes)
 pnpm build      # type-check (tsc --noEmit)
 ```

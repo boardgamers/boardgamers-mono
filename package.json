@@ -2,7 +2,7 @@
 	"license": "AGPL-3.0",
 	"type": "module",
 	"scripts": {
-		"dev": "pnpm --filter @bgs/api --filter game --filter @bgs/web run --parallel dev",
+		"dev": "pnpm --filter @bgs/api --filter game --filter @bgs/web --filter @bgs/docs run --parallel dev",
 		"dev:admin": "pnpm --filter @bgs/admin run dev",
 		"format": "oxfmt .",
 		"format-check": "oxfmt --check ."
