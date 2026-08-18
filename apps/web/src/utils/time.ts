@@ -9,19 +9,23 @@ export function timerTime(value: number): string {
 
 /**
  * timerTime in an explicit IANA timezone instead of the runtime's. The timer
- * start/end are UTC seconds-since-midnight, so only the offset matters — the
- * Intl API gives it directly for `tz` (today's, close enough for a daily
- * window across DST transitions). Use via viewerTimezone() (src/lib/timezone)
- * so SSR renders in the viewer's zone (from the `tz` cookie) and matches
- * client hydration (#339).
+ * start/end are UTC seconds-since-midnight, so only the zone's UTC offset
+ * matters. The anchor is TODAY's UTC midnight (not the epoch): formatting
+ * `value * 1000` would use the zone's 1970 offset, which is an hour off for
+ * zones currently observing DST. Anchoring on the UTC date keeps server and
+ * client on the same day regardless of their own zones, so SSR + hydration
+ * still agree. Use via viewerTimezone() (src/lib/timezone) so SSR renders in
+ * the viewer's zone (from the `tz` cookie) and matches client hydration (#339).
  */
 export function timerTimeInTz(value: number, tz: string): string {
+	const now = new Date();
+	const anchor = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
 	const parts = new Intl.DateTimeFormat("en-US", {
 		timeZone: tz,
 		hour: "2-digit",
 		minute: "2-digit",
 		hourCycle: "h23",
-	}).formatToParts(value * 1000);
+	}).formatToParts(anchor + value * 1000);
 	const hour = parts.find((p) => p.type === "hour")?.value ?? "00";
 	const minute = parts.find((p) => p.type === "minute")?.value ?? "00";
 	return `${hour}h${minute !== "00" ? minute : ""}`;
