@@ -29,9 +29,13 @@ const gameIframeQuerySchema = z.object({
 
 // Only the page background — so a dark-mode user doesn't get a white flash while the
 // viewer loads. Everything else (text, tables, modals, …) is the viewer's own styling.
+// The cascade layer keeps this a fallback: unlayered viewer styles always win over layered
+// ones, so a viewer painting its own background beats us without needing specificity hacks.
 const darkStylesheet = `
-html.dark {
-  background: #030712;
+@layer bgs-fallback {
+  html.dark {
+    background: #030712;
+  }
 }`;
 
 router.get("/iframe", (ctx) => {
