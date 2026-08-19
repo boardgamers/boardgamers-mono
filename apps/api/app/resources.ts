@@ -30,7 +30,7 @@ const gameIframeQuerySchema = z.object({
 // Only the page background — so a dark-mode user doesn't get a white flash while the
 // viewer loads. Everything else (text, tables, modals, …) is the viewer's own styling.
 const darkStylesheet = `
-html.dark body {
+html.dark {
   background: #030712;
 }`;
 

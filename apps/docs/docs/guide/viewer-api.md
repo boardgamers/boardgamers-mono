@@ -288,7 +288,7 @@ two things for dark mode:
 
 - It toggles a `dark` class on `<html>` — read from the `?dark=1` URL parameter for the initial paint (before any
   viewer script runs, so no flash of light theme), then kept in sync via the [theme](#theme) message.
-- It sets a dark page **background** (`html.dark body`) so there's no white flash while your viewer loads.
+- It sets a dark page **background** (`html.dark`) so there's no white flash while your viewer loads.
 
 Everything else is the viewer's responsibility. To support dark mode: read the initial state from `?dark=1` (or the
 `<html class="dark">` the wrapper already set) for the first paint, then listen for the [theme](#theme) event for
