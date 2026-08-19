@@ -26,9 +26,12 @@ function splitTag(text: string): { name: string; closing: boolean; selfClosing: 
 	return { name: match[2].toLowerCase(), closing: match[1] === "/", selfClosing: match[4] === "/" };
 }
 
-/** Split HTML containing tags into segments so tag boundaries land on token edges. */
+/**
+ * Split HTML containing tags into segments so tag boundaries land on token edges.
+ * Tags inside inline code spans (backticks) are not tag boundaries — they're code.
+ */
 function splitHtml(html: string): string[] {
-	const parts = html.split(/(<[^>]*>)/).filter((s) => s.length > 0);
+	const parts = html.split(/(`+[^`]*`+|<[^>]*>)/).filter((s) => s.length > 0);
 	const out: string[] = [];
 	let buffer = "";
 	for (const part of parts) {
@@ -44,9 +47,9 @@ function splitHtml(html: string): string[] {
 
 /**
  * marked's inline lexer has no HTML tokenizer: `<h2><a href=…>` inside a paragraph
- * renders as literal text. Split block html/paragraph tokens at tag boundaries and
- * re-emit each as its own token so `renderer.html` sees whole tags (VuePress-style
- * raw-HTML passthrough).
+ * renders as literal text. Split block html tokens (and whole-tag paragraphs) at tag
+ * boundaries and re-emit each as its own token so `renderer.html` sees whole tags
+ * (VuePress-style raw-HTML passthrough). Tags inside code spans stay code.
  */
 function retokenizeHtml(tokens: Token[]): Token[] {
 	const out: Token[] = [];
@@ -54,12 +57,22 @@ function retokenizeHtml(tokens: Token[]): Token[] {
 		if (token.type === "html") {
 			for (const part of splitHtml(token.text)) out.push({ type: "html", raw: part, text: part } as Token);
 		} else if (token.type === "paragraph" && /<[a-zA-Z/]/.test(token.text)) {
-			for (const part of splitHtml((token as Tokens.Paragraph).tokens ? token.text : token.text)) {
-				if (splitTag(part)) {
-					out.push({ type: "html", raw: part, text: part } as Token);
-				} else {
-					out.push({ type: "paragraph", raw: part, text: part, tokens: marked.Lexer.lexInline(part) } as Token);
+			// Only whole-tag paragraphs are raw HTML (mixed text+tag paragraphs inline
+			// literal tags instead — marked's default). Backticked tags are code spans,
+			// never raw HTML.
+			const wholeTag = token.text.match(/^(<[^>]*>)([\s\S]*)$/);
+			if (wholeTag && splitTag(wholeTag[1])) {
+				out.push({ type: "html", raw: wholeTag[1], text: wholeTag[1] } as Token);
+				if (wholeTag[2]) {
+					out.push({
+						type: "paragraph",
+						raw: wholeTag[2],
+						text: wholeTag[2],
+						tokens: marked.Lexer.lexInline(wholeTag[2]),
+					} as Token);
 				}
+			} else {
+				out.push(token);
 			}
 		} else {
 			out.push(token);
@@ -121,7 +134,10 @@ export function reanchorMarkdown(markdown: string, prefix: string): string {
 }
 
 export function renderMarkdown(markdown: string, headingPrefix = "", currentPath = ""): string {
-	const tokens = retokenizeHtml(marked.lexer(reanchorMarkdown(markdown, headingPrefix)));
+	// Drop the VuePress [[toc]] directive — the sidebar shows the active page's h2s.
+	const tokens = retokenizeHtml(marked.lexer(reanchorMarkdown(markdown, headingPrefix))).filter(
+		(token) => !(token.type === "paragraph" && token.text.trim() === "[[toc]]"),
+	);
 	const stack: string[] = [];
 	const renderer = new marked.Renderer();
 	renderer.link = ({ href, tokens: linkTokens }: Tokens.Link): string => {
