@@ -3,14 +3,19 @@
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import ExpandableMarkdown from "@/components/ExpandableMarkdown.svelte";
-	import { useLatestGameInfos } from "@/lib/game-info.svelte";
+	import IconMeeple from "@/components/icons/IconMeeple.svelte";
+	import IconMeepleFill from "@/components/icons/IconMeepleFill.svelte";
+	import { byGamePopularity, useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
 	import { gameBasedOnLabel, gameDisplayName } from "@/utils/game-label";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
 
-	let info = useLatestGameInfos();
+	// Discovery ordering (#98): my likes first, then most liked, display name breaks
+	// ties. `$derived.by` (not `$derived(...)`) because useLatestGameInfos reads reactive
+	// state — the function must run inside the derived for the read to be tracked.
+	let info = $derived.by(() => useLatestGameInfos().slice().sort(byGamePopularity));
 
 	// SSR: provide the SSR-fetched prefs map via context during init so the ownership
 	// classes render server-side (setContext must run at init; $effect does NOT run during
@@ -44,18 +49,35 @@
 						<ExpandableMarkdown markdown={game.description} />
 					</CardText>
 					{#snippet footer()}
-						<span
-							class:text-accent={owns(game._id.game)}
-							class:dark:text-accent-lighter={owns(game._id.game)}
-							class:text-gray-500={!owns(game._id.game)}
-							class:dark:text-gray-400={!owns(game._id.game)}
-						>
-							{#if owns(game._id.game)}
-								You own this game
-							{:else}
-								You do not own this game
+						<div class="flex items-center justify-between">
+							<span
+								class:text-accent={owns(game._id.game)}
+								class:dark:text-accent-lighter={owns(game._id.game)}
+								class:text-gray-500={!owns(game._id.game)}
+								class:dark:text-gray-400={!owns(game._id.game)}
+							>
+								{#if owns(game._id.game)}
+									You own this game
+								{:else}
+									You do not own this game
+								{/if}
+							</span>
+							{#if game.likeCount}
+								<span
+									class="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400"
+									class:text-primary={game.liked}
+									class:dark:text-primary-lighter={game.liked}
+									title="{game.likeCount} like{game.likeCount === 1 ? '' : 's'}"
+								>
+									{#if game.liked}
+										<IconMeepleFill />
+									{:else}
+										<IconMeeple />
+									{/if}
+									{game.likeCount}
+								</span>
 							{/if}
-						</span>
+						</div>
 					{/snippet}
 				</Card>
 			</div>

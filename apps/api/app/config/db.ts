@@ -16,6 +16,8 @@ import {
 	GAME_INFOS_COLLECTION,
 	type GameMetadataDoc,
 	GAME_METADATAS_COLLECTION,
+	type GameLikeDoc,
+	GAME_LIKES_COLLECTION,
 	type GameNotificationDoc,
 	GAME_NOTIFICATIONS_COLLECTION,
 	type GamePreferencesDoc,
@@ -69,6 +71,7 @@ export const colls = {} as {
 	games: Collection<GameDoc>;
 	gameInfos: Collection<GameVersionDoc>;
 	gameMetadatas: Collection<GameMetadataDoc>;
+	gameLikes: Collection<GameLikeDoc>;
 	gameNotifications: Collection<GameNotificationDoc>;
 	gamePreferences: Collection<GamePreferencesDoc>;
 	images: Collection<ImageDoc>;
@@ -94,6 +97,7 @@ function initColls(database: Db) {
 		games: withAutoUpdatedAt(database.collection<GameDoc>(GAMES_COLLECTION)),
 		gameInfos: withAutoUpdatedAt(database.collection<GameVersionDoc>(GAME_INFOS_COLLECTION)),
 		gameMetadatas: withAutoUpdatedAt(database.collection<GameMetadataDoc>(GAME_METADATAS_COLLECTION)),
+		gameLikes: withAutoUpdatedAt(database.collection<GameLikeDoc>(GAME_LIKES_COLLECTION)),
 		gameNotifications: withAutoUpdatedAt(database.collection<GameNotificationDoc>(GAME_NOTIFICATIONS_COLLECTION)),
 		gamePreferences: withAutoUpdatedAt(database.collection<GamePreferencesDoc>(GAME_PREFERENCES_COLLECTION)),
 		images: withAutoUpdatedAt(database.collection<ImageDoc>(IMAGES_COLLECTION)),

@@ -30,8 +30,8 @@
 	let karma = $derived(live($account, (page.data.user as UserFront | null) ?? null)?.account.karma ?? 80);
 
 	let boardgameId = $derived(page.params.boardgameId); // Can be undefined during page navigation out
-	// Game-info list comes from the root-provided context; capture the map at init
-	// (getContext) and read from it reactively.
+	// Game-info list comes from the root-provided context: a reactive `$state` map, so
+	// reads inside `$derived` track it.
 	const infos = useGameInfos();
 	let info = $derived(boardgameId ? infos[gameInfoKey(boardgameId, "latest")] : undefined);
 

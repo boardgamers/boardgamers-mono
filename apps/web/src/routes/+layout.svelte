@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { untrack } from "svelte";
+	import { browser } from "$app/environment";
 	import { page } from "$app/state";
 	import { Notifications } from "@/components";
-	import { provideGameInfos } from "@/lib/game-info.svelte";
+	import { provideGameInfos, reseedGameInfoLikes } from "@/lib/game-info.svelte";
 	import { provideTimezone } from "@/lib/timezone";
 	import { absoluteUrl, resolveSeo, siteName, type SeoData } from "@/lib/seo";
 	import type { Snippet } from "svelte";
@@ -12,8 +14,13 @@
 	// SSR: provide the game-info list via context during init so descendants render it
 	// server-side (setContext must run at init; $effect does NOT run during SSR). The load
 	// re-runs on invalidateAll, so a fresh page render re-provides fresh data.
-	const gameInfos = () => data.gameInfos ?? {};
-	provideGameInfos(gameInfos());
+	// `$state` so context reads are reactive: a like/unlike mutates this map in place (see
+	// applyGameLike) and every consumer (page header, sidebar badge, catalog) re-renders.
+	// `untrack`: the snapshot is intentionally the initial seed — a like-mutated map must NOT
+	// be clobbered when a same-identity revalidation re-runs the load (the "seed once per
+	// identity" contract in stores.svelte.ts).
+	const gameInfos = $state(untrack(() => data.gameInfos) ?? {});
+	provideGameInfos(gameInfos);
 
 	// Provide the timezone during component init too: $effect (and thus the
 	// provideTimezone in +layout.ts) does NOT run during SSR, and descendants read
@@ -21,6 +28,22 @@
 	// The timezone is constant for the request — capturing the initial data is intended.
 	// svelte-ignore state_referenced_locally
 	provideTimezone(data.timezone ?? "UTC");
+
+	// `liked` is per-user (the /boardgame/info join), so it must re-seed on login/logout —
+	// but NOT on a same-identity revalidation, which would clobber a client-side like-toggle
+	// (the #293 "seed once per identity" contract). Track the user identity and, when it
+	// changes, apply the fresh per-user liked/likeCount from the re-fetched list onto the
+	// existing map (keeping any already-loaded `viewer`).
+	let gameInfosSeededFor: string | null = untrack(() => data.user?._id ?? null);
+	$effect(() => {
+		const identity = data.user?._id ?? null;
+		const fresh = data.gameInfos;
+		if (!browser || identity === gameInfosSeededFor || !fresh) {
+			return;
+		}
+		gameInfosSeededFor = identity;
+		Object.assign(gameInfos, reseedGameInfoLikes(gameInfos, fresh));
+	});
 
 	// Single source of truth for the head: `page.data.seo`, merged by SvelteKit from the
 	// page's load() BEFORE render, so the page's values are present when this head

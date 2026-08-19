@@ -5,6 +5,9 @@
 	import { countryFlag, countryName } from "@/lib/countries";
 	import { page } from "$app/state";
 	import { resolve } from "$app/paths";
+	import GameName from "@/components/GameName.svelte";
+	import IconMeepleFill from "@/components/icons/IconMeepleFill.svelte";
+	import { gameBadge } from "@/utils/game-label";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -12,6 +15,7 @@
 	// The load function 404s if the user doesn't exist, so `_id` is always set here.
 	let userId = $derived(data.user._id!);
 	let joinDate = $derived(dateFromObjectId(userId));
+	let likedGames = $derived(data.likedGames ?? []);
 </script>
 
 <div class="container mx-auto px-4">
@@ -55,6 +59,33 @@
 		</div>
 		<div class="grow-[3]">
 			<UserGames {userId} />
+
+			{#if likedGames.length > 0}
+				<Card class="border-gray-300 mt-4 dark:border-gray-600" header="Liked games">
+					<ul class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+						{#each likedGames as game (game.game)}
+							<li>
+								<a
+									href={resolve("/(app)/boardgame/[boardgameId]", { boardgameId: game.game })}
+									class="flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 no-underline transition-shadow hover:border-primary hover:shadow-sm dark:border-gray-700 dark:hover:border-primary-lighter"
+								>
+									<span class="text-lg leading-none">{gameBadge(game)}</span>
+									<span class="min-w-0 flex-1 font-semibold">
+										<GameName info={game} line />
+									</span>
+									<span
+										class="flex shrink-0 items-center gap-1 text-sm text-gray-500 dark:text-gray-400"
+										title="{game.likeCount} like{game.likeCount === 1 ? '' : 's'}"
+									>
+										<IconMeepleFill size="0.85em" />
+										{game.likeCount}
+									</span>
+								</a>
+							</li>
+						{/each}
+					</ul>
+				</Card>
+			{/if}
 
 			<Card class="border-gray-300 mt-4 dark:border-gray-600" header="Statistics">
 				<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">

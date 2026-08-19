@@ -2,11 +2,14 @@ import createError from "http-errors";
 import type { GamePreferencesDoc, GameVersionDoc } from "@bgs/models";
 import type { Context } from "koa";
 import Router from "koa-router";
+import type { ObjectId } from "mongodb";
 import type { PickDeep, SetOptional } from "type-fest";
 import { colls } from "../../config/db.ts";
+import { likedGameIds, setGameLike } from "../../services/gamelike.ts";
 import { lastAccessibleVersion } from "../../services/gameinfo.ts";
 import { findGameInfoWithVersion, mergeGameInfo } from "../../models/gameinfo.ts";
-import { queryCount, skipCount } from "../utils.ts";
+import { actionRateLimit } from "../../services/actionratelimit.ts";
+import { loggedIn, queryCount, skipCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -29,6 +32,14 @@ router.param("boardgame", async (boardgame, ctx, next) => {
 
 	await next();
 });
+
+async function addLikedFlag<T extends { _id: { game: string } }>(game: T, userId?: ObjectId) {
+	if (!userId) {
+		return { ...game, liked: false };
+	}
+	const like = await colls.gameLikes.findOne({ game: game._id.game, user: userId }, { projection: { _id: 1 } });
+	return { ...game, liked: !!like };
+}
 
 router.get("/info", async (ctx) => {
 	const ownGames = ctx.state.user
@@ -58,20 +69,30 @@ router.get("/info", async (ctx) => {
 		.toArray();
 	const metas = await colls.gameMetadatas.find({}).toArray();
 	const metaByGame = new Map(metas.map((m) => [m._id, m]));
+	const liked = ctx.state.user ? await likedGameIds(ctx.state.user._id) : new Set<string>();
 	// The list projection drops `viewer` (the endpoint never serves it), so the
 	// merged doc legitimately lacks it — mergeGameInfo only spreads fields through.
-	ctx.body = versions.map((v) =>
+	ctx.body = versions.map((v) => ({
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- viewer is intentionally omitted from the list
-		mergeGameInfo(v as GameVersionDoc, metaByGame.get(v._id.game) ?? null),
-	);
+		...mergeGameInfo(v as GameVersionDoc, metaByGame.get(v._id.game) ?? null),
+		liked: liked.has(v._id.game),
+	}));
 });
 
-router.get("/:boardgame", (ctx) => {
-	ctx.body = ctx.state.foundBoardgame;
+router.post("/:boardgame/like", loggedIn, actionRateLimit("boardgame/like"), async (ctx) => {
+	ctx.body = await setGameLike(ctx.state.foundBoardgame!._id.game, ctx.state.user!._id, true);
 });
 
-router.get("/:boardgame/info", (ctx) => {
-	ctx.body = ctx.state.foundBoardgame;
+router.delete("/:boardgame/like", loggedIn, actionRateLimit("boardgame/like"), async (ctx) => {
+	ctx.body = await setGameLike(ctx.state.foundBoardgame!._id.game, ctx.state.user!._id, false);
+});
+
+router.get("/:boardgame", async (ctx) => {
+	ctx.body = await addLikedFlag(ctx.state.foundBoardgame!, ctx.state.user?._id);
+});
+
+router.get("/:boardgame/info", async (ctx) => {
+	ctx.body = await addLikedFlag(ctx.state.foundBoardgame!, ctx.state.user?._id);
 });
 
 router.get("/:boardgame/info/latest", async (ctx) => {

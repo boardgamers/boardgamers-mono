@@ -312,4 +312,21 @@ router.get("/:userId/games/access", async (ctx) => {
 		.toArray();
 });
 
+// Public: the boardgames this user has liked, most-liked first. Joins the per-game
+// metadata for the display name (label/alias) + the game's total likeCount — a user's
+// likes are public (surfaced on their profile), only their private data stays hidden.
+router.get("/:userId/liked-games", async (ctx) => {
+	const likes = await colls.gameLikes.find({ user: ctx.state.foundUser!._id }, { projection: { game: 1 } }).toArray();
+	if (likes.length === 0) {
+		ctx.body = [];
+		return;
+	}
+	const metas = await colls.gameMetadatas
+		.find({ _id: { $in: likes.map((l) => l.game) } }, { projection: { label: 1, alias: 1, likeCount: 1 } })
+		.toArray();
+	ctx.body = metas
+		.map((m) => ({ game: m._id, label: m.label, alias: m.alias, likeCount: m.likeCount ?? 0 }))
+		.sort((a, b) => b.likeCount - a.likeCount || a.label.localeCompare(b.label));
+});
+
 export default router;

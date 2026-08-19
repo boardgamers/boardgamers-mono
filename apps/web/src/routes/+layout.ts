@@ -1,7 +1,7 @@
 import { browser } from "$app/environment";
 import type { LayoutLoad } from "./$types";
 import { seedAccountFromSSR, seedActiveGamesFromSSR, sidebarOpen } from "@/lib/stores.svelte";
-import { fetchGameInfos } from "@/lib/game-info.svelte";
+import { fetchGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 import type { GameInfoFront } from "@bgs/models";
 import type { SetOptional } from "type-fest";
 import { initWebsocket } from "@/lib/websocket.svelte";
@@ -37,13 +37,26 @@ export const load: LayoutLoad = async ({ data }) => {
 	// The root layout component seeds the reactive store from this on the browser, so
 	// SSR always renders current game data (no shared 1-hour server cache).
 	const gameInfos: Record<string, SetOptional<GameInfoFront, "viewer">> = await fetchGameInfos().catch(() => ({}));
+	// `likeCount` is shared across a game's versions and `liked` targets the game, not a
+	// version — but only the latest version's info is kept current, so older-version entries
+	// can carry a stale count (or none). Seed them from the `/latest` entry so every version
+	// of a game shows the same like state (and the count is SSR'd).
+	for (const [key, info] of Object.entries(gameInfos)) {
+		if (!key.endsWith("/latest")) {
+			const latest = gameInfos[gameInfoKey(info._id.game, "latest")];
+			if (latest) {
+				info.likeCount = latest.likeCount;
+				info.liked = latest.liked;
+			}
+		}
+	}
 
 	// Boardgames the player has played, ordered by recency — the sidebar's pinned "My
 	// games" group. SSR-safe (request-scoped fetch via getRequestEvent), so the divider
 	// and pinned group render on first paint, not after hydration.
 	let myBoardgames: string[] = [];
 	if (data?.user?._id) {
-		myBoardgames = await get<{ boardgame: string; lastActivity: string }[]>("/game/my-boardgames", {
+		myBoardgames = await get<{ boardgame: string; lastActivity: string; liked?: boolean }[]>("/game/my-boardgames", {
 			user: data.user._id,
 		})
 			.then((rows) => rows.map((r) => r.boardgame))

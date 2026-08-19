@@ -2,7 +2,7 @@
 	import { resolve } from "$app/paths";
 	import type { Pathname } from "$app/types";
 	import { page } from "$app/state";
-	import { useLatestGameInfos } from "@/lib/game-info.svelte";
+	import { byGamePopularity, useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { logoClick } from "@/lib/stores.svelte";
 	import { post } from "@/lib/api";
 	import { account } from "@/lib/account.svelte";
@@ -10,9 +10,11 @@
 	import { handleError } from "@/utils";
 	import { gameDisplayName } from "@/utils/game-label";
 	import GameName from "@/components/GameName.svelte";
+	import IconMeeple from "@/components/icons/IconMeeple.svelte";
+	import IconMeepleFill from "@/components/icons/IconMeepleFill.svelte";
 	import type { GameInfoFront, UserFront } from "@bgs/models";
 
-	const games = useLatestGameInfos() as GameInfoFront[];
+	const games = $derived.by(() => useLatestGameInfos()) as GameInfoFront[];
 	let boardgameId = $derived(page!.params.boardgameId);
 
 	// Boardgames the player has played (open/active/ended), floated to the top and
@@ -41,17 +43,26 @@
 		saveForgotten(forgotten.filter((g) => g !== id));
 	}
 
-	// Sort by the DISPLAYED name (alias when set) so the ordering matches what the player reads.
-	const byLabel = (a: GameInfoFront, b: GameInfoFront) => gameDisplayName(a).localeCompare(gameDisplayName(b));
 	const rank = (id: string) => {
 		const i = myBoardgames.indexOf(id);
 		return i === -1 ? Number.MAX_SAFE_INTEGER : i;
 	};
 	let pinnedIds = $derived(myBoardgames.filter((id) => !forgotten.includes(id)));
+	// "My games" = games the player has played (pinned) ∪ games they liked. A liked game
+	// belongs here by construction — liking one moves it into "My games" automatically
+	// (no imperative add), and unliking a never-played game drops it back out. Played
+	// games order by recency; liked-but-never-played games (no recency rank) fall to the
+	// end, A-Z among themselves.
 	let topGames = $derived(
-		games.filter((g) => pinnedIds.includes(g._id.game)).sort((a, b) => rank(a._id.game) - rank(b._id.game))
+		games
+			.filter((g) => pinnedIds.includes(g._id.game) || g.liked)
+			.sort((a, b) => rank(a._id.game) - rank(b._id.game) || gameDisplayName(a).localeCompare(gameDisplayName(b)))
 	);
-	let otherGames = $derived(games.filter((g) => !pinnedIds.includes(g._id.game)).sort(byLabel));
+	let topIds = $derived(new Set(topGames.map((g) => g._id.game)));
+	// "All games" = everything not already in "My games", most-liked first (display name
+	// breaks ties). Liked games are in "My games", so they neither double-show nor jump
+	// to the top here — the liked-first term of byGamePopularity is a no-op on this set.
+	let otherGames = $derived(games.filter((g) => !topIds.has(g._id.game)).sort(byGamePopularity));
 
 	const refreshGamesRoute = "/refresh-games";
 
@@ -85,6 +96,11 @@
 {#snippet gameItem(game: GameInfoFront, pinned: boolean)}
 	{@const id = game._id.game}
 	{@const isForgotten = forgotten.includes(id)}
+	<!-- ✕ "forget" applies only to a game pinned by play (in myBoardgames) that isn't
+	     already forgotten. A liked game stays in "My games" via the like even when
+	     forgotten, and a liked-never-played game has no play-pin to forget — so ✕ would
+	     be a no-op on those; forgotten games show ↩ (unforget) instead. -->
+	{@const canForget = pinned && !isForgotten && myBoardgames.includes(id)}
 	<li class="group relative">
 		<a
 			class="block px-4 py-2 font-semibold no-underline text-inherit hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -94,12 +110,31 @@
 			data-sveltekit-preload-data="hover"
 			onclick={handleClick}
 		>
-			<GameName info={game} />
-			{#if isForgotten}
-				<span class="ms-1 text-xs font-normal text-gray-400">(hidden)</span>
-			{/if}
+			<div class="flex items-baseline">
+				<div class="min-w-0 flex-1">
+					<GameName info={game} />
+				</div>
+				{#if isForgotten}
+					<span class="ms-1 shrink-0 self-center text-xs font-normal text-gray-400">(hidden)</span>
+				{/if}
+				{#if game.likeCount}
+					<span
+						class="ms-1 flex shrink-0 items-center gap-0.5 self-center text-xs font-normal text-gray-400 dark:text-gray-500"
+						class:text-primary={game.liked}
+						class:dark:text-primary-lighter={game.liked}
+						title="{game.likeCount} like{game.likeCount === 1 ? '' : 's'}"
+					>
+						{#if game.liked}
+							<IconMeepleFill size="0.75em" />
+						{:else}
+							<IconMeeple size="0.75em" />
+						{/if}
+						{game.likeCount}
+					</span>
+				{/if}
+			</div>
 		</a>
-		{#if pinned}
+		{#if canForget}
 			<button
 				type="button"
 				title="Remove from My games (still listed under All games)"
@@ -134,6 +169,7 @@
 <ul class="hidden w-[250px] shrink-0 divide-y divide-gray-200 dark:divide-gray-700 lg:block">
 	{#key boardgameId}
 		{#if topGames.length > 0}
+			<li class="px-4 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">My games</li>
 			{#each topGames as game (game._id.game)}
 				{@render gameItem(game, true)}
 			{/each}

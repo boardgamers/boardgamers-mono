@@ -116,6 +116,10 @@ const myBoardgamesQuerySchema = z.object({
 // in the pinned list, which is fine for a "recently played" sidebar.
 const MY_BOARDGAMES_SCAN = 100;
 
+const byRecency = (a: { lastActivity: Date }, b: { lastActivity: Date }) =>
+	b.lastActivity.getTime() - a.lastActivity.getTime();
+const maxDate = (a: Date, b?: Date) => (b && b > a ? b : a);
+
 /**
  * Boardgames a player has recently played, ordered by most recent activity. Powers
  * the sidebar's "your games first" ordering. Approximate by design — see above.
@@ -134,11 +138,26 @@ export async function myBoardgames(ctx: Context) {
 					lastActivity: { $max: { $ifNull: ["$lastMove", "$updatedAt"] } },
 				},
 			},
-			{ $sort: { lastActivity: -1 } },
 		])
 		.toArray();
 
-	ctx.body = results.map((r) => ({ boardgame: r._id, lastActivity: r.lastActivity }));
+	// Personal ordering (#117): within the recently-played window, liked boardgames
+	// get a recency boost (their like time counts as activity, so a liked game that
+	// was never played also shows up) — then most recent activity first.
+	const likes = await colls.gameLikes.find({ user }, { projection: { game: 1, createdAt: 1 } }).toArray();
+	const likeByGame = new Map(likes.map((l) => [l.game, l.createdAt ?? new Date(0)]));
+
+	ctx.body = [
+		...results.map((r) => ({ boardgame: r._id, lastActivity: r.lastActivity })),
+		...likes
+			.filter((l) => !results.some((r) => r._id === l.game))
+			.map((l) => ({ boardgame: l.game, lastActivity: l.createdAt ?? new Date(0) })),
+	]
+		.map((r) => {
+			const likedAt = likeByGame.get(r.boardgame);
+			return { ...r, liked: likedAt !== undefined, lastActivity: maxDate(r.lastActivity, likedAt) };
+		})
+		.sort(byRecency);
 }
 
 router.get("/:status/count", async (ctx) => {

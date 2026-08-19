@@ -6,10 +6,18 @@
 	import marked from "marked";
 	import type { GameFront, GameInfoFront } from "@bgs/models";
 	import { Button, Card } from "@/modules/cdk";
-	import { UserGameSettings, GameList, BoardgameElo, BoardgameLinks, GameName, SetupOptionsFilter } from "@/components";
+	import {
+		UserGameSettings,
+		GameList,
+		BoardgameElo,
+		BoardgameLinks,
+		GameName,
+		GameLikeButton,
+		SetupOptionsFilter,
+	} from "@/components";
 	import { account } from "@/lib/account.svelte";
 	import { live } from "@/lib/stores.svelte";
-	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
+	import { useGameInfos, gameInfoKey, applyGameLike, patchGameInfosLike } from "@/lib/game-info.svelte";
 	import { gamePreferences, useGamePreferencesFallback } from "@/lib/game-preferences.svelte";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
@@ -24,10 +32,18 @@
 	let boardgameId = $derived(page.params.boardgameId!);
 	// SSR renders the snapshot; the client trusts the seeded account store (see stores.svelte.ts).
 	let user = $derived(live($account, (page.data.user as UserFront | null) ?? null));
-	// Game-info list comes from the root-provided context (fetched fresh per request);
-	// capture the map at init (getContext) and read from it reactively.
+	// Game-info list comes from the root-provided context: a reactive `$state` map. Reading
+	// it inside `$derived` tracks the like fields, so a toggle updates this page's header.
 	const infos = useGameInfos();
 	let boardgame = $derived(infos[gameInfoKey(boardgameId, "latest")] as GameInfoFront);
+	function onLikeToggle(next: { liked: boolean; likeCount: number }) {
+		// Mutate the shared reactive map in place: every consumer (this header, the sidebar
+		// badge, the catalog) re-renders, and the value survives client-side navigation (the
+		// context is seeded once, not per page). Also patch the browser store (getGameInfo's
+		// viewer cache) so non-context readers stay consistent.
+		Object.assign(infos, applyGameLike(infos, boardgameId, next));
+		patchGameInfosLike(boardgameId, next);
+	}
 	const ssrPrefs = useGamePreferencesFallback();
 	let hasOwnership = $derived(($gamePreferences[boardgameId] ?? ssrPrefs[boardgameId])?.access?.ownership);
 	let needOwnership = $derived(boardgame?.needOwnership);
@@ -55,7 +71,18 @@
 </script>
 
 <div class="container mx-auto px-4">
-	<h1 class="mb-4"><GameName info={boardgame} /></h1>
+	<h1 class="mb-4 flex items-center gap-3">
+		<GameName info={boardgame} />
+		{#if boardgame}
+			<GameLikeButton
+				gameId={boardgameId}
+				liked={!!boardgame.liked}
+				likeCount={boardgame.likeCount ?? 0}
+				onlike={onLikeToggle}
+				ssrUser={user}
+			/>
+		{/if}
+	</h1>
 
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 		<div>
