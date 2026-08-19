@@ -149,14 +149,16 @@ export function removeActiveGame(gameId: string) {
 	activeGames.update((games) => games.filter((g) => g !== gameId));
 }
 
-// --- Liked boardgames (sidebar "My games" liked-first ordering) ---
+// --- Liked boardgames (sidebar "My games" freshest-first ordering) ---
 
 /**
- * Per-user like timestamps, `game → likedAt` (ms since epoch). Seeds the sidebar's
- * liked-first ordering on first paint and live-tracks toggles: liking stamps `now`
- * (the game jumps to the top of "My games"), unliking deletes the entry. The store
- * is the client-side truth once seeded (same "seed once per identity" contract as
- * `account` above); SSR renders the `myBoardgames` rows' `likedAt` snapshot instead.
+ * Per-user like timestamps, `game → likedAt` (ms since epoch). One of the two
+ * freshness signals the sidebar blends into its "freshest first" ordering
+ * (max(lastPlayedAt, likedAt)). Seeds the ordering on first paint and live-tracks
+ * toggles: liking stamps `now` (refreshing the game's position in "My games"),
+ * unliking deletes the entry. The store is the client-side truth once seeded (same
+ * "seed once per identity" contract as `account` above); SSR renders the
+ * `myBoardgames` rows' `likedAt` snapshot instead.
  */
 export const likedBoardgames = clientWritable<Record<string, number>>("likedBoardgames", {});
 

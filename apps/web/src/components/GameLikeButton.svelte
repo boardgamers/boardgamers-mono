@@ -53,8 +53,9 @@
 			const like = liked
 				? await del<{ liked: boolean; likeCount: number }>(`/boardgame/${gameId}/like`)
 				: await post<{ liked: boolean; likeCount: number }>(`/boardgame/${gameId}/like`);
-			// Keep the sidebar's liked-first ordering live: a like stamps `now` (the game
-			// jumps to the top of "My games"), an unlike drops it back to play-recency.
+			// Keep the sidebar's "freshest first" ordering live: a like stamps `now`
+			// (refreshing the game's position in "My games"), an unlike re-sorts it by
+			// its last-played recency.
 			applyLikedBoardgame(gameId, like.liked);
 			onlike?.(like);
 		} catch (err) {

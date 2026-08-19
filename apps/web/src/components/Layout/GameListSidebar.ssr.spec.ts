@@ -10,12 +10,24 @@ vi.mock("@/components/icons/IconMeepleFill.svelte", async () => ({
 	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
 }));
 
+import { browser } from "$app/environment";
 import { page } from "$app/state";
+import { account, seedLikedBoardgamesFromSSR } from "@/lib/stores.svelte";
 import GameListSidebar from "./GameListSidebar.svelte";
 
 // The mock `page` is loosely typed; helper so specs can seed layout data freely.
+// Also seeds the client stores the sidebar reads via live(): with `browser=true`
+// (the SANITIZE_TEST_BROWSER=1 pass), live() returns the CLIENT store, not the
+// page.data snapshot — so $account must reflect the seeded user for the forgotten
+// games + anonymous paths to render the same as SSR. In production the root
+// +layout.ts seeds both stores.
 function seedPageData(data: Record<string, unknown>) {
 	Object.assign(page.data, data);
+	// clientWritable stores throw when mutated during SSR (the browser=false pass);
+	// in that pass live() returns the page.data snapshot anyway, so no seed is needed.
+	if (browser) {
+		account.set((data.user as never) ?? null);
+	}
 }
 // `render` of a component referenced via a `never` cast would type props as `never`.
 function renderSidebar(gameInfos: Record<string, GameInfoFront>) {
@@ -77,9 +89,22 @@ function renderedGames(body: string): string[] {
 	return names;
 }
 
+// The like timestamps the layout would derive from the SSR rows and seed into the
+// client store. The SSR spec must seed it too: with `browser=true` (the
+// SANITIZE_TEST_BROWSER=1 pass), `live($likedBoardgames, ssrSnapshot)` returns the
+// CLIENT store, not the snapshot — an unseeded store stays `{}` and the blend
+// collapses to play-recency. In production the root +layout.ts always seeds it.
+const likedAtSeed = Object.fromEntries(
+	myBoardgamesRows.flatMap((r) => ("likedAt" in r && r.likedAt ? [[r.boardgame, Date.parse(r.likedAt)]] : [])),
+);
+
 describe("GameListSidebar SSR — My games freshest-first ordering", () => {
 	beforeEach(() => {
 		seedPageData({ myBoardgames: myBoardgamesRows, user: null });
+		// Reset the module-private seed guard (sentinel identity), then seed the like
+		// stamps for this spec's user — mirroring stores.spec.ts.
+		seedLikedBoardgamesFromSSR({}, null);
+		seedLikedBoardgamesFromSSR(likedAtSeed, "user-a");
 	});
 
 	it("orders My games freshest-first by max(lastPlayedAt, likedAt)", () => {
@@ -96,6 +121,9 @@ describe("GameListSidebar SSR — My games freshest-first ordering", () => {
 
 	it("renders no My games section when there is nothing played or liked", () => {
 		seedPageData({ myBoardgames: [], user: null });
+		// Logged-out: no likes either — re-seed the like store empty (identity change
+		// from the beforeEach's "user-a" seed).
+		seedLikedBoardgamesFromSSR({}, null);
 		const anonymousInfos = Object.fromEntries(
 			Object.entries(gameInfos).map(([k, v]) => [k, { ...v, liked: false }]),
 		) as typeof gameInfos;
