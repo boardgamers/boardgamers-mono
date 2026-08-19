@@ -176,6 +176,45 @@ describe("Admin gameinfo bundle uploads (#268)", () => {
 			assert.deepStrictEqual(Buffer.from(await served.arrayBuffer()), VIEWER_JS);
 		});
 
+		it("groups files into one directory when a shared bundle id is given", async () => {
+			const bundle = "testbundle1";
+			const jsRes = await api<{ url: string }>(
+				"POST",
+				`/api/admin/gameinfo/${GAME}/${VERSION}/viewer/file?filename=viewer.js&bundle=${bundle}`,
+				adminHeaders,
+				VIEWER_JS,
+			);
+			const mapRes = await api<{ url: string }>(
+				"POST",
+				`/api/admin/gameinfo/${GAME}/${VERSION}/viewer/file?filename=viewer.js.map&bundle=${bundle}`,
+				adminHeaders,
+				Buffer.from(JSON.stringify({ version: 3, mappings: "" })),
+			);
+			assert.strictEqual(jsRes.status, 200);
+			assert.strictEqual(mapRes.status, 200);
+			// Both share the bundle directory, so a relative sourceMappingURL resolves.
+			assert.ok(jsRes.data.url.includes(`/viewer/${bundle}/viewer.js`), `js url ${jsRes.data.url} uses the bundle dir`);
+			assert.ok(
+				mapRes.data.url.includes(`/viewer/${bundle}/viewer.js.map`),
+				`map url ${mapRes.data.url} uses the bundle dir`,
+			);
+			assert.strictEqual(
+				jsRes.data.url.split("/").slice(0, -1).join("/"),
+				mapRes.data.url.split("/").slice(0, -1).join("/"),
+				"js and map share the same directory",
+			);
+		});
+
+		it("rejects an invalid bundle id", async () => {
+			const res = await api(
+				"POST",
+				`/api/admin/gameinfo/${GAME}/${VERSION}/viewer/file?filename=viewer.js&bundle=${encodeURIComponent("a/b")}`,
+				adminHeaders,
+				VIEWER_JS,
+			);
+			assert.strictEqual(res.status, 400);
+		});
+
 		it("stores a CSS bundle for the alternate viewer", async () => {
 			const res = await api<{ url: string }>(
 				"POST",

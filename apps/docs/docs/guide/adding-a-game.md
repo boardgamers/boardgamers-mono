@@ -15,6 +15,8 @@ Either:
 
 The viewer bundle must be self-contained (already bundled by the game's own build).
 
+**Sourcemaps.** An optional `.map` is hosted purely for browser devtools — nothing references it server-side. By default each uploaded file is content-hashed into its **own** S3 directory, so a relative `//# sourceMappingURL=viewer.js.map` in the JS won't resolve (the map sits in a different hash directory). To make devtools find the map, upload the `.js` and `.map` with a shared `?bundle=<id>` query param (`POST /api/admin/gameinfo/:game/:version/viewer/file?filename=…&bundle=<id>`) — files with the same bundle id share a directory, so a relative `sourceMappingURL` resolves. Use a fresh bundle id per build. (The admin **Upload bundle…** picker does this automatically for the files you select together.)
+
 ## 3. Engine
 
 Either:

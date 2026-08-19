@@ -155,10 +155,10 @@
 
 	// The first picked .js is the entry point (→ viewer.url); every other .js is
 	// a dependency script, every .css a dependency stylesheet, every .map a
-	// devtools sourcemap (hosted, referenced from the built .js via
-	// `//# sourceMappingURL=`). Pre-existing dependency URLs are kept (uploaded
-	// ones appended) — viewer.url itself is replaced, since that's the file
-	// being swapped for the self-hosted bundle.
+	// devtools sourcemap. All files in one pick share a `bundle` id so a relative
+	// `//# sourceMappingURL=foo.js.map` in the .js resolves to the picked .map.
+	// Pre-existing dependency URLs are kept (uploaded ones appended) — viewer.url
+	// itself is replaced, since that's the file being swapped for the self-hosted bundle.
 	async function uploadViewerFiles(key: string, viewer: ViewerData, alternate: boolean, files: File[]) {
 		if (!value._id?.game || !value._id?.version) {
 			toast.error("Save the game first, then upload a viewer bundle");
@@ -174,10 +174,13 @@
 		try {
 			const base = `/api/admin/gameinfo/${value._id.game}/${value._id.version}/viewer/file`;
 			const suffix = alternate ? "&alternate=1" : "";
+			// One shared bundle id per upload batch so a picked .js and its .map land
+			// in the same S3 directory and a relative sourceMappingURL resolves.
+			const bundle = `&bundle=${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 			const urls = await Promise.all(
 				files.map(async (f) => ({
 					file: f,
-					url: (await uploadRaw(`${base}?filename=${encodeURIComponent(f.name)}${suffix}`, f)).url,
+					url: (await uploadRaw(`${base}?filename=${encodeURIComponent(f.name)}${suffix}${bundle}`, f)).url,
 				}))
 			);
 			// No .js in this pick: the .map belongs to the already-configured
@@ -628,8 +631,10 @@
 							</label>
 							<span class="text-xs text-gray-400"
 								>Pre-built bundle: first .js becomes the viewer URL, extra .js/.css become dependencies — hosted on S3.
-								An optional .map is just hosted for devtools: have the built .js reference it via `//#
-								sourceMappingURL=&lt;map URL&gt;` (a bare `viewer.js.map` resolves against the hosted JS URL).</span
+								An optional .map is just hosted for devtools. Each file lands in its own content-hashed
+								directory, so a relative `sourceMappingURL` won't resolve — either point it at the map's
+								absolute hosted URL, or upload via the API with a shared `?bundle=` id so the .js and .map
+								share a directory.</span
 							>
 						</div>
 					</div>
