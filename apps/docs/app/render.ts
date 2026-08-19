@@ -38,7 +38,7 @@ a:hover { text-decoration: underline; }
 header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 1rem; padding: 0.7rem 1.5rem; background: #fff; border-bottom: 1px solid var(--border); }
 header .brand { font-weight: 600; font-size: 1.1rem; color: var(--text); }
 header nav { margin-left: auto; display: flex; gap: 1.2rem; font-size: 0.95rem; }
-.layout { display: flex; max-width: 1200px; margin: 0 auto; }
+.layout { display: flex; }
 aside { flex: 0 0 240px; padding: 1.5rem 1rem; border-right: 1px solid var(--border); background: var(--bg-sidebar); min-height: calc(100vh - 3.4rem); }
 aside .section { margin-bottom: 1.2rem; }
 aside .section-title { font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 0.4rem; }
@@ -46,7 +46,7 @@ aside ul { list-style: none; margin: 0; padding: 0; }
 aside li a { display: block; padding: 0.25rem 0.6rem; border-radius: 4px; color: var(--text); font-size: 0.95rem; }
 aside li a:hover { background: #eef1f4; text-decoration: none; }
 aside li a.active { color: var(--accent); font-weight: 600; }
-main { flex: 1; min-width: 0; padding: 2rem 2.5rem 4rem; }
+main { flex: 1; min-width: 0; max-width: 960px; padding: 2rem 2.5rem 4rem; }
 main img { max-width: 100%; }
 main h1 { font-size: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
 main h2 { font-size: 1.5rem; margin-top: 2.2rem; }
@@ -110,7 +110,6 @@ export function renderPage(content: DocsContent, page: DocPage): string {
   <a class="brand" href="/">BGS Docs</a>
   <nav>
     <a href="/guide">Guide</a>
-    <a href="/config">Config</a>
     <a href="https://github.com/boardgamers">GitHub</a>
     <a href="https://boardgamers.space">boardgamers.space</a>
   </nav>
