@@ -48,11 +48,21 @@
 		return i === -1 ? Number.MAX_SAFE_INTEGER : i;
 	};
 	let pinnedIds = $derived(myBoardgames.filter((id) => !forgotten.includes(id)));
+	// "My games" = games the player has played (pinned) ∪ games they liked. A liked game
+	// belongs here by construction — liking one moves it into "My games" automatically
+	// (no imperative add), and unliking a never-played game drops it back out. Played
+	// games order by recency; liked-but-never-played games (no recency rank) fall to the
+	// end, A-Z among themselves.
 	let topGames = $derived(
-		games.filter((g) => pinnedIds.includes(g._id.game)).sort((a, b) => rank(a._id.game) - rank(b._id.game))
+		games
+			.filter((g) => pinnedIds.includes(g._id.game) || g.liked)
+			.sort((a, b) => rank(a._id.game) - rank(b._id.game) || gameDisplayName(a).localeCompare(gameDisplayName(b)))
 	);
-	// Discovery ordering (#98): my likes first, then most liked, display name breaks ties.
-	let otherGames = $derived(games.filter((g) => !pinnedIds.includes(g._id.game)).sort(byGamePopularity));
+	let topIds = $derived(new Set(topGames.map((g) => g._id.game)));
+	// "All games" = everything not already in "My games", most-liked first (display name
+	// breaks ties). Liked games are in "My games", so they neither double-show nor jump
+	// to the top here — the liked-first term of byGamePopularity is a no-op on this set.
+	let otherGames = $derived(games.filter((g) => !topIds.has(g._id.game)).sort(byGamePopularity));
 
 	const refreshGamesRoute = "/refresh-games";
 
@@ -86,6 +96,11 @@
 {#snippet gameItem(game: GameInfoFront, pinned: boolean)}
 	{@const id = game._id.game}
 	{@const isForgotten = forgotten.includes(id)}
+	<!-- ✕ "forget" applies only to a game pinned by play (in myBoardgames) that isn't
+	     already forgotten. A liked game stays in "My games" via the like even when
+	     forgotten, and a liked-never-played game has no play-pin to forget — so ✕ would
+	     be a no-op on those; forgotten games show ↩ (unforget) instead. -->
+	{@const canForget = pinned && !isForgotten && myBoardgames.includes(id)}
 	<li class="group relative">
 		<a
 			class="block px-4 py-2 font-semibold no-underline text-inherit hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -119,7 +134,7 @@
 				{/if}
 			</div>
 		</a>
-		{#if pinned}
+		{#if canForget}
 			<button
 				type="button"
 				title="Remove from My games (still listed under All games)"
