@@ -188,7 +188,7 @@
 	});
 </script>
 
-<div class="container mx-auto px-4 pb-3">
+<div class="container mx-auto px-4 pt-3 pb-3">
 	<!-- Header: boardgame name, status, seats, host, and the host's own description -->
 	<div class="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
 		<h1 class="mb-0"><GameName info={context.gameInfo} /></h1>
