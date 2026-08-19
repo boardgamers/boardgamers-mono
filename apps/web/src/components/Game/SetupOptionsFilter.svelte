@@ -1,18 +1,32 @@
 <script lang="ts" module>
 	import type { GameFront, GameInfoFront } from "@bgs/models";
-	import type { GamePace } from "@/utils";
+	import { gamePace, type GamePace } from "@/utils";
 	import type { SetupOptionFilter } from "@/lib/games.svelte";
 
 	export type OptionChoice = { name: string; label: string };
 	export type OptionGroup = { name: string; label: string; choices: OptionChoice[] };
 
 	/**
+	 * Whether the pace filter offers a real choice: the visible games are not all
+	 * the same pace. True while games load (an empty list has no majority pace) so
+	 * the chips don't pop in after SSR.
+	 */
+	export function hasPaceChoice(games: GameFront[]): boolean {
+		if (games.length === 0) {
+			return true;
+		}
+		const paces = new Set(games.map((g) => gamePace(g.options.timing.timePerGame)));
+		return paces.size >= 2;
+	}
+
+	/**
 	 * The setup-option filter choices, derived from the option definitions AND the
-	 * open games actually loaded: an option only appears if at least one visible
-	 * game sets a non-default value for it, and the choices are the values present
-	 * (so the chips stay compact + relevant — no "Map layout" with 5 layouts when
-	 * the open games only use 2). Only multi-valued `select` options (the review's
-	 * clutter fix): checkbox flags are left out.
+	 * open games actually loaded. An option only becomes a filter group when it
+	 * could actually narrow the list: the visible games use ≥2 DISTINCT values for
+	 * it (counting the default — a game at the default is one value, a deviation is
+	 * another). If every game shares one value (e.g. all X-shape), the group is
+	 * hidden — there's nothing to filter by. Only multi-valued `select` options
+	 * (the review's clutter fix): checkbox flags are left out.
 	 */
 	export function deriveOptionGroups(
 		info: GameInfoFront | undefined,
@@ -26,23 +40,24 @@
 			}
 			// The option's default value (what a game gets when the creator doesn't
 			// choose) — matching the new-game form's pre-fill: `default` if it's a
-			// valid item, else the first item. Games at the default aren't a
-			// meaningful "choice", so they don't make the option filterable.
+			// valid item, else the first item.
 			const defaultValue =
 				typeof opt.default === "string" && opt.items.some((i) => i.name === opt.default)
 					? opt.default
 					: opt.items[0].name;
 
+			// The distinct values the visible games actually use (an unset option is
+			// the default). ≥2 → the option can narrow the list; 1 → hide it.
 			const present: Record<string, true> = {};
 			for (const game of games) {
 				const value = (game.game.options as Record<string, unknown> | undefined)?.[opt.name];
-				if (typeof value === "string" && value !== defaultValue) {
-					present[value] = true;
-				}
+				present[typeof value === "string" ? value : defaultValue] = true;
 			}
-			if (Object.keys(present).length === 0) {
+			if (Object.keys(present).length < 2) {
 				continue;
 			}
+			// The chips are the present values (the default included — selecting it
+			// filters to the games at the default, which does narrow the list).
 			const choices = opt.items
 				.filter((item) => present[item.name])
 				.map((item) => ({ name: item.name, label: plain(item.label) }));
@@ -112,6 +127,10 @@
 		{ value: "async", label: "🐢 Async" },
 	];
 
+	// Hide the pace filter when it couldn't narrow anything: every visible game is
+	// the same pace (all live, or all async).
+	let showPaceFilter = $derived(hasPaceChoice(games));
+
 	// Chip styling, matching the setup-badge / pace-chip design language. The
 	// active chip uses the accent; inactive ones are neutral + hover to accent.
 	const chipBase =
@@ -121,19 +140,21 @@
 		"border-gray-300 text-gray-600 hover:border-accent hover:text-accent dark:border-gray-600 dark:text-gray-300 dark:hover:text-accent-lighter";
 </script>
 
-<!-- Pace chips (always — the home page's only filter). -->
-<div class="flex items-center gap-1" role="group" aria-label="Filter games by pace">
-	{#each paceChoices as choice (choice.value)}
-		<button
-			type="button"
-			class="{chipBase} {pace === choice.value ? chipActive : chipInactive}"
-			aria-pressed={pace === choice.value}
-			onclick={() => (pace = choice.value)}
-		>
-			{choice.label}
-		</button>
-	{/each}
-</div>
+<!-- Pace chips (hidden when every visible game is the same pace — nothing to filter). -->
+{#if showPaceFilter}
+	<div class="flex items-center gap-1" role="group" aria-label="Filter games by pace">
+		{#each paceChoices as choice (choice.value)}
+			<button
+				type="button"
+				class="{chipBase} {pace === choice.value ? chipActive : chipInactive}"
+				aria-pressed={pace === choice.value}
+				onclick={() => (pace = choice.value)}
+			>
+				{choice.label}
+			</button>
+		{/each}
+	</div>
+{/if}
 
 <!-- One chip-group per setup option present in the loaded open games. -->
 {#each optionGroups as group (group.name)}
