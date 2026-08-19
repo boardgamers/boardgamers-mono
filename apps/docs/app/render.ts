@@ -27,7 +27,9 @@ function navSections(pages: DocPage[]): { title: string; pages: DocPage[] }[] {
 	});
 }
 
-// Must match the id slugging in markdown.ts's renderer.heading.
+// Must match the id slugging in markdown.ts's renderer.heading. Known divergence:
+// renderer.heading slugs the rendered inline HTML, this slugs raw markdown — an h2
+// containing a link/emphasis would slug differently (none in the docs today).
 function slugifyHeading(text: string): string {
 	return text
 		.toLowerCase()
@@ -95,7 +97,7 @@ main .action-button:hover { background: #35966a; text-decoration: none; }
 footer.page { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
 @media (max-width: 800px) {
   .layout { flex-direction: column; }
-  aside { flex: none; border-right: none; border-bottom: 1px solid var(--border); min-height: 0; }
+  aside { flex: none; border-right: none; border-bottom: 1px solid var(--border); min-height: 0; margin-left: 0; }
   main { padding: 1.2rem 1rem 3rem; }
 }
 `;
