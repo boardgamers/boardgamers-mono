@@ -76,8 +76,19 @@
 				{/snippet}
 			</Card>
 		</div>
-		<div>
-			<UserGameSettings title="Settings" game={boardgame} class="h-full" />
+		<div class="flex flex-col gap-4">
+			<UserGameSettings title="Settings" game={boardgame} class="flex-1" />
+			{#if data.creditsPage}
+				{@const creditsPage = data.creditsPage}
+				<Card class="border-gray-400 dark:border-gray-600">
+					{#snippet headerContent()}
+						<span class="font-semibold">{creditsPage.title ?? "Credits"}</span>
+					{/snippet}
+					<div class="prose dark:prose-invert max-w-none">
+						<SanitizedHtml html={marked(creditsPage.content ?? "")} />
+					</div>
+				</Card>
+			{/if}
 		</div>
 	</div>
 
