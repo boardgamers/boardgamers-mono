@@ -69,6 +69,28 @@ describe("docs server", () => {
 		assert.match(html, /href="\/guide"/);
 	});
 
+	it("groups sidebar pages into ordered, labeled sections", async () => {
+		const html = await (await get("/guide/engine-api", "text/html")).text();
+		const sidebar = html.match(/<aside>[\s\S]*?<\/aside>/)?.[0] ?? "";
+
+		// Section titles render in the configured order…
+		const titles = [...sidebar.matchAll(/<p class="section-title">([^<]+)<\/p>/g)].map((m) => m[1]);
+		assert.deepEqual(titles, ["Get started", "Reference", "Platform"]);
+
+		// …and each page lands in its section, in the configured order.
+		const sections = [...sidebar.matchAll(/<div class="section">([\s\S]*?)<\/div>/g)].map((m) => m[1]);
+		assert.equal(sections.length, 3);
+		const linksOf = (section: string) => [...section.matchAll(/<li><a href="([^"]+)"/g)].map((m) => m[1]);
+		assert.deepEqual(linksOf(sections[0]), [
+			"/guide",
+			"/guide/architecture",
+			"/guide/adding-a-game",
+			"/guide/tictactoe",
+		]);
+		assert.deepEqual(linksOf(sections[1]), ["/guide/engine-api", "/guide/viewer-api", "/guide/game-options"]);
+		assert.deepEqual(linksOf(sections[2]), ["/guide/timing", "/guide/bots"]);
+	});
+
 	it("shows h2 sub-items in the sidebar for the active page only", async () => {
 		const html = await (await get("/guide/engine-api", "text/html")).text();
 		const sidebar = html.match(/<aside>[\s\S]*?<\/aside>/)?.[0] ?? "";

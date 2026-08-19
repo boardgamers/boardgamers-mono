@@ -9,22 +9,44 @@ export function pageUrl(path: string): string {
 	return path === "" ? "/" : `/${path}`;
 }
 
+// Sidebar grouping: logical sections independent of the on-disk layout (files
+// stay flat in guide/ so URLs and .md links don't change). Pages not listed
+// here fall back to a directory-derived section, so a new docs page shows up
+// in a sensible spot until it's explicitly placed.
+const SIDEBAR_SECTIONS: { title: string; paths: string[] }[] = [
+	{ title: "Get started", paths: ["guide", "guide/architecture", "guide/adding-a-game", "guide/tictactoe"] },
+	{ title: "Reference", paths: ["guide/engine-api", "guide/viewer-api", "guide/game-options"] },
+	{ title: "Platform", paths: ["guide/timing", "guide/bots"] },
+];
+
 // The home page is not listed: the header brand already links to it, and its
 // "BGS Docs" title would be a redundant first entry.
 function navSections(pages: DocPage[]): { title: string; pages: DocPage[] }[] {
-	const sections = new Map<string, DocPage[]>();
+	const byPath = new Map(pages.filter((p) => p.path !== "").map((p) => [p.path, p]));
+	const placed = new Set<string>();
+	const sections = SIDEBAR_SECTIONS.map(({ title, paths }) => {
+		const sectionPages = paths.flatMap((path) => {
+			const page = byPath.get(path);
+			if (!page) return [];
+			placed.add(path);
+			return [page];
+		});
+		return { title, pages: sectionPages };
+	}).filter((section) => section.pages.length > 0);
+
+	const rest = new Map<string, DocPage[]>();
 	for (const page of pages) {
-		if (page.path === "") continue;
+		if (page.path === "" || placed.has(page.path)) continue;
 		const top = page.path.split("/")[0];
-		if (!sections.has(top)) sections.set(top, []);
-		sections.get(top)!.push(page);
+		if (!rest.has(top)) rest.set(top, []);
+		rest.get(top)!.push(page);
 	}
-	return [...sections.entries()].map(([dir, dirPages]) => {
-		const index = dirPages.find((p) => p.path === dir);
+	for (const [dir, dirPages] of rest) {
 		// Capitalize the directory name as the section title ("guide" → "Guide").
 		const title = dir.charAt(0).toUpperCase() + dir.slice(1);
-		return { title: index?.title && index.title !== "Introduction" ? index.title : title, pages: dirPages };
-	});
+		sections.push({ title, pages: dirPages });
+	}
+	return sections;
 }
 
 // Must match the id slugging in markdown.ts's renderer.heading. Known divergence:
