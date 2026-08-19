@@ -4,7 +4,7 @@ Once you have an [engine](./engine-api.md) and a [viewer](./viewer-api.md) (see 
 
 ## 1. Register the game
 
-In the admin panel, **Boardgames → + New game**: set the game id + version, label, player counts, and any game options/preferences/settings. Save.
+In the admin panel, **Boardgames → + New game**: set the game id + version, label, player counts, and any game options/preferences/settings — see [Game options, preferences & settings](./game-options.md) for the field shapes. Save.
 
 ## 2. Viewer
 

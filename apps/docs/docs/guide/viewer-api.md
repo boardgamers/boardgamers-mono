@@ -44,7 +44,7 @@ emitter.on("state", (state: GameData) => {
 });
 ```
 
-Receive game data as [processed](./engine-api.md#toSend) by the backend.
+Receive game data as [processed](./engine-api.md#tosave) by the backend.
 
 This replaces the current game state with a new one, you should completely overwrite the previous game state.
 

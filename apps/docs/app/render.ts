@@ -66,6 +66,8 @@ main .features .feature { flex: 1 1 220px; border: 1px solid var(--border); bord
 main .features .feature h2 { margin-top: 0; font-size: 1.1rem; }
 main .hero { text-align: center; margin: 2rem 0; }
 main .hero img { max-height: 180px; }
+main .hero .tagline { font-size: 1.3rem; font-weight: 600; margin: 0.8rem 0 0.2rem; }
+main .features .feature p:last-child { margin-bottom: 0; }
 main .action-button { display: inline-block; margin-top: 1rem; padding: 0.6rem 1.4rem; background: var(--accent); color: #fff; border-radius: 6px; font-size: 1.05rem; }
 main .action-button:hover { background: #35966a; text-decoration: none; }
 footer.page { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
@@ -93,7 +95,7 @@ function sidebar(content: DocsContent, current: DocPage): string {
 }
 
 export function renderPage(content: DocsContent, page: DocPage): string {
-	const body = renderMarkdown(page.markdown);
+	const body = renderMarkdown(page.markdown, "", page.dir);
 	return `<!doctype html>
 <html lang="en">
 <head>

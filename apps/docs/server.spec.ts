@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -52,7 +52,7 @@ describe("docs server", () => {
 
 	it("serves every docs page as HTML to browsers", async () => {
 		const content = loadDocs(DOCS_DIR);
-		assert.equal(content.pages.length, 7);
+		assert.equal(content.pages.length, 10);
 		for (const page of content.pages) {
 			const res = await get(page.path === "" ? "/" : `/${page.path}`, "text/html");
 			assert.equal(res.status, 200, page.path);
@@ -141,6 +141,56 @@ describe("docs server", () => {
 		const html = await res.text();
 		assert.match(html, /id="options-player"/);
 		assert.match(html, /href="#options-player"/);
+	});
+
+	it("rewrites internal .md links to HTML pages, relative to the current page", async () => {
+		const res = await get("/guide/viewer-api", "text/html");
+		const html = await res.text();
+		// "./engine-api.md#tosave" from /guide/viewer-api → /guide/engine-api#tosave
+		assert.match(html, /href="\/guide\/engine-api#tosave"/);
+		assert.doesNotMatch(html, /href="[^"]*\.md[.#]/);
+		// Fragment-only and external links are untouched
+		assert.match(html, /href="#fetchstate"/);
+		const adding = await (await get("/guide/adding-a-game", "text/html")).text();
+		assert.match(adding, /href="https:\/\/docs\.npmjs\.com\/cli\/commands\/npm-pack"/);
+	});
+
+	it("resolves .md links from nested and top-level pages", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "bgs-docs-"));
+		try {
+			writeFileSync(
+				join(dir, "README.md"),
+				"# Home\n\nSee [the guide](./guide/README.md) and [a page](./page.md#top).\n",
+			);
+			writeFileSync(join(dir, "page.md"), "# Page\n");
+			mkdirSync(join(dir, "guide"));
+			writeFileSync(
+				join(dir, "guide", "README.md"),
+				"# Guide\n\nUp to [page](../page.md), sibling [other](./other.md), external [x](https://example.com/x.md).\n",
+			);
+			writeFileSync(join(dir, "guide", "other.md"), "# Other\n");
+			const nested = createDocsServer(loadDocs(dir));
+			await new Promise<void>((resolve) => nested.listen(0, "127.0.0.1", resolve));
+			try {
+				const address = nested.address();
+				assert(address && typeof address === "object");
+				const nestedBase = `http://127.0.0.1:${address.port}`;
+				const home = await (await fetch(`${nestedBase}/`, { headers: { accept: "text/html" } })).text();
+				assert.match(home, /href="\/guide"/);
+				assert.match(home, /href="\/page#top"/);
+				const guide = await (await fetch(`${nestedBase}/guide`, { headers: { accept: "text/html" } })).text();
+				assert.match(guide, /href="\/page"/);
+				assert.match(guide, /href="\/guide\/other"/);
+				assert.match(guide, /href="https:\/\/example\.com\/x\.md"/);
+				// Raw markdown keeps the original .md hrefs
+				const raw = await (await fetch(`${nestedBase}/guide`, { headers: { accept: "text/markdown" } })).text();
+				assert.match(raw, /\(\.\.\/page\.md\)/);
+			} finally {
+				nested.close();
+			}
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
 	});
 
 	it("404s unknown pages without leaking paths", async () => {

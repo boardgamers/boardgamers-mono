@@ -70,6 +70,40 @@ function retokenizeHtml(tokens: Token[]): Token[] {
 
 const HEADING_RE = /^(\s{0,3}#{1,6}\s+)(.+?)\s*$/;
 
+/**
+ * Rewrite a docs-internal `.md` href for HTML output: strip the suffix and resolve
+ * the relative path against the current page's directory (`./engine-api.md#x` from
+ * `/guide/viewer-api` → `/guide/engine-api#x`) — a README.md index page links
+ * relative to the directory it serves, same as the README links would. README.md
+ * targets map to the directory index. Fragment-only and external links are left
+ * alone — an href starting with a scheme or `//` can never be a docs page.
+ * Raw-markdown responses keep the original hrefs.
+ */
+export function resolveMdHref(href: string, currentDir: string): string {
+	if (href.startsWith("#") || /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(href) || href.startsWith("//")) {
+		return href;
+	}
+	const match = href.match(/^([^#?]*?)\.md([#?].*)?$/i);
+	if (!match) {
+		return href;
+	}
+	const segments: string[] = [];
+	for (const segment of [...(currentDir ? currentDir.split("/") : []), ...match[1].split("/")]) {
+		if (segment === "." || segment === "") {
+			continue;
+		}
+		if (segment === "..") {
+			segments.pop();
+		} else {
+			segments.push(segment);
+		}
+	}
+	if (segments.at(-1)?.toLowerCase() === "readme") {
+		segments.pop();
+	}
+	return `/${segments.join("/")}${match[2] ?? ""}`;
+}
+
 /** Prefix every heading id (from `# Heading` anchors) so fragment links stay valid. */
 export function reanchorMarkdown(markdown: string, prefix: string): string {
 	if (!prefix) return markdown;
@@ -86,10 +120,14 @@ export function reanchorMarkdown(markdown: string, prefix: string): string {
 		.join("\n");
 }
 
-export function renderMarkdown(markdown: string, headingPrefix = ""): string {
+export function renderMarkdown(markdown: string, headingPrefix = "", currentPath = ""): string {
 	const tokens = retokenizeHtml(marked.lexer(reanchorMarkdown(markdown, headingPrefix)));
 	const stack: string[] = [];
 	const renderer = new marked.Renderer();
+	renderer.link = ({ href, tokens: linkTokens }: Tokens.Link): string => {
+		const text = parser.parseInline(linkTokens);
+		return `<a href="${resolveMdHref(href, currentPath)}">${text}</a>`;
+	};
 	renderer.heading = ({ tokens: headingTokens, depth }: Tokens.Heading): string => {
 		const text = parser.parseInline(headingTokens);
 		const id = text
