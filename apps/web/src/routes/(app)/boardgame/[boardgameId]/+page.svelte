@@ -149,4 +149,16 @@
 			<BoardgameElo initial={data.rankings} {boardgameId} top perPage={6} />
 		</div>
 	</div>
+
+	{#if data.creditsPage}
+		{@const creditsPage = data.creditsPage}
+		<section class="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
+			<h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+				{creditsPage.title ?? "Credits"}
+			</h2>
+			<div class="prose prose-sm dark:prose-invert max-w-none text-gray-600 dark:text-gray-300">
+				<SanitizedHtml html={marked(creditsPage.content ?? "")} />
+			</div>
+		</section>
+	{/if}
 </div>

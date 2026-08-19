@@ -2,6 +2,8 @@ import type { PageLoad } from "./$types";
 import { loadGames, clearGamesCache, gameListParams } from "@/lib/games.svelte";
 import { loadEloRankings } from "@/lib/elo-rankings.svelte";
 import { boardgameSeo } from "@/lib/boardgame-seo";
+import { get } from "@/lib/api";
+import type { PageFront } from "@bgs/models";
 
 export const load: PageLoad = async ({ params, parent }) => {
 	const { user, gameInfo } = await parent();
@@ -34,11 +36,15 @@ export const load: PageLoad = async ({ params, parent }) => {
 		store: true,
 	});
 
-	const [active, featured, , rankings] = await Promise.all([
+	// Per-game credits CMS page — most games have none (404 → null, section hidden).
+	const credits = get<PageFront>(`/page/${boardgameId}:credits`).catch(() => null);
+
+	const [active, featured, , rankings, creditsPage] = await Promise.all([
 		myActiveGames,
 		featuredGames,
 		lobbyGames,
 		loadEloRankings({ boardgameId, count: 6, fetchCount: false }),
+		credits,
 	]);
 
 	// If the player has no active games of this boardgame, fall back to their finished
@@ -69,6 +75,7 @@ export const load: PageLoad = async ({ params, parent }) => {
 
 	return {
 		rankings,
+		creditsPage,
 		myGamesStatus: myGamesFallback,
 		featuredStatus: featuredFallback,
 		seo: boardgameSeo(boardgameId, gameInfo),
