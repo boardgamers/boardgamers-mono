@@ -52,7 +52,7 @@ describe("docs server", () => {
 
 	it("serves every docs page as HTML to browsers", async () => {
 		const content = loadDocs(DOCS_DIR);
-		assert.equal(content.pages.length, 8);
+		assert.equal(content.pages.length, 7);
 		for (const page of content.pages) {
 			const res = await get(page.path === "" ? "/" : `/${page.path}`, "text/html");
 			assert.equal(res.status, 200, page.path);
@@ -91,10 +91,23 @@ describe("docs server", () => {
 	});
 
 	it("strips frontmatter from served markdown", async () => {
-		const res = await get("/config.md", "text/markdown");
+		const res = await get("/.md", "text/markdown");
 		const body = await res.text();
 		assert.doesNotMatch(body, /^---/);
-		assert.match(body, /# Config/);
+		assert.match(body, /<div class="hero">/);
+	});
+
+	it("has no leftover Config section or sidebar title", async () => {
+		const html = await (await get("/", "text/html")).text();
+		assert.doesNotMatch(html, /href="\/config/);
+		assert.doesNotMatch(html, />Config</);
+		// No redundant "BGS Docs" home entry in the sidebar (the header brand links home).
+		const sidebar = html.match(/<aside>[\s\S]*?<\/aside>/)?.[0] ?? "";
+		assert.doesNotMatch(sidebar, /BGS Docs/);
+		assert.doesNotMatch(sidebar, /href="\/"/);
+		assert.equal((await get("/config", "text/html")).status, 404);
+		const llms = await (await get("/llms.txt", "text/html")).text();
+		assert.doesNotMatch(llms, /config/i);
 	});
 
 	it("serves the home page and the guide index", async () => {
