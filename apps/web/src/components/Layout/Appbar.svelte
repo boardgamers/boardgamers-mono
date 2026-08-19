@@ -93,7 +93,8 @@
 		const { hostname } = page.url;
 		const protocol = page.url.protocol as "http:" | "https:";
 		if (hostname === "localhost" || hostname === "127.0.0.1") {
-			return `${protocol}//${hostname}:8613`;
+			// The admin panel's vite dev port (apps/admin/vite.config.ts).
+			return `${protocol}//${hostname}:5180`;
 		}
 		const prPreview = /^pr-(\d+)\.(.+)$/.exec(hostname);
 		if (prPreview) {

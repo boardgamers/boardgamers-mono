@@ -12,7 +12,6 @@ allowBuilds:
   core-js: true
   esbuild: true
   highlight.js: true
-  vuepress: true
 
 # Centralized dependency versions — all packages reference these via "catalog:"
 # in their package.json. Upgrading a dependency here upgrades it everywhere.

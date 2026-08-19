@@ -1,24 +1,33 @@
 {
 	"name": "@bgs/docs",
-	"version": "0.0.1",
-	"description": "Docs for the boardgamers ecosystem",
-	"license": "MIT",
-	"repository": "boardgamers-docs/boardgamers-doc",
-	"main": "index.js",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Self-hosted docs for the boardgamers ecosystem (markdown + HTML, agent-friendly)",
+	"type": "module",
 	"scripts": {
-		"dev": "vuepress dev docs",
-		"build": "vuepress build docs"
+		"dev": "node --watch server.ts",
+		"start": "node server.ts",
+		"build": "tsc --noEmit",
+		"tsc": "tsc --noEmit",
+		"test": "node --test server.spec.ts",
+		"lint": "oxlint",
+		"lint-check": "oxlint",
+		"fmt": "oxfmt",
+		"fmt-check": "oxfmt --check"
+	},
+	"dependencies": {
+		"marked": "^15.0.0"
 	},
 	"devDependencies": {
-		"@vuepress/plugin-back-to-top": "^1.3.1",
-		"@vuepress/plugin-medium-zoom": "^1.3.1",
-		"vuepress": "^1.3.1"
+		"@types/node": "catalog:",
+		"oxfmt": "catalog:",
+		"oxlint": "^1.51.0",
+		"typescript": "catalog:"
 	},
 	"lint-staged": {
-		"*": "oxfmt --ignore-unknown"
-	},
-	"authors": {
-		"name": "coyotte508",
-		"email": "coyotte508@gmail.com"
+		"*.ts": [
+			"oxfmt",
+			"oxlint --fix"
+		]
 	}
 }
