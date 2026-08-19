@@ -78,4 +78,31 @@ describe("Admin errors listing", () => {
 		const res = await fetch(`${baseURL()}/api/admin/errors?source=bogus`, { headers: adminHeaders });
 		assert.equal(res.status, 400);
 	});
+
+	// Inserted by this test (not `before`) so the earlier total assertions stay valid.
+	it("name= accepts a comma-separated list (hangs page: timeouts + slow calls)", async () => {
+		await colls.apiErrors.insertMany([
+			{
+				error: { name: "EngineTimeoutError", message: "Engine gaia.move did not finish within 10000ms", stack: [] },
+				request: { url: "/api/gameplay/g1/move", method: "POST", body: "{}" },
+				meta: { source: "game-server", gameId: "g1", playerName: "alice", move: "up 3." },
+				createdAt: new Date(),
+			},
+			{
+				error: { name: "SlowEngineCall", message: "Engine gaia.scores took 2500ms", stack: [] },
+				request: { url: "engine://g1/scores", method: "ENGINE", body: "" },
+				meta: { source: "game-server", gameId: "g1", method: "scores", elapsedMs: 2500 },
+				createdAt: new Date(),
+			},
+		]);
+
+		const both = await listErrors({ name: "EngineTimeoutError,SlowEngineCall" });
+		assert.equal(both.total, 2);
+
+		// Single-name behavior is unchanged.
+		const single = await listErrors({ name: "SlowEngineCall" });
+		assert.equal(single.total, 1);
+		const legacy = await listErrors({ name: "AssertionError" });
+		assert.equal(legacy.total, 2);
+	});
 });

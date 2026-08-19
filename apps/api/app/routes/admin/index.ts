@@ -209,7 +209,8 @@ async function loadForumSync(): Promise<ForumSync | null> {
 const errorsQuerySchema = z.object({
 	page: z.coerce.number().int().min(1).default(1),
 	limit: z.coerce.number().int().min(1).max(100).default(20),
-	// Filter by error name — e.g. name=EngineTimeoutError lists game-engine hangs/timeouts.
+	// Filter by error name(s), comma-separated — e.g. name=EngineTimeoutError,SlowEngineCall
+	// lists game-engine hangs/timeouts plus the slow-call early-warning trail.
 	name: z.string().optional(),
 	// client = browser-reported errors (meta.source "web-client"); server = everything else.
 	source: z.enum(["all", "server", "client"]).default("all"),
@@ -222,7 +223,15 @@ router.get("/errors", async (ctx) => {
 	const { page, limit, name, source } = errorsQuerySchema.parse(ctx.query);
 	const filter: Record<string, unknown> = {};
 	if (name) {
-		filter["error.name"] = name;
+		const names = name
+			.split(",")
+			.map((n) => n.trim())
+			.filter(Boolean);
+		if (names.length === 1) {
+			filter["error.name"] = names[0];
+		} else if (names.length > 1) {
+			filter["error.name"] = { $in: names };
+		}
 	}
 	if (source === "client") {
 		filter["meta.source"] = "web-client";
@@ -254,6 +263,12 @@ router.get("/errors", async (ctx) => {
 					"meta.game": 1,
 					"meta.version": 1,
 					"meta.action": 1,
+					// Hang/slow-call attribution (game-server): who played what, how long.
+					"meta.method": 1,
+					"meta.playerIndex": 1,
+					"meta.playerName": 1,
+					"meta.move": 1,
+					"meta.elapsedMs": 1,
 					user: 1,
 					createdAt: 1,
 				},

@@ -22,6 +22,7 @@
  * process in that case (see @bgs/utils/watchdog) — but the context still names the
  * culprit whenever the loop recovers enough to log.
  */
+import type { ApiErrorDoc } from "@bgs/models";
 import { logEvent } from "@bgs/utils/log";
 import type { Engine } from "../types/engine.ts";
 
@@ -86,6 +87,41 @@ export function currentEngineCall(): Record<string, unknown> | undefined {
 	return { ...loggable(current), engineCallMs: Date.now() - current.startedAt };
 }
 
+type SlowCallRecorder = (doc: ApiErrorDoc) => void;
+
+// Persist slow calls so they surface on the admin hangs page, not just Loki. The db
+// module is imported lazily on the first slow call: importing it eagerly would open a
+// Mongo connection for anyone using trackedEngine (unit tests run without a db), and
+// the happy path must stay free of db work. Best-effort fire-and-forget — a failed
+// insert must never affect the engine call. Injectable for tests.
+let recordSlowCall: SlowCallRecorder = (doc) => {
+	void import("../config/db.ts").then(({ colls }) => colls.apiErrors.insertOne(doc)).catch(() => {});
+};
+
+export function setSlowCallRecorder(recorder: SlowCallRecorder): void {
+	recordSlowCall = recorder;
+}
+
+function persistSlowCall(ctx: EngineCallContext, elapsedMs: number): void {
+	try {
+		recordSlowCall({
+			error: {
+				name: "SlowEngineCall",
+				message: `Engine ${ctx.game}.${ctx.method} took ${elapsedMs}ms`,
+				stack: [],
+			},
+			// Synthetic request: there is no HTTP request here. The url embeds the gameId
+			// so the per-game admin page (which matches apiErrors on request.url) picks
+			// these entries up without extra queries.
+			request: { url: `engine://${ctx.gameId}/${ctx.method}`, method: "ENGINE", body: "" },
+			meta: { source: "game-server", ...loggable(ctx), elapsedMs },
+			createdAt: new Date(),
+		});
+	} catch {
+		// Recording is best-effort — never let it break a successful (slow) call.
+	}
+}
+
 const tracked = new WeakSet<object>();
 
 /**
@@ -114,6 +150,7 @@ export function trackedEngine(engine: Engine, attribution: EngineCallAttribution
 					const elapsedMs = Date.now() - ctx.startedAt;
 					if (elapsedMs >= slowMs) {
 						logEvent("warn", "slowEngineCall", { source: "game-server", ...loggable(ctx), elapsedMs });
+						persistSlowCall(ctx, elapsedMs);
 					}
 				};
 				try {

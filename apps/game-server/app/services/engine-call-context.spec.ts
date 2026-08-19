@@ -1,7 +1,13 @@
+import type { ApiErrorDoc } from "@bgs/models";
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 import type { Engine } from "../types/engine.ts";
-import { currentEngineCall, moveString, trackedEngine } from "./engine-call-context.ts";
+import { currentEngineCall, moveString, setSlowCallRecorder, trackedEngine } from "./engine-call-context.ts";
+
+// Capture persisted slow-call docs instead of hitting Mongo — this spec must run
+// without a db connection (the default recorder lazily imports config/db.ts).
+const recordedSlowCalls: ApiErrorDoc[] = [];
+setSlowCallRecorder((doc) => recordedSlowCalls.push(doc));
 
 const ATTRIBUTION = { gameId: "game-1", game: "gaia-project", version: 4 };
 
@@ -72,7 +78,8 @@ describe("trackedEngine / currentEngineCall", () => {
 		assert.equal(currentEngineCall(), undefined);
 	});
 
-	it("logs a slowEngineCall warning when a call overruns the threshold", () => {
+	it("logs a slowEngineCall warning and persists an apiErrors doc when a call overruns the threshold", () => {
+		recordedSlowCalls.length = 0;
 		const write = mock.method(process.stdout, "write");
 		try {
 			const engine = trackedEngine(
@@ -102,6 +109,22 @@ describe("trackedEngine / currentEngineCall", () => {
 		assert.equal(parsed.playerName, "bob");
 		assert.equal(parsed.move, '{"pass":true}');
 		assert.ok(typeof parsed.elapsedMs === "number" && parsed.elapsedMs >= 30);
+
+		// The same slow call is persisted for the admin hangs page.
+		assert.equal(recordedSlowCalls.length, 1);
+		const doc = recordedSlowCalls[0];
+		assert.equal(doc.error.name, "SlowEngineCall");
+		assert.match(doc.error.message, /^Engine gaia-project\.logLength took \d+ms$/);
+		assert.equal(doc.request.url, "engine://game-1/logLength");
+		assert.equal(doc.meta.source, "game-server");
+		assert.equal(doc.meta.gameId, "game-1");
+		assert.equal(doc.meta.game, "gaia-project");
+		assert.equal(doc.meta.version, 4);
+		assert.equal(doc.meta.method, "logLength");
+		assert.equal(doc.meta.playerIndex, 0);
+		assert.equal(doc.meta.playerName, "bob");
+		assert.equal(doc.meta.move, '{"pass":true}');
+		assert.ok(typeof doc.meta.elapsedMs === "number" && doc.meta.elapsedMs >= 30);
 	});
 
 	it("does not log fast calls and passes non-function properties through", () => {
