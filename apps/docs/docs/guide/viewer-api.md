@@ -153,18 +153,17 @@ Leave replay mode
 ### theme
 
 ```ts
-window.addEventListener("message", (event) => {
-	if (event.data.type === "theme") {
-		// event.data.dark is a boolean
-	}
+emitter.on("theme", ({ dark }: { dark: boolean }) => {
+	// ...
 });
 ```
 
-Receive the site's current color theme: `{ type: "theme", dark: boolean }`.
+Receive the site's current color theme. It is sent when the game is ready and every time the theme changes
+afterwards, including when the OS theme flips while the user's setting is "system".
 
-Unlike the events above, this one is **not** re-emitted on the emitter — it is a raw `postMessage` from the site,
-handled directly by the iframe page. It is sent when the game is ready and every time the theme changes afterwards,
-including when the OS theme flips while the user's setting is "system".
+The theme also arrives as a raw `postMessage` (`{ type: "theme", dark: boolean }`) before any viewer script runs —
+that's how the wrapper page toggles its own `dark` class without waiting for `launch`. The emitter event is the
+preferred API; only fall back to a `window` `message` listener if you must apply the theme before `launch` returns.
 
 The viewer must apply the theme live, **without reloading the iframe** — never swap the iframe `src` to change the
 theme, a `src` change reloads it and loses the game state.
@@ -290,6 +289,6 @@ the API's wrapper page get dark mode support out of the box:
 - It listens for the [theme](#theme) message and toggles the `dark` class on `<html>` when the site theme changes.
 
 To support dark mode in your viewer: read the initial state from `?dark=1` (or the `<html class="dark">` the wrapper
-already set) for the first paint, then listen for the [theme](#theme) message for live changes. Style your components
+already set) for the first paint, then listen for the [theme](#theme) event for live changes. Style your components
 under a `.dark` root class so they follow the toggle, and scope any overrides so they take precedence over the
 generic wrapper stylesheet.

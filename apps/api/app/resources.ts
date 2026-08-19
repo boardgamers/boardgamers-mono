@@ -187,6 +187,10 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
               gameObj.emit(event.data.type, event.data.to);
               break;
             }
+            case 'theme': {
+              gameObj.emit('theme', { dark: !!event.data.dark });
+              break;
+            }
           }
         });
         gameObj.on('move', move => {
