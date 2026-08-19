@@ -212,8 +212,6 @@ emitter.emit("move", { action: "take", gems: ["ruby", "onyx"] });
 emitter.emit("move", { move: { action: "take", gems: ["ruby", "onyx"] } });
 ```
 
-Do **not** wrap the payload in a `{ move: ... }` object — the wrapping is done by the app, so wrapping it yourself
-double-wraps it and the engine receives `move.move.action`.
 
 ### player:clicked
 
