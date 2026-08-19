@@ -101,8 +101,10 @@ describe("docs server", () => {
 		const html = await (await get("/", "text/html")).text();
 		assert.doesNotMatch(html, /href="\/config/);
 		assert.doesNotMatch(html, />Config</);
-		// No redundant "BGS Docs" heading above the home link in the sidebar.
-		assert.doesNotMatch(html, /<p class="section-title">BGS Docs<\/p>/);
+		// No redundant "BGS Docs" home entry in the sidebar (the header brand links home).
+		const sidebar = html.match(/<aside>[\s\S]*?<\/aside>/)?.[0] ?? "";
+		assert.doesNotMatch(sidebar, /BGS Docs/);
+		assert.doesNotMatch(sidebar, /href="\/"/);
 		assert.equal((await get("/config", "text/html")).status, 404);
 		const llms = await (await get("/llms.txt", "text/html")).text();
 		assert.doesNotMatch(llms, /config/i);

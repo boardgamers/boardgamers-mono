@@ -9,8 +9,9 @@ export function pageUrl(path: string): string {
 	return path === "" ? "/" : `/${path}`;
 }
 
+// The home page is not listed: the header brand already links to it, and its
+// "BGS Docs" title would be a redundant first entry.
 function navSections(pages: DocPage[]): { title: string; pages: DocPage[] }[] {
-	const home = pages.filter((p) => p.path === "");
 	const sections = new Map<string, DocPage[]>();
 	for (const page of pages) {
 		if (page.path === "") continue;
@@ -19,7 +20,6 @@ function navSections(pages: DocPage[]): { title: string; pages: DocPage[] }[] {
 		sections.get(top)!.push(page);
 	}
 	return [
-		...(home.length ? [{ title: "", pages: home }] : []),
 		...[...sections.entries()].map(([dir, dirPages]) => {
 			const index = dirPages.find((p) => p.path === dir);
 			// Capitalize the directory name as the section title ("guide" → "Guide").
