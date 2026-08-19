@@ -75,8 +75,9 @@ export function createDocsServer(content: DocsContent = loadDocs(DOCS_DIR)): Ser
 	});
 }
 
-// Direct execution (`node server.ts`) starts the listener; tests import createDocsServer.
-if (process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/"))) {
+// Direct execution starts the listener; tests import createDocsServer. Guard uses
+// import.meta.main, not argv[1]: under PM2 fork, argv[1] is PM2 ProcessContainerFork.js.
+if (import.meta.main || process.env.pm_id !== undefined) {
 	const server = createDocsServer();
 	server.listen(PORT, HOST, () => console.log(`[docs] serving ${DOCS_DIR} on http://${HOST}:${PORT}`));
 	const close = () => server.close(() => process.exit(0));
