@@ -115,8 +115,7 @@ describe("Feedback API — site + game-specific requests (#340)", () => {
 		const noforum = await insertUserWithAuth("noforum");
 		const res = await api("POST", "/api/feedback", { kind: "site", title: "No forum account" }, noforum.authHeaders);
 		assert.strictEqual(res.status, 403);
-		const code =
-			typeof res.data === "object" && res.data !== null && "code" in res.data ? res.data.code : undefined;
+		const code = typeof res.data === "object" && res.data !== null && "code" in res.data ? res.data.code : undefined;
 		assert.strictEqual(code, "forum_account_required");
 		// The request was NOT created.
 		assert.strictEqual(await colls.feedbackRequests.countDocuments({ requestedBy: noforum.userId }), 0);
