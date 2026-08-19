@@ -166,6 +166,18 @@ export async function post<T>(url: string, data: Record<string, unknown> = {}, o
 	);
 }
 
+export async function put<T>(url: string, data: Record<string, unknown> = {}, opts?: FetchOptions): Promise<T> {
+	const doFetch = opts?.fetch ?? (await requestFetch());
+	return getResponseData<T>(
+		await doFetch(transformUrl(url), {
+			method: "PUT",
+			credentials: "same-origin",
+			body: JSON.stringify(data),
+			headers: { "Content-Type": "application/json", ...(await authHeaderFor(url, doFetch)) },
+		}),
+	);
+}
+
 export async function del<T>(url: string, opts?: FetchOptions): Promise<T> {
 	const doFetch = opts?.fetch ?? (await requestFetch());
 	return getResponseData<T>(
