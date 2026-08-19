@@ -269,7 +269,9 @@
 					{#if v.ongoing > 0}
 						<!-- The badge is a button (click opens the game-links popover), so the tab
 						     can't be a plain <a> around it — an <a> descendant of an <a> is invalid.
-						     The "vX" text stays a link to the version tab. -->
+						     The "vX" text stays a link to the version tab. The popover is anchored
+						     to the tab's left edge (left-0), not centered: tabs sit right next to
+						     the sidebar, so a centered popover would slide under it and clip. -->
 						<div class="ongoing-popover-anchor relative flex items-center {tabClass}">
 							<a {href} class="hover:underline">v{v.version}</a>
 							<button
@@ -288,7 +290,7 @@
 							{/if}
 							{#if openPopover === v.version}
 								<div
-									class="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 min-w-44 max-w-64 max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-1.5 text-left font-normal normal-case tracking-normal"
+									class="absolute left-0 top-full mt-1 z-20 min-w-44 max-w-64 max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-1.5 text-left font-normal normal-case tracking-normal"
 									role="menu"
 								>
 									<div class="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
