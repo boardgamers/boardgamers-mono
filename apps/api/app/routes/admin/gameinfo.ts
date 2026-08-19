@@ -262,16 +262,22 @@ router.delete("/:game/beta-users/:userId", async (ctx) => {
 // GET /api/admin/gameinfo/:game/ongoing-games — per-version count of ongoing
 // (open + active) games, one $group aggregation (same semantics as the archive
 // route's per-version countDocuments below). Powers the count badges on the
-// admin game page's version tabs. Registered BEFORE /:game/:version, which
-// would otherwise swallow "ongoing-games" as a version (#319).
+// admin game page's version tabs; the (capped) gameIds feed the badge popover
+// linking to each game. Registered BEFORE /:game/:version, which would
+// otherwise swallow "ongoing-games" as a version (#319).
+const ONGOING_GAME_IDS_CAP = 10;
+
 router.get("/:game/ongoing-games", async (ctx) => {
 	const counts = await colls.games
-		.aggregate<{ _id: number; count: number }>([
+		.aggregate<{ _id: number; count: number; gameIds: string[] }>([
 			{ $match: { "game.name": ctx.params.game, status: { $in: ["open", "active"] } } },
-			{ $group: { _id: "$game.version", count: { $sum: 1 } } },
+			{ $group: { _id: "$game.version", count: { $sum: 1 }, gameIds: { $push: "$_id" } } },
+			{ $project: { count: 1, gameIds: { $slice: ["$gameIds", ONGOING_GAME_IDS_CAP] } } },
 		])
 		.toArray();
-	ctx.body = counts.map((c) => ({ version: c._id, count: c.count })).sort((a, b) => a.version - b.version);
+	ctx.body = counts
+		.map((c) => ({ version: c._id, count: c.count, gameIds: c.gameIds }))
+		.sort((a, b) => a.version - b.version);
 });
 
 // oxlint-disable no-async-endpoint-handlers -- Express-specific rule; Koa awaits async middleware natively

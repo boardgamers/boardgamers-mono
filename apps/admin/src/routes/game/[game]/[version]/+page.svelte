@@ -150,7 +150,26 @@
 		toast.success(archived ? "Unarchived" : "Archived");
 		await loadGames();
 	}
+
+	// Version-tab badge popover: which version's ongoing-games list is open, if
+	// any. Absolutely positioned so it never grows the tab bar.
+	let openPopover = $state<number | null>(null);
+
+	function onPopoverKeydown(event: KeyboardEvent) {
+		if (event.key === "Escape") {
+			openPopover = null;
+			(event.target as HTMLElement).blur();
+		}
+	}
+
+	function onWindowClick(event: MouseEvent) {
+		if (openPopover !== null && !(event.target as HTMLElement).closest(".ongoing-popover-anchor")) {
+			openPopover = null;
+		}
+	}
 </script>
+
+<svelte:window onclick={onWindowClick} />
 
 {#if value}
 	<div class="space-y-8">
@@ -242,21 +261,62 @@
 				{#each data.versions as v (v.version)}
 					{@const href = resolve("/game/[game]/[version]", { game: gameId, version: String(v.version) })}
 					{@const active = v.version === version}
-					<a
-						{href}
-						class="px-4 py-2 text-sm font-medium rounded-t-lg border border-b-0 {active
-							? 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-blue-600 dark:text-blue-400 -mb-px'
-							: 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'}"
-					>
-						v{v.version}{#if v.ongoing > 0}<span
-								class="ml-1.5 px-1.5 py-px text-[10px] font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-								title="{v.ongoing} ongoing game{v.ongoing === 1 ? '' : 's'}">{v.ongoing}</span
-							>{/if}{#if v.archived}
-							<span
-								class="ml-1.5 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
-								>archived</span
-							>{/if}
-					</a>
+					{@const tabClass = `px-4 py-2 text-sm font-medium rounded-t-lg border border-b-0 ${
+						active
+							? "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-blue-600 dark:text-blue-400 -mb-px"
+							: "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+					}`}
+					{#if v.ongoing > 0}
+						<!-- The badge is a button (click opens the game-links popover), so the tab
+						     can't be a plain <a> around it — an <a> descendant of an <a> is invalid.
+						     The "vX" text stays a link to the version tab. -->
+						<div class="ongoing-popover-anchor relative flex items-center {tabClass}">
+							<a {href} class="hover:underline">v{v.version}</a>
+							<button
+								type="button"
+								class="ml-1.5 px-1.5 py-px text-[10px] font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/70 cursor-pointer"
+								title="{v.ongoing} ongoing game{v.ongoing === 1 ? '' : 's'} — click to list"
+								aria-expanded={openPopover === v.version}
+								onclick={() => (openPopover = openPopover === v.version ? null : v.version)}
+								onkeydown={onPopoverKeydown}>{v.ongoing}</button
+							>
+							{#if v.archived}
+								<span
+									class="ml-1.5 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+									>archived</span
+								>
+							{/if}
+							{#if openPopover === v.version}
+								<div
+									class="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 min-w-44 max-w-64 max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-1.5 text-left font-normal normal-case tracking-normal"
+									role="menu"
+								>
+									<div class="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+										Ongoing on v{v.version}
+									</div>
+									{#each v.ongoingGameIds as id (id)}
+										<a
+											href={resolve("/game/[gameId]", { gameId: id })}
+											class="block px-2 py-1 text-xs font-mono rounded text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 truncate"
+											role="menuitem">{id}</a
+										>
+									{/each}
+									{#if v.ongoing > v.ongoingGameIds.length}
+										<div class="px-2 py-1 text-[10px] text-gray-400">
+											and {v.ongoing - v.ongoingGameIds.length} more
+										</div>
+									{/if}
+								</div>
+							{/if}
+						</div>
+					{:else}
+						<a {href} class={tabClass}>
+							v{v.version}{#if v.archived}<span
+									class="ml-1.5 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+									>archived</span
+								>{/if}
+						</a>
+					{/if}
 				{/each}
 			</nav>
 

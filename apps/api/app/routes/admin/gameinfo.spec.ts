@@ -449,8 +449,8 @@ describe("Admin gameinfo API — ongoing-games counts", () => {
 		const res = await get("countgame");
 		assert.strictEqual(res.status, 200);
 		assert.deepStrictEqual(res.data, [
-			{ version: 1, count: 2 },
-			{ version: 2, count: 1 },
+			{ version: 1, count: 2, gameIds: ["og-1", "og-2"] },
+			{ version: 2, count: 1, gameIds: ["og-3"] },
 		]);
 	});
 
@@ -465,7 +465,25 @@ describe("Admin gameinfo API — ongoing-games counts", () => {
 		// to NaN and answer 404 — a 200 array proves the static segment wins.
 		const res = await get("othergame");
 		assert.strictEqual(res.status, 200);
-		assert.deepStrictEqual(res.data, [{ version: 1, count: 1 }]);
+		assert.deepStrictEqual(res.data, [{ version: 1, count: 1, gameIds: ["og-5"] }]);
+	});
+
+	it("caps gameIds at 10 per version while the count stays exact", async () => {
+		await colls.games.insertMany(
+			Array.from({ length: 12 }, (_, i) =>
+				testGame({ _id: `og-many-${i}`, game: { name: "manygame", version: 1 }, status: "active" }),
+			),
+		);
+		const res = await get("manygame");
+		assert.strictEqual(res.status, 200);
+		assert.strictEqual(res.data.length, 1);
+		assert.strictEqual(res.data[0].version, 1);
+		assert.strictEqual(res.data[0].count, 12, "count stays exact past the cap");
+		assert.strictEqual(res.data[0].gameIds.length, 10, "gameIds are capped");
+		assert.ok(
+			res.data[0].gameIds.every((id: unknown) => typeof id === "string" && id.startsWith("og-many-")),
+			"gameIds are the games' string _ids",
+		);
 	});
 });
 
