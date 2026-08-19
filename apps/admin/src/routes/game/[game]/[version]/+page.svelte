@@ -80,6 +80,7 @@
 				alias: value.alias?.trim() || null,
 				description: value.description,
 				rules: value.rules,
+				credits: value.credits,
 				links: value.links,
 				players: value.players,
 				needOwnership: value.needOwnership,

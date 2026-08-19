@@ -103,6 +103,7 @@ describe("Admin gameinfo API — split upsert (#298)", () => {
 			alias: "Split Alias",
 			description: "a description",
 			rules: "the rules",
+			credits: "the credits",
 			players: [2, 3],
 			viewer: { url: "//v1" },
 			public: true,
@@ -111,6 +112,7 @@ describe("Admin gameinfo API — split upsert (#298)", () => {
 		let meta = await colls.gameMetadatas.findOne({ _id: "splitgame" });
 		assert.strictEqual(meta?.label, "Split Game");
 		assert.strictEqual(meta?.description, "a description");
+		assert.strictEqual(meta?.credits, "the credits", "credits routed to the game metadata doc (#351)");
 
 		// A re-PUT carrying only version fields (what the version page sends after
 		// GameEdit strips game-level metadata) must leave the metadata doc intact.
@@ -119,6 +121,7 @@ describe("Admin gameinfo API — split upsert (#298)", () => {
 		assert.strictEqual(meta?.label, "Split Game", "label not cleared by a metadata-less save");
 		assert.strictEqual(meta?.alias, "Split Alias", "alias not cleared");
 		assert.strictEqual(meta?.description, "a description", "description not cleared");
+		assert.strictEqual(meta?.credits, "the credits", "credits not cleared");
 		assert.deepEqual(meta?.players, [2, 3], "players not cleared");
 
 		// The version doc got the version-field update and never held game-level fields.
@@ -158,6 +161,7 @@ describe("Admin gameinfo API — split upsert (#298)", () => {
 			body: JSON.stringify({
 				_id: "splitgame",
 				label: "Split Game (edited)",
+				credits: "- Ported by [@someone](/user/someone)",
 				likeCount: 3,
 				createdAt: new Date(0).toISOString(),
 				updatedAt: new Date(0).toISOString(),
@@ -167,6 +171,7 @@ describe("Admin gameinfo API — split upsert (#298)", () => {
 
 		const meta = await colls.gameMetadatas.findOne({ _id: "splitgame" });
 		assert.strictEqual(meta?.label, "Split Game (edited)");
+		assert.strictEqual(meta?.credits, "- Ported by [@someone](/user/someone)", "the meta PUT accepts credits (#351)");
 		assert.strictEqual(meta?.likeCount, 5, "stale round-tripped likeCount does not clobber the counter");
 		assert.notDeepEqual(meta?.updatedAt, new Date(0), "timestamps stay wrapper-managed");
 

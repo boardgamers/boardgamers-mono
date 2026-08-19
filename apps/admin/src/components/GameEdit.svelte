@@ -51,10 +51,10 @@
 		onsave: (data: GameInfoData) => void;
 		ondelete?: () => void;
 		onduplicate?: () => void;
-		// Game-level metadata (label/alias/description/rules/links/players/needOwnership)
-		// is centrally-managed game metadata (#298). When true, those fields render
-		// read-only and are stripped from the save payload so a version-page save never
-		// mutates shared metadata.
+		// Game-level metadata (label/alias/description/rules/credits/links/players/
+		// needOwnership) is centrally-managed game metadata (#298). When true, those
+		// fields render read-only and are stripped from the save payload so a
+		// version-page save never mutates shared metadata.
 		metadataReadOnly?: boolean;
 		// Which group(s) to render. "all" (default) shows the Game group then the
 		// Version group (used by the new-game form). "game" shows only the game-level
@@ -355,7 +355,16 @@
 	// `metadataReadOnly` the version page renders them read-only and never saves them.
 	// `expansions` is version-scoped (a setup option that can differ per version), so
 	// it is NOT stripped here.
-	const METADATA_FIELDS = ["label", "alias", "description", "rules", "links", "players", "needOwnership"] as const;
+	const METADATA_FIELDS = [
+		"label",
+		"alias",
+		"description",
+		"rules",
+		"credits",
+		"links",
+		"players",
+		"needOwnership",
+	] as const;
 
 	function handleSave() {
 		for (const setting of value.settings ?? []) {
@@ -526,11 +535,18 @@
 						<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.rules}</p>
 					</div>
 				{/if}
+				{#if value.credits}
+					<div class="space-y-1">
+						<span class="block text-sm font-medium">Credits</span>
+						<p class="text-sm text-gray-500 dark:text-gray-400 whitespace-pre-wrap">{value.credits}</p>
+					</div>
+				{/if}
 			</div>
 		{:else}
 			<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
 				<MarkdownEditor bind:value={value.description} label="Description (Markdown)" rows={6} />
 				<MarkdownEditor bind:value={value.rules} label="Rules (Markdown)" rows={10} />
+				<MarkdownEditor bind:value={value.credits} label="Credits (Markdown)" rows={6} />
 			</div>
 		{/if}
 	{/if}

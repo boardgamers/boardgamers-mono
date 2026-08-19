@@ -129,6 +129,10 @@ export const gameMetadataSchema = z.object({
 	alias: z.string().min(1).optional(),
 	description: z.string().optional(),
 	rules: z.string().optional(),
+	// Markdown credits shown on the boardgame page (#351). Game-level (who made the
+	// game doesn't change with an engine version) — supersedes the #348 per-game
+	// `<game>:credits` CMS pages, migrated here by migration 1.10.0.
+	credits: z.string().optional(),
 	links: z
 		.object({
 			source: z.string().optional(),
@@ -168,6 +172,7 @@ export const GAME_METADATA_FIELDS = [
 	"alias",
 	"description",
 	"rules",
+	"credits",
 	"links",
 	"players",
 	"needOwnership",
@@ -184,6 +189,7 @@ export const gameInfoSchema = gameVersionSchema
 			alias: true,
 			description: true,
 			rules: true,
+			credits: true,
 			links: true,
 			players: true,
 			needOwnership: true,
