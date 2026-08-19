@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/api", () => ({ get: vi.fn() }));
 
 import { get } from "@/lib/api";
-import { clearGamesCache, loadGames } from "@/lib/games.svelte";
+import { clearGamesCache, gameListParams, loadGames } from "@/lib/games.svelte";
 import { load } from "./+page";
 import type { PageLoad } from "./$types";
 
@@ -55,7 +55,9 @@ describe("boardgame page load — featured games fallback", () => {
 
 		expect(data.featuredStatus).toBe("ended");
 		// The ended games were stored in the cache for the GameList to pick up.
-		const cached = await loadGames({ gameStatus: "ended", count: 5, boardgameId: "testgame", fetchCount: false });
+		const cached = await loadGames(
+			gameListParams({ gameStatus: "ended", boardgameId: "testgame", topRecords: true, perPage: 5 }),
+		);
 		expect(cached.games).toEqual([{ _id: "g2" }]);
 		// Served from the cache — exactly one ended fetch happened (in the load).
 		expect(getMock.mock.calls.filter(([url]) => url === "/game/status/ended")).toHaveLength(1);
