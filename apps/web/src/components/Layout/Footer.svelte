@@ -14,6 +14,11 @@
 		>
 		<a
 			data-sveltekit-preload-data="hover"
+			href={resolve("/(app)/feedback")}
+			class="text-gray-500 underline hover:text-primary dark:text-gray-400">Feedback</a
+		>
+		<a
+			data-sveltekit-preload-data="hover"
 			href={resolve("/(app)/page/[part1]", { part1: "source" })}
 			class="text-gray-500 underline hover:text-primary dark:text-gray-400">Source</a
 		>
