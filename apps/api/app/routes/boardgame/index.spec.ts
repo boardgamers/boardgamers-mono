@@ -258,7 +258,9 @@ describe("Game API — my-boardgames liked-first ordering (#117)", () => {
 			undefined,
 			alice.authHeaders,
 		);
-		const rows = z.array(z.object({ boardgame: z.string(), liked: z.boolean().optional() })).parse(res.data);
+		const rows = z
+			.array(z.object({ boardgame: z.string(), liked: z.boolean().optional(), likedAt: z.string().optional() }))
+			.parse(res.data);
 		assert.deepStrictEqual(
 			rows.map((r) => r.boardgame),
 			["likegame-a", "likegame-b", "likegame-c"],
@@ -267,6 +269,11 @@ describe("Game API — my-boardgames liked-first ordering (#117)", () => {
 			rows.map((r) => r.liked ?? false),
 			[true, true, false],
 		);
+		// Liked rows carry the like timestamp (the sidebar's liked-first ordering key);
+		// unliked rows don't.
+		assert.strictEqual(rows[0]?.likedAt, new Date(base + 1000).toISOString());
+		assert.strictEqual(rows[1]?.likedAt, new Date(base).toISOString());
+		assert.strictEqual(rows[2]?.likedAt, undefined);
 	});
 
 	it("surfaces a liked game never played", async () => {
@@ -285,9 +292,12 @@ describe("Game API — my-boardgames liked-first ordering (#117)", () => {
 			undefined,
 			alice.authHeaders,
 		);
-		const rows = z.array(z.object({ boardgame: z.string(), liked: z.boolean().optional() })).parse(res.data);
+		const rows = z
+			.array(z.object({ boardgame: z.string(), liked: z.boolean().optional(), likedAt: z.string().optional() }))
+			.parse(res.data);
 		assert.strictEqual(rows[0]?.boardgame, "likegame-fresh");
 		assert.strictEqual(rows[0]?.liked, true);
+		assert.ok(rows[0]?.likedAt, "a liked-never-played row carries its like time");
 	});
 
 	after(() => db().dropDatabase());

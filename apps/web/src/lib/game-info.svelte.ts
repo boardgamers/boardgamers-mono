@@ -106,6 +106,33 @@ export function byGamePopularity(
 }
 
 /**
+ * "My games" ordering (sidebar): liked games first — most-recently-liked first — then
+ * played games by recency (their index in the `/game/my-boardgames` play list). Pure:
+ * `likedAtMs` maps game → like time (ms), `playedIds` is the play-recency list.
+ */
+export function byMyGamesOrder(
+	likedAtMs: Readonly<Record<string, number>>,
+	playedIds: readonly string[],
+): (a: GameInfoFront, b: GameInfoFront) => number {
+	const playRank = (id: string) => {
+		const i = playedIds.indexOf(id);
+		return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+	};
+	return (a, b) => {
+		const idA = a._id.game;
+		const idB = b._id.game;
+		const likedA = likedAtMs[idA] !== undefined;
+		const likedB = likedAtMs[idB] !== undefined;
+		return (
+			Number(likedB) - Number(likedA) ||
+			(likedA && likedB ? likedAtMs[idB] - likedAtMs[idA] : 0) ||
+			playRank(idA) - playRank(idB) ||
+			gameDisplayName(a).localeCompare(gameDisplayName(b))
+		);
+	};
+}
+
+/**
  * Apply a client-side like/unlike to every entry for the game (all versions + `latest`).
  * `likeCount` is shared across versions, so the map entries must move together — otherwise
  * the sidebar/catalog (reading `/latest`) and the button disagree. Pure.

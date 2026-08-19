@@ -143,7 +143,10 @@ export async function myBoardgames(ctx: Context) {
 
 	// Personal ordering (#117): within the recently-played window, liked boardgames
 	// get a recency boost (their like time counts as activity, so a liked game that
-	// was never played also shows up) — then most recent activity first.
+	// was never played also shows up) — then most recent activity first. Each row
+	// also carries `likedAt` so the sidebar can group liked games at the top of "My
+	// games", most-recently-liked first (its own derivation — this list's merge
+	// order only approximates that grouping).
 	const likes = await colls.gameLikes.find({ user }, { projection: { game: 1, createdAt: 1 } }).toArray();
 	const likeByGame = new Map(likes.map((l) => [l.game, l.createdAt ?? new Date(0)]));
 
@@ -155,7 +158,12 @@ export async function myBoardgames(ctx: Context) {
 	]
 		.map((r) => {
 			const likedAt = likeByGame.get(r.boardgame);
-			return { ...r, liked: likedAt !== undefined, lastActivity: maxDate(r.lastActivity, likedAt) };
+			return {
+				...r,
+				liked: likedAt !== undefined,
+				...(likedAt && { likedAt }),
+				lastActivity: maxDate(r.lastActivity, likedAt),
+			};
 		})
 		.sort(byRecency);
 }

@@ -6,7 +6,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // branch for this file — the seed-once behavior is precisely the client-side path.
 vi.mock("$app/environment", () => ({ browser: true, dev: false, building: false, version: "test" }));
 
-import { account, activeGames, seedAccountFromSSR, seedActiveGamesFromSSR } from "./stores.svelte";
+import {
+	account,
+	activeGames,
+	applyLikedBoardgame,
+	likedBoardgames,
+	seedAccountFromSSR,
+	seedActiveGamesFromSSR,
+	seedLikedBoardgamesFromSSR,
+} from "./stores.svelte";
 
 const userA = { _id: "user-a" } as never;
 const userB = { _id: "user-b" } as never;
@@ -77,6 +85,44 @@ describe("SSR-seeded client stores (seed once per identity)", () => {
 			seedActiveGamesFromSSR(["g1"], "user-a");
 			seedActiveGamesFromSSR(["g1", "g3"], "user-a");
 			expect(get(activeGames)).toEqual(["g1", "g3"]);
+		});
+	});
+
+	describe("likedBoardgames", () => {
+		beforeEach(() => {
+			// Reset the module-private seed guard by re-seeding to a known identity.
+			seedLikedBoardgamesFromSSR({}, null);
+			likedBoardgames.set({});
+		});
+
+		it("seeds from the SSR snapshot", () => {
+			seedLikedBoardgamesFromSSR({ gaia: 1000, take6: 2000 }, "user-a");
+			expect(get(likedBoardgames)).toEqual({ gaia: 1000, take6: 2000 });
+		});
+
+		it("does not clobber a live toggle on a same-identity revalidation", () => {
+			seedLikedBoardgamesFromSSR({ gaia: 1000 }, "user-a");
+			applyLikedBoardgame("take6", true); // live like toggle
+			seedLikedBoardgamesFromSSR({ gaia: 1000 }, "user-a"); // stale revalidation snapshot
+			expect(get(likedBoardgames)).toMatchObject({ gaia: 1000 });
+			expect(get(likedBoardgames).take6).toBeTypeOf("number"); // the live stamp wins
+		});
+
+		it("re-seeds on identity change (logout clears, login swaps)", () => {
+			seedLikedBoardgamesFromSSR({ gaia: 1000 }, "user-a");
+			seedLikedBoardgamesFromSSR({}, null);
+			expect(get(likedBoardgames)).toEqual({});
+			seedLikedBoardgamesFromSSR({ take6: 500 }, "user-b");
+			expect(get(likedBoardgames)).toEqual({ take6: 500 });
+		});
+
+		it("applyLikedBoardgame stamps now on like and deletes on unlike", () => {
+			seedLikedBoardgamesFromSSR({ gaia: 1000 }, "user-a");
+			const before = Date.now();
+			applyLikedBoardgame("take6", true);
+			expect(get(likedBoardgames).take6).toBeGreaterThanOrEqual(before);
+			applyLikedBoardgame("gaia", false);
+			expect(get(likedBoardgames)).not.toHaveProperty("gaia");
 		});
 	});
 });

@@ -5,7 +5,7 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { del, post } from "@/lib/api";
-	import { account } from "@/lib/stores.svelte";
+	import { account, applyLikedBoardgame } from "@/lib/stores.svelte";
 	import { live } from "@/lib/stores.svelte";
 	import { handleError } from "@/utils";
 	import { loginRedirectQuery } from "@/utils/redirect";
@@ -53,6 +53,9 @@
 			const like = liked
 				? await del<{ liked: boolean; likeCount: number }>(`/boardgame/${gameId}/like`)
 				: await post<{ liked: boolean; likeCount: number }>(`/boardgame/${gameId}/like`);
+			// Keep the sidebar's liked-first ordering live: a like stamps `now` (the game
+			// jumps to the top of "My games"), an unlike drops it back to play-recency.
+			applyLikedBoardgame(gameId, like.liked);
 			onlike?.(like);
 		} catch (err) {
 			handleError(err);

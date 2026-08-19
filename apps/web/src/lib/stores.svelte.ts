@@ -149,6 +149,41 @@ export function removeActiveGame(gameId: string) {
 	activeGames.update((games) => games.filter((g) => g !== gameId));
 }
 
+// --- Liked boardgames (sidebar "My games" liked-first ordering) ---
+
+/**
+ * Per-user like timestamps, `game → likedAt` (ms since epoch). Seeds the sidebar's
+ * liked-first ordering on first paint and live-tracks toggles: liking stamps `now`
+ * (the game jumps to the top of "My games"), unliking deletes the entry. The store
+ * is the client-side truth once seeded (same "seed once per identity" contract as
+ * `account` above); SSR renders the `myBoardgames` rows' `likedAt` snapshot instead.
+ */
+export const likedBoardgames = clientWritable<Record<string, number>>("likedBoardgames", {});
+
+let likedBoardgamesSeededFor: string | null | undefined;
+
+/** Seed from the layout's SSR snapshot. Client-only; no-op on same-identity revalidation. */
+export function seedLikedBoardgamesFromSSR(likes: Record<string, number>, forUserId: string | null) {
+	if (!browser) return;
+	if (likedBoardgamesSeededFor === forUserId) return;
+	likedBoardgamesSeededFor = forUserId;
+	likedBoardgames.set(likes);
+}
+
+/** Live-apply a like toggle: stamp `now` on like, drop the entry on unlike. Client-only. */
+export function applyLikedBoardgame(game: string, liked: boolean) {
+	if (!browser) return;
+	likedBoardgames.update((likes) => {
+		const next = { ...likes };
+		if (liked) {
+			next[game] = Date.now();
+		} else {
+			delete next[game];
+		}
+		return next;
+	});
+}
+
 // --- Current game (websocket-maintained, shared across game components) ---
 
 export const currentGameId = clientWritable<string | null>("currentGameId", null);

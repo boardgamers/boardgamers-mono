@@ -1,6 +1,11 @@
 import { browser } from "$app/environment";
 import type { LayoutLoad } from "./$types";
-import { seedAccountFromSSR, seedActiveGamesFromSSR, sidebarOpen } from "@/lib/stores.svelte";
+import {
+	seedAccountFromSSR,
+	seedActiveGamesFromSSR,
+	seedLikedBoardgamesFromSSR,
+	sidebarOpen,
+} from "@/lib/stores.svelte";
 import { fetchGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 import type { GameInfoFront } from "@bgs/models";
 import type { SetOptional } from "type-fest";
@@ -51,16 +56,16 @@ export const load: LayoutLoad = async ({ data }) => {
 		}
 	}
 
-	// Boardgames the player has played, ordered by recency — the sidebar's pinned "My
-	// games" group. SSR-safe (request-scoped fetch via getRequestEvent), so the divider
-	// and pinned group render on first paint, not after hydration.
-	let myBoardgames: string[] = [];
+	// Boardgames the player has played (recency-ordered) or liked — the sidebar's "My
+	// games" group. Rows carry `likedAt` so the sidebar can float liked games to the
+	// top, most-recently-liked first. SSR-safe (request-scoped fetch via
+	// getRequestEvent), so the group renders on first paint, not after hydration.
+	type MyBoardgameRow = { boardgame: string; lastActivity: string; liked?: boolean; likedAt?: string };
+	let myBoardgames: MyBoardgameRow[] = [];
 	if (data?.user?._id) {
-		myBoardgames = await get<{ boardgame: string; lastActivity: string; liked?: boolean }[]>("/game/my-boardgames", {
+		myBoardgames = await get<MyBoardgameRow[]>("/game/my-boardgames", {
 			user: data.user._id,
-		})
-			.then((rows) => rows.map((r) => r.boardgame))
-			.catch(() => []);
+		}).catch(() => []);
 	}
 
 	if (browser) {
@@ -71,6 +76,10 @@ export const load: LayoutLoad = async ({ data }) => {
 		const user = data?.user ?? null;
 		seedAccountFromSSR(user);
 		seedActiveGamesFromSSR(data?.activeGames ?? [], user?._id ?? null);
+		seedLikedBoardgamesFromSSR(
+			Object.fromEntries(myBoardgames.flatMap((r) => (r.likedAt ? [[r.boardgame, Date.parse(r.likedAt)]] : []))),
+			user?._id ?? null,
+		);
 
 		initWebsocket();
 		initNProgress();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GameInfoFront } from "@bgs/models";
-import { applyGameLike, byGamePopularity, reseedGameInfoLikes } from "./game-info.svelte";
+import { applyGameLike, byGamePopularity, byMyGamesOrder, reseedGameInfoLikes } from "./game-info.svelte";
 
 // Regression for the "count resets to 0 after like + refresh" bug: the toggle response
 // must be applied to every map entry of the game (all versions + `latest`) — `likeCount`
@@ -120,5 +120,50 @@ describe("byGamePopularity", () => {
 				.sort(byGamePopularity)
 				.map((g) => g.alias ?? g.label),
 		).toEqual(["Azul", "Gem Trader", "Zooloretto"]);
+	});
+});
+
+// The sidebar's "My games" ordering: liked games first (most-recently-liked first),
+// then played games by recency. A game both played and liked is in the liked group.
+describe("byMyGamesOrder", () => {
+	const entry = (game: string, label = game) => ({ _id: { game, version: 1 }, label }) as unknown as GameInfoFront;
+	const names = (list: GameInfoFront[]) => list.map((g) => g._id.game);
+
+	it("puts liked games above played games, most-recently-liked first", () => {
+		const likedAt = { "liked-old": 1000, "liked-new": 2000 };
+		const played = ["played-recent", "played-old"];
+		const list = [entry("played-old"), entry("liked-old"), entry("played-recent"), entry("liked-new")];
+
+		expect(names(list.slice().sort(byMyGamesOrder(likedAt, played)))).toEqual([
+			"liked-new",
+			"liked-old",
+			"played-recent",
+			"played-old",
+		]);
+	});
+
+	it("ranks a played-and-liked game in the liked group", () => {
+		const likedAt = { "played-and-liked": 1000 };
+		const played = ["played-and-liked", "played-only"];
+		const list = [entry("played-only"), entry("played-and-liked")];
+
+		expect(names(list.slice().sort(byMyGamesOrder(likedAt, played)))).toEqual(["played-and-liked", "played-only"]);
+	});
+
+	it("orders liked-but-never-played games among the liked group (recency of like)", () => {
+		const likedAt = { "never-played-b": 500, "never-played-a": 1500 };
+		const played = ["played"];
+		const list = [entry("played"), entry("never-played-b"), entry("never-played-a")];
+
+		expect(names(list.slice().sort(byMyGamesOrder(likedAt, played)))).toEqual([
+			"never-played-a",
+			"never-played-b",
+			"played",
+		]);
+	});
+
+	it("falls back to display name when neither game is liked nor played", () => {
+		const list = [entry("b-game", "Banana"), entry("a-game", "Apple")];
+		expect(names(list.slice().sort(byMyGamesOrder({}, [])))).toEqual(["a-game", "b-game"]);
 	});
 });
