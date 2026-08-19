@@ -3,6 +3,7 @@ import { colls } from "../config/db.ts";
 import locks from "../config/locks.ts";
 import type { GameData } from "../types/engine.ts";
 import { delay } from "../utils/delay.ts";
+import { trackedEngine } from "./engine-call-context.ts";
 import { engineRunner } from "./engine-runner.ts";
 import { enginePath, getEngine } from "./engines.ts";
 import { afterMove } from "./game.ts";
@@ -81,7 +82,13 @@ async function runBotMoves(gameId: string): Promise<void> {
 				return;
 			}
 
-			const engine = await getEngine(game.game.name, game.game.version);
+			const engine = trackedEngine(await getEngine(game.game.name, game.game.version), {
+				gameId,
+				game: game.game.name,
+				version: game.game.version,
+				playerIndex: botIndex,
+				playerName: game.players[botIndex].name,
+			});
 
 			try {
 				const path = await enginePath(game.game.name, game.game.version);
