@@ -379,10 +379,24 @@ export async function afterMove(
 			const player = game.players[playerNumber];
 			assert(player, `No player at index ${playerNumber}`);
 			const oldPlayer = oldPlayers.find((p) => p._id.equals(player._id));
+			if (oldPlayer) {
+				// Mover is still current (issue #12): charge elapsed think-time, then
+				// restart clock + deadline from the already-incremented remainingTime,
+				// else the deadline stays frozen and they get dropped mid-game.
+				player.remainingTime = Math.max(
+					(player.remainingTime ?? timePerGame ?? 0) - elapsedSeconds(oldPlayer.timerStart, timer),
+					0,
+				);
+				return {
+					_id: player._id,
+					timerStart: new Date(),
+					deadline: deadline(player.remainingTime, timer),
+				};
+			}
 			return {
 				_id: player._id,
-				timerStart: oldPlayer?.timerStart ?? new Date(),
-				deadline: oldPlayer?.deadline ?? deadline(player.remainingTime ?? timePerGame ?? 0, timer),
+				timerStart: new Date(),
+				deadline: deadline(player.remainingTime ?? timePerGame ?? 0, timer),
 			};
 		});
 	}
