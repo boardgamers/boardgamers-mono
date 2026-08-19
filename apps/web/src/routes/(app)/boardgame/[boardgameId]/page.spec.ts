@@ -13,16 +13,13 @@ import type { PageLoad } from "./$types";
 const getMock = vi.mocked(get);
 
 // The load only branches on list emptiness; game payloads stay minimal.
-function mockApi({ active = [] as unknown[], ended = [] as unknown[], credits = null as unknown }) {
+function mockApi({ active = [] as unknown[], ended = [] as unknown[] }) {
 	getMock.mockImplementation((url: string) => {
 		if (url === "/game/status/active") {
 			return Promise.resolve(active) as never;
 		}
 		if (url === "/game/status/ended") {
 			return Promise.resolve(ended) as never;
-		}
-		if (url === "/page/testgame:credits") {
-			return (credits ? Promise.resolve(credits) : Promise.reject(new Error("404"))) as never;
 		}
 		// Lobby sample + elo rankings — not under test.
 		return Promise.resolve([]) as never;
@@ -35,7 +32,6 @@ function runLoad() {
 		parent: () => Promise.resolve({ user: null, gameInfo: null }),
 	} as unknown as Parameters<PageLoad>[0]) as Promise<{
 		featuredStatus: "active" | "ended";
-		creditsPage: unknown;
 	}>;
 }
 
@@ -75,28 +71,5 @@ describe("boardgame page load — featured games fallback", () => {
 		const data = await runLoad();
 
 		expect(data.featuredStatus).toBe("active");
-	});
-});
-
-describe("boardgame page load — per-game credits page", () => {
-	beforeEach(() => {
-		clearGamesCache();
-		getMock.mockReset();
-	});
-
-	it("returns the credits page when the CMS has one for the boardgame", async () => {
-		mockApi({ credits: { title: "Credits", content: "- By [@someone](/user/someone)" } });
-
-		const data = await runLoad();
-
-		expect(data.creditsPage).toEqual({ title: "Credits", content: "- By [@someone](/user/someone)" });
-	});
-
-	it("returns null when the boardgame has no credits page (404)", async () => {
-		mockApi({});
-
-		const data = await runLoad();
-
-		expect(data.creditsPage).toBeNull();
 	});
 });
