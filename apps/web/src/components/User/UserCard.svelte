@@ -7,6 +7,7 @@
 	import { pluralize } from "@/utils";
 	import { gameDisplayName } from "@/utils/game-label";
 	import { account } from "@/lib/account.svelte";
+	import IconMeepleFill from "@/components/icons/IconMeepleFill.svelte";
 
 	let { username, userId = null }: { username: string; userId?: string | null } = $props();
 
@@ -31,6 +32,7 @@
 			.sort((a, b) => (b.elo!.games ?? 0) - (a.elo!.games ?? 0))
 			.slice(0, 3)
 	);
+	let likedGames = $derived(data?.likedGames ?? []);
 	let isSelf = $derived(!!$account && data?.user?._id === $account._id);
 </script>
 
@@ -74,8 +76,21 @@
 		{#if user.account.bio}
 			<p class="mt-2.5 line-clamp-2 text-sm leading-snug text-gray-700 dark:text-gray-300">{user.account.bio}</p>
 		{/if}
-		{#if eloRatings.length > 0}
+		{#if eloRatings.length > 0 || likedGames.length > 0}
 			<div class="mt-2.5 flex flex-wrap gap-1.5">
+				{#if likedGames.length > 0}
+					<!-- Compact liked-games indicator: meeple + count, tooltip names the top few. -->
+					<span
+						class="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary dark:bg-primary/20 dark:text-primary-lighter"
+						title="{user.account.username} likes {pluralize(likedGames.length, 'game')}: {likedGames
+							.slice(0, 3)
+							.map((g) => gameName(g.game))
+							.join(', ')}{likedGames.length > 3 ? `, +${likedGames.length - 3} more` : ''}"
+					>
+						<IconMeepleFill size="0.85em" />
+						{likedGames.length}
+					</span>
+				{/if}
 				{#each eloRatings as pref (pref.game)}
 					<span
 						class="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary dark:bg-primary/20 dark:text-primary-lighter"
