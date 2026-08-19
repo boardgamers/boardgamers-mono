@@ -283,18 +283,13 @@ emitter.emit('update:preference', data: {name: string, value: string | boolean |
 
 ## Dark mode
 
-The site supports a light/dark theme, switchable by the user or following the OS ("system"). Viewers served through
-the API's wrapper page get dark mode support out of the box:
+The site supports a light/dark theme, switchable by the user or following the OS ("system"). The wrapper page does
+two things for dark mode:
 
-- The wrapper reads the `?dark=1` URL parameter for the initial paint and sets a `dark` class on `<html>` (no flash
-  of light theme).
-- It injects a dark stylesheet (`darkStylesheet`) that re-themes the page chrome — background, default text,
-  Bootstrap-ish tables, modals and forms. It only targets classless elements and only uses inherited properties,
-  so your viewer's own styling always wins (e.g. bare SVG text is filled with the light `currentColor`, but an
-  explicit `fill` — attribute, inline style or CSS class — is left alone).
-- It listens for the [theme](#theme) message and toggles the `dark` class on `<html>` when the site theme changes.
+- It toggles a `dark` class on `<html>` — read from the `?dark=1` URL parameter for the initial paint (before any
+  viewer script runs, so no flash of light theme), then kept in sync via the [theme](#theme) message.
+- It sets a dark page **background** (`html.dark body`) so there's no white flash while your viewer loads.
 
-To support dark mode in your viewer: read the initial state from `?dark=1` (or the `<html class="dark">` the wrapper
-already set) for the first paint, then listen for the [theme](#theme) event for live changes. Style your components
-under a `.dark` root class so they follow the toggle, and scope any overrides so they take precedence over the
-generic wrapper stylesheet.
+Everything else is the viewer's responsibility. To support dark mode: read the initial state from `?dark=1` (or the
+`<html class="dark">` the wrapper already set) for the first paint, then listen for the [theme](#theme) event for
+live changes, and style your components under a `.dark` root class so they follow the toggle.

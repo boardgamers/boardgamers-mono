@@ -336,11 +336,6 @@
 		min-height: calc(100vh - var(--navbar-height));
 	}
 
-	/* Shows through the (transparent) iframe while the viewer loads, avoiding a white flash */
-	:global(.dark) #game-iframe {
-		background: rgb(3 7 18);
-	}
-
 	#game-iframe.fullScreen {
 		max-height: calc(100vh - var(--navbar-height));
 		height: calc(100vh - var(--navbar-height));

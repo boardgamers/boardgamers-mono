@@ -85,7 +85,7 @@
 <div class="flex min-h-screen flex-col">
 	<div class="flex flex-1 flex-row">
 		<div class="flex flex-1 flex-col">
-			<Appbar class="mb-3" />
+			<Appbar />
 			<main class="flex-1">
 				{@render children()}
 			</main>
