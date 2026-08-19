@@ -631,10 +631,9 @@
 							</label>
 							<span class="text-xs text-gray-400"
 								>Pre-built bundle: first .js becomes the viewer URL, extra .js/.css become dependencies — hosted on S3.
-								An optional .map is just hosted for devtools. Each file lands in its own content-hashed
-								directory, so a relative `sourceMappingURL` won't resolve — either point it at the map's
-								absolute hosted URL, or upload via the API with a shared `?bundle=` id so the .js and .map
-								share a directory.</span
+								An optional .map is just hosted for devtools. Each file lands in its own content-hashed directory, so a
+								relative `sourceMappingURL` won't resolve — either point it at the map's absolute hosted URL, or upload
+								via the API with a shared `?bundle=` id so the .js and .map share a directory.</span
 							>
 						</div>
 					</div>
