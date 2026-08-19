@@ -76,6 +76,11 @@ describe("Game viewer iframe page", () => {
 		}
 	});
 
+	it("declares the dark background fallback in a cascade layer", async () => {
+		const html = await iframeHtml("iframe-test", "?dark=1");
+		assert.match(html, /@layer[^{]*\{[^}]*html\.dark/s);
+	});
+
 	it("marks the <html> element dark only when dark=1", async () => {
 		const dark = await iframeHtml("iframe-test", "?dark=1");
 		assert.match(dark, /<html class='dark'>/);
