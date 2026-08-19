@@ -11,7 +11,7 @@ In the admin panel, **Boardgames → + New game**: set the game id + version, la
 Either:
 
 - point **URL** at the bundled viewer on a CDN (e.g. `//cdn.jsdelivr.net/npm/<game>-viewer@<version>/dist/viewer.umd.js`) plus any dependency scripts/stylesheets, or
-- **Upload bundle…**: pick the pre-built viewer `.js` (plus optional extra `.js`/`.css`) — the files are stored on S3 and the URL/dependencies are filled in for you. Save afterwards.
+- **Upload bundle…**: pick the pre-built viewer `.js` (plus optional extra `.js`/`.css`/`.map`) — the files are stored on S3 and the URL/dependencies are filled in for you. Save afterwards.
 
 The viewer bundle must be self-contained (already bundled by the game's own build).
 
