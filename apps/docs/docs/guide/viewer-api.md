@@ -212,7 +212,6 @@ emitter.emit("move", { action: "take", gems: ["ruby", "onyx"] });
 emitter.emit("move", { move: { action: "take", gems: ["ruby", "onyx"] } });
 ```
 
-
 ### player:clicked
 
 ```ts
