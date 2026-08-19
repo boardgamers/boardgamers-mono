@@ -76,19 +76,8 @@
 				{/snippet}
 			</Card>
 		</div>
-		<div class="flex flex-col gap-4">
-			<UserGameSettings title="Settings" game={boardgame} class="flex-1" />
-			{#if data.creditsPage}
-				{@const creditsPage = data.creditsPage}
-				<Card class="border-gray-400 dark:border-gray-600">
-					{#snippet headerContent()}
-						<span class="font-semibold">{creditsPage.title ?? "Credits"}</span>
-					{/snippet}
-					<div class="prose dark:prose-invert max-w-none">
-						<SanitizedHtml html={marked(creditsPage.content ?? "")} />
-					</div>
-				</Card>
-			{/if}
+		<div>
+			<UserGameSettings title="Settings" game={boardgame} class="h-full" />
 		</div>
 	</div>
 
@@ -131,4 +120,16 @@
 			<BoardgameElo initial={data.rankings} {boardgameId} top perPage={6} />
 		</div>
 	</div>
+
+	{#if data.creditsPage}
+		{@const creditsPage = data.creditsPage}
+		<section class="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
+			<h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+				{creditsPage.title ?? "Credits"}
+			</h2>
+			<div class="prose prose-sm dark:prose-invert max-w-none text-gray-600 dark:text-gray-300">
+				<SanitizedHtml html={marked(creditsPage.content ?? "")} />
+			</div>
+		</section>
+	{/if}
 </div>
