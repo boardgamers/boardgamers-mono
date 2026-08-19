@@ -1,5 +1,5 @@
 import type { PageLoad } from "./$types";
-import { loadGames, clearGamesCache } from "@/lib/games.svelte";
+import { loadGames, clearGamesCache, gameListParams } from "@/lib/games.svelte";
 
 export const load: PageLoad = async () => {
 	clearGamesCache();
@@ -7,8 +7,8 @@ export const load: PageLoad = async () => {
 	const boardgameId = undefined;
 
 	const [featured, lobby] = await Promise.all([
-		loadGames({ gameStatus: "active", boardgameId, store: true }),
-		loadGames({ gameStatus: "open", boardgameId, store: true }),
+		loadGames({ ...gameListParams({ gameStatus: "active", boardgameId }), store: true }),
+		loadGames({ ...gameListParams({ gameStatus: "open", boardgameId }), store: true }),
 	]);
 
 	return {

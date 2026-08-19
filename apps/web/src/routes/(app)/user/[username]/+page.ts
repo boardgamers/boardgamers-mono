@@ -1,6 +1,6 @@
 import type { PageLoad } from "./$types";
 import { get, toKitError } from "@/lib/api";
-import { loadGames, clearGamesCache } from "@/lib/games.svelte";
+import { loadGames, clearGamesCache, gameListParams } from "@/lib/games.svelte";
 import { shareImageUrl } from "@/lib/seo";
 import { dateFromObjectId } from "@/utils/time";
 import type { GamePreferencesFront, UserFront } from "@bgs/models";
@@ -18,9 +18,9 @@ export const load: PageLoad = async ({ params, parent }) => {
 	]);
 
 	const [, , , elo] = await Promise.all([
-		loadGames({ userId: user._id, gameStatus: "active", count: 5, store: true }),
-		loadGames({ userId: user._id, gameStatus: "open", count: 5, store: true }),
-		loadGames({ userId: user._id, gameStatus: "ended", count: 5, store: true }),
+		loadGames({ ...gameListParams({ userId: user._id, gameStatus: "active", perPage: 5 }), store: true }),
+		loadGames({ ...gameListParams({ userId: user._id, gameStatus: "open", perPage: 5 }), store: true }),
+		loadGames({ ...gameListParams({ userId: user._id, gameStatus: "ended", perPage: 5 }), store: true }),
 		// Public per-user elo ratings — SSR'd here so UserElo renders synchronously.
 		get<GamePreferencesFront[]>(`/user/${user._id}/games/elo`).catch(() => []),
 	]);

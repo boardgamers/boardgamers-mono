@@ -1,5 +1,5 @@
 import type { PageLoad } from "./$types";
-import { loadGames, clearGamesCache } from "@/lib/games.svelte";
+import { loadGames, clearGamesCache, gameListParams } from "@/lib/games.svelte";
 import { loadEloRankings } from "@/lib/elo-rankings.svelte";
 import { boardgameSeo } from "@/lib/boardgame-seo";
 
@@ -12,18 +12,22 @@ export const load: PageLoad = async ({ params, parent }) => {
 	const boardgameId = params.boardgameId;
 	const userId = user?._id;
 
+	// gameListParams mirrors the GameLists in +page.svelte exactly — the cache key
+	// must match the component's request for the SSR render to find the seeded entry.
 	const myActiveGames = loadGames({
-		gameStatus: "active",
-		count: 5,
-		boardgameId,
-		userId,
-		fetchCount: false,
+		...gameListParams({ gameStatus: "active", boardgameId, userId, topRecords: true, perPage: 5 }),
 		store: true,
 	});
 
-	const featuredGames = loadGames({ gameStatus: "active", count: 5, boardgameId, fetchCount: false, store: true });
+	const featuredGames = loadGames({
+		...gameListParams({ gameStatus: "active", boardgameId, topRecords: true, perPage: 5 }),
+		store: true,
+	});
 
-	const lobbyGames = loadGames({ sample: true, gameStatus: "open", boardgameId, count: 5, store: true });
+	const lobbyGames = loadGames({
+		...gameListParams({ gameStatus: "open", boardgameId, sample: true, perPage: 5 }),
+		store: true,
+	});
 
 	const [active, featured, , rankings] = await Promise.all([
 		myActiveGames,
@@ -37,11 +41,7 @@ export const load: PageLoad = async ({ params, parent }) => {
 	let myGamesFallback: "active" | "ended" = "active";
 	if (userId && active.games.length === 0) {
 		const ended = await loadGames({
-			gameStatus: "ended",
-			count: 5,
-			boardgameId,
-			userId,
-			fetchCount: false,
+			...gameListParams({ gameStatus: "ended", boardgameId, userId, topRecords: true, perPage: 5 }),
 			store: true,
 		});
 		if (ended.games.length > 0) {
@@ -53,7 +53,10 @@ export const load: PageLoad = async ({ params, parent }) => {
 	// show recently finished ones instead of an empty section.
 	let featuredFallback: "active" | "ended" = "active";
 	if (featured.games.length === 0) {
-		const ended = await loadGames({ gameStatus: "ended", count: 5, boardgameId, fetchCount: false, store: true });
+		const ended = await loadGames({
+			...gameListParams({ gameStatus: "ended", boardgameId, topRecords: true, perPage: 5 }),
+			store: true,
+		});
 		if (ended.games.length > 0) {
 			featuredFallback = "ended";
 		}

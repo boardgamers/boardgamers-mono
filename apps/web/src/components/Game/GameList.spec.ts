@@ -38,7 +38,7 @@ vi.mock("@/modules/cdk", async () => {
 });
 
 import { get } from "@/lib/api";
-import { clearGamesCache, loadGames } from "@/lib/games.svelte";
+import { clearGamesCache, gameListParams, loadGames } from "@/lib/games.svelte";
 import { logoClick } from "@/lib/stores.svelte";
 import { gameInfoKey, type GameInfoMap } from "@/lib/game-info.svelte";
 import GameList from "./GameList.svelte";
@@ -224,6 +224,46 @@ describe("GameList refresh on $logoClicks (#204)", () => {
 		} finally {
 			vi.useRealTimers();
 		}
+	});
+});
+
+// Regression test for the home-page Lobby SSR break: #332 made sample lists fetch
+// the count (fetchCount: true) while the / +page.ts prefetch still seeded the cache
+// with the default fetchCount (false for samples). The cache key includes fetchCount,
+// so GameList's synchronous init read missed, loadGames returned a promise, and SSR
+// rendered "No games to show" (the list only popped in after hydration). The seed and
+// the component now build their params through the same gameListParams helper.
+describe("GameList SSR prefetch (#332 regression)", () => {
+	beforeEach(() => {
+		clearGamesCache();
+		getMock.mockReset();
+		mockApi([fakeGame("g-lobby")], 12);
+		document.body.innerHTML = "";
+	});
+
+	it("a sampled lobby list renders synchronously from the +page.ts seed (no fetch, footer SSR'd)", async () => {
+		// Seed exactly like / +page.ts does, then mount the <GameList sample> Lobby.
+		await loadGames({ ...gameListParams({ gameStatus: "open", sample: true, perPage: 5 }), store: true });
+		const seedCalls = getMock.mock.calls.length;
+
+		const { target, instance } = mountList({ sample: true, perPage: 5 });
+		// No settling: the initial load must be a synchronous cache hit, as in SSR.
+		expect(gameIds(target)).toEqual(["g-lobby"]);
+		expect(getMock.mock.calls.length).toBe(seedCalls);
+		// The count came along with the seed, so the discovery footer is in the SSR HTML.
+		expect(target.textContent).toContain("11 more open games");
+		unmount(instance as never);
+	});
+
+	it("a topRecords list renders synchronously from its +page.ts seed", async () => {
+		// "Featured games" on / and /boardgame/[id] — the other fetchCount variant.
+		await loadGames({ ...gameListParams({ gameStatus: "active", topRecords: true, perPage: 5 }), store: true });
+		const seedCalls = getMock.mock.calls.length;
+
+		const { target, instance } = mountList({ gameStatus: "active", topRecords: true, perPage: 5 });
+		expect(gameIds(target)).toEqual(["g-lobby"]);
+		expect(getMock.mock.calls.length).toBe(seedCalls);
+		unmount(instance as never);
 	});
 });
 

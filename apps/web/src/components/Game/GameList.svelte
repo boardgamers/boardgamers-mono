@@ -22,7 +22,7 @@
 	import IconDice from "@/components/icons/IconDice.svelte";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { gameBadge } from "@/utils/game-label";
-	import { loadGames, type LoadGamesResult } from "@/lib/games.svelte";
+	import { loadGames, gameListParams, type LoadGamesResult } from "@/lib/games.svelte";
 	import { isPromise } from "@bgs/utils";
 	import type { JsonObject } from "type-fest";
 
@@ -67,30 +67,32 @@
 
 	const load = defer(
 		(refetchCount: boolean, bypassCache = false) => {
-			// Sample lists also fetch the count: it's what powers the "N more open games"
-			// discovery affordance (the sample itself is capped at perPage).
-			const fetchCount = refetchCount && !topRecords;
-
-			const result = loadGames({
+			// gameListParams is shared with the +page.ts prefetches so the cache key can
+			// never drift between what the page seeds and what the component requests.
+			const params = gameListParams({
 				gameStatus,
 				boardgameId,
 				userId,
 				sample,
+				topRecords,
+				perPage,
+				page: currentPage,
+				pace,
+				search,
+			});
+			const result = loadGames({
+				...params,
 				minDuration,
 				maxDuration,
-				pace,
-				count: perPage,
-				skip: currentPage * perPage,
-				fetchCount,
+				fetchCount: params.fetchCount && refetchCount,
 				refresh: bypassCache,
-				search,
 			});
 
 			const handleResult = (result: LoadGamesResult) => {
 				now = Date.now();
 				games = result.games;
 
-				if (fetchCount) {
+				if (params.fetchCount && refetchCount) {
 					count = result.total;
 				}
 			};
