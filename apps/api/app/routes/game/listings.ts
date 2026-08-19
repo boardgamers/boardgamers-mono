@@ -141,21 +141,30 @@ export async function myBoardgames(ctx: Context) {
 		])
 		.toArray();
 
-	// Personal ordering (#117): within the recently-played window, liked boardgames
-	// get a recency boost (their like time counts as activity, so a liked game that
-	// was never played also shows up) — then most recent activity first.
+	// Personal ordering (#117): "My games, freshest first" — each boardgame's sort key
+	// is the MOST RECENT of its last-played time and its like time, so a liked game
+	// that was never played still shows up, and a liked game surfaces by whichever
+	// signal is fresher. Each row carries both `lastPlayedAt` (raw play recency) and
+	// `likedAt` so the sidebar derives the same blended ordering; `lastActivity` is
+	// the blended max (kept for back-compat).
 	const likes = await colls.gameLikes.find({ user }, { projection: { game: 1, createdAt: 1 } }).toArray();
 	const likeByGame = new Map(likes.map((l) => [l.game, l.createdAt ?? new Date(0)]));
 
 	ctx.body = [
-		...results.map((r) => ({ boardgame: r._id, lastActivity: r.lastActivity })),
+		...results.map((r) => ({ boardgame: r._id, lastPlayedAt: r.lastActivity as Date | undefined })),
 		...likes
 			.filter((l) => !results.some((r) => r._id === l.game))
-			.map((l) => ({ boardgame: l.game, lastActivity: l.createdAt ?? new Date(0) })),
+			.map((l) => ({ boardgame: l.game, lastPlayedAt: undefined as Date | undefined })),
 	]
 		.map((r) => {
 			const likedAt = likeByGame.get(r.boardgame);
-			return { ...r, liked: likedAt !== undefined, lastActivity: maxDate(r.lastActivity, likedAt) };
+			return {
+				boardgame: r.boardgame,
+				liked: likedAt !== undefined,
+				...(r.lastPlayedAt && { lastPlayedAt: r.lastPlayedAt }),
+				...(likedAt && { likedAt }),
+				lastActivity: maxDate(r.lastPlayedAt ?? new Date(0), likedAt),
+			};
 		})
 		.sort(byRecency);
 }
