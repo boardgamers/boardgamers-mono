@@ -4,8 +4,10 @@ import type { Context } from "koa";
 import Router from "koa-router";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
+import env from "../../config/env.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { likedFeedbackRequestIds, setFeedbackRequestLike } from "../../services/feedbacklike.ts";
+import { createFeedbackTopic, forumUidForUser } from "../../services/forum.ts";
 import { zObjectId } from "../../utils/zod.ts";
 import { isAdmin, loggedIn, usernamesById } from "../utils.ts";
 
@@ -50,6 +52,15 @@ router.post("/", loggedIn, actionRateLimit("feedback/create"), async (ctx) => {
 		throw createError(429, `You already have ${MAX_OPEN_FEEDBACK_REQUESTS_PER_USER} open requests`);
 	}
 
+	// Site + game-specific feedback is posted on the forum AS the user (#340), so
+	// they need a linked forum account (created lazily via BGS OAuth on first
+	// forum login). Hard gate: without one the frontend starts the linking flow.
+	// (Whole-game requests stay frictionless — bot-posted, no forum account needed.)
+	const forumUid = await forumUidForUser(user._id);
+	if (forumUid === null) {
+		throw createError(403, "Link your forum account to submit feedback", { code: "forum_account_required" });
+	}
+
 	const doc: FeedbackRequestDoc = {
 		kind,
 		...(kind === "game" ? { game: game! } : {}),
@@ -60,6 +71,21 @@ router.post("/", loggedIn, actionRateLimit("feedback/create"), async (ctx) => {
 		status: "open",
 	};
 	const { insertedId } = await colls.feedbackRequests.insertOne(doc);
+
+	// Auto-create the forum discussion topic, posted AS the requester (#340).
+	// Fail-safe: a forum outage never fails the request — it just stays without
+	// a topic.
+	const topic = await createFeedbackTopic({
+		title,
+		body,
+		requestUrl: `https://${env.site}/feedback`,
+		username: user.account.username,
+		forumUid,
+	});
+	if (topic) {
+		await colls.feedbackRequests.updateOne({ _id: insertedId }, { $set: { forumTid: topic.tid } });
+		doc.forumTid = topic.tid;
+	}
 
 	ctx.status = 201;
 	ctx.body = { ...doc, _id: insertedId, liked: false };

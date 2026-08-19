@@ -240,7 +240,9 @@ async function listen(port = env.listen.port.api) {
 			const error = err instanceof Error ? err : new Error(String(err));
 			if (err instanceof createError.HttpError) {
 				ctx.status = err.statusCode;
-				ctx.body = { message: err.message };
+				// A structured `code` (e.g. forum_account_required, #340) lets the
+				// frontend branch on the error kind, not the human message.
+				ctx.body = { message: err.message, ...(err.code ? { code: err.code } : {}) };
 			} else if (err instanceof ZodError) {
 				ctx.status = 400;
 				ctx.body = { message: z.prettifyError(err) };

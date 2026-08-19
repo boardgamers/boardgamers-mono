@@ -62,6 +62,7 @@ describe("Feedback API — site + game-specific requests (#340)", () => {
 	let admin: Awaited<ReturnType<typeof insertUserWithAuth>>;
 	let siteRequestId: string;
 	let gameRequestId: string;
+	let savedNodebb: string;
 
 	before(async () => {
 		await colls.gameInfos.insertOne({
@@ -80,10 +81,45 @@ describe("Feedback API — site + game-specific requests (#340)", () => {
 		alice = await insertUserWithAuth("alice");
 		bob = await insertUserWithAuth("bob");
 		admin = await insertUserWithAuth("admin", "admin");
+
+		// Site/game feedback is posted on the forum AS the user (#340), so the
+		// create route requires a linked forum account. The forum-uid lookup reads
+		// `env.database.nodebb` via its own short-lived connection — point it at the
+		// SAME test db and seed the bgs→forum-uid link doc so alice/bob/admin have
+		// forum accounts. Upserted (the specs share the process/db and interleave)
+		// and restored in after().
+		savedNodebb = env.database.nodebb;
+		const bgsUrl = new URL(env.database.bgs.url.replace(/^mongodb:/, "http:"));
+		env.database.nodebb = `mongodb://${bgsUrl.host}/${env.database.bgs.name}${bgsUrl.search}`;
+		await db()
+			.collection("objects")
+			.updateOne(
+				{ _key: "boardgamersId:uid" },
+				{
+					$set: {
+						[alice.userId.toHexString()]: 11,
+						[bob.userId.toHexString()]: 12,
+						[admin.userId.toHexString()]: 13,
+					},
+				},
+				{ upsert: true },
+			);
 	});
 
 	it("requires authentication to create a request", async () => {
 		assert.strictEqual((await api("POST", "/api/feedback", { kind: "site", title: "Anon" })).status, 401);
+	});
+
+	it("requires a linked forum account (forum_account_required)", async () => {
+		// A user with no forum account (not in the boardgamersId:uid link doc).
+		const noforum = await insertUserWithAuth("noforum");
+		const res = await api("POST", "/api/feedback", { kind: "site", title: "No forum account" }, noforum.authHeaders);
+		assert.strictEqual(res.status, 403);
+		const code =
+			typeof res.data === "object" && res.data !== null && "code" in res.data ? res.data.code : undefined;
+		assert.strictEqual(code, "forum_account_required");
+		// The request was NOT created.
+		assert.strictEqual(await colls.feedbackRequests.countDocuments({ requestedBy: noforum.userId }), 0);
 	});
 
 	it("creates a site request", async () => {
@@ -275,5 +311,8 @@ describe("Feedback API — site + game-specific requests (#340)", () => {
 		}
 	});
 
-	after(() => db().dropDatabase());
+	after(async () => {
+		env.database.nodebb = savedNodebb;
+		await db().dropDatabase();
+	});
 });

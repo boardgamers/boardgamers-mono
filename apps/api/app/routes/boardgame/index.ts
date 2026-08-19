@@ -6,7 +6,9 @@ import type { ObjectId } from "mongodb";
 import type { PickDeep, SetOptional } from "type-fest";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
+import env from "../../config/env.ts";
 import { likedGameIds, setGameLike } from "../../services/gamelike.ts";
+import { createFeedbackTopic } from "../../services/forum.ts";
 import { lastAccessibleVersion } from "../../services/gameinfo.ts";
 import { findGameInfoWithVersion, mergeGameInfo } from "../../models/gameinfo.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
@@ -123,6 +125,20 @@ router.post("/request", loggedIn, actionRateLimit("boardgame/request"), async (c
 			throw createError(409, `"${label}" is already requested — vote for it instead`);
 		}
 		throw err;
+	}
+
+	// Auto-create the forum discussion topic (#340). Game requests stay
+	// frictionless — bot-posted (no forum account required). Fail-safe: a forum
+	// outage never fails the request — it just stays without a topic.
+	const topic = await createFeedbackTopic({
+		title: label,
+		body: description,
+		requestUrl: `https://${env.site}/feedback`,
+		username: user.account.username,
+	});
+	if (topic) {
+		await colls.gameMetadatas.updateOne({ _id: game }, { $set: { forumTid: topic.tid } });
+		doc.forumTid = topic.tid;
 	}
 
 	ctx.status = 201;
