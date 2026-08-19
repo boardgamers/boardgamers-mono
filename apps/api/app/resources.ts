@@ -144,8 +144,8 @@ router.get("/game/:game_name/:game_version/iframe", async (ctx) => {
       </div>
     </body>`;
 
-	ctx.body = `
-      ${dark === "1" ? `<html class='dark'>` : ``}
+	ctx.body = `<!DOCTYPE html>
+      <html${dark === "1" ? ` class='dark'` : ``}>
       ${template}
       <${"script"} type='text/javascript'>
         const gameObj = window.${viewer.topLevelVariable}.launch('#app');
