@@ -68,10 +68,13 @@ async function hasSession(): Promise<boolean> {
 
 export class ApiError extends Error {
 	readonly status: number;
-	constructor(message: string, status: number) {
+	/** Structured error kind from the API (e.g. "forum_account_required"), when present. */
+	readonly code?: string;
+	constructor(message: string, status: number, code?: string) {
 		super(message);
 		this.name = "ApiError";
 		this.status = status;
+		this.code = code;
 	}
 }
 
@@ -98,7 +101,11 @@ async function getResponseData<T>(response: Response): Promise<T> {
 	const body = contentType?.startsWith("application/json") ? await response.json() : await response.text();
 
 	if (response.status >= 400) {
-		throw new ApiError((body as any)?.message ?? String(body), response.status);
+		const code =
+			typeof body === "object" && body !== null && "code" in body && typeof body.code === "string"
+				? body.code
+				: undefined;
+		throw new ApiError((body as any)?.message ?? String(body), response.status, code);
 	}
 
 	return body as T;

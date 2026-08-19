@@ -114,6 +114,11 @@ export default {
 	// NodeBB forum — the admin serverinfo endpoint pings {forumUrl}/api/config to
 	// report forum up/down on the dashboard.
 	forumUrl: process.env.forumUrl || "https://forum.boardgamers.space",
+	// NodeBB Write API token (#340): creating a feedback request auto-creates a
+	// discussion topic in the forum's "Comments & Feedback" category. Optional —
+	// unset means no topic creation (the request is still created, fail-safe).
+	// Never log this value.
+	forumWriteToken: process.env.forumWriteToken || undefined,
 	// Cron (game notifications, scheduled games, emails) is on by default — in dev the
 	// single process must run it. PM2 workers opt out with cron=false so only the
 	// dedicated api-cron process runs it (see ecosystem.config.cjs).
