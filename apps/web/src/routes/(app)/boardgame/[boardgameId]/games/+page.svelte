@@ -4,10 +4,14 @@
 	import { GameList } from "@/components";
 	import { Nav, NavItem, NavLink, Input } from "@/modules/cdk";
 	import { untrack } from "svelte";
+	import { page } from "$app/state";
 	import type { GamePace } from "@/utils";
+	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
+	// The viewer's karma (SSR snapshot) — threaded into the open-games list (#345).
+	let viewerKarma = $derived((page.data.user as UserFront | null)?.account?.karma);
 
 	// One-shot init from SSR data — firstTab is a user-toggled local state
 	let firstTab = $state(untrack(() => data.firstTab));
@@ -44,7 +48,7 @@
 			class:hidden={animating}
 		>
 			<div class="mb-2">
-				<GameList gameStatus="open" title="Lobby" boardgameId={data.boardgameId} pace={paceFilter} />
+				<GameList gameStatus="open" title="Lobby" boardgameId={data.boardgameId} pace={paceFilter} {viewerKarma} />
 			</div>
 			<div class="mb-2">
 				<GameList gameStatus="active" title="Ongoing" boardgameId={data.boardgameId} pace={paceFilter} />

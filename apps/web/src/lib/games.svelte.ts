@@ -1,7 +1,5 @@
 import type { GameStatus, GameFront } from "@bgs/models";
 import { SvelteMap } from "svelte/reactivity";
-import { get as getStore } from "svelte/store";
-import { account } from "./stores.svelte";
 import { get } from "./api";
 import { LIVE_GAME_MAX_TIME_PER_GAME, type GamePace } from "@/utils";
 
@@ -21,6 +19,10 @@ export type LoadGamesParams = {
 	/** Bypass the cache read AND overwrite the entry — user-triggered refresh (logo click, sidebar active-game, avatar save). */
 	refresh?: boolean;
 	search?: string;
+	/** The viewer's karma, from the SSR `page.data.user` snapshot — NOT the client-only
+	 *  account store. Threading it through the params (and thus the cache key) keeps the
+	 *  server prefetch and the client read identical, fixing the #345 double-fetch. */
+	viewerKarma?: number;
 };
 
 export type LoadGamesResult = {
@@ -61,6 +63,8 @@ export type GameListConfig = {
 	search?: string;
 	/** Client-side setup-options filter (option name → required value). Widens the fetch. */
 	optionFilter?: SetupOptionFilter;
+	/** The viewer's karma (SSR snapshot) — see LoadGamesParams.viewerKarma. */
+	viewerKarma?: number;
 };
 
 /** Maps a GameList's list config to loadGames params. Used by BOTH GameList's load
@@ -79,6 +83,7 @@ export function gameListParams({
 	pace,
 	search,
 	optionFilter,
+	viewerKarma,
 }: GameListConfig): LoadGamesParams {
 	return {
 		gameStatus,
@@ -94,6 +99,7 @@ export function gameListParams({
 		// discovery affordance (the sample itself is capped at perPage).
 		fetchCount: !topRecords,
 		search,
+		viewerKarma,
 	};
 }
 
@@ -117,6 +123,7 @@ export function loadGames({
 	store = false,
 	refresh = false,
 	search,
+	viewerKarma,
 }: LoadGamesParams) {
 	// The pace filter maps to a timePerGame bound: live games have a sub-day clock,
 	// async games a day-or-more clock.
@@ -134,11 +141,10 @@ export function loadGames({
 		...(sample && { sample: true }),
 		...(userId && { user: userId }),
 		...(boardgameId && { boardgame: boardgameId }),
-		// maxKarma reads the client-only account store: on the server it's always absent,
-		// so server and client build different keys for a logged-in user's open-games
-		// lists. Harmless today (server prefetch+read agree, client prefetch+read agree),
-		// but it means the SSR'd open list is the unfiltered one and hydration refetches.
-		...(gameStatus === "open" && !!getStore(account)?._id && { maxKarma: getStore(account)!.account.karma }),
+		// maxKarma comes from the SSR `page.data.user` snapshot (threaded as viewerKarma),
+		// not the client-only account store — so server prefetch and client read build the
+		// same query + cache key (#345: no double-fetch / post-hydration list swap).
+		...(gameStatus === "open" && viewerKarma !== undefined && { maxKarma: viewerKarma }),
 		...(minDuration && { minDuration }),
 		...(maxDuration && { maxDuration }),
 		...(search && { search }),

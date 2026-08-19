@@ -111,6 +111,7 @@
 				title="Lobby"
 				pace={lobbyPaceFilter}
 				optionFilter={lobbyOptions}
+				viewerKarma={user?.account?.karma}
 				bind:games={lobbyGames}
 			>
 				{#snippet headerContent()}

@@ -45,6 +45,7 @@
 		pace = undefined,
 		optionFilter = undefined,
 		search = undefined,
+		viewerKarma = undefined,
 		games = $bindable([]),
 		headerContent = undefined,
 		class: className = "",
@@ -63,6 +64,10 @@
 		/** Setup-options filter (option name → required value), applied client-side after the fetch. */
 		optionFilter?: SetupOptionFilter | undefined;
 		search?: string | undefined;
+		/** The viewer's karma (SSR `page.data.user` snapshot) — for open lists it filters
+		 *  out games above the viewer's minimum-karma. Threaded (not read from the client
+		 *  account store) so server + client build the same query/cache key (#345). */
+		viewerKarma?: number | undefined;
 		/** The fetched open games (bindable) — the boardgame filter derives its option
 		 *  choices from them. */
 		games?: GameFront[];
@@ -103,6 +108,7 @@
 				pace,
 				search,
 				optionFilter,
+				viewerKarma,
 			});
 			const result = loadGames({
 				...params,

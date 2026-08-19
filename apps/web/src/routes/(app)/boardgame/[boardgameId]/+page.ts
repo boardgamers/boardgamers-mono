@@ -27,8 +27,10 @@ export const load: PageLoad = async ({ params, parent }) => {
 	// Not `sample` (unlike the home lobby): the boardgame lobby lists every open game
 	// of this boardgame (recency-ordered, paginated) so the setup-options filter can
 	// see them all — and no optionFilter on SSR (the parent clears it on navigation).
+	// viewerKarma (SSR snapshot) keeps the server prefetch + client read on the same
+	// cache key (#345).
 	const lobbyGames = loadGames({
-		...gameListParams({ gameStatus: "open", boardgameId, perPage: 5 }),
+		...gameListParams({ gameStatus: "open", boardgameId, perPage: 5, viewerKarma: user?.account?.karma }),
 		store: true,
 	});
 

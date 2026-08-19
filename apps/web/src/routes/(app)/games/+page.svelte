@@ -8,6 +8,7 @@
 	import { page } from "$app/state";
 	import { debounce } from "lodash";
 	import type { GamePace } from "@/utils";
+	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -46,6 +47,8 @@
 	// maps it to a server-side timePerGame bound.
 	let pace = $state<"" | GamePace>("");
 	let paceFilter = $derived<GamePace | undefined>(pace === "" ? undefined : pace);
+	// The viewer's karma (SSR snapshot) — threaded into the open-games list (#345).
+	let viewerKarma = $derived((page.data.user as UserFront | null)?.account?.karma);
 </script>
 
 <div class="container mx-auto px-4">
@@ -84,7 +87,14 @@
 			class:hidden={animating}
 		>
 			<div class="mb-2">
-				<GameList gameStatus="open" title="Lobby" boardgameId={data.boardgameId} pace={paceFilter} {search} />
+				<GameList
+					gameStatus="open"
+					title="Lobby"
+					boardgameId={data.boardgameId}
+					pace={paceFilter}
+					{search}
+					{viewerKarma}
+				/>
 			</div>
 			<div class="mb-2">
 				<GameList gameStatus="active" title="Ongoing" boardgameId={data.boardgameId} pace={paceFilter} {search} />

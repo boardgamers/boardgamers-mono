@@ -10,7 +10,7 @@
 	import { activeGames, live } from "@/lib/stores.svelte";
 	import { page } from "$app/state";
 	import type { GamePace } from "@/utils";
-	import type { UserFront } from "@bgs/models";
+	import type { GameFront, UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -24,6 +24,8 @@
 	// Lobby pace filter (#55) — "" = no filter.
 	let lobbyPace = $state<"" | GamePace>("");
 	let lobbyPaceFilter = $derived<GamePace | undefined>(lobbyPace === "" ? undefined : lobbyPace);
+	// The lobby's loaded open games — the pace chips hide when they're all one pace.
+	let lobbyGames = $state<GameFront[]>([]);
 
 	let websiteJsonLd = $derived(
 		JSON.stringify({
@@ -114,9 +116,17 @@
 				{/if}
 			</div>
 			<div>
-				<GameList sample perPage={5} gameStatus="open" title="Lobby" pace={lobbyPaceFilter}>
+				<GameList
+					sample
+					perPage={5}
+					gameStatus="open"
+					title="Lobby"
+					pace={lobbyPaceFilter}
+					viewerKarma={user?.account?.karma}
+					bind:games={lobbyGames}
+				>
 					{#snippet headerContent()}
-						<SetupOptionsFilter bind:pace={lobbyPace} />
+						<SetupOptionsFilter games={lobbyGames} bind:pace={lobbyPace} />
 					{/snippet}
 				</GameList>
 			</div>

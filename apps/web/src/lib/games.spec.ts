@@ -119,6 +119,32 @@ describe("loadGames pace filter (#55)", () => {
 	});
 });
 
+// #345: the open-games karma filter comes from the threaded viewerKarma (the SSR
+// user snapshot), so server prefetch and client read build the same query — no
+// double-fetch / post-hydration list swap.
+describe("loadGames maxKarma (#345)", () => {
+	beforeEach(() => {
+		clearGamesCache();
+		getMock.mockReset();
+		mockApi([], 0);
+	});
+
+	it("sends maxKarma for open games when the viewer's karma is provided", async () => {
+		await loadGames({ gameStatus: "open", viewerKarma: 42 });
+		expect(gamesQuery().maxKarma).toBe(42);
+	});
+
+	it("omits maxKarma for anonymous viewers (no karma)", async () => {
+		await loadGames({ gameStatus: "open" });
+		expect(gamesQuery().maxKarma).toBeUndefined();
+	});
+
+	it("never sends maxKarma for non-open lists", async () => {
+		await loadGames({ gameStatus: "active", viewerKarma: 42 });
+		expect(gamesQuery().maxKarma).toBeUndefined();
+	});
+});
+
 // #55: the boardgame page filters its open games by that game's setup options
 // (map / variant / …) client-side — lock the matching semantics here.
 describe("matchesSetupOptions (#55)", () => {

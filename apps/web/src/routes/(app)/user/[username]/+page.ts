@@ -19,7 +19,12 @@ export const load: PageLoad = async ({ params, parent }) => {
 
 	const [, , , elo] = await Promise.all([
 		loadGames({ ...gameListParams({ userId: user._id, gameStatus: "active", perPage: 5 }), store: true }),
-		loadGames({ ...gameListParams({ userId: user._id, gameStatus: "open", perPage: 5 }), store: true }),
+		// viewerKarma (the SSR viewer's karma) keeps server prefetch + client read on the
+		// same cache key (#345) — the viewer is the requester for the karma filter.
+		loadGames({
+			...gameListParams({ userId: user._id, gameStatus: "open", perPage: 5, viewerKarma: viewer?.account?.karma }),
+			store: true,
+		}),
 		loadGames({ ...gameListParams({ userId: user._id, gameStatus: "ended", perPage: 5 }), store: true }),
 		// Public per-user elo ratings — SSR'd here so UserElo renders synchronously.
 		get<GamePreferencesFront[]>(`/user/${user._id}/games/elo`).catch(() => []),
