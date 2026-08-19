@@ -530,7 +530,7 @@ describe("User API — liked games", () => {
 	});
 
 	it("returns the games the user liked, most-liked first, with display name + count", async () => {
-		const res = await fetch(`${baseURL()}/api/user/${likerId}/liked-games`).then((r) => r.json());
+		const res = await fetch(`${baseURL()}/api/user/${likerId.toHexString()}/liked-games`).then((r) => r.json());
 		assert.deepStrictEqual(res, [
 			{ game: "liked-b", label: "Splendor", alias: "Gem Trader", likeCount: 5 },
 			{ game: "liked-a", label: "🌏 Liked A", likeCount: 3 },
@@ -538,19 +538,19 @@ describe("User API — liked games", () => {
 	});
 
 	it("returns only that user's likes (not games liked by others)", async () => {
-		const res = await fetch(`${baseURL()}/api/user/${otherId}/liked-games`).then((r) => r.json());
+		const res = await fetch(`${baseURL()}/api/user/${otherId.toHexString()}/liked-games`).then((r) => r.json());
 		assert.deepStrictEqual(res, [{ game: "unliked", label: "⚡️ Unliked", likeCount: 7 }]);
 	});
 
 	it("returns an empty list for a user with no likes", async () => {
 		const noLikesId = new ObjectId();
 		await colls.users.insertOne(testUser({ _id: noLikesId }));
-		const res = await fetch(`${baseURL()}/api/user/${noLikesId}/liked-games`).then((r) => r.json());
+		const res = await fetch(`${baseURL()}/api/user/${noLikesId.toHexString()}/liked-games`).then((r) => r.json());
 		assert.deepStrictEqual(res, []);
 	});
 
 	it("404s for an unknown user", async () => {
-		const res = await fetch(`${baseURL()}/api/user/${new ObjectId()}/liked-games`);
+		const res = await fetch(`${baseURL()}/api/user/${new ObjectId().toHexString()}/liked-games`);
 		assert.strictEqual(res.status, 404);
 	});
 });
