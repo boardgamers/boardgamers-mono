@@ -172,15 +172,49 @@ router.get("/:status", async (ctx) => {
 	});
 
 	if (query.sample) {
+		const count = queryCount(ctx);
 		const pipeline = [
 			{ $match: conditions },
-			{ $sample: { size: queryCount(ctx) * 5 } },
+			{ $sample: { size: count * 5 } },
 			{ $project: projection },
 			{ $sort: sortOrder },
-			{ $group: { _id: "$creator", data: { $first: "$$ROOT" } } },
-			{ $replaceRoot: { newRoot: "$data" } },
-			{ $sort: sortOrder },
-			{ $limit: queryCount(ctx) },
+			// Split into the first game per creator and the rest (same-author repeats),
+			// then concatenate: variety first, and the repeats only fill the remaining
+			// slots. So a lobby with FEW open games (< count) shows same-author games to
+			// fill the page, while a busy lobby keeps one-game-per-creator variety.
+			{
+				$group: {
+					_id: "$creator",
+					first: { $first: "$$ROOT" },
+					rest: { $push: "$$ROOT" },
+				},
+			},
+			{
+				$project: {
+					first: 1,
+					rest: { $slice: ["$rest", 1, { $size: "$rest" }] },
+				},
+			},
+			{
+				$group: {
+					_id: null,
+					firsts: { $push: "$first" },
+					rests: { $push: "$rest" },
+				},
+			},
+			{
+				$project: {
+					games: {
+						$concatArrays: [
+							"$firsts",
+							{ $reduce: { input: "$rests", initialValue: [], in: { $concatArrays: ["$$value", "$$this"] } } },
+						],
+					},
+				},
+			},
+			{ $unwind: "$games" },
+			{ $replaceRoot: { newRoot: "$games" } },
+			{ $limit: count },
 		];
 		ctx.body = await colls.games.aggregate(pipeline).toArray();
 	} else {
