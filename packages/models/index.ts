@@ -98,6 +98,15 @@ export { logSchema, LOGS_COLLECTION, logsCollectionOptions } from "./log.ts";
 export type { PageDoc, PageFront } from "./page.ts";
 export { pageSchema, PAGES_COLLECTION } from "./page.ts";
 
+// --- Page History ---
+export type { PageHistoryDoc, PageHistoryFront } from "./pagehistory.ts";
+export {
+	pageHistorySchema,
+	PAGE_HISTORIES_COLLECTION,
+	pageHistoryIndexes,
+	MAX_PAGE_HISTORY_VERSIONS,
+} from "./pagehistory.ts";
+
 // --- Room Metadata ---
 export type { RoomMetaDataDoc } from "./roommetadata.ts";
 export { roomMetaDataSchema, ROOM_METADATA_COLLECTION, roomMetaDataIndexes } from "./roommetadata.ts";

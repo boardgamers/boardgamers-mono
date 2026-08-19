@@ -20,6 +20,7 @@ import { LOGS_COLLECTION, logsCollectionOptions, logSchema } from "./log.ts";
 import { OAUTH_CONSENTS_COLLECTION, oauthConsentIndexes, oauthConsentSchema } from "./oauthconsent.ts";
 import { OAUTH_FLOWS_COLLECTION, oauthFlowIndexes, oauthFlowSchema } from "./oauthflow.ts";
 import { PAGES_COLLECTION, pageSchema } from "./page.ts";
+import { PAGE_HISTORIES_COLLECTION, pageHistoryIndexes, pageHistorySchema } from "./pagehistory.ts";
 import { ROOM_METADATA_COLLECTION, roomMetaDataIndexes, roomMetaDataSchema } from "./roommetadata.ts";
 import { SETTINGS_COLLECTION, settingsSchema } from "./settings.ts";
 import { USER_ACTIONS_COLLECTION, userActionIndexes, userActionSchema } from "./useraction.ts";
@@ -503,6 +504,7 @@ export const declaredIndexes: [string, IndexDescription[]][] = [
 	[JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenIndexes],
 	[OAUTH_CONSENTS_COLLECTION, oauthConsentIndexes],
 	[OAUTH_FLOWS_COLLECTION, oauthFlowIndexes],
+	[PAGE_HISTORIES_COLLECTION, pageHistoryIndexes],
 	[ROOM_METADATA_COLLECTION, roomMetaDataIndexes],
 	[DELETED_USERS_COLLECTION, deletedUserIndexes],
 	[USER_ACTIONS_COLLECTION, userActionIndexes],
@@ -576,6 +578,7 @@ export async function ensureValidation(db: Db) {
 		[OAUTH_CONSENTS_COLLECTION, oauthConsentSchema],
 		[OAUTH_FLOWS_COLLECTION, oauthFlowSchema],
 		[PAGES_COLLECTION, pageSchema],
+		[PAGE_HISTORIES_COLLECTION, pageHistorySchema],
 		[ROOM_METADATA_COLLECTION, roomMetaDataSchema],
 		[SETTINGS_COLLECTION, settingsSchema],
 		[USERS_COLLECTION, userSchema],
