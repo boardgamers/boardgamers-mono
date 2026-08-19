@@ -186,9 +186,15 @@ emitter.emit("event", data);
 emitter.emit("ready");
 ```
 
-The DOM is ready, and the game can be shown to the player.
+The game has rendered and can be shown to the player. The app keeps the iframe hidden (with a loading
+spinner) until it receives this, then reveals it.
 
-Emit `ready` on a macrotask (e.g. in a `setTimeout(0)` or after the first paint), **not** inside
+**Emit `ready` only after the first [state](#state) has been received and rendered** — not on mount. The
+app sends the initial `state` in response to the shim's `gameReady`, so by the time your viewer has state,
+the app's message listener is guaranteed to be attached; a `ready` fired on mount (before any state) can
+race ahead of that listener on a hard refresh and be dropped, leaving the spinner up forever.
+
+Emit it on a macrotask (e.g. in a `setTimeout(0)` after applying the first state), **not** inside
 `requestAnimationFrame`: the app keeps the iframe hidden until `ready`, and in a hidden/backgrounded iframe
 `requestAnimationFrame` may never fire — so the game would never signal ready and stay hidden forever.
 
