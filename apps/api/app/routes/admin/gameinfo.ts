@@ -424,6 +424,14 @@ function requirePublicUrl(key: string): string {
 const viewerFileQuerySchema = z.object({
 	filename: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*\.(js|css|map)$/, "filename must end in .js, .css or .map"),
 	alternate: z.string().optional(),
+	// Optional shared bundle id: files uploaded with the same `bundle` value are
+	// placed in the SAME S3 directory (overriding the per-file content hash), so a
+	// relative `//# sourceMappingURL=foo.js.map` in the JS resolves to the map
+	// uploaded with the same bundle id. Use a fresh bundle id per viewer build.
+	bundle: z
+		.string()
+		.regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, "bundle must be alphanumeric (._- allowed)")
+		.optional(),
 });
 
 const VIEWER_CONTENT_TYPES: Record<string, string> = {
@@ -436,26 +444,24 @@ const VIEWER_CONTENT_TYPES: Record<string, string> = {
 // sourcemap) and returns its hosted URL. Persists nothing — the admin UI
 // writes the URL into viewer.url / dependencies.stylesheets and the normal
 // Save persists it. `.map` files are only uploaded for browser-devtools
-// debugging; nothing references them server-side — the built viewer JS must
-// point at the map via `//# sourceMappingURL=<hosted .map URL>` (a bare
-// `foo.js.map` filename resolves against the hosted JS URL, which shares the
-// directory when uploaded for the same viewer).
+// debugging; nothing references them server-side. By default each file is
+// content-hashed into its OWN directory, so a relative `//# sourceMappingURL=
+// foo.js.map` would NOT resolve — pass a shared `?bundle=<id>` on both the JS
+// and the .map upload to place them in the same directory so it does.
 router.post("/:game/:version/viewer/file", async (ctx) => {
 	const { game, version } = assertBundleTarget(ctx);
-	const { filename, alternate } = viewerFileQuerySchema.parse(ctx.query);
+	const { filename, alternate, bundle } = viewerFileQuerySchema.parse(ctx.query);
 	const body = await readBody(ctx, VIEWER_FILE_MAX_BYTES);
 	if (body.length === 0) {
 		throw createError(400, "Empty file");
 	}
 
 	const ext = path.extname(filename);
-	const key = gameBundleS3Key(
-		game,
-		version,
-		alternate === "1" ? "viewer-alternate" : "viewer",
-		contentHash(body),
-		filename,
-	);
+	// A shared `bundle` id groups the JS + its sourcemap (+ any siblings) into one
+	// directory so relative sourceMappingURL resolves; otherwise each file is
+	// content-hashed into its own directory (cache-busted, collision-free).
+	const dir = bundle ?? contentHash(body);
+	const key = gameBundleS3Key(game, version, alternate === "1" ? "viewer-alternate" : "viewer", dir, filename);
 	await putObject(key, body, VIEWER_CONTENT_TYPES[ext]);
 	ctx.body = { url: requirePublicUrl(key) };
 });
