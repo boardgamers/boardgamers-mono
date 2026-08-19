@@ -22,6 +22,12 @@ window.viewer = {
 
 This is a two-way communication. The emitter can emit events to be consumed by our applications, and can receive events to process.
 
+**Payloads must be plain JSON-serializable values** — both ways. The app relays every event between the iframe
+and itself with `window.postMessage`, whose structured-clone algorithm throws on anything it can't clone (class
+instances, functions, `Map`/`Set`, and reactive proxies). In particular, don't emit a Svelte 5 `$state` proxy
+directly — it fails with `Proxy object could not be cloned`. Snapshot reactive state first:
+`$state.snapshot(value)` or `JSON.parse(JSON.stringify(value))`.
+
 The application can also load additional javascript and css files if needed.
 
 [[toc]]

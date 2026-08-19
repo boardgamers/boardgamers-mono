@@ -17,8 +17,10 @@ Two optional modifiers:
 - **`timer: { start, end }`** — a daily play window, in UTC seconds-of-day (e.g. `{ start: 28800, end: 61200 }` =
   8:00–17:00 UTC). Clocks only tick inside the window: elapsed time and deadlines are computed skipping the paused
   hours. Default is the full day (`{ start: 0, end: 86399 }`). The window must span at least 3 hours.
-- **`scheduledStart`** — the game starts by itself at that date (at most 10 days out) once full, instead of
-  immediately.
+- **`scheduledStart`** — the game starts by itself at that date (at most 10 days out) instead of as soon as it's
+  full. If the game is **ready** (all seats filled, and the host has set any final options) when the date passes,
+  it starts; if it still isn't ready at the scheduled date, the game is **cancelled** ("not fully ready at
+  scheduled start date") rather than held open.
 
 Shorter `timePerGame`/`timePerMove` values make a "live" game; the usual settings make asynchronous games that
 play out over days.

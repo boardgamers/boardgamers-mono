@@ -38,9 +38,11 @@ Engines are third-party code, so calls into them are contained:
   even a synchronous infinite loop — is terminated from outside and can't take the game-server down with it.
   **Keep `move` and available-moves computation fast**: moves normally take milliseconds, and a call that hits
   the timeout fails the player's move with an error.
-- Inputs and outputs cross the thread boundary by structured clone, so your `GameData` must stay **JSON-safe**
-  (plain objects, arrays, strings, numbers, booleans, null — no `Map`/`Set`/class instances/BSON types). That's
-  already the storage contract: game data is persisted as JSON after every move.
+- Your `GameData` must stay **JSON-safe** (plain objects, arrays, strings, numbers, booleans, null — no
+  `Map`/`Set`/class instances/EventEmitters/BSON types). The worker thread runs every engine result through a
+  `JSON.parse(JSON.stringify(...))` round-trip before handing it back (some engines return live class instances
+  that structured clone would reject), and the game-server persists game data as JSON after every move — so
+  anything that doesn't survive JSON serialization is lost in both places.
 
 ## How the viewer is served
 

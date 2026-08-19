@@ -74,7 +74,9 @@ Every entry — option, preference or setting — is an object with:
 
 The creation form renders one input per entry of `options` and sends the chosen values with the game. The server
 validates them (checkboxes must be boolean, selects must be one of their item names) and stores them on the game
-as `game.options`. When the game starts, the engine receives them as the third argument of
+as `game.game.options` — the per-game record the engine later receives. (The top-level `game.options` is a
+different, platform-owned object holding setup/timing/meta — see [Game clocks & timing](./timing.md); don't
+confuse the two.) When the game starts, the engine receives `game.game.options` as the third argument of
 [`init(players, expansions, options, seed, creator)`](./engine-api.md#init):
 
 ```ts
@@ -83,8 +85,11 @@ as `game.options`. When the game starts, the engine receives them as the third a
 init(4, [], { map: "lakes", noAuction: true }, "game-seed", 0);
 ```
 
-Only fields the creator changed from their implicit defaults may be present — **always read options defensively**
-(`options.map ?? "classic"`), never assume a key exists.
+Which keys are present depends on the field type: **every `select` is always sent** (the form initializes it to
+its `default`, or the first item when there's no default), and **every `checkbox` whose `default` is `true` is
+always sent** as `true`. Only _unchecked_ checkboxes are omitted — so a `checkbox` key may be absent, while a
+`select` key is effectively always there. Still read options defensively (`options.map ?? "classic"`): an engine
+shouldn't break on a missing or unexpected key.
 
 **Player counts are not an option**: the allowed player counts are the `players` array on the game itself
 (e.g. `[2, 3, 4, 5]`), set in the admin panel's main game form. The creator picks one of them at creation; the
@@ -113,9 +118,12 @@ game info defines an alternate viewer.
 ## Settings (per-player, in-game)
 
 Settings are engine concerns a player can toggle while the game is running — e.g. Gaia Project's autocharge. The
-game UI renders inputs from the `settings` list; on change, the game-server validates the values against the
-declared types and calls the engine's [`setPlayerSettings(data, player, settings)`](./engine-api.md#setplayersettings)
-with only the changed keys. The engine should expose the current values through
+game UI renders inputs from the `settings` list; on change, the client posts the **whole** settings object (not
+just the changed key), and the game-server keeps the declared keys whose values pass validation (checkboxes must
+be boolean, selects one of their item names) and calls the engine's
+[`setPlayerSettings(data, player, settings)`](./engine-api.md#setplayersettings) with that full validated set. So
+`setPlayerSettings` receives every declared setting each time — apply them wholesale rather than assuming only a
+diff arrives. The engine should expose the current values through
 [`playerSettings(data, player)`](./engine-api.md#playersettings).
 
 A setting can carry a `faction` field (`"faction": "terrans"`) to only apply to players of that faction.

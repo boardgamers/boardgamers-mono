@@ -13,6 +13,9 @@ BGS has two different "AI" mechanisms that are easy to confuse:
 A game supports bot slots when its engine exports `moveAI`. The game-server **auto-detects** this when an engine
 version is installed — it probes the entry point for a `moveAI` export and records the result as `meta.bots` on
 the game info. The creation UI then offers bot seats for that game (no bot seats for engines without `moveAI`).
+Because bots are only for testing, the bot-seat picker is a **developer-only control**: it's hidden unless the
+user has developer settings enabled on their device (the web app ANDs `meta.bots` with its developer-settings
+flag before showing it).
 
 A bot slot is a player entry flagged `isBot: true`, with a placeholder id and a generated name ("Rob (bot 1)",
 "Ada (bot 2)", …). There is no user account behind it, so bots:
