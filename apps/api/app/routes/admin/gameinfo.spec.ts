@@ -602,3 +602,54 @@ describe("Admin gameinfo API — private beta users", () => {
 		assert.strictEqual(pref?.access?.maxVersion, undefined, "no grant stored for a public latest version");
 	});
 });
+
+// Uploading the first version of a requested game (#340) flips its metadata
+// status to "implemented": it leaves the requests page and joins the regular
+// game list, keeping its votes.
+describe("Admin gameinfo API — requested game becomes implemented (#340)", () => {
+	let headers: Record<string, string>;
+
+	before(async () => {
+		headers = await makeAdminHeaders();
+		await colls.gameMetadatas.insertOne({
+			_id: "requested-flip",
+			label: "Requested Flip",
+			players: [],
+			status: "requested",
+			likeCount: 3,
+		});
+	});
+
+	after(() => db().dropDatabase());
+
+	it("flips status to implemented on the first version upsert", async () => {
+		// While requested, the game is absent from the public list.
+		const before1 = z
+			.array(z.object({ _id: z.object({ game: z.string() }) }))
+			.parse(await (await fetch(`${baseURL()}/api/boardgame/info`)).json());
+		assert.ok(!before1.some((g) => g._id.game === "requested-flip"));
+
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/requested-flip/1`, {
+			method: "PUT",
+			headers,
+			body: JSON.stringify({ label: "Requested Flip", players: [2], viewer: { url: "//v1" }, public: true, meta: {} }),
+		});
+		assert.strictEqual(res.status, 200, await res.text().catch(() => ""));
+
+		const meta = await colls.gameMetadatas.findOne({ _id: "requested-flip" });
+		assert.strictEqual(meta?.status, "implemented");
+		assert.strictEqual(meta?.likeCount, 3, "votes are kept");
+
+		// It now appears in the public game list…
+		const list = z
+			.array(z.object({ _id: z.object({ game: z.string() }), likeCount: z.number().optional() }))
+			.parse(await (await fetch(`${baseURL()}/api/boardgame/info`)).json());
+		assert.strictEqual(list.find((g) => g._id.game === "requested-flip")?.likeCount, 3);
+
+		// …and is gone from the requests listing.
+		const requests = z
+			.array(z.object({ _id: z.string() }))
+			.parse(await (await fetch(`${baseURL()}/api/boardgame/requests`)).json());
+		assert.ok(!requests.some((r) => r._id === "requested-flip"));
+	});
+});

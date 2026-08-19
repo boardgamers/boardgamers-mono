@@ -10,19 +10,9 @@ import { likedGameIds, setGameLike } from "../../services/gamelike.ts";
 import { lastAccessibleVersion } from "../../services/gameinfo.ts";
 import { findGameInfoWithVersion, mergeGameInfo } from "../../models/gameinfo.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
-import { loggedIn, queryCount, skipCount } from "../utils.ts";
+import { loggedIn, queryCount, skipCount, usernamesById } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
-
-/** Resolve the display usernames for a set of user ids (id hex → username). */
-async function usernamesById(userIds: ObjectId[]): Promise<Map<string, string>> {
-	const unique = [...new Map(userIds.map((id) => [id.toHexString(), id])).values()];
-	if (unique.length === 0) {
-		return new Map();
-	}
-	const users = await colls.users.find({ _id: { $in: unique } }, { projection: { "account.username": 1 } }).toArray();
-	return new Map(users.map((u) => [u._id.toHexString(), u.account.username]));
-}
 
 router.param("boardgame", async (boardgame, ctx, next) => {
 	// Like/unlike also works on requested games (#340) — a game request IS a game

@@ -29,13 +29,15 @@ MONGO_TOOLS="${dbUrl%/admin}"
 # oauthconsents are the OAuth2/OIDC provider state (#76): short-lived codes and
 # per-user client consent grants don't belong in a shared preview snapshot.
 # useractions is the per-user action rate limiter (#195): ephemeral counters,
-# TTL-expired. And games is dumped separately below with a status filter
-# (open+active only),
+# TTL-expired. feedbackrequests/feedbackrequestlikes (#340) carry real prod user
+# ObjectIds (requestedBy/user) — the safe default for new user-linked collections
+# is exclusion; previews can create their own requests. And games is dumped
+# separately below with a status filter (open+active only),
 # because 99% of it is 2.8 GB of ended games.
 EXCLUDED=(
   usersettings locks chats notifications sessions jwtrefreshtokens admintokens
   apierrors logs gamenotifications deletedUsers oauthflows oauthconsents
-  useractions
+  useractions feedbackrequests feedbackrequestlikes
   games
 )
 EXCLUDE_ARGS=()
