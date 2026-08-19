@@ -77,7 +77,9 @@ function gameIds(target: HTMLElement): string[] {
 }
 
 function countText(target: HTMLElement): string {
-	return target.querySelector("h3 span")?.textContent?.replace(/[()]/g, "").trim() ?? "";
+	// The count is the `.text-xs` span inside the title (the title itself is wrapped
+	// in a `.title-with-count` span since the header became a flex row with filter chips).
+	return target.querySelector("h3 .text-xs")?.textContent?.replace(/[()]/g, "").trim() ?? "";
 }
 
 function mountList(boardgame: string) {

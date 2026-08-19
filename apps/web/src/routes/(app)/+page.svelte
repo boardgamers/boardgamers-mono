@@ -2,14 +2,15 @@
 	import { resolve } from "$app/paths";
 	import type { Pathname } from "$app/types";
 	import SanitizedHtml from "@/components/SanitizedHtml.svelte";
-	import { GameListSidebar } from "@/components";
+	import { GameListSidebar, SetupOptionsFilter } from "@/components";
 	import { Button } from "@/modules/cdk";
 	import marked from "marked";
 	import GameList from "@/components/Game/GameList.svelte";
 	import { account } from "@/lib/account.svelte";
 	import { activeGames, live } from "@/lib/stores.svelte";
 	import { page } from "$app/state";
-	import type { UserFront } from "@bgs/models";
+	import type { GamePace } from "@/utils";
+	import type { GameFront, UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -19,6 +20,12 @@
 	// stores.svelte.ts), so the homepage doesn't flicker between "My games" and "Featured".
 	let user = $derived(live($account, (page.data.user as UserFront | null) ?? null));
 	let myGames = $derived(live($activeGames, (page.data.activeGames as string[]) ?? []));
+
+	// Lobby pace filter (#55) — "" = no filter.
+	let lobbyPace = $state<"" | GamePace>("");
+	let lobbyPaceFilter = $derived<GamePace | undefined>(lobbyPace === "" ? undefined : lobbyPace);
+	// The lobby's loaded open games — the pace chips hide when they're all one pace.
+	let lobbyGames = $state<GameFront[]>([]);
 
 	let websiteJsonLd = $derived(
 		JSON.stringify({
@@ -109,7 +116,19 @@
 				{/if}
 			</div>
 			<div>
-				<GameList sample perPage={5} gameStatus="open" title="Lobby" />
+				<GameList
+					sample
+					perPage={5}
+					gameStatus="open"
+					title="Lobby"
+					pace={lobbyPaceFilter}
+					viewerKarma={user?.account?.karma}
+					bind:games={lobbyGames}
+				>
+					{#snippet headerContent()}
+						<SetupOptionsFilter games={lobbyGames} bind:pace={lobbyPace} />
+					{/snippet}
+				</GameList>
 			</div>
 		</div>
 

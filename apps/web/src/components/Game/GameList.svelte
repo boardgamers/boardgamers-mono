@@ -22,7 +22,13 @@
 	import IconDice from "@/components/icons/IconDice.svelte";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { gameBadge } from "@/utils/game-label";
-	import { loadGames, gameListParams, type LoadGamesResult } from "@/lib/games.svelte";
+	import {
+		loadGames,
+		gameListParams,
+		matchesSetupOptions,
+		type LoadGamesResult,
+		type SetupOptionFilter,
+	} from "@/lib/games.svelte";
 	import { isPromise } from "@bgs/utils";
 	import type { JsonObject } from "type-fest";
 
@@ -37,7 +43,11 @@
 		minDuration = undefined,
 		maxDuration = undefined,
 		pace = undefined,
+		optionFilter = undefined,
 		search = undefined,
+		viewerKarma = undefined,
+		games = $bindable([]),
+		headerContent = undefined,
 		class: className = "",
 	}: {
 		title?: string;
@@ -51,7 +61,19 @@
 		maxDuration?: number | undefined;
 		/** Live/async timing filter applied server-side (maps to a timePerGame bound). */
 		pace?: GamePace | undefined;
+		/** Setup-options filter (option name → required value), applied client-side after the fetch. */
+		optionFilter?: SetupOptionFilter | undefined;
 		search?: string | undefined;
+		/** The viewer's karma (SSR `page.data.user` snapshot) — for open lists it filters
+		 *  out games above the viewer's minimum-karma. Threaded (not read from the client
+		 *  account store) so server + client build the same query/cache key (#345). */
+		viewerKarma?: number | undefined;
+		/** The fetched open games (bindable) — the boardgame filter derives its option
+		 *  choices from them. */
+		games?: GameFront[];
+		/** Rendered inside the title row (e.g. filter chips), so filters don't push the
+		 *  list down / misalign the section titles. */
+		headerContent?: import("svelte").Snippet;
 		// Applied to the outer wrapper (e.g. `min-w-0` so the list can shrink inside a
 		// grid/flex cell instead of forcing the layout wide on mobile).
 		class?: string;
@@ -60,7 +82,13 @@
 	let loadingGames = $state(true);
 	let count = $state(0);
 	let currentPage = $state(0);
-	let games = $state<GameFront[]>([]);
+	// The bindable `games` prop is undefined when the parent doesn't bind it (most
+	// lists) — read through this non-null derived everywhere internally.
+	let fetchedGames = $derived(games ?? []);
+	// Fetched rows, narrowed by the client-side setup-options filter for display.
+	let displayedGames = $derived(
+		optionFilter ? fetchedGames.filter((g) => matchesSetupOptions(g, optionFilter)) : fetchedGames
+	);
 	// Refreshed on each list (re)load so the relative-time labels ("last activity X
 	// ago", "⏱ Xh left", "created X ago") recompute on a refresh; static between loads.
 	let now = $state(Date.now());
@@ -79,6 +107,8 @@
 				page: currentPage,
 				pace,
 				search,
+				optionFilter,
+				viewerKarma,
 			});
 			const result = loadGames({
 				...params,
@@ -220,6 +250,7 @@
 	let lastBoardgameId: string | undefined;
 	let lastUserId: string | undefined | null;
 	let lastPace: GamePace | undefined;
+	let lastOptionFilter: string | undefined;
 	let lastSearch: string | undefined;
 	let lastPage = 0;
 
@@ -240,6 +271,9 @@
 		boardgameId;
 		pace;
 		search;
+		// optionFilter is an object the parent rebuilds on each change, so track it by
+		// value (its JSON), not by reference — a new-but-equal object must not refetch.
+		const optionFilterKey = optionFilter ? JSON.stringify(optionFilter) : undefined;
 		const clicks = $logoClicks;
 		const page = currentPage;
 
@@ -251,6 +285,7 @@
 			lastBoardgameId = boardgameId;
 			lastUserId = userId;
 			lastPace = pace;
+			lastOptionFilter = optionFilterKey;
 			lastSearch = search;
 			lastPage = page;
 			return;
@@ -263,6 +298,7 @@
 			boardgameId !== lastBoardgameId ||
 			userId !== lastUserId ||
 			pace !== lastPace ||
+			optionFilterKey !== lastOptionFilter ||
 			search !== lastSearch ||
 			isLogoRefresh;
 		const pageChanged = page !== lastPage;
@@ -277,6 +313,7 @@
 			lastBoardgameId = boardgameId;
 			lastUserId = userId;
 			lastPace = pace;
+			lastOptionFilter = optionFilterKey;
 			lastSearch = search;
 			lastPage = 0;
 			currentPage = 0;
@@ -291,18 +328,25 @@
 
 <div class={className}>
 	<Loading loading={loadingGames}>
-		<h3 class="font-semibold">
-			{title}
-			{#if !topRecords && !sample}
-				<span class="text-xs">({count})</span>
-			{/if}
+		<h3 class="flex flex-wrap items-center gap-x-3 gap-y-1 font-semibold">
+			<span class="title-with-count">
+				{title}
+				{#if !topRecords && !sample}
+					<!-- With a client-side setup-options filter the server count is the
+					     pre-filter total — show the number of rows actually displayed. -->
+					<span class="text-xs">({optionFilter ? displayedGames.length : count})</span>
+				{/if}
+			</span>
+			<!-- Filter chips render inline with the title (headerContent), so they don't
+			     add a block above the list that would push the column down. -->
+			{@render headerContent?.()}
 		</h3>
 		<div>
-			{#if games.length > 0}
+			{#if displayedGames.length > 0}
 				<ul
 					class="divide-y divide-accent/80 rounded-lg border border-accent/80 bg-white text-start dark:divide-accent/60 dark:border-accent/60 dark:bg-gray-900 game-list"
 				>
-					{#each games as game (game._id)}
+					{#each displayedGames as game (game._id)}
 						{@const timeLeft = game.status === "active" ? turnTimeLeft(game) : null}
 						{@const eloChange = playerEloChange(game)}
 						{@const lastMove = game.status === "active" ? lastMoveText(game) : null}
@@ -486,17 +530,17 @@
 						</li>
 					{/each}
 				</ul>
-				{#if sample && count > games.length}
+				{#if sample && count > fetchedGames.length}
 					<!-- Lobby discovery: the sample is capped at perPage but the lobby holds
-					     more — say so, offer the full list, and a dice re-roll for a fresh sample
-					     (logoClick bumps $logoClicks, which this list reacts to with a cache
-					     bypass; the server $sample then deals different games). -->
+				     more — say so, offer the full list, and a dice re-roll for a fresh sample
+				     (logoClick bumps $logoClicks, which this list reacts to with a cache
+				     bypass; the server $sample then deals different games). -->
 					<div class="mt-2 flex items-center justify-end gap-1 text-sm">
 						<a
 							href={resolve("/(app)/games")}
 							class="rounded px-2 py-1 font-medium text-accent hover:bg-gray-100 hover:underline dark:text-accent-lighter dark:hover:bg-gray-800"
 						>
-							{count - games.length} more open {count - games.length === 1 ? "game" : "games"} →
+							{count - fetchedGames.length} more open {count - fetchedGames.length === 1 ? "game" : "games"} →
 						</a>
 						<button
 							type="button"
@@ -508,7 +552,7 @@
 							<IconDice />
 						</button>
 					</div>
-				{:else if !topRecords && !sample && count > perPage}
+				{:else if !topRecords && !sample && !optionFilter && count > perPage}
 					<Pagination {count} {perPage} bind:currentPage align="right" class="mt-2" />
 				{/if}
 			{:else}

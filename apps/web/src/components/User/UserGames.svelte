@@ -4,8 +4,12 @@
 	import { GameList } from "../Game";
 	import { page } from "$app/state";
 	import { resolve } from "$app/paths";
+	import type { UserFront } from "@bgs/models";
 
 	let { userId }: { userId: string } = $props();
+
+	// The viewer's karma (SSR snapshot) — threaded into the open-games list (#345).
+	let viewerKarma = $derived((page.data.user as UserFront | null)?.account?.karma);
 
 	let filter = $derived(page.url.searchParams.get("games") ?? "started");
 
@@ -33,7 +37,7 @@
 			<GameList gameStatus="active" perPage={5} {userId} title="Active games" class="min-w-0" />
 			<GameList gameStatus="ended" perPage={5} {userId} title="Finished games" class="min-w-0" />
 		{:else}
-			<GameList gameStatus="open" perPage={5} {userId} title="Open games" class="min-w-0" />
+			<GameList gameStatus="open" perPage={5} {userId} title="Open games" class="min-w-0" {viewerKarma} />
 		{/if}
 	</div>
 	{#snippet footer()}

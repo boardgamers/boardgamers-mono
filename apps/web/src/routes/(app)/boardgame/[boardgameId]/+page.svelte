@@ -4,15 +4,17 @@
 	import SanitizedHtml from "@/components/SanitizedHtml.svelte";
 	import { confirm, handleError } from "@/utils";
 	import marked from "marked";
-	import type { GameInfoFront } from "@bgs/models";
+	import type { GameFront, GameInfoFront } from "@bgs/models";
 	import { Button, Card } from "@/modules/cdk";
-	import { UserGameSettings, GameList, BoardgameElo, BoardgameLinks, GameName } from "@/components";
+	import { UserGameSettings, GameList, BoardgameElo, BoardgameLinks, GameName, SetupOptionsFilter } from "@/components";
 	import { account } from "@/lib/account.svelte";
 	import { live } from "@/lib/stores.svelte";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
 	import { gamePreferences, useGamePreferencesFallback } from "@/lib/game-preferences.svelte";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
+	import type { GamePace } from "@/utils";
+	import type { SetupOptionFilter } from "@/lib/games.svelte";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
 
@@ -33,6 +35,13 @@
 	let rules = $state(false);
 	// Placeholder href for the rules/description toggle (click is intercepted).
 	const rulesToggleHref = "#";
+
+	// Lobby filters (#55): pace plus this game's setup options (map / variant / …).
+	let lobbyPace = $state<"" | GamePace>("");
+	let lobbyOptions = $state<SetupOptionFilter | undefined>(undefined);
+	let lobbyPaceFilter = $derived<GamePace | undefined>(lobbyPace === "" ? undefined : lobbyPace);
+	// The lobby's loaded open games — the filter derives its option choices from them.
+	let lobbyGames = $state<GameFront[]>([]);
 
 	async function newGame() {
 		if (needOwnership && !hasOwnership) {
@@ -93,7 +102,27 @@
 			/>
 		</div>
 		<div class="mt-3">
-			<GameList sample perPage={5} {boardgameId} gameStatus="open" title="Lobby" />
+			<!-- Not `sample`: one boardgame's open games are a small set, and a setup-options
+			     filter must see every match (sampling would hide same-creator games). -->
+			<GameList
+				perPage={5}
+				{boardgameId}
+				gameStatus="open"
+				title="Lobby"
+				pace={lobbyPaceFilter}
+				optionFilter={lobbyOptions}
+				viewerKarma={user?.account?.karma}
+				bind:games={lobbyGames}
+			>
+				{#snippet headerContent()}
+					<SetupOptionsFilter
+						info={boardgame}
+						games={lobbyGames}
+						bind:pace={lobbyPace}
+						bind:optionFilter={lobbyOptions}
+					/>
+				{/snippet}
+			</GameList>
 		</div>
 	</div>
 

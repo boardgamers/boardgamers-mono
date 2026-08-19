@@ -8,10 +8,13 @@ export const load: PageLoad = async ({ params, url, parent }) => {
 	// Start on the "Active" tab unless the URL asks for finished games (?status=ended).
 	const firstTab = url.searchParams.get("status") !== "ended";
 
-	const [parentData, featured, lobby] = await Promise.all([
-		parent(),
+	const parentData = await parent();
+	// viewerKarma (SSR snapshot) keeps the server prefetch + client read on the same
+	// cache key (#345).
+	const viewerKarma = parentData.user?.account?.karma;
+	const [featured, lobby] = await Promise.all([
 		loadGames({ ...gameListParams({ gameStatus: "active", boardgameId }), store: true }),
-		loadGames({ ...gameListParams({ gameStatus: "open", boardgameId }), store: true }),
+		loadGames({ ...gameListParams({ gameStatus: "open", boardgameId, viewerKarma }), store: true }),
 	]);
 	const label = parentData.gameInfo ? gameDisplayName(parentData.gameInfo, { emoji: false }) : boardgameId;
 

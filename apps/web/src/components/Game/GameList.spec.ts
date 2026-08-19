@@ -42,7 +42,7 @@ import { clearGamesCache, gameListParams, loadGames } from "@/lib/games.svelte";
 import { logoClick } from "@/lib/stores.svelte";
 import { gameInfoKey, type GameInfoMap } from "@/lib/game-info.svelte";
 import GameList from "./GameList.svelte";
-import GameListHarness from "./GameListHarness.svelte";
+import GameListHarness, { harOptionFilter } from "./GameListHarness.svelte";
 
 const getMock = vi.mocked(get);
 let seq = 0;
@@ -639,5 +639,83 @@ describe("GameList open-row clock-window chip", () => {
 		expect(always.textContent).toContain("🐢 Async");
 
 		unmount(instance as never);
+	});
+});
+
+// #55: the boardgame page filters its lobby by the game's setup options (map /
+// variant / …). The filter is client-side over the fetched open games, and the
+// fetch widens to the API cap so there are rows to filter.
+describe("GameList setup-options filter (#55)", () => {
+	function openGame(_id: string, gameOptions: Record<string, unknown> = {}) {
+		return {
+			_id,
+			status: "open",
+			players: [],
+			currentPlayers: [],
+			createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+			game: { name: `game-filter-${++seq}`, version: 1, options: gameOptions },
+			options: { setup: { nbPlayers: 2 }, timing: { timer: { start: 0, end: 0 } } },
+		} as never;
+	}
+
+	beforeEach(() => {
+		clearGamesCache();
+		getMock.mockReset();
+		document.body.innerHTML = "";
+	});
+
+	it("shows only the games matching the filtered option values", async () => {
+		mockApi(
+			[openGame("g-xshape", { layout: "xshape", auction: true }), openGame("g-standard", { layout: "standard" })],
+			2,
+		);
+		const { target, instance } = mountList({ optionFilter: { layout: "xshape" } });
+		await waitForGames(target, ["g-xshape"]);
+		unmount(instance as never);
+	});
+
+	it("fetches up to the API cap (no pagination) when filtering", async () => {
+		mockApi([openGame("g-only", { layout: "xshape" })], 50);
+		const { target, instance } = mountList({ optionFilter: { layout: "xshape" } });
+		await waitForGames(target, ["g-only"]);
+
+		const gamesCall = getMock.mock.calls.find(([url]) => !(url as string).endsWith("/count"));
+		expect((gamesCall?.[1] as Record<string, unknown>).count).toBe(100);
+		// All candidates fit on one client-filtered page → no pagination widget.
+		expect(target.querySelector(".pagination")).toBeNull();
+		unmount(instance as never);
+	});
+
+	// Regression for the review blocker: optionFilter must be a tracked dependency of
+	// the load effect. Mounting UNFILTERED fetches one page (perPage); setting the
+	// filter afterwards must re-run the load with the fetch widened to the API cap —
+	// otherwise the user only ever filters the first page of open games.
+	it("setting optionFilter after mount refetches up to the API cap", async () => {
+		harOptionFilter.set(undefined);
+		mockApi([openGame("g-a", { layout: "xshape" }), openGame("g-b", { layout: "standard" })], 6);
+		const target = document.createElement("div");
+		document.body.appendChild(target);
+		const instance = mount(GameListHarness as never, { target, props: { gameStatus: "open" } });
+		flushSync();
+		await waitForGames(target, ["g-a", "g-b"]);
+
+		// Unfiltered initial load: one page (default perPage), not the cap.
+		const initial = getMock.mock.calls.filter(([url]) => !(url as string).endsWith("/count"));
+		expect((initial.at(-1)?.[1] as Record<string, unknown>).count).not.toBe(100);
+		const callsBefore = getMock.mock.calls.length;
+
+		// The user picks a setup option → refetch widened to the cap, then narrow.
+		mockApi([openGame("g-a", { layout: "xshape" }), openGame("g-b", { layout: "standard" })], 6);
+		harOptionFilter.set({ layout: "xshape" });
+		flushSync();
+		await flushMicrotasks();
+
+		const after = getMock.mock.calls.filter(([url]) => !(url as string).endsWith("/count"));
+		expect(getMock.mock.calls.length).toBeGreaterThan(callsBefore);
+		expect((after.at(-1)?.[1] as Record<string, unknown>).count).toBe(100);
+		await waitForGames(target, ["g-a"]);
+
+		unmount(instance as never);
+		harOptionFilter.set(undefined);
 	});
 });

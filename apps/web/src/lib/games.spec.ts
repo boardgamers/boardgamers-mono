@@ -9,8 +9,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./api", () => ({ get: vi.fn() }));
 
 import { get } from "./api";
-import { clearGamesCache, loadGames } from "./games.svelte";
+import { clearGamesCache, loadGames, matchesSetupOptions } from "./games.svelte";
 import { LIVE_GAME_MAX_TIME_PER_GAME } from "@/utils";
+import type { GameFront } from "@bgs/models";
 
 const getMock = vi.mocked(get);
 
@@ -115,5 +116,60 @@ describe("loadGames pace filter (#55)", () => {
 		await loadGames({ gameStatus: "open" });
 		expect(gamesQuery().minDuration).toBeUndefined();
 		expect(gamesQuery().maxDuration).toBeUndefined();
+	});
+});
+
+// #345: the open-games karma filter comes from the threaded viewerKarma (the SSR
+// user snapshot), so server prefetch and client read build the same query — no
+// double-fetch / post-hydration list swap.
+describe("loadGames maxKarma (#345)", () => {
+	beforeEach(() => {
+		clearGamesCache();
+		getMock.mockReset();
+		mockApi([], 0);
+	});
+
+	it("sends maxKarma for open games when the viewer's karma is provided", async () => {
+		await loadGames({ gameStatus: "open", viewerKarma: 42 });
+		expect(gamesQuery().maxKarma).toBe(42);
+	});
+
+	it("omits maxKarma for anonymous viewers (no karma)", async () => {
+		await loadGames({ gameStatus: "open" });
+		expect(gamesQuery().maxKarma).toBeUndefined();
+	});
+
+	it("never sends maxKarma for non-open lists", async () => {
+		await loadGames({ gameStatus: "active", viewerKarma: 42 });
+		expect(gamesQuery().maxKarma).toBeUndefined();
+	});
+});
+
+// #55: the boardgame page filters its open games by that game's setup options
+// (map / variant / …) client-side — lock the matching semantics here.
+describe("matchesSetupOptions (#55)", () => {
+	const game = (options: Record<string, unknown>) => ({ game: { options } }) as GameFront;
+
+	it("no filter matches everything", () => {
+		expect(matchesSetupOptions(game({ layout: "xshape" }), undefined)).toBe(true);
+		expect(matchesSetupOptions(game({}), {})).toBe(true);
+	});
+
+	it("a select option requires the exact item", () => {
+		expect(matchesSetupOptions(game({ layout: "xshape" }), { layout: "xshape" })).toBe(true);
+		expect(matchesSetupOptions(game({ layout: "balanced" }), { layout: "xshape" })).toBe(false);
+		// The option wasn't set on the game at all (e.g. default left unset).
+		expect(matchesSetupOptions(game({}), { layout: "xshape" })).toBe(false);
+	});
+
+	it("a checkbox option requires the flag to be set", () => {
+		expect(matchesSetupOptions(game({ auction: true }), { auction: true })).toBe(true);
+		expect(matchesSetupOptions(game({}), { auction: true })).toBe(false);
+	});
+
+	it("every filtered option must match", () => {
+		const g = game({ layout: "xshape", auction: true });
+		expect(matchesSetupOptions(g, { layout: "xshape", auction: true })).toBe(true);
+		expect(matchesSetupOptions(g, { layout: "balanced", auction: true })).toBe(false);
 	});
 });
