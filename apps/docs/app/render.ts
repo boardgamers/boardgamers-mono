@@ -27,6 +27,30 @@ function navSections(pages: DocPage[]): { title: string; pages: DocPage[] }[] {
 	});
 }
 
+// Must match the id slugging in markdown.ts's renderer.heading. Known divergence:
+// renderer.heading slugs the rendered inline HTML, this slugs raw markdown — an h2
+// containing a link/emphasis would slug differently (none in the docs today).
+function slugifyHeading(text: string): string {
+	return text
+		.toLowerCase()
+		.replace(/<[^>]*>/g, "")
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+}
+
+/** h2 sub-items for the sidebar TOC of the active page (h3+ would get noisy). */
+export function tocHeadings(markdown: string): { id: string; text: string }[] {
+	let inFence = false;
+	const headings: { id: string; text: string }[] = [];
+	for (const line of markdown.split("\n")) {
+		if (/^\s*```/.test(line)) inFence = !inFence;
+		if (inFence) continue;
+		const match = line.match(/^\s{0,3}##\s+(.+?)\s*$/);
+		if (match) headings.push({ id: slugifyHeading(match[1]), text: match[1] });
+	}
+	return headings;
+}
+
 const CSS = `
 :root { --accent: #3eaf7c; --text: #2c3e50; --muted: #6a8bad; --border: #eaecef; --bg-sidebar: #f8f9fb; }
 * { box-sizing: border-box; }
@@ -36,15 +60,17 @@ a:hover { text-decoration: underline; }
 header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 1rem; padding: 0.7rem 1.5rem; background: #fff; border-bottom: 1px solid var(--border); }
 header .brand { font-weight: 600; font-size: 1.1rem; color: var(--text); }
 header nav { margin-left: auto; display: flex; gap: 1.2rem; font-size: 0.95rem; }
-.layout { display: flex; }
-aside { flex: 0 0 240px; padding: 1.5rem 1rem; border-right: 1px solid var(--border); background: var(--bg-sidebar); min-height: calc(100vh - 3.4rem); }
+.layout { display: flex; justify-content: center; }
+aside { flex: 0 0 240px; padding: 1.5rem 1rem; border-right: 1px solid var(--border); background: var(--bg-sidebar); min-height: calc(100vh - 3.4rem); margin-left: auto; }
 aside .section { margin-bottom: 1.2rem; }
 aside .section-title { font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 0.4rem; }
 aside ul { list-style: none; margin: 0; padding: 0; }
 aside li a { display: block; padding: 0.25rem 0.6rem; border-radius: 4px; color: var(--text); font-size: 0.95rem; }
 aside li a:hover { background: #eef1f4; text-decoration: none; }
 aside li a.active { color: var(--accent); font-weight: 600; }
-main { flex: 1; min-width: 0; max-width: 960px; padding: 2rem 2.5rem 4rem; }
+aside li.toc a { padding-left: 1.5rem; font-size: 0.88rem; color: var(--muted); }
+aside li.toc a:hover { color: var(--text); }
+main { flex: 1; min-width: 0; max-width: 960px; padding: 2rem 2.5rem 4rem; margin-right: auto; }
 main img { max-width: 100%; }
 main h1 { font-size: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
 main h2 { font-size: 1.5rem; margin-top: 2.2rem; }
@@ -71,7 +97,7 @@ main .action-button:hover { background: #35966a; text-decoration: none; }
 footer.page { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
 @media (max-width: 800px) {
   .layout { flex-direction: column; }
-  aside { flex: none; border-right: none; border-bottom: 1px solid var(--border); min-height: 0; }
+  aside { flex: none; border-right: none; border-bottom: 1px solid var(--border); min-height: 0; margin-left: 0; }
   main { padding: 1.2rem 1rem 3rem; }
 }
 `;
@@ -81,8 +107,13 @@ function sidebar(content: DocsContent, current: DocPage): string {
 		.map((section) => {
 			const items = section.pages
 				.map((page) => {
-					const active = page.path === current.path ? ' class="active"' : "";
-					return `<li><a href="${pageUrl(page.path)}"${active}>${escapeHtml(page.title)}</a></li>`;
+					const active = page.path === current.path;
+					const link = `<li><a href="${pageUrl(page.path)}"${active ? ' class="active"' : ""}>${escapeHtml(page.title)}</a></li>`;
+					if (!active) return link;
+					const toc = tocHeadings(page.markdown)
+						.map((h) => `<li class="toc"><a href="${pageUrl(page.path)}#${h.id}">${escapeHtml(h.text)}</a></li>`)
+						.join("\n");
+					return toc ? `${link}\n${toc}` : link;
 				})
 				.join("\n");
 			const title = section.title ? `<p class="section-title">${escapeHtml(section.title)}</p>` : "";

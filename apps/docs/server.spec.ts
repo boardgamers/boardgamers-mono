@@ -69,6 +69,21 @@ describe("docs server", () => {
 		assert.match(html, /href="\/guide"/);
 	});
 
+	it("shows h2 sub-items in the sidebar for the active page only", async () => {
+		const html = await (await get("/guide/engine-api", "text/html")).text();
+		const sidebar = html.match(/<aside>[\s\S]*?<\/aside>/)?.[0] ?? "";
+		// The active page's h2s render as absolute-path anchor links…
+		assert.match(sidebar, /<li class="toc"><a href="\/guide\/engine-api#required-methods">Required methods<\/a><\/li>/);
+		assert.match(sidebar, /<li class="toc"><a href="\/guide\/engine-api#optional-methods">Optional methods<\/a><\/li>/);
+		// …nested right after the active page's entry…
+		assert.match(sidebar, /<a href="\/guide\/engine-api" class="active">[^<]+<\/a><\/li>\n<li class="toc">/);
+		// …and no other page gets sub-items.
+		assert.equal(sidebar.match(/class="toc"/g)!.length, 2);
+		const architecture = await (await get("/guide/architecture", "text/html")).text();
+		const archSidebar = architecture.match(/<aside>[\s\S]*?<\/aside>/)?.[0] ?? "";
+		assert.doesNotMatch(archSidebar, /engine-api#required-methods/);
+	});
+
 	it("serves raw markdown when the agent asks for it", async () => {
 		const res = await get("/guide/architecture", "text/markdown");
 		assert.equal(res.status, 200);
@@ -141,6 +156,29 @@ describe("docs server", () => {
 		const html = await res.text();
 		assert.match(html, /id="options-player"/);
 		assert.match(html, /href="#options-player"/);
+	});
+
+	it("drops the VuePress [[toc]] directive instead of rendering it literally", async () => {
+		for (const path of ["/guide/engine-api", "/guide/viewer-api"]) {
+			const html = await (await get(path, "text/html")).text();
+			assert.doesNotMatch(html, /\[\[toc\]\]/, path);
+		}
+	});
+
+	it("keeps tags inside code spans as code, not raw HTML", async () => {
+		const html = await (await get("/guide/viewer-api", "text/html")).text();
+		// `<html class="dark">` is backtick-quoted: it must render as inline code…
+		assert.match(html, /<code>&lt;html class=&quot;dark&quot;&gt;<\/code>/);
+		// …and the rest of the paragraph stays inline markdown (link, not literal text).
+		assert.match(html, /<a href="#theme">theme<\/a>/);
+		assert.doesNotMatch(html, /\[theme\]\(#theme\)/);
+	});
+
+	it("still passes through raw block HTML on the home page", async () => {
+		const html = await (await get("/", "text/html")).text();
+		assert.match(html, /<div class="hero">/);
+		assert.match(html, /<div class="features">/);
+		assert.match(html, /<a class="action-button" href="\/guide">/);
 	});
 
 	it("rewrites internal .md links to HTML pages, relative to the current page", async () => {
