@@ -7,7 +7,6 @@
 	import { resolve } from "$app/paths";
 	import GameName from "@/components/GameName.svelte";
 	import IconMeepleFill from "@/components/icons/IconMeepleFill.svelte";
-	import { gameBadge } from "@/utils/game-label";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -69,7 +68,8 @@
 									href={resolve("/(app)/boardgame/[boardgameId]", { boardgameId: game.game })}
 									class="flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 no-underline transition-shadow hover:border-primary hover:shadow-sm dark:border-gray-700 dark:hover:border-primary-lighter"
 								>
-									<span class="text-lg leading-none">{gameBadge(game)}</span>
+									<!-- GameName renders the display name WITH its emoji (gameDisplayName) — no
+									     separate gameBadge icon, or the emoji would show twice. -->
 									<span class="min-w-0 flex-1 font-semibold">
 										<GameName info={game} line />
 									</span>
