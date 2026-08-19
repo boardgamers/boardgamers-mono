@@ -6,6 +6,9 @@ import { account, activeGames, chatMessages, currentGameId, lastGameUpdate, play
 let ws: WebSocket | null = null;
 let interval: ReturnType<typeof setInterval>;
 let initialized = false;
+// Set when the server answers our application-level ping; cleared each time we send one.
+// If it stays cleared the connection is silently dead (see below) and we force a reconnect.
+let pongReceived = false;
 
 export function initWebsocket() {
 	if (!browser || initialized) return;
@@ -21,12 +24,36 @@ export function initWebsocket() {
 		sendUser();
 	});
 
+	// Mobile browsers freeze background tabs and silently drop their websocket: no close
+	// frame reaches the client, so `onclose` never fires and a naive reconnect loop never
+	// triggers. When the tab comes back to the foreground (or the network recovers),
+	// proactively reconnect if the socket isn't open — otherwise chat stays empty.
+	document.addEventListener("visibilitychange", () => {
+		if (!document.hidden) reconnectIfStale();
+	});
+	window.addEventListener("online", reconnectIfStale);
+	window.addEventListener("focus", reconnectIfStale);
+
 	connect();
 }
 
+function reconnectIfStale() {
+	if (!browser) return;
+	if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+		connect();
+	} else if (ws.readyState === WebSocket.OPEN) {
+		// The socket claims to be open but may be silently dead (no close frame). Probe it:
+		// if the server doesn't answer, the next ping cycle (<=5s) reconnects.
+		sendPing();
+	}
+}
+
 function sendRoom() {
-	if (browser && ws?.readyState === WebSocket.OPEN) {
-		ws.send(JSON.stringify({ room: getStore(room) }));
+	const currentRoom = getStore(room);
+	// Don't send a null room: on a fresh connect the layout hasn't set the room yet, and
+	// the server would reply with an empty messageList that wipes already-loaded chat.
+	if (browser && ws?.readyState === WebSocket.OPEN && currentRoom) {
+		ws.send(JSON.stringify({ room: currentRoom }));
 	}
 }
 
@@ -47,6 +74,13 @@ async function sendUser() {
 	}
 }
 
+function sendPing() {
+	if (browser && ws?.readyState === WebSocket.OPEN) {
+		pongReceived = false;
+		ws.send(JSON.stringify({ ping: true }));
+	}
+}
+
 function connect() {
 	if (!browser) return;
 	clearInterval(interval);
@@ -64,12 +98,16 @@ function connect() {
 		sendRoom();
 		sendGame();
 		sendUser();
+		// Consider the fresh connection alive until the first ping cycle proves otherwise.
+		pongReceived = true;
 	};
 
 	ws.onmessage = (evt) => {
 		const obj = JSON.parse(evt.data);
 
-		if (obj.command === "messageList") {
+		if (obj.command === "pong") {
+			pongReceived = true;
+		} else if (obj.command === "messageList") {
 			chatMessages.set(obj.messages);
 		} else if (obj.command === "newMessages") {
 			chatMessages.update((msg) => [...msg, ...obj.messages]);
@@ -83,8 +121,19 @@ function connect() {
 	};
 
 	interval = setInterval(() => {
-		if (!document.hidden) {
-			ws?.send(JSON.stringify({ online: true, fetchPlayerStatus: true }));
+		if (document.hidden) return;
+
+		// The previous ping went unanswered: the connection is silently dead (a proxy or
+		// the OS dropped it without a close frame). Force a reconnect so chat reloads.
+		if (!pongReceived && ws?.readyState === WebSocket.OPEN) {
+			clearWs();
+			connect();
+			return;
+		}
+
+		sendPing();
+		if (ws?.readyState === WebSocket.OPEN) {
+			ws.send(JSON.stringify({ online: true, fetchPlayerStatus: true }));
 		}
 	}, 30 * 1000);
 }
