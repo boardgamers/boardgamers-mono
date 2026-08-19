@@ -8,6 +8,7 @@ import locks from "../config/locks.ts";
 import env from "../config/env.ts";
 import type { Engine, GameData } from "../types/engine.ts";
 import { scheduleBotMoves } from "./bots.ts";
+import { trackedEngine } from "./engine-call-context.ts";
 import { getEngine } from "./engines.ts";
 
 export async function handleMessages(engine: Engine, gameId: string, gameData: GameData): Promise<GameData> {
@@ -54,7 +55,11 @@ export async function startNextGame(): Promise<boolean> {
 				return true;
 			}
 
-			const engine = await getEngine(game.game.name, game.game.version);
+			const engine = trackedEngine(await getEngine(game.game.name, game.game.version), {
+				gameId: game._id,
+				game: game.game.name,
+				version: game.game.version,
+			});
 
 			let seed = game.options.setup.seed;
 
@@ -170,14 +175,18 @@ export async function processQuit(notification: GameNotificationDoc) {
 				return true;
 			}
 
-			const engine = await getEngine(game.game.name, game.game.version);
+			const playerIndex = game.players.findIndex((pl) => pl._id.equals(player._id));
+			const engine = trackedEngine(await getEngine(game.game.name, game.game.version), {
+				gameId: game._id,
+				game: game.game.name,
+				version: game.game.version,
+				playerIndex,
+				playerName: player.name,
+			});
 
 			let gameData = game.data;
 
-			gameData = await engine.dropPlayer(
-				gameData,
-				game.players.findIndex((pl) => pl._id.equals(player._id)),
-			);
+			gameData = await engine.dropPlayer(gameData, playerIndex);
 			if (notification.kind === "playerQuit") {
 				player.quit = true;
 			} else {
@@ -322,6 +331,17 @@ export async function afterMove(
 	alreadyEnded = false,
 	lastMove?: { player: number; move: unknown; logLengthBefore?: number },
 ) {
+	// No-op when the caller already passed a tracked engine (its more specific
+	// attribution — acting player + raw move — wins).
+	engine = trackedEngine(engine, {
+		gameId: game._id,
+		game: game.game.name,
+		version: game.game.version,
+		playerIndex: lastMove?.player,
+		playerName: lastMove === undefined ? undefined : game.players[lastMove.player]?.name,
+		move: lastMove?.move,
+	});
+
 	const oldPlayers = game.currentPlayers ?? [];
 	const { timePerGame, timePerMove, timer } = game.options.timing;
 

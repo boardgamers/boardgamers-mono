@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
 import { startEventLoopGuard } from "./watchdog.ts";
 
 describe("startEventLoopGuard", () => {
@@ -34,5 +34,46 @@ describe("startEventLoopGuard", () => {
 		// The delayed interval callback now observes the lag and trips onWedged.
 		await new Promise((r) => setTimeout(r, 80));
 		assert.ok(wedgedLag > 30, `expected wedged with lag > 30ms, got ${wedgedLag}`);
+	});
+
+	it("merges the caller-provided context into lag logs (hang attribution)", async () => {
+		const write = mock.method(process.stderr, "write");
+		try {
+			const guard = startEventLoopGuard("test", {
+				checkMs: 20,
+				maxLagMs: 30,
+				threshold: 1,
+				onWedged: () => {},
+				context: () => ({ gameId: "game-1", method: "scores", playerName: "alice" }),
+			});
+			await new Promise((r) => setTimeout(r, 50));
+			const until = Date.now() + 150;
+			while (Date.now() < until) {}
+			await new Promise((r) => setTimeout(r, 80));
+			guard.stop();
+		} finally {
+			write.mock.restore();
+		}
+		const lag = write.mock.calls.map((c) => String(c.arguments[0])).find((l) => l.includes('"eventLoopLag"'));
+		assert.ok(lag, "expected an eventLoopLag log line");
+		assert.ok(lag.includes('"gameId":"game-1"') && lag.includes('"method":"scores"'), lag);
+	});
+
+	it("a throwing context provider does not break the guard", async () => {
+		let wedged = 0;
+		startEventLoopGuard("test", {
+			checkMs: 20,
+			maxLagMs: 30,
+			threshold: 1,
+			onWedged: () => wedged++,
+			context: () => {
+				throw new Error("boom");
+			},
+		});
+		await new Promise((r) => setTimeout(r, 50));
+		const until = Date.now() + 150;
+		while (Date.now() < until) {}
+		await new Promise((r) => setTimeout(r, 80));
+		assert.equal(wedged, 1);
 	});
 });

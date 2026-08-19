@@ -26,6 +26,12 @@ export interface EventLoopGuardOptions {
 	maxLagMs?: number;
 	threshold?: number;
 	/**
+	 * Extra attribution merged into the lag/wedged log lines, read at log time — e.g.
+	 * the game-server's in-flight engine call (game/method/player/move), so a wedge is
+	 * attributed to what was running when the guard fired.
+	 */
+	context?: () => Record<string, unknown> | undefined;
+	/**
 	 * Called once when the loop is deemed wedged (lag > maxLagMs for `threshold`
 	 * consecutive checks). Default: log + `process.exit(1)` so the supervisor (PM2)
 	 * restarts the process. Injectable for tests.
@@ -43,12 +49,25 @@ export interface EventLoopGuardOptions {
  */
 export function startEventLoopGuard(label: string, opts: EventLoopGuardOptions = {}): EventLoopGuard {
 	const { checkMs = 5_000, maxLagMs = 15_000, threshold = 2 } = opts;
+	// Attribution snapshot must never break the guard — a throwing provider is dropped.
+	const contextFields = (): Record<string, unknown> => {
+		try {
+			return opts.context?.() ?? {};
+		} catch {
+			return {};
+		}
+	};
 	// Default action: the process is wedged and must be restarted. Don't run graceful
 	// shutdown — a blocked loop can't drain cleanly, and waiting would delay the restart.
 	const onWedged =
 		opts.onWedged ??
 		((lagMs: number) => {
-			logEvent("error", "eventLoopWedged", { source: label, lagMs, note: "exiting so the supervisor restarts" });
+			logEvent("error", "eventLoopWedged", {
+				source: label,
+				lagMs,
+				...contextFields(),
+				note: "exiting so the supervisor restarts",
+			});
 			process.exit(1);
 		});
 
@@ -63,7 +82,14 @@ export function startEventLoopGuard(label: string, opts: EventLoopGuardOptions =
 
 		if (lag > maxLagMs) {
 			breaches += 1;
-			logEvent("error", "eventLoopLag", { source: label, lagMs: lag, maxLagMs, breaches, threshold });
+			logEvent("error", "eventLoopLag", {
+				source: label,
+				lagMs: lag,
+				maxLagMs,
+				breaches,
+				threshold,
+				...contextFields(),
+			});
 			if (breaches >= threshold) {
 				stop();
 				onWedged(lag);

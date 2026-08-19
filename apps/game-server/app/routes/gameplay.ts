@@ -8,6 +8,7 @@ import { z } from "zod";
 import { colls } from "../config/db.ts";
 import locks from "../config/locks.ts";
 import { batchReplay } from "../services/batch.ts";
+import { moveString, trackedEngine } from "../services/engine-call-context.ts";
 import { enginePath, getEngine } from "../services/engines.ts";
 import { engineRunner, EngineTimeoutError } from "../services/engine-runner.ts";
 import { afterMove } from "../services/game.ts";
@@ -51,7 +52,11 @@ router.post("/:gameId/replay", isAdmin, async (ctx) => {
 			return;
 		}
 
-		const engine = await getEngine(game.game.name, game.game.version);
+		const engine = trackedEngine(await getEngine(game.game.name, game.game.version), {
+			gameId: ctx.params.gameId,
+			game: game.game.name,
+			version: game.game.version,
+		});
 
 		// oxlint-disable-next-line typescript/unbound-method -- existence check, not a call
 		assert(engine.replay, "The engine of this game does not support replaying");
@@ -85,16 +90,24 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 			"It's not your turn to play.",
 		);
 
-		const engine = await getEngine(game.game.name, game.game.version);
-
 		const playerId = ctx.state.user.id;
 		const playerIndex = game.players.findIndex((pl) => pl._id.equals(playerId));
+		const playerName = game.players[playerIndex]?.name;
+
+		const { move } = z.object({ move: z.unknown() }).parse(ctx.request.body);
+
+		const engine = trackedEngine(await getEngine(game.game.name, game.game.version), {
+			gameId: ctx.params.gameId,
+			game: game.game.name,
+			version: game.game.version,
+			playerIndex,
+			playerName,
+			move,
+		});
 
 		let gameData = game.data;
 
 		const initialLogIndex = engine.logLength(gameData);
-
-		const { move } = z.object({ move: z.unknown() }).parse(ctx.request.body);
 
 		// Run the move in a worker thread with a hard timeout: a runaway engine (an
 		// infinite loop in move/available-moves) would otherwise wedge the whole
@@ -118,6 +131,9 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 					game: game.game.name,
 					version: game.game.version,
 					gameId: ctx.params.gameId,
+					playerIndex,
+					playerName,
+					move: moveString(move),
 					error: err.message,
 				});
 				colls.apiErrors
@@ -142,6 +158,9 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 							game: game.game.name,
 							version: game.game.version,
 							action: "move",
+							playerIndex,
+							playerName,
+							move: moveString(move),
 						},
 						createdAt: new Date(),
 					})
@@ -213,7 +232,13 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
 		}
 	}
 
-	const engine = await getEngine(game.game.name, game.game.version);
+	const engine = trackedEngine(await getEngine(game.game.name, game.game.version), {
+		gameId: ctx.params.gameId,
+		game: game.game.name,
+		version: game.game.version,
+		playerIndex,
+		playerName: game.players[playerIndex]?.name,
+	});
 
 	// oxlint-disable-next-line typescript/unbound-method -- existence check, not a call
 	assert(engine.setPlayerSettings, "This game does not support custom settings");
@@ -252,7 +277,11 @@ router.get("/:gameId/settings", loggedIn, async (ctx) => {
 	assert(playerIndex !== -1, "You're not part of this game");
 	assert(game.status === "active", "You can only get settings on active games");
 
-	const engine = await getEngine(game.game.name, game.game.version);
+	const engine = trackedEngine(await getEngine(game.game.name, game.game.version), {
+		gameId: ctx.params.gameId,
+		game: game.game.name,
+		version: game.game.version,
+	});
 
 	// oxlint-disable-next-line typescript/unbound-method -- existence check, not a call
 	assert(engine.playerSettings, "This game does not support custom settings");
@@ -271,7 +300,11 @@ router.get("/:gameId/log", async (ctx) => {
 		return;
 	}
 
-	const engine = await getEngine(game.game.name, game.game.version);
+	const engine = trackedEngine(await getEngine(game.game.name, game.game.version), {
+		gameId: ctx.params.gameId,
+		game: game.game.name,
+		version: game.game.version,
+	});
 
 	const playerId = ctx.state.user?.id;
 	const playerIndex = game.players.findIndex((pl) => pl._id.equals(playerId));
@@ -291,7 +324,11 @@ router.get("/:gameId/length", async (ctx) => {
 		return;
 	}
 
-	const engine = await getEngine(game.game.name, game.game.version);
+	const engine = trackedEngine(await getEngine(game.game.name, game.game.version), {
+		gameId: ctx.params.gameId,
+		game: game.game.name,
+		version: game.game.version,
+	});
 
 	ctx.body = engine.logLength(game.data);
 });
@@ -310,7 +347,11 @@ router.get("/:gameId", async (ctx) => {
 	}
 
 	if (game.status === "active") {
-		const engine = await getEngine(game.game.name, game.game.version);
+		const engine = trackedEngine(await getEngine(game.game.name, game.game.version), {
+			gameId: ctx.params.gameId,
+			game: game.game.name,
+			version: game.game.version,
+		});
 		const index = game.players.findIndex((pl) => pl._id.equals(ctx.state.user?.id));
 
 		ctx.body = {
@@ -334,7 +375,11 @@ router.get("/:gameId/data", async (ctx) => {
 	}
 
 	if (game.status === "active") {
-		const engine = await getEngine(game.game.name, game.game.version);
+		const engine = trackedEngine(await getEngine(game.game.name, game.game.version), {
+			gameId: ctx.params.gameId,
+			game: game.game.name,
+			version: game.game.version,
+		});
 		const index = game.players.findIndex((pl) => pl._id.equals(ctx.state.user?.id));
 
 		ctx.body = engine.stripSecret ? engine.stripSecret(game.data, index === -1 ? undefined : index) : game.data;

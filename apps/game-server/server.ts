@@ -1,5 +1,6 @@
 import { listen } from "./app/app.ts";
 import env from "./app/config/env.ts";
+import { currentEngineCall } from "./app/services/engine-call-context.ts";
 import { gracefulShutdown, installProcessHandlers, logEvent, pm2Ready, type Closable } from "@bgs/utils/log";
 import { startEventLoopGuard } from "@bgs/utils/watchdog";
 import type { Server } from "node:http";
@@ -27,8 +28,9 @@ if (serving) {
 	// In-process hang detector: each cluster worker monitors its own event loop and
 	// exits (so PM2 restarts it) if the loop is wedged — the case the external HTTP
 	// watchdog can miss when a healthy sibling answers /health on the shared socket.
-	// See @bgs/utils/watchdog.
-	startEventLoopGuard("game-server");
+	// See @bgs/utils/watchdog. The context hook attributes a lag/wedge to the
+	// in-flight main-thread engine call (game/method/player/move).
+	startEventLoopGuard("game-server", { context: currentEngineCall });
 }
 
 if (env.cron) {

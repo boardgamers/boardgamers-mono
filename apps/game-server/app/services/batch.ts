@@ -2,6 +2,7 @@ import type { GameDoc } from "@bgs/models";
 import type { Filter } from "mongodb";
 import { colls } from "../config/db.ts";
 import locks from "../config/locks.ts";
+import { trackedEngine } from "./engine-call-context.ts";
 import { getEngine } from "./engines.ts";
 import { afterMove } from "./game.ts";
 
@@ -13,7 +14,11 @@ export async function batchReplay(cond: Filter<GameDoc>) {
 		try {
 			total++;
 
-			const engine = await getEngine(game.game.name, game.game.version);
+			const engine = trackedEngine(await getEngine(game.game.name, game.game.version), {
+				gameId: game._id,
+				game: game.game.name,
+				version: game.game.version,
+			});
 			if (!engine?.replay) {
 				console.log("no replayability for game", game._id);
 				continue;
