@@ -7,12 +7,12 @@
 		niceDate,
 		oneLineMarked,
 		pluralize,
-		timerTime,
+		timerTimeInTz,
 		confirm,
-		localTimezone,
 		createWatcher,
 		defer,
 	} from "@/utils";
+	import { viewerTimezone } from "@/lib/timezone";
 	import marked from "marked";
 	import { Badge, Button, Dropdown, DropdownItem, DropdownMenu, DropdownToggle, FormGroup, Input } from "@/modules/cdk";
 	import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
@@ -46,11 +46,16 @@
 	const gameOptions = (game: { game: { options?: unknown } } | null | undefined): JsonObject =>
 		(game?.game.options ?? {}) as JsonObject;
 
+	// Viewer's timezone (context, init-only) — SSR renders the same local times
+	// the client hydrates with (#339).
+	const tz = viewerTimezone();
+
 	const playTime = () => {
 		if (timer?.start !== undefined) {
-			return `active between ${timerTime(timer.start)} and ${timerTime(
-				timer.end
-			)}, in your local time (${localTimezone()})`;
+			return `active between ${timerTimeInTz(timer.start, tz)} and ${timerTimeInTz(
+				timer.end,
+				tz
+			)}, in your local time (${tz})`;
 		} else {
 			return "always active";
 		}

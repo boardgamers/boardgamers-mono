@@ -8,6 +8,7 @@ import { initWebsocket } from "@/lib/websocket.svelte";
 import { get, setClientSessionKnown } from "@/lib/api";
 import { initNProgress } from "@/lib/nprogress.svelte";
 import { initErrorReporting } from "@/lib/report-error.svelte";
+import { initTimezoneCookie } from "@/lib/timezone";
 import "@/lib/theme";
 
 export const load: LayoutLoad = async ({ data }) => {
@@ -24,6 +25,13 @@ export const load: LayoutLoad = async ({ data }) => {
 	if (data?.sidebarOpen !== undefined) {
 		sidebarOpen.set(data.sidebarOpen);
 	}
+
+	// Stamp the browser's timezone into the `tz` cookie BEFORE any await, so it's
+	// set even if a later fetch throws — the next SSR render then uses it (#339).
+	// The timezone itself is provided to the tree by +layout.svelte (setContext
+	// is component-only); `data.timezone` below carries it to the client, where
+	// it equals the browser zone this cookie was just stamped from.
+	initTimezoneCookie();
 
 	// Public game-info list, fetched fresh per request (SSR-safe: returned, not stored).
 	// The root layout component seeds the reactive store from this on the browser, so
@@ -62,5 +70,6 @@ export const load: LayoutLoad = async ({ data }) => {
 		activeGames: data?.activeGames ?? [],
 		myBoardgames,
 		gameInfos,
+		timezone: data?.timezone ?? "UTC",
 	};
 };

@@ -1,18 +1,18 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
 	import {
-		timerTime,
+		timerTimeInTz,
 		defer,
 		duration,
 		niceDate,
 		shortDuration,
 		compactDuration,
-		timerWindow,
+		timerWindowInTz,
 		isRestrictedTimerWindow,
 		gamePace,
-		localTimezone,
 		type GamePace,
 	} from "@/utils";
+	import { viewerTimezone } from "@/lib/timezone";
 	import type { GameFront } from "@bgs/models";
 	import { Badge, Pagination, Loading } from "@/modules/cdk";
 	import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
@@ -125,9 +125,14 @@
 		return { delta, text, label: `Elo change: ${text}` };
 	}
 
+	// The viewer's timezone, resolved at init (context is init-only): the request's
+	// `tz` cookie on the server, the browser's zone on the client — so SSR HTML and
+	// hydration render identical clock windows (#339).
+	const tz = viewerTimezone();
+
 	function playTime(game: GameFront) {
 		if (game.options.timing.timer?.start !== game.options.timing.timer?.end) {
-			return `${timerTime(game.options.timing.timer?.start ?? 0)}-${timerTime(game.options.timing.timer?.end ?? 0)}`;
+			return `${timerTimeInTz(game.options.timing.timer?.start ?? 0, tz)}-${timerTimeInTz(game.options.timing.timer?.end ?? 0, tz)}`;
 		} else {
 			return "24h";
 		}
@@ -352,9 +357,9 @@
 											{#if isRestrictedTimerWindow(game.options.timing.timer)}
 												<span
 													class="rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200"
-													title={`Clock runs ${timerWindow(game.options.timing.timer)} daily (your local time, ${localTimezone()}), pauses overnight`}
+													title={`Clock runs ${timerWindowInTz(game.options.timing.timer, tz)} daily (your local time, ${tz}), pauses overnight`}
 												>
-													🕐 {timerWindow(game.options.timing.timer)}
+													🕐 {timerWindowInTz(game.options.timing.timer, tz)}
 												</span>
 											{/if}
 											<span class="game-name min-w-0 truncate">
@@ -364,7 +369,7 @@
 												class="flex shrink-0 items-center gap-1 whitespace-nowrap text-gray-500 dark:text-gray-400"
 												title={`${playTime(game)} ${duration(game.options.timing.timePerGame ?? 0)} + ${duration(
 													game.options.timing.timePerMove ?? 0
-												)} · ${timerWindow(game.options.timing.timer)}`}
+												)} · ${timerWindowInTz(game.options.timing.timer, tz)}`}
 											>
 												<IconClockHistory class="text-[0.8em]" />
 												{compactDuration(game.options.timing.timePerGame ?? 0)}+{compactDuration(
@@ -415,7 +420,7 @@
 											class="flex items-center gap-1 text-xs"
 											title={`${playTime(game)} ${duration(game.options.timing.timePerGame ?? 0)} + ${duration(
 												game.options.timing.timePerMove ?? 0
-											)} · ${timerWindow(game.options.timing.timer)}`}
+											)} · ${timerWindowInTz(game.options.timing.timer, tz)}`}
 										>
 											{#if game.status === "ended"}
 												<span class="text-gray-500 dark:text-gray-400">finished · {niceDate(game.lastMove ?? "")}</span>

@@ -16,6 +16,8 @@ declare global {
 			host: string;
 			refreshToken: { code: string; expiresAt: number } | null;
 			sidebarOpen: boolean | undefined;
+			/** Validated IANA timezone from the `tz` cookie, "UTC" when absent. */
+			timezone: string;
 		}
 
 		interface PageData {
