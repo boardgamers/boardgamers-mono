@@ -5,6 +5,8 @@ export interface VersionTab {
 	version: number;
 	archived: boolean;
 	ongoing: number;
+	// Ids of the ongoing games (capped server-side); feeds the badge popover.
+	ongoingGameIds: string[];
 }
 
 // One user holding a private-beta grant for this game.
@@ -30,18 +32,19 @@ export async function load({ params }: { params: { game: string; version: string
 			.catch(() => []),
 		// Ongoing (open + active) games per version, for the tab badges.
 		api
-			.get<Array<{ version: number; count: number }>>(
+			.get<Array<{ version: number; count: number; gameIds?: string[] }>>(
 				`/admin/gameinfo/${encodeURIComponent(params.game)}/ongoing-games`,
 			)
 			.catch(() => []),
 	]);
-	const ongoingByVersion = new Map(ongoingCounts.map((c) => [c.version, c.count]));
+	const ongoingByVersion = new Map(ongoingCounts.map((c) => [c.version, c]));
 	const versions = listed
 		.filter((v) => v._id.game === params.game)
 		.map((v) => ({
 			version: v._id.version,
 			archived: !!v.meta?.archived,
-			ongoing: ongoingByVersion.get(v._id.version) ?? 0,
+			ongoing: ongoingByVersion.get(v._id.version)?.count ?? 0,
+			ongoingGameIds: ongoingByVersion.get(v._id.version)?.gameIds ?? [],
 		}))
 		.sort((a, b) => b.version - a.version);
 	const latestVersion = versions[0]?.version ?? 0;
