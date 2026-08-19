@@ -147,12 +147,23 @@ export async function myBoardgames(ctx: Context) {
 	// signal is fresher. Each row carries both `lastPlayedAt` (raw play recency) and
 	// `likedAt` so the sidebar derives the same blended ordering; `lastActivity` is
 	// the blended max (kept for back-compat).
+	// Requested games (#340) are excluded: a request is not a playable game and
+	// never appears in the sidebar (voting on requests happens on the requests page).
 	const likes = await colls.gameLikes.find({ user }, { projection: { game: 1, createdAt: 1 } }).toArray();
-	const likeByGame = new Map(likes.map((l) => [l.game, l.createdAt ?? new Date(0)]));
+	const requested = new Set(
+		likes.length === 0
+			? []
+			: await colls.gameMetadatas
+					.find({ _id: { $in: likes.map((l) => l.game) }, status: "requested" }, { projection: { _id: 1 } })
+					.toArray()
+					.then((metas) => metas.map((m) => m._id)),
+	);
+	const playableLikes = likes.filter((l) => !requested.has(l.game));
+	const likeByGame = new Map(playableLikes.map((l) => [l.game, l.createdAt ?? new Date(0)]));
 
 	ctx.body = [
 		...results.map((r) => ({ boardgame: r._id, lastPlayedAt: r.lastActivity as Date | undefined })),
-		...likes
+		...playableLikes
 			.filter((l) => !results.some((r) => r._id === l.game))
 			.map((l) => ({ boardgame: l.game, lastPlayedAt: undefined as Date | undefined })),
 	]

@@ -321,8 +321,13 @@ router.get("/:userId/liked-games", async (ctx) => {
 		ctx.body = [];
 		return;
 	}
+	// Requested games (#340) are excluded: they surface on the requests page, not
+	// as playable games on the profile.
 	const metas = await colls.gameMetadatas
-		.find({ _id: { $in: likes.map((l) => l.game) } }, { projection: { label: 1, alias: 1, likeCount: 1 } })
+		.find(
+			{ _id: { $in: likes.map((l) => l.game) }, status: { $ne: "requested" } },
+			{ projection: { label: 1, alias: 1, likeCount: 1 } },
+		)
 		.toArray();
 	ctx.body = metas
 		.map((m) => ({ game: m._id, label: m.label, alias: m.alias, likeCount: m.likeCount ?? 0 }))

@@ -174,6 +174,11 @@ async function upsert(ctx: Context) {
 			metadataUpdate.$unset = metadataUnset;
 		}
 		await colls.gameMetadatas.updateOne({ _id: game }, metadataUpdate, { upsert: true });
+
+		// A version doc makes the game real: a requested game (#340) flips to
+		// implemented — it leaves the requests page and joins the regular game
+		// list, keeping its votes.
+		await colls.gameMetadatas.updateOne({ _id: game, status: "requested" }, { $set: { status: "implemented" } });
 	}
 
 	const merged = await findGameInfoWithVersion(game, version);

@@ -42,7 +42,12 @@ export async function lastAccessibleVersion(game: string, user?: WithId<UserDoc>
 		);
 	})();
 
-	const [versionDoc, metadata] = await Promise.all([versionDocPromise, colls.gameMetadatas.findOne({ _id: game })]);
+	const [versionDoc, metadata] = await Promise.all([
+		versionDocPromise,
+		// Requested games (#340) have no version yet and are not playable games:
+		// they must 404 on every game-info route.
+		colls.gameMetadatas.findOne({ _id: game, status: { $ne: "requested" } }),
+	]);
 	return mergeGameInfo(versionDoc, metadata);
 }
 

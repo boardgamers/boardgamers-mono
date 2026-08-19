@@ -1,7 +1,9 @@
 import createError from "http-errors";
 import type { Context, Next } from "koa";
+import type { ObjectId } from "mongodb";
 import NodeCache from "node-cache";
 import { z } from "zod";
+import { colls } from "../config/db.ts";
 import env from "../config/env.ts";
 import { isUserAdmin } from "../models/index.ts";
 import { ipBucketKey, recordAttempt } from "../services/ratelimit.ts";
@@ -79,6 +81,16 @@ export function queryCount(ctx: Context, max = 100) {
 export function skipCount(ctx: Context) {
 	const { skip } = paginationQuerySchema.parse(ctx.query);
 	return skip ?? 0;
+}
+
+/** Resolve the display usernames for a set of user ids (id hex → username). */
+export async function usernamesById(userIds: ObjectId[]): Promise<Map<string, string>> {
+	const unique = [...new Map(userIds.map((id) => [id.toHexString(), id])).values()];
+	if (unique.length === 0) {
+		return new Map();
+	}
+	const users = await colls.users.find({ _id: { $in: unique } }, { projection: { "account.username": 1 } }).toArray();
+	return new Map(users.map((u) => [u._id.toHexString(), u.account.username]));
 }
 
 const internalCache = new NodeCache({ stdTTL: 10 });

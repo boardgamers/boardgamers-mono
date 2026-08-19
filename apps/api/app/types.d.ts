@@ -1,4 +1,4 @@
-import type { GameDoc, GameInfoDoc, UserDoc } from "@bgs/models";
+import type { FeedbackRequestDoc, GameDoc, GameInfoDoc, UserDoc } from "@bgs/models";
 import type { WithId } from "mongodb";
 
 declare global {
@@ -12,6 +12,7 @@ declare global {
 			game?: GameDoc;
 			foundUser?: WithId<UserDoc>;
 			foundBoardgame?: GameInfoDoc;
+			foundFeedbackRequest?: WithId<FeedbackRequestDoc>;
 			ip: string;
 			requestId: string;
 		}

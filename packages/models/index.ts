@@ -38,11 +38,13 @@ export type {
 	GameMetadataDoc,
 	ViewerInfo,
 	GameInfoOption,
+	GameMetaStatus,
 } from "./gameinfo.ts";
 export {
 	gameInfoSchema,
 	gameVersionSchema,
 	gameMetadataSchema,
+	gameMetaStatusSchema,
 	GAME_METADATA_FIELDS,
 	viewerInfoSchema,
 	gameInfoOptionSchema,
@@ -55,6 +57,26 @@ export {
 // --- Game Like ---
 export type { GameLikeDoc, GameLikeFront } from "./gamelike.ts";
 export { gameLikeSchema, GAME_LIKES_COLLECTION, gameLikeIndexes } from "./gamelike.ts";
+
+// --- Feedback Request (site + game-specific requests, #340) ---
+export type {
+	FeedbackRequestDoc,
+	FeedbackRequestFront,
+	FeedbackRequestLikeDoc,
+	FeedbackRequestLikeFront,
+	FeedbackKind,
+	FeedbackStatus,
+} from "./feedbackrequest.ts";
+export {
+	feedbackRequestSchema,
+	feedbackKindSchema,
+	feedbackStatusSchema,
+	FEEDBACK_REQUESTS_COLLECTION,
+	feedbackRequestIndexes,
+	feedbackRequestLikeSchema,
+	FEEDBACK_REQUEST_LIKES_COLLECTION,
+	feedbackRequestLikeIndexes,
+} from "./feedbackrequest.ts";
 
 // --- Game Notification ---
 export type { GameNotificationDoc, GameNotificationFront, NotificationKind } from "./gamenotification.ts";

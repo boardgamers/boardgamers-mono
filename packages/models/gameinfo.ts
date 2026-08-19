@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Jsonify } from "type-fest";
-import { zDate } from "./helpers.ts";
+import { zDate, zObjectId } from "./helpers.ts";
 
 export const viewerInfoSchema = z.object({
 	url: z.string(),
@@ -51,6 +51,16 @@ export const gameInfoOptionSchema = z.object({
 });
 
 export type GameInfoOption = z.output<typeof gameInfoOptionSchema>;
+
+// Lifecycle of a game entry (#340). Absent = "implemented" (every pre-#340 doc is a
+// real game). A "requested" doc is a whole-game request: label + description +
+// meeple-votes (the regular gamelike mechanic), no version yet — it is excluded
+// from the game list / sidebar / new-game, and flips to "implemented" when an
+// admin uploads the first version. ("Meta" in the name to avoid clashing with the
+// game-lifecycle `gameStatusSchema` in game.ts.)
+export const gameMetaStatusSchema = z.enum(["implemented", "requested"]);
+
+export type GameMetaStatus = z.output<typeof gameMetaStatusSchema>;
 
 // One doc per game version: everything that changes when a new version of
 // the engine/viewer is published. Game-level identity + configuration (name, rules,
@@ -157,6 +167,13 @@ export const gameMetadataSchema = z.object({
 	// absolute likes. Add such numeric fields here (optional, server-maintained) and
 	// pick them onto `gameInfoSchema` below to surface them on the merged game-info.
 	likeCount: z.number().int().min(0).optional(),
+	// See gameMetaStatusSchema above. Optional so existing docs are unaffected.
+	status: gameMetaStatusSchema.optional(),
+	// Whole-game requests (#340, status "requested"): who asked for the game.
+	requestedBy: zObjectId().optional(),
+	// Linked NodeBB topic id (Comments & Feedback category) — stored/returned when
+	// set; the actual topic creation is wired separately.
+	forumTid: z.number().int().optional(),
 	createdAt: zDate().optional(),
 	updatedAt: zDate().optional(),
 });
