@@ -4,7 +4,7 @@ Once you have an [engine](./engine-api.md) and a [viewer](./viewer-api.md) (see 
 
 ## 1. Register the game
 
-In the admin panel, **Boardgames → + New game**: set the game id + version, label, player counts, and any game options/preferences/settings. Save.
+In the admin panel, **Boardgames → + New game**: set the game id + version, label, player counts, and any game options/preferences/settings — see [Game options, preferences & settings](./game-options.md) for the field shapes. Save.
 
 ## 2. Viewer
 
@@ -28,4 +28,4 @@ The tarball must contain the built engine — the platform does **not** build ga
 
 Open the game page, create a game, and play. Bumping the engine version (or re-uploading a bundle) makes new games use the new code; ongoing games are unaffected.
 
-Registering a game is an admin action — to get your game added to the site, reach out via the **Contact** (or **Forum**) link in the site footer.
+Registering a game is an admin action — to get your game added to the site, reach out via [Contact](mailto:contact@boardgamers.space) (or the [Forum](https://forum.boardgamers.space)) — the links in the site footer.

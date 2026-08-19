@@ -34,7 +34,9 @@ The list of expansions activated
 
 #### options
 
-An object containing the options chosen for the game
+An object containing the options chosen for the game — the values the creator picked from the `options` declared
+on the game info. See [Game options, preferences & settings](./game-options.md); always read defensively, keys may
+be absent.
 
 #### seed
 
@@ -67,7 +69,7 @@ scores (data: GameData): number[]
 ```
 
 Give the score of each player. The scores are displayed in the sidebar next to player games. They are also used to determine
-the player ranking at the end for elo calculation, unless [ranking](#ranking) is implemented.
+the player ranking at the end for elo calculation, unless [rankings](#rankings) is implemented.
 
 ### dropPlayer
 
@@ -75,10 +77,12 @@ the player ranking at the end for elo calculation, unless [ranking](#ranking) is
 dropPlayer(data: GameData, player: number): Promise<GameData>
 ```
 
-Drop a player out.
+Drop a player out. Called when a player quits or is dropped after running out of time (see
+[Game clocks & timing](./timing.md)).
 
 You should either change the player to an AI or completely remove them from the game. If it is
-the current player, the turn should automatically go to the next, non dropped-player.
+the current player, the turn should automatically go to the next, non dropped-player. It must be safe at any
+point of the game — see [Bot players](./bots.md) for how this differs from platform bot slots.
 
 ### moveAI
 
@@ -89,7 +93,8 @@ moveAI(data: GameData, player: number): Promise<GameData> | GameData
 Play one move for `player`, chosen by the engine. This powers the platform's **bot players**:
 when a bot slot becomes the current player, the game-server calls `moveAI` and stores the
 result like a regular move. It should be exported from the engine's **entry point** (the
-module the game-server loads), since that's what the bot driver calls.
+module the game-server loads), since that's what the bot driver calls. See
+[Bot players](./bots.md) for the full platform behavior (scheduling, failure policy, requirements).
 
 Optional — only games whose engine implements `moveAI` can have bot players. The game-server
 **auto-detects** it when an engine version is installed (probing the entry point for a
@@ -169,7 +174,8 @@ Other metadata such as an avatar, clan name, ... could be given in the future.
 setPlayerSettings(data: GameData, player: number, settings: Record<string, unknown>): GameData
 ```
 
-Update player settings - such as autocharge in Gaia Project.
+Update player settings - such as autocharge in Gaia Project. The available settings are declared on the game
+info — see [Game options, preferences & settings](./game-options.md).
 
 Only update settings for the given keys. Other settings are left unchanged.
 

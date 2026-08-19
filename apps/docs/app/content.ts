@@ -8,6 +8,9 @@ export type DocPage = {
 	title: string;
 	/** Raw markdown source, frontmatter stripped. */
 	markdown: string;
+	/** URL directory holding the source file ("" for root pages) — relative links
+	 * resolve against it: an index README.md links like the directory page. */
+	dir: string;
 };
 
 export type DocsContent = {
@@ -52,13 +55,13 @@ function stripFrontmatter(markdown: string): Record<string, string> {
 	return data;
 }
 
-function parsePage(file: string, urlPath: string): DocPage {
+function parsePage(file: string, urlPath: string, dir: string): DocPage {
 	const raw = readFileSync(file, "utf8");
 	const frontmatter = stripFrontmatter(raw);
 	const markdown = raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
 	const heading = markdown.match(/^#\s+(.+)$/m)?.[1].trim();
 	const fallback = urlPath === "" ? "Home" : urlPath.split("/").pop()!;
-	return { path: urlPath, title: frontmatter.title ?? heading ?? fallback, markdown };
+	return { path: urlPath, title: frontmatter.title ?? heading ?? fallback, markdown, dir };
 }
 
 /**
@@ -79,7 +82,7 @@ export function loadDocs(dir: string): DocsContent {
 			} else if (entry.name.toLowerCase().endsWith(".md")) {
 				const isIndex = entry.name.toLowerCase() === "readme.md";
 				const base = isIndex ? sub : `${sub ? `${sub}/` : ""}${slugify(entry.name)}`;
-				pages.push(parsePage(join(root, rel), base));
+				pages.push(parsePage(join(root, rel), base, sub));
 			} else {
 				assets.set(`/${rel}`, readFileSync(join(root, rel)));
 			}
