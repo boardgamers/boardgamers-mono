@@ -10,6 +10,10 @@ import {
 	CHAT_MESSAGES_COLLECTION,
 	type DeletedUserDoc,
 	DELETED_USERS_COLLECTION,
+	type FeedbackRequestDoc,
+	FEEDBACK_REQUESTS_COLLECTION,
+	type FeedbackRequestLikeDoc,
+	FEEDBACK_REQUEST_LIKES_COLLECTION,
 	type GameDoc,
 	GAMES_COLLECTION,
 	type GameVersionDoc,
@@ -70,6 +74,8 @@ export const colls = {} as {
 	changelogs: Collection<ChangelogDoc>;
 	chatMessages: Collection<ChatMessageDoc>;
 	deletedUsers: Collection<DeletedUserDoc>;
+	feedbackRequests: Collection<FeedbackRequestDoc>;
+	feedbackRequestLikes: Collection<FeedbackRequestLikeDoc>;
 	games: Collection<GameDoc>;
 	gameInfos: Collection<GameVersionDoc>;
 	gameMetadatas: Collection<GameMetadataDoc>;
@@ -97,6 +103,10 @@ function initColls(database: Db) {
 		changelogs: withAutoUpdatedAt(database.collection<ChangelogDoc>(CHANGELOGS_COLLECTION)),
 		chatMessages: database.collection<ChatMessageDoc>(CHAT_MESSAGES_COLLECTION),
 		deletedUsers: database.collection<DeletedUserDoc>(DELETED_USERS_COLLECTION),
+		feedbackRequests: withAutoUpdatedAt(database.collection<FeedbackRequestDoc>(FEEDBACK_REQUESTS_COLLECTION)),
+		feedbackRequestLikes: withAutoUpdatedAt(
+			database.collection<FeedbackRequestLikeDoc>(FEEDBACK_REQUEST_LIKES_COLLECTION),
+		),
 		games: withAutoUpdatedAt(database.collection<GameDoc>(GAMES_COLLECTION)),
 		gameInfos: withAutoUpdatedAt(database.collection<GameVersionDoc>(GAME_INFOS_COLLECTION)),
 		gameMetadatas: withAutoUpdatedAt(database.collection<GameMetadataDoc>(GAME_METADATAS_COLLECTION)),

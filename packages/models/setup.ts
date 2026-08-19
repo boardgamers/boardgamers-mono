@@ -26,6 +26,14 @@ import { SETTINGS_COLLECTION, settingsSchema } from "./settings.ts";
 import { USER_ACTIONS_COLLECTION, userActionIndexes, userActionSchema } from "./useraction.ts";
 import { USERS_COLLECTION, userIndexes, userSchema } from "./user.ts";
 import { DELETED_USERS_COLLECTION, deletedUserIndexes, deletedUserSchema } from "./deleteduser.ts";
+import {
+	FEEDBACK_REQUESTS_COLLECTION,
+	feedbackRequestIndexes,
+	feedbackRequestSchema,
+	FEEDBACK_REQUEST_LIKES_COLLECTION,
+	feedbackRequestLikeIndexes,
+	feedbackRequestLikeSchema,
+} from "./feedbackrequest.ts";
 import { zodToMongoSchema } from "./mongo-schema.ts";
 
 async function ensureCappedCollection(db: Db, name: string, options: { size: number; max?: number }) {
@@ -508,6 +516,8 @@ export const declaredIndexes: [string, IndexDescription[]][] = [
 	[ROOM_METADATA_COLLECTION, roomMetaDataIndexes],
 	[DELETED_USERS_COLLECTION, deletedUserIndexes],
 	[USER_ACTIONS_COLLECTION, userActionIndexes],
+	[FEEDBACK_REQUESTS_COLLECTION, feedbackRequestIndexes],
+	[FEEDBACK_REQUEST_LIKES_COLLECTION, feedbackRequestLikeIndexes],
 ];
 
 // Indexes removed from the code that still exist on deployed databases.
@@ -584,6 +594,8 @@ export async function ensureValidation(db: Db) {
 		[USERS_COLLECTION, userSchema],
 		[DELETED_USERS_COLLECTION, deletedUserSchema],
 		[USER_ACTIONS_COLLECTION, userActionSchema],
+		[FEEDBACK_REQUESTS_COLLECTION, feedbackRequestSchema],
+		[FEEDBACK_REQUEST_LIKES_COLLECTION, feedbackRequestLikeSchema],
 	];
 
 	const existing = new Set((await db.listCollections().toArray()).map((c) => c.name));

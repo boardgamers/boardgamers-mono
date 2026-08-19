@@ -34,6 +34,14 @@ export const ACTION_RATE_LIMITS: Record<string, ActionRateLimitOptions> = {
 	// POST/DELETE /boardgame/:game/like — idempotent set/unset; the cap only bites
 	// rapid like-spam across many games (the like itself is a cheap unique-keyed upsert).
 	"boardgame/like": { max: 60, windowMs: 60 * 1000 },
+	// POST /boardgame/request — whole-game requests (#340). Spam guard: no karma
+	// minimum to request, so cap the creation rate (a per-user open-request cap
+	// is also enforced by the route itself).
+	"boardgame/request": { max: 10, windowMs: 24 * 60 * 60 * 1000 },
+	// POST /feedback — site + game-specific requests (#340). Same rationale.
+	"feedback/create": { max: 10, windowMs: 24 * 60 * 60 * 1000 },
+	// PUT/DELETE /feedback/:id/like — idempotent set/unset, mirrors boardgame/like.
+	"feedback/like": { max: 60, windowMs: 60 * 1000 },
 };
 
 let testLimits: ActionRateLimitOptions | null = null;

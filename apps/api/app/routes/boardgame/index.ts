@@ -1,9 +1,10 @@
 import createError from "http-errors";
-import type { GamePreferencesDoc, GameVersionDoc } from "@bgs/models";
+import type { GameMetadataDoc, GamePreferencesDoc, GameVersionDoc } from "@bgs/models";
 import type { Context } from "koa";
 import Router from "koa-router";
 import type { ObjectId } from "mongodb";
 import type { PickDeep, SetOptional } from "type-fest";
+import { z } from "zod";
 import { colls } from "../../config/db.ts";
 import { likedGameIds, setGameLike } from "../../services/gamelike.ts";
 import { lastAccessibleVersion } from "../../services/gameinfo.ts";
@@ -13,7 +14,29 @@ import { loggedIn, queryCount, skipCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
+/** Resolve the display usernames for a set of user ids (id hex → username). */
+async function usernamesById(userIds: ObjectId[]): Promise<Map<string, string>> {
+	const unique = [...new Map(userIds.map((id) => [id.toHexString(), id])).values()];
+	if (unique.length === 0) {
+		return new Map();
+	}
+	const users = await colls.users.find({ _id: { $in: unique } }, { projection: { "account.username": 1 } }).toArray();
+	return new Map(users.map((u) => [u._id.toHexString(), u.account.username]));
+}
+
 router.param("boardgame", async (boardgame, ctx, next) => {
+	// Like/unlike also works on requested games (#340) — a game request IS a game
+	// you can vote for, and it has no version yet — so those routes resolve the
+	// bare game id instead of the merged game-info.
+	if (ctx.path.endsWith("/like")) {
+		const exists = await colls.gameMetadatas.findOne({ _id: boardgame }, { projection: { _id: 1 } });
+		if (!exists) {
+			throw createError(404, "Boardgame not found");
+		}
+		await next();
+		return;
+	}
+
 	// NOTE (#298): this used to be a two-step pick — a direct `gameInfos` query for
 	// the latest public non-archived version, falling back to `lastAccessibleVersion`
 	// for private grants. Post-split the routes below serve `foundBoardgame` as the
@@ -41,6 +64,105 @@ async function addLikedFlag<T extends { _id: { game: string } }>(game: T, userId
 	return { ...game, liked: !!like };
 }
 
+// Game requests (#340) — static segments, registered before the `/:boardgame`
+// routes so "request"/"requests" are never captured as a game id.
+
+const requestBodySchema = z.object({
+	label: z.string().min(2).max(80),
+	description: z.string().max(2000).optional(),
+});
+
+// Basic spam guard (#340): no karma minimum to request, so cap how many distinct
+// games a user can have open requests on (on top of the actionRateLimit).
+const MAX_OPEN_GAME_REQUESTS_PER_USER = 10;
+
+function slugifyGameLabel(label: string): string {
+	return label
+		.normalize("NFKD")
+		.replace(/[̀-ͯ]/g, "")
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "")
+		.slice(0, 60)
+		.replace(/-+$/g, "");
+}
+
+router.post("/request", loggedIn, actionRateLimit("boardgame/request"), async (ctx) => {
+	const { label, description } = requestBodySchema.parse(ctx.request.body);
+	const user = ctx.state.user!;
+	const game = slugifyGameLabel(label);
+
+	if (!game) {
+		throw createError(400, "The game name needs at least one letter or digit");
+	}
+
+	const existing = await colls.gameMetadatas.findOne({ _id: game }, { projection: { status: 1 } });
+	if (existing) {
+		throw createError(
+			409,
+			existing.status === "requested"
+				? `"${label}" is already requested — vote for it instead`
+				: `"${label}" is already on the site`,
+		);
+	}
+
+	const openRequests = await colls.gameMetadatas.countDocuments({ status: "requested", requestedBy: user._id });
+	if (openRequests >= MAX_OPEN_GAME_REQUESTS_PER_USER) {
+		throw createError(429, `You already have ${MAX_OPEN_GAME_REQUESTS_PER_USER} open game requests`);
+	}
+
+	// Auto-like by the requester: insert the like first so a retry (the metadata
+	// insert winning the race but the response getting lost) stays consistent, and
+	// store the denormalized count directly on the requested-game doc.
+	await colls.gameLikes.insertOne({ game, user: user._id, createdAt: new Date() });
+	const doc: GameMetadataDoc = {
+		_id: game,
+		label,
+		...(description ? { description } : {}),
+		players: [],
+		status: "requested",
+		requestedBy: user._id,
+		likeCount: 1,
+	};
+	try {
+		await colls.gameMetadatas.insertOne(doc);
+	} catch (err) {
+		// Concurrent request for the same slug lost the race — report the conflict.
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- caught errors are untyped; the driver sets `code`
+		if ((err as { code?: number })?.code === 11000) {
+			throw createError(409, `"${label}" is already requested — vote for it instead`);
+		}
+		throw err;
+	}
+
+	ctx.status = 201;
+	ctx.body = { ...doc, liked: true };
+});
+
+router.get("/requests", async (ctx) => {
+	const requests = await colls.gameMetadatas
+		.find(
+			{ status: "requested" },
+			{ projection: { label: 1, description: 1, likeCount: 1, requestedBy: 1, forumTid: 1, createdAt: 1 } },
+		)
+		.sort({ likeCount: -1, createdAt: 1 })
+		.toArray();
+
+	const liked = ctx.state.user ? await likedGameIds(ctx.state.user._id) : new Set<string>();
+	const requesterNames = await usernamesById(requests.map((r) => r.requestedBy).filter((id) => id !== undefined));
+
+	ctx.body = requests.map((r) => ({
+		_id: r._id,
+		label: r.label,
+		...(r.description ? { description: r.description } : {}),
+		likeCount: r.likeCount ?? 0,
+		liked: liked.has(r._id),
+		...(r.requestedBy ? { requestedBy: requesterNames.get(r.requestedBy.toHexString()) } : {}),
+		...(r.forumTid !== undefined ? { forumTid: r.forumTid } : {}),
+		createdAt: r.createdAt,
+	}));
+});
+
 router.get("/info", async (ctx) => {
 	const ownGames = ctx.state.user
 		? await colls.gamePreferences
@@ -67,7 +189,9 @@ router.get("/info", async (ctx) => {
 		.project<SetOptional<GameVersionDoc, "viewer">>({ viewer: 0 })
 		.sort({ "_id.game": 1, "_id.version": -1 })
 		.toArray();
-	const metas = await colls.gameMetadatas.find({}).toArray();
+	// Requested games (#340) are excluded: a request is not a playable game and
+	// only implemented games (status absent = implemented) appear in the list.
+	const metas = await colls.gameMetadatas.find({ status: { $ne: "requested" } }).toArray();
 	const metaByGame = new Map(metas.map((m) => [m._id, m]));
 	const liked = ctx.state.user ? await likedGameIds(ctx.state.user._id) : new Set<string>();
 	// The list projection drops `viewer` (the endpoint never serves it), so the
@@ -80,11 +204,11 @@ router.get("/info", async (ctx) => {
 });
 
 router.post("/:boardgame/like", loggedIn, actionRateLimit("boardgame/like"), async (ctx) => {
-	ctx.body = await setGameLike(ctx.state.foundBoardgame!._id.game, ctx.state.user!._id, true);
+	ctx.body = await setGameLike(ctx.params.boardgame, ctx.state.user!._id, true);
 });
 
 router.delete("/:boardgame/like", loggedIn, actionRateLimit("boardgame/like"), async (ctx) => {
-	ctx.body = await setGameLike(ctx.state.foundBoardgame!._id.game, ctx.state.user!._id, false);
+	ctx.body = await setGameLike(ctx.params.boardgame, ctx.state.user!._id, false);
 });
 
 router.get("/:boardgame", async (ctx) => {

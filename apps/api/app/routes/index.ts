@@ -4,6 +4,7 @@ import account from "./account/index.ts";
 import admin from "./admin/index.ts";
 import auth from "./auth.ts";
 import boardgame from "./boardgame/index.ts";
+import feedback from "./feedback/index.ts";
 import game from "./game/index.ts";
 import oauth2 from "./oauth2/index.ts";
 import page from "./pages/index.ts";
@@ -30,5 +31,6 @@ router.use("/api/user", user.routes(), user.allowedMethods());
 router.use("/api/site", site.routes(), site.allowedMethods());
 router.use("/api/page", page.routes(), page.allowedMethods());
 router.use("/api/boardgame", boardgame.routes(), boardgame.allowedMethods());
+router.use("/api/feedback", feedback.routes(), feedback.allowedMethods());
 
 export default router;
