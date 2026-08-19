@@ -6,6 +6,7 @@
 	import { toast } from "$lib/toast.svelte.ts";
 	import { loadPages } from "$lib/stores.svelte.ts";
 	import PageEdit from "$components/PageEdit.svelte";
+	import PageHistory from "$components/PageHistory.svelte";
 	import WebLink from "$components/WebLink.svelte";
 	import type { PageProps } from "./$types";
 	import type { PageData } from "./+page.ts";
@@ -44,6 +45,15 @@
 			toast.error(err instanceof Error ? err.message : "Failed to delete");
 		}
 	}
+
+	// Load an archived version into the editor — restoring only happens on Save,
+	// which itself is recorded in the history.
+	function restore(restored: { title: string; content: string }) {
+		if (!value) return;
+		value.title = restored.title;
+		value.content = restored.content;
+		toast.success("Version loaded into the editor — save to apply the restore");
+	}
 </script>
 
 {#if value}
@@ -57,6 +67,7 @@
 			</div>
 		</div>
 		<PageEdit mode="edit" bind:value onsave={save} ondelete={remove} />
+		<PageHistory {name} {lang} onrestore={restore} />
 	</div>
 {:else}
 	<div class="flex items-center justify-center h-32">

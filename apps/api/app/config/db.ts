@@ -34,6 +34,8 @@ import {
 	OAUTH_FLOWS_COLLECTION,
 	type PageDoc,
 	PAGES_COLLECTION,
+	type PageHistoryDoc,
+	PAGE_HISTORIES_COLLECTION,
 	type RoomMetaDataDoc,
 	ROOM_METADATA_COLLECTION,
 	type SettingsDoc,
@@ -80,6 +82,7 @@ export const colls = {} as {
 	oauthConsents: Collection<OAuthConsentDoc>;
 	oauthFlows: Collection<OAuthFlowDoc>;
 	pages: Collection<PageDoc>;
+	pageHistories: Collection<PageHistoryDoc>;
 	roomMetaData: Collection<RoomMetaDataDoc>;
 	settings: Collection<SettingsDoc>;
 	userActions: Collection<UserActionDoc>;
@@ -106,6 +109,7 @@ function initColls(database: Db) {
 		oauthConsents: database.collection<OAuthConsentDoc>(OAUTH_CONSENTS_COLLECTION),
 		oauthFlows: database.collection<OAuthFlowDoc>(OAUTH_FLOWS_COLLECTION),
 		pages: withAutoUpdatedAt(database.collection<PageDoc>(PAGES_COLLECTION)),
+		pageHistories: database.collection<PageHistoryDoc>(PAGE_HISTORIES_COLLECTION),
 		roomMetaData: database.collection<RoomMetaDataDoc>(ROOM_METADATA_COLLECTION),
 		settings: withAutoUpdatedAt(database.collection<SettingsDoc>(SETTINGS_COLLECTION)),
 		userActions: database.collection<UserActionDoc>(USER_ACTIONS_COLLECTION),
