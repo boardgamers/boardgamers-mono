@@ -42,17 +42,25 @@
 	let games = $derived(Object.values(gameById));
 	let boardgameId = $derived(page!.params.boardgameId);
 
-	// Boardgames the player has played (open/active/ended), ordered by most recent
-	// activity — the play-recency half of "My games". Loaded in the root +layout.ts so
-	// SSR renders the group immediately (no post-hydration pop-in). Rows also carry
-	// `likedAt` (when the user liked the game), the liked group's ordering key.
-	type MyBoardgameRow = { boardgame: string; lastActivity: string; liked?: boolean; likedAt?: string };
+	// Boardgames the player has played (open/active/ended) or liked — the "My games"
+	// membership. Loaded in the root +layout.ts so SSR renders the group immediately
+	// (no post-hydration pop-in). Each row carries the two freshness signals:
+	// `lastPlayedAt` (raw play recency) and `likedAt` (like recency).
+	type MyBoardgameRow = { boardgame: string; lastPlayedAt?: string; liked?: boolean; likedAt?: string };
 	let myBoardgameRows = $derived((page.data.myBoardgames ?? []) as MyBoardgameRow[]);
 	let playedIds = $derived(myBoardgameRows.map((r) => r.boardgame));
 
+	// Play-recency timestamps, game → ms (from the SSR rows; play activity doesn't
+	// change client-side without a reload, so no live store is needed).
+	let lastPlayedAtMs = $derived(
+		Object.fromEntries(
+			myBoardgameRows.flatMap((r) => (r.lastPlayedAt ? [[r.boardgame, Date.parse(r.lastPlayedAt)]] : []))
+		)
+	);
+
 	// Like timestamps, game → ms. SSR renders the rows' snapshot; the client trusts the
-	// seeded store (live()), which tracks toggles — a like stamps `now`, jumping the game
-	// to the top of "My games" without a reload.
+	// seeded store (live()), which tracks toggles — a like stamps `now`, refreshing the
+	// game's position in "My games" without a reload.
 	let likedAtMs = $derived(
 		live(
 			$likedBoardgames,
@@ -82,17 +90,17 @@
 	}
 
 	let pinnedIds = $derived(playedIds.filter((id) => !forgotten.includes(id)));
-	// "My games" = games the player has played (pinned) ∪ games they liked. A liked game
-	// belongs here by construction — liking one moves it into "My games" automatically
-	// (no imperative add), and unliking a never-played game drops it back out. Ordering:
-	// liked games first, most-recently-liked first (a game both played and liked is in
-	// the liked group), then played games by recency. Membership reads the reactive
-	// `likedAtMs` (not `g.liked`, an untracked plain field) so a like toggle updates the
-	// sidebar live; the seed covers every SSR'd like, so the two agree on first paint.
+	// "My games" = games the player has played (pinned) ∪ games they liked, "freshest
+	// first": each game's sort key is the MOST RECENT of its last-played and like times
+	// (byMyGamesOrder). A liked game belongs here by construction — liking one moves it
+	// in automatically (no imperative add), and unliking a never-played game drops it
+	// back out. Membership reads the reactive `likedAtMs` (not `g.liked`, an untracked
+	// plain field) so a like toggle updates the sidebar live; the seed covers every
+	// SSR'd like, so the two agree on first paint.
 	let topGames = $derived(
 		games
 			.filter((g) => pinnedIds.includes(g._id.game) || likedAtMs[g._id.game] !== undefined)
-			.sort(byMyGamesOrder(likedAtMs, playedIds))
+			.sort(byMyGamesOrder(lastPlayedAtMs, likedAtMs))
 	);
 	let topIds = $derived(new Set(topGames.map((g) => g._id.game)));
 	// "All games" = everything not already in "My games", most-liked first (display name

@@ -123,47 +123,73 @@ describe("byGamePopularity", () => {
 	});
 });
 
-// The sidebar's "My games" ordering: liked games first (most-recently-liked first),
-// then played games by recency. A game both played and liked is in the liked group.
+// The sidebar's "My games" ordering, "freshest first": each game's sort key is the
+// MOST RECENT of its last-played and like times, descending.
 describe("byMyGamesOrder", () => {
 	const entry = (game: string, label = game) => ({ _id: { game, version: 1 }, label }) as unknown as GameInfoFront;
 	const names = (list: GameInfoFront[]) => list.map((g) => g._id.game);
 
-	it("puts liked games above played games, most-recently-liked first", () => {
-		const likedAt = { "liked-old": 1000, "liked-new": 2000 };
-		const played = ["played-recent", "played-old"];
-		const list = [entry("played-old"), entry("liked-old"), entry("played-recent"), entry("liked-new")];
+	it("sorts by the most recent of last-played and like time, descending", () => {
+		// gaia: played at 3000, liked at 1000 → key 3000 (play recency wins).
+		// take6: never played, liked at 2500 → key 2500 (like only).
+		// container: played at 500, liked at 2000 → key 2000 (like wins).
+		// splendor: played at 100, never liked → key 100 (play only).
+		const lastPlayedAt = { gaia: 3000, container: 500, splendor: 100 };
+		const likedAt = { gaia: 1000, take6: 2500, container: 2000 };
+		const list = [entry("splendor"), entry("container"), entry("take6"), entry("gaia")];
 
-		expect(names(list.slice().sort(byMyGamesOrder(likedAt, played)))).toEqual([
-			"liked-new",
-			"liked-old",
-			"played-recent",
-			"played-old",
+		expect(names(list.slice().sort(byMyGamesOrder(lastPlayedAt, likedAt)))).toEqual([
+			"gaia",
+			"take6",
+			"container",
+			"splendor",
 		]);
 	});
 
-	it("ranks a played-and-liked game in the liked group", () => {
-		const likedAt = { "played-and-liked": 1000 };
-		const played = ["played-and-liked", "played-only"];
-		const list = [entry("played-only"), entry("played-and-liked")];
+	it("lets play recency win when more recent than the like (a)", () => {
+		// Played today (key ~now), liked a year ago → sorts ABOVE a game liked
+		// yesterday but never played.
+		const now = 1_000_000;
+		const lastPlayedAt = { "played-today": now };
+		const likedAt = { "played-today": now - 31_536_000, "liked-yesterday": now - 86_400 };
+		const list = [entry("liked-yesterday"), entry("played-today")];
 
-		expect(names(list.slice().sort(byMyGamesOrder(likedAt, played)))).toEqual(["played-and-liked", "played-only"]);
+		expect(names(list.slice().sort(byMyGamesOrder(lastPlayedAt, likedAt)))).toEqual([
+			"played-today",
+			"liked-yesterday",
+		]);
 	});
 
-	it("orders liked-but-never-played games among the liked group (recency of like)", () => {
+	it("lets the like win when more recent than the last play (b)", () => {
+		// Liked an hour ago, last played a month ago → sorts by the like, ABOVE a game
+		// played yesterday (never liked).
+		const now = 1_000_000;
+		const lastPlayedAt = { "liked-recently": now - 2_592_000, "played-yesterday": now - 86_400 };
+		const likedAt = { "liked-recently": now - 3_600 };
+		const list = [entry("played-yesterday"), entry("liked-recently")];
+
+		expect(names(list.slice().sort(byMyGamesOrder(lastPlayedAt, likedAt)))).toEqual([
+			"liked-recently",
+			"played-yesterday",
+		]);
+	});
+
+	it("orders liked-never-played games by likedAt among themselves (c)", () => {
+		const lastPlayedAt = { played: 5000 };
 		const likedAt = { "never-played-b": 500, "never-played-a": 1500 };
-		const played = ["played"];
 		const list = [entry("played"), entry("never-played-b"), entry("never-played-a")];
 
-		expect(names(list.slice().sort(byMyGamesOrder(likedAt, played)))).toEqual([
+		// played (5000) is freshest; the two never-played follow in likedAt order.
+		expect(names(list.slice().sort(byMyGamesOrder(lastPlayedAt, likedAt)))).toEqual([
+			"played",
 			"never-played-a",
 			"never-played-b",
-			"played",
 		]);
 	});
 
-	it("falls back to display name when neither game is liked nor played", () => {
-		const list = [entry("b-game", "Banana"), entry("a-game", "Apple")];
-		expect(names(list.slice().sort(byMyGamesOrder({}, [])))).toEqual(["a-game", "b-game"]);
+	it("sinks a game with neither signal to the bottom, A-Z among themselves", () => {
+		const lastPlayedAt = { played: 1000 };
+		const list = [entry("b-game", "Banana"), entry("played"), entry("a-game", "Apple")];
+		expect(names(list.slice().sort(byMyGamesOrder(lastPlayedAt, {})))).toEqual(["played", "a-game", "b-game"]);
 	});
 });

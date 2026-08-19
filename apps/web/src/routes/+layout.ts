@@ -56,11 +56,11 @@ export const load: LayoutLoad = async ({ data }) => {
 		}
 	}
 
-	// Boardgames the player has played (recency-ordered) or liked — the sidebar's "My
-	// games" group. Rows carry `likedAt` so the sidebar can float liked games to the
-	// top, most-recently-liked first. SSR-safe (request-scoped fetch via
+	// Boardgames the player has played or liked — the sidebar's "My games" group. Rows
+	// carry `lastPlayedAt` (play recency) and `likedAt` (like recency) so the sidebar
+	// derives the blended "freshest first" ordering. SSR-safe (request-scoped fetch via
 	// getRequestEvent), so the group renders on first paint, not after hydration.
-	type MyBoardgameRow = { boardgame: string; lastActivity: string; liked?: boolean; likedAt?: string };
+	type MyBoardgameRow = { boardgame: string; lastPlayedAt?: string; liked?: boolean; likedAt?: string };
 	let myBoardgames: MyBoardgameRow[] = [];
 	if (data?.user?._id) {
 		myBoardgames = await get<MyBoardgameRow[]>("/game/my-boardgames", {

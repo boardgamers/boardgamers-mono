@@ -39,18 +39,23 @@ const gameInfos = {
 	"other/latest": info("other", { likeCount: 9 }),
 };
 
+// Blended "freshest first" fixtures. Sort keys = max(lastPlayedAt, likedAt):
+//   take6     liked 01-04 12:00, never played          → 01-04 12:00 (like only)
+//   gaia      played 01-03,      never liked           → 01-03 00:00 (play only)
+//   splendor  played 01-01,      liked 01-02 12:00     → 01-02 12:00 (like wins)
+//   container played 01-02,      never liked           → 01-02 00:00 (play only)
+// Expected My games order: take6, gaia, splendor, container.
 const myBoardgamesRows = [
-	{ boardgame: "gaia", lastActivity: "2024-01-03T00:00:00.000Z", liked: false },
-	{ boardgame: "container", lastActivity: "2024-01-02T00:00:00.000Z", liked: false },
+	{ boardgame: "gaia", lastPlayedAt: "2024-01-03T00:00:00.000Z", liked: false },
+	{ boardgame: "container", lastPlayedAt: "2024-01-02T00:00:00.000Z", liked: false },
 	{
 		boardgame: "splendor",
-		lastActivity: "2024-01-01T00:00:00.000Z",
+		lastPlayedAt: "2024-01-01T00:00:00.000Z",
 		liked: true,
-		likedAt: "2024-01-01T12:00:00.000Z",
+		likedAt: "2024-01-02T12:00:00.000Z",
 	},
 	{
 		boardgame: "take6",
-		lastActivity: "2024-01-04T12:00:00.000Z",
 		liked: true,
 		likedAt: "2024-01-04T12:00:00.000Z",
 	},
@@ -72,17 +77,19 @@ function renderedGames(body: string): string[] {
 	return names;
 }
 
-describe("GameListSidebar SSR — My games liked-first ordering", () => {
+describe("GameListSidebar SSR — My games freshest-first ordering", () => {
 	beforeEach(() => {
 		seedPageData({ myBoardgames: myBoardgamesRows, user: null });
 	});
 
-	it("renders liked games at the top of My games, above played games", () => {
+	it("orders My games freshest-first by max(lastPlayedAt, likedAt)", () => {
 		const { body } = renderSidebar(gameInfos);
 
-		// Liked first (most-recently-liked first): take6, splendor — then played by
-		// recency: gaia, container. "other" is in All games below.
-		expect(renderedGames(body)).toEqual(["take6", "splendor", "gaia", "container", "other"]);
+		// take6 (liked 01-04) > gaia (played 01-03) > splendor (liked 01-02 12:00) >
+		// container (played 01-02). Note splendor's LIKE (01-02 12:00) outranks
+		// container's PLAY (01-02 00:00) even though container was played more recently
+		// than splendor was — the fresher signal wins per game. "other" is in All games.
+		expect(renderedGames(body)).toEqual(["take6", "gaia", "splendor", "container", "other"]);
 		expect(body).toContain("My games");
 		expect(body).toContain("All games");
 	});
@@ -117,6 +124,6 @@ describe("GameListSidebar SSR — My games liked-first ordering", () => {
 		});
 		const { body } = renderSidebar(gameInfos);
 
-		expect(renderedGames(body)).toEqual(["take6", "splendor", "gaia", "container", "other"]);
+		expect(renderedGames(body)).toEqual(["take6", "gaia", "splendor", "container", "other"]);
 	});
 });

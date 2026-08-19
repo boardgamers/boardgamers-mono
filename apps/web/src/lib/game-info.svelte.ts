@@ -106,30 +106,20 @@ export function byGamePopularity(
 }
 
 /**
- * "My games" ordering (sidebar): liked games first — most-recently-liked first — then
- * played games by recency (their index in the `/game/my-boardgames` play list). Pure:
- * `likedAtMs` maps game → like time (ms), `playedIds` is the play-recency list.
+ * "My games" ordering (sidebar): "freshest first" — each game's sort key is the MOST
+ * RECENT of its last-played time and its like time, descending. A game played today
+ * but liked a year ago sorts by its play time; a game liked an hour ago but last
+ * played a month ago sorts by the like; a liked-never-played game sorts by `likedAt`.
+ * Pure: `lastPlayedAtMs` / `likedAtMs` map game → timestamp (ms); a missing key means
+ * "no such signal" (treated as 0, so a game with neither sinks to the bottom).
  */
 export function byMyGamesOrder(
+	lastPlayedAtMs: Readonly<Record<string, number>>,
 	likedAtMs: Readonly<Record<string, number>>,
-	playedIds: readonly string[],
 ): (a: GameInfoFront, b: GameInfoFront) => number {
-	const playRank = (id: string) => {
-		const i = playedIds.indexOf(id);
-		return i === -1 ? Number.MAX_SAFE_INTEGER : i;
-	};
-	return (a, b) => {
-		const idA = a._id.game;
-		const idB = b._id.game;
-		const likedA = likedAtMs[idA] !== undefined;
-		const likedB = likedAtMs[idB] !== undefined;
-		return (
-			Number(likedB) - Number(likedA) ||
-			(likedA && likedB ? likedAtMs[idB] - likedAtMs[idA] : 0) ||
-			playRank(idA) - playRank(idB) ||
-			gameDisplayName(a).localeCompare(gameDisplayName(b))
-		);
-	};
+	const freshness = (id: string) => Math.max(lastPlayedAtMs[id] ?? 0, likedAtMs[id] ?? 0);
+	return (a, b) =>
+		freshness(b._id.game) - freshness(a._id.game) || gameDisplayName(a).localeCompare(gameDisplayName(b));
 }
 
 /**
