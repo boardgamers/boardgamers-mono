@@ -183,7 +183,7 @@ describe("Boardgame API — game likes (#117)", () => {
 	after(() => db().dropDatabase());
 });
 
-describe("Game API — my-boardgames liked-first ordering (#117)", () => {
+describe("Game API — my-boardgames freshest-first ordering (#117)", () => {
 	let alice: Awaited<ReturnType<typeof insertUserWithAuth>>;
 
 	before(async () => {
@@ -258,7 +258,16 @@ describe("Game API — my-boardgames liked-first ordering (#117)", () => {
 			undefined,
 			alice.authHeaders,
 		);
-		const rows = z.array(z.object({ boardgame: z.string(), liked: z.boolean().optional() })).parse(res.data);
+		const rows = z
+			.array(
+				z.object({
+					boardgame: z.string(),
+					liked: z.boolean().optional(),
+					likedAt: z.string().optional(),
+					lastPlayedAt: z.string().optional(),
+				}),
+			)
+			.parse(res.data);
 		assert.deepStrictEqual(
 			rows.map((r) => r.boardgame),
 			["likegame-a", "likegame-b", "likegame-c"],
@@ -266,6 +275,16 @@ describe("Game API — my-boardgames liked-first ordering (#117)", () => {
 		assert.deepStrictEqual(
 			rows.map((r) => r.liked ?? false),
 			[true, true, false],
+		);
+		// Liked rows carry the like timestamp; unliked rows don't.
+		assert.strictEqual(rows[0]?.likedAt, new Date(base + 1000).toISOString());
+		assert.strictEqual(rows[1]?.likedAt, new Date(base).toISOString());
+		assert.strictEqual(rows[2]?.likedAt, undefined);
+		// Every row here was played, so each carries its raw play recency too — the
+		// sidebar blends max(lastPlayedAt, likedAt) per game.
+		assert.ok(
+			rows.every((r) => r.lastPlayedAt),
+			"played rows carry lastPlayedAt",
 		);
 	});
 
@@ -285,9 +304,20 @@ describe("Game API — my-boardgames liked-first ordering (#117)", () => {
 			undefined,
 			alice.authHeaders,
 		);
-		const rows = z.array(z.object({ boardgame: z.string(), liked: z.boolean().optional() })).parse(res.data);
+		const rows = z
+			.array(
+				z.object({
+					boardgame: z.string(),
+					liked: z.boolean().optional(),
+					likedAt: z.string().optional(),
+					lastPlayedAt: z.string().optional(),
+				}),
+			)
+			.parse(res.data);
 		assert.strictEqual(rows[0]?.boardgame, "likegame-fresh");
 		assert.strictEqual(rows[0]?.liked, true);
+		assert.ok(rows[0]?.likedAt, "a liked-never-played row carries its like time");
+		assert.strictEqual(rows[0]?.lastPlayedAt, undefined, "a never-played row has no lastPlayedAt");
 	});
 
 	after(() => db().dropDatabase());

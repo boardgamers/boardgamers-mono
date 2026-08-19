@@ -106,6 +106,23 @@ export function byGamePopularity(
 }
 
 /**
+ * "My games" ordering (sidebar): "freshest first" — each game's sort key is the MOST
+ * RECENT of its last-played time and its like time, descending. A game played today
+ * but liked a year ago sorts by its play time; a game liked an hour ago but last
+ * played a month ago sorts by the like; a liked-never-played game sorts by `likedAt`.
+ * Pure: `lastPlayedAtMs` / `likedAtMs` map game → timestamp (ms); a missing key means
+ * "no such signal" (treated as 0, so a game with neither sinks to the bottom).
+ */
+export function byMyGamesOrder(
+	lastPlayedAtMs: Readonly<Record<string, number>>,
+	likedAtMs: Readonly<Record<string, number>>,
+): (a: GameInfoFront, b: GameInfoFront) => number {
+	const freshness = (id: string) => Math.max(lastPlayedAtMs[id] ?? 0, likedAtMs[id] ?? 0);
+	return (a, b) =>
+		freshness(b._id.game) - freshness(a._id.game) || gameDisplayName(a).localeCompare(gameDisplayName(b));
+}
+
+/**
  * Apply a client-side like/unlike to every entry for the game (all versions + `latest`).
  * `likeCount` is shared across versions, so the map entries must move together — otherwise
  * the sidebar/catalog (reading `/latest`) and the button disagree. Pure.

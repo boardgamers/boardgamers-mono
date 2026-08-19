@@ -189,6 +189,10 @@ emitter.emit("ready");
 
 The DOM is ready, and the game can be shown to the player.
 
+Emit `ready` on a macrotask (e.g. in a `setTimeout(0)` or after the first paint), **not** inside
+`requestAnimationFrame`: the app keeps the iframe hidden until `ready`, and in a hidden/backgrounded iframe
+`requestAnimationFrame` may never fire — so the game would never signal ready and stay hidden forever.
+
 ### move
 
 ```ts
@@ -197,7 +201,16 @@ emitter.emit('move', move: any);
 
 Send a move to the backend.
 
-`move` is passed as is to the backend's [move](./engine-api.md#move) exported method.
+`move` is passed as is to the backend's [move](./engine-api.md#move) exported method: the emitted payload is relayed
+**verbatim** as the backend move's `move` field. Emit the raw move object:
+
+```ts
+// ✅ the engine receives move.action === "take"
+emitter.emit("move", { action: "take", gems: ["ruby", "onyx"] });
+
+// ❌ double-wrapped: the engine receives move.move.action
+emitter.emit("move", { move: { action: "take", gems: ["ruby", "onyx"] } });
+```
 
 ### player:clicked
 

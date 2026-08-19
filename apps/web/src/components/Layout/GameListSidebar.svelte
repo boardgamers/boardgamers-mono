@@ -1,26 +1,72 @@
 <script lang="ts">
+	import { untrack } from "svelte";
 	import { resolve } from "$app/paths";
 	import type { Pathname } from "$app/types";
 	import { page } from "$app/state";
-	import { byGamePopularity, useLatestGameInfos } from "@/lib/game-info.svelte";
+	import { byGamePopularity, byMyGamesOrder, useLatestGameInfos } from "@/lib/game-info.svelte";
 	import { logoClick } from "@/lib/stores.svelte";
 	import { post } from "@/lib/api";
 	import { account } from "@/lib/account.svelte";
-	import { live } from "@/lib/stores.svelte";
+	import { live, likedBoardgames } from "@/lib/stores.svelte";
 	import { handleError } from "@/utils";
 	import { gameDisplayName } from "@/utils/game-label";
 	import GameName from "@/components/GameName.svelte";
 	import IconMeeple from "@/components/icons/IconMeeple.svelte";
 	import IconMeepleFill from "@/components/icons/IconMeepleFill.svelte";
 	import type { GameInfoFront, UserFront } from "@bgs/models";
+	import type { GameInfoMap } from "@/lib/game-info.svelte";
 
-	const games = $derived.by(() => useLatestGameInfos()) as GameInfoFront[];
+	// Test-only injection point: specs pass the game-info map as a prop (setContext must
+	// run during component init, so a spec can't provide it post-hoc). Production leaves
+	// it undefined and the root layout's context map is used.
+	let { gameInfos: gameInfosProp }: { gameInfos?: GameInfoMap } = $props();
+
+	// A `$state` COPY of the game-info map's `/latest` entries, keyed by game. The source
+	// map's values are plain objects (mutated in place by like toggles — untracked), so
+	// reads here wouldn't re-run; seeding keyed `$state` entries makes `liked`/`likeCount`
+	// (and a like toggle's propagation) reactive in the derivations below. The prop is a
+	// keyed map (test injection), the context fallback a `/latest` list — normalize both.
+	// `untrack`: the seed is intentionally the initial snapshot, read once at init.
+	const sourceInfos: GameInfoFront[] = untrack(() =>
+		gameInfosProp
+			? Object.keys(gameInfosProp)
+					.filter((key) => key.endsWith("/latest"))
+					.map((key) => gameInfosProp[key] as GameInfoFront)
+			: (useLatestGameInfos() as GameInfoFront[])
+	);
+	const gameById = $state<Record<string, GameInfoFront>>({});
+	for (const info of sourceInfos) {
+		const id = info._id.game;
+		gameById[id] ??= info as GameInfoFront;
+	}
+	let games = $derived(Object.values(gameById));
 	let boardgameId = $derived(page!.params.boardgameId);
 
-	// Boardgames the player has played (open/active/ended), floated to the top and
-	// ordered by most recent activity. Loaded in the root +layout.ts so SSR renders
-	// the pinned group immediately (no post-hydration pop-in).
-	let myBoardgames = $derived((page.data.myBoardgames ?? []) as string[]);
+	// Boardgames the player has played (open/active/ended) or liked — the "My games"
+	// membership. Loaded in the root +layout.ts so SSR renders the group immediately
+	// (no post-hydration pop-in). Each row carries the two freshness signals:
+	// `lastPlayedAt` (raw play recency) and `likedAt` (like recency).
+	type MyBoardgameRow = { boardgame: string; lastPlayedAt?: string; liked?: boolean; likedAt?: string };
+	let myBoardgameRows = $derived((page.data.myBoardgames ?? []) as MyBoardgameRow[]);
+	let playedIds = $derived(myBoardgameRows.map((r) => r.boardgame));
+
+	// Play-recency timestamps, game → ms (from the SSR rows; play activity doesn't
+	// change client-side without a reload, so no live store is needed).
+	let lastPlayedAtMs = $derived(
+		Object.fromEntries(
+			myBoardgameRows.flatMap((r) => (r.lastPlayedAt ? [[r.boardgame, Date.parse(r.lastPlayedAt)]] : []))
+		)
+	);
+
+	// Like timestamps, game → ms. SSR renders the rows' snapshot; the client trusts the
+	// seeded store (live()), which tracks toggles — a like stamps `now`, refreshing the
+	// game's position in "My games" without a reload.
+	let likedAtMs = $derived(
+		live(
+			$likedBoardgames,
+			Object.fromEntries(myBoardgameRows.flatMap((r) => (r.likedAt ? [[r.boardgame, Date.parse(r.likedAt)]] : [])))
+		)
+	);
 
 	// "Forgotten" boardgames: hidden from the pinned "My games" group but still shown
 	// in "All games". Stored on the user's account settings (DB-backed, syncs across
@@ -43,20 +89,18 @@
 		saveForgotten(forgotten.filter((g) => g !== id));
 	}
 
-	const rank = (id: string) => {
-		const i = myBoardgames.indexOf(id);
-		return i === -1 ? Number.MAX_SAFE_INTEGER : i;
-	};
-	let pinnedIds = $derived(myBoardgames.filter((id) => !forgotten.includes(id)));
-	// "My games" = games the player has played (pinned) ∪ games they liked. A liked game
-	// belongs here by construction — liking one moves it into "My games" automatically
-	// (no imperative add), and unliking a never-played game drops it back out. Played
-	// games order by recency; liked-but-never-played games (no recency rank) fall to the
-	// end, A-Z among themselves.
+	let pinnedIds = $derived(playedIds.filter((id) => !forgotten.includes(id)));
+	// "My games" = games the player has played (pinned) ∪ games they liked, "freshest
+	// first": each game's sort key is the MOST RECENT of its last-played and like times
+	// (byMyGamesOrder). A liked game belongs here by construction — liking one moves it
+	// in automatically (no imperative add), and unliking a never-played game drops it
+	// back out. Membership reads the reactive `likedAtMs` (not `g.liked`, an untracked
+	// plain field) so a like toggle updates the sidebar live; the seed covers every
+	// SSR'd like, so the two agree on first paint.
 	let topGames = $derived(
 		games
-			.filter((g) => pinnedIds.includes(g._id.game) || g.liked)
-			.sort((a, b) => rank(a._id.game) - rank(b._id.game) || gameDisplayName(a).localeCompare(gameDisplayName(b)))
+			.filter((g) => pinnedIds.includes(g._id.game) || likedAtMs[g._id.game] !== undefined)
+			.sort(byMyGamesOrder(lastPlayedAtMs, likedAtMs))
 	);
 	let topIds = $derived(new Set(topGames.map((g) => g._id.game)));
 	// "All games" = everything not already in "My games", most-liked first (display name
@@ -93,14 +137,14 @@
 	}
 </script>
 
-{#snippet gameItem(game: GameInfoFront, pinned: boolean)}
+{#snippet gameItem({ game, pinned }: { game: GameInfoFront; pinned: boolean })}
 	{@const id = game._id.game}
 	{@const isForgotten = forgotten.includes(id)}
 	<!-- ✕ "forget" applies only to a game pinned by play (in myBoardgames) that isn't
 	     already forgotten. A liked game stays in "My games" via the like even when
 	     forgotten, and a liked-never-played game has no play-pin to forget — so ✕ would
 	     be a no-op on those; forgotten games show ↩ (unforget) instead. -->
-	{@const canForget = pinned && !isForgotten && myBoardgames.includes(id)}
+	{@const canForget = pinned && !isForgotten && playedIds.includes(id)}
 	<li class="group relative">
 		<a
 			class="block px-4 py-2 font-semibold no-underline text-inherit hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -171,14 +215,14 @@
 		{#if topGames.length > 0}
 			<li class="px-4 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">My games</li>
 			{#each topGames as game (game._id.game)}
-				{@render gameItem(game, true)}
+				{@render gameItem({ game, pinned: true })}
 			{/each}
 			<li class="px-4 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
 				All games
 			</li>
 		{/if}
 		{#each otherGames as game (game._id.game)}
-			{@render gameItem(game, false)}
+			{@render gameItem({ game, pinned: false })}
 		{/each}
 	{/key}
 </ul>
