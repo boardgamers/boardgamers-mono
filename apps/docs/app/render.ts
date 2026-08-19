@@ -19,14 +19,12 @@ function navSections(pages: DocPage[]): { title: string; pages: DocPage[] }[] {
 		if (!sections.has(top)) sections.set(top, []);
 		sections.get(top)!.push(page);
 	}
-	return [
-		...[...sections.entries()].map(([dir, dirPages]) => {
-			const index = dirPages.find((p) => p.path === dir);
-			// Capitalize the directory name as the section title ("guide" → "Guide").
-			const title = dir.charAt(0).toUpperCase() + dir.slice(1);
-			return { title: index?.title && index.title !== "Introduction" ? index.title : title, pages: dirPages };
-		}),
-	];
+	return [...sections.entries()].map(([dir, dirPages]) => {
+		const index = dirPages.find((p) => p.path === dir);
+		// Capitalize the directory name as the section title ("guide" → "Guide").
+		const title = dir.charAt(0).toUpperCase() + dir.slice(1);
+		return { title: index?.title && index.title !== "Introduction" ? index.title : title, pages: dirPages };
+	});
 }
 
 const CSS = `

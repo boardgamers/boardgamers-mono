@@ -28,4 +28,4 @@ The tarball must contain the built engine — the platform does **not** build ga
 
 Open the game page, create a game, and play. Bumping the engine version (or re-uploading a bundle) makes new games use the new code; ongoing games are unaffected.
 
-Registering a game is an admin action — to get your game added to the site, reach out via the **Contact** (or **Forum**) link in the site footer.
+Registering a game is an admin action — to get your game added to the site, reach out via [Contact](mailto:contact@boardgamers.space) (or the [Forum](https://forum.boardgamers.space)) — the links in the site footer.
