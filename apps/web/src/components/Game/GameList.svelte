@@ -45,6 +45,8 @@
 		pace = undefined,
 		optionFilter = undefined,
 		search = undefined,
+		games = $bindable([]),
+		headerContent = undefined,
 		class: className = "",
 	}: {
 		title?: string;
@@ -61,6 +63,12 @@
 		/** Setup-options filter (option name → required value), applied client-side after the fetch. */
 		optionFilter?: SetupOptionFilter | undefined;
 		search?: string | undefined;
+		/** The fetched open games (bindable) — the boardgame filter derives its option
+		 *  choices from them. */
+		games?: GameFront[];
+		/** Rendered inside the title row (e.g. filter chips), so filters don't push the
+		 *  list down / misalign the section titles. */
+		headerContent?: import("svelte").Snippet;
 		// Applied to the outer wrapper (e.g. `min-w-0` so the list can shrink inside a
 		// grid/flex cell instead of forcing the layout wide on mobile).
 		class?: string;
@@ -69,9 +77,13 @@
 	let loadingGames = $state(true);
 	let count = $state(0);
 	let currentPage = $state(0);
-	let games = $state<GameFront[]>([]);
+	// The bindable `games` prop is undefined when the parent doesn't bind it (most
+	// lists) — read through this non-null derived everywhere internally.
+	let fetchedGames = $derived(games ?? []);
 	// Fetched rows, narrowed by the client-side setup-options filter for display.
-	let displayedGames = $derived(optionFilter ? games.filter((g) => matchesSetupOptions(g, optionFilter)) : games);
+	let displayedGames = $derived(
+		optionFilter ? fetchedGames.filter((g) => matchesSetupOptions(g, optionFilter)) : fetchedGames
+	);
 	// Refreshed on each list (re)load so the relative-time labels ("last activity X
 	// ago", "⏱ Xh left", "created X ago") recompute on a refresh; static between loads.
 	let now = $state(Date.now());
@@ -310,13 +322,18 @@
 
 <div class={className}>
 	<Loading loading={loadingGames}>
-		<h3 class="font-semibold">
-			{title}
-			{#if !topRecords && !sample}
-				<!-- With a client-side setup-options filter the server count is the
-				     pre-filter total — show the number of rows actually displayed. -->
-				<span class="text-xs">({optionFilter ? displayedGames.length : count})</span>
-			{/if}
+		<h3 class="flex flex-wrap items-center gap-x-3 gap-y-1 font-semibold">
+			<span class="title-with-count">
+				{title}
+				{#if !topRecords && !sample}
+					<!-- With a client-side setup-options filter the server count is the
+					     pre-filter total — show the number of rows actually displayed. -->
+					<span class="text-xs">({optionFilter ? displayedGames.length : count})</span>
+				{/if}
+			</span>
+			<!-- Filter chips render inline with the title (headerContent), so they don't
+			     add a block above the list that would push the column down. -->
+			{@render headerContent?.()}
 		</h3>
 		<div>
 			{#if displayedGames.length > 0}
@@ -507,7 +524,7 @@
 						</li>
 					{/each}
 				</ul>
-				{#if sample && count > games.length}
+				{#if sample && count > fetchedGames.length}
 					<!-- Lobby discovery: the sample is capped at perPage but the lobby holds
 				     more — say so, offer the full list, and a dice re-roll for a fresh sample
 				     (logoClick bumps $logoClicks, which this list reacts to with a cache
@@ -517,7 +534,7 @@
 							href={resolve("/(app)/games")}
 							class="rounded px-2 py-1 font-medium text-accent hover:bg-gray-100 hover:underline dark:text-accent-lighter dark:hover:bg-gray-800"
 						>
-							{count - games.length} more open {count - games.length === 1 ? "game" : "games"} →
+							{count - fetchedGames.length} more open {count - fetchedGames.length === 1 ? "game" : "games"} →
 						</a>
 						<button
 							type="button"

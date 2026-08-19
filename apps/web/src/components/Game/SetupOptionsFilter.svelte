@@ -1,86 +1,161 @@
-<script lang="ts">
-	import marked from "marked";
-	import { untrack } from "svelte";
-	import { Input } from "@/modules/cdk";
-	import type { GameInfoFront } from "@bgs/models";
+<script lang="ts" module>
+	import type { GameFront, GameInfoFront } from "@bgs/models";
 	import type { GamePace } from "@/utils";
 	import type { SetupOptionFilter } from "@/lib/games.svelte";
 
-	// Open-game filters (#55): pace (live/async) plus one select per setup option of
-	// the game (map / variant / …), built from the game-info's option definitions so
-	// the labels match what the new-game form shows. Rendered above the lobby list
-	// on the home page (pace only) and the boardgame page (pace + setup options).
+	export type OptionChoice = { name: string; label: string };
+	export type OptionGroup = { name: string; label: string; choices: OptionChoice[] };
+
+	/**
+	 * The setup-option filter choices, derived from the option definitions AND the
+	 * open games actually loaded: an option only appears if at least one visible
+	 * game sets a non-default value for it, and the choices are the values present
+	 * (so the chips stay compact + relevant — no "Map layout" with 5 layouts when
+	 * the open games only use 2). Only multi-valued `select` options (the review's
+	 * clutter fix): checkbox flags are left out.
+	 */
+	export function deriveOptionGroups(
+		info: GameInfoFront | undefined,
+		games: GameFront[],
+		plain: (text: string) => string
+	): OptionGroup[] {
+		const groups: OptionGroup[] = [];
+		for (const opt of info?.options ?? []) {
+			if (opt.type !== "select" || !opt.items?.length) {
+				continue;
+			}
+			// The option's default value (what a game gets when the creator doesn't
+			// choose) — matching the new-game form's pre-fill: `default` if it's a
+			// valid item, else the first item. Games at the default aren't a
+			// meaningful "choice", so they don't make the option filterable.
+			const defaultValue =
+				typeof opt.default === "string" && opt.items.some((i) => i.name === opt.default)
+					? opt.default
+					: opt.items[0].name;
+
+			const present: Record<string, true> = {};
+			for (const game of games) {
+				const value = (game.game.options as Record<string, unknown> | undefined)?.[opt.name];
+				if (typeof value === "string" && value !== defaultValue) {
+					present[value] = true;
+				}
+			}
+			if (Object.keys(present).length === 0) {
+				continue;
+			}
+			const choices = opt.items
+				.filter((item) => present[item.name])
+				.map((item) => ({ name: item.name, label: plain(item.label) }));
+			groups.push({ name: opt.name, label: plain(opt.label), choices });
+		}
+		return groups;
+	}
+</script>
+
+<script lang="ts">
+	import marked from "marked";
+
+	// Open-game filters (#55) as chips that sit inline with the lobby title (the
+	// parent passes this via GameList's headerContent) — NOT a select-bar above the
+	// list, which pushed the column down and misaligned the section titles.
+	// Home page: pace chips only. Boardgame page: pace + one chip-group per setup
+	// option, derived from the open games actually loaded.
 	let {
 		info = undefined,
+		games = [],
 		pace = $bindable(""),
 		optionFilter = $bindable(undefined),
 	}: {
-		/** The boardgame's game-info — its `options` drive the per-option selects. */
+		/** The boardgame's game-info — its `options` + the loaded games drive the option chips. */
 		info?: GameInfoFront | undefined;
+		/** The open games currently loaded (bind:games from GameList). */
+		games?: GameFront[];
 		pace?: "" | GamePace;
 		optionFilter?: SetupOptionFilter | undefined;
 	} = $props();
 
-	// Filterable setup options: only the multi-valued `select` options (map /
-	// variant / …). Checkboxes are left out — a checkbox-heavy game would clutter
-	// the bar with one two-choice select per flag, and filtering "games with flag
-	// X on" is rarely useful (categories/hidden are form structure, not options).
-	let filterOptions = $derived((info?.options ?? []).filter((opt) => opt.type === "select"));
+	// Option labels can carry markdown (links, emphasis) — chips need plain text.
+	const plain = (text: string) =>
+		marked(text)
+			.replace(/<[^>]+>/g, "")
+			.trim();
 
-	// Selection state: "" = no filter, otherwise the required item name. Initialized
-	// with an entry per option — a `bind:value` into a missing key is undefined,
-	// which Svelte rejects (Input's `value` has a fallback). Rebuilt when the option
-	// set changes (navigating between boardgames swaps `info` under the same
-	// component instance).
-	const initialSelections = untrack(() =>
-		Object.fromEntries((info?.options ?? []).filter((opt) => opt.type === "select").map((opt) => [opt.name, ""]))
-	);
-	let selections = $state<Record<string, string>>(initialSelections);
+	let optionGroups = $derived(deriveOptionGroups(info, games, plain));
 
-	let lastOptionsKey = Object.keys(initialSelections).join("");
+	// Selection state: option name → required item name ("" = no filter). Rebuilt
+	// when the option set changes (navigating between boardgames swaps `info` under
+	// the same component instance).
+	let selections = $state<Record<string, string>>({});
+	let lastOptionsKey = "";
 	$effect(() => {
-		const key = filterOptions.map((opt) => opt.name).join("");
+		const key = optionGroups.map((g) => g.name).join("");
 		if (key !== lastOptionsKey) {
 			lastOptionsKey = key;
-			selections = Object.fromEntries(filterOptions.map((opt) => [opt.name, ""]));
+			selections = {};
 		}
 	});
 
 	$effect(() => {
 		const next: SetupOptionFilter = {};
-		for (const opt of filterOptions) {
-			const value = selections[opt.name];
+		for (const group of optionGroups) {
+			const value = selections[group.name];
 			if (value) {
-				next[opt.name] = value;
+				next[group.name] = value;
 			}
 		}
 		optionFilter = Object.keys(next).length > 0 ? next : undefined;
 	});
 
-	// Option labels can carry markdown (links, emphasis) — selects need plain text.
-	const plain = (text: string) =>
-		marked(text)
-			.replace(/<[^>]+>/g, "")
-			.trim();
+	const paceChoices: { value: "" | GamePace; label: string }[] = [
+		{ value: "", label: "All" },
+		{ value: "live", label: "⚡ Live" },
+		{ value: "async", label: "🐢 Async" },
+	];
+
+	// Chip styling, matching the setup-badge / pace-chip design language. The
+	// active chip uses the accent; inactive ones are neutral + hover to accent.
+	const chipBase =
+		"cursor-pointer rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap transition-colors";
+	const chipActive = "border-accent bg-accent text-white";
+	const chipInactive =
+		"border-gray-300 text-gray-600 hover:border-accent hover:text-accent dark:border-gray-600 dark:text-gray-300 dark:hover:text-accent-lighter";
 </script>
 
-<div class="mb-2 flex flex-wrap items-center gap-2">
-	<span class="text-sm font-medium text-gray-500 dark:text-gray-400">Find a game:</span>
-	<div class="w-full sm:w-40">
-		<Input type="select" bind:value={pace} aria-label="Filter games by pace" title="Filter games by pace">
-			<option value="">Pace: any</option>
-			<option value="live">⚡ Live games</option>
-			<option value="async">🐢 Async games</option>
-		</Input>
-	</div>
-	{#each filterOptions as opt (opt.name)}
-		<div class="w-full sm:w-60">
-			<Input type="select" bind:value={selections[opt.name]} aria-label={`Filter by ${plain(opt.label)}`}>
-				<option value="">{plain(opt.label)}: any</option>
-				{#each opt.items ?? [] as item (item.name)}
-					<option value={item.name}>{plain(item.label)}</option>
-				{/each}
-			</Input>
-		</div>
+<!-- Pace chips (always — the home page's only filter). -->
+<div class="flex items-center gap-1" role="group" aria-label="Filter games by pace">
+	{#each paceChoices as choice (choice.value)}
+		<button
+			type="button"
+			class="{chipBase} {pace === choice.value ? chipActive : chipInactive}"
+			aria-pressed={pace === choice.value}
+			onclick={() => (pace = choice.value)}
+		>
+			{choice.label}
+		</button>
 	{/each}
 </div>
+
+<!-- One chip-group per setup option present in the loaded open games. -->
+{#each optionGroups as group (group.name)}
+	<div class="flex items-center gap-1" role="group" aria-label={`Filter by ${group.label}`}>
+		<span class="text-xs font-medium text-gray-500 dark:text-gray-400">{group.label}:</span>
+		<button
+			type="button"
+			class="{chipBase} {(selections[group.name] ?? '') === '' ? chipActive : chipInactive}"
+			aria-pressed={(selections[group.name] ?? "") === ""}
+			onclick={() => (selections[group.name] = "")}
+		>
+			All
+		</button>
+		{#each group.choices as choice (choice.name)}
+			<button
+				type="button"
+				class="{chipBase} {selections[group.name] === choice.name ? chipActive : chipInactive}"
+				aria-pressed={selections[group.name] === choice.name}
+				onclick={() => (selections[group.name] = choice.name)}
+			>
+				{choice.label}
+			</button>
+		{/each}
+	</div>
+{/each}

@@ -4,7 +4,7 @@
 	import SanitizedHtml from "@/components/SanitizedHtml.svelte";
 	import { confirm, handleError } from "@/utils";
 	import marked from "marked";
-	import type { GameInfoFront } from "@bgs/models";
+	import type { GameFront, GameInfoFront } from "@bgs/models";
 	import { Button, Card } from "@/modules/cdk";
 	import { UserGameSettings, GameList, BoardgameElo, BoardgameLinks, GameName, SetupOptionsFilter } from "@/components";
 	import { account } from "@/lib/account.svelte";
@@ -40,6 +40,8 @@
 	let lobbyPace = $state<"" | GamePace>("");
 	let lobbyOptions = $state<SetupOptionFilter | undefined>(undefined);
 	let lobbyPaceFilter = $derived<GamePace | undefined>(lobbyPace === "" ? undefined : lobbyPace);
+	// The lobby's loaded open games — the filter derives its option choices from them.
+	let lobbyGames = $state<GameFront[]>([]);
 
 	async function newGame() {
 		if (needOwnership && !hasOwnership) {
@@ -100,7 +102,6 @@
 			/>
 		</div>
 		<div class="mt-3">
-			<SetupOptionsFilter info={boardgame} bind:pace={lobbyPace} bind:optionFilter={lobbyOptions} />
 			<!-- Not `sample`: one boardgame's open games are a small set, and a setup-options
 			     filter must see every match (sampling would hide same-creator games). -->
 			<GameList
@@ -110,7 +111,17 @@
 				title="Lobby"
 				pace={lobbyPaceFilter}
 				optionFilter={lobbyOptions}
-			/>
+				bind:games={lobbyGames}
+			>
+				{#snippet headerContent()}
+					<SetupOptionsFilter
+						info={boardgame}
+						games={lobbyGames}
+						bind:pace={lobbyPace}
+						bind:optionFilter={lobbyOptions}
+					/>
+				{/snippet}
+			</GameList>
 		</div>
 	</div>
 

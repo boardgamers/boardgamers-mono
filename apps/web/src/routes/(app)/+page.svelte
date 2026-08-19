@@ -114,8 +114,11 @@
 				{/if}
 			</div>
 			<div>
-				<SetupOptionsFilter bind:pace={lobbyPace} />
-				<GameList sample perPage={5} gameStatus="open" title="Lobby" pace={lobbyPaceFilter} />
+				<GameList sample perPage={5} gameStatus="open" title="Lobby" pace={lobbyPaceFilter}>
+					{#snippet headerContent()}
+						<SetupOptionsFilter bind:pace={lobbyPace} />
+					{/snippet}
+				</GameList>
 			</div>
 		</div>
 
