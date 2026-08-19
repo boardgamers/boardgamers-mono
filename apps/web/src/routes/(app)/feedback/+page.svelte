@@ -91,8 +91,7 @@
 	<h1>Feedback &amp; requests</h1>
 	<p class="mt-2 text-gray-600 dark:text-gray-400">
 		Vote with your meeple for the games and features you want to see on Boardgamers. Found a bug? Tell us on
-		<a href="https://discord.gg/vpP4Q7R">Discord</a> or via <a href="mailto:contact@boardgamers.space">contact</a> — this
-		page is for requests.
+		<a href="https://discord.gg/vpP4Q7R">Discord</a> or via <a href="mailto:contact@boardgamers.space">email</a>.
 	</p>
 
 	<div class="mt-6 grid gap-6 lg:grid-cols-2">
@@ -107,7 +106,7 @@
 				<p
 					class="mt-4 rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-gray-500 dark:border-gray-700 dark:text-gray-400"
 				>
-					No game requests yet — be the first!
+					No game requests yet, be the first!
 				</p>
 			{:else}
 				<ul class="mt-4 space-y-3">
@@ -208,7 +207,7 @@
 				<p
 					class="mt-4 rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-gray-500 dark:border-gray-700 dark:text-gray-400"
 				>
-					No feature requests yet — suggest the first one!
+					No feature requests yet, suggest the first one!
 				</p>
 			{:else}
 				<ul class="mt-4 space-y-3">
