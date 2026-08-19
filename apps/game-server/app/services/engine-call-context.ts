@@ -12,7 +12,12 @@
  *    completion — the early-warning trail before an actual freeze.
  *
  * Deliberately cheap: one plain context object per call, no timers (duration is
- * computed at completion; the guard reads the context when *it* fires). Honest limit:
+ * computed at completion; the guard reads the context when *it* fires). Caveat: the
+ * context is a single module-level slot, so an async engine method parked on an await
+ * keeps it set while other work runs — a wedge caused elsewhere could be blamed on it.
+ * The sync-blocking case (the one that wedges the loop) is always attributed
+ * correctly; `engineCallMs` in the log helps judge a suspicious long-lived context.
+ * Honest limit:
  * a FULLY blocked loop can't run its own logging — the external watchdog restarts the
  * process in that case (see @bgs/utils/watchdog) — but the context still names the
  * culprit whenever the loop recovers enough to log.
@@ -42,7 +47,18 @@ export function moveString(move: unknown): string | undefined {
 	if (move === undefined || move === null) {
 		return undefined;
 	}
-	const raw = typeof move === "string" ? move : JSON.stringify(move);
+	let raw: string | undefined;
+	try {
+		// JSON.stringify returns undefined for functions/symbols — coalesced below.
+		raw = typeof move === "string" ? move : JSON.stringify(move);
+	} catch {
+		// A non-serializable move (circular, BigInt) must never turn a successful
+		// (slow) call into a thrown error — logging is best-effort.
+		return "[unserializable move]";
+	}
+	if (raw === undefined) {
+		return "[unserializable move]";
+	}
 	return raw.length > MOVE_MAX_LEN ? raw.slice(0, MOVE_MAX_LEN - 1) + "…" : raw;
 }
 

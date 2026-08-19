@@ -149,4 +149,14 @@ describe("moveString", () => {
 		const out = moveString(long);
 		assert.ok(out && out.length <= 200 && out.endsWith("…"));
 	});
+
+	it("never throws on a non-serializable move", () => {
+		const circular: Record<string, unknown> = {};
+		circular.self = circular;
+		assert.equal(moveString(circular), "[unserializable move]");
+		assert.equal(
+			moveString(() => {}),
+			"[unserializable move]",
+		);
+	});
 });

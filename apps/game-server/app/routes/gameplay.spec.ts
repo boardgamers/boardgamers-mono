@@ -103,6 +103,7 @@ describe("POST /:gameId/move — engine timeout attribution", () => {
 	after(async () => {
 		server?.close();
 		await engineRunner.close();
+		await colls.gameInfos.deleteMany({ "_id.game": ENGINE_NAME });
 		await closeDb();
 		fs.rmSync(dir, { recursive: true, force: true });
 	});
