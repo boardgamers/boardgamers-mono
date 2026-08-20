@@ -88,6 +88,7 @@ describe("BoardgameRequests", () => {
 		putMock.mockReset();
 		account.set(null);
 		document.body.innerHTML = "";
+		sessionStorage.clear();
 	});
 
 	it("renders the requests most-voted first, with status, requester and forum link", () => {
@@ -194,6 +195,15 @@ describe("BoardgameRequests", () => {
 		expect(target.textContent).toContain("Link your forum account");
 		// The failed request is not added to the list
 		expect(target.textContent).not.toContain("New faction");
+
+		// Clicking the link button stashes the draft under the form's own key.
+		const linkButton = [...target.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+			b.textContent!.includes("Link your forum account"),
+		)!;
+		linkButton.click();
+		expect(sessionStorage.getItem("feedback-draft-game-testgame")).toBe(
+			JSON.stringify({ title: "New faction", body: "" }),
+		);
 		unmount(instance as never);
 	});
 });

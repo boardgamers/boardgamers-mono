@@ -130,6 +130,7 @@ describe("/feedback page", () => {
 		page.url = new URL("http://localhost/feedback") as never;
 		page.data = { user: null } as never;
 		document.body.innerHTML = "";
+		sessionStorage.clear();
 	});
 
 	it("renders both lists with labels, statuses, requesters and vote counts", () => {
@@ -271,6 +272,57 @@ describe("/feedback page", () => {
 		expect(target.textContent).toContain("Link your forum account");
 		// The failed request is not added to the list
 		expect(target.textContent).not.toContain("Mobile app</h3>");
+		unmount(instance as never);
+	});
+
+	it("prompts to link a forum account for a game request, stashing the draft", async () => {
+		account.set({ _id: "u1", account: { username: "alice" } } as never);
+		postMock.mockRejectedValue(
+			new ApiError("Link your forum account to request a game", 403, "forum_account_required"),
+		);
+		const { target, instance } = mountPage();
+
+		const labelInput = target.querySelector<HTMLInputElement>("#game-request-label")!;
+		labelInput.value = "Terraforming Mars";
+		labelInput.dispatchEvent(new Event("input", { bubbles: true }));
+		flushSync();
+		labelInput.closest("form")!.requestSubmit();
+
+		await vi.waitFor(() => {
+			const alert = target.querySelector('[role="alert"]');
+			expect(alert?.textContent).toContain("linked forum account");
+		});
+		expect(target.textContent).toContain("Link your forum account");
+		// The failed request is not added to the list
+		expect(target.textContent).not.toContain("Terraforming Mars</h3>");
+
+		// Clicking the link button stashes the draft under its own key (distinct from
+		// the site form's "feedback-draft-site") and starts the forum SSO.
+		const linkButton = [...target.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+			b.textContent!.includes("Link your forum account"),
+		)!;
+		linkButton.click();
+		expect(sessionStorage.getItem("feedback-draft-game-request")).toBe(
+			JSON.stringify({ label: "Terraforming Mars", description: "" }),
+		);
+		expect(sessionStorage.getItem("feedback-draft-site")).toBeNull();
+		unmount(instance as never);
+	});
+
+	it("restores a stashed game-request draft on return from the forum linking flow", () => {
+		account.set({ _id: "u1", account: { username: "alice" } } as never);
+		sessionStorage.setItem(
+			"feedback-draft-game-request",
+			JSON.stringify({ label: "Terraforming Mars", description: "Card drafting in space" }),
+		);
+		const { target, instance } = mountPage();
+
+		expect(target.querySelector<HTMLInputElement>("#game-request-label")!.value).toBe("Terraforming Mars");
+		expect(target.querySelector<HTMLTextAreaElement>("#game-request-description")!.value).toBe(
+			"Card drafting in space",
+		);
+		// The draft is consumed (a later plain visit doesn't resurrect it).
+		expect(sessionStorage.getItem("feedback-draft-game-request")).toBeNull();
 		unmount(instance as never);
 	});
 

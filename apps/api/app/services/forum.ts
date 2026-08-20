@@ -57,8 +57,8 @@ export async function forumUidForUser(userId: ObjectId): Promise<number | null> 
  *
  * When `forumUid` is set, the topic is posted AS that user via the Write API's
  * `_uid` impersonation (the server token must be allowed to impersonate). When
- * absent (game requests stay frictionless), the topic is posted by the token's
- * own (bot) account with a "Requested by <username>" attribution line.
+ * absent, the topic is posted by the token's own (bot) account with a
+ * "Requested by <username>" attribution line.
  */
 export async function createFeedbackTopic(input: {
 	title: string;
