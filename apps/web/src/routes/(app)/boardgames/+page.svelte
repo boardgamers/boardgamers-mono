@@ -32,7 +32,7 @@
 </script>
 
 <div class="container mx-auto px-4">
-	<h1 class="mb-4">Game selection</h1>
+	<h1 class="mb-1">Game selection</h1>
 	<p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
 		Missing a game? <a href={resolve("/(app)/feedback#game-requests")}>Suggest it</a>
 	</p>
