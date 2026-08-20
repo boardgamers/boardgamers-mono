@@ -223,11 +223,11 @@ comes back. NodeBB's **default** new-user anti-spam breaks that pipeline
 three ways, so the live forum overrides them (ACP → Settings → User →
 Restrictions, or the `config` object):
 
-| Setting                      | Default | Live | Why                                                                              |
-| ---------------------------- | ------- | ---- | -------------------------------------------------------------------------------- |
-| `postQueue`                  | 1       | 0    | rep 0 / postcount 0 posts get queued → 202 with **no tid** → the API 503s        |
-| `initialPostDelay`           | 10      | 0    | the linking flow posts within seconds of account creation → 400 `user-too-new`   |
-| `newbieReputationThreshold`  | 3       | 0    | disables the 120 s newbie post delay (400 on the user's immediate retry)         |
+| Setting                     | Default | Live | Why                                                                            |
+| --------------------------- | ------- | ---- | ------------------------------------------------------------------------------ |
+| `postQueue`                 | 1       | 0    | rep 0 / postcount 0 posts get queued → 202 with **no tid** → the API 503s      |
+| `initialPostDelay`          | 10      | 0    | the linking flow posts within seconds of account creation → 400 `user-too-new` |
+| `newbieReputationThreshold` | 3       | 0    | disables the 120 s newbie post delay (400 on the user's immediate retry)       |
 
 This is safe here because forum registration is SSO-only
 (`registrationType: disabled`, `allowLocalLogin: 0`): every account maps to a
