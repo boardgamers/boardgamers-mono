@@ -11,6 +11,7 @@
 		GameList,
 		BoardgameElo,
 		BoardgameLinks,
+		BoardgameRequests,
 		GameName,
 		GameLikeButton,
 		SetupOptionsFilter,
@@ -194,4 +195,6 @@
 			</div>
 		</section>
 	{/if}
+
+	<BoardgameRequests {boardgameId} sourceUrl={boardgame?.links?.source} requests={data.gameRequests} {user} />
 </div>
