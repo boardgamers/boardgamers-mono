@@ -12,7 +12,7 @@ import env from "../../config/env.ts";
 import { setSendmailForTests, type MailSendData } from "../../config/sendmail.ts";
 import { testUser, testGamePrefs } from "../../config/test-helpers.ts";
 import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
-import { setWebhookFetchForTests, type WebhookCall } from "../../models/user.ts";
+import { hashUserSecret, setWebhookFetchForTests, type WebhookCall } from "../../models/user.ts";
 import { interceptS3Fetches, makeS3Mock } from "../../services/s3-mock.ts";
 import { s3Fetch, setS3ClientsForTests } from "../../services/s3.ts";
 
@@ -656,6 +656,69 @@ describe("Account API — auth email cooldown (#195)", () => {
 		setSendmailForTests(null);
 		return db().dropDatabase();
 	});
+});
+
+describe("Account API — email confirmation", () => {
+	const confirmedUser = testUser({
+		account: { username: "confirmeduser", email: "confirmed@test.com" },
+		security: { confirmed: true, confirmKey: null, slug: "confirmeduser" },
+	});
+	const unconfirmedUser = testUser({
+		account: { username: "unconfirmeduser", email: "unconfirmed@test.com" },
+		// Only the hash is stored; the emailed link carries the plaintext.
+		security: { confirmed: false, confirmKey: hashUserSecret("confirm-key-123"), slug: "unconfirmeduser" },
+	});
+
+	before(async () => {
+		await colls.users.insertMany([confirmedUser, unconfirmedUser]);
+	});
+
+	it("confirming an already-confirmed user returns JSON auth info (no 302)", async () => {
+		const res = await api("POST", "/api/account/confirm", {
+			email: "confirmed@test.com",
+			key: "any-key",
+		});
+		assert.strictEqual(res.status, 200);
+		const data = z
+			.object({
+				alreadyConfirmed: z.literal(true),
+				user: z.object({ account: z.object({ email: z.string() }) }),
+				accessToken: z.object({ code: z.string() }),
+				refreshToken: z.object({ code: z.string() }),
+			})
+			.parse(res.data);
+		assert.strictEqual(data.user.account.email, "confirmed@test.com");
+	});
+
+	it("confirming with a wrong key fails", async () => {
+		const res = await api("POST", "/api/account/confirm", {
+			email: "unconfirmed@test.com",
+			key: "wrong-key",
+		});
+		assert.strictEqual(res.status, 422);
+	});
+
+	it("confirming with the right key returns auth info without the flag", async () => {
+		const res = await api("POST", "/api/account/confirm", {
+			email: "unconfirmed@test.com",
+			key: "confirm-key-123",
+		});
+		assert.strictEqual(res.status, 200);
+		const data = z
+			.object({
+				alreadyConfirmed: z.literal(true).optional(),
+				user: z.object({ account: z.object({ email: z.string() }) }),
+				accessToken: z.object({ code: z.string() }),
+			})
+			.parse(res.data);
+		assert.strictEqual(data.user.account.email, "unconfirmed@test.com");
+		assert.strictEqual(data.alreadyConfirmed, undefined);
+
+		const stored = await colls.users.findOne({ _id: unconfirmedUser._id });
+		assert.strictEqual(stored?.security.confirmed, true);
+	});
+
+	after(() => db().dropDatabase());
 });
 
 describe("Account API — session cookie over a TLS-terminating proxy", () => {

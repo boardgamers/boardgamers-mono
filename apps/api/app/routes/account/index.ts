@@ -511,7 +511,11 @@ router.post("/confirm", rateLimitAttempt, async (ctx: Context) => {
 	}
 
 	if (user.security.confirmed) {
-		ctx.redirect("/login");
+		// JSON, not a redirect: this endpoint is consumed by fetch (the web confirm
+		// page), and a 302 is followed into HTML that callers can't parse.
+		ctx.state.user = user;
+		await sendAuthInfo(ctx, "password");
+		ctx.body = { ...ctx.body, alreadyConfirmed: true };
 		return;
 	}
 
