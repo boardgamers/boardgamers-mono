@@ -168,9 +168,7 @@ describe("Unsubscribe API (#2)", () => {
 	function postOneClick(token: string, body: string | null) {
 		return fetch(`${baseURL()}/api/account/unsubscribe/one-click?token=${encodeURIComponent(token)}`, {
 			method: "POST",
-			...(body === null
-				? {}
-				: { headers: { "Content-Type": "application/x-www-form-urlencoded" }, body }),
+			...(body === null ? {} : { headers: { "Content-Type": "application/x-www-form-urlencoded" }, body }),
 		});
 	}
 
