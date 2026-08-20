@@ -77,7 +77,7 @@
 	</p>
 
 	<div class="mt-6 grid gap-6 lg:grid-cols-2">
-		<section aria-labelledby="game-requests-heading">
+		<section id="game-requests" aria-labelledby="game-requests-heading">
 			<div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
 				<h2 id="game-requests-heading">Game requests</h2>
 				<a
