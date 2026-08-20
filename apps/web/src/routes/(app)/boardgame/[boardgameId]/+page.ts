@@ -40,12 +40,21 @@ export const load: PageLoad = async ({ params, parent }) => {
 	// lists): a feedback outage shouldn't take the boardgame page down with it.
 	const gameRequests = get<FeedbackRequestListing[]>("/feedback", { kind: "game", game: boardgameId }).catch(() => []);
 
-	const [active, featured, , rankings, requests] = await Promise.all([
+	// Probe for an optional `<game>:maps` CMS page (e.g. Powergrid's maps & variants
+	// reference); the header link is only shown when one exists, so games without it
+	// don't render a dead link.
+	const hasMapsPage = get(`/page/${boardgameId}:maps`).then(
+		() => true,
+		() => false
+	);
+
+	const [active, featured, , rankings, requests, mapsPage] = await Promise.all([
 		myActiveGames,
 		featuredGames,
 		lobbyGames,
 		loadEloRankings({ boardgameId, count: 6, fetchCount: false }),
 		gameRequests,
+		hasMapsPage,
 	]);
 
 	// If the player has no active games of this boardgame, fall back to their finished
@@ -79,6 +88,7 @@ export const load: PageLoad = async ({ params, parent }) => {
 		myGamesStatus: myGamesFallback,
 		featuredStatus: featuredFallback,
 		gameRequests: requests,
+		hasMapsPage: mapsPage,
 		seo: boardgameSeo(boardgameId, gameInfo),
 	};
 };

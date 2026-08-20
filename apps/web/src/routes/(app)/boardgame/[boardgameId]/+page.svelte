@@ -101,7 +101,14 @@
 					<div class="flex items-center">
 						<span class="flex-1"></span>
 						<span class="font-semibold">{rules ? "Rules" : "Description"}</span>
-						<span class="flex flex-1 justify-end">
+						<span class="flex flex-1 items-center justify-end gap-2">
+							{#if data.hasMapsPage}
+								<a
+									href={resolve("/(app)/page/[part1]/[...part2]", { part1: boardgameId, part2: "maps" })}
+									class="whitespace-nowrap text-sm font-normal text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary-lighter"
+									>Maps &amp; variants</a
+								>
+							{/if}
 							<BoardgameLinks links={boardgame.links} />
 						</span>
 					</div>
