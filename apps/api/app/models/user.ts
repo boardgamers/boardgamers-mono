@@ -2,11 +2,12 @@ import type { UserDoc, GameDoc } from "@bgs/models";
 import assert from "node:assert";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
-import type { WithId } from "mongodb";
+import { ObjectId, type WithId } from "mongodb";
 import { z } from "zod";
 import locks from "../config/locks.ts";
 import { colls } from "../config/db.ts";
-import { env, sendmail } from "../config/index.ts";
+import { env } from "../config/index.ts";
+import { sendMail, unsubscribePageUrl, unsubscribeScopes, type UnsubscribeScope } from "../services/mail.ts";
 import { safeFetch } from "../services/safefetch.ts";
 import { findGamesWithPlayersTurn } from "./game.ts";
 
@@ -88,7 +89,6 @@ export async function findByUsername(name: string) {
 }
 
 export async function findByUrl(urlComponent: string) {
-	const { ObjectId } = await import("mongodb");
 	return colls.users.findOne({ _id: new ObjectId(urlComponent) });
 }
 
@@ -132,6 +132,55 @@ export function hashUserSecret(secret: string): string {
 // 1.4.0 hashed the pre-#164 plaintext rows).
 function secretMatches(stored: string | null | undefined, incoming: string): boolean {
 	return !!stored && stored === hashUserSecret(incoming);
+}
+
+// --- Signed unsubscribe tokens (#2) ------------------------------------------
+
+// Stateless HMAC token of `${userId}.${scope}` — the signature authenticates the
+// emailed unsubscribe link without a login or any stored state. Keyed with the
+// session secret (already deployed, rotation-worthy on leak).
+function unsubscribeSignature(userId: string, scope: UnsubscribeScope): string {
+	return crypto.createHmac("sha256", env.sessionSecret).update(`unsubscribe:${userId}.${scope}`).digest("base64url");
+}
+
+export function signUnsubscribeToken(userId: string, scope: UnsubscribeScope): string {
+	return `${userId}.${scope}.${unsubscribeSignature(userId, scope)}`;
+}
+
+function asUnsubscribeScope(scope: string | undefined): UnsubscribeScope | null {
+	for (const value of Object.values(unsubscribeScopes)) {
+		if (value === scope) {
+			return value;
+		}
+	}
+	return null;
+}
+
+export function verifyUnsubscribeToken(token: string): { userId: string; scope: UnsubscribeScope } | null {
+	const [userId, rawScope, signature, extra] = token.split(".");
+	const scope = asUnsubscribeScope(rawScope);
+	if (extra !== undefined || !ObjectId.isValid(userId ?? "") || !scope) {
+		return null;
+	}
+	const expected = unsubscribeSignature(userId, scope);
+	const a = Buffer.from(signature ?? "");
+	const b = Buffer.from(expected);
+	if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+		return null;
+	}
+	return { userId, scope };
+}
+
+export function unsubscribeUrl(userId: string, scope: UnsubscribeScope): string {
+	return unsubscribePageUrl(signUnsubscribeToken(userId, scope));
+}
+
+export async function applyUnsubscribe(userId: string, scope: UnsubscribeScope): Promise<void> {
+	const update =
+		scope === "newsletter"
+			? { $set: { "settings.mailing.newsletter": false } }
+			: { $set: { "settings.mailing.game.activated": false }, $unset: { "meta.nextGameNotification": "" as const } };
+	await colls.users.updateOne({ _id: new ObjectId(userId) }, update);
 }
 
 export function validateResetKey(user: WithId<UserDoc>, key: string) {
@@ -226,8 +275,8 @@ export async function notifyLastIp(user: WithId<UserDoc>, ip: string) {
 export function sendConfirmationEmail(user: WithId<UserDoc>) {
 	assert(user.account.email, "Cannot send confirmation email: user has no email address");
 	assert(user.security.confirmKey, "Cannot send confirmation email: user has no confirm key");
-	return sendmail({
-		from: env.noreply,
+	return sendMail({
+		kind: "confirm",
 		to: user.account.email,
 		subject: "Confirm your account",
 		html: `
@@ -242,8 +291,8 @@ export function sendConfirmationEmail(user: WithId<UserDoc>) {
 export function sendResetEmail(user: WithId<UserDoc>) {
 	assert(user.account.email, "Cannot send reset email: user has no email address");
 	assert(user.security.reset?.key, "Cannot send reset email: user has no reset key");
-	return sendmail({
-		from: env.noreply,
+	return sendMail({
+		kind: "reset",
 		to: user.account.email,
 		subject: "Forgotten password",
 		html: `
@@ -259,8 +308,8 @@ export function sendMailChangeEmail(user: WithId<UserDoc>, newEmail: string) {
 		return Promise.resolve();
 	}
 
-	return sendmail({
-		from: env.noreply,
+	return sendMail({
+		kind: "mail-change",
 		to: user.account.email,
 		subject: "Mail change",
 		html: `
@@ -526,15 +575,15 @@ export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
 		const gameString = activeGames.length > 1 ? `${activeGames.length} games` : "one game";
 
 		if (freshUser.account.email && freshUser.security.confirmed) {
-			sendmail({
-				from: env.noreply,
+			sendMail({
+				kind: "your-turn",
 				to: freshUser.account.email,
 				subject: "Your turn",
 				html: `
-	        <p>Hello ${freshUser.account.username}</p>
-	        <p>It's your turn on ${gameString},
-	        click <a href='https://${env.site}/user/${encodeURIComponent(freshUser.account.username)}'>here</a> to see your active games.</p>
-	        <p>You can also change your email settings and unsubscribe <a href='https://${env.site}/account'>here</a> with a simple click.</p>`,
+				<p>Hello ${freshUser.account.username}</p>
+				<p>It's your turn on ${gameString},
+				click <a href='https://${env.site}/user/${encodeURIComponent(freshUser.account.username)}'>here</a> to see your active games.</p>`,
+				unsubscribeToken: signUnsubscribeToken(freshUser._id.toHexString(), "game"),
 			}).catch(console.error);
 		}
 

@@ -13,6 +13,8 @@ import { colls, db } from "../config/db.ts";
 import env from "../config/env.ts";
 import { setSendmailForTests, type MailSendData } from "../config/sendmail.ts";
 import { testGame, testUser } from "../config/test-helpers.ts";
+import { signUnsubscribeToken } from "../models/user.ts";
+import { unsubscribeOneClickUrl, unsubscribePageUrl } from "./mail.ts";
 import { processStalledGame, processStalledGames } from "./game.ts";
 
 const day = 24 * 3600 * 1000;
@@ -308,6 +310,26 @@ describe("processStalledGames — warn-then-auto-cancel for stalled games (#94)"
 			2,
 			"both opted-in players of full-grace emailed",
 		);
+	});
+
+	it("the cancel email is shaped per #2: text part, tag, Reply-To, subdomain From, signed unsubscribe", async () => {
+		for (const mail of mails) {
+			assert.deepEqual(mail["o:tag"], ["game-cancelled"]);
+			assert.equal(mail["h:Reply-To"], env.contact);
+			assert.match(String(mail.from), new RegExp(`@mg\\.${env.domain.replaceAll(".", "\\.")}>`));
+			assert.ok(mail.text, "a text part must be present");
+			assert.match(mail.text, /cancelled for inactivity/);
+
+			// List-Unsubscribe targets the RFC 8058 one-click endpoint with the
+			// per-user signed token; the body links to the human landing page.
+			const recipient = await colls.users.findOne({ "account.email": String(mail.to) });
+			const token = signUnsubscribeToken(recipient!._id.toHexString(), "game");
+			assert.equal(mail["h:List-Unsubscribe"], `<${unsubscribeOneClickUrl(token)}>`);
+			assert.equal(mail["h:List-Unsubscribe-Post"], "List-Unsubscribe=One-Click");
+			const pageUrl = unsubscribePageUrl(token);
+			assert.ok(String(mail.html).includes(`href="${pageUrl}"`), "the HTML body links to the unsubscribe page");
+			assert.ok(mail.text.includes(pageUrl), "the text part links to the unsubscribe page");
+		}
 	});
 
 	it("does not re-post the warning on a re-sweep (once per stall episode)", async () => {

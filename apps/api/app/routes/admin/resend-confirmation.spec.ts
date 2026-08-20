@@ -64,6 +64,17 @@ describe("Admin API — resend-confirmation auth email cooldown (#195)", () => {
 		assert.ok(user.security.lastAuthEmailSentAt);
 	});
 
+	it("the confirmation email is shaped per #2: text part, tag, Reply-To, subdomain From, no unsubscribe", async () => {
+		const mail = sentMails.find((m) => String(m.to) === targetEmail)!;
+		assert.deepEqual(mail["o:tag"], ["confirm"]);
+		assert.equal(mail["h:Reply-To"], env.contact);
+		assert.match(String(mail.from), new RegExp(`@mg\\.${env.domain.replaceAll(".", "\\.")}>`));
+		assert.ok(mail.text, "a text part must be present");
+		assert.match(mail.text, new RegExp(`https://${env.site.replaceAll(".", "\\.")}/confirm\\?key=`));
+		assert.equal(mail["h:List-Unsubscribe"], undefined);
+		assert.ok(!String(mail.html).includes("unsubscribe"));
+	});
+
 	it("a resend within the cooldown sends nothing, keeps the key, still 200s", async () => {
 		const keyBefore = (await colls.users.findOne({ _id: targetId }))!.security.confirmKey;
 		sentMails = [];

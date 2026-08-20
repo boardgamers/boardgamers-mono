@@ -27,6 +27,7 @@
 		"check-disk-space": "^2.1.0",
 		"cookie-parser": "^1.4.3",
 		"date-fns": "^2.25.0",
+		"html-to-text": "^10.0.0",
 		"http-errors": "^1.6.3",
 		"jsonwebtoken": "^8.5.1",
 		"koa": "^2.11.0",
@@ -52,6 +53,7 @@
 	},
 	"devDependencies": {
 		"@types/bcryptjs": "^2.4.1",
+		"@types/html-to-text": "^9.0.4",
 		"@types/http-errors": "^1.6.1",
 		"@types/jsonwebtoken": "^8.3.9",
 		"@types/koa": "^2.11.3",
