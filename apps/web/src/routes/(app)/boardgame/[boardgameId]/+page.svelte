@@ -187,14 +187,21 @@
 		</div>
 	</div>
 
-	{#if boardgame?.credits}
-		<section class="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
-			<h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Credits</h2>
-			<div class="prose prose-sm dark:prose-invert max-w-none text-gray-600 dark:text-gray-300">
-				<SanitizedHtml html={marked(boardgame.credits)} />
-			</div>
-		</section>
-	{/if}
-
-	<BoardgameRequests {boardgameId} sourceUrl={boardgame?.links?.source} requests={data.gameRequests} {user} />
+	<div class="grid grid-cols-1 gap-x-4 lg:grid-cols-2">
+		<BoardgameRequests
+			{boardgameId}
+			sourceUrl={boardgame?.links?.source}
+			requests={data.gameRequests}
+			{user}
+			class={boardgame?.credits ? "" : "lg:col-span-2"}
+		/>
+		{#if boardgame?.credits}
+			<section class="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
+				<h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Credits</h2>
+				<div class="prose prose-sm dark:prose-invert max-w-none text-gray-600 dark:text-gray-300">
+					<SanitizedHtml html={marked(boardgame.credits)} />
+				</div>
+			</section>
+		{/if}
+	</div>
 </div>

@@ -13,6 +13,7 @@
 		sourceUrl = undefined,
 		requests,
 		user,
+		class: className = "",
 	}: {
 		boardgameId: string;
 		// The game's source repo (GameInfoFront["links"]["source"]) — shown as a subtle
@@ -20,6 +21,7 @@
 		sourceUrl?: string;
 		requests: FeedbackRequestListing[];
 		user: UserFront | null;
+		class?: string;
 	} = $props();
 
 	// Local copy so votes + new requests update instantly without a reload. Capturing
@@ -38,7 +40,10 @@
 	};
 </script>
 
-<section class="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700" aria-labelledby="game-feedback-heading">
+<section
+	class="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700 {className}"
+	aria-labelledby="game-feedback-heading"
+>
 	<div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
 		<h2
 			id="game-feedback-heading"
