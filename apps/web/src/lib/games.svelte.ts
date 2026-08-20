@@ -109,32 +109,33 @@ export function clearGamesCache() {
 	gamesCache.clear();
 }
 
-export function loadGames({
+/**
+ * Synchronous read of a seeded cache entry — the same key `loadGames` computes.
+ * Returns undefined on a miss. Lets a list's parent read the games the +page.ts
+ * prefetch seeded, so SSR and hydration derive the same filters from the same rows.
+ * Callers pass the same un-filtered params the list will request (no pace), so the
+ * key matches the list's first (unfiltered) load.
+ */
+export function peekGames(params: LoadGamesParams): LoadGamesResult | undefined {
+	return gamesCache.get(gamesCacheKey(params).key);
+}
+
+/** Builds the cache key + API query for a games request. Shared by loadGames (fetch)
+ * and peekGames (synchronous read) so the two can never drift apart (#346). The pace
+ * filter has already been mapped to a duration bound by the caller. */
+function gamesCacheKey({
 	count = 10,
 	skip = 0,
 	minDuration,
 	maxDuration,
-	pace,
 	sample,
 	userId,
 	boardgameId,
 	gameStatus,
 	fetchCount = !sample,
-	store = false,
-	refresh = false,
 	search,
 	viewerKarma,
 }: LoadGamesParams) {
-	// The pace filter maps to a timePerGame bound: live games have a sub-day clock,
-	// async games a day-or-more clock.
-	if (pace === "live") {
-		maxDuration = LIVE_GAME_MAX_TIME_PER_GAME - 1;
-		minDuration = undefined;
-	} else if (pace === "async") {
-		minDuration = LIVE_GAME_MAX_TIME_PER_GAME;
-		maxDuration = undefined;
-	}
-
 	const queryParams = {
 		count,
 		skip,
@@ -149,8 +150,26 @@ export function loadGames({
 		...(maxDuration && { maxDuration }),
 		...(search && { search }),
 	};
-
 	const key = JSON.stringify({ ...queryParams, gameStatus, fetchCount });
+	return { queryParams, key };
+}
+
+export function loadGames(params: LoadGamesParams) {
+	const { pace } = params;
+	let { minDuration, maxDuration } = params;
+	// The pace filter maps to a timePerGame bound: live games have a sub-day clock,
+	// async games a day-or-more clock.
+	if (pace === "live") {
+		maxDuration = LIVE_GAME_MAX_TIME_PER_GAME - 1;
+		minDuration = undefined;
+	} else if (pace === "async") {
+		minDuration = LIVE_GAME_MAX_TIME_PER_GAME;
+		maxDuration = undefined;
+	}
+
+	const { queryParams, key } = gamesCacheKey({ ...params, minDuration, maxDuration });
+	const { gameStatus, store = false, refresh = false } = params;
+	const fetchCount = params.fetchCount ?? !params.sample;
 
 	if (!store && !refresh && gamesCache.has(key)) {
 		return gamesCache.get(key)!;

@@ -10,7 +10,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/api", () => ({ get: vi.fn() }));
 
 import { get } from "@/lib/api";
-import { clearGamesCache, gameListParams, loadGames, type LoadGamesResult } from "@/lib/games.svelte";
+import { clearGamesCache, gameListParams, loadGames, peekGames, type LoadGamesResult } from "@/lib/games.svelte";
+import { hasPaceChoice } from "@/components/Game/SetupOptionsFilter.svelte";
+import type { GameFront } from "@bgs/models";
 import { load } from "./+page";
 import type { PageLoad } from "./$types";
 
@@ -69,5 +71,59 @@ describe("home page load — games cache seeding for SSR", () => {
 
 		const mine = cachedResult({ gameStatus: "active", userId: "u1", perPage: 5 });
 		expect(mine.games).toEqual([{ _id: "g1" }]);
+	});
+});
+
+// Regression for the SSR/hydration pace-chip mismatch (#346): the lobby's games must
+// be readable synchronously from the seeded cache (what the +page.svelte lobbyGames
+// initializer does) so the server render and the hydration derive the same filter
+// visibility. With an all-one-pace lobby the chips must be hidden in BOTH — before the
+// fix the parent initialized `lobbyGames` to [] (child bind-back hasn't run during SSR),
+// hasPaceChoice([]) is true, so SSR showed chips the hydrated DOM then removed.
+describe("home lobby — SSR/hydration pace-filter agreement (#346)", () => {
+	beforeEach(() => {
+		clearGamesCache();
+		getMock.mockReset();
+	});
+
+	const allLive: GameFront[] = [
+		{ _id: "g-live-1", options: { timing: { timePerGame: 3600 } } },
+		{ _id: "g-live-2", options: { timing: { timePerGame: 7200 } } },
+	] as unknown as GameFront[];
+
+	function seededLobbyGames() {
+		// The exact expression +page.svelte uses to initialize lobbyGames.
+		return peekGames(gameListParams({ gameStatus: "open", sample: true, perPage: 5 }))?.games ?? [];
+	}
+
+	it("all-one-pace lobby: the seeded games are synchronously readable and hide the pace filter", async () => {
+		getMock.mockImplementation(
+			(url: string) =>
+				Promise.resolve(
+					url.endsWith("/count") ? allLive.length : url === "/site/announcement" ? { content: "" } : allLive,
+				) as never,
+		);
+		await runLoad();
+
+		const games = seededLobbyGames();
+		expect(games.map((g) => g._id)).toEqual(["g-live-1", "g-live-2"]);
+		// SSR and hydration agree: one pace → no pace filter.
+		expect(hasPaceChoice(games)).toBe(false);
+	});
+
+	it("mixed-pace lobby: the seeded games show the pace filter (SSR == hydrated)", async () => {
+		const mixed = [
+			...allLive,
+			{ _id: "g-async", options: { timing: { timePerGame: 172800 } } },
+		] as unknown as GameFront[];
+		getMock.mockImplementation(
+			(url: string) =>
+				Promise.resolve(
+					url.endsWith("/count") ? mixed.length : url === "/site/announcement" ? { content: "" } : mixed,
+				) as never,
+		);
+		await runLoad();
+
+		expect(hasPaceChoice(seededLobbyGames())).toBe(true);
 	});
 });

@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("./api", () => ({ get: vi.fn() }));
 
 import { get } from "./api";
-import { clearGamesCache, loadGames, matchesSetupOptions } from "./games.svelte";
+import { clearGamesCache, gameListParams, loadGames, matchesSetupOptions, peekGames } from "./games.svelte";
 import { LIVE_GAME_MAX_TIME_PER_GAME } from "@/utils";
 import type { GameFront } from "@bgs/models";
 
@@ -88,6 +88,44 @@ describe("loadGames cache", () => {
 		await loadGames({ gameStatus: "active" });
 
 		expect(getMock).toHaveBeenCalledTimes(4);
+	});
+});
+
+// #346: the lobby pages seed their filter's game list from the prefetch cache so SSR
+// and hydration derive the same pace/setup filters. peekGames is that synchronous read
+// — it must hit exactly the entry the +page.ts prefetch stored under gameListParams.
+describe("peekGames (#346)", () => {
+	beforeEach(() => {
+		clearGamesCache();
+		getMock.mockReset();
+		mockApi([{ _id: "g1" }], 1);
+	});
+
+	it("returns the entry a +page.ts prefetch seeded, synchronously (no fetch)", async () => {
+		const params = gameListParams({ gameStatus: "open", sample: true, perPage: 5 });
+		await loadGames({ ...params, store: true }); // the +page.ts seed
+		const calls = getMock.mock.calls.length;
+
+		expect(peekGames(params)).toEqual({ games: [{ _id: "g1" }], total: 1 });
+		expect(getMock.mock.calls.length).toBe(calls); // synchronous read, no new fetch
+	});
+
+	it("returns undefined on a cache miss (nothing seeded for that key)", () => {
+		expect(peekGames(gameListParams({ gameStatus: "open", sample: true, perPage: 5 }))).toBeUndefined();
+	});
+
+	it("distinguishes keys by the same params loadGames does (status/karma/count)", async () => {
+		await loadGames({
+			...gameListParams({ gameStatus: "open", sample: true, perPage: 5, viewerKarma: 7 }),
+			store: true,
+		});
+
+		// A different viewerKarma is a different cache key → miss, not the seeded entry.
+		expect(peekGames(gameListParams({ gameStatus: "open", sample: true, perPage: 5 }))).toBeUndefined();
+		expect(peekGames(gameListParams({ gameStatus: "open", sample: true, perPage: 5, viewerKarma: 7 }))).toEqual({
+			games: [{ _id: "g1" }],
+			total: 1,
+		});
 	});
 });
 
