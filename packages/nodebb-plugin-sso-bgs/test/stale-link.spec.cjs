@@ -51,6 +51,34 @@ async function manualLoginCallback(env, jar) {
 	return env.callback(session, { code: "authcode", state }, { cookieJar: jar });
 }
 
+// A faithful transcription of the stock plugin's OAuth.login resolution order
+// against the harness db: oauth-id map → verified-email fallback → create.
+// This is what defeated the first version of the heal on the live forum: the
+// map entry was scrubbed, but user.getUidByEmail resolved the SAME ghost uid
+// through the stale email:uid entry and re-linked it.
+function stockLikeLogin(env, { nextUid }) {
+	const calls = [];
+	env.stockOAuth.login = async (payload) => {
+		calls.push(payload);
+		let uid = (dbObjects.get("boardgamersId:uid") || {})[payload.oAuthid];
+		if (!uid && payload.email && payload.email_verified) {
+			uid = await env.db.sortedSetScore("email:uid", payload.email.toLowerCase());
+		}
+		if (!uid) {
+			uid = nextUid; // user.create: a full account
+			dbObjects.set(`user:${uid}`, { username: payload.handle, userslug: payload.handle.toLowerCase() });
+			await env.db.sortedSetAdd("email:uid", uid, payload.email.toLowerCase());
+			await env.db.sortedSetAdd("email:sorted", 0, `${payload.email.toLowerCase()}:${uid}`);
+		}
+		dbObjects.set("boardgamersId:uid", {
+			...(dbObjects.get("boardgamersId:uid") || {}),
+			[payload.oAuthid]: uid,
+		});
+		return { uid };
+	};
+	return calls;
+}
+
 test("a stale boardgamersId:uid entry (ghost uid, no username) is healed: link dropped, login re-run", async () => {
 	const env = await bootEnv({ id: "bgs-ghost", displayName: "CoyoTech" });
 
@@ -59,34 +87,49 @@ test("a stale boardgamersId:uid entry (ghost uid, no username) is healed: link d
 	dbObjects.set("boardgamersId:uid", { "bgs-ghost": 9 });
 	dbObjects.set("user:9", { fullname: "CoyoTech", picture: "https://x/avatar" });
 
-	const loginCalls = [];
-	env.stockOAuth.login = async (payload) => {
-		loginCalls.push({
-			linkEntry: (dbObjects.get("boardgamersId:uid") || {})["bgs-ghost"],
-			ghostDoc: dbObjects.has("user:9"),
-		});
-		if (loginCalls.length === 1) {
-			// Stock behaviour on a stale link: return the mapped uid unchecked.
-			return { uid: 9 };
-		}
-		// Second call: the link is gone, so the real plugin takes the CREATE
-		// path — a full user with a username, and a fresh map entry.
-		dbObjects.set("user:9", { username: payload.handle, userslug: payload.handle.toLowerCase() });
-		dbObjects.set("boardgamersId:uid", { [payload.oAuthid]: 9 });
+	const calls = stockLikeLogin(env, { nextUid: 10 });
+	const cb = await manualLoginCallback(env, {});
+	assert.strictEqual(cb.user.uid, 10, "logged into a freshly created account, not the ghost");
+	assert.strictEqual(calls.length, 2, "login re-ran after the heal");
+	assert.ok(!dbObjects.has("user:9"), "partial ghost doc dropped");
+	assert.strictEqual(dbObjects.get("boardgamersId:uid")["bgs-ghost"], 10, "map re-points at the new account");
+	assert.strictEqual(dbObjects.get("user:10").username, "CoyoTech");
+});
+
+test("REGRESSION (live forum): a stale email:uid entry re-resolving the ghost is scrubbed by the heal", async () => {
+	const env = await bootEnv({ id: "bgs-ghost", displayName: "CoyoTech" });
+
+	// The full stale state left by the account deletion: oauth-id map AND the
+	// email maps still point at ghost uid 9. Without the email scrub, the
+	// re-login's getUidByEmail fallback resolves uid 9 again and re-links the
+	// ghost — an endless "link your forum account" loop site-side.
+	dbObjects.set("boardgamersId:uid", { "bgs-ghost": 9 });
+	dbObjects.set("user:9", { fullname: "CoyoTech", picture: "https://x/avatar" });
+	await env.db.sortedSetAdd("email:uid", 9, "t@example.com");
+	await env.db.sortedSetAdd("email:sorted", 0, "t@example.com:9");
+
+	const calls = stockLikeLogin(env, { nextUid: 10 });
+	const cb = await manualLoginCallback(env, {});
+	assert.strictEqual(cb.user.uid, 10, "email fallback no longer resurrects the ghost");
+	assert.strictEqual(calls.length, 2);
+	assert.strictEqual(await env.db.sortedSetScore("email:uid", "t@example.com"), 10, "email now maps to the new uid");
+	const sorted = await env.db.getSortedSetMembers("email:sorted");
+	assert.ok(!sorted.includes("t@example.com:9"), "stale email:sorted member scrubbed");
+	assert.strictEqual(dbObjects.get("user:10").username, "CoyoTech");
+});
+
+test("an unhealable link (re-login still resolves a ghost) fails the login instead of looping", async () => {
+	const env = await bootEnv({ id: "bgs-ghost", displayName: "CoyoTech" });
+
+	dbObjects.set("boardgamersId:uid", { "bgs-ghost": 9 });
+	dbObjects.set("user:9", { fullname: "CoyoTech" });
+	// A login that keeps resolving an incomplete account no matter what.
+	env.stockOAuth.login = async () => {
+		dbObjects.set("user:9", { fullname: "CoyoTech" });
 		return { uid: 9 };
 	};
 
-	const cb = await manualLoginCallback(env, {});
-	assert.strictEqual(cb.user.uid, 9, "logged into the re-created account");
-	assert.strictEqual(loginCalls.length, 2, "login re-ran after the heal");
-	// First call saw the stale state…
-	assert.strictEqual(loginCalls[0].linkEntry, 9);
-	assert.strictEqual(loginCalls[0].ghostDoc, true);
-	// …the re-run saw the healed state: no map entry, no partial doc.
-	assert.strictEqual(loginCalls[1].linkEntry, undefined, "stale map entry dropped before the re-run");
-	assert.strictEqual(loginCalls[1].ghostDoc, false, "partial user doc dropped before the re-run");
-	// And the re-created account is intact.
-	assert.strictEqual(dbObjects.get("user:9").username, "CoyoTech");
+	await assert.rejects(manualLoginCallback(env, {}), /could not heal stale forum link/);
 });
 
 test("a healthy linked account logs in with a single login call (guard is inert)", async () => {

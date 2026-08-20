@@ -762,12 +762,37 @@ async function loginHealingStaleLink(OAuth, payload) {
 	if (username) {
 		return loggedIn;
 	}
+	const ghostUid = loggedIn.uid;
 	winston.warn(
-		`[plugin/sso-bgs] stale forum link: remote id ${payload.oAuthid} resolved to ghost uid ${loggedIn.uid} (no username); re-creating the account`,
+		`[plugin/sso-bgs] stale forum link: remote id ${payload.oAuthid} resolved to ghost uid ${ghostUid} (no username); re-creating the account`,
 	);
 	await db.deleteObjectField(`${STRATEGY_NAME}Id:uid`, payload.oAuthid);
-	await db.delete(`user:${loggedIn.uid}`);
-	return OAuth.login(payload);
+	await db.delete(`user:${ghostUid}`);
+	// The email maps can point at the ghost too (the account deletion that
+	// stranded the oauth link stranded these the same way) — and login()'s
+	// getUidByEmail fallback would then resolve straight back to the ghost
+	// uid, re-linking it and defeating the heal. Scrub every email mapped to
+	// the ghost from both maps ('email:uid': member=email score=uid;
+	// 'email:sorted': member=`${email}:${uid}`).
+	const staleEmails = await db.getSortedSetRangeByScore("email:uid", 0, -1, ghostUid, ghostUid);
+	if (staleEmails.length) {
+		await db.sortedSetRemove("email:uid", staleEmails);
+		await db.sortedSetRemove(
+			"email:sorted",
+			staleEmails.map((email) => `${email}:${ghostUid}`),
+		);
+	}
+	const healed = await OAuth.login(payload);
+	const healedUsername = await db.getObjectField(`user:${healed.uid}`, "username");
+	if (!healedUsername) {
+		// Still a ghost: some other stale map resolved login() to an incomplete
+		// account. Fail loudly — a "successful" broken login would only produce
+		// a session that doesn't stick (and, before the cooldown fix, a loop).
+		throw new Error(
+			`[plugin/sso-bgs] could not heal stale forum link for remote id ${payload.oAuthid}: uid ${healed.uid} still has no username`,
+		);
+	}
+	return healed;
 }
 
 /**

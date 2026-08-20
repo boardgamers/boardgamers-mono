@@ -40,11 +40,11 @@ const depsRequire = createRequire("/tmp/sso-bgs-deps/node_modules/");
 // ---------------------------------------------------------------------------
 
 const dbObjects = new Map(); // `oauth2-multiple:strategies:<name>` → config object
-const dbSortedSets = new Map(); // `oauth2-multiple:strategies` → [name, ...]
+const dbSortedSets = new Map(); // key → [{ member, score }, ...] (insertion order)
 
 const db = {
 	async getSortedSetMembers(key) {
-		return [...(dbSortedSets.get(key) || [])];
+		return (dbSortedSets.get(key) || []).map((e) => e.member);
 	},
 	async getObjects(keys) {
 		// Real NodeBB db.getObjects returns null for a missing key (mongo/redis
@@ -52,12 +52,31 @@ const db = {
 		// missing key throws, exactly as on the live forum before configuration.
 		return keys.map((key) => (dbObjects.has(key) ? { ...dbObjects.get(key) } : null));
 	},
-	async sortedSetAdd(key, _score, member) {
+	async sortedSetAdd(key, score, member) {
 		const set = dbSortedSets.get(key) || [];
-		if (!set.includes(member)) {
-			set.push(member);
+		const existing = set.find((e) => e.member === member);
+		if (existing) {
+			existing.score = score;
+		} else {
+			set.push({ member, score });
 		}
 		dbSortedSets.set(key, set);
+	},
+	// NodeBB mongo sorted.js signature: (key, start, count, min, max); count -1 = all.
+	async getSortedSetRangeByScore(key, start, count, min, max) {
+		const hits = (dbSortedSets.get(key) || []).filter((e) => e.score >= min && e.score <= max).map((e) => e.member);
+		return count === -1 ? hits.slice(start) : hits.slice(start, start + count);
+	},
+	async sortedSetRemove(key, value) {
+		const values = Array.isArray(value) ? value : [value];
+		dbSortedSets.set(
+			key,
+			(dbSortedSets.get(key) || []).filter((e) => !values.includes(e.member)),
+		);
+	},
+	async sortedSetScore(key, member) {
+		const entry = (dbSortedSets.get(key) || []).find((e) => e.member === member);
+		return entry ? entry.score : null;
 	},
 	async setObject(key, payload) {
 		dbObjects.set(key, { ...payload });
