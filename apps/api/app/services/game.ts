@@ -5,7 +5,7 @@ import locks from "../config/locks.ts";
 import type { GameDoc, PlayerInfo } from "@bgs/models";
 import { colls } from "../config/db.ts";
 import env from "../config/env.ts";
-import sendmail from "../config/sendmail.ts";
+import { sendMail } from "./mail.ts";
 
 export async function notifyGameStart(game: GameDoc) {
 	if (game.options.setup.playerOrder === "random") {
@@ -214,15 +214,14 @@ async function emailCancelNotice(game: GameDoc): Promise<void> {
 			if (!user.account.email || !user.security.confirmed || !user.settings?.mailing?.game?.activated) {
 				return;
 			}
-			await sendmail({
-				from: env.noreply,
+			await sendMail({
+				kind: "game-cancelled",
 				to: user.account.email,
 				subject: `Game ${game._id}: cancelled for inactivity`,
 				html: `
 				<p>Hello ${user.account.username}</p>
-				<p>Your game <a href='${url}'>${game._id}</a> (${game.game.name}) was cancelled for inactivity.</p>
-				<p>You can change your email settings and unsubscribe
-				<a href='https://${env.site}/account'>here</a>.</p>`,
+				<p>Your game <a href='${url}'>${game._id}</a> (${game.game.name}) was cancelled for inactivity.</p>`,
+				unsubscribe: `https://${env.site}/account`,
 			}).catch(console.error);
 		}),
 	);

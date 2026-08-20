@@ -6,7 +6,8 @@ import type { WithId } from "mongodb";
 import { z } from "zod";
 import locks from "../config/locks.ts";
 import { colls } from "../config/db.ts";
-import { env, sendmail } from "../config/index.ts";
+import { env } from "../config/index.ts";
+import { sendMail } from "../services/mail.ts";
 import { safeFetch } from "../services/safefetch.ts";
 import { findGamesWithPlayersTurn } from "./game.ts";
 
@@ -226,8 +227,8 @@ export async function notifyLastIp(user: WithId<UserDoc>, ip: string) {
 export function sendConfirmationEmail(user: WithId<UserDoc>) {
 	assert(user.account.email, "Cannot send confirmation email: user has no email address");
 	assert(user.security.confirmKey, "Cannot send confirmation email: user has no confirm key");
-	return sendmail({
-		from: env.noreply,
+	return sendMail({
+		kind: "confirm",
 		to: user.account.email,
 		subject: "Confirm your account",
 		html: `
@@ -242,8 +243,8 @@ export function sendConfirmationEmail(user: WithId<UserDoc>) {
 export function sendResetEmail(user: WithId<UserDoc>) {
 	assert(user.account.email, "Cannot send reset email: user has no email address");
 	assert(user.security.reset?.key, "Cannot send reset email: user has no reset key");
-	return sendmail({
-		from: env.noreply,
+	return sendMail({
+		kind: "reset",
 		to: user.account.email,
 		subject: "Forgotten password",
 		html: `
@@ -259,8 +260,8 @@ export function sendMailChangeEmail(user: WithId<UserDoc>, newEmail: string) {
 		return Promise.resolve();
 	}
 
-	return sendmail({
-		from: env.noreply,
+	return sendMail({
+		kind: "mail-change",
 		to: user.account.email,
 		subject: "Mail change",
 		html: `
@@ -526,15 +527,15 @@ export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
 		const gameString = activeGames.length > 1 ? `${activeGames.length} games` : "one game";
 
 		if (freshUser.account.email && freshUser.security.confirmed) {
-			sendmail({
-				from: env.noreply,
+			sendMail({
+				kind: "your-turn",
 				to: freshUser.account.email,
 				subject: "Your turn",
 				html: `
-	        <p>Hello ${freshUser.account.username}</p>
-	        <p>It's your turn on ${gameString},
-	        click <a href='https://${env.site}/user/${encodeURIComponent(freshUser.account.username)}'>here</a> to see your active games.</p>
-	        <p>You can also change your email settings and unsubscribe <a href='https://${env.site}/account'>here</a> with a simple click.</p>`,
+				<p>Hello ${freshUser.account.username}</p>
+				<p>It's your turn on ${gameString},
+				click <a href='https://${env.site}/user/${encodeURIComponent(freshUser.account.username)}'>here</a> to see your active games.</p>`,
+				unsubscribe: `https://${env.site}/account`,
 			}).catch(console.error);
 		}
 

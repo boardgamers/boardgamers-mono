@@ -1,7 +1,9 @@
 import Mailgun from "mailgun-js";
 import env from "./env.ts";
 
-export type MailSendData = Mailgun.messages.SendData;
+// The mailgun-js typings omit List-Unsubscribe, but any `h:*` custom header is
+// passed through to the message (#2).
+export type MailSendData = Mailgun.messages.SendData & { "h:List-Unsubscribe"?: string };
 
 const mailgun = Mailgun({
 	apiKey: env.mailing.api.key,

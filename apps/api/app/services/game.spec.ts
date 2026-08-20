@@ -310,6 +310,20 @@ describe("processStalledGames — warn-then-auto-cancel for stalled games (#94)"
 		);
 	});
 
+	it("the cancel email is shaped per #2: text part, tag, Reply-To, subdomain From, unsubscribe", () => {
+		const accountUrl = `https://${env.site}/account`;
+		for (const mail of mails) {
+			assert.deepEqual(mail["o:tag"], ["game-cancelled"]);
+			assert.equal(mail["h:Reply-To"], env.contact);
+			assert.match(String(mail.from), new RegExp(`@mg\\.${env.domain.replaceAll(".", "\\.")}>`));
+			assert.ok(mail.text, "a text part must be present");
+			assert.match(mail.text, /cancelled for inactivity/);
+			assert.equal(mail["h:List-Unsubscribe"], `<${accountUrl}>`);
+			assert.ok(String(mail.html).includes(`href="${accountUrl}"`), "the HTML body links to the account page");
+			assert.ok(mail.text.includes(accountUrl), "the text part links to the account page");
+		}
+	});
+
 	it("does not re-post the warning on a re-sweep (once per stall episode)", async () => {
 		await processStalledGames();
 

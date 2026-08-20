@@ -53,7 +53,11 @@ export default {
 			.map((s) => s.trim())
 			.filter(Boolean),
 	},
-	noreply: process.env.noreply || `BGS <no-reply@${domain}>`,
+	// From-address for outgoing mail. Defaults to the Mailgun sending domain
+	// (mailing.domain.standard, mg.*): the domain must match the one in the
+	// Mailgun account or sends are rejected, and its DKIM/SPF setup is what
+	// makes deliverability work (#2).
+	noreply: process.env.noreply || `BGS <no-reply@${process.env.emailDomain || `mg.${domain}`}>`,
 	contact: process.env.contact || `contact@${domain}`,
 	title: process.env.title || "BGS",
 	inviteOnly: process.env.inviteOnly || false,

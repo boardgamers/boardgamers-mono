@@ -550,6 +550,24 @@ describe("Account API — auth email cooldown (#195)", () => {
 		assert.ok(user.security.lastAuthEmailSentAt, "the cooldown stamp must be set");
 	});
 
+	it("the reset email is shaped per #2: text part, tag, Reply-To, subdomain From, no unsubscribe", async () => {
+		interceptMails();
+		await colls.users.updateOne(
+			{ _id: userId },
+			{ $set: { "security.lastAuthEmailSentAt": new Date(Date.now() - env.authEmailCooldownMs - 1) } },
+		);
+		assert.strictEqual((await api("POST", "/api/account/forget", { email })).status, 200);
+		assert.strictEqual(sentMails.length, 1);
+		const mail = sentMails[0];
+		assert.deepEqual(mail["o:tag"], ["reset"]);
+		assert.equal(mail["h:Reply-To"], env.contact);
+		assert.match(String(mail.from), new RegExp(`@mg\\.${env.domain.replaceAll(".", "\\.")}>`));
+		assert.ok(mail.text, "a text part must be present");
+		assert.match(mail.text, new RegExp(`https://${env.site.replaceAll(".", "\\.")}/reset\\?key=`));
+		assert.equal(mail["h:List-Unsubscribe"], undefined);
+		assert.ok(!String(mail.html).includes("unsubscribe"));
+	});
+
 	it("a second /forget within the cooldown sends nothing, keeps the same key, still 200s", async () => {
 		const keyBefore = (await colls.users.findOne({ _id: userId }))!.security.reset?.key;
 
