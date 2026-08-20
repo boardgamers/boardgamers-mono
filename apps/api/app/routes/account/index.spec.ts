@@ -673,21 +673,27 @@ describe("Account API — email confirmation", () => {
 		await colls.users.insertMany([confirmedUser, unconfirmedUser]);
 	});
 
-	it("confirming an already-confirmed user returns JSON auth info (no 302)", async () => {
-		const res = await api("POST", "/api/account/confirm", {
-			email: "confirmed@test.com",
-			key: "any-key",
+	it("confirming an already-confirmed user returns token-less JSON (no 302, no session)", async () => {
+		const res = await fetch(`${baseURL()}/api/account/confirm`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ email: "confirmed@test.com", key: "any-key" }),
 		});
 		assert.strictEqual(res.status, 200);
+		// No session may be issued: the key can't be verified (confirmKey is nulled on
+		// confirm), so minting tokens here would be an account-takeover for anyone who
+		// knows the victim's email.
 		const data = z
 			.object({
 				alreadyConfirmed: z.literal(true),
-				user: z.object({ account: z.object({ email: z.string() }) }),
-				accessToken: z.object({ code: z.string() }),
-				refreshToken: z.object({ code: z.string() }),
+				accessToken: z.undefined(),
+				refreshToken: z.undefined(),
+				user: z.undefined(),
 			})
-			.parse(res.data);
-		assert.strictEqual(data.user.account.email, "confirmed@test.com");
+			.parse(await res.json());
+		assert.strictEqual(data.alreadyConfirmed, true);
+		const setCookie = res.headers.getSetCookie().find((c) => c.startsWith("refreshToken="));
+		assert.strictEqual(setCookie, undefined, "no session cookie must be set");
 	});
 
 	it("confirming with a wrong key fails", async () => {

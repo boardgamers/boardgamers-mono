@@ -41,14 +41,13 @@ describe("confirm page load", () => {
 		expect(infoMock).not.toHaveBeenCalled();
 	});
 
-	it("already-confirmed: still lands on /account, with an info toast", async () => {
-		const authData = { user: { account: { email: "user@test.com" } }, alreadyConfirmed: true };
-		postMock.mockResolvedValue(authData as never);
+	it("already-confirmed: no session, goes to /login with an info toast", async () => {
+		postMock.mockResolvedValue({ alreadyConfirmed: true } as never);
 
 		await runLoad();
 
-		expect(setAuthDataMock).toHaveBeenCalledWith({ user: authData.user });
-		expect(gotoMock).toHaveBeenCalledWith("/account");
+		expect(setAuthDataMock).not.toHaveBeenCalled();
+		expect(gotoMock).toHaveBeenCalledWith("/login");
 		expect(infoMock).toHaveBeenCalledOnce();
 	});
 

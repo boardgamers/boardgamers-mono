@@ -10,17 +10,24 @@ import { notifier } from "@/lib/notifications.svelte";
 export const ssr = false;
 
 export const load: PageLoad = async ({ url }) => {
-	const { alreadyConfirmed, ...authData } = await post<AuthData & { alreadyConfirmed?: boolean }>("/account/confirm", {
-		key: url.searchParams.get("key"),
-		email: url.searchParams.get("email"),
-	});
-	await setAuthData(authData);
+	const result = await post<(AuthData & { alreadyConfirmed?: boolean }) | { alreadyConfirmed: true }>(
+		"/account/confirm",
+		{
+			key: url.searchParams.get("key"),
+			email: url.searchParams.get("email"),
+		},
+	);
 
-	// Re-opened/prefetched link: the API still authenticates, so land logged in with
-	// an explanation instead of a dead end.
-	if (alreadyConfirmed) {
-		notifier.info("Your account was already confirmed — you're logged in.");
+	// Re-opened/prefetched link: the API issues no session here (the key can't be
+	// verified against a nulled confirmKey), so there's nothing to set — send the
+	// user to log in with an explanation instead of a dead end.
+	if ("alreadyConfirmed" in result && result.alreadyConfirmed) {
+		notifier.info("Your account was already confirmed — please log in.");
+		await goto(resolve("/(app)/login"));
+		return;
 	}
+
+	await setAuthData(result as AuthData);
 
 	// goto, not throw redirect(): setAuthData's invalidateAll() cancels the in-flight
 	// initial navigation (direct load from the email link), which would swallow a
