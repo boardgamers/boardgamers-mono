@@ -267,9 +267,9 @@ describe("/feedback page", () => {
 
 		await vi.waitFor(() => {
 			const alert = target.querySelector('[role="alert"]');
-			expect(alert?.textContent).toContain("linked forum account");
+			expect(alert?.textContent).toContain("posted on our forum");
 		});
-		expect(target.textContent).toContain("Link your forum account");
+		expect(target.textContent).toContain("Link forum account");
 		// The failed request is not added to the list
 		expect(target.textContent).not.toContain("Mobile app</h3>");
 		unmount(instance as never);
@@ -290,16 +290,16 @@ describe("/feedback page", () => {
 
 		await vi.waitFor(() => {
 			const alert = target.querySelector('[role="alert"]');
-			expect(alert?.textContent).toContain("linked forum account");
+			expect(alert?.textContent).toContain("posted on our forum");
 		});
-		expect(target.textContent).toContain("Link your forum account");
+		expect(target.textContent).toContain("Link forum account");
 		// The failed request is not added to the list
 		expect(target.textContent).not.toContain("Terraforming Mars</h3>");
 
 		// Clicking the link button stashes the draft under its own key (distinct from
 		// the site form's "feedback-draft-site") and starts the forum SSO.
 		const linkButton = [...target.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
-			b.textContent!.includes("Link your forum account"),
+			b.textContent!.includes("Link forum account"),
 		)!;
 		linkButton.click();
 		expect(sessionStorage.getItem("feedback-draft-game-request")).toBe(
