@@ -9,6 +9,7 @@
 		_id: string;
 		account: { username: string; email: string };
 		authority?: string;
+		adminGrants?: string[];
 		createdAt?: string;
 	}
 
@@ -316,6 +317,11 @@
 		}
 	}
 
+	const grantBadges = (admin: AdminUser) =>
+		(admin.adminGrants ?? []).map((g) =>
+			g.startsWith("gameinfo:") ? { key: g, label: `🎲 ${g.slice("gameinfo:".length)}` } : { key: g, label: g }
+		);
+
 	const maxCount = $derived(Math.max(1, ...(stats?.newUsersByDay ?? []).map((d) => d.count)));
 	const confirmedPct = $derived(stats ? Math.round((stats.confirmedUsers / Math.max(stats.totalUsers, 1)) * 100) : 0);
 
@@ -435,6 +441,11 @@
 										class="ml-1 px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded"
 										>admin</span
 									>
+								{:else if user.adminGrants?.length}
+									<span
+										class="ml-1 px-1.5 py-0.5 text-[10px] font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded"
+										>scoped admin</span
+									>
 								{/if}
 							</div>
 							<div class="text-xs text-gray-500 truncate">{user.account.email}</div>
@@ -475,12 +486,27 @@
 							{admin.account.username.charAt(0).toUpperCase()}
 						</div>
 						<div class="min-w-0 flex-1">
-							<button
-								onclick={() => select(admin.account.username)}
-								class="font-medium text-sm text-blue-600 dark:text-blue-400 hover:underline truncate"
-							>
-								{admin.account.username}
-							</button>
+							<div class="flex items-center gap-1.5 flex-wrap">
+								<button
+									onclick={() => select(admin.account.username)}
+									class="font-medium text-sm text-blue-600 dark:text-blue-400 hover:underline truncate"
+								>
+									{admin.account.username}
+								</button>
+								{#if admin.authority === "admin"}
+									<span
+										class="px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded"
+										>full admin</span
+									>
+								{:else}
+									{#each grantBadges(admin) as badge (badge.key)}
+										<span
+											class="px-1.5 py-0.5 text-[10px] font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded"
+											>{badge.label}</span
+										>
+									{/each}
+								{/if}
+							</div>
 							<div class="flex items-center gap-2 text-xs text-gray-500">
 								<span
 									class="inline-block w-1.5 h-1.5 rounded-full {admin.security?.lastOnline &&

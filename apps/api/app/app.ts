@@ -179,7 +179,9 @@ async function listen(port = env.listen.port.api) {
 			// Admin token auth (issue #105): a Bearer credential that isn't a valid JWT
 			// is looked up by hash in `admintokens` — but only under /api/admin. A hit
 			// authenticates as the owning admin while the token is unexpired, unrevoked,
-			// and the owner still has authority === "admin". Outside /api/admin the
+			// and the owner still holds an admin capability (authority === "admin" or
+			// adminGrants — the per-route permission middleware re-checks them, so a
+			// scoped admin's token only ever exercises their grants). Outside /api/admin the
 			// credential resolves to no user at all, so it can never act as a session on
 			// account/game routes — no per-route rejection needed. (ctx.path is still the
 			// full path here; routers strip their prefix later.)

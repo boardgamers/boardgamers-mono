@@ -1,11 +1,33 @@
 import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
+import { canUserManageGame, isGameAdminGrant, userPermissions } from "@bgs/models";
 import { colls } from "../../config/db.ts";
 import locks from "../../config/locks.ts";
 import { cancelGame } from "../../services/game.ts";
 
 const router = new Router<Application.DefaultState, Context>();
+
+// Same shape as the gameinfo router: the /games mount requires the "games"
+// permission, which per-boardgame `gameinfo:<game>` grants also satisfy.
+// Full games/gameinfo admins pass wholesale; scoped grantees are let in and
+// each route checks its target game via requireGameAccess.
+router.use(async (ctx, next) => {
+	const permissions = userPermissions(ctx.state.user);
+	if (permissions.has("games") || permissions.has("gameinfo")) {
+		return next();
+	}
+	if ([...permissions].some(isGameAdminGrant)) {
+		return next();
+	}
+	throw createError(403, "Missing admin permission: games");
+});
+
+function requireGameAccess(ctx: Context, game: string) {
+	if (!canUserManageGame(ctx.state.user, game)) {
+		throw createError(403, `Missing admin permission: gameinfo:${game}`);
+	}
+}
 
 router.post("/:gameId/cancel", async (ctx) => {
 	await using _lock = await locks.lock("game-cancel", ctx.params.gameId);
@@ -14,6 +36,7 @@ router.post("/:gameId/cancel", async (ctx) => {
 	if (!game) {
 		throw createError(404, "Game not found: " + ctx.params.gameId);
 	}
+	requireGameAccess(ctx, game.game.name);
 	if (game.status !== "active") {
 		throw createError(409, "The game is not active");
 	}
@@ -27,6 +50,7 @@ router.get("/:gameId", async (ctx) => {
 	if (!game) {
 		throw createError(404, "Game not found: " + ctx.params.gameId);
 	}
+	requireGameAccess(ctx, game.game.name);
 
 	const userIds = [...new Set([game.creator, ...game.players.map((pl) => pl._id)])];
 	const [users, chat, errors, logs] = await Promise.all([

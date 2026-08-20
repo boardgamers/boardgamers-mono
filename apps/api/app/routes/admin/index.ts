@@ -1,7 +1,7 @@
 import checkDiskSpace from "check-disk-space";
 import fs from "node:fs";
 import createError from "http-errors";
-import type { Context } from "koa";
+import type { Context, Next } from "koa";
 import Router from "koa-router";
 import { ObjectId } from "mongodb";
 import path from "node:path";
@@ -19,7 +19,8 @@ import {
 } from "../../models/index.ts";
 import { sendAuthInfo } from "../account/index.ts";
 import { z } from "zod";
-import { isAdmin } from "../utils.ts";
+import { grantSatisfies, isGameAdminGrant, userPermissions, type AdminPermission } from "@bgs/models";
+import { requirePermission } from "../utils.ts";
 import changelogRouter from "./changelog.ts";
 import gameInfo from "./gameinfo.ts";
 import gamesRouter from "./games.ts";
@@ -30,15 +31,49 @@ import usersRouter from "./users.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
-router.use(isAdmin);
+// Each sub-router declares the permission it needs. The mount-level gate is a
+// SUBSET check — the caller must hold at least one grant satisfying the
+// permission (grantSatisfies: a full admin holds them all; a per-boardgame
+// `gameinfo:<game>` grant also satisfies gameinfo/games/users, for the
+// per-game routes inside those routers). Blanket enforcement then happens
+// inside the sub-router: gameinfo/games re-check the grant against the target
+// game of every write, users blanket-gates everything but the beta-grant
+// routes, and the other routers are blanket-gated with requirePermission.
+const requireSomeGrant = (permission: AdminPermission) => {
+	return async (ctx: Context, next: Next) => {
+		const permissions = userPermissions(ctx.state.user);
+		if (![...permissions].some((grant) => grantSatisfies(grant, permission))) {
+			throw createError(403, `Missing admin permission: ${permission}`);
+		}
+		await next();
+	};
+};
 
-router.use("/changelog", changelogRouter.routes(), changelogRouter.allowedMethods());
-router.use("/gameinfo", gameInfo.routes(), gameInfo.allowedMethods());
-router.use("/games", gamesRouter.routes(), gamesRouter.allowedMethods());
-router.use("/loki", loki.routes(), loki.allowedMethods());
-router.use("/page", pagesRouter.routes(), pagesRouter.allowedMethods());
-router.use("/tokens", tokensRouter.routes(), tokensRouter.allowedMethods());
-router.use("/users", usersRouter.routes(), usersRouter.allowedMethods());
+router.use("/changelog", requirePermission("changelog"), changelogRouter.routes(), changelogRouter.allowedMethods());
+router.use("/gameinfo", requireSomeGrant("gameinfo"), gameInfo.routes(), gameInfo.allowedMethods());
+router.use("/games", requireSomeGrant("games"), gamesRouter.routes(), gamesRouter.allowedMethods());
+router.use("/loki", requirePermission("loki"), loki.routes(), loki.allowedMethods());
+router.use("/page", requirePermission("pages"), pagesRouter.routes(), pagesRouter.allowedMethods());
+router.use("/tokens", requirePermission("tokens"), tokensRouter.routes(), tokensRouter.allowedMethods());
+// /users gets the subset gate, not the blanket one: the per-game beta-grant
+// routes inside (/:userId/access/*) are reachable by per-boardgame admins —
+// everything else in the router is blanket-gated on "users".
+router.use("/users", requireSomeGrant("users"), usersRouter.routes(), usersRouter.allowedMethods());
+
+// GET /api/admin/me — the caller's own admin permissions (drives the admin
+// panel's gating). Any authenticated user may ask; non-admins get an empty set.
+router.get("/me", async (ctx) => {
+	const user = ctx.state.user;
+	if (!user) {
+		throw createError(401, "You need to be logged in");
+	}
+	const permissions = userPermissions(user);
+	ctx.body = {
+		fullAdmin: user.authority === "admin",
+		permissions: [...permissions].filter((p) => !isGameAdminGrant(p)),
+		games: [...permissions].flatMap((p) => (isGameAdminGrant(p) ? [p.slice("gameinfo:".length)] : [])),
+	};
+});
 
 interface ForumHealth {
 	ok: boolean;
@@ -219,7 +254,7 @@ const errorsQuerySchema = z.object({
 // GET /api/admin/errors — genuine errors from the apierrors DB collection
 // (uncaught exceptions, assertion failures — not routine 4xx HTTP responses).
 // Supports pagination: ?page=1&limit=20 → { errors: [...], total, page, limit }
-router.get("/errors", async (ctx) => {
+router.get("/errors", requirePermission("serverinfo"), async (ctx) => {
 	const { page, limit, name, source } = errorsQuerySchema.parse(ctx.query);
 	const filter: Record<string, unknown> = {};
 	if (name) {
@@ -282,12 +317,12 @@ router.get("/errors", async (ctx) => {
 	ctx.body = { errors, total, page, limit };
 });
 
-router.get("/backup/games", async (ctx) => {
+router.get("/backup/games", requirePermission("serverinfo"), async (ctx) => {
 	ctx.set({ "Content-Type": "application/gzip", "Content-Disposition": 'attachment; filename="games.bson.gz"' });
 	ctx.body = fs.createReadStream(`../../../dump/${env.database.bgs.name}/games.bson.gz`);
 });
 
-router.get("/serverinfo", async (ctx) => {
+router.get("/serverinfo", requirePermission("serverinfo"), async (ctx) => {
 	// Same 60s heuristic the ws layer uses for player status dots:
 	// lastOnline = user marked themselves online; lastActive = ws connection alive (pong).
 	const activityCutoff = new Date(Date.now() - 60 * 1000);
@@ -308,7 +343,7 @@ router.get("/serverinfo", async (ctx) => {
 	] = await Promise.all([
 		checkDiskSpace(process.cwd()),
 		colls.users.countDocuments({}),
-		colls.users.countDocuments({ authority: "admin" }),
+		colls.users.countDocuments({ $or: [{ authority: "admin" }, { adminGrants: { $exists: true, $ne: [] } }] }),
 		colls.users.countDocuments({ "security.lastOnline": { $gt: activityCutoff } }),
 		colls.users.countDocuments({ "security.lastActive": { $gt: activityCutoff } }),
 		colls.games
@@ -361,7 +396,7 @@ router.get("/serverinfo", async (ctx) => {
 	};
 });
 
-router.post("/resend-confirmation", async (ctx) => {
+router.post("/resend-confirmation", requirePermission("users"), async (ctx) => {
 	const { email } = z.object({ email: z.string().email() }).parse(ctx.request.body);
 	const user = await findByEmail(email);
 
@@ -386,7 +421,7 @@ router.post("/resend-confirmation", async (ctx) => {
 	ctx.status = 200;
 });
 
-router.post("/login-as", async (ctx) => {
+router.post("/login-as", requirePermission("users"), async (ctx) => {
 	const { username } = z.object({ username: z.string() }).parse(ctx.request.body);
 	const user = await findByUsername(username);
 
@@ -399,7 +434,7 @@ router.post("/login-as", async (ctx) => {
 	await sendAuthInfo(ctx, "admin");
 });
 
-router.post("/compute-karma", async (ctx) => {
+router.post("/compute-karma", requirePermission("users"), async (ctx) => {
 	const { username } = z.object({ username: z.string() }).parse(ctx.request.body);
 	const user = await findByUsername(username);
 
@@ -413,7 +448,7 @@ router.post("/compute-karma", async (ctx) => {
 	ctx.status = 200;
 });
 
-router.post("/compute-all-karma", async (ctx) => {
+router.post("/compute-all-karma", requirePermission("users"), async (ctx) => {
 	for (const user of await colls.users.find().toArray()) {
 		await recalculateKarma(user, new Date("2020-05-10"));
 		await colls.users.replaceOne({ _id: user._id }, user);
@@ -422,7 +457,7 @@ router.post("/compute-all-karma", async (ctx) => {
 	ctx.status = 200;
 });
 
-router.post("/load-games", async (ctx) => {
+router.post("/load-games", requirePermission("serverinfo"), async (ctx) => {
 	const { path: dirPath } = z.object({ path: z.string() }).parse(ctx.request.body);
 
 	for (const file of fs.readdirSync(dirPath)) {
@@ -443,7 +478,7 @@ router.post("/load-games", async (ctx) => {
 	}
 });
 
-router.post("/recreate-notifications", async (ctx) => {
+router.post("/recreate-notifications", requirePermission("serverinfo"), async (ctx) => {
 	const notifications = await colls.games
 		.aggregate([
 			{

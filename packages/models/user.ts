@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Jsonify } from "type-fest";
 import type { IndexDescription } from "mongodb";
+import { adminGrantSchema } from "./admin.ts";
 import { zObjectId, zDate } from "./helpers.ts";
 
 export const userSchema = z.object({
@@ -139,6 +140,10 @@ export const userSchema = z.object({
 		})
 		.optional(),
 	authority: z.string().optional(),
+	// Granular admin grants for scoped admins (global permissions + per-boardgame
+	// `gameinfo:<gameId>` entries). Meaningless for full admins: authority ===
+	// "admin" already implies every permission.
+	adminGrants: z.array(adminGrantSchema).optional(),
 	createdAt: zDate(),
 	updatedAt: zDate(),
 });
@@ -168,6 +173,8 @@ export const userIndexes: IndexDescription[] = [
 	{ key: { "security.lastIp": 1 } },
 	// admin: list all admins / promote-demote
 	{ key: { authority: 1 } },
+	// admin: list scoped admins (users holding granular grants)
+	{ key: { adminGrants: 1 }, sparse: true },
 	// admin: online/connected user counts on dashboard
 	{ key: { "security.lastOnline": 1 } },
 ];

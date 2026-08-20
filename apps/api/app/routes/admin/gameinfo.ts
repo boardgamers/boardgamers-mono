@@ -11,6 +11,7 @@ import type { Context } from "koa";
 import Router from "koa-router";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
+import { canUserManageGame, isGameAdminGrant, userPermissions } from "@bgs/models";
 import { colls } from "../../config/db.ts";
 import { findByEmail, findByUsername, findGameInfoWithVersion } from "../../models/index.ts";
 import { lastAccessibleVersion } from "../../services/gameinfo.ts";
@@ -18,12 +19,46 @@ import { gameBundleS3Key, publicObjectUrl, putObject, s3Enabled } from "../../se
 
 const router = new Router<Application.DefaultState, Context>();
 
+// The /gameinfo mount gate is a subset check, so this guard is the blanket
+// one: full gameinfo/games admins pass wholesale; a per-boardgame
+// `gameinfo:<game>` grantee is let in but every route must then call
+// requireGameAccess against its target game (the writes below all do; reads
+// stay open to any scoped admin so the panel can bootstrap).
+router.use(async (ctx, next) => {
+	const permissions = userPermissions(ctx.state.user);
+	if (permissions.has("gameinfo") || permissions.has("games")) {
+		return next();
+	}
+	if ([...permissions].some(isGameAdminGrant)) {
+		return next();
+	}
+	throw createError(403, "Missing admin permission: gameinfo");
+});
+
+function requireGameAccess(ctx: Context, game: string) {
+	if (!canUserManageGame(ctx.state.user, game)) {
+		throw createError(403, `Missing admin permission: gameinfo:${game}`);
+	}
+}
+
 router.get("/", async (ctx) => {
+	const permissions = userPermissions(ctx.state.user);
+	const fullAccess = permissions.has("gameinfo") || permissions.has("games");
+	// A scoped (per-boardgame) admin only lists the games their grants cover.
+	const filter = fullAccess
+		? {}
+		: {
+				"_id.game": {
+					$in: [...permissions].flatMap((p) => (isGameAdminGrant(p) ? [p.slice("gameinfo:".length)] : [])),
+				},
+			};
 	const versions = await colls.gameInfos
-		.find({}, { projection: { _id: 1, "meta.archived": 1 } })
+		.find(filter, { projection: { _id: 1, "meta.archived": 1 } })
 		.sort({ "_id.game": 1, "_id.version": -1 })
 		.toArray();
-	const metas = await colls.gameMetadatas.find({}, { projection: { label: 1, alias: 1 } }).toArray();
+	const metas = await colls.gameMetadatas
+		.find(fullAccess ? {} : { _id: filter["_id.game"] }, { projection: { label: 1, alias: 1 } })
+		.toArray();
 	const metaByGame = new Map(metas.map((m) => [m._id, m]));
 	ctx.body = versions.map((v) => {
 		const meta = metaByGame.get(v._id.game);
@@ -55,6 +90,7 @@ router.get("/:game/meta", async (ctx) => {
 
 router.put("/:game/meta", async (ctx) => {
 	const game = ctx.params.game;
+	requireGameAccess(ctx, game);
 	// The editor round-trips the GET response, so strip the server-managed fields:
 	// `_id` is immutable, timestamps are wrapper-managed, and `likeCount` is owned by
 	// the like/unlike service — a `$set` here would clobber it with a stale snapshot.
@@ -126,6 +162,7 @@ function splitBody(body: Record<string, unknown>): {
 
 async function upsert(ctx: Context) {
 	const game = ctx.params.game;
+	requireGameAccess(ctx, game);
 	const version = +ctx.params.version;
 	// `likeCount` is stripped for the same reason as the timestamps: the version page
 	// GETs the *merged* doc, so a save/duplicate round-trips it — without the strip it
@@ -224,6 +261,7 @@ router.get("/:game/beta-users", async (ctx) => {
 // grant route.
 router.post("/:game/beta-users", async (ctx) => {
 	const game = ctx.params.game;
+	requireGameAccess(ctx, game);
 	const { usernameOrEmail } = z.object({ usernameOrEmail: z.string().min(1) }).parse(ctx.request.body);
 
 	const gameInfo = await findGameInfoWithVersion(game, "latest");
@@ -252,6 +290,7 @@ router.post("/:game/beta-users", async (ctx) => {
 // DELETE /api/admin/gameinfo/:game/beta-users/:userId — revoke a user's grant.
 router.delete("/:game/beta-users/:userId", async (ctx) => {
 	const game = ctx.params.game;
+	requireGameAccess(ctx, game);
 
 	if (!(await colls.gameInfos.countDocuments({ "_id.game": game }))) {
 		throw createError(404, `No game info for ${game}`);
@@ -291,6 +330,7 @@ router.put("/:game/:version", upsert);
 // oxlint-enable no-async-endpoint-handlers
 
 router.delete("/:game/:version", async (ctx) => {
+	requireGameAccess(ctx, ctx.params.game);
 	await colls.gameInfos.deleteOne({ _id: { game: ctx.params.game, version: +ctx.params.version } });
 	ctx.status = 200;
 });
@@ -318,6 +358,7 @@ const archiveBodySchema = z.object({ force: z.boolean().optional() }).nullish();
 
 router.post("/:game/:version/archive", async (ctx) => {
 	const game = ctx.params.game;
+	requireGameAccess(ctx, game);
 	const version = +ctx.params.version;
 	const force = archiveBodySchema.parse(ctx.request.body)?.force === true;
 
@@ -359,6 +400,7 @@ router.post("/:game/:version/archive", async (ctx) => {
 
 router.post("/:game/:version/unarchive", async (ctx) => {
 	const game = ctx.params.game;
+	requireGameAccess(ctx, game);
 	const version = +ctx.params.version;
 
 	const info = await colls.gameInfos.findOne({ _id: { game, version } }, { projection: { _id: 1 } });
@@ -455,6 +497,7 @@ const VIEWER_CONTENT_TYPES: Record<string, string> = {
 // and the .map upload to place them in the same directory so it does.
 router.post("/:game/:version/viewer/file", async (ctx) => {
 	const { game, version } = assertBundleTarget(ctx);
+	requireGameAccess(ctx, game);
 	const { filename, alternate, bundle } = viewerFileQuerySchema.parse(ctx.query);
 	const body = await readBody(ctx, VIEWER_FILE_MAX_BYTES);
 	if (body.length === 0) {
@@ -508,6 +551,7 @@ async function readTarballPackage(tarball: Buffer): Promise<{ name: string; vers
 // game-server installer npm-installs from that URL instead of the registry.
 router.post("/:game/:version/engine", async (ctx) => {
 	const { game, version } = assertBundleTarget(ctx);
+	requireGameAccess(ctx, game);
 	const body = await readBody(ctx, ENGINE_TARBALL_MAX_BYTES);
 	if (body.length === 0) {
 		throw createError(400, "Empty file");

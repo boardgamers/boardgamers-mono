@@ -8,6 +8,7 @@ import type { OAuthScope, UserDoc } from "@bgs/models";
 import { colls } from "../../config/db.ts";
 import { env } from "../../config/index.ts";
 import { verifyPkceS256 } from "../../config/pkce.ts";
+import { userRoles } from "@bgs/models";
 import { createAccessToken, accessTokenDuration } from "../../models/jwtrefreshtokens.ts";
 import { createOAuthCode, redeemOAuthCode } from "../../models/oauthflows.ts";
 import { missingConsentScopes, recordConsent, touchConsent } from "../../models/oauthconsents.ts";
@@ -366,9 +367,13 @@ function signIdToken(user: WithId<UserDoc>, clientId: string, scopes: OAuthScope
 	}
 	// Role signal for first-party tooling (Grafana role mapping, NodeBB
 	// assignGroups), NOT an admin grant: admin API access stays gated on the
-	// session-token family. Standard `roles` array form.
-	if (scopes.includes("role") && user.authority) {
-		claims.roles = [user.authority];
+	// session-token family. Standard `roles` array form. Full admins keep the
+	// legacy ["admin"]; scoped admins expose their granular grants.
+	if (scopes.includes("role")) {
+		const roles = userRoles(user);
+		if (roles.length > 0) {
+			claims.roles = roles;
+		}
 	}
 	return jwt.sign(claims, env.jwt.keys.private, { algorithm: env.jwt.algorithm });
 }
@@ -423,9 +428,10 @@ router.get("/userinfo", async (ctx) => {
 		// assignGroups reads profile.roles), NOT an admin grant: admin API access
 		// stays gated on the session-token family. The grant's scopes ride the
 		// access token (minted at /token) so userinfo gates the claim on them, like
-		// signIdToken does. Regular users have no authority field (migration 1.4.2
-		// $unset the legacy "user" placeholder), hence no roles claim.
-		...(scopes.includes("role") && user.authority ? { roles: [user.authority] } : {}),
+		// signIdToken does. Regular users have no authority field nor adminGrants
+		// (migration 1.4.2 $unset the legacy "user" placeholder), hence no roles
+		// claim. Full admins keep the legacy ["admin"]; scoped admins expose grants.
+		...(scopes.includes("role") && userRoles(user).length > 0 ? { roles: userRoles(user) } : {}),
 		picture: `${env.oauth2.issuer}/api/user/${user._id.toString()}/avatar`,
 	};
 });

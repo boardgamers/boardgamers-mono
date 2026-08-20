@@ -1,8 +1,7 @@
 import crypto from "node:crypto";
 import type { WithId } from "mongodb";
-import type { AdminTokenDoc, UserDoc } from "@bgs/models";
+import { hasAnyAdminAccess, type AdminTokenDoc, type UserDoc } from "@bgs/models";
 import { colls } from "../config/db.ts";
-import { isAdmin } from "./user.ts";
 
 // Every TTL goes through this clamp — the routes cap it, and callers/tests can
 // pass sub-day TTLs directly to this function.
@@ -41,10 +40,13 @@ export type AdminAuth = { user: WithId<UserDoc>; viaAdminToken: true };
 
 /**
  * Resolve a raw admin token to its owning admin user. Returns null for unknown,
- * expired, or revoked tokens, or when the owner is gone or no longer admin
- * (authority is re-checked against the live user doc on every request, so
- * demoting an admin kills their tokens immediately). `lastUsedAt` is touched
- * fire-and-forget so auth latency doesn't depend on the write.
+ * expired, or revoked tokens, or when the owner is gone or holds no admin
+ * capability anymore (authority/adminGrants are re-checked against the live
+ * user doc on every request, so a full demotion kills the tokens immediately;
+ * a token of a scoped admin only ever exercises that admin's grants — the
+ * per-route permission middleware re-checks them on the resolved user).
+ * `lastUsedAt` is touched fire-and-forget so auth latency doesn't depend on
+ * the write.
  *
  * The caller scopes WHERE the token authenticates (app.ts only invokes this for
  * requests under /api/admin) — everywhere else the credential is just a Bearer
@@ -62,7 +64,7 @@ export async function authenticateAdminToken(rawToken: string): Promise<AdminAut
 	}
 
 	const user = await colls.users.findOne({ _id: adminToken.userId });
-	if (!user || !isAdmin(user)) {
+	if (!user || !hasAnyAdminAccess(user)) {
 		return null;
 	}
 

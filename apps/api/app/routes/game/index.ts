@@ -6,7 +6,7 @@ import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
 import { z } from "zod";
-import { playerOrderSchema, type GameDoc, type RoomMetaDataDoc } from "@bgs/models";
+import { canUserManageGame, playerOrderSchema, type GameDoc, type RoomMetaDataDoc } from "@bgs/models";
 import { ObjectId } from "mongodb";
 import { colls } from "../../config/db.ts";
 import { env } from "../../config/index.ts";
@@ -15,7 +15,7 @@ import { zObjectId } from "../../utils/zod.ts";
 import { notifyGameStart } from "../../services/game.ts";
 import { getUserElo } from "../../services/elo.ts";
 import { mergeGameInfo } from "../../models/gameinfo.ts";
-import { isAdmin, isConfirmed, loggedIn } from "../utils.ts";
+import { isConfirmed, loggedIn } from "../utils.ts";
 import listings, { myBoardgames } from "./listings.ts";
 
 function withoutData(game: GameDoc): Omit<GameDoc, "data"> {
@@ -394,7 +394,7 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
 	const user = ctx.state.user!;
 	const game = ctx.state.game!;
 	assert(
-		user.authority === "admin" || game.players.some((pl) => pl._id.equals(user._id)),
+		canUserManageGame(user, game.game.name) || game.players.some((pl) => pl._id.equals(user._id)),
 		"You must be a player of the game to chat!",
 	);
 	const body = z
@@ -823,8 +823,12 @@ router.post("/:roomId/chat/lastRead", loggedIn, async (ctx) => {
 	ctx.status = 200;
 });
 
-router.delete("/:gameId", isAdmin, async (ctx) => {
-	await colls.games.deleteOne({ _id: ctx.state.game!._id });
+router.delete("/:gameId", loggedIn, async (ctx) => {
+	const game = ctx.state.game!;
+	if (!canUserManageGame(ctx.state.user, game.game.name)) {
+		throw createError(403, "You need to be admin");
+	}
+	await colls.games.deleteOne({ _id: game._id });
 	ctx.status = 200;
 });
 

@@ -1,0 +1,36 @@
+import { ADMIN_PERMISSIONS, type AdminPermission } from "@bgs/models";
+
+export type { AdminPermission };
+export { ADMIN_PERMISSIONS };
+
+export interface AdminMe {
+	fullAdmin: boolean;
+	permissions: string[];
+	games: string[];
+}
+
+export const PERMISSION_LABELS: Record<AdminPermission, string> = {
+	users: "Users",
+	games: "Games (all)",
+	gameinfo: "Boardgames (all)",
+	pages: "Pages",
+	changelog: "Changelog",
+	feedback: "Feedback",
+	tokens: "Admin tokens",
+	serverinfo: "Server info",
+	loki: "Logs (Loki)",
+	newsletter: "Newsletter",
+};
+
+export const EMPTY_ME: AdminMe = { fullAdmin: false, permissions: [], games: [] };
+
+export function can(me: AdminMe | null | undefined, permission: AdminPermission): boolean {
+	return !!me && (me.fullAdmin || me.permissions.includes(permission));
+}
+
+export function canManageGame(me: AdminMe | null | undefined, game: string): boolean {
+	return (
+		!!me &&
+		(me.fullAdmin || me.permissions.includes("gameinfo") || me.permissions.includes("games") || me.games.includes(game))
+	);
+}

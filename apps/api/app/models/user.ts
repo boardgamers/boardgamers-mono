@@ -27,6 +27,7 @@ export function makeDefaultUser(params: {
 	social?: { google?: string; facebook?: string; discord?: string; github?: string; huggingface?: string };
 	socialMeta?: UserDoc["account"]["socialMeta"];
 	authority?: string;
+	adminGrants?: string[];
 }): UserDoc {
 	const now = new Date();
 	return {
@@ -65,6 +66,7 @@ export function makeDefaultUser(params: {
 		meta: { nextGameNotification: new Date(0), lastGameNotification: new Date(0) },
 		// Regular users carry no authority value (migration 1.4.2 $unset the legacy "user").
 		...(params.authority ? { authority: params.authority } : {}),
+		...(params.adminGrants?.length ? { adminGrants: params.adminGrants } : {}),
 		createdAt: now,
 		updatedAt: now,
 	};
