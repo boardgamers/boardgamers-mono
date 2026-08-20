@@ -28,18 +28,23 @@ describe("buildMailData — outbound mail shape (#2)", () => {
 		assert.match(String(data.from), new RegExp(`@mg\\.${env.domain.replaceAll(".", "\\.")}>`));
 	});
 
-	it("unsubscribable mail carries List-Unsubscribe and a body link", () => {
-		const url = `https://${env.site}/unsubscribe?token=some.signed.token`;
-		const data = buildMailData({ kind: "your-turn", to: "a@test.com", subject: "s", html, unsubscribe: url });
-		assert.equal(data["h:List-Unsubscribe"], `<${url}>`);
-		assert.ok(String(data.html).includes(`href="${url}"`), "the HTML body links to the unsubscribe URL");
-		assert.ok(data.text?.includes(url), "the text part links to the unsubscribe URL");
+	it("unsubscribable mail carries the RFC 8058 one-click headers and a body link to the landing page", () => {
+		const token = "aaaabbbbccccddddeeeeffff.game.some-signature";
+		const data = buildMailData({ kind: "your-turn", to: "a@test.com", subject: "s", html, unsubscribeToken: token });
+		// The header target is the one-click POST endpoint (RFC 8058)…
+		assert.equal(data["h:List-Unsubscribe"], `<https://${env.site}/api/account/unsubscribe/one-click?token=${token}>`);
+		assert.equal(data["h:List-Unsubscribe-Post"], "List-Unsubscribe=One-Click");
+		// …while the body links to the human landing page.
+		const pageUrl = `https://${env.site}/unsubscribe?token=${token}`;
+		assert.ok(String(data.html).includes(`href="${pageUrl}"`), "the HTML body links to the unsubscribe page");
+		assert.ok(data.text?.includes(pageUrl), "the text part links to the unsubscribe page");
 	});
 
-	it("transactional mail has no List-Unsubscribe and no unsubscribe link", () => {
+	it("transactional mail has no List-Unsubscribe(-Post) and no unsubscribe link", () => {
 		for (const kind of ["confirm", "reset", "mail-change"] as const) {
 			const data = buildMailData({ kind, to: "a@test.com", subject: "s", html });
 			assert.equal(data["h:List-Unsubscribe"], undefined, `${kind} must not set List-Unsubscribe`);
+			assert.equal(data["h:List-Unsubscribe-Post"], undefined, `${kind} must not set List-Unsubscribe-Post`);
 			assert.ok(!String(data.html).includes("unsubscribe"), `${kind} body must not mention unsubscribing`);
 		}
 	});

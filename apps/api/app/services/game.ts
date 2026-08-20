@@ -5,7 +5,7 @@ import locks from "../config/locks.ts";
 import type { GameDoc, PlayerInfo } from "@bgs/models";
 import { colls } from "../config/db.ts";
 import env from "../config/env.ts";
-import { unsubscribeUrl } from "../models/user.ts";
+import { signUnsubscribeToken } from "../models/user.ts";
 import { sendMail } from "./mail.ts";
 
 export async function notifyGameStart(game: GameDoc) {
@@ -222,7 +222,7 @@ async function emailCancelNotice(game: GameDoc): Promise<void> {
 				html: `
 				<p>Hello ${user.account.username}</p>
 				<p>Your game <a href='${url}'>${game._id}</a> (${game.game.name}) was cancelled for inactivity.</p>`,
-				unsubscribe: unsubscribeUrl(user._id.toHexString(), "game"),
+				unsubscribeToken: signUnsubscribeToken(user._id.toHexString(), "game"),
 			}).catch(console.error);
 		}),
 	);

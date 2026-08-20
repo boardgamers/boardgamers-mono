@@ -7,7 +7,7 @@ import { z } from "zod";
 import locks from "../config/locks.ts";
 import { colls } from "../config/db.ts";
 import { env } from "../config/index.ts";
-import { sendMail, unsubscribeScopes, type UnsubscribeScope } from "../services/mail.ts";
+import { sendMail, unsubscribePageUrl, unsubscribeScopes, type UnsubscribeScope } from "../services/mail.ts";
 import { safeFetch } from "../services/safefetch.ts";
 import { findGamesWithPlayersTurn } from "./game.ts";
 
@@ -172,7 +172,7 @@ export function verifyUnsubscribeToken(token: string): { userId: string; scope: 
 }
 
 export function unsubscribeUrl(userId: string, scope: UnsubscribeScope): string {
-	return `https://${env.site}/unsubscribe?token=${signUnsubscribeToken(userId, scope)}`;
+	return unsubscribePageUrl(signUnsubscribeToken(userId, scope));
 }
 
 export async function applyUnsubscribe(userId: string, scope: UnsubscribeScope): Promise<void> {
@@ -583,7 +583,7 @@ export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
 				<p>Hello ${freshUser.account.username}</p>
 				<p>It's your turn on ${gameString},
 				click <a href='https://${env.site}/user/${encodeURIComponent(freshUser.account.username)}'>here</a> to see your active games.</p>`,
-				unsubscribe: unsubscribeUrl(freshUser._id.toHexString(), "game"),
+				unsubscribeToken: signUnsubscribeToken(freshUser._id.toHexString(), "game"),
 			}).catch(console.error);
 		}
 

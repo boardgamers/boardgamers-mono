@@ -8,6 +8,7 @@ import { ObjectId } from "mongodb";
 import type { GamePreferencesDoc } from "@bgs/models";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
+import { unsubscribePageUrl } from "../../services/mail.ts";
 import {
 	accessTokenDuration,
 	authEmailOnCooldown,
@@ -606,6 +607,31 @@ async function unsubscribeTarget(token: string) {
 	return { ...parsed, username: user.account.username };
 }
 
+// RFC 8058 one-click — the List-Unsubscribe header's target (registered BEFORE
+// /unsubscribe/:token, which would otherwise capture "one-click" as a token).
+// Mail providers POST the exact header URI with a `List-Unsubscribe=One-Click`
+// form body and no cookies; requiring that body keeps non-conforming POSTs
+// (security scanners replaying the URL) from unsubscribing anyone — the same
+// reason GETs never apply.
+router.post("/unsubscribe/one-click", async (ctx: Context) => {
+	const { token } = z.object({ token: z.string() }).parse(ctx.query);
+	const body = z.object({ "List-Unsubscribe": z.literal("One-Click") }).safeParse(ctx.request.body);
+	if (!body.success) {
+		throw createError(400, "One-click unsubscribe requires the RFC 8058 form body");
+	}
+	const { userId, scope } = await unsubscribeTarget(token);
+	await applyUnsubscribe(userId, scope);
+	ctx.body = { ok: true };
+});
+
+// A human/mail client opening the header URI in a browser (GET) must not
+// change state — send them to the landing page (whose button POSTs).
+router.get("/unsubscribe/one-click", async (ctx: Context) => {
+	const { token } = z.object({ token: z.string() }).parse(ctx.query);
+	await unsubscribeTarget(token); // 404 on a bad token, like every other path
+	ctx.redirect(unsubscribePageUrl(encodeURIComponent(token)));
+});
+
 router.get("/unsubscribe/:token", async (ctx: Context) => {
 	const { scope, username } = await unsubscribeTarget(ctx.params.token);
 	ctx.body = { scope, username };
@@ -613,7 +639,7 @@ router.get("/unsubscribe/:token", async (ctx: Context) => {
 
 // POST is the ONLY apply path: a state change on GET would let mail-scanner /
 // link-preview prefetch unsubscribe users. The GET variants only describe the
-// token; true one-click would be RFC 8058 List-Unsubscribe-Post (a POST).
+// token; the true one-click POST (RFC 8058) is /unsubscribe/one-click above.
 router.post("/unsubscribe", async (ctx: Context) => {
 	const { token } = z.object({ token: z.string() }).parse(ctx.request.body);
 	const { userId, scope, username } = await unsubscribeTarget(token);

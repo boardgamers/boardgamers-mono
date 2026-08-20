@@ -146,4 +146,73 @@ describe("Unsubscribe API (#2)", () => {
 		const user = (await colls.users.findOne({ _id: gameUserId }))!;
 		assert.equal(user.settings?.mailing?.game?.activated, false);
 	});
+
+	// --- RFC 8058 one-click (the List-Unsubscribe header target) ---------------
+
+	function oneClickUser() {
+		const id = new ObjectId();
+		return {
+			id,
+			insert: () =>
+				colls.users.insertOne(
+					testUser({
+						_id: id,
+						account: { username: `unsub-oneclick-${id.toHexString().slice(-4)}` },
+						settings: { mailing: { game: { activated: true } } },
+					}),
+				),
+			token: () => signUnsubscribeToken(id.toHexString(), "game"),
+		};
+	}
+
+	function postOneClick(token: string, body: string | null) {
+		return fetch(`${baseURL()}/api/account/unsubscribe/one-click?token=${encodeURIComponent(token)}`, {
+			method: "POST",
+			...(body === null
+				? {}
+				: { headers: { "Content-Type": "application/x-www-form-urlencoded" }, body }),
+		});
+	}
+
+	it("POST one-click with the RFC 8058 form body applies the unsubscribe", async () => {
+		const u = oneClickUser();
+		await u.insert();
+		const res = await postOneClick(u.token(), "List-Unsubscribe=One-Click");
+		assert.equal(res.status, 200);
+		assert.equal((await colls.users.findOne({ _id: u.id }))!.settings?.mailing?.game?.activated, false);
+	});
+
+	it("POST one-click WITHOUT the RFC body is a 400 and changes nothing (scanner replay)", async () => {
+		const u = oneClickUser();
+		await u.insert();
+		for (const body of [null, "", "List-Unsubscribe=Two-Clicks", "foo=bar"]) {
+			const res = await postOneClick(u.token(), body);
+			assert.equal(res.status, 400, JSON.stringify(body));
+		}
+		assert.equal((await colls.users.findOne({ _id: u.id }))!.settings?.mailing?.game?.activated, true);
+	});
+
+	it("POST one-click with a tampered token 404s without applying", async () => {
+		const u = oneClickUser();
+		await u.insert();
+		const res = await postOneClick(`${u.token()}aa`, "List-Unsubscribe=One-Click");
+		assert.equal(res.status, 404);
+		assert.equal((await colls.users.findOne({ _id: u.id }))!.settings?.mailing?.game?.activated, true);
+	});
+
+	it("GET one-click redirects to the landing page without applying (browser opening the header URL)", async () => {
+		const u = oneClickUser();
+		await u.insert();
+		const token = u.token();
+		const res = await fetch(`${baseURL()}/api/account/unsubscribe/one-click?token=${encodeURIComponent(token)}`, {
+			redirect: "manual",
+		});
+		assert.equal(res.status, 302);
+		assert.equal(res.headers.get("location"), `https://${env.site}/unsubscribe?token=${token}`);
+		assert.equal(
+			(await colls.users.findOne({ _id: u.id }))!.settings?.mailing?.game?.activated,
+			true,
+			"a GET must never apply the unsubscribe",
+		);
+	});
 });

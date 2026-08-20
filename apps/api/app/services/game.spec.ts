@@ -13,7 +13,8 @@ import { colls, db } from "../config/db.ts";
 import env from "../config/env.ts";
 import { setSendmailForTests, type MailSendData } from "../config/sendmail.ts";
 import { testGame, testUser } from "../config/test-helpers.ts";
-import { unsubscribeUrl } from "../models/user.ts";
+import { signUnsubscribeToken } from "../models/user.ts";
+import { unsubscribeOneClickUrl, unsubscribePageUrl } from "./mail.ts";
 import { processStalledGame, processStalledGames } from "./game.ts";
 
 const day = 24 * 3600 * 1000;
@@ -319,13 +320,15 @@ describe("processStalledGames — warn-then-auto-cancel for stalled games (#94)"
 			assert.ok(mail.text, "a text part must be present");
 			assert.match(mail.text, /cancelled for inactivity/);
 
-			// List-Unsubscribe carries the per-user signed unsubscribe URL, and the
-			// body links to the same URL.
+			// List-Unsubscribe targets the RFC 8058 one-click endpoint with the
+			// per-user signed token; the body links to the human landing page.
 			const recipient = await colls.users.findOne({ "account.email": String(mail.to) });
-			const url = unsubscribeUrl(recipient!._id.toHexString(), "game");
-			assert.equal(mail["h:List-Unsubscribe"], `<${url}>`);
-			assert.ok(String(mail.html).includes(`href="${url}"`), "the HTML body links to the signed unsubscribe URL");
-			assert.ok(mail.text.includes(url), "the text part links to the signed unsubscribe URL");
+			const token = signUnsubscribeToken(recipient!._id.toHexString(), "game");
+			assert.equal(mail["h:List-Unsubscribe"], `<${unsubscribeOneClickUrl(token)}>`);
+			assert.equal(mail["h:List-Unsubscribe-Post"], "List-Unsubscribe=One-Click");
+			const pageUrl = unsubscribePageUrl(token);
+			assert.ok(String(mail.html).includes(`href="${pageUrl}"`), "the HTML body links to the unsubscribe page");
+			assert.ok(mail.text.includes(pageUrl), "the text part links to the unsubscribe page");
 		}
 	});
 
