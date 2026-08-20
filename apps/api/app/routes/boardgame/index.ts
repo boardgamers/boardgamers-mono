@@ -8,7 +8,7 @@ import { z } from "zod";
 import { colls } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { likedGameIds, setGameLike } from "../../services/gamelike.ts";
-import { createFeedbackTopic } from "../../services/forum.ts";
+import { createFeedbackTopic, forumUidForUser } from "../../services/forum.ts";
 import { lastAccessibleVersion } from "../../services/gameinfo.ts";
 import { findGameInfoWithVersion, mergeGameInfo } from "../../models/gameinfo.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
@@ -103,6 +103,14 @@ router.post("/request", loggedIn, actionRateLimit("boardgame/request"), async (c
 		throw createError(429, `You already have ${MAX_OPEN_GAME_REQUESTS_PER_USER} open game requests`);
 	}
 
+	// Like site/game feedback (#340), the request's forum topic is posted AS the
+	// user, so they need a linked forum account (created lazily via BGS OAuth on
+	// first forum login). Hard gate: without one the frontend starts the linking flow.
+	const forumUid = await forumUidForUser(user._id);
+	if (forumUid === null) {
+		throw createError(403, "Link your forum account to request a game", { code: "forum_account_required" });
+	}
+
 	// Auto-like by the requester: insert the like first so a retry (the metadata
 	// insert winning the race but the response getting lost) stays consistent, and
 	// store the denormalized count directly on the requested-game doc.
@@ -127,14 +135,15 @@ router.post("/request", loggedIn, actionRateLimit("boardgame/request"), async (c
 		throw err;
 	}
 
-	// Auto-create the forum discussion topic (#340). Game requests stay
-	// frictionless — bot-posted (no forum account required). Fail-safe: a forum
-	// outage never fails the request — it just stays without a topic.
+	// Auto-create the forum discussion topic, posted AS the requester (#340).
+	// Fail-safe: a forum outage never fails the request — it just stays without
+	// a topic.
 	const topic = await createFeedbackTopic({
 		title: label,
 		body: description,
 		requestUrl: `https://${env.site}/feedback`,
 		username: user.account.username,
+		forumUid,
 	});
 	if (topic) {
 		await colls.gameMetadatas.updateOne({ _id: game }, { $set: { forumTid: topic.tid } });

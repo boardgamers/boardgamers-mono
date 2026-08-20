@@ -3,6 +3,7 @@
 	import { page } from "$app/state";
 	import FeedbackLikeButton from "@/components/FeedbackLikeButton.svelte";
 	import FeedbackRequestForm from "@/components/FeedbackRequestForm.svelte";
+	import ForumLinkGate, { type ForumLinkGate as ForumLinkGateHandle } from "@/components/ForumLinkGate.svelte";
 	import IconBoxArrowUpRight from "@/components/icons/IconBoxArrowUpRight.svelte";
 	import IconGithub from "@/components/icons/IconGithub.svelte";
 	import UsernameLink from "@/components/User/UsernameLink.svelte";
@@ -39,6 +40,7 @@
 	let gameDescription = $state("");
 	let gameSubmitting = $state(false);
 	let gameError = $state("");
+	let gameForumGate: ForumLinkGateHandle | undefined = $state();
 
 	async function submitGameRequest() {
 		gameError = "";
@@ -54,9 +56,13 @@
 			gameRequests = [...gameRequests, created].sort(byLikesThenOldest);
 			gameLabel = gameDescription = "";
 		} catch (err) {
-			// Inline (not just a toast): 409 "already requested" / 429 rate-limit are
-			// form errors the user acts on.
-			gameError = err instanceof Error ? err.message : "Could not submit the request";
+			if (gameForumGate?.handle(err)) {
+				gameForumGate?.stashDraft({ label: gameLabel, description: gameDescription });
+			} else {
+				// Inline (not just a toast): 409 "already requested" / 429 rate-limit are
+				// form errors the user acts on.
+				gameError = err instanceof Error ? err.message : "Could not submit the request";
+			}
 		} finally {
 			gameSubmitting = false;
 		}
@@ -131,6 +137,14 @@
 
 			<div class="mt-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
 				<h3 class="font-semibold">Request a game</h3>
+				<ForumLinkGate
+					bind:this={gameForumGate}
+					draftKey="feedback-draft-game-request"
+					onrestore={(draft) => {
+						gameLabel = draft.label ?? "";
+						gameDescription = draft.description ?? "";
+					}}
+				/>
 				{#if gameError}
 					<p
 						class="mt-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"

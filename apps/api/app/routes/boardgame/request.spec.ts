@@ -54,6 +54,7 @@ const requestListItem = z.object({
 describe("Boardgame API — game requests (#340)", () => {
 	let alice: Awaited<ReturnType<typeof insertUserWithAuth>>;
 	let bob: Awaited<ReturnType<typeof insertUserWithAuth>>;
+	let savedNodebb: string;
 
 	before(async () => {
 		// One implemented game: requests must not collide with it, and it anchors
@@ -67,10 +68,38 @@ describe("Boardgame API — game requests (#340)", () => {
 		await colls.gameMetadatas.insertOne({ _id: "implemented-game", label: "Implemented Game", players: [2] });
 		alice = await insertUserWithAuth("alice");
 		bob = await insertUserWithAuth("bob");
+
+		// Game requests are posted on the forum AS the user (#340), so the create
+		// route requires a linked forum account. The forum-uid lookup reads
+		// `env.database.nodebb` via its own short-lived connection — point it at the
+		// SAME test db and seed the bgs→forum-uid link doc so alice/bob have forum
+		// accounts. Upserted (the specs share the process/db and interleave) and
+		// restored in after().
+		savedNodebb = env.database.nodebb;
+		const bgsUrl = new URL(env.database.bgs.url.replace(/^mongodb:/, "http:"));
+		env.database.nodebb = `mongodb://${bgsUrl.host}/${env.database.bgs.name}${bgsUrl.search}`;
+		await db()
+			.collection("objects")
+			.updateOne(
+				{ _key: "boardgamersId:uid" },
+				{ $set: { [alice.userId.toHexString()]: 21, [bob.userId.toHexString()]: 22 } },
+				{ upsert: true },
+			);
 	});
 
 	it("requires authentication to create a request", async () => {
 		assert.strictEqual((await api("POST", "/api/boardgame/request", { label: "Anon Game" })).status, 401);
+	});
+
+	it("requires a linked forum account (forum_account_required)", async () => {
+		// A user with no forum account (not in the boardgamersId:uid link doc).
+		const noforum = await insertUserWithAuth("noforum");
+		const res = await api("POST", "/api/boardgame/request", { label: "No Forum Game" }, noforum.authHeaders);
+		assert.strictEqual(res.status, 403);
+		const code = typeof res.data === "object" && res.data !== null && "code" in res.data ? res.data.code : undefined;
+		assert.strictEqual(code, "forum_account_required");
+		// The request was NOT created.
+		assert.strictEqual(await colls.gameMetadatas.findOne({ _id: "no-forum-game" }), null);
 	});
 
 	it("creates a game request, auto-liked by the requester", async () => {
@@ -215,5 +244,8 @@ describe("Boardgame API — game requests (#340)", () => {
 		}
 	});
 
-	after(() => db().dropDatabase());
+	after(async () => {
+		env.database.nodebb = savedNodebb;
+		await db().dropDatabase();
+	});
 });

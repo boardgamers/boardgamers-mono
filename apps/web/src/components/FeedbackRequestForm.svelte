@@ -1,19 +1,9 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import { onMount } from "svelte";
-	import { ApiError, post } from "@/lib/api";
+	import ForumLinkGate, { type ForumLinkGate as ForumLinkGateHandle } from "@/components/ForumLinkGate.svelte";
+	import { post } from "@/lib/api";
 	import { Button, Input } from "@/modules/cdk";
 	import type { FeedbackKind, UserFront } from "@bgs/models";
-
-	// Site + game-specific feedback is posted on the forum AS the user (#340), so it
-	// needs a linked forum account. When the API reports forum_account_required, prompt
-	// to link it (BGS OAuth on the forum) instead of showing a bare error.
-	//
-	// The forum's SSO initiate URL (nodebb-plugin-sso-oauth2-multiple strategy
-	// "boardgamers") starts BGS OAuth; the forum account is auto-created+linked on first
-	// login. The plugin doesn't forward a return URL into the OAuth state, so the draft
-	// is stashed in sessionStorage and restored on return instead.
-	const FORUM_AUTH_URL = "https://forum.boardgamers.space/auth/boardgamers";
 
 	let props: {
 		kind: FeedbackKind;
@@ -44,32 +34,10 @@
 	let body = $state("");
 	let submitting = $state(false);
 	let error = $state("");
-	let forumLinkNeeded = $state(false);
-
-	function linkForumAccount() {
-		sessionStorage.setItem(draftKey, JSON.stringify({ title, body }));
-		window.location.href = FORUM_AUTH_URL;
-	}
-
-	onMount(() => {
-		// Returning from the forum linking flow: restore the draft so the user can
-		// re-submit (their forum account now exists, so the create succeeds).
-		const draft = sessionStorage.getItem(draftKey);
-		if (draft) {
-			sessionStorage.removeItem(draftKey);
-			try {
-				const parsed = JSON.parse(draft) as { title?: string; body?: string };
-				title = parsed.title ?? "";
-				body = parsed.body ?? "";
-			} catch {
-				// Corrupt draft — ignore.
-			}
-		}
-	});
+	let forumGate: ForumLinkGateHandle | undefined = $state();
 
 	async function submit() {
 		error = "";
-		forumLinkNeeded = false;
 		submitting = true;
 		try {
 			const created = await post<Record<string, unknown>>("/feedback", {
@@ -81,8 +49,8 @@
 			oncreated(created);
 			title = body = "";
 		} catch (err) {
-			if (err instanceof ApiError && err.code === "forum_account_required") {
-				forumLinkNeeded = true;
+			if (forumGate?.handle(err)) {
+				forumGate?.stashDraft({ title, body });
 			} else {
 				error = err instanceof Error ? err.message : "Could not submit the request";
 			}
@@ -93,18 +61,14 @@
 </script>
 
 <h3 class="font-semibold">{heading}</h3>
-{#if forumLinkNeeded}
-	<div
-		class="mt-3 rounded-md border border-blue-300 bg-blue-50 px-3 py-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200"
-		role="alert"
-	>
-		<p>
-			Requests are discussed on our forum, so they need a linked forum account. Link yours (it uses your Boardgamers
-			login) to submit — your draft is saved.
-		</p>
-		<Button color="primary" class="mt-2" onclick={linkForumAccount}>Link your forum account</Button>
-	</div>
-{/if}
+<ForumLinkGate
+	bind:this={forumGate}
+	{draftKey}
+	onrestore={(draft) => {
+		title = draft.title ?? "";
+		body = draft.body ?? "";
+	}}
+/>
 {#if error}
 	<p
 		class="mt-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"

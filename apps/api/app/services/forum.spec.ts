@@ -205,7 +205,7 @@ describe("Forum topics on feedback/game requests (#340)", () => {
 
 		assert.strictEqual(forumCalls.length, 1);
 		assert.strictEqual(forumCalls[0].title, "Forum Topic Game");
-		assert.strictEqual(forumCalls[0]._uid, undefined, "game requests stay bot-posted (no forum account needed)");
+		assert.strictEqual(forumCalls[0]._uid, 11, "game-request topics are posted as the requester");
 		assert.ok(forumCalls[0].content.includes("A game we want"));
 
 		const doc = await colls.gameMetadatas.findOne({ _id: "forum-topic-game" });
@@ -265,13 +265,13 @@ describe("Forum topics on feedback/game requests (#340)", () => {
 		assert.strictEqual(forumCalls.length, 0, "no topic is created without a forum account");
 	});
 
-	it("does NOT require a forum account for whole-game requests", async () => {
+	it("gates whole-game requests on a linked forum account", async () => {
 		const noforum = await insertUserWithAuth("noforumgame");
 		const res = await api("POST", "/api/boardgame/request", { label: "No Forum Needed Game" }, noforum.authHeaders);
-		assert.strictEqual(res.status, 201, "game requests stay frictionless (bot-posted)");
-		ownGameIds.push("no-forum-needed-game");
-		// Bot-posted: no _uid impersonation.
-		assert.strictEqual(forumCalls.length, 1);
-		assert.strictEqual(forumCalls[0]._uid, undefined);
+		assert.strictEqual(res.status, 403);
+		assert.strictEqual(errorCode(res.data), "forum_account_required");
+		assert.strictEqual(forumCalls.length, 0, "no topic is created without a forum account");
+		// The request was NOT created.
+		assert.strictEqual(await colls.gameMetadatas.findOne({ _id: "no-forum-needed-game" }), null);
 	});
 });

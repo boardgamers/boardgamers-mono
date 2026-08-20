@@ -55,7 +55,7 @@ router.post("/", loggedIn, actionRateLimit("feedback/create"), async (ctx) => {
 	// Site + game-specific feedback is posted on the forum AS the user (#340), so
 	// they need a linked forum account (created lazily via BGS OAuth on first
 	// forum login). Hard gate: without one the frontend starts the linking flow.
-	// (Whole-game requests stay frictionless — bot-posted, no forum account needed.)
+	// (Whole-game requests gate the same way in the boardgame routes.)
 	const forumUid = await forumUidForUser(user._id);
 	if (forumUid === null) {
 		throw createError(403, "Link your forum account to submit feedback", { code: "forum_account_required" });
