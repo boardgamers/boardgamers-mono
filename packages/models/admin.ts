@@ -5,6 +5,10 @@ import { z } from "zod";
 // grants (per-boardgame admin) are NOT part of this enum — they are validated
 // by gameAdminGrantSchema and only ever appear in `adminGrants`.
 export const ADMIN_PERMISSIONS = [
+	// FULL-ADMIN-EQUIVALENT: a "users" admin can promote anyone (incl. themselves)
+	// to full admin via POST /admin/users/:id/authority, and can become any user
+	// via POST /admin/login-as. Only assign to trusted operators — this is a
+	// pre-existing property of login-as, not a privilege this grant adds.
 	"users",
 	"games",
 	"gameinfo",
@@ -14,6 +18,8 @@ export const ADMIN_PERMISSIONS = [
 	"tokens",
 	"serverinfo",
 	"loki",
+	// Reserved for the upcoming newsletter-send feature — currently gates no
+	// route. Granting it today only marks the future newsletter admin.
 	"newsletter",
 ] as const;
 
@@ -33,6 +39,22 @@ export function isGameAdminGrant(grant: string): boolean {
 }
 
 /**
+ * The game a CMS page belongs to, derived from its name: `<slug>:<topic>`
+ * (e.g. `powergrid:maps`) belongs to game `<slug>`. Returns null for pages
+ * with no `<slug>:` prefix — those are site-wide pages under the blanket
+ * "pages" permission. Note the prefix is NOT validated against the games
+ * collection here: a `foo:bar` page where `foo` is no game simply belongs to
+ * no one's scope, so only blanket "pages" admins can manage it.
+ */
+export function pageGameSlug(pageName: string): string | null {
+	const colon = pageName.indexOf(":");
+	if (colon <= 0) {
+		return null;
+	}
+	return pageName.slice(0, colon);
+}
+
+/**
  * Whether a user holding these grants may manage the given boardgame (its
  * gameinfo/versions/private-beta and its games). Full gameinfo/games admins
  * qualify, as do per-boardgame `gameinfo:<game>` grantees.
@@ -45,10 +67,11 @@ export function grantsIncludeGame(grants: readonly string[], game: string): bool
  * Whether holding `grant` lets a request past a mount requiring `permission`.
  * Equality always does; the global "games" grant also satisfies "gameinfo"
  * (the games admin manages boardgame info too); and a per-boardgame
- * `gameinfo:<game>` grant satisfies the game-scoped mounts (gameinfo/games)
- * plus "users" (whose router hosts the per-game beta-grant routes) — the
- * routers behind those mounts then re-check the grant against the request's
- * target game, so the scoped grant never acts blanket-wide.
+ * `gameinfo:<game>` grant satisfies the game-scoped mounts (gameinfo/games),
+ * "users" (whose router hosts the per-game beta-grant routes) and "pages"
+ * (whose router hosts the game's CMS pages) — the routers behind those mounts
+ * then re-check the grant against the request's target game, so the scoped
+ * grant never acts blanket-wide.
  */
 export function grantSatisfies(grant: string, permission: AdminPermission): boolean {
 	if (grant === permission) {
@@ -60,7 +83,7 @@ export function grantSatisfies(grant: string, permission: AdminPermission): bool
 	if (!isGameAdminGrant(grant)) {
 		return false;
 	}
-	return permission === "gameinfo" || permission === "games" || permission === "users";
+	return permission === "gameinfo" || permission === "games" || permission === "users" || permission === "pages";
 }
 
 /**

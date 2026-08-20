@@ -138,11 +138,12 @@ describe("Granular admin permissions", () => {
 			assert.strictEqual((await api("GET", "/api/admin/users/stats")).status, 403);
 		});
 
-		it("pages routes: allowed for the pages admin, denied for others", async () => {
+		it("pages routes: allowed for the pages admin and per-boardgame admins, denied for others", async () => {
 			assert.strictEqual((await api("GET", "/api/admin/page", pagesAdmin)).status, 200);
 			assert.strictEqual((await api("GET", "/api/admin/page", fullAdmin)).status, 200);
 			assert.strictEqual((await api("GET", "/api/admin/page", newsletterAdmin)).status, 403);
-			assert.strictEqual((await api("GET", "/api/admin/page", gameAdminA)).status, 403);
+			// A per-boardgame admin reaches the (filtered) page list for their game.
+			assert.strictEqual((await api("GET", "/api/admin/page", gameAdminA)).status, 200);
 			assert.strictEqual((await api("GET", "/api/admin/page", regularUser)).status, 403);
 		});
 
@@ -283,6 +284,17 @@ describe("Granular admin permissions", () => {
 			assert.strictEqual(delOther.status, 403);
 		});
 
+		it("the beta-users list is scoped to the granted game (it exposes usernames)", async () => {
+			const own = await api("GET", "/api/admin/gameinfo/game-a/beta-users", gameAdminA);
+			assert.strictEqual(own.status, 200, JSON.stringify(own.data));
+
+			const other = await api("GET", "/api/admin/gameinfo/game-b/beta-users", gameAdminA);
+			assert.strictEqual(other.status, 403);
+
+			// The blanket gameinfo/games admin reads any game's beta users.
+			assert.strictEqual((await api("GET", "/api/admin/gameinfo/game-b/beta-users", gamesAdmin)).status, 200);
+		});
+
 		it("can grant/revoke beta access through the user-centric routes for the granted game only", async () => {
 			const grant = await api("POST", `/api/admin/users/${userId.toHexString()}/access/grant`, gameAdminA, {
 				type: "game",
@@ -328,6 +340,109 @@ describe("Granular admin permissions", () => {
 			});
 			assert.strictEqual(res.status, 200, "global games admin manages every game's info too");
 			await colls.gameInfos.deleteOne({ _id: { game: "game-a", version: 3 } });
+		});
+	});
+
+	describe("per-boardgame CMS pages (gameinfo:<slug> → <slug>:<topic> pages)", () => {
+		const pageBody = { title: "Maps", content: "# Maps" };
+
+		async function insertPage(name: string, lang = "en") {
+			await colls.pages.insertOne({
+				_id: { name, lang },
+				title: name,
+				content: `# ${name}`,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			});
+		}
+
+		it("a per-boardgame admin can upsert/edit/delete their game's pages", async () => {
+			const create = await api("PUT", "/api/admin/page/game-a:maps/en", gameAdminA, pageBody);
+			assert.strictEqual(create.status, 200, JSON.stringify(create.data));
+			assert.ok(await colls.pages.findOne({ _id: { name: "game-a:maps", lang: "en" } }));
+
+			const edit = await api("PUT", "/api/admin/page/game-a:maps/en", gameAdminA, {
+				...pageBody,
+				content: "# Updated",
+			});
+			assert.strictEqual(edit.status, 200);
+
+			const read = await api("GET", "/api/admin/page/game-a:maps/en", gameAdminA);
+			assert.strictEqual(read.status, 200);
+
+			const del = await api("DELETE", "/api/admin/page/game-a:maps/en", gameAdminA);
+			assert.strictEqual(del.status, 200);
+			assert.strictEqual(await colls.pages.countDocuments({ _id: { name: "game-a:maps", lang: "en" } }), 0);
+		});
+
+		it("can read page history for their game's pages", async () => {
+			await api("PUT", "/api/admin/page/game-a:rules/en", gameAdminA, { title: "Rules", content: "v1" });
+			await api("PUT", "/api/admin/page/game-a:rules/en", gameAdminA, { title: "Rules", content: "v2" });
+
+			const history = await api("GET", "/api/admin/page/game-a:rules/en/history", gameAdminA);
+			assert.strictEqual(history.status, 200, JSON.stringify(history.data));
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			assert.ok((history.data as unknown[]).length >= 1);
+
+			await api("DELETE", "/api/admin/page/game-a:rules/en", gameAdminA);
+		});
+
+		it("is DENIED on another game's pages and on non-game pages", async () => {
+			// Another game's page (game-b is a real game, not granted to gameAdminA).
+			assert.strictEqual((await api("PUT", "/api/admin/page/game-b:auction/en", gameAdminA, pageBody)).status, 403);
+			assert.strictEqual((await api("GET", "/api/admin/page/game-b:auction/en", gameAdminA)).status, 403);
+			assert.strictEqual((await api("DELETE", "/api/admin/page/game-b:auction/en", gameAdminA)).status, 403);
+			assert.strictEqual(await colls.pages.countDocuments({ _id: { name: "game-b:auction", lang: "en" } }), 0);
+
+			// A non-game page (no <slug>: prefix).
+			assert.strictEqual((await api("PUT", "/api/admin/page/privacy-policy/en", gameAdminA, pageBody)).status, 403);
+			assert.strictEqual((await api("GET", "/api/admin/page/privacy-policy/en", gameAdminA)).status, 403);
+			assert.strictEqual((await api("DELETE", "/api/admin/page/privacy-policy/en", gameAdminA)).status, 403);
+
+			// A <slug>: page whose slug is no game at all stays blanket-pages-only.
+			assert.strictEqual(
+				(await api("PUT", "/api/admin/page/game-badges:auction/en", gameAdminA, pageBody)).status,
+				403,
+			);
+		});
+
+		it("the blanket pages admin manages ALL pages (game pages and non-game)", async () => {
+			assert.strictEqual((await api("PUT", "/api/admin/page/game-a:maps/en", pagesAdmin, pageBody)).status, 200);
+			assert.strictEqual((await api("PUT", "/api/admin/page/game-b:auction/en", pagesAdmin, pageBody)).status, 200);
+			assert.strictEqual((await api("PUT", "/api/admin/page/privacy-policy/en", pagesAdmin, pageBody)).status, 200);
+			assert.strictEqual(
+				(await api("PUT", "/api/admin/page/game-badges:auction/en", pagesAdmin, pageBody)).status,
+				200,
+			);
+
+			await colls.pages.deleteMany({
+				"_id.name": { $in: ["game-a:maps", "game-b:auction", "privacy-policy", "game-badges:auction"] },
+			});
+		});
+
+		it("the GET list is filtered to the pages the scoped admin can manage", async () => {
+			await insertPage("game-a:maps");
+			await insertPage("game-b:auction");
+			await insertPage("privacy-policy");
+
+			const scoped = await api("GET", "/api/admin/page", gameAdminA);
+			assert.strictEqual(scoped.status, 200);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			const scopedNames = (scoped.data as { _id: { name: string } }[]).map((p) => p._id.name);
+			assert.ok(scopedNames.includes("game-a:maps"), JSON.stringify(scopedNames));
+			assert.ok(!scopedNames.includes("game-b:auction"), "another game's page hidden");
+			assert.ok(!scopedNames.includes("privacy-policy"), "non-game page hidden");
+
+			const full = await api("GET", "/api/admin/page", pagesAdmin);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			const fullNames = (full.data as { _id: { name: string } }[]).map((p) => p._id.name);
+			assert.ok(
+				fullNames.includes("game-a:maps") &&
+					fullNames.includes("game-b:auction") &&
+					fullNames.includes("privacy-policy"),
+			);
+
+			await colls.pages.deleteMany({ "_id.name": { $in: ["game-a:maps", "game-b:auction", "privacy-policy"] } });
 		});
 	});
 

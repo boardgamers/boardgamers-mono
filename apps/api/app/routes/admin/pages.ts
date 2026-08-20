@@ -1,4 +1,4 @@
-import { MAX_PAGE_HISTORY_VERSIONS, type PageDoc } from "@bgs/models";
+import { MAX_PAGE_HISTORY_VERSIONS, canUser, canUserManageGame, pageGameSlug, type PageDoc } from "@bgs/models";
 import { omit } from "@bgs/utils/object";
 import createError from "http-errors";
 import type { Context } from "koa";
@@ -8,6 +8,28 @@ import { z } from "zod";
 import { colls } from "../../config/db.ts";
 
 const router = new Router<Application.DefaultState, Context>();
+
+// Per-boardgame admins (gameinfo:<slug>) manage their game's CMS pages — the
+// `<slug>:<topic>` pages — while the blanket "pages" permission manages ALL
+// pages (game pages included). The /page mount gate lets both through; every
+// route then calls requirePageAccess against the page's slug.
+function canManagePage(user: Context["state"]["user"], pageName: string): boolean {
+	if (canUser(user, "pages")) {
+		return true;
+	}
+	const slug = pageGameSlug(pageName);
+	return slug !== null && canUserManageGame(user, slug);
+}
+
+function requirePageAccess(ctx: Context, pageName: string) {
+	if (!canManagePage(ctx.state.user, pageName)) {
+		const slug = pageGameSlug(pageName);
+		throw createError(
+			403,
+			slug ? `Missing admin permission: gameinfo:${slug} or pages` : "Missing admin permission: pages",
+		);
+	}
+}
 
 // Archive the page's current state before it is overwritten/deleted, then trim
 // the page's history to the most recent MAX_PAGE_HISTORY_VERSIONS entries.
@@ -30,10 +52,18 @@ async function recordPageHistory(page: PageDoc, editedBy: ObjectId) {
 }
 
 router.get("/", async (ctx) => {
-	ctx.body = await colls.pages.find({}, { projection: { _id: 1 } }).toArray();
+	const pages = await colls.pages.find({}, { projection: { _id: 1 } }).toArray();
+	// Blanket "pages" admins see every page; a scoped (per-boardgame) admin only
+	// sees the pages of the games they manage.
+	if (canUser(ctx.state.user, "pages")) {
+		ctx.body = pages;
+		return;
+	}
+	ctx.body = pages.filter((p) => canManagePage(ctx.state.user, p._id.name));
 });
 
 router.get("/:name/:lang", async (ctx) => {
+	requirePageAccess(ctx, ctx.params.name);
 	const page = await colls.pages.findOne({ _id: { name: ctx.params.name, lang: ctx.params.lang } });
 	if (page) {
 		ctx.body = page;
@@ -43,6 +73,7 @@ router.get("/:name/:lang", async (ctx) => {
 // Past versions of the page, newest first, without the (markdown) bodies.
 // `editedBy` is resolved to the editor's username for display.
 router.get("/:name/:lang/history", async (ctx) => {
+	requirePageAccess(ctx, ctx.params.name);
 	const entries = await colls.pageHistories
 		.find({ page: { name: ctx.params.name, lang: ctx.params.lang } }, { projection: { content: 0 } })
 		.sort({ createdAt: -1, _id: -1 })
@@ -61,6 +92,7 @@ router.get("/:name/:lang/history", async (ctx) => {
 });
 
 router.get("/:name/:lang/history/:id", async (ctx) => {
+	requirePageAccess(ctx, ctx.params.name);
 	if (!ObjectId.isValid(ctx.params.id)) {
 		throw createError(404, "History entry not found");
 	}
@@ -76,6 +108,7 @@ router.get("/:name/:lang/history/:id", async (ctx) => {
 });
 
 async function upsert(ctx: Context) {
+	requirePageAccess(ctx, ctx.params.name);
 	const pageId = { name: ctx.params.name, lang: ctx.params.lang };
 	const result = await colls.pages.findOneAndUpdate(
 		{ _id: pageId },
@@ -98,6 +131,7 @@ router.put("/:name/:lang", upsert);
 // oxlint-enable no-async-endpoint-handlers
 
 router.delete("/:name/:lang", async (ctx) => {
+	requirePageAccess(ctx, ctx.params.name);
 	const pageId = { name: ctx.params.name, lang: ctx.params.lang };
 	const page = await colls.pages.findOne({ _id: pageId });
 	if (page) {

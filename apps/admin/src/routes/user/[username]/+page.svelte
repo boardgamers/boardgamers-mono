@@ -6,7 +6,7 @@
 	import { goto, invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import WebLink from "$components/WebLink.svelte";
-	import { ADMIN_PERMISSIONS, PERMISSION_LABELS, type AdminPermission } from "$lib/permissions.ts";
+	import { ADMIN_PERMISSIONS, PERMISSION_LABELS, PERMISSION_NOTES, type AdminPermission } from "$lib/permissions.ts";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
 	import type { UserInfo, ArchivedUserInfo, ApiErrorItem, BetaAccess } from "./+page.ts";
@@ -379,6 +379,9 @@
 								class="rounded border-gray-300 dark:border-gray-700 text-purple-600 focus:ring-purple-500"
 							/>
 							{PERMISSION_LABELS[permission]}
+							{#if PERMISSION_NOTES[permission]}
+								<span class="text-xs text-amber-600 dark:text-amber-400" title={PERMISSION_NOTES[permission]}>⚠</span>
+							{/if}
 						</label>
 					{/each}
 				</div>

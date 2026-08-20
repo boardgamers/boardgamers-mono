@@ -34,11 +34,12 @@ const router = new Router<Application.DefaultState, Context>();
 // Each sub-router declares the permission it needs. The mount-level gate is a
 // SUBSET check — the caller must hold at least one grant satisfying the
 // permission (grantSatisfies: a full admin holds them all; a per-boardgame
-// `gameinfo:<game>` grant also satisfies gameinfo/games/users, for the
+// `gameinfo:<game>` grant also satisfies gameinfo/games/users/pages, for the
 // per-game routes inside those routers). Blanket enforcement then happens
 // inside the sub-router: gameinfo/games re-check the grant against the target
 // game of every write, users blanket-gates everything but the beta-grant
-// routes, and the other routers are blanket-gated with requirePermission.
+// routes, pages re-checks the page's game slug, and the other routers are
+// blanket-gated with requirePermission.
 const requireSomeGrant = (permission: AdminPermission) => {
 	return async (ctx: Context, next: Next) => {
 		const permissions = userPermissions(ctx.state.user);
@@ -53,7 +54,9 @@ router.use("/changelog", requirePermission("changelog"), changelogRouter.routes(
 router.use("/gameinfo", requireSomeGrant("gameinfo"), gameInfo.routes(), gameInfo.allowedMethods());
 router.use("/games", requireSomeGrant("games"), gamesRouter.routes(), gamesRouter.allowedMethods());
 router.use("/loki", requirePermission("loki"), loki.routes(), loki.allowedMethods());
-router.use("/page", requirePermission("pages"), pagesRouter.routes(), pagesRouter.allowedMethods());
+// /page gets the subset gate: a per-boardgame admin (gameinfo:<slug>) manages
+// their game's CMS pages — every route inside re-checks the page's slug.
+router.use("/page", requireSomeGrant("pages"), pagesRouter.routes(), pagesRouter.allowedMethods());
 router.use("/tokens", requirePermission("tokens"), tokensRouter.routes(), tokensRouter.allowedMethods());
 // /users gets the subset gate, not the blanket one: the per-game beta-grant
 // routes inside (/:userId/access/*) are reachable by per-boardgame admins —

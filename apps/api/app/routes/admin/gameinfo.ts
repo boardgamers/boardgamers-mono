@@ -230,8 +230,11 @@ async function upsert(ctx: Context) {
 // /:game/:version, which would otherwise swallow "beta-users" as a version.
 
 // GET /api/admin/gameinfo/:game/beta-users — users holding a grant for this game.
+// Unlike the other reads (left open for panel bootstrapping), this one exposes
+// user identity (beta-tester usernames), so it is scoped to the target game.
 router.get("/:game/beta-users", async (ctx) => {
 	const game = ctx.params.game;
+	requireGameAccess(ctx, game);
 
 	if (!(await colls.gameInfos.countDocuments({ "_id.game": game }))) {
 		throw createError(404, `No game info for ${game}`);

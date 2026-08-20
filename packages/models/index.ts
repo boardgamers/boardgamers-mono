@@ -7,6 +7,7 @@ export {
 	gameAdminGrantSchema,
 	gameAdminGrant,
 	isGameAdminGrant,
+	pageGameSlug,
 	grantsIncludeGame,
 	grantSatisfies,
 	userPermissions,
