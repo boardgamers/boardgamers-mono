@@ -46,6 +46,8 @@ export type { RoomMetaDataDoc } from "@bgs/models";
 export { SettingsKey } from "@bgs/models";
 export type { SettingsDoc } from "@bgs/models";
 export { announcementSchema } from "@bgs/models";
+export { canUser, canUserManageGame, hasAnyAdminAccess, userPermissions, userRoles } from "@bgs/models";
+export type { AdminGrant, AdminPermission } from "@bgs/models";
 export {
 	defaultKarma,
 	maxKarma,

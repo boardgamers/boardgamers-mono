@@ -3,6 +3,7 @@ import type { Context, Next } from "koa";
 import type { ObjectId } from "mongodb";
 import NodeCache from "node-cache";
 import { z } from "zod";
+import { canUser, type AdminPermission } from "@bgs/models";
 import { colls } from "../config/db.ts";
 import env from "../config/env.ts";
 import { isUserAdmin } from "../models/index.ts";
@@ -38,6 +39,17 @@ export async function isAdmin(ctx: Context, next: Next) {
 	}
 
 	await next();
+}
+
+// Gate an admin route on one granular permission. Full admins (authority ===
+// "admin") hold every permission; scoped admins only the ones in adminGrants.
+export function requirePermission(permission: AdminPermission) {
+	return async (ctx: Context, next: Next) => {
+		if (!canUser(ctx.state.user, permission)) {
+			throw createError(403, `Missing admin permission: ${permission}`);
+		}
+		await next();
+	};
 }
 
 /**

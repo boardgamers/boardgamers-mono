@@ -12,7 +12,7 @@ const { BSON } = await import(process.env.MONGODB_STORE);
 const KEEP_ACCOUNT = new Set(["username", "karma", "termsAndConditions", "avatar", "bio", "country"]);
 const KEEP_SECURITY = new Set(["slug", "confirmed", "lastActive", "lastOnline", "lastSeen"]);
 const KEEP_SETTINGS = new Set(["game", "home"]);
-const KEEP_TOP = new Set(["_id", "createdAt", "updatedAt", "authority", "meta", "__v"]);
+const KEEP_TOP = new Set(["_id", "createdAt", "updatedAt", "authority", "adminGrants", "meta", "__v"]);
 
 // Every preview account logs in with the literal password "password" — previews are
 // throwaway envs on sanitized data, and being able to log in as any user is the whole

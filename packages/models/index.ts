@@ -1,3 +1,22 @@
+// --- Admin permissions ---
+export type { AdminPermission, AdminGrant } from "./admin.ts";
+export {
+	ADMIN_PERMISSIONS,
+	adminPermissionSchema,
+	adminGrantSchema,
+	gameAdminGrantSchema,
+	gameAdminGrant,
+	isGameAdminGrant,
+	pageGameSlug,
+	grantsIncludeGame,
+	grantSatisfies,
+	userPermissions,
+	canUser,
+	canUserManageGame,
+	hasAnyAdminAccess,
+	userRoles,
+} from "./admin.ts";
+
 // --- Admin Token ---
 export type { AdminTokenDoc, AdminTokenFront } from "./admintoken.ts";
 export { adminTokenSchema, ADMIN_TOKENS_COLLECTION, adminTokenIndexes } from "./admintoken.ts";

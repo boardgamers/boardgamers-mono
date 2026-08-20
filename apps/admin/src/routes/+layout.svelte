@@ -37,6 +37,10 @@
 		}
 	});
 
+	// Any admin capability (full admin or at least one scoped grant) lets the
+	// user in; the sidebar then shows only what their permissions cover.
+	const hasAdminAccess = $derived(data.me.fullAdmin || data.me.permissions.length > 0 || data.me.games.length > 0);
+
 	// Restore dark mode preference
 	if (typeof window !== "undefined") {
 		const theme = localStorage.getItem("theme");
@@ -48,6 +52,13 @@
 
 {#if isLoginPage}
 	{@render children()}
+{:else if data.user && !hasAdminAccess}
+	<div class="h-full flex items-center justify-center">
+		<div class="text-center space-y-2">
+			<h1 class="text-lg font-semibold">BGS Admin</h1>
+			<p class="text-sm text-gray-500">This account has no admin permissions.</p>
+		</div>
+	</div>
 {:else if data.user}
 	<div class="h-full flex flex-col">
 		<NavBar user={data.user} onMenuClick={() => (sidebarOpen = true)} />

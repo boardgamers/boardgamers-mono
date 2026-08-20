@@ -12,6 +12,7 @@ type TestUserOverrides = {
 	security?: Partial<UserDoc["security"]>;
 	meta?: Partial<UserDoc["meta"]>;
 	authority?: UserDoc["authority"];
+	adminGrants?: UserDoc["adminGrants"];
 	createdAt?: UserDoc["createdAt"];
 	updatedAt?: UserDoc["updatedAt"];
 };

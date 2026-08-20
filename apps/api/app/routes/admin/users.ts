@@ -1,17 +1,107 @@
-import type { Context } from "koa";
+import type { Context, Next } from "koa";
 import Router from "koa-router";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
+import createError from "http-errors";
+import { adminGrantSchema, canUser, canUserManageGame } from "@bgs/models";
 import { colls } from "../../config/db.ts";
 import { findGameInfoWithVersion, findByUsername } from "../../models/index.ts";
 import { queryCount } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
-// GET /api/admin/users/admins — list all admin users with activity info
+// -- Per-game beta access grants ----------------------------------------------
+// Registered BEFORE the blanket "users" gate: beta grants are game-scoped, so
+// a per-boardgame admin (gameinfo:<game>) manages them for their own game
+// even without the global "users" permission. Both check the target game.
+
+// Beta-grant management needs the "users" permission OR admin rights on the
+// target game (full gameinfo/games admin, or a gameinfo:<game> grant).
+const canManageBetaGrants = (ctx: Context, game: string) =>
+	canUser(ctx.state.user, "users") || canUserManageGame(ctx.state.user, game);
+
+// DELETE /api/admin/users/:userId/access/:game — revoke a beta grant: the user
+// falls back to the latest public version (see lastAccessibleVersion).
+router.delete("/:userId/access/:game", async (ctx) => {
+	const userId = new ObjectId(ctx.params.userId);
+
+	if (!canManageBetaGrants(ctx, ctx.params.game)) {
+		throw createError(403, `Missing admin permission: gameinfo:${ctx.params.game}`);
+	}
+
+	if (!(await colls.users.countDocuments({ _id: userId }))) {
+		ctx.status = 404;
+		return;
+	}
+
+	await colls.gamePreferences.updateOne(
+		{ user: userId, game: ctx.params.game },
+		{ $unset: { "access.maxVersion": true } },
+	);
+	ctx.status = 200;
+});
+
+router.post("/:userId/access/grant", async (ctx) => {
+	const { game, version } = z
+		.object({
+			type: z.literal("game"),
+			game: z.string(),
+			version: z.union([z.number().int(), z.literal("latest")]),
+		})
+		.parse(ctx.request.body);
+
+	if (!canManageBetaGrants(ctx, game)) {
+		throw createError(403, `Missing admin permission: gameinfo:${game}`);
+	}
+
+	const gameInfo = await findGameInfoWithVersion(game, version);
+
+	if (!gameInfo) {
+		ctx.status = 404;
+		return;
+	}
+
+	if (gameInfo.public) {
+		ctx.status = 200;
+		return;
+	}
+
+	if (!(await colls.users.countDocuments({ _id: new ObjectId(ctx.params.userId) }))) {
+		ctx.status = 404;
+		return;
+	}
+
+	await colls.gamePreferences.updateOne(
+		{ user: new ObjectId(ctx.params.userId), game },
+		{ $set: { "access.maxVersion": gameInfo._id.version } },
+		{ upsert: true },
+	);
+	ctx.status = 200;
+});
+
+// Blanket "users" permission gate — everything else in this router requires
+// it. The two method-scoped registrations shadow the per-game routes above:
+// a bare router.use would match EVERY method, so a POST to
+// /:userId/access/grant would otherwise resolve to the DELETE-only
+// /:userId/access/:game path and skip the gate entirely.
+const requireUsersPermission = async (ctx: Context, next: Next) => {
+	if (!canUser(ctx.state.user, "users")) {
+		throw createError(403, "Missing admin permission: users");
+	}
+	await next();
+};
+router.delete("/:userId/access/:game", requireUsersPermission);
+router.post("/:userId/access/grant", requireUsersPermission);
+router.use(requireUsersPermission);
+
+// GET /api/admin/users/admins — list all admin users (full admins and scoped
+// grant holders) with activity info
 router.get("/admins", async (ctx) => {
 	const admins = await colls.users
-		.find({ authority: "admin" }, { projection: { account: 1, createdAt: 1, security: 1 } })
+		.find(
+			{ $or: [{ authority: "admin" }, { adminGrants: { $exists: true, $ne: [] } }] },
+			{ projection: { account: 1, authority: 1, adminGrants: 1, createdAt: 1, security: 1 } },
+		)
 		.sort({ createdAt: 1 })
 		.toArray();
 
@@ -40,6 +130,8 @@ router.get("/admins", async (ctx) => {
 		return {
 			_id: a._id,
 			account: a.account,
+			authority: a.authority,
+			adminGrants: a.adminGrants ?? [],
 			createdAt: a.createdAt,
 			security: {
 				lastOnline: a.security?.lastOnline,
@@ -69,7 +161,7 @@ router.get("/stats", async (ctx) => {
 			])
 			.toArray(),
 		colls.users.countDocuments({ "security.confirmed": true }),
-		colls.users.countDocuments({ authority: "admin" }),
+		colls.users.countDocuments({ $or: [{ authority: "admin" }, { adminGrants: { $exists: true, $ne: [] } }] }),
 		colls.users.countDocuments({ "security.lastOnline": { $gt: activityCutoff } }),
 		colls.users.countDocuments({ "security.lastActive": { $gt: activityCutoff } }),
 	]);
@@ -202,9 +294,33 @@ router.post("/:userId", async (ctx) => {
 	ctx.status = 200;
 });
 
+// Sets the user's authority level and (atomically) their granular grants.
+// "user" also clears adminGrants so a demotion revokes every admin capability
+// in one write (admin tokens die on their next use — they re-check the owner).
 router.post("/:userId/authority", async (ctx) => {
-	const { authority } = z.object({ authority: z.enum(["user", "admin"]) }).parse(ctx.request.body);
-	await colls.users.updateOne({ _id: new ObjectId(ctx.params.userId) }, { $set: { authority } });
+	const { authority, adminGrants } = z
+		.object({ authority: z.enum(["user", "admin"]), adminGrants: z.array(adminGrantSchema).max(100).optional() })
+		.parse(ctx.request.body);
+	let update: Record<string, unknown>;
+	if (authority === "user") {
+		update = { $unset: { authority: "", adminGrants: "" } };
+	} else if (adminGrants !== undefined) {
+		update = { $set: { authority, adminGrants: [...new Set(adminGrants)] } };
+	} else {
+		update = { $set: { authority } };
+	}
+	await colls.users.updateOne({ _id: new ObjectId(ctx.params.userId) }, update);
+	ctx.status = 200;
+});
+
+// Sets only the granular grants of a scoped admin (the authority field is left
+// untouched — promoting/demoting goes through /authority above).
+router.put("/:userId/grants", async (ctx) => {
+	const { adminGrants } = z.object({ adminGrants: z.array(adminGrantSchema).max(100) }).parse(ctx.request.body);
+	await colls.users.updateOne(
+		{ _id: new ObjectId(ctx.params.userId) },
+		adminGrants.length > 0 ? { $set: { adminGrants: [...new Set(adminGrants)] } } : { $unset: { adminGrants: "" } },
+	);
 	ctx.status = 200;
 });
 
@@ -244,57 +360,6 @@ router.get("/:userId/access", async (ctx) => {
 		label: labelByGame.get(g.game) ?? g.game,
 		maxVersion: g.access!.maxVersion!,
 	}));
-});
-
-// DELETE /api/admin/users/:userId/access/:game — revoke a beta grant: the user
-// falls back to the latest public version (see lastAccessibleVersion).
-router.delete("/:userId/access/:game", async (ctx) => {
-	const userId = new ObjectId(ctx.params.userId);
-
-	if (!(await colls.users.countDocuments({ _id: userId }))) {
-		ctx.status = 404;
-		return;
-	}
-
-	await colls.gamePreferences.updateOne(
-		{ user: userId, game: ctx.params.game },
-		{ $unset: { "access.maxVersion": true } },
-	);
-	ctx.status = 200;
-});
-
-router.post("/:userId/access/grant", async (ctx) => {
-	const { game, version } = z
-		.object({
-			type: z.literal("game"),
-			game: z.string(),
-			version: z.union([z.number().int(), z.literal("latest")]),
-		})
-		.parse(ctx.request.body);
-
-	const gameInfo = await findGameInfoWithVersion(game, version);
-
-	if (!gameInfo) {
-		ctx.status = 404;
-		return;
-	}
-
-	if (gameInfo.public) {
-		ctx.status = 200;
-		return;
-	}
-
-	if (!(await colls.users.countDocuments({ _id: new ObjectId(ctx.params.userId) }))) {
-		ctx.status = 404;
-		return;
-	}
-
-	await colls.gamePreferences.updateOne(
-		{ user: new ObjectId(ctx.params.userId), game },
-		{ $set: { "access.maxVersion": gameInfo._id.version } },
-		{ upsert: true },
-	);
-	ctx.status = 200;
 });
 
 const zeroMethodCounts = () => ({ password: 0, google: 0, facebook: 0, discord: 0, github: 0, huggingface: 0 });

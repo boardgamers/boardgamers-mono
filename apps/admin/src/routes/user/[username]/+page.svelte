@@ -6,6 +6,7 @@
 	import { goto, invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import WebLink from "$components/WebLink.svelte";
+	import { ADMIN_PERMISSIONS, PERMISSION_LABELS, PERMISSION_NOTES, type AdminPermission } from "$lib/permissions.ts";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
 	import type { UserInfo, ArchivedUserInfo, ApiErrorItem, BetaAccess } from "./+page.ts";
@@ -112,6 +113,9 @@
 		try {
 			await api.post(`/admin/users/${user._id}/authority`, { authority: newAuthority });
 			user.authority = newAuthority;
+			if (newAuthority === "user") {
+				user.adminGrants = undefined;
+			}
 			toast.success(newAuthority === "admin" ? "Promoted to admin" : "Demoted to user");
 			await invalidateAll();
 		} catch (err) {
@@ -119,6 +123,55 @@
 		} finally {
 			togglingAdmin = false;
 		}
+	}
+
+	// --- Granular permissions (scoped admin) ---
+	const scopedGrants = $derived(user?.authority === "admin" ? [] : (user?.adminGrants ?? []));
+	const gameGrants = $derived(
+		scopedGrants.filter((g) => g.startsWith("gameinfo:")).map((g) => g.slice("gameinfo:".length))
+	);
+	let savingGrants = $state(false);
+	let gameGrantInput = $state("");
+
+	async function saveGrants(grants: string[], successMessage: string) {
+		if (!user) return;
+		savingGrants = true;
+		try {
+			await api.put(`/admin/users/${user._id}/grants`, { adminGrants: grants });
+			user.adminGrants = grants.length > 0 ? grants : undefined;
+			toast.success(successMessage);
+			await invalidateAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed");
+		} finally {
+			savingGrants = false;
+		}
+	}
+
+	const hasGrant = (permission: AdminPermission) => scopedGrants.includes(permission);
+
+	async function toggleGrant(permission: AdminPermission) {
+		const grants = scopedGrants.filter((g) => !g.startsWith("gameinfo:"));
+		const next = hasGrant(permission) ? grants.filter((g) => g !== permission) : [...grants, permission];
+		await saveGrants([...next, ...scopedGrants.filter((g) => g.startsWith("gameinfo:"))], "Permissions updated");
+	}
+
+	async function addGameGrant() {
+		const game = gameGrantInput.trim();
+		if (!game || !user) return;
+		if (gameGrants.includes(game)) {
+			toast.error(`${game} is already granted`);
+			return;
+		}
+		gameGrantInput = "";
+		await saveGrants([...scopedGrants, `gameinfo:${game}`], `Boardgame admin granted for ${game}`);
+	}
+
+	async function removeGameGrant(game: string) {
+		await saveGrants(
+			scopedGrants.filter((g) => g !== `gameinfo:${game}`),
+			`Boardgame admin revoked for ${game}`
+		);
 	}
 
 	let showRevokeConfirm = $state(false);
@@ -202,6 +255,12 @@
 				>
 					{togglingAdmin ? "…" : "Promote to admin"}
 				</button>
+				{#if scopedGrants.length > 0}
+					<span
+						class="px-2 py-0.5 text-xs font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-full"
+						>Scoped admin</span
+					>
+				{/if}
 			{/if}
 			{#if user.security?.confirmed}
 				<span
@@ -299,6 +358,89 @@
 				</div>
 			</div>
 		{/if}
+
+		<!-- Admin Permissions -->
+		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-4">
+			<div class="flex items-center gap-2">
+				<h3 class="text-sm font-semibold">Admin Permissions</h3>
+				{#if user.authority === "admin"}
+					<span class="text-xs text-gray-400">— full admin, holds every permission</span>
+				{/if}
+			</div>
+			{#if user.authority !== "admin"}
+				<div class="flex flex-wrap gap-x-5 gap-y-2">
+					{#each ADMIN_PERMISSIONS as permission (permission)}
+						<label class="flex items-center gap-1.5 text-sm cursor-pointer">
+							<input
+								type="checkbox"
+								checked={hasGrant(permission)}
+								disabled={savingGrants}
+								onchange={() => toggleGrant(permission)}
+								class="rounded border-gray-300 dark:border-gray-700 text-purple-600 focus:ring-purple-500"
+							/>
+							{PERMISSION_LABELS[permission]}
+							{#if PERMISSION_NOTES[permission]}
+								<span class="text-xs text-amber-600 dark:text-amber-400" title={PERMISSION_NOTES[permission]}>⚠</span>
+							{/if}
+						</label>
+					{/each}
+				</div>
+				<div class="space-y-2">
+					<div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Boardgame admin</div>
+					{#if gameGrants.length > 0}
+						<div class="flex flex-wrap gap-2">
+							{#each gameGrants as game (game)}
+								<span
+									class="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-lg"
+								>
+									{game}
+									<button
+										onclick={() => removeGameGrant(game)}
+										disabled={savingGrants}
+										class="text-indigo-500 hover:text-indigo-800 dark:hover:text-indigo-100 disabled:opacity-50"
+										title="Revoke"
+										aria-label={`Revoke boardgame admin for ${game}`}>✕</button
+									>
+								</span>
+							{/each}
+						</div>
+					{:else}
+						<p class="text-xs text-gray-400">
+							Manages only the listed boardgames (info, versions, private beta, games).
+						</p>
+					{/if}
+					<div class="flex gap-2">
+						<input
+							bind:value={gameGrantInput}
+							use:trim
+							placeholder="Boardgame id (e.g. gaia-project)"
+							class="w-64 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+							onkeydown={(e) => e.key === "Enter" && addGameGrant()}
+						/>
+						<button
+							onclick={addGameGrant}
+							disabled={savingGrants || !gameGrantInput.trim()}
+							class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+						>
+							Grant
+						</button>
+					</div>
+				</div>
+			{:else}
+				<div class="flex flex-wrap gap-2">
+					{#each ADMIN_PERMISSIONS as permission (permission)}
+						<span
+							class="px-2 py-1 text-xs font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-lg"
+							>{PERMISSION_LABELS[permission]}</span
+						>
+					{/each}
+					<span
+						class="px-2 py-1 text-xs font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded-lg"
+						>Every boardgame</span
+					>
+				</div>
+			{/if}
+		</div>
 
 		<!-- User Management -->
 		<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-3">

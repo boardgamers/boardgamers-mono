@@ -9,7 +9,7 @@ import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { likedFeedbackRequestIds, setFeedbackRequestLike } from "../../services/feedbacklike.ts";
 import { createFeedbackTopic, forumUidForUser } from "../../services/forum.ts";
 import { zObjectId } from "../../utils/zod.ts";
-import { isAdmin, loggedIn, usernamesById } from "../utils.ts";
+import { loggedIn, requirePermission, usernamesById } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -141,7 +141,7 @@ const statusBodySchema = z.object({
 	status: feedbackStatusSchema,
 });
 
-router.patch("/:id/status", isAdmin, async (ctx) => {
+router.patch("/:id/status", requirePermission("feedback"), async (ctx) => {
 	const { status } = statusBodySchema.parse(ctx.request.body);
 	const updated = await colls.feedbackRequests.findOneAndUpdate(
 		{ _id: ctx.state.foundFeedbackRequest!._id },
