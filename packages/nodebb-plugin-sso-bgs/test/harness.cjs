@@ -166,7 +166,10 @@ function makeStockPlugin(env) {
 			return out;
 		},
 		async login({ handle }) {
-			return { uid: 1, username: handle };
+			// The real OAuth.login creates the user inline when the oAuthid/email
+			// lookup misses; tests flag that path via env.newUser so the harness
+			// can drive core's registration behaviour (filter:register.complete).
+			return { uid: 1, username: handle, __isNew: !!env.newUser };
 		},
 		async assignGroups() {},
 		async updateProfile() {},
@@ -604,11 +607,37 @@ function makeEnv() {
 		// Core's final step on success (routes/authentication.js): req.login,
 		// onSuccessfulLogin, then helpers.redirect(res, strategy.successUrl || '/')
 		// — which calls res.redirect(307, url) (TWO args). The shim's
-		// silentSuccessRedirect has wrapped res.redirect so a default '/' landing
-		// is rewritten to the original page for a silent success.
+		// silentSuccessRedirect / interactiveReturnRedirect have wrapped
+		// res.redirect so a default '/' landing is rewritten to the return
+		// destination.
 		if (result.user) {
+			// Core's registerAndLoginUser (controllers/authentication.js) fires
+			// filter:register.complete for EVERY registration — including the
+			// SSO-driven user.create the stock plugin's OAuth.login performs — and
+			// sets req.session.returnTo from the hook's returned `next`. The shim's
+			// stock-plugin stub flags its "new user" via user.__isNew (the real
+			// plugin creates the user inline when the oAuthid/email lookup misses).
+			if (result.user.__isNew) {
+				const rel = ""; // nconf relative_path is "" in this harness
+				const data = await env.plugins.hooks.fire("filter:register.complete", {
+					req,
+					uid: result.user.uid,
+					next: req.session.returnTo || `${rel}/`,
+				});
+				req.session.returnTo = data.next;
+				result.registered = true;
+			}
 			res.redirect(307, descriptor.successUrl || "/");
 			result.redirected = res.headers.location || descriptor.successUrl || "/";
+			if (opts.registration && opts.registration.interstitial) {
+				// A registration interstitial (the live forum's GDPR consent) does
+				// NOT redirect inside the callback: core's middleware chain bounces
+				// the NEXT request to /register/complete, whose POST handler
+				// (registerComplete's done()) redirects to req.session.returnTo
+				// — exactly what registerAndLoginUser set above.
+				result.interstitial = true;
+				result.redirected = req.session.returnTo || "/";
+			}
 		}
 		return { ...result, session: req.session, cookies: jar, setCookies: res.setCookies };
 	};
