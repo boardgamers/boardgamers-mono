@@ -74,7 +74,7 @@
 		role="alert"
 	>
 		<p>
-			Requests are posted on our forum. Link your account to submit — it uses your Boardgamers login, and your draft is
+			Requests are posted on our forum. Link your account to submit. It uses your Boardgamers login, and your draft is
 			saved.
 		</p>
 		<Button color="primary" class="mt-2" onclick={linkForumAccount}>Link forum account</Button>
