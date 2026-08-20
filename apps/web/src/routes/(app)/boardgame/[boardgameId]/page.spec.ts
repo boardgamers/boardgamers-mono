@@ -32,6 +32,7 @@ function runLoad() {
 		parent: () => Promise.resolve({ user: null, gameInfo: null }),
 	} as unknown as Parameters<PageLoad>[0]) as Promise<{
 		featuredStatus: "active" | "ended";
+		gameRequests: unknown[];
 	}>;
 }
 
@@ -71,5 +72,40 @@ describe("boardgame page load — featured games fallback", () => {
 		const data = await runLoad();
 
 		expect(data.featuredStatus).toBe("active");
+	});
+});
+
+describe("boardgame page load — game requests", () => {
+	beforeEach(() => {
+		clearGamesCache();
+		getMock.mockReset();
+	});
+
+	it("prefetches the game's feedback requests (SSR)", async () => {
+		const requests = [{ _id: "req1", kind: "game", game: "testgame", title: "New map" }];
+		getMock.mockImplementation((url: string) => {
+			if (url === "/feedback") {
+				return Promise.resolve(requests) as never;
+			}
+			return Promise.resolve([]) as never;
+		});
+
+		const data = await runLoad();
+
+		expect(getMock).toHaveBeenCalledWith("/feedback", { kind: "game", game: "testgame" });
+		expect(data.gameRequests).toEqual(requests);
+	});
+
+	it("falls back to an empty list when the feedback fetch fails", async () => {
+		getMock.mockImplementation((url: string) => {
+			if (url === "/feedback") {
+				return Promise.reject(new Error("feedback down")) as never;
+			}
+			return Promise.resolve([]) as never;
+		});
+
+		const data = await runLoad();
+
+		expect(data.gameRequests).toEqual([]);
 	});
 });

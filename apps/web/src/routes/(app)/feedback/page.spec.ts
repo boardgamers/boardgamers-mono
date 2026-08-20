@@ -21,6 +21,12 @@ vi.mock("@/components/icons/IconMeeple.svelte", async () => ({
 vi.mock("@/components/icons/IconMeepleFill.svelte", async () => ({
 	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
 }));
+vi.mock("@/components/icons/IconGithub.svelte", async () => ({
+	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
+}));
+vi.mock("@/components/icons/IconBoxArrowUpRight.svelte", async () => ({
+	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
+}));
 vi.mock("@/components/User/UsernameLink.svelte", async () => ({
 	default: (await import("@/lib/__mocks__/UsernameLinkStub.svelte")).default,
 }));
@@ -32,7 +38,7 @@ vi.mock("@/modules/cdk", async () => ({
 
 import { goto } from "$app/navigation";
 import { page } from "$app/state";
-import { get, post, put } from "@/lib/api";
+import { ApiError, get, post, put } from "@/lib/api";
 import { account } from "@/lib/stores.svelte";
 import { load } from "./+page";
 import FeedbackPage from "./+page.svelte";
@@ -154,6 +160,19 @@ describe("/feedback page", () => {
 		unmount(instance as never);
 	});
 
+	it("links to the adding-a-game guide and the site's GitHub source", () => {
+		const { target, instance } = mountPage();
+		const docsLink = target.querySelector<HTMLAnchorElement>(
+			'a[href="https://docs.boardgamers.space/guide/adding-a-game"]',
+		);
+		expect(docsLink?.textContent).toContain("How games get added");
+		const githubLink = target.querySelector<HTMLAnchorElement>(
+			'a[href="https://github.com/boardgamers/boardgamers-mono"]',
+		);
+		expect(githubLink?.textContent).toContain("Site source on GitHub");
+		unmount(instance as never);
+	});
+
 	it("redirects an anonymous vote click to login", () => {
 		const { target, instance } = mountPage();
 		target.querySelector<HTMLButtonElement>("button[aria-pressed]")!.click();
@@ -219,7 +238,7 @@ describe("/feedback page", () => {
 		postMock.mockResolvedValue(created as never);
 		const { target, instance } = mountPage();
 
-		const titleInput = target.querySelector<HTMLInputElement>("#feature-request-title")!;
+		const titleInput = target.querySelector<HTMLInputElement>("#feedback-request-site-title")!;
 		titleInput.value = "Mobile app";
 		titleInput.dispatchEvent(new Event("input", { bubbles: true }));
 		flushSync();
@@ -229,6 +248,29 @@ describe("/feedback page", () => {
 		expect(postMock).toHaveBeenCalledWith("/feedback", { kind: "site", title: "Mobile app" });
 		// New requests show the default "Open" status badge
 		expect(target.textContent).toContain("Open");
+		unmount(instance as never);
+	});
+
+	it("prompts to link a forum account when the API requires one", async () => {
+		account.set({ _id: "u1", account: { username: "alice" } } as never);
+		postMock.mockRejectedValue(
+			new ApiError("Link your forum account to submit feedback", 403, "forum_account_required"),
+		);
+		const { target, instance } = mountPage();
+
+		const titleInput = target.querySelector<HTMLInputElement>("#feedback-request-site-title")!;
+		titleInput.value = "Mobile app";
+		titleInput.dispatchEvent(new Event("input", { bubbles: true }));
+		flushSync();
+		titleInput.closest("form")!.requestSubmit();
+
+		await vi.waitFor(() => {
+			const alert = target.querySelector('[role="alert"]');
+			expect(alert?.textContent).toContain("linked forum account");
+		});
+		expect(target.textContent).toContain("Link your forum account");
+		// The failed request is not added to the list
+		expect(target.textContent).not.toContain("Mobile app</h3>");
 		unmount(instance as never);
 	});
 

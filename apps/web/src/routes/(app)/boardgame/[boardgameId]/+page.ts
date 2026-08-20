@@ -1,7 +1,9 @@
 import type { PageLoad } from "./$types";
+import { get } from "@/lib/api";
 import { loadGames, clearGamesCache, gameListParams } from "@/lib/games.svelte";
 import { loadEloRankings } from "@/lib/elo-rankings.svelte";
 import { boardgameSeo } from "@/lib/boardgame-seo";
+import type { FeedbackRequestListing } from "../../feedback/+page";
 
 export const load: PageLoad = async ({ params, parent }) => {
 	const { user, gameInfo } = await parent();
@@ -34,11 +36,16 @@ export const load: PageLoad = async ({ params, parent }) => {
 		store: true,
 	});
 
-	const [active, featured, , rankings] = await Promise.all([
+	// The game's requests section (#340). Non-fatal on failure (unlike the game
+	// lists): a feedback outage shouldn't take the boardgame page down with it.
+	const gameRequests = get<FeedbackRequestListing[]>("/feedback", { kind: "game", game: boardgameId }).catch(() => []);
+
+	const [active, featured, , rankings, requests] = await Promise.all([
 		myActiveGames,
 		featuredGames,
 		lobbyGames,
 		loadEloRankings({ boardgameId, count: 6, fetchCount: false }),
+		gameRequests,
 	]);
 
 	// If the player has no active games of this boardgame, fall back to their finished
@@ -71,6 +78,7 @@ export const load: PageLoad = async ({ params, parent }) => {
 		rankings,
 		myGamesStatus: myGamesFallback,
 		featuredStatus: featuredFallback,
+		gameRequests: requests,
 		seo: boardgameSeo(boardgameId, gameInfo),
 	};
 };
