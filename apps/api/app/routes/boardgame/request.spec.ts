@@ -2,7 +2,7 @@
 // imports app/config/test-hooks.ts, which connects to the *-test database and starts
 // the API server.
 import assert from "node:assert/strict";
-import { after, before, describe, it } from "node:test";
+import { after, before, describe, it, mock } from "node:test";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { colls, db } from "../../config/db.ts";
@@ -55,6 +55,8 @@ describe("Boardgame API — game requests (#340)", () => {
 	let alice: Awaited<ReturnType<typeof insertUserWithAuth>>;
 	let bob: Awaited<ReturnType<typeof insertUserWithAuth>>;
 	let savedNodebb: string;
+	let savedToken: string | undefined;
+	let savedForumUrl: string;
 
 	before(async () => {
 		// One implemented game: requests must not collide with it, and it anchors
@@ -85,6 +87,24 @@ describe("Boardgame API — game requests (#340)", () => {
 				{ $set: { [alice.userId.toHexString()]: 21, [bob.userId.toHexString()]: 22 } },
 				{ upsert: true },
 			);
+
+		// The request is only created once its forum topic is: mock the forum Write
+		// API to succeed (a real call would hit the dead test forumUrl and 503).
+		// Node's runner isolates spec files in separate processes, so this stub only
+		// affects this file. Requests to the API server under test go through real.
+		savedToken = env.forumWriteToken;
+		savedForumUrl = env.forumUrl;
+		env.forumWriteToken = "test-write-token";
+		env.forumUrl = "http://forum.test";
+		const forumOrigin = new URL(env.forumUrl).origin;
+		const realFetch = globalThis.fetch;
+		mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+			const url = new URL(typeof input === "string" || input instanceof URL ? input : input.url);
+			if (url.origin === forumOrigin) {
+				return Response.json({ response: { tid: 42, slug: "topic/42/some-slug" } });
+			}
+			return realFetch(input, init);
+		});
 	});
 
 	it("requires authentication to create a request", async () => {
@@ -245,6 +265,9 @@ describe("Boardgame API — game requests (#340)", () => {
 	});
 
 	after(async () => {
+		mock.restoreAll();
+		env.forumWriteToken = savedToken;
+		env.forumUrl = savedForumUrl;
 		env.database.nodebb = savedNodebb;
 		await db().dropDatabase();
 	});

@@ -218,43 +218,33 @@ describe("Forum topics on feedback/game requests (#340)", () => {
 		assert.strictEqual(list.find((r) => r._id === "forum-topic-game")?.forumTid, 555);
 	});
 
-	it("still creates the request when the forum returns an error", async () => {
+	it("fails the request (and persists nothing) when the forum returns an error", async () => {
 		forumBehavior = { kind: "http", status: 500 };
 		const res = await api("POST", "/api/feedback", { kind: "site", title: "Forum down request" }, alice.authHeaders);
-		assert.strictEqual(res.status, 201);
-		const created = z.object({ _id: z.string() }).loose().parse(res.data);
-		ownFeedbackIds.push(new ObjectId(created._id));
-		assert.ok(!("forumTid" in created) || created.forumTid === undefined);
-		const doc = await colls.feedbackRequests.findOne({ _id: new ObjectId(created._id) });
-		assert.strictEqual(doc?.forumTid, undefined);
+		assert.strictEqual(res.status, 503);
+		assert.strictEqual(await colls.feedbackRequests.findOne({ title: "Forum down request" }), null);
 	});
 
-	it("still creates the request when the forum is unreachable", async () => {
+	it("fails the request (and persists nothing) when the forum is unreachable", async () => {
 		forumBehavior = { kind: "network" };
 		const res = await api("POST", "/api/boardgame/request", { label: "Unreachable Forum Game" }, alice.authHeaders);
-		assert.strictEqual(res.status, 201);
-		ownGameIds.push("unreachable-forum-game");
-		const doc = await colls.gameMetadatas.findOne({ _id: "unreachable-forum-game" });
-		assert.strictEqual(doc?.forumTid, undefined);
+		assert.strictEqual(res.status, 503);
+		assert.strictEqual(await colls.gameMetadatas.findOne({ _id: "unreachable-forum-game" }), null);
 	});
 
-	it("still creates the request when the forum response has no tid", async () => {
+	it("fails the request (and persists nothing) when the forum response has no tid", async () => {
 		forumBehavior = { kind: "notid" };
 		const res = await api("POST", "/api/feedback", { kind: "site", title: "No tid response" }, alice.authHeaders);
-		assert.strictEqual(res.status, 201);
-		const created = z.object({ _id: z.string() }).parse(res.data);
-		ownFeedbackIds.push(new ObjectId(created._id));
-		const doc = await colls.feedbackRequests.findOne({ _id: new ObjectId(created._id) });
-		assert.strictEqual(doc?.forumTid, undefined);
+		assert.strictEqual(res.status, 503);
+		assert.strictEqual(await colls.feedbackRequests.findOne({ title: "No tid response" }), null);
 	});
 
-	it("does not contact the forum when the write token is unset", async () => {
+	it("fails the request (and persists nothing) when the write token is unset", async () => {
 		env.forumWriteToken = undefined;
 		const res = await api("POST", "/api/feedback", { kind: "site", title: "No token request" }, alice.authHeaders);
-		assert.strictEqual(res.status, 201);
-		const created = z.object({ _id: z.string() }).parse(res.data);
-		ownFeedbackIds.push(new ObjectId(created._id));
+		assert.strictEqual(res.status, 503);
 		assert.strictEqual(forumCalls.length, 0, "the forum must not be contacted without a token");
+		assert.strictEqual(await colls.feedbackRequests.findOne({ title: "No token request" }), null);
 	});
 
 	it("gates site/game feedback on a linked forum account", async () => {

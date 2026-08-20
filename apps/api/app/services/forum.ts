@@ -51,9 +51,10 @@ export async function forumUidForUser(userId: ObjectId): Promise<number | null> 
 }
 
 /**
- * Create the forum topic for a request. FAIL-SAFE by contract: returns null
- * (and logs) when the token is unset, the forum is unreachable/slow, or the
- * response is unusable — the request must still be created without a topic.
+ * Create the forum topic for a request. Returns null (and logs) when the token
+ * is unset, the forum is unreachable/slow, or the response is unusable. The
+ * caller treats null as a hard failure — a request is only created once its
+ * forum topic exists, so there is no topic-less fallback.
  *
  * When `forumUid` is set, the topic is posted AS that user via the Write API's
  * `_uid` impersonation (the server token must be allowed to impersonate). When

@@ -61,6 +61,20 @@ router.post("/", loggedIn, actionRateLimit("feedback/create"), async (ctx) => {
 		throw createError(403, "Link your forum account to submit feedback", { code: "forum_account_required" });
 	}
 
+	// Create the forum discussion topic FIRST, posted AS the requester (#340). The
+	// request only exists once its topic does: a forum failure aborts the whole
+	// request (503) and nothing is persisted — there is no topic-less fallback.
+	const topic = await createFeedbackTopic({
+		title,
+		body,
+		requestUrl: `https://${env.site}/feedback`,
+		username: user.account.username,
+		forumUid,
+	});
+	if (!topic) {
+		throw createError(503, "Could not create the forum topic — please try again later");
+	}
+
 	const doc: FeedbackRequestDoc = {
 		kind,
 		...(kind === "game" ? { game: game! } : {}),
@@ -69,23 +83,9 @@ router.post("/", loggedIn, actionRateLimit("feedback/create"), async (ctx) => {
 		requestedBy: user._id,
 		likeCount: 0,
 		status: "open",
+		forumTid: topic.tid,
 	};
 	const { insertedId } = await colls.feedbackRequests.insertOne(doc);
-
-	// Auto-create the forum discussion topic, posted AS the requester (#340).
-	// Fail-safe: a forum outage never fails the request — it just stays without
-	// a topic.
-	const topic = await createFeedbackTopic({
-		title,
-		body,
-		requestUrl: `https://${env.site}/feedback`,
-		username: user.account.username,
-		forumUid,
-	});
-	if (topic) {
-		await colls.feedbackRequests.updateOne({ _id: insertedId }, { $set: { forumTid: topic.tid } });
-		doc.forumTid = topic.tid;
-	}
 
 	ctx.status = 201;
 	ctx.body = { ...doc, _id: insertedId, liked: false };

@@ -111,6 +111,20 @@ router.post("/request", loggedIn, actionRateLimit("boardgame/request"), async (c
 		throw createError(403, "Link your forum account to request a game", { code: "forum_account_required" });
 	}
 
+	// Create the forum discussion topic FIRST, posted AS the requester (#340). The
+	// request only exists once its topic does: a forum failure aborts the whole
+	// request (503) and nothing is persisted — there is no topic-less fallback.
+	const topic = await createFeedbackTopic({
+		title: label,
+		body: description,
+		requestUrl: `https://${env.site}/feedback`,
+		username: user.account.username,
+		forumUid,
+	});
+	if (!topic) {
+		throw createError(503, "Could not create the forum topic — please try again later");
+	}
+
 	// Auto-like by the requester: insert the like first so a retry (the metadata
 	// insert winning the race but the response getting lost) stays consistent, and
 	// store the denormalized count directly on the requested-game doc.
@@ -123,6 +137,7 @@ router.post("/request", loggedIn, actionRateLimit("boardgame/request"), async (c
 		status: "requested",
 		requestedBy: user._id,
 		likeCount: 1,
+		forumTid: topic.tid,
 	};
 	try {
 		await colls.gameMetadatas.insertOne(doc);
@@ -133,21 +148,6 @@ router.post("/request", loggedIn, actionRateLimit("boardgame/request"), async (c
 			throw createError(409, `"${label}" is already requested — vote for it instead`);
 		}
 		throw err;
-	}
-
-	// Auto-create the forum discussion topic, posted AS the requester (#340).
-	// Fail-safe: a forum outage never fails the request — it just stays without
-	// a topic.
-	const topic = await createFeedbackTopic({
-		title: label,
-		body: description,
-		requestUrl: `https://${env.site}/feedback`,
-		username: user.account.username,
-		forumUid,
-	});
-	if (topic) {
-		await colls.gameMetadatas.updateOne({ _id: game }, { $set: { forumTid: topic.tid } });
-		doc.forumTid = topic.tid;
 	}
 
 	ctx.status = 201;
