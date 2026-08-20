@@ -5,10 +5,12 @@
 	// need a linked forum account. When the API reports forum_account_required, the
 	// gate prompts to link it (BGS OAuth on the forum) instead of showing a bare error.
 	//
-	// The forum's SSO initiate URL (nodebb-plugin-sso-oauth2-multiple strategy
-	// "boardgamers") starts BGS OAuth; the forum account is auto-created+linked on first
-	// login. The plugin doesn't forward a return URL into the OAuth state, so the draft
-	// is stashed in sessionStorage and restored on return instead.
+	// The forum's SSO initiate URL (nodebb-plugin-sso-bgs, strategy "boardgamers")
+	// starts BGS OAuth; the forum account is auto-created+linked on first login. The
+	// plugin threads a `next` return destination through the OAuth state (validated
+	// against an allowlist of Boardgamers origins) and lands the user back on this
+	// page after linking — the draft is stashed in sessionStorage and restored on
+	// return.
 	const FORUM_AUTH_URL = "https://forum.boardgamers.space/auth/boardgamers";
 
 	export interface ForumLinkGate {
@@ -64,7 +66,9 @@
 	});
 
 	function linkForumAccount() {
-		window.location.href = FORUM_AUTH_URL;
+		// `next` = this page: the forum lands the user back here after linking
+		// (validated server-side against the Boardgamers origin allowlist).
+		window.location.href = `${FORUM_AUTH_URL}?next=${encodeURIComponent(window.location.href)}`;
 	}
 </script>
 

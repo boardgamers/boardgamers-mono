@@ -48,7 +48,9 @@ what we need, so this shim:
 5. serves the Client ID Metadata Document (`static/client-metadata.json`) at
    **`/client-metadata.json`** — the exact URL used as `client_id`, so the plugin is
    self-contained (no nginx change needed);
-6. adds **silent (passive) SSO** — see below.
+6. adds **silent (passive) SSO** — see below;
+7. threads a **return destination through the interactive (website-originated)
+   flow** — see below.
 
 ## Silent (passive) SSO
 
@@ -110,6 +112,50 @@ forum path: `safeReturnPath` requires a single leading `/`, rejects `//`/`/\`/`\
 (protocol-relative/backslash) and non-`/` values (absolute URLs, `scheme:…`), and
 rejects the SSO/`/login`/`/logout`/`/api` paths (pointless or a loop to land there
 after a failed silent attempt). Anything suspicious falls back to `/`.
+
+## Interactive return-to (website-originated "Link forum account")
+
+The main site's _Link forum account_ button (site/game feedback needs a linked
+forum account) kicks off `/auth/boardgamers?next=<current page>`. Without a
+return destination, core's post-login redirect is hardcoded to
+`strategy.successUrl || '/'`, and a **brand-new registration** can land on a
+dead-end — e.g. `/admin` (access denied for a regular account) when the
+session's `returnTo` was polluted by an earlier 403. So the shim threads the
+destination through the same server-side PKCE state-store metadata as the
+silent path (no `prompt=none` marker — that is what keeps the silent
+middleware from touching the round-trip):
+
+1. **Kickoff** — the `filter:auth.options` hook validates `?next=` with
+   `safeReturnOrigin` and stores it as `opts.state = { returnTo }` (the PKCE
+   store persists it server-side in the session; the value never reaches the
+   authorize URL). `next` is the parameter name NodeBB core itself uses on
+   this route, so the website's URL works with both this shim and core's own
+   handling — but core's raw `session.next`/`session.returnTo` is an
+   **unvalidated open-redirect vector**, so the shim never reads those and
+   always re-validates.
+2. **Callback (login)** — an app-level middleware on the callback path wraps
+   `res.redirect` so core's default `/` landing goes to the return destination
+   (an explicit non-root redirect, e.g. a registration interstitial, is
+   preserved — same rule as the silent path).
+3. **Callback (registration)** — the live forum shows a GDPR consent
+   interstitial to new accounts, whose completion redirects to
+   `req.session.returnTo`. The middleware stashes the destination
+   (`bgsInteractiveReturn`, single-use) before passport's PKCE `verify()`
+   consumes the metadata, and a `filter:register.complete` hook turns it into
+   the hook's `next` — which core assigns to `req.session.returnTo`. The user
+   consents and lands back on the site page they started from.
+
+**Open-redirect safety** — `safeReturnOrigin` accepts a same-origin relative
+forum path (via `safeReturnPath`) OR an absolute `http(s)` URL whose **origin
+exactly matches an explicit allowlist** (`https://boardgamers.space`,
+`https://www.boardgamers.space`, plus the forum's own configured `url`) — no
+suffix/wildcard matching, so `boardgamers.space.evil.com` does not pass. The
+value is validated at kickoff, rides server-side in the session, and is
+**re-validated on the callback** before any redirect uses it. Anything invalid
+is dropped (the kickoff behaves as param-less → core's default `/` landing).
+
+The **manual forum login button is untouched**: a kickoff without `?next=`
+carries no metadata and keeps core's default `/` landing.
 
 ## Why request-time resolution (the live bug this fixes)
 
@@ -199,7 +245,12 @@ middleware, NOT via `filter:auth.options`, which core never fires on the callbac
 the successful silent round-trip, **silent success and failure both returning to
 the original page** (with the open-redirect guard falling back to `/` for
 tampered/external `returnTo`), logged-in/spider/logout/SSO-path/API/asset
-suppression, and the manual-button isolation.
+suppression, and the manual-button isolation — plus the interactive return-to
+suite: a `?next=` kickoff landing on the return destination (login AND a fresh
+registration through a simulated GDPR interstitial, never `/admin`), the
+origin-allowlist open-redirect guard (tampered `next` dropped at kickoff,
+tampered PKCE metadata re-validated on the callback), and the manual-login
+isolation.
 
 ## Notes / limitations
 
