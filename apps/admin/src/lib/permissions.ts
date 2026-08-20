@@ -1,4 +1,7 @@
-import { ADMIN_PERMISSIONS, type AdminPermission } from "@bgs/models";
+// Import from the pure submodule, not the @bgs/models barrel: the barrel
+// re-exports schemas whose helpers value-import mongodb (Node-only), which
+// breaks the browser bundle.
+import { ADMIN_PERMISSIONS, type AdminPermission } from "@bgs/models/admin";
 
 export type { AdminPermission };
 export { ADMIN_PERMISSIONS };
