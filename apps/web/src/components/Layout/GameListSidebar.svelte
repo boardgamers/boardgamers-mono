@@ -225,4 +225,12 @@
 			{@render gameItem({ game, pinned: false })}
 		{/each}
 	{/key}
+	<li>
+		<a
+			class="block px-4 py-2 font-semibold no-underline text-inherit hover:bg-gray-100 dark:hover:bg-gray-800"
+			href={resolve("/(app)/feedback#game-requests")}
+		>
+			Suggest a game
+		</a>
+	</li>
 </ul>

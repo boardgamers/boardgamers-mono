@@ -62,6 +62,9 @@
 
 <div class="container mx-auto px-4">
 	<h1 class="mb-4">Choose which game to play</h1>
+	<p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
+		Missing a game? <a href={resolve("/(app)/feedback#game-requests")}>Suggest it</a>
+	</p>
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 		{#each info as game (game._id.game)}
 			<div role="button">
