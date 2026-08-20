@@ -4,6 +4,7 @@ const nconf = nodebb.require("nconf");
 const winston = nodebb.require("winston");
 const plugins = nodebb.require("./src/plugins");
 const meta = nodebb.require("./src/meta");
+const db = nodebb.require("./src/database");
 const authenticationController = nodebb.require("./src/controllers/authentication");
 
 /**
@@ -43,10 +44,25 @@ const SILENT_COOKIE_MAX_AGE = 24 * 60 * 60 * 1000; // 1 day
 // Session flag carrying the "this is a silent (prompt=none) round-trip" state
 // from the page middleware through the kickoff to the callback.
 const SILENT_SESSION_FLAG = "bgsSilent";
+// OIDC error codes a provider may only return to a prompt=none request
+// (RFC: OpenID Connect Core §3.1.2.6) — used to recognise a silent-attempt
+// failure even when the session lost the PKCE metadata.
+const PROMPT_NONE_ERRORS = new Set([
+	"login_required",
+	"interaction_required",
+	"consent_required",
+	"account_selection_required",
+]);
 // Session flag carrying the page the user was on when the silent attempt
 // started, so a silent FAILURE can return them there (instead of the forum
 // home). Validated same-origin by safeReturnPath.
 const SILENT_RETURN_FLAG = "bgsSilentReturn";
+// Session flag carrying the website-originated return destination across a
+// registration interstitial: interactiveReturnRedirect stashes it before
+// passport's PKCE verify() consumes the state metadata, and the
+// filter:register.complete hook (completeRegistration) turns it into the
+// post-registration landing (`next` → req.session.returnTo). Single-use.
+const INTERACTIVE_RETURN_FLAG = "bgsInteractiveReturn";
 
 /**
  * Open-redirect guard for the silent-failure landing. Returns `path` only if it
@@ -85,6 +101,52 @@ function safeReturnPath(raw) {
 	}
 	// Re-emit the validated original (path+query), never a rebuilt/absolute URL.
 	return raw;
+}
+
+// Origins an interactive (website-originated) returnTo may ABSOLUTELY redirect
+// to — the main site the "Link forum account" button lives on, plus this
+// forum's own origin. Explicit allowlist, exact origin (scheme+host+port)
+// match only: never a suffix/wildcard, so evil-boardgamers.space or
+// boardgamers.space.evil.com do NOT pass. Anything not listed must go through
+// safeReturnPath instead (same-origin relative forum path).
+const ALLOWED_RETURN_ORIGINS = ["https://boardgamers.space", "https://www.boardgamers.space"];
+
+/**
+ * Open-redirect guard for the interactive (website-originated) returnTo —
+ * companion to safeReturnPath that ALSO accepts absolute http(s) URLs on the
+ * allowlisted Boardgamers origins (the whole point of the param is sending
+ * the user back to the main SITE after linking their forum account, which a
+ * same-origin-only check cannot express). Returns null when the value is
+ * neither an allowlisted absolute URL nor a safe relative forum path — the
+ * caller then treats the kickoff as param-less (default landing), rather than
+ * silently downgrading an intended cross-origin return to a forum page.
+ */
+function safeReturnOrigin(raw) {
+	if (!raw || typeof raw !== "string") {
+		return null;
+	}
+	if (/^https?:\/\//i.test(raw)) {
+		try {
+			const url = new URL(raw);
+			const origins = [...ALLOWED_RETURN_ORIGINS, nconf.get("url")].filter(Boolean);
+			if (!origins.includes(url.origin)) {
+				return null;
+			}
+			// A BGS absolute URL whose path is exactly the forum's relative_path
+			// prefix (e.g. https://boardgamers.space/forum when the forum is
+			// mounted at /forum) would escape the allowlisted origin onto the
+			// forum's own /admin — reject that path, keep any deeper site page.
+			const rel = nconf.get("relative_path") || "";
+			if (rel && (url.pathname === rel || url.pathname === `${rel}/`)) {
+				return null;
+			}
+			return raw;
+		} catch {
+			return null;
+		}
+	}
+	const rel = safeReturnPath(raw);
+	return rel === "/" && raw !== "/" ? null : rel;
 }
 
 function silentCookieOptions() {
@@ -151,7 +213,11 @@ Shim.appLoad = async ({ app }) => {
 	//    user to the page they were on (ends the response, core never runs).
 	//  - silentSuccessRedirect: on a silent SUCCESS, wrap res.redirect so core's
 	//    final post-login redirect lands back on the original page too.
-	app.use(CALLBACK_URL, silentCallbackGate, silentSuccessRedirect);
+	//  - interactiveReturnRedirect: on an INTERACTIVE success carrying a
+	//    website-originated returnTo (the "Link forum account" flow), wrap
+	//    res.redirect so the post-login landing goes there instead of the
+	//    default (which can be a dead-end like /admin for a fresh account).
+	app.use(CALLBACK_URL, silentCallbackGate, silentSuccessRedirect, interactiveReturnRedirect);
 };
 
 /**
@@ -177,6 +243,17 @@ function silentCallbackGate(req, res, next) {
 			// Return to the page the user was reading (validated same-origin;
 			// falls back to / for anything suspicious).
 			return res.redirect(safeReturnPath(meta.returnTo));
+		}
+		if (error && !meta && PROMPT_NONE_ERRORS.has(String(error))) {
+			// prompt=none-specific error but the session no longer carries the
+			// PKCE metadata (cookie-less bot, expired/regenerated session).
+			// These error codes can ONLY come from a silent attempt — a manual
+			// login never sends prompt=none — so fail it gracefully here rather
+			// than falling through to passport, which would throw an
+			// AuthorizationError (error page + a stack trace in the logs on
+			// every anonymous cookie-less visit).
+			armSilentCooldown(res);
+			return res.redirect(`${nconf.get("relative_path") || ""}/`);
 		}
 		if (req.session) {
 			delete req.session[SILENT_SESSION_FLAG];
@@ -207,6 +284,15 @@ function silentSuccessRedirect(req, res, next) {
 		if (!meta) {
 			return next(); // not a silent attempt
 		}
+		// Arm the cooldown on the SUCCESS leg too — the loop-breaker of last
+		// resort. When the login sticks, the cookie is moot (logged-in users
+		// never enter the silent middleware); when it does NOT stick (a ghost
+		// account, a forum-side login failure — anything that lands the user
+		// back on a page logged out), this is the only thing standing between
+		// them and an infinite provider round-trip: the provider keeps
+		// answering prompt=none with a fresh code, so the failure-path cooldown
+		// (silentCallbackGate) never fires.
+		armSilentCooldown(res);
 		const returnTo = safeReturnPath(meta.returnTo);
 		const original = res.redirect.bind(res);
 		// Core's helpers.redirect calls res.redirect(307, url) — TWO args — so
@@ -225,6 +311,68 @@ function silentSuccessRedirect(req, res, next) {
 		next();
 	} catch (err) {
 		winston.warn(`[plugin/sso-bgs] silent-success redirect: ${(err && err.message) || err}`);
+		next();
+	}
+}
+
+/**
+ * The interactive analog of silentSuccessRedirect, for the website-originated
+ * "Link forum account" flow (the website kicks off `/auth/boardgamers?next=<url>`
+ * — see ensureStrategy). Core's post-login redirect is hardcoded to
+ * `strategy.successUrl || '/'`, and a brand-new registration can end up on a
+ * dead-end (e.g. /admin — access denied for a regular account) when the
+ * session's returnTo was polluted by an earlier 403. When the PKCE metadata
+ * carries an interactive returnTo, wrap res.redirect so core's DEFAULT landing
+ * (`/`) goes to the return destination instead; an explicit non-root redirect
+ * (e.g. a registration interstitial) is preserved, exactly like the silent
+ * path — the interstitial's own completion redirect is handled separately by
+ * the filter:register.complete hook (see completeRegistration).
+ *
+ * Runs after silentSuccessRedirect: a silent success already wrapped
+ * res.redirect, so a callback can't be both (the metadata shapes differ) and
+ * the two wraps never stack. Runs BEFORE passport (core's callback route), so
+ * the PKCE metadata is still in the session — the store's verify() deletes it
+ * during the code exchange.
+ */
+function interactiveReturnRedirect(req, res, next) {
+	try {
+		if (req.query && req.query.error) {
+			return next(); // provider error — handled by silentCallbackGate
+		}
+		const meta = pkceCallbackMeta(req);
+		if (!meta || meta.prompt === "none" || !meta.returnTo) {
+			return next(); // silent attempt, or a plain manual login — untouched
+		}
+		// Defensive re-validation: the value was validated at kickoff and rode
+		// server-side in the session, but a redirect target is never trusted
+		// without a fresh check. Invalid → no wrap → core's default landing.
+		const returnTo = safeReturnOrigin(meta.returnTo);
+		if (!returnTo) {
+			return next();
+		}
+		// Stash for the registration path: passport's PKCE verify() deletes the
+		// state metadata during the code exchange (running after us), so the
+		// filter:register.complete hook — fired at the END of a registration,
+		// possibly after an interstitial round-trip — reads it from here.
+		if (req.session) {
+			req.session[INTERACTIVE_RETURN_FLAG] = returnTo;
+		}
+		const original = res.redirect.bind(res);
+		// Core's helpers.redirect calls res.redirect(307, url) — TWO args — so
+		// match on the LAST argument (the URL) regardless of the call shape.
+		res.redirect = function (...args) {
+			const url = args[args.length - 1];
+			// Only rewrite core's default post-login landing (`/`). Any explicit
+			// non-root redirect (e.g. a registration interstitial) is preserved.
+			const rel = nconf.get("relative_path") || "";
+			if (typeof url === "string" && (url === "/" || url === `${rel}/`)) {
+				args[args.length - 1] = returnTo;
+			}
+			return original(...args);
+		};
+		next();
+	} catch (err) {
+		winston.warn(`[plugin/sso-bgs] interactive-return redirect: ${(err && err.message) || err}`);
 		next();
 	}
 }
@@ -517,20 +665,20 @@ async function buildStrategy(config, key) {
 				return done(new Error("insufficient-scope"));
 			}
 			try {
-				const user = await OAuth.login({
+				const loggedIn = await loginHealingStaleLink(OAuth, {
 					name: STRATEGY_NAME,
 					oAuthid: id,
 					handle: displayName,
 					email,
 					email_verified,
 				});
-				winston.verbose(`[plugin/sso-bgs] Successful login to uid ${user.uid} (remote id ${id})`);
-				await authenticationController.onSuccessfulLogin(req, user.uid);
-				await OAuth.assignGroups({ provider: STRATEGY_NAME, user, profile });
-				await OAuth.updateProfile(user.uid, profile);
-				done(null, user);
+				winston.verbose(`[plugin/sso-bgs] Successful login to uid ${loggedIn.uid} (remote id ${id})`);
+				await authenticationController.onSuccessfulLogin(req, loggedIn.uid);
+				await OAuth.assignGroups({ provider: STRATEGY_NAME, user: loggedIn, profile });
+				await OAuth.updateProfile(loggedIn.uid, profile);
+				done(null, loggedIn);
 
-				plugins.hooks.fire("action:oauth2.login", { name: STRATEGY_NAME, user, profile });
+				plugins.hooks.fire("action:oauth2.login", { name: STRATEGY_NAME, user: loggedIn, profile });
 			} catch (err) {
 				done(err);
 			}
@@ -589,6 +737,62 @@ async function buildStrategy(config, key) {
 	cachedStrategy = inner;
 	cachedConfigKey = key;
 	return inner;
+}
+
+/**
+ * OAuth.login with a stale-link guard. The stock plugin's login() blindly
+ * trusts the `boardgamersId:uid` map: whatever uid the entry holds is returned
+ * WITHOUT checking the account still exists. A forum account deleted while its
+ * map entry survived (out-of-band cleanup, an interrupted User.deleteAccount —
+ * core removes the sorted-set memberships BEFORE firing the static:user.delete
+ * hook that cleans this map) then resolves to a ghost uid: `updateProfile`
+ * re-creates a partial user doc (no username/userslug), the "login" produces a
+ * broken session, and the silent SSO retries forever (see armSilentCooldown).
+ *
+ * Guard: after login(), require the uid to have a username. If not, drop the
+ * stale map entry and the partial user doc (through NodeBB's db layer, so its
+ * object cache stays coherent) and run login() once more — which now takes the
+ * account-creation path and returns a real, complete user.
+ */
+async function loginHealingStaleLink(OAuth, payload) {
+	const loggedIn = await OAuth.login(payload);
+	// Raw db read on purpose: User.getUserField(s) back-fills a missing
+	// username with '[[global:guest]]', which would mask the ghost.
+	const username = await db.getObjectField(`user:${loggedIn.uid}`, "username");
+	if (username) {
+		return loggedIn;
+	}
+	const ghostUid = loggedIn.uid;
+	winston.warn(
+		`[plugin/sso-bgs] stale forum link: remote id ${payload.oAuthid} resolved to ghost uid ${ghostUid} (no username); re-creating the account`,
+	);
+	await db.deleteObjectField(`${STRATEGY_NAME}Id:uid`, payload.oAuthid);
+	await db.delete(`user:${ghostUid}`);
+	// The email maps can point at the ghost too (the account deletion that
+	// stranded the oauth link stranded these the same way) — and login()'s
+	// getUidByEmail fallback would then resolve straight back to the ghost
+	// uid, re-linking it and defeating the heal. Scrub every email mapped to
+	// the ghost from both maps ('email:uid': member=email score=uid;
+	// 'email:sorted': member=`${email}:${uid}`).
+	const staleEmails = await db.getSortedSetRangeByScore("email:uid", 0, -1, ghostUid, ghostUid);
+	if (staleEmails.length) {
+		await db.sortedSetRemove("email:uid", staleEmails);
+		await db.sortedSetRemove(
+			"email:sorted",
+			staleEmails.map((email) => `${email}:${ghostUid}`),
+		);
+	}
+	const healed = await OAuth.login(payload);
+	const healedUsername = await db.getObjectField(`user:${healed.uid}`, "username");
+	if (!healedUsername) {
+		// Still a ghost: some other stale map resolved login() to an incomplete
+		// account. Fail loudly — a "successful" broken login would only produce
+		// a session that doesn't stick (and, before the cooldown fix, a loop).
+		throw new Error(
+			`[plugin/sso-bgs] could not heal stale forum link for remote id ${payload.oAuthid}: uid ${healed.uid} still has no username`,
+		);
+	}
+	return healed;
 }
 
 /**
@@ -652,6 +856,21 @@ Shim.loadStrategies = async (strategies) => {
  *     query marker is required — the session flag alone can survive a manual
  *     button click (one retry of an expired session), and the manual button
  *     must NEVER become a silent attempt.
+ *
+ *  3. Interactive return-to (the website's "Link forum account" flow): a
+ *     non-silent kickoff carrying `?next=<url>` threads that return
+ *     destination through the same PKCE state metadata (see withReturnTo), so
+ *     the post-login landing goes there instead of core's default
+ *     `strategy.successUrl || '/'` — which can be a dead-end like /admin for a
+ *     freshly registered (non-admin) account. `next` is the parameter name
+ *     NodeBB core itself uses on this route (it stashes req.query.next into
+ *     req.session.next for the registration interstitial), so the website's
+ *     kickoff URL works with BOTH this shim AND core's own handling. Unlike
+ *     core, we VALIDATE it (core's raw session.next/session.returnTo is an
+ *     unvalidated open-redirect vector — never read those here): only a
+ *     same-origin forum path or an absolute URL on the allowlisted Boardgamers
+ *     origins is honoured (safeReturnOrigin). A manual forum login (no param)
+ *     is untouched.
  */
 Shim.ensureStrategy = ({ req, res, opts }) => {
 	const passport = require("passport"); // eslint-disable-line global-require
@@ -672,6 +891,13 @@ Shim.ensureStrategy = ({ req, res, opts }) => {
 			// A non-silent (manual) kickoff: consume any stale flag so it can't
 			// mark a later callback as silent.
 			delete req.session[SILENT_SESSION_FLAG];
+			// Website-originated kickoff: thread the return destination through
+			// the PKCE state metadata. An invalid value is dropped here (the
+			// kickoff behaves as param-less) — the callback re-validates anyway.
+			const returnTo = safeReturnOrigin(req.query.next);
+			if (returnTo) {
+				opts = withReturnTo(opts, returnTo);
+			}
 		}
 	}
 	// NOTE: the silent-callback cooldown gate is NOT here — core never fires
@@ -717,23 +943,70 @@ function withPromptNone(req, opts) {
 }
 
 /**
- * If the in-flight callback is the return leg of a silent (prompt=none)
- * attempt, return its metadata `{ prompt, returnTo }`; otherwise return null.
- * At kickoff, the PKCE store persisted `{handle, code_verifier,
- * state:{prompt:"none", returnTo}}` under the strategy's session key. That key
- * is `oauth2:<authorize-url-hostname>` (passport-oauth2 derives it from the
- * configured authorization URL — here the PROVIDER's host, e.g.
+ * Thread a return destination through an INTERACTIVE kickoff — the
+ * website-originated counterpart of withPromptNone (same server-side PKCE
+ * state-store metadata channel, no prompt=none). The object opts.state never
+ * reaches the authorize URL: the store mints its own random handle as the
+ * `state` param and persists this object as `meta.state`, read back on the
+ * callback by interactiveReturnRedirect / completeRegistration. No
+ * `prompt: "none"` marker — that is what keeps the silent-path middleware
+ * (silentCallbackGate / silentSuccessRedirect) from touching this round-trip.
+ */
+function withReturnTo(opts, returnTo) {
+	return {
+		...opts,
+		state: { returnTo }, // PKCE-store metadata, read back on the callback
+	};
+}
+
+/**
+ * The post-registration landing for the website-originated flow. Core fires
+ * `filter:register.complete` at the end of every registration (local AND the
+ * SSO-driven create inside the OAuth callback) with `{ uid, next }`, and the
+ * interstitial completion (/register/complete) redirects to
+ * `req.session.returnTo` — which core's registerAndLoginUser sets from this
+ * hook's returned `next`. When the session carries a website-originated
+ * returnTo (stashed by interactiveReturnRedirect before passport consumed the
+ * PKCE metadata), override the landing with it — re-validated, like every
+ * redirect target. Without this hook a fresh registration would complete the
+ * GDPR interstitial and land on `/` (or wherever the polluted
+ * session.returnTo pointed — the /admin dead-end) instead of back on the
+ * site page the user started from.
+ */
+Shim.completeRegistration = async (data) => {
+	try {
+		const req = data && data.req;
+		const returnTo = req && req.session && safeReturnOrigin(req.session[INTERACTIVE_RETURN_FLAG]);
+		if (req && req.session) {
+			delete req.session[INTERACTIVE_RETURN_FLAG]; // single-use
+		}
+		if (returnTo) {
+			return { ...data, next: returnTo };
+		}
+	} catch (err) {
+		winston.warn(`[plugin/sso-bgs] register.complete hook: ${(err && err.message) || err}`);
+	}
+	return data;
+};
+
+/**
+ * Return the PKCE state-store metadata of the in-flight callback
+ * (`{ prompt?, returnTo? }`), or null when this callback didn't carry any
+ * (plain manual login). At kickoff, the PKCE store persisted
+ * `{handle, code_verifier, state:{...}}` under the strategy's session key.
+ * That key is `oauth2:<authorize-url-hostname>` (passport-oauth2 derives it
+ * from the configured authorization URL — here the PROVIDER's host, e.g.
  * `oauth2:boardgamers.space`, not the forum's). We don't read the config
- * here (this gate is sync), so scan the session for any PKCE entry carrying
- * the prompt=none marker — there is exactly one such entry per attempt.
+ * here (the gates are sync), so scan the session for any PKCE entry carrying
+ * a metadata object — there is exactly one such entry per attempt.
  *
  * TIMING: this MUST read the state BEFORE passport-oauth2's PKCESessionStore
- * runs — `verify()` deletes the entry on first use. Our `silentCallbackGate`
- * middleware is mounted on CALLBACK_URL ahead of core's callback route (which
- * is where passport.authenticate → verify runs), so the marker is still
- * present when we check it here.
+ * runs — `verify()` deletes the entry on first use. Our callback middleware
+ * is mounted on CALLBACK_URL ahead of core's callback route (which is where
+ * passport.authenticate → verify runs), so the metadata is still present when
+ * we check it here.
  */
-function silentCallbackMeta(req) {
+function pkceCallbackMeta(req) {
 	const session = req && req.session;
 	if (!session) {
 		return null;
@@ -743,11 +1016,18 @@ function silentCallbackMeta(req) {
 			continue;
 		}
 		const meta = session[key] && session[key].state;
-		if (meta && meta.state && meta.state.prompt === "none") {
-			return meta.state; // { prompt: "none", returnTo }
+		if (meta && meta.state && typeof meta.state === "object") {
+			return meta.state; // { prompt: "none", returnTo } or { returnTo }
 		}
 	}
 	return null;
+}
+
+// Backwards-compatible alias: the silent gates only care about the
+// prompt=none marker.
+function silentCallbackMeta(req) {
+	const meta = pkceCallbackMeta(req);
+	return meta && meta.prompt === "none" ? meta : null;
 }
 
 // Register the request-time-resolving strategy as early as possible (module

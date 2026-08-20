@@ -98,6 +98,11 @@ describe("Forum topics on feedback/game requests (#340)", () => {
 		await db()
 			.collection("objects")
 			.updateOne({ _key: "boardgamersId:uid" }, { $set: { [alice.userId.toHexString()]: 11 } }, { upsert: true });
+		// The gate also requires the mapped forum user doc to be real (a stale
+		// link pointing at a ghost/partial user gates like "not linked").
+		await db()
+			.collection("objects")
+			.updateOne({ _key: "user:11" }, { $set: { username: "forumuseralice" } }, { upsert: true });
 
 		savedToken = env.forumWriteToken;
 		savedForumUrl = env.forumUrl;
@@ -205,7 +210,7 @@ describe("Forum topics on feedback/game requests (#340)", () => {
 
 		assert.strictEqual(forumCalls.length, 1);
 		assert.strictEqual(forumCalls[0].title, "Forum Topic Game");
-		assert.strictEqual(forumCalls[0]._uid, undefined, "game requests stay bot-posted (no forum account needed)");
+		assert.strictEqual(forumCalls[0]._uid, 11, "game-request topics are posted as the requester");
 		assert.ok(forumCalls[0].content.includes("A game we want"));
 
 		const doc = await colls.gameMetadatas.findOne({ _id: "forum-topic-game" });
@@ -218,43 +223,33 @@ describe("Forum topics on feedback/game requests (#340)", () => {
 		assert.strictEqual(list.find((r) => r._id === "forum-topic-game")?.forumTid, 555);
 	});
 
-	it("still creates the request when the forum returns an error", async () => {
+	it("fails the request (and persists nothing) when the forum returns an error", async () => {
 		forumBehavior = { kind: "http", status: 500 };
 		const res = await api("POST", "/api/feedback", { kind: "site", title: "Forum down request" }, alice.authHeaders);
-		assert.strictEqual(res.status, 201);
-		const created = z.object({ _id: z.string() }).loose().parse(res.data);
-		ownFeedbackIds.push(new ObjectId(created._id));
-		assert.ok(!("forumTid" in created) || created.forumTid === undefined);
-		const doc = await colls.feedbackRequests.findOne({ _id: new ObjectId(created._id) });
-		assert.strictEqual(doc?.forumTid, undefined);
+		assert.strictEqual(res.status, 503);
+		assert.strictEqual(await colls.feedbackRequests.findOne({ title: "Forum down request" }), null);
 	});
 
-	it("still creates the request when the forum is unreachable", async () => {
+	it("fails the request (and persists nothing) when the forum is unreachable", async () => {
 		forumBehavior = { kind: "network" };
 		const res = await api("POST", "/api/boardgame/request", { label: "Unreachable Forum Game" }, alice.authHeaders);
-		assert.strictEqual(res.status, 201);
-		ownGameIds.push("unreachable-forum-game");
-		const doc = await colls.gameMetadatas.findOne({ _id: "unreachable-forum-game" });
-		assert.strictEqual(doc?.forumTid, undefined);
+		assert.strictEqual(res.status, 503);
+		assert.strictEqual(await colls.gameMetadatas.findOne({ _id: "unreachable-forum-game" }), null);
 	});
 
-	it("still creates the request when the forum response has no tid", async () => {
+	it("fails the request (and persists nothing) when the forum response has no tid", async () => {
 		forumBehavior = { kind: "notid" };
 		const res = await api("POST", "/api/feedback", { kind: "site", title: "No tid response" }, alice.authHeaders);
-		assert.strictEqual(res.status, 201);
-		const created = z.object({ _id: z.string() }).parse(res.data);
-		ownFeedbackIds.push(new ObjectId(created._id));
-		const doc = await colls.feedbackRequests.findOne({ _id: new ObjectId(created._id) });
-		assert.strictEqual(doc?.forumTid, undefined);
+		assert.strictEqual(res.status, 503);
+		assert.strictEqual(await colls.feedbackRequests.findOne({ title: "No tid response" }), null);
 	});
 
-	it("does not contact the forum when the write token is unset", async () => {
+	it("fails the request (and persists nothing) when the write token is unset", async () => {
 		env.forumWriteToken = undefined;
 		const res = await api("POST", "/api/feedback", { kind: "site", title: "No token request" }, alice.authHeaders);
-		assert.strictEqual(res.status, 201);
-		const created = z.object({ _id: z.string() }).parse(res.data);
-		ownFeedbackIds.push(new ObjectId(created._id));
+		assert.strictEqual(res.status, 503);
 		assert.strictEqual(forumCalls.length, 0, "the forum must not be contacted without a token");
+		assert.strictEqual(await colls.feedbackRequests.findOne({ title: "No token request" }), null);
 	});
 
 	it("gates site/game feedback on a linked forum account", async () => {
@@ -265,13 +260,30 @@ describe("Forum topics on feedback/game requests (#340)", () => {
 		assert.strictEqual(forumCalls.length, 0, "no topic is created without a forum account");
 	});
 
-	it("does NOT require a forum account for whole-game requests", async () => {
+	it("gates whole-game requests on a linked forum account", async () => {
 		const noforum = await insertUserWithAuth("noforumgame");
 		const res = await api("POST", "/api/boardgame/request", { label: "No Forum Needed Game" }, noforum.authHeaders);
-		assert.strictEqual(res.status, 201, "game requests stay frictionless (bot-posted)");
-		ownGameIds.push("no-forum-needed-game");
-		// Bot-posted: no _uid impersonation.
-		assert.strictEqual(forumCalls.length, 1);
-		assert.strictEqual(forumCalls[0]._uid, undefined);
+		assert.strictEqual(res.status, 403);
+		assert.strictEqual(errorCode(res.data), "forum_account_required");
+		assert.strictEqual(forumCalls.length, 0, "no topic is created without a forum account");
+		// The request was NOT created.
+		assert.strictEqual(await colls.gameMetadatas.findOne({ _id: "no-forum-needed-game" }), null);
+	});
+
+	it("gates like 'not linked' when the link points at a ghost forum user (no username)", async () => {
+		// A stale boardgamersId:uid entry: the forum account was deleted but the
+		// map entry survived — the mapped user doc is partial (no username).
+		const ghost = await insertUserWithAuth("ghostlink");
+		await db()
+			.collection("objects")
+			.updateOne({ _key: "boardgamersId:uid" }, { $set: { [ghost.userId.toHexString()]: 99 } }, { upsert: true });
+		await db()
+			.collection("objects")
+			.updateOne({ _key: "user:99" }, { $set: { fullname: "Ghost", picture: "x" } }, { upsert: true });
+
+		const res = await api("POST", "/api/feedback", { kind: "site", title: "Ghost link request" }, ghost.authHeaders);
+		assert.strictEqual(res.status, 403);
+		assert.strictEqual(errorCode(res.data), "forum_account_required");
+		assert.strictEqual(forumCalls.length, 0, "no topic creation attempted with a ghost link");
 	});
 });

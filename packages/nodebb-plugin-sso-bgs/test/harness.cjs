@@ -40,11 +40,11 @@ const depsRequire = createRequire("/tmp/sso-bgs-deps/node_modules/");
 // ---------------------------------------------------------------------------
 
 const dbObjects = new Map(); // `oauth2-multiple:strategies:<name>` → config object
-const dbSortedSets = new Map(); // `oauth2-multiple:strategies` → [name, ...]
+const dbSortedSets = new Map(); // key → [{ member, score }, ...] (insertion order)
 
 const db = {
 	async getSortedSetMembers(key) {
-		return [...(dbSortedSets.get(key) || [])];
+		return (dbSortedSets.get(key) || []).map((e) => e.member);
 	},
 	async getObjects(keys) {
 		// Real NodeBB db.getObjects returns null for a missing key (mongo/redis
@@ -52,15 +52,49 @@ const db = {
 		// missing key throws, exactly as on the live forum before configuration.
 		return keys.map((key) => (dbObjects.has(key) ? { ...dbObjects.get(key) } : null));
 	},
-	async sortedSetAdd(key, _score, member) {
+	async sortedSetAdd(key, score, member) {
 		const set = dbSortedSets.get(key) || [];
-		if (!set.includes(member)) {
-			set.push(member);
+		const existing = set.find((e) => e.member === member);
+		if (existing) {
+			existing.score = score;
+		} else {
+			set.push({ member, score });
 		}
 		dbSortedSets.set(key, set);
 	},
+	// NodeBB mongo sorted.js signature: (key, start, count, min, max); count -1 = all.
+	async getSortedSetRangeByScore(key, start, count, min, max) {
+		const hits = (dbSortedSets.get(key) || []).filter((e) => e.score >= min && e.score <= max).map((e) => e.member);
+		return count === -1 ? hits.slice(start) : hits.slice(start, start + count);
+	},
+	async sortedSetRemove(key, value) {
+		const values = Array.isArray(value) ? value : [value];
+		dbSortedSets.set(
+			key,
+			(dbSortedSets.get(key) || []).filter((e) => !values.includes(e.member)),
+		);
+	},
+	async sortedSetScore(key, member) {
+		const entry = (dbSortedSets.get(key) || []).find((e) => e.member === member);
+		return entry ? entry.score : null;
+	},
 	async setObject(key, payload) {
 		dbObjects.set(key, { ...payload });
+	},
+	// Field-level accessors (mongo/redis hash.js semantics: null for missing).
+	// Used by the shim's stale-link guard (loginHealingStaleLink).
+	async getObjectField(key, field) {
+		const obj = dbObjects.get(key);
+		return obj && obj[field] !== undefined ? obj[field] : null;
+	},
+	async deleteObjectField(key, field) {
+		const obj = dbObjects.get(key);
+		if (obj) {
+			delete obj[field];
+		}
+	},
+	async delete(key) {
+		dbObjects.delete(key);
 	},
 };
 
@@ -166,7 +200,10 @@ function makeStockPlugin(env) {
 			return out;
 		},
 		async login({ handle }) {
-			return { uid: 1, username: handle };
+			// The real OAuth.login creates the user inline when the oAuthid/email
+			// lookup misses; tests flag that path via env.newUser so the harness
+			// can drive core's registration behaviour (filter:register.complete).
+			return { uid: 1, username: handle, __isNew: !!env.newUser };
 		},
 		async assignGroups() {},
 		async updateProfile() {},
@@ -345,6 +382,12 @@ function makeEnv() {
 		loginStrategies: [],
 		app,
 	};
+	// The stock plugin's mock OAuth.login resolves every login to uid 1; give
+	// that uid a real user doc so the shim's stale-link guard (which requires a
+	// username on the raw doc) treats it as a healthy account by default.
+	// (Seeded here, not at module load: specs clear dbObjects in beforeEach.)
+	// The stale-link spec overrides/deletes this to exercise the ghost path.
+	dbObjects.set("user:1", { username: "harnessuser", userslug: "harnessuser" });
 	env.stockOAuth = makeStockPlugin(env);
 	env.plugins.hooks.register("nodebb-plugin-sso-oauth2-multiple", {
 		hook: "filter:auth.init",
@@ -604,11 +647,37 @@ function makeEnv() {
 		// Core's final step on success (routes/authentication.js): req.login,
 		// onSuccessfulLogin, then helpers.redirect(res, strategy.successUrl || '/')
 		// — which calls res.redirect(307, url) (TWO args). The shim's
-		// silentSuccessRedirect has wrapped res.redirect so a default '/' landing
-		// is rewritten to the original page for a silent success.
+		// silentSuccessRedirect / interactiveReturnRedirect have wrapped
+		// res.redirect so a default '/' landing is rewritten to the return
+		// destination.
 		if (result.user) {
+			// Core's registerAndLoginUser (controllers/authentication.js) fires
+			// filter:register.complete for EVERY registration — including the
+			// SSO-driven user.create the stock plugin's OAuth.login performs — and
+			// sets req.session.returnTo from the hook's returned `next`. The shim's
+			// stock-plugin stub flags its "new user" via user.__isNew (the real
+			// plugin creates the user inline when the oAuthid/email lookup misses).
+			if (result.user.__isNew) {
+				const rel = ""; // nconf relative_path is "" in this harness
+				const data = await env.plugins.hooks.fire("filter:register.complete", {
+					req,
+					uid: result.user.uid,
+					next: req.session.returnTo || `${rel}/`,
+				});
+				req.session.returnTo = data.next;
+				result.registered = true;
+			}
 			res.redirect(307, descriptor.successUrl || "/");
 			result.redirected = res.headers.location || descriptor.successUrl || "/";
+			if (opts.registration && opts.registration.interstitial) {
+				// A registration interstitial (the live forum's GDPR consent) does
+				// NOT redirect inside the callback: core's middleware chain bounces
+				// the NEXT request to /register/complete, whose POST handler
+				// (registerComplete's done()) redirects to req.session.returnTo
+				// — exactly what registerAndLoginUser set above.
+				result.interstitial = true;
+				result.redirected = req.session.returnTo || "/";
+			}
 		}
 		return { ...result, session: req.session, cookies: jar, setCookies: res.setCookies };
 	};

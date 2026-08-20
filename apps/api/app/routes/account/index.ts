@@ -515,7 +515,11 @@ router.post("/confirm", rateLimitAttempt, async (ctx: Context) => {
 	}
 
 	if (user.security.confirmed) {
-		ctx.redirect("/login");
+		// JSON, not a redirect: this endpoint is consumed by fetch (the web confirm
+		// page), and a 302 is followed into HTML that callers can't parse. No session
+		// is issued here — the key can't be verified (confirm() nulls confirmKey), so
+		// minting tokens would let anyone confirm-as anyone knowing only their email.
+		ctx.body = { alreadyConfirmed: true };
 		return;
 	}
 

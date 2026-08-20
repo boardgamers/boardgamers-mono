@@ -2,7 +2,7 @@
 // imports app/config/test-hooks.ts, which connects to the *-test database and starts
 // the API server.
 import assert from "node:assert/strict";
-import { after, before, describe, it } from "node:test";
+import { after, before, describe, it, mock } from "node:test";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { colls, db } from "../../config/db.ts";
@@ -54,6 +54,9 @@ const requestListItem = z.object({
 describe("Boardgame API — game requests (#340)", () => {
 	let alice: Awaited<ReturnType<typeof insertUserWithAuth>>;
 	let bob: Awaited<ReturnType<typeof insertUserWithAuth>>;
+	let savedNodebb: string;
+	let savedToken: string | undefined;
+	let savedForumUrl: string;
 
 	before(async () => {
 		// One implemented game: requests must not collide with it, and it anchors
@@ -67,10 +70,66 @@ describe("Boardgame API — game requests (#340)", () => {
 		await colls.gameMetadatas.insertOne({ _id: "implemented-game", label: "Implemented Game", players: [2] });
 		alice = await insertUserWithAuth("alice");
 		bob = await insertUserWithAuth("bob");
+
+		// Game requests are posted on the forum AS the user (#340), so the create
+		// route requires a linked forum account. The forum-uid lookup reads
+		// `env.database.nodebb` via its own short-lived connection — point it at the
+		// SAME test db and seed the bgs→forum-uid link doc so alice/bob have forum
+		// accounts. Upserted (the specs share the process/db and interleave) and
+		// restored in after().
+		savedNodebb = env.database.nodebb;
+		const bgsUrl = new URL(env.database.bgs.url.replace(/^mongodb:/, "http:"));
+		env.database.nodebb = `mongodb://${bgsUrl.host}/${env.database.bgs.name}${bgsUrl.search}`;
+		await db()
+			.collection("objects")
+			.updateOne(
+				{ _key: "boardgamersId:uid" },
+				{ $set: { [alice.userId.toHexString()]: 21, [bob.userId.toHexString()]: 22 } },
+				{ upsert: true },
+			);
+		// The gate also requires the mapped forum user docs to be real (a stale
+		// link pointing at a ghost/partial user gates like "not linked").
+		for (const [uid, username] of [
+			[21, "requseralice"],
+			[22, "requserbob"],
+		] as const) {
+			await db()
+				.collection("objects")
+				.updateOne({ _key: `user:${uid}` }, { $set: { username } }, { upsert: true });
+		}
+
+		// The request is only created once its forum topic is: mock the forum Write
+		// API to succeed (a real call would hit the dead test forumUrl and 503).
+		// Node's runner isolates spec files in separate processes, so this stub only
+		// affects this file. Requests to the API server under test go through real.
+		savedToken = env.forumWriteToken;
+		savedForumUrl = env.forumUrl;
+		env.forumWriteToken = "test-write-token";
+		env.forumUrl = "http://forum.test";
+		const forumOrigin = new URL(env.forumUrl).origin;
+		const realFetch = globalThis.fetch;
+		mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+			const url = new URL(typeof input === "string" || input instanceof URL ? input : input.url);
+			if (url.origin === forumOrigin) {
+				return Response.json({ response: { tid: 42, slug: "topic/42/some-slug" } });
+			}
+			return realFetch(input, init);
+		});
 	});
 
 	it("requires authentication to create a request", async () => {
 		assert.strictEqual((await api("POST", "/api/boardgame/request", { label: "Anon Game" })).status, 401);
+	});
+
+	it("requires a linked forum account (forum_account_required)", async () => {
+		// A user with no forum account (not in the boardgamersId:uid link doc).
+		const noforum = await insertUserWithAuth("noforum");
+		const res = await api("POST", "/api/boardgame/request", { label: "No Forum Game" }, noforum.authHeaders);
+		assert.strictEqual(res.status, 403);
+		const code = typeof res.data === "object" && res.data !== null && "code" in res.data ? res.data.code : undefined;
+		assert.strictEqual(code, "forum_account_required");
+		// The request was NOT created.
+		assert.strictEqual(await colls.gameMetadatas.findOne({ _id: "no-forum-game" }), null);
 	});
 
 	it("creates a game request, auto-liked by the requester", async () => {
@@ -215,5 +274,11 @@ describe("Boardgame API — game requests (#340)", () => {
 		}
 	});
 
-	after(() => db().dropDatabase());
+	after(async () => {
+		mock.restoreAll();
+		env.forumWriteToken = savedToken;
+		env.forumUrl = savedForumUrl;
+		env.database.nodebb = savedNodebb;
+		await db().dropDatabase();
+	});
 });

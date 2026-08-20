@@ -146,7 +146,34 @@ test("REGRESSION (PR #254 review): the silent-error cooldown runs on the CALLBAC
 	assert.strictEqual(page2.location, null, "no second silent redirect — loop prevented");
 });
 
-test("a SUCCESSFUL silent callback logs the user in (full round-trip) and arms NO cooldown", async () => {
+test("a prompt=none error WITHOUT session metadata (cookie-less bot, lost session) is still failed gracefully", async () => {
+	const env = await bootEnv();
+	// No page/kickoff first: the callback arrives with a session that carries
+	// no PKCE metadata — the real-world shape of a cookie-less crawler hitting
+	// the callback URL, or a session that expired mid-round-trip. Before the
+	// fix this fell through to passport, which threw an AuthorizationError
+	// (error page + stack trace in the logs on every such visit).
+	const cb = await env.callback({}, { error: "login_required" }, { cookieJar: {} });
+	assert.strictEqual(cb.gated, true, "gated — never reaches passport's AuthorizationError");
+	assert.strictEqual(cb.redirected, "/", "lands on the forum home");
+	assert.ok(
+		cb.setCookies.some((c) => c.name === "bgs_silent"),
+		"cooldown armed",
+	);
+});
+
+test("a NON-prompt=none error without metadata still falls through to core (manual-flow errors untouched)", async () => {
+	const env = await bootEnv();
+	// access_denied can come from a manual (interactive) flow — with no
+	// metadata to say otherwise, it must reach core/passport untouched
+	// (passport turns it into a login failure, not the shim's silent bounce).
+	const cb = await env.callback({}, { error: "access_denied" }, { cookieJar: {} });
+	assert.ok(!cb.gated, "not gated by the shim");
+	assert.ok(!cb.user, "passport failed the login (core handles the failure)");
+	assert.ok(!cb.setCookies.some((c) => c.name === "bgs_silent"), "no silent cooldown for a manual-flow error");
+});
+
+test("a SUCCESSFUL silent callback logs the user in (full round-trip) and arms the cooldown", async () => {
 	// Stub the network edges BEFORE anything builds the strategy (the build binds
 	// getUserProfile): makeEnv → set stubs → appLoad → reloadRoutes.
 	await acpSaveStrategy(VALID_CONFIG);
@@ -175,20 +202,24 @@ test("a SUCCESSFUL silent callback logs the user in (full round-trip) and arms N
 	const kickoff = await env.kickoff("/auth/boardgamers?silent=1", { session: page.session, cookieJar: jar });
 	const state = new URL(kickoff.location).searchParams.get("state");
 
-	// provider returns a CODE (site session exists) → seamless login, NO cooldown,
-	// and the post-login redirect lands back on the page the user was reading
+	// provider returns a CODE (site session exists) → seamless login, and the
+	// post-login redirect lands back on the page the user was reading
 	const cb = await env.callback(page.session, { code: "silentcode", state }, { cookieJar: jar });
 	assert.ok(!cb.gated, "not gated — normal code exchange runs");
 	assert.strictEqual(cb.user.uid, 1, "logged in seamlessly");
 	assert.ok(tokenPostBody, "token exchange happened");
 	assert.ok(tokenPostBody.get("code_verifier"), "PKCE verifier redeemed");
-	assert.ok(!cb.setCookies.some((c) => c.name === "bgs_silent"), "no cooldown cookie on success");
+	// The cooldown is armed on the success leg too — the loop-breaker of last
+	// resort: when a "successful" login doesn't stick (ghost account, forum-side
+	// failure), the provider would keep answering prompt=none with a fresh code
+	// and the failure-path cooldown would never fire. For a login that DOES
+	// stick the cookie is moot: logged-in users never enter the silent
+	// middleware.
+	assert.ok(
+		cb.setCookies.some((c) => c.name === "bgs_silent"),
+		"cooldown armed on success (loop-breaker)",
+	);
 	assert.strictEqual(cb.redirected, "/topic/123/foo", "silent success returns to the original page");
-
-	// and a subsequent anonymous-style page view is moot (they're logged in now),
-	// but even logged-out there's no cooldown blocking a retry
-	const page2 = await env.page("/recent", { cookieJar: jar });
-	assert.strictEqual(page2.location, "/auth/boardgamers?silent=1", "no cooldown → silent attempt still allowed");
 });
 
 test("silent SUCCESS and FAILURE both return to the original page; tampered/external returnTo falls back to /", async () => {
