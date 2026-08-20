@@ -21,8 +21,9 @@
 	import { gamePreferences, useGamePreferencesFallback } from "@/lib/game-preferences.svelte";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
+	import { untrack } from "svelte";
 	import type { GamePace } from "@/utils";
-	import type { SetupOptionFilter } from "@/lib/games.svelte";
+	import { peekGames, gameListParams, type SetupOptionFilter } from "@/lib/games.svelte";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
 
@@ -57,7 +58,15 @@
 	let lobbyOptions = $state<SetupOptionFilter | undefined>(undefined);
 	let lobbyPaceFilter = $derived<GamePace | undefined>(lobbyPace === "" ? undefined : lobbyPace);
 	// The lobby's loaded open games — the filter derives its option choices from them.
-	let lobbyGames = $state<GameFront[]>([]);
+	// Seeded once (untrack) from the +page.ts prefetch cache so the SSR render (where the
+	// child's bind-back hasn't run yet) derives the same filter choices as hydration.
+	let lobbyGames = $state<GameFront[]>(
+		untrack(
+			() =>
+				peekGames(gameListParams({ gameStatus: "open", boardgameId, perPage: 5, viewerKarma: user?.account?.karma }))
+					?.games ?? []
+		)
+	);
 
 	async function newGame() {
 		if (needOwnership && !hasOwnership) {

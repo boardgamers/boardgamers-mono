@@ -8,8 +8,9 @@
 
 	/**
 	 * Whether the pace filter offers a real choice: the visible games are not all
-	 * the same pace. True while games load (an empty list has no majority pace) so
-	 * the chips don't pop in after SSR.
+	 * the same pace. True for an empty list (no majority pace) — the parent seeds
+	 * `games` from the prefetch cache, so SSR and hydration see the same rows and
+	 * agree on the filter's visibility.
 	 */
 	export function hasPaceChoice(games: GameFront[]): boolean {
 		if (games.length === 0) {

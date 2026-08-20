@@ -9,8 +9,10 @@
 	import { account } from "@/lib/account.svelte";
 	import { activeGames, live } from "@/lib/stores.svelte";
 	import { page } from "$app/state";
+	import { untrack } from "svelte";
 	import type { GamePace } from "@/utils";
 	import type { GameFront, UserFront } from "@bgs/models";
+	import { peekGames, gameListParams } from "@/lib/games.svelte";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -25,7 +27,15 @@
 	let lobbyPace = $state<"" | GamePace>("");
 	let lobbyPaceFilter = $derived<GamePace | undefined>(lobbyPace === "" ? undefined : lobbyPace);
 	// The lobby's loaded open games — the pace chips hide when they're all one pace.
-	let lobbyGames = $state<GameFront[]>([]);
+	// Seeded once (untrack) from the +page.ts prefetch cache so the SSR render (where the
+	// child's bind-back hasn't run yet) derives the same filter visibility as hydration.
+	let lobbyGames = $state<GameFront[]>(
+		untrack(
+			() =>
+				peekGames(gameListParams({ gameStatus: "open", sample: true, perPage: 5, viewerKarma: user?.account?.karma }))
+					?.games ?? []
+		)
+	);
 
 	let websiteJsonLd = $derived(
 		JSON.stringify({
