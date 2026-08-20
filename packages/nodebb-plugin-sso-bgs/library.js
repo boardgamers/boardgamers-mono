@@ -4,6 +4,7 @@ const nconf = nodebb.require("nconf");
 const winston = nodebb.require("winston");
 const plugins = nodebb.require("./src/plugins");
 const meta = nodebb.require("./src/meta");
+const db = nodebb.require("./src/database");
 const authenticationController = nodebb.require("./src/controllers/authentication");
 
 /**
@@ -43,6 +44,15 @@ const SILENT_COOKIE_MAX_AGE = 24 * 60 * 60 * 1000; // 1 day
 // Session flag carrying the "this is a silent (prompt=none) round-trip" state
 // from the page middleware through the kickoff to the callback.
 const SILENT_SESSION_FLAG = "bgsSilent";
+// OIDC error codes a provider may only return to a prompt=none request
+// (RFC: OpenID Connect Core §3.1.2.6) — used to recognise a silent-attempt
+// failure even when the session lost the PKCE metadata.
+const PROMPT_NONE_ERRORS = new Set([
+	"login_required",
+	"interaction_required",
+	"consent_required",
+	"account_selection_required",
+]);
 // Session flag carrying the page the user was on when the silent attempt
 // started, so a silent FAILURE can return them there (instead of the forum
 // home). Validated same-origin by safeReturnPath.
@@ -234,6 +244,17 @@ function silentCallbackGate(req, res, next) {
 			// falls back to / for anything suspicious).
 			return res.redirect(safeReturnPath(meta.returnTo));
 		}
+		if (error && !meta && PROMPT_NONE_ERRORS.has(String(error))) {
+			// prompt=none-specific error but the session no longer carries the
+			// PKCE metadata (cookie-less bot, expired/regenerated session).
+			// These error codes can ONLY come from a silent attempt — a manual
+			// login never sends prompt=none — so fail it gracefully here rather
+			// than falling through to passport, which would throw an
+			// AuthorizationError (error page + a stack trace in the logs on
+			// every anonymous cookie-less visit).
+			armSilentCooldown(res);
+			return res.redirect(`${nconf.get("relative_path") || ""}/`);
+		}
 		if (req.session) {
 			delete req.session[SILENT_SESSION_FLAG];
 		}
@@ -263,6 +284,15 @@ function silentSuccessRedirect(req, res, next) {
 		if (!meta) {
 			return next(); // not a silent attempt
 		}
+		// Arm the cooldown on the SUCCESS leg too — the loop-breaker of last
+		// resort. When the login sticks, the cookie is moot (logged-in users
+		// never enter the silent middleware); when it does NOT stick (a ghost
+		// account, a forum-side login failure — anything that lands the user
+		// back on a page logged out), this is the only thing standing between
+		// them and an infinite provider round-trip: the provider keeps
+		// answering prompt=none with a fresh code, so the failure-path cooldown
+		// (silentCallbackGate) never fires.
+		armSilentCooldown(res);
 		const returnTo = safeReturnPath(meta.returnTo);
 		const original = res.redirect.bind(res);
 		// Core's helpers.redirect calls res.redirect(307, url) — TWO args — so
@@ -635,20 +665,20 @@ async function buildStrategy(config, key) {
 				return done(new Error("insufficient-scope"));
 			}
 			try {
-				const user = await OAuth.login({
+				const loggedIn = await loginHealingStaleLink(OAuth, {
 					name: STRATEGY_NAME,
 					oAuthid: id,
 					handle: displayName,
 					email,
 					email_verified,
 				});
-				winston.verbose(`[plugin/sso-bgs] Successful login to uid ${user.uid} (remote id ${id})`);
-				await authenticationController.onSuccessfulLogin(req, user.uid);
-				await OAuth.assignGroups({ provider: STRATEGY_NAME, user, profile });
-				await OAuth.updateProfile(user.uid, profile);
-				done(null, user);
+				winston.verbose(`[plugin/sso-bgs] Successful login to uid ${loggedIn.uid} (remote id ${id})`);
+				await authenticationController.onSuccessfulLogin(req, loggedIn.uid);
+				await OAuth.assignGroups({ provider: STRATEGY_NAME, user: loggedIn, profile });
+				await OAuth.updateProfile(loggedIn.uid, profile);
+				done(null, loggedIn);
 
-				plugins.hooks.fire("action:oauth2.login", { name: STRATEGY_NAME, user, profile });
+				plugins.hooks.fire("action:oauth2.login", { name: STRATEGY_NAME, user: loggedIn, profile });
 			} catch (err) {
 				done(err);
 			}
@@ -707,6 +737,37 @@ async function buildStrategy(config, key) {
 	cachedStrategy = inner;
 	cachedConfigKey = key;
 	return inner;
+}
+
+/**
+ * OAuth.login with a stale-link guard. The stock plugin's login() blindly
+ * trusts the `boardgamersId:uid` map: whatever uid the entry holds is returned
+ * WITHOUT checking the account still exists. A forum account deleted while its
+ * map entry survived (out-of-band cleanup, an interrupted User.deleteAccount —
+ * core removes the sorted-set memberships BEFORE firing the static:user.delete
+ * hook that cleans this map) then resolves to a ghost uid: `updateProfile`
+ * re-creates a partial user doc (no username/userslug), the "login" produces a
+ * broken session, and the silent SSO retries forever (see armSilentCooldown).
+ *
+ * Guard: after login(), require the uid to have a username. If not, drop the
+ * stale map entry and the partial user doc (through NodeBB's db layer, so its
+ * object cache stays coherent) and run login() once more — which now takes the
+ * account-creation path and returns a real, complete user.
+ */
+async function loginHealingStaleLink(OAuth, payload) {
+	const loggedIn = await OAuth.login(payload);
+	// Raw db read on purpose: User.getUserField(s) back-fills a missing
+	// username with '[[global:guest]]', which would mask the ghost.
+	const username = await db.getObjectField(`user:${loggedIn.uid}`, "username");
+	if (username) {
+		return loggedIn;
+	}
+	winston.warn(
+		`[plugin/sso-bgs] stale forum link: remote id ${payload.oAuthid} resolved to ghost uid ${loggedIn.uid} (no username); re-creating the account`,
+	);
+	await db.deleteObjectField(`${STRATEGY_NAME}Id:uid`, payload.oAuthid);
+	await db.delete(`user:${loggedIn.uid}`);
+	return OAuth.login(payload);
 }
 
 /**

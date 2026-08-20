@@ -98,6 +98,11 @@ describe("Forum topics on feedback/game requests (#340)", () => {
 		await db()
 			.collection("objects")
 			.updateOne({ _key: "boardgamersId:uid" }, { $set: { [alice.userId.toHexString()]: 11 } }, { upsert: true });
+		// The gate also requires the mapped forum user doc to be real (a stale
+		// link pointing at a ghost/partial user gates like "not linked").
+		await db()
+			.collection("objects")
+			.updateOne({ _key: "user:11" }, { $set: { username: "forumuseralice" } }, { upsert: true });
 
 		savedToken = env.forumWriteToken;
 		savedForumUrl = env.forumUrl;
@@ -263,5 +268,22 @@ describe("Forum topics on feedback/game requests (#340)", () => {
 		assert.strictEqual(forumCalls.length, 0, "no topic is created without a forum account");
 		// The request was NOT created.
 		assert.strictEqual(await colls.gameMetadatas.findOne({ _id: "no-forum-needed-game" }), null);
+	});
+
+	it("gates like 'not linked' when the link points at a ghost forum user (no username)", async () => {
+		// A stale boardgamersId:uid entry: the forum account was deleted but the
+		// map entry survived — the mapped user doc is partial (no username).
+		const ghost = await insertUserWithAuth("ghostlink");
+		await db()
+			.collection("objects")
+			.updateOne({ _key: "boardgamersId:uid" }, { $set: { [ghost.userId.toHexString()]: 99 } }, { upsert: true });
+		await db()
+			.collection("objects")
+			.updateOne({ _key: "user:99" }, { $set: { fullname: "Ghost", picture: "x" } }, { upsert: true });
+
+		const res = await api("POST", "/api/feedback", { kind: "site", title: "Ghost link request" }, ghost.authHeaders);
+		assert.strictEqual(res.status, 403);
+		assert.strictEqual(errorCode(res.data), "forum_account_required");
+		assert.strictEqual(forumCalls.length, 0, "no topic creation attempted with a ghost link");
 	});
 });

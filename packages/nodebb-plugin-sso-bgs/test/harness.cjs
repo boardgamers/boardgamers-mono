@@ -62,6 +62,21 @@ const db = {
 	async setObject(key, payload) {
 		dbObjects.set(key, { ...payload });
 	},
+	// Field-level accessors (mongo/redis hash.js semantics: null for missing).
+	// Used by the shim's stale-link guard (loginHealingStaleLink).
+	async getObjectField(key, field) {
+		const obj = dbObjects.get(key);
+		return obj && obj[field] !== undefined ? obj[field] : null;
+	},
+	async deleteObjectField(key, field) {
+		const obj = dbObjects.get(key);
+		if (obj) {
+			delete obj[field];
+		}
+	},
+	async delete(key) {
+		dbObjects.delete(key);
+	},
 };
 
 const nconfValues = { url: "https://forum.boardgamers.space", relative_path: "" };
@@ -348,6 +363,12 @@ function makeEnv() {
 		loginStrategies: [],
 		app,
 	};
+	// The stock plugin's mock OAuth.login resolves every login to uid 1; give
+	// that uid a real user doc so the shim's stale-link guard (which requires a
+	// username on the raw doc) treats it as a healthy account by default.
+	// (Seeded here, not at module load: specs clear dbObjects in beforeEach.)
+	// The stale-link spec overrides/deletes this to exercise the ghost path.
+	dbObjects.set("user:1", { username: "harnessuser", userslug: "harnessuser" });
 	env.stockOAuth = makeStockPlugin(env);
 	env.plugins.hooks.register("nodebb-plugin-sso-oauth2-multiple", {
 		hook: "filter:auth.init",

@@ -106,6 +106,17 @@ describe("Feedback API — site + game-specific requests (#340)", () => {
 				},
 				{ upsert: true },
 			);
+		// The gate also requires the mapped forum user docs to be real (a stale
+		// link pointing at a ghost/partial user gates like "not linked").
+		for (const [uid, username] of [
+			[11, "fbuseralice"],
+			[12, "fbuserbob"],
+			[13, "fbuseradmin"],
+		] as const) {
+			await db()
+				.collection("objects")
+				.updateOne({ _key: `user:${uid}` }, { $set: { username } }, { upsert: true });
+		}
 
 		// The request is only created once its forum topic is: mock the forum Write
 		// API to succeed (a real call would hit the dead test forumUrl and 503).

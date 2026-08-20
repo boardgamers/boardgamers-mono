@@ -23,7 +23,12 @@ export interface FeedbackTopic {
  * The user's linked NodeBB forum uid, or null when they have no forum account
  * (or the forum db is unreachable). Reads the authoritative
  * `objects` doc `{ _key: "boardgamersId:uid" }` (bgs user ObjectId hex → forum
- * uid), the same map `cleanupDeadUsers` trusts.
+ * uid), the same map `cleanupDeadUsers` trusts — and then requires the mapped
+ * `user:<uid>` doc to actually carry a username: a stale map entry (forum
+ * account deleted while the entry survived) points at a ghost/partial user
+ * that cannot post, so it must gate exactly like "no forum account" — the
+ * re-link flow then heals the stale entry (see the sso-bgs plugin's
+ * loginHealingStaleLink).
  *
  * Uses a short-lived dedicated connection (not the cached `nodebbColls`): this
  * runs on the request-creation hot path, and a self-contained connect/close per
@@ -35,13 +40,19 @@ export async function forumUidForUser(userId: ObjectId): Promise<number | null> 
 	try {
 		client = new MongoClient(env.database.nodebb, { directConnection: true, serverSelectionTimeoutMS: 3000 });
 		await client.connect();
-		const link = await client
-			.db(client.options.dbName ?? "nodebb")
-			.collection("objects")
-			.findOne({ _key: "boardgamersId:uid" }, { projection: { [userId.toHexString()]: 1 } });
+		const objects = client.db(client.options.dbName ?? "nodebb").collection("objects");
+		const link = await objects.findOne({ _key: "boardgamersId:uid" }, { projection: { [userId.toHexString()]: 1 } });
 		const uid = link?.[userId.toHexString()];
 		const n = typeof uid === "string" ? Number(uid) : uid;
-		return typeof n === "number" && Number.isInteger(n) && n > 0 ? n : null;
+		if (typeof n !== "number" || !Number.isInteger(n) || n <= 0) {
+			return null;
+		}
+		const forumUser = await objects.findOne({ _key: `user:${n}` }, { projection: { username: 1 } });
+		if (typeof forumUser?.username !== "string" || forumUser.username.length === 0) {
+			console.warn(`[forum] stale forum link for user ${userId.toHexString()}: uid ${n} has no username`);
+			return null;
+		}
+		return n;
 	} catch (err) {
 		console.warn("[forum] forum-uid lookup failed:", err instanceof Error ? err.message : err);
 		return null;
