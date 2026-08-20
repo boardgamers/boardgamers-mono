@@ -13,6 +13,7 @@ import { colls, db } from "../config/db.ts";
 import env from "../config/env.ts";
 import { setSendmailForTests, type MailSendData } from "../config/sendmail.ts";
 import { testGame, testUser } from "../config/test-helpers.ts";
+import { unsubscribeUrl } from "../models/user.ts";
 import { processStalledGame, processStalledGames } from "./game.ts";
 
 const day = 24 * 3600 * 1000;
@@ -310,17 +311,21 @@ describe("processStalledGames — warn-then-auto-cancel for stalled games (#94)"
 		);
 	});
 
-	it("the cancel email is shaped per #2: text part, tag, Reply-To, subdomain From, unsubscribe", () => {
-		const accountUrl = `https://${env.site}/account`;
+	it("the cancel email is shaped per #2: text part, tag, Reply-To, subdomain From, signed unsubscribe", async () => {
 		for (const mail of mails) {
 			assert.deepEqual(mail["o:tag"], ["game-cancelled"]);
 			assert.equal(mail["h:Reply-To"], env.contact);
 			assert.match(String(mail.from), new RegExp(`@mg\\.${env.domain.replaceAll(".", "\\.")}>`));
 			assert.ok(mail.text, "a text part must be present");
 			assert.match(mail.text, /cancelled for inactivity/);
-			assert.equal(mail["h:List-Unsubscribe"], `<${accountUrl}>`);
-			assert.ok(String(mail.html).includes(`href="${accountUrl}"`), "the HTML body links to the account page");
-			assert.ok(mail.text.includes(accountUrl), "the text part links to the account page");
+
+			// List-Unsubscribe carries the per-user signed unsubscribe URL, and the
+			// body links to the same URL.
+			const recipient = await colls.users.findOne({ "account.email": String(mail.to) });
+			const url = unsubscribeUrl(recipient!._id.toHexString(), "game");
+			assert.equal(mail["h:List-Unsubscribe"], `<${url}>`);
+			assert.ok(String(mail.html).includes(`href="${url}"`), "the HTML body links to the signed unsubscribe URL");
+			assert.ok(mail.text.includes(url), "the text part links to the signed unsubscribe URL");
 		}
 	});
 

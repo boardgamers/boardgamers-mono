@@ -4,6 +4,7 @@ import createError from "http-errors";
 import type { Context } from "koa";
 import passport from "koa-passport";
 import Router from "koa-router";
+import { ObjectId } from "mongodb";
 import type { GamePreferencesDoc } from "@bgs/models";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
@@ -21,6 +22,7 @@ import {
 } from "../../models/index.ts";
 import { parseRefreshCookie, clearRefreshCookie } from "../../models/session.ts";
 import {
+	applyUnsubscribe,
 	confirm,
 	deliverWebhook,
 	findByEmail,
@@ -31,6 +33,7 @@ import {
 	sendMailChangeEmail,
 	sendResetEmail,
 	stripSensitiveFields,
+	verifyUnsubscribeToken,
 	type WebhookFormat,
 } from "../../models/user.ts";
 import type { ImageDoc } from "@bgs/models";
@@ -581,6 +584,49 @@ router.post("/forget", rateLimitAttempt, loggedOut, async (ctx: Context) => {
 		await markAuthEmailSent(user);
 	}
 	ctx.status = 200;
+});
+
+// --- Signed unsubscribe links (#2) -------------------------------------------
+// No login required: the HMAC-signed token in the emailed link authenticates the
+// request and scopes it to exactly one {userId, scope} pair. 404 (not 403) on a
+// bad token — a valid link reveals the account, an invalid one must reveal nothing.
+
+async function unsubscribeTarget(token: string) {
+	const parsed = verifyUnsubscribeToken(token);
+	if (!parsed) {
+		throw createError(404, "Invalid unsubscribe link");
+	}
+	const user = await colls.users.findOne(
+		{ _id: new ObjectId(parsed.userId) },
+		{ projection: { "account.username": 1 } },
+	);
+	if (!user) {
+		throw createError(404, "Invalid unsubscribe link");
+	}
+	return { ...parsed, username: user.account.username };
+}
+
+router.get("/unsubscribe/:token", async (ctx: Context) => {
+	const { scope, username } = await unsubscribeTarget(ctx.params.token);
+	ctx.body = { scope, username };
+});
+
+async function applyUnsubscribeRequest(ctx: Context, token: string) {
+	const { userId, scope, username } = await unsubscribeTarget(token);
+	await applyUnsubscribe(userId, scope);
+	ctx.body = { scope, username };
+}
+
+router.post("/unsubscribe", async (ctx: Context) => {
+	const { token } = z.object({ token: z.string() }).parse(ctx.request.body);
+	await applyUnsubscribeRequest(ctx, token);
+});
+
+// GET variant so a List-Unsubscribe link opened directly in a browser also works;
+// the web landing page (/unsubscribe?token=…) is the path emails point at.
+router.get("/unsubscribe", async (ctx: Context) => {
+	const { token } = z.object({ token: z.string() }).parse(ctx.query);
+	await applyUnsubscribeRequest(ctx, token);
 });
 
 export { sendAuthInfo };

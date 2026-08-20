@@ -29,7 +29,7 @@ describe("buildMailData — outbound mail shape (#2)", () => {
 	});
 
 	it("unsubscribable mail carries List-Unsubscribe and a body link", () => {
-		const url = `https://${env.site}/account`;
+		const url = `https://${env.site}/unsubscribe?token=some.signed.token`;
 		const data = buildMailData({ kind: "your-turn", to: "a@test.com", subject: "s", html, unsubscribe: url });
 		assert.equal(data["h:List-Unsubscribe"], `<${url}>`);
 		assert.ok(String(data.html).includes(`href="${url}"`), "the HTML body links to the unsubscribe URL");
