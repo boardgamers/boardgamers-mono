@@ -26,6 +26,7 @@ import feedbackRouter from "./feedback.ts";
 import gameInfo from "./gameinfo.ts";
 import gamesRouter from "./games.ts";
 import loki from "./loki.ts";
+import newsletterRouter from "./newsletter.ts";
 import pagesRouter from "./pages.ts";
 import tokensRouter from "./tokens.ts";
 import usersRouter from "./users.ts";
@@ -56,6 +57,12 @@ router.use("/feedback", requirePermission("feedback"), feedbackRouter.routes(), 
 router.use("/gameinfo", requireSomeGrant("gameinfo"), gameInfo.routes(), gameInfo.allowedMethods());
 router.use("/games", requireSomeGrant("games"), gamesRouter.routes(), gamesRouter.allowedMethods());
 router.use("/loki", requirePermission("loki"), loki.routes(), loki.allowedMethods());
+router.use(
+	"/newsletter",
+	requirePermission("newsletter"),
+	newsletterRouter.routes(),
+	newsletterRouter.allowedMethods(),
+);
 // /page gets the subset gate: a per-boardgame admin (gameinfo:<slug>) manages
 // their game's CMS pages — every route inside re-checks the page's slug.
 router.use("/page", requireSomeGrant("pages"), pagesRouter.routes(), pagesRouter.allowedMethods());

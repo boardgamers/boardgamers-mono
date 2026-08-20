@@ -28,7 +28,7 @@ export const PERMISSION_LABELS: Record<AdminPermission, string> = {
 // Shown next to the label in the permissions UI where a grant needs a caveat.
 export const PERMISSION_NOTES: Partial<Record<AdminPermission, string>> = {
 	users: "can grant authority & log in as anyone — full-admin-equivalent",
-	newsletter: "reserved for the upcoming newsletter-send feature",
+	newsletter: "gates the newsletter composer & sender (/admin/newsletter)",
 };
 
 export const EMPTY_ME: AdminMe = { fullAdmin: false, permissions: [], games: [] };

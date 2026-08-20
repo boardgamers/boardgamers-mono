@@ -4,6 +4,7 @@ import { sendGameNotificationEmail } from "../models/user.ts";
 import { colls, closeDb } from "../config/db.ts";
 import locks from "../config/locks.ts";
 import { cancelOldOpenGames, processSchedulesGames, processStalledGames, processUnreadyGames } from "./game.ts";
+import { processNewsletters } from "./newsletter.ts";
 import { cleanupDeadUsers } from "./user.ts";
 import type { Closable } from "@bgs/utils/log";
 
@@ -55,6 +56,10 @@ if (env.cron) {
 	const cleanupDeadUsersTick = singleton("cleanupDeadUsers", cleanupDeadUsers);
 	every(3600 * 1000, cleanupDeadUsersTick);
 	cleanupDeadUsersTick();
+	// Queued newsletter blasts (#1): one batch per minute per newsletter (see
+	// NEWSLETTER_BATCH_SIZE for the resulting send rate). Progress lives on the
+	// newsletter doc, so a PM2 reload mid-blast resumes instead of re-sending.
+	every(60000, singleton("newsletters", processNewsletters));
 }
 
 if (env.automatedEmails) {

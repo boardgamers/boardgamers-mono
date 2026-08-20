@@ -45,7 +45,10 @@ export function buildMailData({ kind, to, subject, html, unsubscribeToken }: Mai
 		: html;
 
 	const data: MailSendData = {
-		from: env.noreply,
+		// Bulk mail goes from the dedicated newsletter subdomain (#2): its own
+		// DKIM/SPF keeps marketing-class traffic from hurting the transactional
+		// domain's reputation.
+		from: kind === "newsletter" ? `BGS <newsletter@${env.mailing.domain.newsletter}>` : env.noreply,
 		to,
 		subject,
 		html: body,

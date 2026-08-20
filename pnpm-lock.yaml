@@ -183,6 +183,9 @@ importers:
       mailgun-js:
         specifier: ^0.20.0
         version: 0.20.0
+      marked:
+        specifier: ^15.0.12
+        version: 15.0.12
       mongo-locks:
         specifier: ^3.1.2
         version: 3.1.2(mongodb@7.1.0)
