@@ -100,8 +100,8 @@ describe("home lobby — SSR/hydration pace-filter agreement (#346)", () => {
 		getMock.mockImplementation(
 			(url: string) =>
 				Promise.resolve(
-					url.endsWith("/count") ? allLive.length : url === "/site/announcement" ? { content: "" } : allLive
-				) as never
+					url.endsWith("/count") ? allLive.length : url === "/site/announcement" ? { content: "" } : allLive,
+				) as never,
 		);
 		await runLoad();
 
@@ -119,8 +119,8 @@ describe("home lobby — SSR/hydration pace-filter agreement (#346)", () => {
 		getMock.mockImplementation(
 			(url: string) =>
 				Promise.resolve(
-					url.endsWith("/count") ? mixed.length : url === "/site/announcement" ? { content: "" } : mixed
-				) as never
+					url.endsWith("/count") ? mixed.length : url === "/site/announcement" ? { content: "" } : mixed,
+				) as never,
 		);
 		await runLoad();
 
