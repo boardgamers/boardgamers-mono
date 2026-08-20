@@ -611,22 +611,20 @@ router.get("/unsubscribe/:token", async (ctx: Context) => {
 	ctx.body = { scope, username };
 });
 
-async function applyUnsubscribeRequest(ctx: Context, token: string) {
+// POST is the ONLY apply path: a state change on GET would let mail-scanner /
+// link-preview prefetch unsubscribe users. The GET variants only describe the
+// token; true one-click would be RFC 8058 List-Unsubscribe-Post (a POST).
+router.post("/unsubscribe", async (ctx: Context) => {
+	const { token } = z.object({ token: z.string() }).parse(ctx.request.body);
 	const { userId, scope, username } = await unsubscribeTarget(token);
 	await applyUnsubscribe(userId, scope);
 	ctx.body = { scope, username };
-}
-
-router.post("/unsubscribe", async (ctx: Context) => {
-	const { token } = z.object({ token: z.string() }).parse(ctx.request.body);
-	await applyUnsubscribeRequest(ctx, token);
 });
 
-// GET variant so a List-Unsubscribe link opened directly in a browser also works;
-// the web landing page (/unsubscribe?token=…) is the path emails point at.
 router.get("/unsubscribe", async (ctx: Context) => {
 	const { token } = z.object({ token: z.string() }).parse(ctx.query);
-	await applyUnsubscribeRequest(ctx, token);
+	const { scope, username } = await unsubscribeTarget(token);
+	ctx.body = { scope, username };
 });
 
 export { sendAuthInfo };

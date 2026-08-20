@@ -121,7 +121,7 @@ describe("Unsubscribe API (#2)", () => {
 		assert.equal(res.status, 404);
 	});
 
-	it("GET /unsubscribe?token= applies the unsubscribe (direct List-Unsubscribe browser hit)", async () => {
+	it("GET /unsubscribe?token= only describes the token — no state change on GET (prefetch-safe)", async () => {
 		const target = new ObjectId();
 		await colls.users.insertOne(
 			testUser({
@@ -133,7 +133,12 @@ describe("Unsubscribe API (#2)", () => {
 		const token = signUnsubscribeToken(target.toHexString(), "game");
 		const res = await fetch(`${baseURL()}/api/account/unsubscribe?token=${encodeURIComponent(token)}`);
 		assert.equal(res.status, 200);
-		assert.equal((await colls.users.findOne({ _id: target }))!.settings?.mailing?.game?.activated, false);
+		assert.deepEqual(await res.json(), { scope: "game", username: "unsub-get" });
+		assert.equal(
+			(await colls.users.findOne({ _id: target }))!.settings?.mailing?.game?.activated,
+			true,
+			"a GET must never apply the unsubscribe (mail-scanner prefetch)",
+		);
 	});
 
 	it("applyUnsubscribe is idempotent", async () => {
