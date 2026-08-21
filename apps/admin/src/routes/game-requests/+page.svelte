@@ -14,6 +14,8 @@
 	let mergingId = $state<string | null>(null);
 	let mergeTargets = $state<Record<string, string>>({});
 
+	const otherRequests = (id: string) => data.requests.filter((r) => r._id !== id);
+
 	async function deleteRequest(request: AdminGameRequest) {
 		if (!confirm(`Delete the request for "${request.label}"? Its ${request.likeCount} vote(s) are lost.`)) return;
 		deletingId = request._id;
@@ -31,11 +33,14 @@
 	async function mergeRequest(request: AdminGameRequest) {
 		const into = mergeTargets[request._id];
 		if (!into) return;
-		const target = data.requests.find((r) => r._id === into);
+		const targetRequest = data.requests.find((r) => r._id === into);
+		const targetGame = data.games.find((g) => g._id === into);
+		const target = targetRequest ?? targetGame;
 		if (!target) return;
 		if (
 			!confirm(
-				`Merge "${request.label}" into "${target.label}"? Its votes move over (one per user) and the request is deleted.`
+				`Merge "${request.label}" into ${targetGame ? "the existing game" : "the request"} "${target.label}"? ` +
+					`Its ${request.likeCount} vote(s) move over (one per user) and the request is deleted.`
 			)
 		)
 			return;
@@ -62,8 +67,8 @@
 		<p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
 			Whole-game ("add game") requests voted on at the
 			<WebLink path="/feedback">public feedback page</WebLink>. Delete spam/duplicates, or merge a duplicate into the
-			canonical request to carry its votes over. Beta games with an implementation are managed from their boardgame page
-			instead.
+			canonical request — or into the existing game — to carry its votes over. Beta games with an implementation are
+			managed from their boardgame page instead.
 			{#if !can(data.me, "feedback")}
 				<span class="block mt-1">
 					You admin {data.me.games.length === 1 ? "one game" : `${data.me.games.length} games`} — only their requests are
@@ -118,16 +123,27 @@
 								</div>
 							</div>
 							<div class="flex-shrink-0 flex items-center gap-2">
-								{#if data.requests.length > 1}
+								{#if data.requests.length > 1 || data.games.length > 0}
 									<select
 										bind:value={mergeTargets[request._id]}
 										disabled={mergingId === request._id || deletingId === request._id}
 										class="px-2 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
 									>
 										<option value="">Merge into…</option>
-										{#each data.requests.filter((r) => r._id !== request._id) as target (target._id)}
-											<option value={target._id}>{target.label} (▲ {target.likeCount})</option>
-										{/each}
+										{#if otherRequests(request._id).length > 0}
+											<optgroup label="Requests">
+												{#each otherRequests(request._id) as target (target._id)}
+													<option value={target._id}>{target.label} (▲ {target.likeCount})</option>
+												{/each}
+											</optgroup>
+										{/if}
+										{#if data.games.length > 0}
+											<optgroup label="Existing games">
+												{#each data.games as game (game._id)}
+													<option value={game._id}>{game.label}</option>
+												{/each}
+											</optgroup>
+										{/if}
 									</select>
 									<button
 										onclick={() => mergeRequest(request)}

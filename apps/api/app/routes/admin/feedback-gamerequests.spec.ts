@@ -229,6 +229,104 @@ describe("Admin game-request management API", () => {
 		assert.strictEqual((await colls.gameMetadatas.findOne({ _id: "gr-merge-dst" }))?.likeCount, 3);
 	});
 
+	it("merges a request into an implemented game, deduplicating votes against the game's likes", async () => {
+		await insertRequest("gr-into-impl", { likeCount: 3 });
+		// likerA liked BOTH the request and the game (common: implemented games
+		// accumulate likes for years) — the merge must leave exactly one like.
+		await like("gr-into-impl", likerA.userId);
+		await like("gr-into-impl", likerB.userId);
+		await like("gr-into-impl", requester.userId);
+		await like("gr-implemented", likerA.userId);
+		await like("gr-implemented", fullAdmin.userId);
+
+		const res = await api("POST", "/api/admin/feedback/game-requests/gr-into-impl/merge", feedbackAdmin.authHeaders, {
+			into: "gr-implemented",
+		});
+		assert.strictEqual(res.status, 200);
+		assert.deepStrictEqual(res.data, { into: "gr-implemented", likeCount: 4 });
+
+		// The request is gone, votes and all.
+		assert.strictEqual(await colls.gameMetadatas.findOne({ _id: "gr-into-impl" }), null);
+		assert.strictEqual(await colls.gameLikes.countDocuments({ game: "gr-into-impl" }), 0);
+		// Exactly one like doc per user on the game — likerA's vote was not duplicated.
+		const gameLikes = await colls.gameLikes.find({ game: "gr-implemented" }).toArray();
+		assert.deepStrictEqual(
+			gameLikes.map((l) => l.user.toHexString()).sort(),
+			[likerA.userId, likerB.userId, requester.userId, fullAdmin.userId].map((id) => id.toHexString()).sort(),
+		);
+		// likeCount is the exact deduplicated recount, not an increment.
+		const target = await colls.gameMetadatas.findOne({ _id: "gr-implemented" });
+		assert.strictEqual(target?.likeCount, 4);
+		// The game's own metadata is otherwise untouched.
+		assert.strictEqual(target?.label, "GR Implemented");
+		assert.strictEqual(target?.status, undefined);
+		assert.deepStrictEqual(target?.players, [2]);
+	});
+
+	it("merges a request into a beta game", async () => {
+		await insertRequest("gr-into-beta", { likeCount: 1 });
+		await like("gr-into-beta", likerB.userId);
+
+		const res = await api("POST", "/api/admin/feedback/game-requests/gr-into-beta/merge", feedbackAdmin.authHeaders, {
+			into: "gr-beta",
+		});
+		assert.strictEqual(res.status, 200);
+		assert.deepStrictEqual(res.data, { into: "gr-beta", likeCount: 1 });
+
+		assert.strictEqual(await colls.gameMetadatas.findOne({ _id: "gr-into-beta" }), null);
+		assert.deepStrictEqual(
+			(await colls.gameLikes.find({ game: "gr-beta" }).toArray()).map((l) => l.user.toHexString()),
+			[likerB.userId.toHexString()],
+		);
+		const target = await colls.gameMetadatas.findOne({ _id: "gr-beta" });
+		// Recounted, but the beta status (and the rest of the metadata) is untouched.
+		assert.strictEqual(target?.likeCount, 1);
+		assert.strictEqual(target?.status, "beta");
+	});
+
+	it("scopes merge targets to a per-game admin's granted games", async () => {
+		const implGameAdmin = await insertUserWithAuth("impl", {
+			adminGrants: ["gameinfo:gr-perm-src", "gameinfo:gr-perm-impl"],
+		});
+		await insertRequest("gr-perm-src");
+		await colls.gameMetadatas.insertOne({ _id: "gr-perm-impl", label: "GR Perm Impl", players: [2] });
+		await colls.gameInfos.insertOne({
+			_id: { game: "gr-perm-impl", version: 1 },
+			viewer: { url: "//test.com/gr-perm-impl" },
+			public: true,
+		});
+
+		// The source is in scope but the implemented target is not.
+		assert.strictEqual(
+			(
+				await api("POST", "/api/admin/feedback/game-requests/gr-perm-src/merge", implGameAdmin.authHeaders, {
+					into: "gr-implemented",
+				})
+			).status,
+			403,
+		);
+		// gameAdmin (gameinfo:gr-own) has neither endpoint in scope.
+		assert.strictEqual(
+			(
+				await api("POST", "/api/admin/feedback/game-requests/gr-perm-src/merge", gameAdmin.authHeaders, {
+					into: "gr-perm-impl",
+				})
+			).status,
+			403,
+		);
+		assert.ok(await colls.gameMetadatas.findOne({ _id: "gr-perm-src" }));
+		// Both endpoints in scope: the merge goes through.
+		assert.strictEqual(
+			(
+				await api("POST", "/api/admin/feedback/game-requests/gr-perm-src/merge", implGameAdmin.authHeaders, {
+					into: "gr-perm-impl",
+				})
+			).status,
+			200,
+		);
+		assert.strictEqual(await colls.gameMetadatas.findOne({ _id: "gr-perm-src" }), null);
+	});
+
 	it("validates merge targets", async () => {
 		const headers = feedbackAdmin.authHeaders;
 		// Source === target.
@@ -247,17 +345,13 @@ describe("Admin game-request management API", () => {
 			(await api("POST", "/api/admin/feedback/game-requests/gr-own/merge", headers, { into: "gr-unknown" })).status,
 			404,
 		);
-		// Beta/implemented games are neither valid sources nor valid targets.
+		// A beta/implemented game is not a valid source.
 		assert.strictEqual(
 			(await api("POST", "/api/admin/feedback/game-requests/gr-beta/merge", headers, { into: "gr-own" })).status,
 			404,
 		);
 		assert.strictEqual(
-			(await api("POST", "/api/admin/feedback/game-requests/gr-own/merge", headers, { into: "gr-beta" })).status,
-			404,
-		);
-		assert.strictEqual(
-			(await api("POST", "/api/admin/feedback/game-requests/gr-own/merge", headers, { into: "gr-implemented" })).status,
+			(await api("POST", "/api/admin/feedback/game-requests/gr-implemented/merge", headers, { into: "gr-own" })).status,
 			404,
 		);
 		// A request that gained version docs after being listed.
