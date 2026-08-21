@@ -39,9 +39,9 @@ router.post("/", loggedIn, actionRateLimit("feedback/create"), async (ctx) => {
 		if (!game) {
 			throw createError(400, 'A game request needs its "game" id');
 		}
-		// Only implemented games accept game-specific requests — requesting an
-		// expansion on a game that doesn't exist yet makes no sense (vote on the
-		// whole-game request instead).
+		// Games with an implementation (implemented or beta) accept game-specific
+		// requests — requesting an expansion on a game that doesn't exist yet makes
+		// no sense (vote on the whole-game request instead).
 		const meta = await colls.gameMetadatas.findOne(
 			{ _id: game, status: { $ne: "requested" } },
 			{ projection: { label: 1 } },

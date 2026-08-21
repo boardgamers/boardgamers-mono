@@ -14,7 +14,7 @@ import { z } from "zod";
 import { canUserManageGame, isGameAdminGrant, userPermissions } from "@bgs/models";
 import { colls } from "../../config/db.ts";
 import { findByEmail, findByUsername, findGameInfoWithVersion } from "../../models/index.ts";
-import { lastAccessibleVersion } from "../../services/gameinfo.ts";
+import { deriveGameMetaStatus, lastAccessibleVersion } from "../../services/gameinfo.ts";
 import { gameBundleS3Key, publicObjectUrl, putObject, s3Enabled } from "../../services/s3.ts";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -45,7 +45,9 @@ function requireGameAccess(ctx: Context, game: string) {
 // gameMetadatas, so a game with N versions appears once (the per-version list
 // broke keyed {#each} blocks in the admin panel with duplicate keys). Whole-game
 // requests (status "requested") are excluded: they show on the requests page.
-// The version page's tabs need the per-version list — /:game/versions below.
+// Beta games are included — an admin must be able to manage the version that
+// will take the game public. The version page's tabs need the per-version list —
+// /:game/versions below.
 router.get("/", async (ctx) => {
 	const permissions = userPermissions(ctx.state.user);
 	const fullAccess = permissions.has("gameinfo") || permissions.has("games");
@@ -81,6 +83,7 @@ const metadataBodySchema = z.looseObject({
 	links: gameInfoSchema.shape.links.optional(),
 	players: gameInfoSchema.shape.players.optional(),
 	needOwnership: gameInfoSchema.shape.needOwnership.optional(),
+	unlisted: gameInfoSchema.shape.unlisted.nullable().optional(),
 });
 
 router.get("/:game/meta", async (ctx) => {
@@ -92,9 +95,11 @@ router.put("/:game/meta", async (ctx) => {
 	const game = ctx.params.game;
 	requireGameAccess(ctx, game);
 	// The editor round-trips the GET response, so strip the server-managed fields:
-	// `_id` is immutable, timestamps are wrapper-managed, and `likeCount` is owned by
-	// the like/unlike service — a `$set` here would clobber it with a stale snapshot.
-	const body = omit(metadataBodySchema.parse(ctx.request.body), "_id", "createdAt", "updatedAt", "likeCount");
+	// `_id` is immutable, timestamps are wrapper-managed, `likeCount` is owned by
+	// the like/unlike service — a `$set` here would clobber it with a stale
+	// snapshot — and `status` is derived from the version docs (recomputed below
+	// when `unlisted` changes), never taken from the form.
+	const body = omit(metadataBodySchema.parse(ctx.request.body), "_id", "createdAt", "updatedAt", "likeCount", "status");
 
 	// Guard against orphan metadata docs (typo'd game name in scripted use): the
 	// game must exist as at least one version doc.
@@ -122,13 +127,22 @@ router.put("/:game/meta", async (ctx) => {
 		},
 		{ upsert: true, returnDocument: "after" },
 	);
+
+	// Toggling the requests-page opt-out changes the derived status (unlisted
+	// pins "implemented"; clearing it restores the version-derived bucket).
+	if (body.unlisted !== undefined && doc) {
+		const status = await deriveGameMetaStatus(game);
+		await colls.gameMetadatas.updateOne({ _id: game }, status ? { $set: { status } } : { $unset: { status: true } });
+		doc.status = status;
+	}
+
 	ctx.body = doc;
 });
 
 // Fields that are REMOVED from the doc when the admin sends them as null (the JSON
 // body can't carry undefined, so GameEdit sends null to clear). Anything else null
-// would fail the collection's schema validation — only alias is clearable for now.
-const NULLABLE_FIELDS = ["alias"] as const;
+// would fail the collection's schema validation.
+const NULLABLE_FIELDS = ["alias", "unlisted"] as const;
 
 // Game-level fields live in `gameMetadatas`; everything else is version-scoped and
 // lives in `gameInfos` (#298). `_id` is handled separately (version doc gets the
@@ -192,6 +206,14 @@ async function upsert(ctx: Context) {
 		}
 	}
 
+	// Brand-new game? (no version doc before this write) Then it has no associated
+	// player request: it is opted out of the public requests page by default
+	// (`unlisted` on insert below) — a private implementation must not show up
+	// there as a beta game. The admin can list it from the game page. (TOCTOU vs a
+	// concurrent delete of the game's last version is accepted: admin-only, and
+	// the failure lands on the conservative unlisted side.)
+	const isNewGame = !(await colls.gameInfos.findOne({ "_id.game": game }, { projection: { _id: 1 } }));
+
 	const versionDoc = await colls.gameInfos.findOneAndUpdate(
 		{ _id: { game, version } },
 		{ $set: versionFields },
@@ -203,7 +225,13 @@ async function upsert(ctx: Context) {
 		// `$set` — Mongo rejects mutating the immutable `_id`). Only metadata fields
 		// actually present in the request are `$set`, so a version-page save that
 		// doesn't carry game-level fields leaves existing metadata untouched (#298).
-		const metadataUpdate: Record<string, unknown> = { $setOnInsert: { _id: game } };
+		const setOnInsert: Record<string, unknown> = { _id: game };
+		if (isNewGame) {
+			// Forced on creation only (whatever the payload carries): later edits
+			// go through the metadata route's unlisted toggle.
+			setOnInsert.unlisted = true;
+		}
+		const metadataUpdate: Record<string, unknown> = { $setOnInsert: setOnInsert };
 		if (Object.keys(metadata).length > 0) {
 			metadataUpdate.$set = metadata;
 		}
@@ -212,10 +240,16 @@ async function upsert(ctx: Context) {
 		}
 		await colls.gameMetadatas.updateOne({ _id: game }, metadataUpdate, { upsert: true });
 
-		// A version doc makes the game real: a requested game (#340) flips to
-		// implemented — it leaves the requests page and joins the regular game
-		// list, keeping its votes.
-		await colls.gameMetadatas.updateOne({ _id: game, status: "requested" }, { $set: { status: "implemented" } });
+		// A version doc makes the game real (#340): re-derive the lifecycle status
+		// from the version docs. No public version yet → "beta": the game KEEPS its
+		// place on the requests page (votes included) until it is publicly released.
+		// A public version → status cleared: it leaves the requests page and joins
+		// the regular game list. Runs unconditionally (not just on "requested" docs)
+		// so a game first uploaded under a different id than its request, or saved
+		// public from the start, is normalized too. deriveGameMetaStatus pins
+		// `unlisted` games (private implementations) to "implemented".
+		const status = await deriveGameMetaStatus(game);
+		await colls.gameMetadatas.updateOne({ _id: game }, status ? { $set: { status } } : { $unset: { status: true } });
 	}
 
 	const merged = await findGameInfoWithVersion(game, version);
@@ -347,7 +381,14 @@ router.put("/:game/:version", upsert);
 
 router.delete("/:game/:version", async (ctx) => {
 	requireGameAccess(ctx, ctx.params.game);
-	await colls.gameInfos.deleteOne({ _id: { game: ctx.params.game, version: +ctx.params.version } });
+	const game = ctx.params.game;
+	await colls.gameInfos.deleteOne({ _id: { game, version: +ctx.params.version } });
+	// Keep the lifecycle status a pure function of the version docs (same
+	// re-derive as the upsert): deleting a beta game's last version returns it to
+	// "requested"; deleting a released game's last public version returns it to
+	// "beta".
+	const status = await deriveGameMetaStatus(game);
+	await colls.gameMetadatas.updateOne({ _id: game }, status ? { $set: { status } } : { $unset: { status: true } });
 	ctx.status = 200;
 });
 

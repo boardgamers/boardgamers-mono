@@ -676,10 +676,11 @@ describe("Admin gameinfo API — private beta users", () => {
 	});
 });
 
-// Uploading the first version of a requested game (#340) flips its metadata
-// status to "implemented": it leaves the requests page and joins the regular
-// game list, keeping its votes.
-describe("Admin gameinfo API — requested game becomes implemented (#340)", () => {
+// Uploading the first version of a requested game (#340) moves it to "beta": it
+// KEEPS its place on the requests page (votes included) until a version is
+// publicly released — only then does it leave the page and join the regular
+// game list.
+describe("Admin gameinfo API — requested game enters beta, then leaves on public release (#340)", () => {
 	let headers: Record<string, string>;
 
 	before(async () => {
@@ -695,7 +696,7 @@ describe("Admin gameinfo API — requested game becomes implemented (#340)", () 
 
 	after(() => db().dropDatabase());
 
-	it("flips status to implemented on the first version upsert", async () => {
+	it("flips status to beta on the first (non-public) version upsert, staying on the requests page", async () => {
 		// While requested, the game is absent from the public list.
 		const before1 = z
 			.array(z.object({ _id: z.object({ game: z.string() }) }))
@@ -705,12 +706,39 @@ describe("Admin gameinfo API — requested game becomes implemented (#340)", () 
 		const res = await fetch(`${baseURL()}/api/admin/gameinfo/requested-flip/1`, {
 			method: "PUT",
 			headers,
+			body: JSON.stringify({ label: "Requested Flip", players: [2], viewer: { url: "//v1" }, public: false, meta: {} }),
+		});
+		assert.strictEqual(res.status, 200, await res.text().catch(() => ""));
+
+		const meta = await colls.gameMetadatas.findOne({ _id: "requested-flip" });
+		assert.strictEqual(meta?.status, "beta");
+		assert.strictEqual(meta?.likeCount, 3, "votes are kept");
+
+		// Still nothing public: absent from the public game list…
+		const list = z
+			.array(z.object({ _id: z.object({ game: z.string() }) }))
+			.parse(await (await fetch(`${baseURL()}/api/boardgame/info`)).json());
+		assert.ok(!list.some((g) => g._id.game === "requested-flip"));
+
+		// …but present on the requests listing, flagged beta, votes intact.
+		const requests = z
+			.array(z.object({ _id: z.string(), status: z.string().optional(), likeCount: z.number() }))
+			.parse(await (await fetch(`${baseURL()}/api/boardgame/requests`)).json());
+		const entry = requests.find((r) => r._id === "requested-flip");
+		assert.strictEqual(entry?.status, "beta");
+		assert.strictEqual(entry?.likeCount, 3);
+	});
+
+	it("clears the status once a version is saved public: the game leaves the requests page", async () => {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/requested-flip/1`, {
+			method: "PUT",
+			headers,
 			body: JSON.stringify({ label: "Requested Flip", players: [2], viewer: { url: "//v1" }, public: true, meta: {} }),
 		});
 		assert.strictEqual(res.status, 200, await res.text().catch(() => ""));
 
 		const meta = await colls.gameMetadatas.findOne({ _id: "requested-flip" });
-		assert.strictEqual(meta?.status, "implemented");
+		assert.strictEqual(meta?.status, undefined, "a public release clears the status (absent = implemented)");
 		assert.strictEqual(meta?.likeCount, 3, "votes are kept");
 
 		// It now appears in the public game list…
@@ -724,5 +752,136 @@ describe("Admin gameinfo API — requested game becomes implemented (#340)", () 
 			.array(z.object({ _id: z.string() }))
 			.parse(await (await fetch(`${baseURL()}/api/boardgame/requests`)).json());
 		assert.ok(!requests.some((r) => r._id === "requested-flip"));
+	});
+
+	it("flips back to beta if the only public version is un-published", async () => {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/requested-flip/1`, {
+			method: "PUT",
+			headers,
+			body: JSON.stringify({ label: "Requested Flip", players: [2], viewer: { url: "//v1" }, public: false, meta: {} }),
+		});
+		assert.strictEqual(res.status, 200, await res.text().catch(() => ""));
+
+		const meta = await colls.gameMetadatas.findOne({ _id: "requested-flip" });
+		assert.strictEqual(meta?.status, "beta");
+	});
+
+	it("a game first uploaded public (never requested) is auto-unlisted and pinned to implemented", async () => {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/direct-public/1`, {
+			method: "PUT",
+			headers,
+			body: JSON.stringify({ label: "Direct Public", players: [2], viewer: { url: "//v1" }, public: true, meta: {} }),
+		});
+		assert.strictEqual(res.status, 200, await res.text().catch(() => ""));
+
+		const meta = await colls.gameMetadatas.findOne({ _id: "direct-public" });
+		assert.strictEqual(meta?.unlisted, true, "admin-created games opt out of the requests page by default");
+		assert.strictEqual(meta?.status, "implemented", "unlisted pins the status (it never lands on the requests page)");
+	});
+
+	it('deleting a beta game\'s last version returns it to "requested"', async () => {
+		// requested-flip is currently beta (v1 non-public, from the tests above).
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/requested-flip/1`, { method: "DELETE", headers });
+		assert.strictEqual(res.status, 200, await res.text().catch(() => ""));
+
+		const meta = await colls.gameMetadatas.findOne({ _id: "requested-flip" });
+		assert.strictEqual(meta?.status, "requested");
+		assert.strictEqual(meta?.likeCount, 3, "votes are kept");
+
+		// Back on the requests page as a plain request (no beta flag).
+		const requests = z
+			.array(z.object({ _id: z.string(), status: z.string().optional() }))
+			.parse(await (await fetch(`${baseURL()}/api/boardgame/requests`)).json());
+		const entry = requests.find((r) => r._id === "requested-flip");
+		assert.strictEqual(entry?.status, "requested");
+	});
+
+	it("deleting the last version of a released game returns it to a plain request", async () => {
+		// direct-public is currently implemented (v1 public, auto-unlisted): first
+		// opt it back into the requests page so the delete re-derive has something
+		// to recompute (unlisted pins "implemented" regardless of versions).
+		const list = await fetch(`${baseURL()}/api/admin/gameinfo/direct-public/meta`, {
+			method: "PUT",
+			headers,
+			body: JSON.stringify({ unlisted: null }),
+		});
+		assert.strictEqual(list.status, 200, await list.text().catch(() => ""));
+		assert.strictEqual((await colls.gameMetadatas.findOne({ _id: "direct-public" }))?.status, undefined);
+
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/direct-public/1`, { method: "DELETE", headers });
+		assert.strictEqual(res.status, 200, await res.text().catch(() => ""));
+
+		const meta = await colls.gameMetadatas.findOne({ _id: "direct-public" });
+		assert.strictEqual(meta?.status, "requested", "no version left at all → back to a plain request");
+	});
+
+	it("a brand-new game created from the admin panel is auto-unlisted (no associated request)", async () => {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/pet-project/1`, {
+			method: "PUT",
+			headers,
+			body: JSON.stringify({ label: "Pet Project", players: [2], viewer: { url: "//v1" }, public: false, meta: {} }),
+		});
+		assert.strictEqual(res.status, 200, await res.text().catch(() => ""));
+
+		const meta = await colls.gameMetadatas.findOne({ _id: "pet-project" });
+		assert.strictEqual(meta?.unlisted, true, "admin-created games opt out of the requests page by default");
+		assert.strictEqual(meta?.status, "implemented", "unlisted pins the status to implemented");
+
+		// It does not show on the requests page despite having no public version.
+		const requests = z
+			.array(z.object({ _id: z.string() }))
+			.parse(await (await fetch(`${baseURL()}/api/boardgame/requests`)).json());
+		assert.ok(!requests.some((r) => r._id === "pet-project"));
+	});
+
+	it('unlisted games stay pinned to "implemented" across version edits', async () => {
+		// pet-project is unlisted from the test above (v1 non-public).
+		const put = await fetch(`${baseURL()}/api/admin/gameinfo/pet-project/2`, {
+			method: "PUT",
+			headers,
+			body: JSON.stringify({ label: "Pet Project", players: [2], viewer: { url: "//v2" }, public: false, meta: {} }),
+		});
+		assert.strictEqual(put.status, 200, await put.text().catch(() => ""));
+		assert.strictEqual((await colls.gameMetadatas.findOne({ _id: "pet-project" }))?.status, "implemented");
+
+		const del = await fetch(`${baseURL()}/api/admin/gameinfo/pet-project/2`, { method: "DELETE", headers });
+		assert.strictEqual(del.status, 200, await del.text().catch(() => ""));
+		assert.strictEqual((await colls.gameMetadatas.findOne({ _id: "pet-project" }))?.status, "implemented");
+	});
+
+	it("the metadata route toggles unlisted and re-derives the status", async () => {
+		// Opt back into the requests page: unlisted cleared → beta (no public version).
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/pet-project/meta`, {
+			method: "PUT",
+			headers,
+			body: JSON.stringify({ unlisted: null }),
+		});
+		assert.strictEqual(res.status, 200);
+		const body = z.object({ unlisted: z.boolean().optional(), status: z.string().optional() }).parse(await res.json());
+		assert.strictEqual(body.unlisted, undefined);
+		assert.strictEqual(body.status, "beta");
+
+		const meta = await colls.gameMetadatas.findOne({ _id: "pet-project" });
+		assert.strictEqual(meta?.unlisted, undefined);
+		assert.strictEqual(meta?.status, "beta");
+
+		// And it shows on the requests page now.
+		const requests = z
+			.array(z.object({ _id: z.string(), status: z.string().optional() }))
+			.parse(await (await fetch(`${baseURL()}/api/boardgame/requests`)).json());
+		assert.strictEqual(requests.find((r) => r._id === "pet-project")?.status, "beta");
+
+		// Opt back out: unlisted → pinned to implemented again.
+		const off = await fetch(`${baseURL()}/api/admin/gameinfo/pet-project/meta`, {
+			method: "PUT",
+			headers,
+			body: JSON.stringify({ unlisted: true }),
+		});
+		assert.strictEqual(off.status, 200);
+		const offBody = z
+			.object({ unlisted: z.boolean().optional(), status: z.string().optional() })
+			.parse(await off.json());
+		assert.strictEqual(offBody.unlisted, true);
+		assert.strictEqual(offBody.status, "implemented");
 	});
 });

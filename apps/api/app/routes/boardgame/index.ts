@@ -9,7 +9,7 @@ import { colls } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { likedGameIds, setGameLike } from "../../services/gamelike.ts";
 import { createFeedbackTopic, forumUidForUser } from "../../services/forum.ts";
-import { lastAccessibleVersion } from "../../services/gameinfo.ts";
+import { lastAccessibleVersion, REQUEST_STATUSES } from "../../services/gameinfo.ts";
 import { findGameInfoWithVersion, mergeGameInfo } from "../../models/gameinfo.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { loggedIn, queryCount, skipCount, usernamesById } from "../utils.ts";
@@ -17,9 +17,9 @@ import { loggedIn, queryCount, skipCount, usernamesById } from "../utils.ts";
 const router = new Router<Application.DefaultState, Context>();
 
 router.param("boardgame", async (boardgame, ctx, next) => {
-	// Like/unlike also works on requested games (#340) — a game request IS a game
-	// you can vote for, and it has no version yet — so those routes resolve the
-	// bare game id instead of the merged game-info.
+	// Like/unlike also works on requested/beta games (#340) — a game request IS a
+	// game you can vote for, even before it has a public version — so those routes
+	// resolve the bare game id instead of the merged game-info.
 	if (ctx.path.endsWith("/like")) {
 		const exists = await colls.gameMetadatas.findOne({ _id: boardgame }, { projection: { _id: 1 } });
 		if (!exists) {
@@ -92,7 +92,7 @@ router.post("/request", loggedIn, actionRateLimit("boardgame/request"), async (c
 	if (existing) {
 		throw createError(
 			409,
-			existing.status === "requested"
+			existing.status && REQUEST_STATUSES.includes(existing.status)
 				? `"${label}" is already requested — vote for it instead`
 				: `"${label}" is already on the site`,
 		);
@@ -159,11 +159,25 @@ router.post("/request", loggedIn, actionRateLimit("boardgame/request"), async (c
 	ctx.body = { ...doc, liked: true };
 });
 
+// The requests page lists both open requests (no implementation yet) and beta
+// games (an implementation exists but no version is publicly released yet) — a
+// request only leaves the page on public release.
 router.get("/requests", async (ctx) => {
 	const requests = await colls.gameMetadatas
 		.find(
-			{ status: "requested" },
-			{ projection: { label: 1, description: 1, likeCount: 1, requestedBy: 1, forumTid: 1, createdAt: 1 } },
+			{ status: { $in: [...REQUEST_STATUSES] } },
+			{
+				projection: {
+					label: 1,
+					alias: 1,
+					description: 1,
+					status: 1,
+					likeCount: 1,
+					requestedBy: 1,
+					forumTid: 1,
+					createdAt: 1,
+				},
+			},
 		)
 		.sort({ likeCount: -1, createdAt: -1 })
 		.toArray();
@@ -174,7 +188,11 @@ router.get("/requests", async (ctx) => {
 	ctx.body = requests.map((r) => ({
 		_id: r._id,
 		label: r.label,
+		// A beta game whose real name is trademarked (gem-trader → "Gem Trader")
+		// displays under its alias, like everywhere else on the site (#106).
+		...(r.alias ? { alias: r.alias } : {}),
 		...(r.description ? { description: r.description } : {}),
+		...(r.status ? { status: r.status } : {}),
 		likeCount: r.likeCount ?? 0,
 		liked: liked.has(r._id),
 		...(r.requestedBy ? { requestedBy: requesterNames.get(r.requestedBy.toHexString()) } : {}),
@@ -210,7 +228,8 @@ router.get("/info", async (ctx) => {
 		.sort({ "_id.game": 1, "_id.version": -1 })
 		.toArray();
 	// Requested games (#340) are excluded: a request is not a playable game and
-	// only implemented games (status absent = implemented) appear in the list.
+	// only implemented games appear in the list (status absent = implemented; beta
+	// games pass but contribute nothing since they have no public version).
 	const metas = await colls.gameMetadatas.find({ status: { $ne: "requested" } }).toArray();
 	const metaByGame = new Map(metas.map((m) => [m._id, m]));
 	const liked = ctx.state.user ? await likedGameIds(ctx.state.user._id) : new Set<string>();

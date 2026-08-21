@@ -322,7 +322,8 @@ router.get("/:userId/liked-games", async (ctx) => {
 		return;
 	}
 	// Requested games (#340) are excluded: they surface on the requests page, not
-	// as playable games on the profile.
+	// as playable games on the profile. Beta games have an implementation and are
+	// shown (their like counts as a regular game like).
 	const metas = await colls.gameMetadatas
 		.find(
 			{ _id: { $in: likes.map((l) => l.game) }, status: { $ne: "requested" } },

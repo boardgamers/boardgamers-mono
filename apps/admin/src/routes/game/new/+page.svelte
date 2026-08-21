@@ -43,6 +43,10 @@
 		players: [2, 3, 4],
 		expansions: [],
 		needOwnership: true,
+		// A game created straight from the admin panel has no associated player
+		// request — opt it out of the public requests page by default (the API
+		// also force-sets this on metadata-doc creation, whatever the form sends).
+		unlisted: true,
 		public: false,
 	});
 
