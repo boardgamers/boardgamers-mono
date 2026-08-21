@@ -138,6 +138,7 @@ router.post("/request", loggedIn, actionRateLimit("boardgame/request"), async (c
 		requestedBy: user._id,
 		likeCount: 1,
 		forumTid: topic.tid,
+		createdAt: new Date(),
 	};
 	try {
 		await colls.gameMetadatas.insertOne(doc);
@@ -160,7 +161,7 @@ router.get("/requests", async (ctx) => {
 			{ status: "requested" },
 			{ projection: { label: 1, description: 1, likeCount: 1, requestedBy: 1, forumTid: 1, createdAt: 1 } },
 		)
-		.sort({ likeCount: -1, createdAt: 1 })
+		.sort({ likeCount: -1, createdAt: -1 })
 		.toArray();
 
 	const liked = ctx.state.user ? await likedGameIds(ctx.state.user._id) : new Set<string>();

@@ -181,9 +181,10 @@ describe("Boardgame API — game requests (#340)", () => {
 		await api("POST", "/api/boardgame/requested-game-one/like", undefined, bob.authHeaders);
 	});
 
-	it("lists requested games, most-liked first, with per-user liked flags", async () => {
-		// A second request (1 like) ranks below "requested-game-one" (2 likes).
+	it("lists requested games, most-liked first then newest first, with per-user liked flags", async () => {
+		// A second request; alice votes on it so both tie at 2 likes, and the newer one leads.
 		await api("POST", "/api/boardgame/request", { label: "Requested Game Two" }, bob.authHeaders);
+		await api("POST", "/api/boardgame/requested-game-two/like", undefined, alice.authHeaders);
 
 		// Filter to this suite's fixtures: the DB may hold other specs' requests.
 		const anonymous = z
@@ -192,17 +193,17 @@ describe("Boardgame API — game requests (#340)", () => {
 			.filter((r) => r._id.startsWith("requested-game-"));
 		assert.deepStrictEqual(
 			anonymous.map((r) => r._id),
-			["requested-game-one", "requested-game-two"],
+			["requested-game-two", "requested-game-one"],
 		);
 		assert.deepStrictEqual(
 			anonymous.map((r) => r.likeCount),
-			[2, 1],
+			[2, 2],
 		);
 		assert.deepStrictEqual(
 			anonymous.map((r) => r.liked),
 			[false, false],
 		);
-		assert.strictEqual(anonymous[0].requestedBy, "requseralice");
+		assert.strictEqual(anonymous[1].requestedBy, "requseralice");
 
 		const authed = z
 			.array(requestListItem)
@@ -210,7 +211,7 @@ describe("Boardgame API — game requests (#340)", () => {
 			.filter((r) => r._id.startsWith("requested-game-"));
 		assert.deepStrictEqual(
 			authed.map((r) => r.liked),
-			[true, false],
+			[true, true],
 		);
 	});
 

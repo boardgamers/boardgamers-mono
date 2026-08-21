@@ -218,10 +218,13 @@ describe("Feedback API — site + game-specific requests (#340)", () => {
 		);
 	});
 
-	it("lists site requests publicly, most-liked first, with per-user liked flags", async () => {
-		// A second site request; bob votes on alice's so it outranks.
-		await api("POST", "/api/feedback", { kind: "site", title: "Mobile app" }, bob.authHeaders);
+	it("lists site requests publicly, most-liked first then newest first, with per-user liked flags", async () => {
+		// A second site request; bob votes on alice's so they tie at 1 like each.
+		const mobileAppId = feedbackItem.parse(
+			(await api("POST", "/api/feedback", { kind: "site", title: "Mobile app" }, bob.authHeaders)).data,
+		)._id;
 		await api("PUT", `/api/feedback/${siteRequestId}/like`, undefined, bob.authHeaders);
+		await api("PUT", `/api/feedback/${mobileAppId}/like`, undefined, alice.authHeaders);
 
 		// Filter to this suite's fixtures: the DB may hold other specs' requests.
 		const anonymous = z
@@ -230,21 +233,21 @@ describe("Feedback API — site + game-specific requests (#340)", () => {
 			.filter((r) => ["Dark mode", "Mobile app"].includes(r.title));
 		assert.deepStrictEqual(
 			anonymous.map((r) => r.title),
-			["Dark mode", "Mobile app"],
+			["Mobile app", "Dark mode"],
 		);
 		assert.deepStrictEqual(
 			anonymous.map((r) => r.likeCount),
-			[1, 0],
+			[1, 1],
 		);
 		assert.deepStrictEqual(
 			anonymous.map((r) => r.liked),
 			[false, false],
 		);
-		assert.strictEqual(anonymous[0].requestedBy, "fbuseralice");
+		assert.strictEqual(anonymous[1].requestedBy, "fbuseralice");
 
 		const authed = z
 			.array(feedbackItem)
-			.parse((await api("GET", "/api/feedback?kind=site", undefined, bob.authHeaders)).data)
+			.parse((await api("GET", "/api/feedback?kind=site", undefined, alice.authHeaders)).data)
 			.filter((r) => ["Dark mode", "Mobile app"].includes(r.title));
 		assert.deepStrictEqual(
 			authed.map((r) => r.liked),
