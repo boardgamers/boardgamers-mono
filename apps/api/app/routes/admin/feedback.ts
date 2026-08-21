@@ -128,10 +128,28 @@ router.delete("/game-requests/:game", async (ctx) => {
 
 const mergeBodySchema = z.object({ into: z.string().min(1) });
 
+// The merge target is broader than the source: another open request, or an
+// existing game implementation (any gameMetadatas doc that is not a bare
+// request — it has version docs, or its status is "beta"/"implemented"/absent).
+// A "requested" doc with version docs is in neither bucket (a version upload
+// raced the request): 409, same as the source-side race.
+async function loadMergeTarget(game: string) {
+	const doc = await colls.gameMetadatas.findOne({ _id: game });
+	if (!doc) {
+		throw createError(404, `No game or open game request for "${game}"`);
+	}
+	const hasVersions = !!(await colls.gameInfos.findOne({ "_id.game": game }, { projection: { _id: 1 } }));
+	if (doc.status === "requested" && hasVersions) {
+		throw createError(409, `"${game}" has an implementation — manage it from the boardgame page`);
+	}
+	return doc;
+}
+
 // POST /api/admin/feedback/game-requests/:game/merge — fold the request into
-// another one: its votes move over (a user who already voted for the target
-// keeps a single vote), the target's likeCount is exactly recounted, and the
-// source request is deleted. Both forum topics are left alone.
+// another request or into an existing game: its votes move over (a user who
+// already voted for the target keeps a single vote), the target's likeCount is
+// exactly recounted, and the source request is deleted. The target's own
+// metadata (status, label, …) is untouched; both forum topics are left alone.
 router.post("/game-requests/:game/merge", async (ctx) => {
 	const { game } = ctx.params;
 	const { into } = mergeBodySchema.parse(ctx.request.body);
@@ -141,7 +159,7 @@ router.post("/game-requests/:game/merge", async (ctx) => {
 	requireGameRequestAccess(ctx, game);
 	requireGameRequestAccess(ctx, into);
 	await loadRequestedGame(game);
-	await loadRequestedGame(into);
+	await loadMergeTarget(into);
 
 	// Drop the source votes that would collide with an existing target vote
 	// (the {game, user} unique index), then re-point the rest.
