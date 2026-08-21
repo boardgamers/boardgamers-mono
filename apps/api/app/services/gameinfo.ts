@@ -41,7 +41,9 @@ export async function deriveGameMetaStatus(game: string): Promise<GameMetadataDo
 	return hasAnyVersion ? "beta" : "requested";
 }
 
-export async function lastAccessibleVersion(game: string, user?: WithId<UserDoc>) {
+// `lang` (#306): optional base subtag — the merged doc's description/rules/
+// credits resolve to that language's translation with per-field en fallback.
+export async function lastAccessibleVersion(game: string, user?: WithId<UserDoc>, lang?: string) {
 	const versionDocPromise = (async () => {
 		if (!user) {
 			return colls.gameInfos.findOne(
@@ -78,7 +80,7 @@ export async function lastAccessibleVersion(game: string, user?: WithId<UserDoc>
 		// (nothing public → only access.maxVersion grantees get a doc back).
 		colls.gameMetadatas.findOne({ _id: game, status: { $ne: "requested" } }),
 	]);
-	return mergeGameInfo(versionDoc, metadata);
+	return mergeGameInfo(versionDoc, metadata, lang);
 }
 
 export async function latestAccessibleGames<T>(userId?: T) {

@@ -22,6 +22,15 @@ const metadataDoc: GameMetadataDoc = {
 	likeCount: 7,
 };
 
+const translatedMetadataDoc: GameMetadataDoc = {
+	...metadataDoc,
+	rules: "EN rules",
+	credits: "EN credits",
+	translations: {
+		de: { description: "Deutsche Beschreibung", credits: "DE Credits" },
+	},
+};
+
 describe("mergeGameInfo (#298)", () => {
 	it("returns null when there is no version doc", () => {
 		assert.strictEqual(mergeGameInfo(null, metadataDoc), null);
@@ -40,5 +49,36 @@ describe("mergeGameInfo (#298)", () => {
 		assert.equal(merged.public, true);
 		assert.deepEqual(merged.meta, { bots: true });
 		assert.deepEqual(merged._id, { game: "splendor", version: 2 });
+	});
+});
+
+describe("mergeGameInfo translations (#306)", () => {
+	it("never leaks the translations map onto the merged doc", () => {
+		const merged = mergeGameInfo(versionDoc, translatedMetadataDoc)!;
+		assert.strictEqual("translations" in merged, false);
+		const mergedDe = mergeGameInfo(versionDoc, translatedMetadataDoc, "de")!;
+		assert.strictEqual("translations" in mergedDe, false);
+	});
+
+	it("without lang (or lang en), the merge is identical to the pre-#306 shape", () => {
+		const plain = mergeGameInfo(versionDoc, translatedMetadataDoc)!;
+		const en = mergeGameInfo(versionDoc, translatedMetadataDoc, "en")!;
+		assert.deepEqual(en, plain);
+		assert.equal(plain.description, "a description");
+		assert.equal(plain.rules, "EN rules");
+		assert.equal(plain.credits, "EN credits");
+	});
+
+	it("overlays translations[lang] with per-field en fallback", () => {
+		const merged = mergeGameInfo(versionDoc, translatedMetadataDoc, "de")!;
+		assert.equal(merged.description, "Deutsche Beschreibung");
+		assert.equal(merged.credits, "DE Credits");
+		assert.equal(merged.rules, "EN rules", "a field missing from translations[de] falls back to the base text");
+	});
+
+	it("falls back to the base text for a language without any translation entry", () => {
+		const merged = mergeGameInfo(versionDoc, translatedMetadataDoc, "fr")!;
+		assert.equal(merged.description, "a description");
+		assert.equal(merged.rules, "EN rules");
 	});
 });
