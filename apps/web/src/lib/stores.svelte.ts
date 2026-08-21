@@ -76,14 +76,26 @@ export function live<T>(storeValue: T, ssrSnapshot: T): T {
 
 export const account = clientWritable<UserFront | null>("account", null);
 
-export function setAccount(user: UserFront | null) {
-	account.set(user);
-}
-
 // The last SSR snapshot identity the account store was seeded from (its user id, or
 // `null` for an anonymous snapshot). Compared against incoming snapshots so a
 // revalidation for the same user doesn't reset locally-mutated account state.
 let accountSeededFor: string | null | undefined;
+
+/**
+ * Directly write the account (login, confirm, settings saves, …). Also advances the
+ * seed guard: the guard's job is to ignore *stale* snapshots, not fresh
+ * same-identity ones. `setAuthData`'s `invalidateAll()` and a subsequent navigation
+ * race two layout loads, and when the older snapshot's load resolves last it
+ * re-seeds the store with pre-write state (the email-confirm stale-UI bug: the
+ * store ended up holding `confirmed=false` from a snapshot captured before the
+ * confirm committed). Stamping the guard on every direct write keeps such a
+ * late-arriving stale snapshot a no-op, while a genuinely fresh snapshot (same id,
+ * loaded after the write) still re-seeds.
+ */
+export function setAccount(user: UserFront | null) {
+	accountSeededFor = user?._id ?? null;
+	account.set(user);
+}
 
 /**
  * Seed the account store from the layout's SSR snapshot. Runs on the client only.
