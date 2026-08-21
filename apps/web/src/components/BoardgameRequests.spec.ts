@@ -41,6 +41,16 @@ import BoardgameRequests from "./BoardgameRequests.svelte";
 const postMock = vi.mocked(post);
 const putMock = vi.mocked(put);
 
+const formTrigger = (target: ParentNode) =>
+	target.querySelector<HTMLButtonElement>("button[aria-controls='game-feedback-form']")!;
+
+function expandForm(target: ParentNode) {
+	const trigger = formTrigger(target);
+	trigger.click();
+	flushSync();
+	return trigger;
+}
+
 // Already in API order (the server sorts most-voted first, then oldest).
 const requests = [
 	{
@@ -107,9 +117,37 @@ describe("BoardgameRequests", () => {
 		// forumTid → forum discussion link
 		const forumLink = target.querySelector<HTMLAnchorElement>('a[href="https://forum.boardgamers.space/topic/123"]');
 		expect(forumLink?.textContent).toContain("Forum discussion");
-		// Anonymous: the form is replaced by a login prompt
+		unmount(instance as never);
+	});
+
+	it("keeps the request form collapsed behind a disclosure until the trigger is clicked", () => {
+		const { target, instance } = mountSection({ user: { _id: "u1", account: { username: "alice" } } });
+		// Collapsed by default: a trigger, no form panel
+		const trigger = formTrigger(target);
+		expect(trigger.getAttribute("aria-expanded")).toBe("false");
+		expect(trigger.textContent).toContain("Request an expansion or feature");
+		expect(target.querySelector("#game-feedback-form")).toBeNull();
 		expect(target.querySelectorAll("form")).toHaveLength(0);
-		expect(text).toContain("Log in");
+
+		// Clicking the trigger expands the form and flips aria-expanded
+		expandForm(target);
+		expect(trigger.getAttribute("aria-expanded")).toBe("true");
+		expect(target.querySelector("#game-feedback-form form")).not.toBeNull();
+
+		// …and clicking again collapses it
+		trigger.click();
+		flushSync();
+		expect(trigger.getAttribute("aria-expanded")).toBe("false");
+		expect(target.querySelector("#game-feedback-form")).toBeNull();
+		unmount(instance as never);
+	});
+
+	it("reveals the login prompt when an anonymous user expands the form", () => {
+		const { target, instance } = mountSection();
+		expect(target.textContent).not.toContain("Log in");
+		expandForm(target);
+		expect(target.querySelectorAll("form")).toHaveLength(0);
+		expect(target.querySelector("#game-feedback-form")!.textContent).toContain("Log in");
 		unmount(instance as never);
 	});
 
@@ -161,6 +199,7 @@ describe("BoardgameRequests", () => {
 		};
 		postMock.mockResolvedValue(created as never);
 		const { target, instance } = mountSection({ user: { _id: "u1", account: { username: "alice" } } });
+		expandForm(target);
 
 		const titleInput = target.querySelector<HTMLInputElement>("#feedback-request-game-testgame-title")!;
 		titleInput.value = "New faction";
@@ -181,6 +220,7 @@ describe("BoardgameRequests", () => {
 			new ApiError("Link your forum account to submit feedback", 403, "forum_account_required"),
 		);
 		const { target, instance } = mountSection({ user: { _id: "u1", account: { username: "alice" } } });
+		expandForm(target);
 
 		const titleInput = target.querySelector<HTMLInputElement>("#feedback-request-game-testgame-title")!;
 		titleInput.value = "New faction";

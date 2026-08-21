@@ -29,6 +29,12 @@
 	// svelte-ignore state_referenced_locally
 	let requestList = $state<FeedbackRequestListing[]>(requests.map((r) => ({ ...r })));
 
+	// The form stays tucked behind a disclosure until requested — it's the less-used
+	// half of the section. It mounts lazily, so the ForumLinkGate draft restore (on
+	// return from the forum linking flow) also runs on expand, not just on page load.
+	let formOpen = $state(false);
+	const formPanelId = "game-feedback-form";
+
 	const byLikesThenNewest = (a: { likeCount?: number; createdAt?: string }, b: typeof a) =>
 		(b.likeCount ?? 0) - (a.likeCount ?? 0) || (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
 
@@ -110,19 +116,33 @@
 		</ul>
 	{/if}
 
-	<div class="mt-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-		<FeedbackRequestForm
-			kind="game"
-			game={boardgameId}
-			{user}
-			heading="Request an expansion or feature"
-			titlePlaceholder="New map"
-			bodyPlaceholder="How it would work…"
-			submitLabel="Submit request"
-			oncreated={(created) => {
-				created.requestedBy = user?.account.username;
-				requestList = [...requestList, created as FeedbackRequestListing].sort(byLikesThenNewest);
-			}}
-		/>
-	</div>
+	<button
+		type="button"
+		class="mt-4 w-full rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 transition-colors hover:border-primary hover:text-primary dark:border-gray-700 dark:text-gray-400 dark:hover:border-primary-lighter dark:hover:text-primary-lighter"
+		aria-expanded={formOpen}
+		aria-controls={formPanelId}
+		onclick={() => (formOpen = !formOpen)}
+	>
+		{formOpen ? "− Hide the request form" : "＋ Request an expansion or feature"}
+	</button>
+	{#if formOpen}
+		<div
+			id={formPanelId}
+			class="mt-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+		>
+			<FeedbackRequestForm
+				kind="game"
+				game={boardgameId}
+				{user}
+				heading="Request an expansion or feature"
+				titlePlaceholder="New map"
+				bodyPlaceholder="How it would work…"
+				submitLabel="Submit request"
+				oncreated={(created) => {
+					created.requestedBy = user?.account.username;
+					requestList = [...requestList, created as FeedbackRequestListing].sort(byLikesThenNewest);
+				}}
+			/>
+		</div>
+	{/if}
 </section>
