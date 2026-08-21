@@ -1,9 +1,11 @@
 import { browser } from "$app/environment";
 import { overwriteGetLocale, getLocale, getServerAsyncLocalStorage } from "@/lib/paraglide/runtime.js";
 import * as messages from "@/lib/paraglide/messages.js";
-import { writable } from "svelte/store";
 import { defaultLocale, isLocale, type Locale } from "./locales";
 import { setLanguageCookie } from "./language";
+import { currentLocale, language, peekLocale, setLocale } from "./messages.svelte";
+
+export { language };
 
 /**
  * Client/server glue between our language resolution chain
@@ -12,8 +14,8 @@ import { setLanguageCookie } from "./language";
  * - The active locale is NOT paraglide's internal `_locale` global: it lives in
  *   the `language` store (seeded per-request from the SSR layout data, see
  *   +layout.ts) and `overwriteGetLocale` points paraglide at it. Message
- *   functions call `getLocale()` at render time, so a store change re-renders
- *   the tree with the new language without a page reload.
+ *   functions read the store's signal form when CALLED (see the `m` proxy
+ *   below), so a language switch re-renders the whole tree without a reload.
  * - Message functions dispatch statically (`if (locale === "de") …`) into
  *   per-locale modules. The initial client bundle therefore contains only the
  *   locales whose modules are statically imported here — English (the
@@ -24,8 +26,6 @@ import { setLanguageCookie } from "./language";
  *   (hooks.server.ts), so `getLocale()` returns the per-request locale and
  *   never the shared store — no cross-request leakage.
  */
-
-export const language = writable<Locale>(defaultLocale);
 
 // Point paraglide's locale resolution at the store. On the server the
 // per-request AsyncLocalStorage value (hooks.server.ts) shadows this, so SSR
@@ -40,16 +40,17 @@ overwriteGetLocale(() => {
 	if (store?.locale && isLocale(store.locale)) {
 		return store.locale;
 	}
-	let locale: Locale = defaultLocale;
-	language.subscribe((l) => (locale = l))();
-	return locale;
+	return peekLocale();
 });
 
-// Message functions with full typing (per-key inputs), but each call first
-// reads the `language` store, marking it as a dependency of the calling
-// component's render effect — Svelte 5 only re-runs effects whose tracked
-// reads changed, and paraglide's internal getLocale() is invisible to the
-// compiler, so without this tracked read a language switch wouldn't re-render.
+// Message functions with full typing (per-key inputs), wrapped so each CALL
+// first reads the store's signal form, marking it as a dependency of the
+// calling component's render effect. Svelte 5 only re-runs effects whose
+// tracked reads changed, and paraglide's internal getLocale() is invisible to
+// the compiler, so without this tracked read a language switch wouldn't
+// re-render. (An earlier version did the tracked read in the proxy's `get`
+// handler — but that runs at property-ACCESS time, outside the render effect,
+// so nothing ever tracked it.)
 //
 // The compiled module exports messages under their dotted ids
 // (m["gameList.noGames"]). To keep call sites idiomatic we also accept the
@@ -66,14 +67,30 @@ type MessageMap = {
 	[K in MessageKey as K | UnderscoreAlias<K>]: Messages[K];
 };
 
+// Message fns have per-key input shapes; the proxy erases them and MessageMap
+// restores them at the call sites.
+type AnyMessageFn = (...args: unknown[]) => unknown;
+
+const messageCache = new Map<string, AnyMessageFn>();
+
 export const m = new Proxy(messages as unknown as Record<string, unknown>, {
 	get(target, key: string) {
-		language.subscribe(() => {})();
-		const fn = target[key] ?? target[key.replace(/_/g, ".")];
-		if (!fn) {
+		const cached = messageCache.get(key);
+		if (cached) {
+			return cached;
+		}
+		const fn = (target[key] ?? target[key.replace(/_/g, ".")]) as AnyMessageFn | undefined;
+		if (typeof fn !== "function") {
 			throw new Error(`[i18n] unknown message "${key}" — add it to messages/${defaultLocale}.json`);
 		}
-		return fn;
+		const wrapped = (...args: unknown[]) => {
+			// Tracked read: inside a render effect this subscribes the effect to
+			// language switches; getLocale() then resolves the new locale.
+			void currentLocale();
+			return fn(...args);
+		};
+		messageCache.set(key, wrapped);
+		return wrapped;
 	},
 }) as MessageMap;
 
@@ -106,7 +123,7 @@ export async function loadLocale(locale: Locale): Promise<void> {
  */
 export async function initLanguage(locale: Locale): Promise<void> {
 	await loadLocale(locale);
-	language.set(locale);
+	setLocale(locale);
 }
 
 /**
@@ -121,7 +138,7 @@ export async function switchLanguage(locale: Locale): Promise<void> {
 		return;
 	}
 	await loadLocale(locale);
-	language.set(locale);
+	setLocale(locale);
 	setLanguageCookie(locale);
 	if (browser) {
 		document.documentElement.lang = locale;
