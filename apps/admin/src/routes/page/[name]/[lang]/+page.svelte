@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
+	import { page as pageState } from "$app/state";
 	import { untrack } from "svelte";
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
@@ -12,6 +13,10 @@
 	import type { PageData } from "./+page.ts";
 
 	let { data }: PageProps = $props();
+
+	// The layout load already fetched every page (sidebar) — from it we know which
+	// languages exist for this page name without an extra request.
+	const allPages = $derived(pageState.data.pages ?? []);
 
 	// Params (not data.value) survive a 404: a missing translation opens as a
 	// blank editor prefilled with the requested name+lang, ready to create.
@@ -56,6 +61,37 @@
 		}
 	}
 
+	// Language to translate from when this page is missing in `lang`: English is
+	// the source language, otherwise any existing version. null = nothing to
+	// translate from → plain blank editor.
+	const sourceLang = $derived.by((): string | null => {
+		if (data.value) return null;
+		const langs = new Set(allPages.filter((p) => p._id.name === name && p._id.lang !== lang).map((p) => p._id.lang));
+		if (langs.has("en")) return "en";
+		return [...langs].sort()[0] ?? null;
+	});
+
+	let creatingFrom = $state(false);
+
+	// Missing-translation view: translate the source version into `lang` on the
+	// server (the endpoint upserts), then re-run load so the editor opens the
+	// freshly created translation for review before saving.
+	async function createFromSource() {
+		if (!sourceLang || creatingFrom) return;
+		creatingFrom = true;
+		try {
+			await api.post(`/admin/page/${encodeURIComponent(name)}/${encodeURIComponent(sourceLang)}/translate`, {
+				targetLang: lang,
+			});
+			toast.success(`Translated ${name} → ${lang}`);
+			await loadPages();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Translation failed");
+		} finally {
+			creatingFrom = false;
+		}
+	}
+
 	async function remove() {
 		if (!confirm(`Delete page ${name} (${lang})?`)) return;
 		try {
@@ -92,9 +128,19 @@
 			<PageEdit mode="edit" bind:value onsave={save} ondelete={remove} ontranslate={translate} />
 			<PageHistory {name} {lang} onrestore={restore} />
 		{:else}
-			<p class="mb-5 text-sm text-amber-600 dark:text-amber-400">
-				No {lang} version of this page yet — you're creating it.
-			</p>
+			<div class="mb-5 flex flex-wrap items-center gap-3 text-sm text-amber-600 dark:text-amber-400">
+				<p>No {lang} version of this page yet — you're creating it.</p>
+				{#if sourceLang}
+					<button
+						onclick={createFromSource}
+						disabled={creatingFrom}
+						title="Auto-translate the {sourceLang} version with an LLM and open it here for review"
+						class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-medium disabled:opacity-50"
+					>
+						{creatingFrom ? "Translating…" : `Create from ${sourceLang} (translate)`}
+					</button>
+				{/if}
+			</div>
 			<PageEdit mode="new" bind:value onsave={save} />
 		{/if}
 	</div>
