@@ -30,9 +30,12 @@
 	let requestList = $state<FeedbackRequestListing[]>(requests.map((r) => ({ ...r })));
 
 	// The form stays tucked behind a disclosure until requested — it's the less-used
-	// half of the section. It mounts lazily, so the ForumLinkGate draft restore (on
-	// return from the forum linking flow) also runs on expand, not just on page load.
+	// half of the section. It mounts lazily on first expand, so the ForumLinkGate
+	// draft restore (on return from the forum linking flow) runs on expand; after
+	// that it stays mounted (toggled with `hidden`) so a typed draft survives
+	// re-collapsing.
 	let formOpen = $state(false);
+	let formMounted = $state(false);
 	const formPanelId = "game-feedback-form";
 
 	const byLikesThenNewest = (a: { likeCount?: number; createdAt?: string }, b: typeof a) =>
@@ -120,15 +123,19 @@
 		type="button"
 		class="mt-4 w-full rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 transition-colors hover:border-primary hover:text-primary dark:border-gray-700 dark:text-gray-400 dark:hover:border-primary-lighter dark:hover:text-primary-lighter"
 		aria-expanded={formOpen}
-		aria-controls={formPanelId}
-		onclick={() => (formOpen = !formOpen)}
+		aria-controls={formMounted ? formPanelId : undefined}
+		onclick={() => {
+			formOpen = !formOpen;
+			formMounted ||= formOpen;
+		}}
 	>
 		{formOpen ? "− Hide the request form" : "＋ Request an expansion or feature"}
 	</button>
-	{#if formOpen}
+	{#if formMounted}
 		<div
 			id={formPanelId}
 			class="mt-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+			hidden={!formOpen}
 		>
 			<FeedbackRequestForm
 				kind="game"

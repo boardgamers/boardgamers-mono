@@ -49,9 +49,10 @@ describe("BoardgameRequests SSR", () => {
 		expect(body).toContain("https://forum.boardgamers.space/topic/123");
 		// The form stays collapsed server-side even for a logged-in user: only the
 		// disclosure trigger is rendered, the panel mounts on click after hydration.
+		// No aria-controls yet — the referent doesn't exist until the first expand.
 		expect(body).not.toContain("<form");
 		expect(body).toContain('aria-expanded="false"');
-		expect(body).toContain('aria-controls="game-feedback-form"');
+		expect(body).not.toContain("aria-controls");
 		expect(body).not.toContain('id="game-feedback-form"');
 		expect(body).toContain("Request an expansion or feature");
 	});
