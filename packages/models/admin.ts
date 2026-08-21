@@ -18,8 +18,8 @@ export const ADMIN_PERMISSIONS = [
 	"tokens",
 	"serverinfo",
 	"loki",
-	// Reserved for the upcoming newsletter-send feature — currently gates no
-	// route. Granting it today only marks the future newsletter admin.
+	// Gates the newsletter composer/sender routes (/api/admin/newsletter/*):
+	// test-send to self, enqueueing a blast, and watching delivery progress.
 	"newsletter",
 ] as const;
 

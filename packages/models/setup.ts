@@ -17,6 +17,7 @@ import { GAME_PREFERENCES_COLLECTION, gamePreferencesIndexes, gamePreferencesSch
 import { IMAGES_COLLECTION, imageIndexes, imageSchema } from "./image.ts";
 import { JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenIndexes, jwtRefreshTokenSchema } from "./jwtrefreshtoken.ts";
 import { LOGS_COLLECTION, logsCollectionOptions, logSchema } from "./log.ts";
+import { NEWSLETTERS_COLLECTION, newsletterIndexes, newsletterSchema } from "./newsletter.ts";
 import { OAUTH_CONSENTS_COLLECTION, oauthConsentIndexes, oauthConsentSchema } from "./oauthconsent.ts";
 import { OAUTH_FLOWS_COLLECTION, oauthFlowIndexes, oauthFlowSchema } from "./oauthflow.ts";
 import { PAGES_COLLECTION, pageSchema } from "./page.ts";
@@ -518,6 +519,7 @@ export const declaredIndexes: [string, IndexDescription[]][] = [
 	[USER_ACTIONS_COLLECTION, userActionIndexes],
 	[FEEDBACK_REQUESTS_COLLECTION, feedbackRequestIndexes],
 	[FEEDBACK_REQUEST_LIKES_COLLECTION, feedbackRequestLikeIndexes],
+	[NEWSLETTERS_COLLECTION, newsletterIndexes],
 ];
 
 // Indexes removed from the code that still exist on deployed databases.
@@ -596,6 +598,7 @@ export async function ensureValidation(db: Db) {
 		[USER_ACTIONS_COLLECTION, userActionSchema],
 		[FEEDBACK_REQUESTS_COLLECTION, feedbackRequestSchema],
 		[FEEDBACK_REQUEST_LIKES_COLLECTION, feedbackRequestLikeSchema],
+		[NEWSLETTERS_COLLECTION, newsletterSchema],
 	];
 
 	const existing = new Set((await db.listCollections().toArray()).map((c) => c.name));

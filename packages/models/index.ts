@@ -135,6 +135,10 @@ export {
 export type { LogDoc, LogFront } from "./log.ts";
 export { logSchema, LOGS_COLLECTION, logsCollectionOptions } from "./log.ts";
 
+// --- Newsletter (queued admin blast, delivered by api-cron) ---
+export type { NewsletterDoc, NewsletterFront, NewsletterStatus } from "./newsletter.ts";
+export { newsletterSchema, newsletterStatusSchema, NEWSLETTERS_COLLECTION, newsletterIndexes } from "./newsletter.ts";
+
 // --- Page ---
 export type { PageDoc, PageFront } from "./page.ts";
 export { pageSchema, PAGES_COLLECTION } from "./page.ts";

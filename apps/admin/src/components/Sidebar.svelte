@@ -143,6 +143,16 @@
 				Feedback
 			</a>
 		{/if}
+		{#if can(data.me, "newsletter")}
+			<a
+				href={resolve("/newsletter")}
+				class="px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive('/newsletter')
+					? 'bg-gray-100 dark:bg-gray-800 font-semibold'
+					: ''}"
+			>
+				Newsletter
+			</a>
+		{/if}
 
 		{#if data.games.length > 0 || can(data.me, "gameinfo")}
 			<div class="mt-4">
