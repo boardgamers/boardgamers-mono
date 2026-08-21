@@ -4,6 +4,7 @@
 	import { setAuthData, type AuthData } from "@/lib/account.svelte";
 	import { post } from "@/lib/api";
 	import { handleError, handleInfo } from "@/utils";
+	import { m } from "@/lib/i18n/messages";
 
 	async function resetPassword(params: { email: string; resetKey: string; password: string }): Promise<void> {
 		return post<AuthData>("/account/reset", params).then(setAuthData);
@@ -16,15 +17,15 @@
 
 	function handleSubmit() {
 		if (password !== passwordConfirm) {
-			handleError("The passwords don't match");
+			handleError(m.auth_passwordsMismatch());
 			return;
 		}
-		resetPassword({ email, resetKey: key, password }).then(() => handleInfo("Your password was reset"), handleError);
+		resetPassword({ email, resetKey: key, password }).then(() => handleInfo(m.auth_passwordReset()), handleError);
 	}
 </script>
 
 <div class="container mx-auto px-4">
-	<h1>Reset password</h1>
+	<h1>{m.auth_resetPassword()}</h1>
 	<form
 		method="post"
 		accept-charset="UTF-8"
@@ -34,12 +35,12 @@
 		}}
 	>
 		<div class="mb-3">
-			<label for="email">Email</label>
+			<label for="email">{m.common_email()}</label>
 			<input
 				type="email"
 				class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
 				id="email"
-				placeholder="Email address"
+				placeholder={m.common_emailAddress()}
 				bind:value={email}
 				disabled
 				required
@@ -47,28 +48,30 @@
 		</div>
 		<div class="flex flex-row gap-3">
 			<div class="mb-3 flex-1">
-				<label for="signup-password">Password</label>
+				<label for="signup-password">{m.auth_password()}</label>
 				<input
 					type="password"
 					class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
 					id="signup-password"
-					placeholder="Password"
+					placeholder={m.auth_password()}
 					bind:value={password}
 					required
 				/>
 			</div>
 			<div class="mb-3 flex-1">
-				<label for="signup-password-confirm">Confirm <span class="md:hidden">password</span></label>
+				<label for="signup-password-confirm"
+					>{m.auth_confirm()} <span class="md:hidden">{m.auth_password()}</span></label
+				>
 				<input
 					type="password"
 					class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
 					id="signup-password-confirm"
 					bind:value={passwordConfirm}
-					placeholder="Password"
+					placeholder={m.auth_password()}
 					required
 				/>
 			</div>
 		</div>
-		<Button type="submit" color="primary" class="mt-3 ml-auto">Reset</Button>
+		<Button type="submit" color="primary" class="mt-3 ml-auto">{m.auth_reset()}</Button>
 	</form>
 </div>

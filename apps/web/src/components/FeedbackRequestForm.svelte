@@ -4,6 +4,7 @@
 	import { post } from "@/lib/api";
 	import { Button, Input } from "@/modules/cdk";
 	import type { FeedbackKind, UserFront } from "@bgs/models";
+	import { m } from "@/lib/i18n/messages";
 
 	let props: {
 		kind: FeedbackKind;
@@ -52,7 +53,7 @@
 			if (forumGate?.handle(err)) {
 				forumGate?.stashDraft({ title, body });
 			} else {
-				error = err instanceof Error ? err.message : "Could not submit the request";
+				error = err instanceof Error ? err.message : m.feedback_submitError();
 			}
 		} finally {
 			submitting = false;
@@ -86,7 +87,7 @@
 		}}
 	>
 		<div class="mb-3">
-			<label for="{inputId}-title" class="mb-1 block text-sm font-medium">Title</label>
+			<label for="{inputId}-title" class="mb-1 block text-sm font-medium">{m.feedback_title()}</label>
 			<Input
 				id="{inputId}-title"
 				type="text"
@@ -99,7 +100,7 @@
 		</div>
 		<div class="mb-3">
 			<label for="{inputId}-body" class="mb-1 block text-sm font-medium">
-				Details <span class="font-normal text-gray-500 dark:text-gray-400">(optional)</span>
+				{m.feedback_details()} <span class="font-normal text-gray-500 dark:text-gray-400">{m.common_optional()}</span>
 			</label>
 			<Input
 				type="textarea"
@@ -116,6 +117,9 @@
 	</form>
 {:else}
 	<p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-		<a href={resolve("/(app)/login")}>Log in</a> or <a href={resolve("/(app)/signup")}>sign up</a> to submit a request.
+		<a href={resolve("/(app)/login")}>{m.common_logIn()}</a>
+		{m.feedback_or()}
+		<a href={resolve("/(app)/signup")}>{m.common_signUp()}</a>
+		{m.feedback_loginToSubmit()}
 	</p>
 {/if}

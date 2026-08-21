@@ -15,6 +15,7 @@
 	import IconMeepleFill from "@/components/icons/IconMeepleFill.svelte";
 	import type { GameInfoFront, UserFront } from "@bgs/models";
 	import type { GameInfoMap } from "@/lib/game-info.svelte";
+	import { m } from "@/lib/i18n/messages";
 
 	// Test-only injection point: specs pass the game-info map as a prop (setContext must
 	// run during component init, so a spec can't provide it post-hoc). Production leaves
@@ -159,14 +160,16 @@
 					<GameName info={game} />
 				</div>
 				{#if isForgotten}
-					<span class="ms-1 shrink-0 self-center text-xs font-normal text-gray-400">(hidden)</span>
+					<span class="ms-1 shrink-0 self-center text-xs font-normal text-gray-400">{m.sidebar_hidden()}</span>
 				{/if}
 				{#if game.likeCount}
 					<span
 						class="ms-1 flex shrink-0 items-center gap-0.5 self-center text-xs font-normal text-gray-400 dark:text-gray-500"
 						class:text-primary={game.liked}
 						class:dark:text-primary-lighter={game.liked}
-						title="{game.likeCount} like{game.likeCount === 1 ? '' : 's'}"
+						title={game.likeCount === 1
+							? m.sidebar_like({ count: game.likeCount })
+							: m.sidebar_like_plural({ count: game.likeCount })}
 					>
 						{#if game.liked}
 							<IconMeepleFill size="0.75em" />
@@ -181,8 +184,8 @@
 		{#if canForget}
 			<button
 				type="button"
-				title="Remove from My games (still listed under All games)"
-				aria-label={`Forget ${gameDisplayName(game)}`}
+				title={m.sidebar_forget()}
+				aria-label={m.sidebar_forgetAria({ game: gameDisplayName(game) })}
 				class="absolute end-1 top-1/2 hidden -translate-y-1/2 rounded px-1.5 py-0.5 text-gray-400 hover:bg-black/10 hover:text-gray-700 group-hover:block dark:hover:bg-white/10 dark:hover:text-gray-200"
 				onclick={(e) => {
 					e.preventDefault();
@@ -195,8 +198,8 @@
 		{:else if isForgotten}
 			<button
 				type="button"
-				title="Pin back to My games"
-				aria-label={`Unforget ${gameDisplayName(game)}`}
+				title={m.sidebar_unforget()}
+				aria-label={m.sidebar_unforgetAria({ game: gameDisplayName(game) })}
 				class="absolute end-1 top-1/2 hidden -translate-y-1/2 rounded px-1.5 py-0.5 text-gray-400 hover:bg-black/10 hover:text-gray-700 group-hover:block dark:hover:bg-white/10 dark:hover:text-gray-200"
 				onclick={(e) => {
 					e.preventDefault();
@@ -213,12 +216,14 @@
 <ul class="hidden w-[250px] shrink-0 divide-y divide-gray-200 dark:divide-gray-700 lg:block">
 	{#key boardgameId}
 		{#if topGames.length > 0}
-			<li class="px-4 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">My games</li>
+			<li class="px-4 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+				{m.sidebar_myGames()}
+			</li>
 			{#each topGames as game (game._id.game)}
 				{@render gameItem({ game, pinned: true })}
 			{/each}
 			<li class="px-4 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-				All games
+				{m.sidebar_allGames()}
 			</li>
 		{/if}
 		{#each otherGames as game (game._id.game)}
@@ -230,7 +235,7 @@
 			class="block px-4 py-2 font-semibold no-underline text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
 			href={resolve("/(app)/feedback#game-requests")}
 		>
-			🆕 Suggest a game
+			{m.sidebar_suggestGame()}
 		</a>
 	</li>
 </ul>

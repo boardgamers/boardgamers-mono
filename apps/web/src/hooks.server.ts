@@ -7,6 +7,8 @@ import { parsePreferredLanguage } from "@/lib/accept-language";
 import { logHeader } from "@/lib/log-header";
 import { extractCookie } from "@/utils/extract-cookie";
 import { timezoneFromCookieHeader } from "@/lib/timezone";
+import { resolveLanguage } from "@/lib/i18n/language";
+import { languageStorage } from "@/lib/i18n/server";
 
 interface RequestContext {
 	requestId: string;
@@ -32,6 +34,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Viewer's timezone, stamped into a cookie by the client (see src/lib/timezone).
 	// Seeds SSR time-of-day rendering so it matches client hydration (#339).
 	event.locals.timezone = timezoneFromCookieHeader(event.request.headers.get("cookie") ?? "") ?? "UTC";
+	// Viewer's UI language (#306): `lang` cookie → Accept-Language → "en" (see
+	// src/lib/i18n/language.ts). The logged-in user's settings.language layer is
+	// applied on top of this in the root layout server load — hooks don't have
+	// the user yet. The paraglide AsyncLocalStorage below makes message
+	// functions render this request's locale during SSR.
+	event.locals.language = resolveLanguage({
+		cookieHeader: event.request.headers.get("cookie"),
+		acceptLanguageHeader: event.request.headers.get("accept-language"),
+	});
 
 	return requestContextStorage.run({ requestId, clientIp }, async () => {
 		const start = Date.now();
@@ -39,9 +50,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		let response;
 		try {
-			response = await resolve(event, {
-				filterSerializedResponseHeaders: (name) => name === "content-type",
-			});
+			response = await languageStorage.run({ locale: event.locals.language }, () =>
+				resolve(event, {
+					filterSerializedResponseHeaders: (name) => name === "content-type",
+					// app.html ships `<html lang="en">` — rewrite it per request so the
+					// first paint carries the resolved language (a11y/SEO). When the
+					// layout overrides with the user preference, the client re-stamps
+					// the cookie so subsequent SSR agrees (see +layout.ts).
+					transformPageChunk: ({ html }) => html.replace('<html lang="en">', `<html lang="${event.locals.language}">`),
+				}),
+			);
 		} catch (err) {
 			logEvent("error", "ssr", {
 				source: "web",
@@ -117,12 +135,26 @@ export const handleFetch: HandleFetch = async ({ request, fetch, event }) => {
 
 		// Forward the session cookie to the main API only (never the game-server). SvelteKit's
 		// event.fetch only auto-forwards cookies when the target host matches the app origin —
-		// but we rewrite /api/* to the backend host, so forward it explicitly. The game-server
-		// runs untrusted engine code and must only ever see the minted "gameplay"-scoped bearer
-		// token, never the full-power session cookie. Request-scoped, never shared state.
+		// but we rewrite /api/* to the backend host, so forward it explicitly. Take it from
+		// event.request unconditionally: the SSR load's own Request may carry no cookie header
+		// at all (SvelteKit only auto-adds headers to header-less, same-origin requests — the
+		// rewrite above already made this one cross-origin), so gating on
+		// `!request.headers.has("cookie")` would leave the browser's session behind.
+		// The game-server runs untrusted engine code and must only ever see the minted
+		// "gameplay"-scoped bearer token, never the full-power session cookie.
+		// Request-scoped, never shared state.
 		const cookie = event.request.headers.get("cookie");
-		if (isMainApi && cookie && !request.headers.has("cookie")) {
+		if (isMainApi && cookie) {
 			request.headers.set("cookie", cookie);
+		}
+
+		// Same story for Accept-Language (#306): the api negotiates content language
+		// (CMS pages, game metadata) from it, but the origin rewrite drops the
+		// browser's header on the floor. Forward the browser's value so SSR first
+		// paint comes back in the negotiated language.
+		const acceptLanguage = event.request.headers.get("accept-language");
+		if (isMainApi && acceptLanguage) {
+			request.headers.set("accept-language", acceptLanguage);
 		}
 
 		// new Request(url, request) copies every client header, so drop the forwarding /

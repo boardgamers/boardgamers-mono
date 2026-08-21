@@ -6,7 +6,6 @@
 		handleError,
 		niceDate,
 		oneLineMarked,
-		pluralize,
 		timerTimeInTz,
 		confirm,
 		createWatcher,
@@ -37,6 +36,7 @@
 	import type { UserFront } from "@bgs/models";
 	import type { JsonObject, JsonValue } from "type-fest";
 	import { debounce } from "lodash";
+	import { m, language } from "@/lib/i18n/messages";
 
 	const context = getContext("game") as GameContext;
 	let timer = $derived(context.game?.options.timing.timer);
@@ -52,17 +52,18 @@
 
 	const playTime = () => {
 		if (timer?.start !== undefined) {
-			return `active between ${timerTimeInTz(timer.start, tz)} and ${timerTimeInTz(
-				timer.end,
-				tz
-			)}, in your local time (${tz})`;
+			return m.openGame_activeBetween({
+				start: timerTimeInTz(timer.start, tz),
+				end: timerTimeInTz(timer.end, tz),
+				tz,
+			});
 		} else {
-			return "always active";
+			return m.openGame_alwaysActive();
 		}
 	};
 
 	const leave = async () => {
-		if (await confirm("Are you sure you want to leave this game?")) {
+		if (await confirm(m.openGame_leaveConfirm())) {
 			post(`/game/${gameId}/unjoin`).then(() => goto(resolve("/(app)")), handleError);
 		}
 	};
@@ -76,11 +77,7 @@
 		}
 
 		if (context.game && (context.game.options.timing.timePerGame ?? Infinity) <= 24 * 3600) {
-			if (
-				!(await confirm(
-					"This game has a short duration. You need to keep yourself available in order to play the game until the end."
-				))
-			) {
+			if (!(await confirm(m.openGame_shortDurationWarning()))) {
 				return;
 			}
 		}
@@ -195,25 +192,28 @@
 		<span
 			class="rounded-full bg-blue-100 px-2.5 py-0.5 text-sm font-medium text-blue-800 dark:bg-blue-900/50 dark:text-blue-200"
 		>
-			Open game
+			{m.openGame_openGame()}
 		</span>
 		<span class="text-sm text-gray-500 dark:text-gray-400">
-			{context.game?.players.length ?? 0} / {context.game?.options.setup.nbPlayers ?? 0} seats filled
+			{m.openGame_seatsFilled({
+				filled: context.game?.players.length ?? 0,
+				total: context.game?.options.setup.nbPlayers ?? 0,
+			})}
 		</span>
 	</div>
 	<p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
-		Hosted by
+		{m.openGame_hostedBy()}
 		<UsernameLink
 			username={context.players.find((pl) => pl._id === context.game?.creator)?.name ?? "?"}
 			userId={context.game?.creator}
 		/>
 		·
 		<a href={resolve("/(app)/boardgame/[boardgameId]", { boardgameId: context.gameInfo?._id.game ?? "" })}
-			>About the game</a
+			>{m.openGame_aboutGame()}</a
 		>
 		·
 		<a href={resolve("/(app)/boardgame/[boardgameId]/new-game", { boardgameId: context.gameInfo?._id.game ?? "" })}
-			>Create a new game</a
+			>{m.openGame_createNew()}</a
 		>
 	</p>
 
@@ -232,41 +232,48 @@
 				<h3
 					class="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
 				>
-					<IconHourglass /> Game setup
+					<IconHourglass />
+					{m.openGame_gameSetup()}
 				</h3>
 				<ul class="space-y-1.5 text-sm">
 					<li>
-						<b>{duration(context.game?.options.timing.timePerGame ?? 0)}</b> per player,
-						<b>+{duration(context.game?.options.timing.timePerMove ?? 0)}</b> per move
+						<b>{duration(context.game?.options.timing.timePerGame ?? 0)}</b>
+						{m.openGame_perPlayer()},
+						<b>+{duration(context.game?.options.timing.timePerMove ?? 0)}</b>
+						{m.openGame_perMove()}
 					</li>
 					<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
 						<IconClockHistory class="text-gray-400" />
-						<span title="Timezone">Clock runs {playTime()}</span>
+						<span title={m.openGame_timezone()}>{m.openGame_clockRuns({ window: playTime() })}</span>
 					</li>
 					{#if context.game?.options.setup.seed}
 						<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-							<span title="Game seed">🌱 {context.game.options.setup.seed}</span>
+							<span title={m.openGame_seed()}>🌱 {context.game.options.setup.seed}</span>
 						</li>
 					{/if}
 					{#if typeof context.game?.options.meta?.minimumKarma === "number"}
 						<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-							<span title="Minimum karma to join the game"
-								>☯️ requires {context.game.options.meta.minimumKarma} karma</span
+							<span title={m.openGame_minKarma()}
+								>☯️ {m.openGame_requiresKarma({ karma: context.game.options.meta.minimumKarma })}</span
 							>
 						</li>
 					{/if}
 					{#if context.game?.options.meta?.eloRange}
 						<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-							<span title="Elo range required to join the game"
-								>📈 Elo between {context.game.options.meta.eloRange.min} and {context.game.options.meta.eloRange
-									.max}</span
+							<span title={m.openGame_eloRange()}
+								>📈 {m.openGame_eloBetween({
+									min: context.game.options.meta.eloRange.min,
+									max: context.game.options.meta.eloRange.max,
+								})}</span
 							>
 						</li>
 					{/if}
 					{#if context.game?.options.timing.scheduledStart}
 						<li class="font-medium">
-							Scheduled to start on {niceDate(context.game.options.timing.scheduledStart)} at
-							{new Date(context.game.options.timing.scheduledStart).toLocaleTimeString("en")}
+							{m.openGame_scheduledStart({
+								date: niceDate(context.game.options.timing.scheduledStart),
+								time: new Date(context.game.options.timing.scheduledStart).toLocaleTimeString($language),
+							})}
 						</li>
 					{/if}
 				</ul>
@@ -294,7 +301,8 @@
 					<h3
 						class="mb-2 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
 					>
-						<IconList /> About &amp; rules
+						<IconList />
+						{m.openGame_aboutRules()}
 					</h3>
 					{#if context.gameInfo?.description}
 						<div class="prose prose-sm dark:prose-invert max-w-none">
@@ -313,7 +321,7 @@
 		<!-- Players + status -->
 		<section class="rounded-lg border border-gray-200 p-4 dark:border-gray-700 dark:bg-gray-800/50">
 			<h3 class="mb-3">
-				Players
+				{m.openGame_players()}
 				<span class="ml-1 text-base font-normal text-gray-500 dark:text-gray-400">
 					{context.game?.players.length ?? 0} / {context.game?.options.setup.nbPlayers ?? 0}
 				</span>
@@ -333,7 +341,7 @@
 								<span class="font-medium">{player.name}</span>
 								<span
 									class="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-									>bot</span
+									title={m.openGame_botTitle()}>{m.openGame_bot()}</span
 								>
 							{:else}
 								<UserAvatar userId={player._id} username={info?.name ?? "?"} size="2rem" />
@@ -346,12 +354,12 @@
 							{#if player.pending}
 								<span
 									class="rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-									>invited</span
+									>{m.openGame_invited()}</span
 								>
 							{/if}
 							{#if player._id === context.game?.creator}
 								<span class="rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary dark:text-primary-lighter"
-									>host</span
+									>{m.openGame_host()}</span
 								>
 							{/if}
 						</li>
@@ -360,14 +368,15 @@
 			{/if}
 
 			{#if context.game && context.game.options.setup.nbPlayers > context.game.players.length}
+				{@const missing = context.game.options.setup.nbPlayers - context.game.players.length}
 				<p class="mb-3 text-sm text-gray-600 dark:text-gray-300">
-					⏳ Waiting on <b
-						>{pluralize(context.game.options.setup.nbPlayers - context.game.players.length, "more player")}</b
-					> to start.
+					⏳ {m.openGame_waitingPlayers({
+						count: `${missing} ${missing === 1 ? m.openGame_morePlayers() : m.openGame_morePlayers_plural()}`,
+					})}
 				</p>
 				{#if $user?._id === context.game.creator && (1 || context.game.options.timing.scheduledStart)}
 					<FormGroup>
-						<label for="invite">Invite player</label>
+						<label for="invite">{m.openGame_invitePlayer()}</label>
 						<Dropdown isOpen={Boolean(isOpen && foundUsers.length)} toggle={() => (isOpen = !isOpen)}>
 							<DropdownToggle tag="div" class="inline-block">
 								<Input
@@ -387,7 +396,7 @@
 			{:else if context.game && !context.game.ready}
 				{#if $user?._id === context.game.creator}
 					{#if context.game.options.setup.playerOrder === "host"}
-						<h3>Select player order</h3>
+						<h3>{m.openGame_selectOrder()}</h3>
 						{#each playerOrder as playerIndex, i (i)}
 							<div>
 								- {context.game.players[playerIndex].name}
@@ -405,28 +414,28 @@
 								>
 							</div>
 						{/each}
-						<Button color="primary" onclick={start} class="mt-4">Start the game!</Button>
+						<Button color="primary" onclick={start} class="mt-4">{m.openGame_start()}</Button>
 					{/if}
 				{:else if context.game.players.some((p) => p.pending)}
-					<p class="text-sm text-gray-600 dark:text-gray-300">Waiting on some players to accept the invitation.</p>
+					<p class="text-sm text-gray-600 dark:text-gray-300">{m.openGame_waitingInvitations()}</p>
 				{:else}
-					<p class="text-sm"><b>Waiting on host for final settings</b></p>
+					<p class="text-sm"><b>{m.openGame_waitingHost()}</b></p>
 				{/if}
 			{:else if context.game?.options.timing.scheduledStart}
-				<p class="text-sm text-gray-600 dark:text-gray-300">Waiting on scheduled start.</p>
+				<p class="text-sm text-gray-600 dark:text-gray-300">{m.openGame_waitingScheduled()}</p>
 			{/if}
 
 			{#if !canStart && context.game}
 				<div class="mt-3 flex gap-2 border-t border-gray-200 pt-3 dark:border-gray-700">
 					{#if context.game.players.some((pl) => pl._id === $user?._id)}
 						{#if context.game.players.find((pl) => pl._id === $user?._id)?.pending}
-							<Button color="accent" onclick={join}>Accept invitation</Button>
-							<Button color="secondary" onclick={leave}>Refuse invitation</Button>
+							<Button color="accent" onclick={join}>{m.openGame_acceptInvitation()}</Button>
+							<Button color="secondary" onclick={leave}>{m.openGame_refuseInvitation()}</Button>
 						{:else}
-							<Button color="warning" onclick={leave}>Leave</Button>
+							<Button color="warning" onclick={leave}>{m.openGame_leave()}</Button>
 						{/if}
 					{:else}
-						<Button color="accent" onclick={join}>Join!</Button>
+						<Button color="accent" onclick={join}>{m.openGame_join()}</Button>
 					{/if}
 				</div>
 			{/if}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Container } from "@/modules/cdk";
+	import { m } from "@/lib/i18n/messages";
 </script>
 
 <Container class="mx-auto max-w-xl px-4 py-6 sm:py-10">
@@ -16,10 +17,10 @@
 				/>
 			</svg>
 		</div>
-		<h1 class="mt-4 text-2xl font-bold">Authorization error</h1>
-		<p class="mt-2 text-sm">The sign-in request from this application is invalid or could not be verified.</p>
+		<h1 class="mt-4 text-2xl font-bold">{m.oauth_error_title()}</h1>
+		<p class="mt-2 text-sm">{m.oauth_error_body()}</p>
 		<p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-			This usually means the application is misconfigured. Nothing was authorized — you can close this page.
+			{m.oauth_error_help()}
 		</p>
 	</div>
 </Container>

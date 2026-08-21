@@ -31,9 +31,12 @@
 	} from "@/lib/games.svelte";
 	import { isPromise } from "@bgs/utils";
 	import type { JsonObject } from "type-fest";
+	import { m } from "@/lib/i18n/messages";
 
 	let {
-		title = "Games",
+		// Evaluated lazily in the template (not as a prop default) so the title
+		// follows a language switch without remounting the list.
+		title = undefined,
 		perPage = 10,
 		topRecords = false,
 		sample = false,
@@ -50,7 +53,7 @@
 		headerContent = undefined,
 		class: className = "",
 	}: {
-		title?: string;
+		title?: string | undefined;
 		perPage?: number;
 		topRecords?: boolean;
 		sample?: boolean;
@@ -154,7 +157,7 @@
 		}
 		// The proper minus sign (not a hyphen) keeps the chip compact and unambiguous.
 		const text = (delta >= 0 ? "+" : "−") + Math.abs(delta);
-		return { delta, text, label: `Elo change: ${text}` };
+		return { delta, text, label: m.gameList_eloChange({ delta: text }) };
 	}
 
 	// The viewer's timezone, resolved at init (context is init-only): the request's
@@ -330,7 +333,7 @@
 	<Loading loading={loadingGames}>
 		<h3 class="flex flex-wrap items-center gap-x-3 gap-y-1 font-semibold">
 			<span class="title-with-count">
-				{title}
+				{title ?? m.common_games()}
 				{#if !topRecords && !sample}
 					<!-- With a client-side setup-options filter the server count is the
 					     pre-filter total — show the number of rows actually displayed. -->
@@ -390,10 +393,10 @@
 													? 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
 													: 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-200'}"
 												title={rowPace === "live"
-													? `Live game — meant to be played in one sitting (${duration(game.options.timing.timePerGame ?? 0)} per player)`
-													: `Asynchronous game — played over days (${duration(game.options.timing.timePerGame ?? 0)} per player)`}
+													? m.gameList_liveTitle({ duration: duration(game.options.timing.timePerGame ?? 0) })
+													: m.gameList_asyncTitle({ duration: duration(game.options.timing.timePerGame ?? 0) })}
 											>
-												{rowPace === "live" ? "⚡ Live" : "🐢 Async"}
+												{rowPace === "live" ? m.gameList_live() : m.gameList_async()}
 											</span>
 											<!-- Clock window: the time-of-day range the game clock ticks (it pauses
 												     overnight). Stored as UTC seconds-since-midnight; timerWindow() renders
@@ -403,7 +406,7 @@
 											{#if isRestrictedTimerWindow(game.options.timing.timer)}
 												<span
 													class="rounded-full bg-indigo-100 px-1.5 py-0.5 text-xs font-medium whitespace-nowrap text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200"
-													title={`Clock runs ${timerWindowInTz(game.options.timing.timer, tz)} daily (your local time, ${tz}), pauses overnight`}
+													title={m.gameList_clockWindow({ window: timerWindowInTz(game.options.timing.timer, tz), tz })}
 												>
 													🕐 {timerWindowInTz(game.options.timing.timer, tz)}
 												</span>
@@ -428,12 +431,12 @@
 												<SetupOptionBadge {pref} value={gameOptions(game)[pref.name]} noLinks />
 											{/each}
 											{#if meta?.minimumKarma !== undefined}
-												<Badge color="secondary" class="setup-badge" title="Minimum karma to join"
+												<Badge color="secondary" class="setup-badge" title={m.gameList_minKarma()}
 													>☯️ {meta.minimumKarma}+ karma</Badge
 												>
 											{/if}
 											{#if meta?.eloRange}
-												<Badge color="secondary" class="setup-badge" title="Elo range required to join"
+												<Badge color="secondary" class="setup-badge" title={m.gameList_eloRange()}
 													>📈 {meta.eloRange.min}–{meta.eloRange.max} elo</Badge
 												>
 											{/if}
@@ -469,7 +472,9 @@
 											)} · ${timerWindowInTz(game.options.timing.timer, tz)}`}
 										>
 											{#if game.status === "ended"}
-												<span class="text-gray-500 dark:text-gray-400">finished · {niceDate(game.lastMove ?? "")}</span>
+												<span class="text-gray-500 dark:text-gray-400"
+													>{m.gameList_finished()} · {niceDate(game.lastMove ?? "")}</span
+												>
 											{:else}
 												<!-- Ongoing games: last activity first, then time left on the current turn
 											     when the game has a per-turn clock (full timing on hover) -->
@@ -477,7 +482,7 @@
 													class="flex shrink-0 items-center gap-1 whitespace-nowrap text-gray-500 dark:text-gray-400"
 												>
 													<IconClockHistory class="text-[0.8em]" />
-													{lastActivity(game)} ago
+													{m.gameList_ago({ duration: lastActivity(game) })}
 												</span>
 												{#if timeLeft !== null}
 													<span
@@ -485,7 +490,9 @@
 															? 'font-semibold text-amber-600 dark:text-amber-400'
 															: 'text-gray-500 dark:text-gray-400'}"
 													>
-														· ⏱ {timeLeft <= 0 ? "overdue" : `${compactDuration(timeLeft)} left`}
+														· ⏱ {timeLeft <= 0
+															? m.gameList_overdue()
+															: m.gameList_timeLeft({ duration: compactDuration(timeLeft) })}
 													</span>
 												{/if}
 												{#if lastMove}
@@ -518,8 +525,8 @@
 										{#if game.players.length > MOBILE_AVATARS_LIMIT}
 											<span
 												class="mobile-avatar-more shrink-0 text-xs font-semibold text-gray-500 dark:text-gray-400"
-												title="{game.players.length - MOBILE_AVATARS_LIMIT} more players"
-												aria-label="{game.players.length - MOBILE_AVATARS_LIMIT} more players"
+												title={m.gameList_morePlayers({ count: game.players.length - MOBILE_AVATARS_LIMIT })}
+												aria-label={m.gameList_morePlayers({ count: game.players.length - MOBILE_AVATARS_LIMIT })}
 											>
 												+{game.players.length - MOBILE_AVATARS_LIMIT}
 											</span>
@@ -540,13 +547,15 @@
 							href={resolve("/(app)/games")}
 							class="rounded px-2 py-1 font-medium text-accent hover:bg-gray-100 hover:underline dark:text-accent-lighter dark:hover:bg-gray-800"
 						>
-							{count - fetchedGames.length} more open {count - fetchedGames.length === 1 ? "game" : "games"} →
+							{count - fetchedGames.length === 1
+								? m.gameList_oneMoreOpen()
+								: m.gameList_moreOpen({ count: count - fetchedGames.length })}
 						</a>
 						<button
 							type="button"
 							class="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-accent dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-accent-lighter"
-							title="Show a different random sample of open games"
-							aria-label="Shuffle the sample of open games"
+							title={m.gameList_shuffle()}
+							aria-label={m.gameList_shuffleAria()}
 							onclick={() => logoClick()}
 						>
 							<IconDice />
@@ -556,7 +565,7 @@
 					<Pagination {count} {perPage} bind:currentPage align="right" class="mt-2" />
 				{/if}
 			{:else}
-				<p>No games to show</p>
+				<p>{m.gameList_noGames()}</p>
 			{/if}
 		</div>
 	</Loading>

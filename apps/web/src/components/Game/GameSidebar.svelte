@@ -18,6 +18,7 @@
 	import { post } from "@/lib/api";
 	import { account } from "@/lib/account.svelte";
 	import { playerStatus, addActiveGame, removeActiveGame, devGameSettings, live } from "@/lib/stores.svelte";
+	import { m } from "@/lib/i18n/messages";
 
 	const context: GameContext = getContext("game");
 	let game = $derived(context.game);
@@ -102,9 +103,7 @@
 	}
 
 	async function voteCancel() {
-		if (
-			await confirm("This vote cannot be taken back. If all active players vote to cancel, the game will be cancelled.")
-		) {
+		if (await confirm(m.gameSidebar_voteCancelConfirm())) {
 			const voted = await post(`/game/${gameId}/cancel`).then(
 				() => true,
 				(err) => {
@@ -137,7 +136,7 @@
 
 <div id="floating-controls"></div>
 {#if game && gameInfo}
-	<h3 class="mt-3">Players</h3>
+	<h3 class="mt-3">{m.common_players()}</h3>
 	{#each game.players as player (player._id)}
 		<div class="mb-1 flex items-center player-row" class:active={isCurrentPlayer(player._id)}>
 			<PlayerGameAvatar
@@ -151,7 +150,7 @@
 			<div>
 				{#if player.isBot}
 					<span class={player.dropped ? "player-name dropped" : "player-name"}>{player.name}</span>
-					<Badge color="secondary" class="ms-1" title="Bot player — auto-plays engine-chosen moves">🤖 bot</Badge>
+					<Badge color="secondary" class="ms-1" title={m.openGame_botTitle()}>🤖 {m.openGame_bot()}</Badge>
 				{:else}
 					<UsernameLink
 						username={player.name}
@@ -183,13 +182,13 @@
 	</div>
 	{#if game.status === "ended"}
 		<div class="mt-3">
-			<b> Game ended! </b>
+			<b>{m.gameSidebar_gameEnded()}</b>
 		</div>
 	{/if}
 	{#key game.currentPlayers}
 		{#if userId && isCurrentPlayer(userId)}
 			<div class="mt-3">
-				<b class="your-turn">Your turn!</b>
+				<b class="your-turn">{m.gameSidebar_yourTurn()}</b>
 			</div>
 		{/if}
 	{/key}
@@ -201,10 +200,12 @@
 				disabled={playerUser.dropped || playerUser.voteCancel || playerUser.quit}
 				onclick={voteCancel}
 			>
-				Vote to cancel
+				{m.gameSidebar_voteCancel()}
 			</Button>
 			{#if game.players.some((pl) => !!pl.dropped)}
-				<Button size="sm" class="ms-2" disabled={playerUser.dropped || playerUser.quit} onclick={quit}>Quit</Button>
+				<Button size="sm" class="ms-2" disabled={playerUser.dropped || playerUser.quit} onclick={quit}
+					>{m.gameSidebar_quit()}</Button
+				>
 			{/if}
 			{#each game.players as player (player._id)}
 				{#if remainingTime(player) <= 0 && isCurrentPlayer(player._id) && !player.dropped && !player.quit}
@@ -215,7 +216,7 @@
 						disabled={requestedDrop[player._id]}
 						onclick={() => requestDrop(player._id)}
 					>
-						Drop {player.name}
+						{m.gameSidebar_drop({ player: player.name })}
 					</Button>
 				{/if}
 			{/each}
@@ -230,7 +231,7 @@
 
 	{#if (game.game.expansions?.length ?? 0) > 0}
 		<div class="mt-3">
-			<h3>Expansions</h3>
+			<h3>{m.gameSidebar_expansions()}</h3>
 			{#each game.game.expansions as expansion, i (i)}
 				<Badge color="accent" class="me-1">
 					<SanitizedHtml html={oneLineMarked(gameInfo.expansions?.find((xp) => xp.name === expansion)?.label ?? "")} />
@@ -245,7 +246,7 @@
 
 	{#if (gameInfo.options ?? []).some((x) => isNonDefaultSetupOption(x, gameOptions()[x.name]))}
 		<div class="mt-3">
-			<h3 class="mb-1">Setup options</h3>
+			<h3 class="mb-1">{m.gameSidebar_setupOptions()}</h3>
 			<div class="flex flex-wrap gap-1">
 				{#each (gameInfo.options ?? []).filter( (x) => isNonDefaultSetupOption(x, gameOptions()[x.name]) ) as pref (pref.name)}
 					<SetupOptionBadge {pref} value={gameOptions()[pref.name]} />
@@ -255,6 +256,6 @@
 	{/if}
 	<div class="my-3"></div>
 	{#if $devGameSettings}
-		<a target="_blank" rel="external" href={`/api/gameplay/${game._id}`}>Download JSON</a>
+		<a target="_blank" rel="external" href={`/api/gameplay/${game._id}`}>{m.gameSidebar_downloadJson()}</a>
 	{/if}
 {/if}

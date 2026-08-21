@@ -10,6 +10,7 @@
 	import { getContext } from "svelte";
 	import { sidebarOpen } from "@/lib/stores.svelte";
 	import Portal from "@/modules/portal/Portal.svelte";
+	import { m } from "@/lib/i18n/messages";
 
 	const context = getContext("game") as GameContext;
 	const { emitter } = context;
@@ -30,7 +31,7 @@
 {#if context.gameInfo?.viewer?.replayable}
 	<div class="mt-3">
 		{#if !context.replayData}
-			<Button color="accent" size="sm" onclick={startReplay}>Replay</Button>
+			<Button color="accent" size="sm" onclick={startReplay}>{m.gameSidebar_replay()}</Button>
 		{:else}
 			<div class="flex items-center">
 				<Button size="sm" class="me-1" onclick={() => replayTo(context.replayData!.start)}>

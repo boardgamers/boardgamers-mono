@@ -1,9 +1,13 @@
 import removeMarkdown from "remove-markdown";
+import { m } from "@/lib/i18n/messages";
 
 export const siteName = "Boardgamers";
 
-export const defaultDescription =
-	"Play Gaia Project, 6nimmt, Powergrid and Container online. All games and the platform are open source!";
+// Localized (#306): resolved per call so SSR renders the request's language and
+// a client-side language switch updates the fallback description too.
+export function defaultDescription(): string {
+	return m.seo_defaultDescription();
+}
 
 // Rendered at request time by /share.webp/* (route-driven; card text comes from the db,
 // never the query string, so share images can't be abused to host arbitrary text).
@@ -101,7 +105,7 @@ function resolve(data: SeoData | undefined | null): ResolvedSeo {
 	const noindex = d.noindex ?? false;
 	return {
 		title: d.title ?? siteName,
-		description: d.description ?? defaultDescription,
+		description: d.description ?? defaultDescription(),
 		// noindex only gates the robots meta — og:image is orthogonal: a noindex page (e.g.
 		// a game page) must still unfurl its share image when linked in Discord & co.
 		image: d.image ?? defaultOgImage.path,
