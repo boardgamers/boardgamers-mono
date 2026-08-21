@@ -13,24 +13,24 @@ import type { Migration } from "./index.ts";
 // status is a pure function of the version docs, so a re-run re-stamps the same
 // values.
 //
-// Exemption: some beta-only games are PRIVATE implementations, not public betas
-// — they must not surface on the requests page (clash, a private implem, at
-// migration time). They are stamped "implemented" instead, and the exemption is
-// re-applied on every run so the list stays authoritative (an upsert re-derive
-// would otherwise flip them back to "beta"). Remove a game from the list when
-// it actually goes into public beta.
-const BETA_EXEMPT_GAMES = ["clash"];
+// Private implementations are opted out of the requests page via the
+// admin-managed `unlisted` flag (deriveGameMetaStatus pins them to
+// "implemented"): the migration seeds it for the ones known at migration time.
+const UNLISTED_GAMES = ["clash"];
 
 export const migration: Migration = {
 	async up() {
 		const gameIds = await colls.gameInfos.distinct("_id.game");
 
+		// Seed the opt-out first so the derive below pins these to "implemented".
+		const { modifiedCount: unlisted } = await colls.gameMetadatas.updateMany(
+			{ _id: { $in: UNLISTED_GAMES }, unlisted: { $ne: true } },
+			{ $set: { unlisted: true } },
+		);
+
 		let beta = 0;
 		let cleared = 0;
 		for (const game of gameIds) {
-			if (BETA_EXEMPT_GAMES.includes(game)) {
-				continue;
-			}
 			const status = await deriveGameMetaStatus(game);
 			if (status) {
 				const { modifiedCount } = await colls.gameMetadatas.updateOne({ _id: game }, { $set: { status } });
@@ -44,13 +44,8 @@ export const migration: Migration = {
 			}
 		}
 
-		const { modifiedCount: exempted } = await colls.gameMetadatas.updateMany(
-			{ _id: { $in: BETA_EXEMPT_GAMES }, status: { $ne: "implemented" } },
-			{ $set: { status: "implemented" } },
-		);
-
 		console.log(
-			`beta-game-status: stamped "beta" on ${beta} game(s), cleared the status on ${cleared} game(s), exempted ${exempted} private game(s)`,
+			`beta-game-status: stamped "beta" on ${beta} game(s), cleared the status on ${cleared} game(s), unlisted ${unlisted} private game(s)`,
 		);
 	},
 };

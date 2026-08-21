@@ -61,7 +61,8 @@ describe("migration 1.13.0 — beta game status", () => {
 		assert.strictEqual(retired!.status, "beta", "an archived public version is not a public release");
 
 		const clash = await colls.gameMetadatas.findOne({ _id: "clash" });
-		assert.strictEqual(clash!.status, "implemented", "private implementations are exempted from the requests page");
+		assert.strictEqual(clash!.status, "implemented", "private implementations are kept off the requests page");
+		assert.strictEqual(clash!.unlisted, true, "…via the unlisted opt-out flag");
 
 		const draftosaurus = await colls.gameMetadatas.findOne({ _id: "draftosaurus" });
 		assert.strictEqual(draftosaurus!.status, "requested", "version-less requests are untouched");

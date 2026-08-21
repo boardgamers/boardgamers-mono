@@ -21,18 +21,23 @@ export const REQUEST_STATUSES: readonly GameMetadataDoc["status"][] = ["requeste
 // The request-page bucket is derived, never stored piecemeal: a game is
 // "requested" while it has no version doc, "beta" while none of its versions is
 // publicly listed, and implemented (status cleared) as soon as one is. Re-stamped
-// on every version upsert so the metadata doc always matches reality — including
-// when a game goes straight to public (no beta phase) or is first uploaded under
-// a different id than the request's.
+// on every version upsert/delete so the metadata doc always matches reality —
+// including when a game goes straight to public (no beta phase) or is first
+// uploaded under a different id than the request's. Exception: `unlisted` games
+// (admin-managed opt-out, e.g. private implementations) are pinned to
+// "implemented" — they never show on the requests page.
 export async function deriveGameMetaStatus(game: string): Promise<GameMetadataDoc["status"]> {
-	const hasPublicVersion = await colls.gameInfos.findOne(
-		{ "_id.game": game, public: true, ...NOT_ARCHIVED },
-		{ projection: { _id: 1 } },
-	);
+	const [hasPublicVersion, hasAnyVersion, metadata] = await Promise.all([
+		colls.gameInfos.findOne({ "_id.game": game, public: true, ...NOT_ARCHIVED }, { projection: { _id: 1 } }),
+		colls.gameInfos.findOne({ "_id.game": game }, { projection: { _id: 1 } }),
+		colls.gameMetadatas.findOne({ _id: game }, { projection: { unlisted: 1 } }),
+	]);
+	if (metadata?.unlisted) {
+		return "implemented";
+	}
 	if (hasPublicVersion) {
 		return undefined;
 	}
-	const hasAnyVersion = await colls.gameInfos.findOne({ "_id.game": game }, { projection: { _id: 1 } });
 	return hasAnyVersion ? "beta" : "requested";
 }
 

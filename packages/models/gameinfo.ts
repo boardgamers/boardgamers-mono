@@ -60,9 +60,10 @@ export type GameInfoOption = z.output<typeof gameInfoOptionSchema>;
 // exists but is not publicly released — players can follow the beta there); once a
 // version is saved public the game is out of beta and the status is cleared (→
 // absent = implemented). The status is derived data: which bucket a game falls in
-// always follows from its version docs, re-stamped on every version upsert.
-// ("Meta" in the name to avoid clashing with the game-lifecycle `gameStatusSchema`
-// in game.ts.)
+// always follows from its version docs, re-stamped on every version upsert/delete
+// — unless the game is `unlisted` (see gameMetadataSchema), which pins it to
+// "implemented". ("Meta" in the name to avoid clashing with the game-lifecycle
+// `gameStatusSchema` in game.ts.)
 export const gameMetaStatusSchema = z.enum(["implemented", "requested", "beta"]);
 
 export type GameMetaStatus = z.output<typeof gameMetaStatusSchema>;
@@ -177,6 +178,12 @@ export const gameMetadataSchema = z.object({
 	// Whole-game requests (#340, status "requested"/"beta"): who asked for the game.
 	// Kept when the request enters beta — the requests page still attributes it.
 	requestedBy: zObjectId().optional(),
+	// Admin-managed opt-out of the requests page: a private implementation must
+	// not show up as a beta game while it has no public version. The lifecycle
+	// re-derive (version upsert/delete) pins unlisted games to "implemented" —
+	// never "beta". Auto-set when a brand-new game is created from the admin
+	// panel (no associated request), clearable from the admin game page.
+	unlisted: z.boolean().optional(),
 	// Linked NodeBB topic id (Comments & Feedback category) — stored/returned when
 	// set; the actual topic creation is wired separately.
 	forumTid: z.number().int().optional(),
@@ -199,6 +206,7 @@ export const GAME_METADATA_FIELDS = [
 	"links",
 	"players",
 	"needOwnership",
+	"unlisted",
 ] as const;
 
 // The merged document the API serves and the app passes around: a version doc plus
@@ -216,6 +224,7 @@ export const gameInfoSchema = gameVersionSchema
 			links: true,
 			players: true,
 			needOwnership: true,
+			unlisted: true,
 			likeCount: true,
 		}),
 	)

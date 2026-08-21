@@ -84,6 +84,8 @@
 				links: value.links,
 				players: value.players,
 				needOwnership: value.needOwnership,
+				// Cleared checkbox → null: the API unsets the flag (listed again).
+				unlisted: value.unlisted || null,
 			};
 			await api.put(`/admin/gameinfo/${encodeURIComponent(gameId)}/meta`, body);
 			toast.success("Metadata saved");

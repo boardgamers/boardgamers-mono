@@ -52,8 +52,8 @@
 		ondelete?: () => void;
 		onduplicate?: () => void;
 		// Game-level metadata (label/alias/description/rules/credits/links/players/
-		// needOwnership) is centrally-managed game metadata (#298). When true, those
-		// fields render read-only and are stripped from the save payload so a
+		// needOwnership/unlisted) is centrally-managed game metadata (#298). When true,
+		// those fields render read-only and are stripped from the save payload so a
 		// version-page save never mutates shared metadata.
 		metadataReadOnly?: boolean;
 		// Which group(s) to render. "all" (default) shows the Game group then the
@@ -389,8 +389,10 @@
 			value.links = Object.keys(links).length > 0 ? links : undefined;
 		}
 		// An empty alias input clears the alias; it must reach the API as null (not a
-		// dropped undefined) so the upsert's $unset removes it from the doc.
+		// dropped undefined) so the upsert's $unset removes it from the doc. Same for
+		// unlisted: unchecked means "listed" and must unset the flag.
 		value.alias = value.alias?.trim() || null;
+		value.unlisted = value.unlisted || null;
 		onsave(value);
 	}
 
@@ -497,6 +499,15 @@
 		<!-- Requires ownership (game-level: a property of the game, not the version) -->
 		<label class="flex items-center gap-2 text-sm">
 			<input type="checkbox" bind:checked={value.needOwnership} class="rounded" disabled={metadataReadOnly} /> Requires ownership
+		</label>
+
+		<!-- Unlisted (game-level): opt out of the public requests page. New games
+		     created here default to unlisted — they have no associated request, so
+		     showing them as "in beta" there would just be noise. Clear the flag when
+		     the game goes into public beta so it shows until its public release. -->
+		<label class="flex items-center gap-2 text-sm">
+			<input type="checkbox" bind:checked={value.unlisted} class="rounded" disabled={metadataReadOnly} /> Unlisted
+			<span class="text-gray-400">— private implementation: kept off the public requests page while in beta</span>
 		</label>
 
 		<!-- Links -->
