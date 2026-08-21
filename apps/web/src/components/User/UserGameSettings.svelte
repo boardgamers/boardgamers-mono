@@ -15,6 +15,7 @@
 	import { gameDisplayName } from "@/utils/game-label";
 	import { developerSettings, devGameSettings } from "@/lib/stores.svelte";
 	import { gamePreferences, useGamePreferencesFallback } from "@/lib/game-preferences.svelte";
+	import { m } from "@/lib/i18n/messages";
 
 	let {
 		title = "",
@@ -47,8 +48,8 @@
 
 		if (newVal) {
 			const res = await confirm(
-				"I certify on my honor that I own a copy of the game",
-				game.links?.buy ? { url: game.links.buy, label: "Buy a copy" } : undefined
+				m.userGameSettings_certifyOwnership(),
+				game.links?.buy ? { url: game.links.buy, label: m.userGameSettings_buyCopy() } : undefined
 			);
 
 			if (!res) {
@@ -95,7 +96,7 @@
 			<div class="grow space-y-3">
 				<div class="flex items-center gap-2 rounded-lg bg-accent/10 p-3 dark:bg-accent/20">
 					<Checkbox checked={ownership} onchange={postOwnership} class="text-base font-semibold" />
-					<span class="text-base font-semibold">I own this game</span>
+					<span class="text-base font-semibold">{m.userGameSettings_ownGame()}</span>
 					{#if game.links?.buy}
 						<a
 							href={game.links.buy}
@@ -104,7 +105,7 @@
 							class="ml-auto inline-flex items-center gap-1.5 text-sm font-semibold no-underline"
 						>
 							<IconCart />
-							Buy
+							{m.userGameSettings_buy()}
 						</a>
 					{/if}
 				</div>

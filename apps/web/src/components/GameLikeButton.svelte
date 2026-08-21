@@ -10,6 +10,7 @@
 	import { handleError } from "@/utils";
 	import { loginRedirectQuery } from "@/utils/redirect";
 	import type { UserFront } from "@bgs/models";
+	import { m } from "@/lib/i18n/messages";
 
 	let {
 		gameId,
@@ -78,7 +79,7 @@
 	class:dark:border-gray-600={!liked}
 	class:dark:text-gray-400={!liked}
 	aria-pressed={liked ? "true" : "false"}
-	title={liked ? "Unlike this game" : "Like this game"}
+	title={liked ? m.feedback_unvote() : m.feedback_vote()}
 	disabled={pending}
 	onclick={toggle}
 >

@@ -7,6 +7,7 @@
 	import { post } from "@/lib/api";
 	import Checkbox from "@/modules/cdk/Checkbox.svelte";
 	import { handleError } from "@/utils";
+	import { m } from "@/lib/i18n/messages";
 
 	useLoggedOut();
 
@@ -43,7 +44,7 @@
 
 	function handleSubmit() {
 		if (!tc) {
-			handleError("You need to read and agree to the Terms and Conditions!");
+			handleError(m.auth_termsError());
 			return;
 		}
 
@@ -55,7 +56,7 @@
 			}).catch(handleError);
 		} else {
 			if (password !== passwordConfirm) {
-				handleError("The two passwords don't match");
+				handleError(m.auth_passwordsMismatch());
 				return;
 			}
 
@@ -65,7 +66,7 @@
 </script>
 
 <div class="container mx-auto px-4">
-	<h1>Create an account</h1>
+	<h1>{m.auth_createAccount()}</h1>
 	<form
 		method="post"
 		onsubmit={(e) => {
@@ -74,87 +75,89 @@
 		}}
 	>
 		<div class="mb-3">
-			<label for="signup-username">Username</label>
+			<label for="signup-username">{m.auth_username()}</label>
 			<input
 				type="text"
 				class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
 				id="signup-username"
 				name="username"
-				placeholder="Username"
+				placeholder={m.auth_username()}
 				aria-describedby="usernameHelp"
 				bind:value={username}
 				required
 			/>
 			{#if isSocial}
 				<small id="usernameHelp" class="text-xs text-gray-500 dark:text-gray-400">
-					You are signing up with a social account. You still need to decide on a username to use on the site.
+					{m.auth_socialUsernameHelp()}
 				</small>
 			{/if}
 		</div>
 		{#if !isSocial}
 			<div class="mb-3">
-				<label for="signup-email">Email address</label>
+				<label for="signup-email">{m.auth_emailAddress()}</label>
 				<input
 					type="email"
 					class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
 					id="signup-email"
 					name="email"
-					placeholder="Email"
+					placeholder={m.common_email()}
 					aria-describedby="emailHelp"
 					bind:value={email}
 					required
 				/>
 				<small id="emailHelp" class="text-xs text-gray-500 dark:text-gray-400">
-					We will never share your email without <b>explicit</b> consent.
+					{m.auth_emailHelp()}
 				</small>
 			</div>
 			<div class="flex flex-row gap-3">
 				<div class="mb-3 flex-1">
-					<label for="signup-password">Password</label>
+					<label for="signup-password">{m.auth_password()}</label>
 					<input
 						type="password"
 						class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
 						id="signup-password"
 						name="password"
-						placeholder="Password"
+						placeholder={m.auth_password()}
 						bind:value={password}
 						required
 					/>
 				</div>
 				<div class="mb-3 flex-1">
-					<label for="signup-password-confirm">Confirm <span class="md:hidden">password</span></label>
+					<label for="signup-password-confirm"
+						>{m.auth_confirm()} <span class="md:hidden">{m.auth_password()}</span></label
+					>
 					<input
 						type="password"
 						class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
 						id="signup-password-confirm"
 						name="password-confirm"
-						placeholder="Password"
+						placeholder={m.auth_password()}
 						bind:value={passwordConfirm}
 						required
 					/>
 				</div>
 			</div>
 			<div class="mt-2">
-				<Checkbox bind:checked={newsletter}>Get newsletter, up to six emails per year.</Checkbox>
+				<Checkbox bind:checked={newsletter}>{m.auth_newsletter()}</Checkbox>
 			</div>
 		{/if}
 
 		<div class="mt-3 space-y-2">
 			<Checkbox bind:checked={tc}>
-				I have read and agree to the <a
-					href={resolve("/(app)/page/[part1]", { part1: "terms-and-conditions" })}
-					target="_blank">Terms and Conditions</a
+				{m.auth_agreeTerms()}
+				<a href={resolve("/(app)/page/[part1]", { part1: "terms-and-conditions" })} target="_blank"
+					>{m.auth_termsAndConditions()}</a
 				>.
 			</Checkbox>
 
-			<Button id="signup-button" class="ml-auto" type="submit" color="primary">Register</Button>
+			<Button id="signup-button" class="ml-auto" type="submit" color="primary">{m.auth_register()}</Button>
 		</div>
 	</form>
 
 	<hr />
 
 	<div class="mt-3 space-y-1">
-		<p>Already have an account? <a href={resolve("/(app)/login")}>Log in</a></p>
-		<p>Or head <a href={resolve("/(app)")}>home</a>.</p>
+		<p>{m.auth_haveAccount()} <a href={resolve("/(app)/login")}>{m.common_logIn()}</a></p>
+		<p>{m.auth_orGoBack()} <a href={resolve("/(app)")}>{m.auth_home()}</a>.</p>
 	</div>
 </div>

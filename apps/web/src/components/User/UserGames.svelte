@@ -5,6 +5,7 @@
 	import { page } from "$app/state";
 	import { resolve } from "$app/paths";
 	import type { UserFront } from "@bgs/models";
+	import { m } from "@/lib/i18n/messages";
 
 	let { userId }: { userId: string } = $props();
 
@@ -27,23 +28,23 @@
 	);
 </script>
 
-<Card class="mt-4 border-secondary" header="Games">
+<Card class="mt-4 border-secondary" header={m.user_games()}>
 	<!-- The CDK Row/Col responsive props are no-ops (everything collapses to `flex-1` on a
 	     single `flex-row`), which forced the page ~768px wide on mobile. A real responsive
 	     grid stacks the lists on small screens and goes 2-col on `lg`; `min-w-0` on each
 	     list lets it shrink instead of overflowing the cell. -->
 	<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 		{#if filter === "started"}
-			<GameList gameStatus="active" perPage={5} {userId} title="Active games" class="min-w-0" />
-			<GameList gameStatus="ended" perPage={5} {userId} title="Finished games" class="min-w-0" />
+			<GameList gameStatus="active" perPage={5} {userId} title={m.user_activeGames()} class="min-w-0" />
+			<GameList gameStatus="ended" perPage={5} {userId} title={m.user_finishedGames()} class="min-w-0" />
 		{:else}
-			<GameList gameStatus="open" perPage={5} {userId} title="Open games" class="min-w-0" {viewerKarma} />
+			<GameList gameStatus="open" perPage={5} {userId} title={m.user_openGames()} class="min-w-0" {viewerKarma} />
 		{/if}
 	</div>
 	{#snippet footer()}
 		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- path is resolve()d above; the rule can't trace resolve() + query-string concatenation -->
 		<a href={alternativeLink}>
-			{filter === "started" ? "Open games" : "Started games"}
+			{filter === "started" ? m.user_openGames() : m.user_startedGames()}
 		</a>
 	{/snippet}
 </Card>

@@ -18,6 +18,12 @@ declare global {
 			sidebarOpen: boolean | undefined;
 			/** Validated IANA timezone from the `tz` cookie, "UTC" when absent. */
 			timezone: string;
+			/**
+			 * Resolved UI language (#306): `lang` cookie → Accept-Language → "en"
+			 * in hooks; the root layout server load upgrades it to the logged-in
+			 * user's settings.language when present.
+			 */
+			language: import("@/lib/i18n/locales").Locale;
 		}
 
 		interface PageData {

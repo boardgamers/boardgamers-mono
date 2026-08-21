@@ -2,6 +2,7 @@
 	import marked from "marked";
 
 	import SanitizedHtml from "./SanitizedHtml.svelte";
+	import { m } from "@/lib/i18n/messages";
 
 	let { markdown, lines = 5 }: { markdown?: string; lines?: number } = $props();
 
@@ -31,6 +32,6 @@
 			expanded = !expanded;
 		}}
 	>
-		{expanded ? "Show less" : "Read more"}
+		{expanded ? m.markdown_showLess() : m.markdown_readMore()}
 	</button>
 {/if}

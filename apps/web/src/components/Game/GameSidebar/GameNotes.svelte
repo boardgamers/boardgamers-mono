@@ -4,6 +4,7 @@
 	import { debounce } from "lodash";
 	import { get, post } from "@/lib/api";
 	import { account } from "@/lib/stores.svelte";
+	import { m } from "@/lib/i18n/messages";
 
 	let showNotes = $state(browser ? localStorage.getItem("show-notes") !== "false" : true);
 
@@ -93,12 +94,12 @@
 
 <div class="mt-3">
 	<div class="flex items-baseline">
-		<h3 class="mb-0">Notes</h3>
+		<h3 class="mb-0">{m.gameSidebar_notes()}</h3>
 		<div class="ms-2" style="font-size: smaller">
 			(<button
 				class="cursor-pointer border-0 bg-transparent p-0 text-inherit"
 				style="font-weight: unset"
-				onclick={() => toggleNotes()}>{showNotes ? "hide" : "show"}</button
+				onclick={() => toggleNotes()}>{showNotes ? m.common_hide() : m.common_show()}</button
 			>)
 		</div>
 	</div>

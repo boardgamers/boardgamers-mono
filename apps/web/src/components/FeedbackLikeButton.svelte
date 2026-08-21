@@ -9,6 +9,7 @@
 	import { handleError } from "@/utils";
 	import { loginRedirectQuery } from "@/utils/redirect";
 	import type { UserFront } from "@bgs/models";
+	import { m } from "@/lib/i18n/messages";
 
 	type VoteTarget =
 		// Whole-game requests reuse the gamelike endpoints (#340).
@@ -76,7 +77,7 @@
 	class:dark:border-gray-600={!liked}
 	class:dark:text-gray-400={!liked}
 	aria-pressed={liked ? "true" : "false"}
-	title={liked ? "Remove your vote" : "Vote for this request"}
+	title={liked ? m.feedback_unvote() : m.feedback_vote()}
 	disabled={pending}
 	onclick={toggle}
 >
