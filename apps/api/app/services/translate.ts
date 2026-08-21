@@ -38,7 +38,13 @@ export interface TranslateMarkdownOptions {
 }
 
 interface ChatCompletionsResponse {
-	choices?: { message?: { content?: string } }[];
+	choices?: {
+		message?: { content?: string };
+		// OpenAI-compatible: "stop" (or "end_turn"/"tool_calls") when done,
+		// "length" (some providers: "max_tokens") when the completion was cut
+		// off by the token limit.
+		finish_reason?: string;
+	}[];
 	error?: { message?: string };
 }
 
@@ -70,9 +76,13 @@ export async function translateMarkdown({
 			body: JSON.stringify({
 				model: env.translation.model,
 				temperature: 0.2,
-				// Sized to the input: translations are roughly as long as their
-				// source (~4 chars/token); floor for tiny inputs.
-				max_tokens: Math.max(1024, Math.ceil(text.length / 2)),
+				// Input-sized estimate (translations run roughly as long as their
+				// source at ~4 chars/token, longer for FR/DE/…) PLUS a fixed
+				// allowance: reasoning models (e.g. the default gemini-2.5-flash)
+				// burn thousands of reasoning tokens before the visible answer.
+				// A too-tight budget here silently truncates the translation
+				// (finish_reason "length"), which we surface as an error below.
+				max_tokens: Math.max(4096, Math.ceil(text.length / 2) + 4096),
 				messages: [
 					{ role: "system", content: SYSTEM_PROMPT },
 					{ role: "user", content: userPrompt },
@@ -91,7 +101,13 @@ export async function translateMarkdown({
 			`Translation API error (${response.status}): ${body?.error?.message ?? "unknown error"}`,
 		);
 	}
-	const translated = body?.choices?.[0]?.message?.content;
+	const choice = body?.choices?.[0];
+	const finishReason = choice?.finish_reason;
+	if (finishReason === "length" || finishReason === "max_tokens") {
+		// Truncated mid-text — even partial content must not be saved.
+		throw new TranslationError("Translation was truncated by the model's token limit — try again or split the page");
+	}
+	const translated = choice?.message?.content;
 	if (typeof translated !== "string" || translated.trim() === "") {
 		throw new TranslationError("Translation API returned an empty completion");
 	}
