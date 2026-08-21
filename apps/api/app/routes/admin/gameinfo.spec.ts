@@ -779,7 +779,7 @@ describe("Admin gameinfo API — requested game enters beta, then leaves on publ
 		assert.strictEqual(meta?.status, "implemented", "unlisted pins the status (it never lands on the requests page)");
 	});
 
-	it("deleting a beta game's last version returns it to \"requested\"", async () => {
+	it('deleting a beta game\'s last version returns it to "requested"', async () => {
 		// requested-flip is currently beta (v1 non-public, from the tests above).
 		const res = await fetch(`${baseURL()}/api/admin/gameinfo/requested-flip/1`, { method: "DELETE", headers });
 		assert.strictEqual(res.status, 200, await res.text().catch(() => ""));
@@ -834,7 +834,7 @@ describe("Admin gameinfo API — requested game enters beta, then leaves on publ
 		assert.ok(!requests.some((r) => r._id === "pet-project"));
 	});
 
-	it("unlisted games stay pinned to \"implemented\" across version edits", async () => {
+	it('unlisted games stay pinned to "implemented" across version edits', async () => {
 		// pet-project is unlisted from the test above (v1 non-public).
 		const put = await fetch(`${baseURL()}/api/admin/gameinfo/pet-project/2`, {
 			method: "PUT",
@@ -878,7 +878,9 @@ describe("Admin gameinfo API — requested game enters beta, then leaves on publ
 			body: JSON.stringify({ unlisted: true }),
 		});
 		assert.strictEqual(off.status, 200);
-		const offBody = z.object({ unlisted: z.boolean().optional(), status: z.string().optional() }).parse(await off.json());
+		const offBody = z
+			.object({ unlisted: z.boolean().optional(), status: z.string().optional() })
+			.parse(await off.json());
 		assert.strictEqual(offBody.unlisted, true);
 		assert.strictEqual(offBody.status, "implemented");
 	});
