@@ -6,6 +6,7 @@
 	import { handleError } from "@/utils";
 	import { useLoggedOut } from "@/lib/auth-guards.svelte";
 	import { login } from "@/lib/account.svelte";
+	import { m } from "@/lib/i18n/messages";
 
 	useLoggedOut();
 
@@ -33,43 +34,43 @@
 			class="mb-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
 			role="alert"
 		>
-			Login failed: {loginError}
+			{m.auth_loginFailed({ error: loginError })}
 		</div>
 	{/if}
 	<form method="POST" use:enhance={enhanceLogin}>
 		<FormGroup>
-			<Label for="email">Email or username</Label>
+			<Label for="email">{m.auth_emailOrUsername()}</Label>
 			<input
 				bind:value={email}
 				type="text"
 				class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
 				id="email"
 				name="email"
-				placeholder="Email address or username"
+				placeholder={m.auth_emailOrUsernamePlaceholder()}
 				required
 			/>
 		</FormGroup>
 		<FormGroup>
-			<Label for="password">Password</Label>
+			<Label for="password">{m.auth_password()}</Label>
 			<input
 				type="password"
 				class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
 				id="password"
 				name="password"
-				placeholder="Password"
+				placeholder={m.auth_password()}
 				bind:value={password}
 				required
 			/>
 			<div class="mt-1 text-right">
-				<a href={resolve("/(app)/forgotten-password")}><span class="text-xs">Forgotten password ?</span></a>
+				<a href={resolve("/(app)/forgotten-password")}><span class="text-xs">{m.auth_forgottenPassword()}</span></a>
 			</div>
 		</FormGroup>
 		<div class="mt-3">
-			<Button type="submit" color="primary" class="ml-auto">Login</Button>
+			<Button type="submit" color="primary" class="ml-auto">{m.auth_login()}</Button>
 		</div>
 	</form>
 
 	<hr />
 
-	<p class="mt-3">Need an account ? <a href={resolve("/(app)/signup")}>Register</a></p>
+	<p class="mt-3">{m.auth_needAccount()} <a href={resolve("/(app)/signup")}>{m.auth_register()}</a></p>
 </div>

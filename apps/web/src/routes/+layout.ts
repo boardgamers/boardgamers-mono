@@ -14,6 +14,8 @@ import { get, setClientSessionKnown } from "@/lib/api";
 import { initNProgress } from "@/lib/nprogress.svelte";
 import { initErrorReporting } from "@/lib/report-error.svelte";
 import { initTimezoneCookie } from "@/lib/timezone";
+import { initLanguage } from "@/lib/i18n/messages";
+import { setLanguageCookie } from "@/lib/i18n/language";
 import "@/lib/theme";
 
 export const load: LayoutLoad = async ({ data }) => {
@@ -37,6 +39,17 @@ export const load: LayoutLoad = async ({ data }) => {
 	// is component-only); `data.timezone` below carries it to the client, where
 	// it equals the browser zone this cookie was just stamped from.
 	initTimezoneCookie();
+
+	// Seed the client's UI language from the SSR-resolved value (#306) BEFORE any
+	// await, so hydration renders the same language as the server HTML. When the
+	// layout resolved a user-preference override, the cookie (read by hooks) may
+	// lag behind — re-stamp it so the next SSR paint agrees, and fix <html lang>
+	// (transformed with the hooks value when they differed).
+	if (browser && data?.language) {
+		await initLanguage(data.language);
+		setLanguageCookie(data.language);
+		document.documentElement.lang = data.language;
+	}
 
 	// Public game-info list, fetched fresh per request (SSR-safe: returned, not stored).
 	// The root layout component seeds the reactive store from this on the browser, so
@@ -93,5 +106,6 @@ export const load: LayoutLoad = async ({ data }) => {
 		myBoardgames,
 		gameInfos,
 		timezone: data?.timezone ?? "UTC",
+		language: data?.language ?? "en",
 	};
 };

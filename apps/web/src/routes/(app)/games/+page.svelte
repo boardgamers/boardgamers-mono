@@ -11,6 +11,7 @@
 	import type { GamePace } from "@/utils";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
+	import { m } from "@/lib/i18n/messages";
 
 	let { data }: PageProps = $props();
 
@@ -73,26 +74,28 @@
 <div class="container mx-auto px-4">
 	<div class="flex flex-wrap items-center gap-3">
 		<Nav pills class="flex-1">
-			<h1 class="me-3">Games</h1>
-			<NavItem><NavLink href="?" onclick={() => selectTab(true)} active={firstTab}>Active</NavLink></NavItem>
+			<h1 class="me-3">{m.games_title()}</h1>
+			<NavItem><NavLink href="?" onclick={() => selectTab(true)} active={firstTab}>{m.games_active()}</NavLink></NavItem
+			>
 			<NavItem
-				><NavLink href="?status=finished" onclick={() => selectTab(false)} active={!firstTab}>Finished</NavLink
+				><NavLink href="?status=finished" onclick={() => selectTab(false)} active={!firstTab}
+					>{m.games_finished()}</NavLink
 				></NavItem
 			>
 		</Nav>
 		<div class="w-full sm:w-40">
-			<Input type="select" bind:value={pace} aria-label="Filter by game pace">
-				<option value="">All paces</option>
-				<option value="live">⚡ Live</option>
-				<option value="async">🐢 Async</option>
+			<Input type="select" bind:value={pace} aria-label={m.games_paceFilter()}>
+				<option value="">{m.games_allPaces()}</option>
+				<option value="live">{m.pace_live()}</option>
+				<option value="async">{m.pace_async()}</option>
 			</Input>
 		</div>
 		<div class="w-full sm:w-64">
 			<Input
 				type="search"
-				placeholder="Filter by game name…"
+				placeholder={m.games_searchPlaceholder()}
 				bind:value={searchInput}
-				aria-label="Filter games by name"
+				aria-label={m.games_searchAria()}
 			/>
 		</div>
 	</div>
@@ -108,7 +111,7 @@
 			<div class="mb-2">
 				<GameList
 					gameStatus="open"
-					title="Lobby"
+					title={m.games_lobby()}
 					boardgameId={data.boardgameId}
 					pace={paceFilter}
 					{search}
@@ -116,7 +119,13 @@
 				/>
 			</div>
 			<div class="mb-2">
-				<GameList gameStatus="active" title="Ongoing" boardgameId={data.boardgameId} pace={paceFilter} {search} />
+				<GameList
+					gameStatus="active"
+					title={m.games_ongoing()}
+					boardgameId={data.boardgameId}
+					pace={paceFilter}
+					{search}
+				/>
 			</div>
 		</div>
 	{:else}
@@ -128,7 +137,7 @@
 			class:hidden={animating}
 		>
 			<div class="mb-2">
-				<GameList gameStatus="ended" title="Finished" boardgameId={data.boardgameId} {search} />
+				<GameList gameStatus="ended" title={m.games_finished()} boardgameId={data.boardgameId} {search} />
 			</div>
 		</div>
 	{/if}

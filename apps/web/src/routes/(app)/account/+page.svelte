@@ -16,6 +16,7 @@
 	import UserAvatar from "@/components/User/UserAvatar.svelte";
 	import CountrySelect from "@/components/Form/CountrySelect.svelte";
 	import { logoClick, live, avatarVersion, bumpAvatarVersion } from "@/lib/stores.svelte";
+	import { m } from "@/lib/i18n/messages";
 
 	useLoggedIn();
 
@@ -71,7 +72,7 @@
 				webhookUrl = "";
 				webhookEditing = false;
 			}
-			handleSuccess("Webhook settings saved");
+			handleSuccess(m.account_webhookSaved());
 		} catch (err) {
 			handleError(err);
 		}
@@ -82,9 +83,9 @@
 		try {
 			const res = await post<{ success: boolean; error?: string }>("/account/webhook/test");
 			if (res.success) {
-				handleSuccess("✅ Test notification sent!");
+				handleSuccess(m.account_webhookTestSent());
 			} else {
-				handleError(`Test notification failed: ${res.error}`);
+				handleError(m.account_webhookTestFailed({ error: res.error ?? "" }));
 			}
 		} catch (err) {
 			handleError(err);
@@ -99,7 +100,7 @@
 			webhookUrl = "";
 			webhookConfigured = false;
 			webhookEditing = false;
-			handleSuccess("Webhook removed");
+			handleSuccess(m.account_webhookRemoved());
 		} catch (err) {
 			handleError(err);
 		}
@@ -134,7 +135,7 @@
 	];
 
 	async function acceptTC() {
-		const accepted = await confirm("The terms and conditions will be marked as accepted at today's date.");
+		const accepted = await confirm(m.account_confirmAcceptTerms());
 
 		if (!accepted) {
 			tc = false;
@@ -229,7 +230,7 @@
 
 		const resp = await apiFetch("/account/avatar", { method: "POST", body: file });
 		if (!resp.ok) {
-			handleError("Error during upload (" + resp.status + ")");
+			handleError(m.account_uploadError({ status: resp.status }));
 			return;
 		}
 		editingAvatar = false;
@@ -251,11 +252,13 @@
 				<h1>{user.account.username}</h1>
 			</div>
 			<div class="text-right">
-				<Button color="primary" href={`/user/${user.account.username}` as Pathname}>View public profile</Button>
+				<Button color="primary" href={`/user/${user.account.username}` as Pathname}
+					>{m.account_viewPublicProfile()}</Button
+				>
 			</div>
 		</div>
 
-		<Card class="mt-4 border-accent" header="Profile">
+		<Card class="mt-4 border-accent" header={m.account_profile()}>
 			{#if !editingAvatar}
 				{#key $avatarVersion}
 					<UserAvatar
@@ -270,13 +273,13 @@
 			{:else}
 				<input type="file" bind:this={fileUpload} onchange={uploadAvatar} accept="image/*" class="hidden" />
 				<div class="mb-2">
-					<Button color="primary" onclick={() => fileUpload?.click()}>Upload a custom avatar</Button>
+					<Button color="primary" onclick={() => fileUpload?.click()}>{m.account_uploadAvatar()}</Button>
 				</div>
 				<div class="flex flex-wrap items-center gap-2">
 					<div class:hidden={customAvatarError}>
 						<UserAvatar
 							userId={user._id}
-							username="Custom avatar"
+							username={m.account_customAvatar()}
 							role="button"
 							v={$avatarVersion}
 							onerror={() => (customAvatarError = true)}
@@ -290,30 +293,30 @@
 				</div>
 			{/if}
 			<FormGroup class="mt-2">
-				<label for="bio">Bio</label>
+				<label for="bio">{m.account_bio()}</label>
 				<Input
 					type="textarea"
 					id="bio"
-					placeholder="Something about yourself..."
+					placeholder={m.account_bioPlaceholder()}
 					value={bio}
 					onchange={(event) => updateBio((event.target as HTMLTextAreaElement).value)}
 				/>
 			</FormGroup>
 			<FormGroup class="mt-2">
-				<label for="country">Country</label>
+				<label for="country">{m.account_country()}</label>
 				<CountrySelect id="country" value={country} onselect={updateCountry} />
-				<span class="text-xs">Shown next to your name in rankings and on your profile.</span>
+				<span class="text-xs">{m.account_countryHelp()}</span>
 			</FormGroup>
 		</Card>
 
-		<Card class="mt-4 border-accent" header="Account">
+		<Card class="mt-4 border-accent" header={m.account_account()}>
 			<FormGroup class="mt-2">
-				<label for="email">Email</label>
+				<label for="email">{m.common_email()}</label>
 				<InputGroup>
 					<Input
 						type="email"
 						id="email"
-						placeholder="Email address"
+						placeholder={m.common_emailAddress()}
 						bind:value={email}
 						onkeyup={(e) => {
 							if (e.code === "Enter") {
@@ -326,17 +329,17 @@
 					/>
 
 					{#if !editingEmail}
-						<Button outline color="secondary" onclick={() => (editingEmail = true)}>Edit</Button>
+						<Button outline color="secondary" onclick={() => (editingEmail = true)}>{m.common_edit()}</Button>
 					{:else}
-						<Button outline color="success" onclick={saveEmail}>Save</Button>
+						<Button outline color="success" onclick={saveEmail}>{m.common_save()}</Button>
 					{/if}
 				</InputGroup>
 				<span class="text-xs"
-					>{user.security.confirmed ? "Your email is confirmed." : "Your email is not confirmed."}</span
+					>{user.security.confirmed ? m.account_emailConfirmed() : m.account_emailNotConfirmed()}</span
 				>
 			</FormGroup>
 			<p class="mb-3 flex flex-wrap items-center gap-2">
-				Connect with
+				{m.account_connectWith()}
 
 				<!-- OAuth endpoints are not app routes: off-site navigation (rel="external"). -->
 				{#each ["google", "discord", "facebook", "github", "huggingface"] as const as social (social)}
@@ -353,40 +356,42 @@
 			</p>
 			{#if !user.account.termsAndConditions}
 				<Checkbox bind:checked={tc} onchange={acceptTC} class="mb-3">
-					I agree to the <a href={resolve("/(app)/page/[part1]", { part1: "terms-and-conditions" })}
-						>Terms and Conditions</a
+					{m.account_agreeTerms()}
+					<a href={resolve("/(app)/page/[part1]", { part1: "terms-and-conditions" })}
+						>{m.account_termsAndConditions()}</a
 					> 📝
 				</Checkbox>
 			{:else}
 				<p>
-					I accepted the <a href={resolve("/(app)/page/[part1]", { part1: "terms-and-conditions" })}
-						>Terms and Conditions</a
+					{m.account_acceptedTerms()}
+					<a href={resolve("/(app)/page/[part1]", { part1: "terms-and-conditions" })}
+						>{m.account_termsAndConditions()}</a
 					>
-					on
+					{m.account_on()}
 					{niceDate(user.account.termsAndConditions)}.
 				</p>
 			{/if}
 		</Card>
 
-		<Card class="mt-4 border-accent" header="Notifications">
+		<Card class="mt-4 border-accent" header={m.account_notifications()}>
 			<p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
-				Choose how you're told when it's your turn: by email, on this device, or via a webhook.
+				{m.account_notificationsHelp()}
 			</p>
 
 			<FormGroup>
-				<Checkbox bind:checked={newsletter} onchange={updateAccount}>Newsletter</Checkbox>
-				<span class="text-xs">Occasional news about the site, at most six emails per year.</span>
+				<Checkbox bind:checked={newsletter} onchange={updateAccount}>{m.account_newsletter()}</Checkbox>
+				<span class="text-xs">{m.account_newsletterHelp()}</span>
 			</FormGroup>
 
 			<hr />
-			<p class="mb-2 text-sm font-semibold text-gray-600 dark:text-gray-300">It&rsquo;s your turn</p>
+			<p class="mb-2 text-sm font-semibold text-gray-600 dark:text-gray-300">{m.account_yourTurn()}</p>
 
 			<FormGroup>
-				<Checkbox bind:checked={gameNotification} onchange={updateAccount}>Email me</Checkbox>
+				<Checkbox bind:checked={gameNotification} onchange={updateAccount}>{m.account_emailMe()}</Checkbox>
 				{#if gameNotification}
 					<div class="ms-6 mt-1 flex items-center gap-2">
 						<label for="game-notification-delay" class="text-sm text-gray-500 dark:text-gray-400"
-							>after a delay of</label
+							>{m.account_afterDelay()}</label
 						>
 						<select
 							id="game-notification-delay"
@@ -402,30 +407,32 @@
 						</select>
 					</div>
 				{/if}
-				<span class="text-xs">An email listing your waiting games, sent after the configured delay.</span>
+				<span class="text-xs">{m.account_emailMeHelp()}</span>
 			</FormGroup>
 
 			<FormGroup>
-				<Checkbox bind:checked={notifications}>Browser notification on this device</Checkbox>
-				<span class="text-xs">A system notification from this browser, even when you're on another tab.</span>
+				<Checkbox bind:checked={notifications}>{m.account_browserNotification()}</Checkbox>
+				<span class="text-xs">{m.account_browserNotificationHelp()}</span>
 			</FormGroup>
 
 			<FormGroup>
-				<Checkbox bind:checked={soundNotification} onchange={updateAccount}>Play a sound</Checkbox>
-				<span class="text-xs">An audible cue while you have the site open.</span>
+				<Checkbox bind:checked={soundNotification} onchange={updateAccount}>{m.account_playSound()}</Checkbox>
+				<span class="text-xs">{m.account_playSoundHelp()}</span>
 			</FormGroup>
 
 			<hr />
 			<FormGroup>
-				<label for="notification-webhook">Webhook</label>
+				<label for="notification-webhook">{m.account_webhook()}</label>
 				{#if webhookConfigured && !webhookEditing}
 					<div class="flex flex-wrap items-center gap-2">
-						<span class="text-sm">A webhook is configured (format: {webhookFormat}).</span>
-						<Button size="sm" outline color="secondary" onclick={() => (webhookEditing = true)}>Change</Button>
+						<span class="text-sm">{m.account_webhookConfigured({ format: webhookFormat })}</span>
+						<Button size="sm" outline color="secondary" onclick={() => (webhookEditing = true)}
+							>{m.account_webhookChange()}</Button
+						>
 						<Button size="sm" outline color="primary" disabled={webhookTesting} onclick={testWebhook}>
-							Send test notification
+							{m.account_webhookTest()}
 						</Button>
-						<Button size="sm" outline color="danger" onclick={removeWebhook}>Remove</Button>
+						<Button size="sm" outline color="danger" onclick={removeWebhook}>{m.account_webhookRemove()}</Button>
 					</div>
 				{:else}
 					<InputGroup>
@@ -435,9 +442,9 @@
 							placeholder="https://discord.com/api/webhooks/…"
 							bind:value={webhookUrl}
 						/>
-						<Button outline color="success" disabled={!webhookUrl} onclick={saveWebhook}>Save</Button>
+						<Button outline color="success" disabled={!webhookUrl} onclick={saveWebhook}>{m.common_save()}</Button>
 						{#if webhookConfigured}
-							<Button outline color="secondary" onclick={() => (webhookEditing = false)}>Cancel</Button>
+							<Button outline color="secondary" onclick={() => (webhookEditing = false)}>{m.common_cancel()}</Button>
 						{/if}
 					</InputGroup>
 				{/if}
@@ -456,60 +463,52 @@
 							bind:checked={webhookEnabled}
 							onchange={() => webhookConfigured && !webhookEditing && saveWebhook()}
 						>
-							Enabled
+							{m.common_enabled()}
 						</Checkbox>
 						<span class="flex items-center gap-2">
-							<label for="webhook-delay" class="text-sm text-gray-500 dark:text-gray-400">Deliver</label>
+							<label for="webhook-delay" class="text-sm text-gray-500 dark:text-gray-400">{m.account_deliver()}</label>
 							<select
 								id="webhook-delay"
 								class="rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
 								bind:value={webhookDelay}
 								onchange={() => webhookConfigured && !webhookEditing && saveWebhook()}
 							>
-								<option value={0}>Immediately</option>
+								<option value={0}>{m.account_immediately()}</option>
 								{#each [60, 5 * 60, 10 * 60, 30 * 60, 2 * 3600] as seconds (seconds)}
-									<option value={seconds}>every {duration(seconds)}</option>
+									<option value={seconds}>{m.account_every({ duration: duration(seconds) })}</option>
 								{/each}
 							</select>
 						</span>
 					</div>
 				{/if}
 				{#if webhookDisabled}
-					<span class="text-xs text-warning"
-						>⚠️ This webhook was disabled after 24h of failures. Save a new URL to re-enable it.</span
-					>
+					<span class="text-xs text-warning">{m.account_webhookDisabledWarning()}</span>
 				{:else}
-					<span class="text-xs"
-						>Post a message to Discord, Slack, or your own endpoint (raw JSON) when it's your turn.</span
-					>
+					<span class="text-xs">{m.account_webhookHelp()}</span>
 				{/if}
 			</FormGroup>
 		</Card>
 
-		<Card class="mt-4 border-accent" header="Developer">
-			<Checkbox bind:checked={$developerSettings}>🔧 Enable developper settings on this device</Checkbox>
+		<Card class="mt-4 border-accent" header={m.account_developer()}>
+			<Checkbox bind:checked={$developerSettings}>{m.account_enableDevSettings()}</Checkbox>
 			{#if $developerSettings}
 				<div
 					class="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-dashed border-gray-300 p-3 dark:border-gray-600"
 				>
-					<span class="text-sm text-gray-500 dark:text-gray-400">Test notifications:</span>
-					<Button size="sm" color="primary" outline onclick={() => handleInfo("ℹ️ This is an info notification.")}
-						>Info</Button
-					>
-					<Button size="sm" color="accent" outline onclick={() => handleSuccess("✅ This is a success notification.")}
+					<span class="text-sm text-gray-500 dark:text-gray-400">{m.account_testNotifications()}</span>
+					<Button size="sm" color="primary" outline onclick={() => handleInfo(m.account_testInfo())}>Info</Button>
+					<Button size="sm" color="accent" outline onclick={() => handleSuccess(m.account_testSuccess())}
 						>Success</Button
 					>
-					<Button size="sm" color="danger" outline onclick={() => handleError("🚨 This is an error notification.")}
-						>Error</Button
-					>
+					<Button size="sm" color="danger" outline onclick={() => handleError(m.account_testError())}>Error</Button>
 					<Button
 						size="sm"
 						color="secondary"
 						outline
 						onclick={async () => {
-							const ok = await confirm("This is a test confirmation dialog. Proceed?");
-							handleInfo(ok ? "You clicked OK ✅" : "You clicked Cancel ❌");
-						}}>Confirm</Button
+							const ok = await confirm(m.account_testConfirm());
+							handleInfo(ok ? m.account_testConfirmOk() : m.account_testConfirmCancel());
+						}}>{m.auth_confirm()}</Button
 					>
 				</div>
 			{/if}

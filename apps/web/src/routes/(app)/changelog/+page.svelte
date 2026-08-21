@@ -4,6 +4,7 @@
 	import IconGithub from "@/components/icons/IconGithub.svelte";
 	import marked from "marked";
 	import type { PageProps } from "./$types";
+	import { m } from "@/lib/i18n/messages";
 
 	let { data }: PageProps = $props();
 
@@ -23,10 +24,10 @@
 </script>
 
 <div class="container mx-auto max-w-2xl px-4 py-8">
-	<h1 class="mb-6 text-2xl font-bold">Changelog</h1>
+	<h1 class="mb-6 text-2xl font-bold">{m.changelog_title()}</h1>
 
 	{#if data.entries.length === 0}
-		<p class="text-sm text-gray-500 dark:text-gray-400">Nothing here yet.</p>
+		<p class="text-sm text-gray-500 dark:text-gray-400">{m.changelog_empty()}</p>
 	{:else}
 		<ul class="space-y-6">
 			{#each data.entries as entry (entry._id)}
@@ -63,12 +64,12 @@
 			{/each}
 		</ul>
 
-		<nav class="mt-6 flex items-center justify-between" aria-label="Changelog pagination">
+		<nav class="mt-6 flex items-center justify-between" aria-label={m.changelog_pagination()}>
 			{#if data.pageNumber > 1}
 				<a
 					href={resolve("/(app)/changelog")}
 					class="text-sm font-medium text-accent hover:underline dark:text-accent-lighter"
-					data-sveltekit-preload-data="hover">← Newer entries</a
+					data-sveltekit-preload-data="hover">{m.changelog_newer()}</a
 				>
 			{:else}
 				<span></span>
@@ -80,7 +81,7 @@
 					class="text-sm font-medium text-accent hover:underline dark:text-accent-lighter"
 					data-sveltekit-preload-data="hover"
 				>
-					Older entries →
+					{m.changelog_older()}
 				</a>
 				<!-- eslint-enable svelte/no-navigation-without-resolve -->
 			{/if}

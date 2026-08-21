@@ -1,3 +1,5 @@
+import { m } from "@/lib/i18n/messages";
+
 export function timerTime(value: number): string {
 	const d = new Date();
 	const date = new Date(d.setHours(0, 0, 0, 0) - d.getTimezoneOffset() * 60000 + value * 1000);
@@ -60,25 +62,38 @@ export function niceDate(date: string | Date): string {
 	}
 }
 
+// Localized unit labels (#306): each range carries its singular/plural message
+// function so durations render in the active UI language. English + German
+// pluralize identically here (n === 1 → singular), so a two-variant helper is
+// enough — no full ICU plural machinery.
 const timeRanges = [
 	{
 		name: "second",
 		value: 1,
+		label: (count: number) => (count === 1 ? m.time_second({ count }) : m.time_second_plural({ count })),
 	},
 	{
 		name: "minute",
 		value: 60,
+		label: (count: number) => (count === 1 ? m.time_minute({ count }) : m.time_minute_plural({ count })),
 	},
 	{
 		name: "hour",
 		value: 3600,
+		label: (count: number) => (count === 1 ? m.time_hour({ count }) : m.time_hour_plural({ count })),
 	},
 	{
 		name: "day",
 		value: 24 * 3600,
+		label: (count: number) => (count === 1 ? m.time_day({ count }) : m.time_day_plural({ count })),
 	},
 ];
 
+/**
+ * @deprecated English-only pluralization — kept for legacy callers that pass a
+ * raw English noun. New code should use message functions with a count param
+ * (e.g. m.common_game / m.common_game_plural) so the label translates too.
+ */
 export function pluralize(count: number, str: string, { showCount = true } = { showCount: true }): string {
 	return showCount ? `${count} ${str}${+count >= 2 ? "s" : ""}` : `${str}${+count >= 2 ? "s" : ""}`;
 }
@@ -95,12 +110,12 @@ export function duration(seconds: number): string {
 				Math.floor((seconds - gap * Math.floor(n)) / timeRanges[i - 1].value) > 0
 			) {
 				return (
-					pluralize(Math.floor(n), timeRanges[i].name) +
+					timeRanges[i].label(Math.floor(n)) +
 					" " +
-					pluralize(Math.floor((seconds - gap * Math.floor(n)) / timeRanges[i - 1].value), timeRanges[i - 1].name)
+					timeRanges[i - 1].label(Math.floor((seconds - gap * Math.floor(n)) / timeRanges[i - 1].value))
 				);
 			}
-			return pluralize(Math.floor(n), timeRanges[i].name);
+			return timeRanges[i].label(Math.floor(n));
 		}
 	}
 
@@ -126,7 +141,7 @@ export function shortDuration(seconds: number): string | undefined {
 					timeRanges[i - 1].name[0]
 				);
 			}
-			return pluralize(Math.floor(n), timeRanges[i].name);
+			return timeRanges[i].label(Math.floor(n));
 		}
 	}
 

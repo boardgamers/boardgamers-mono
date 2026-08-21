@@ -9,6 +9,7 @@
 	import { gamePreferences, provideGamePreferences } from "@/lib/game-preferences.svelte";
 	import { gameBasedOnLabel, gameDisplayName } from "@/utils/game-label";
 	import type { PageProps } from "./$types";
+	import { m } from "@/lib/i18n/messages";
 
 	let { data }: PageProps = $props();
 
@@ -32,9 +33,9 @@
 </script>
 
 <div class="container mx-auto px-4">
-	<h1 class="mb-1">Game selection</h1>
+	<h1 class="mb-1">{m.boardgames_title()}</h1>
 	<p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
-		Missing a game? <a href={resolve("/(app)/feedback#game-requests")}>Suggest it</a>
+		{m.boardgames_missing()} <a href={resolve("/(app)/feedback#game-requests")}>{m.boardgames_suggest()}</a>
 	</p>
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 		{#each info as game (game._id.game)}
@@ -60,9 +61,9 @@
 								class:dark:text-gray-400={!owns(game._id.game)}
 							>
 								{#if owns(game._id.game)}
-									You own this game
+									{m.boardgames_own()}
 								{:else}
-									You do not own this game
+									{m.boardgames_notOwn()}
 								{/if}
 							</span>
 							{#if game.likeCount}
@@ -70,7 +71,9 @@
 									class="inline-flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400"
 									class:text-primary={game.liked}
 									class:dark:text-primary-lighter={game.liked}
-									title="{game.likeCount} like{game.likeCount === 1 ? '' : 's'}"
+									title={game.likeCount === 1
+										? m.boardgames_like({ count: game.likeCount })
+										: m.boardgames_like_plural({ count: game.likeCount })}
 								>
 									{#if game.liked}
 										<IconMeepleFill />

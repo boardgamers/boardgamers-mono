@@ -8,6 +8,7 @@
 	import GameName from "@/components/GameName.svelte";
 	import IconMeepleFill from "@/components/icons/IconMeepleFill.svelte";
 	import type { PageProps } from "./$types";
+	import { m, language } from "@/lib/i18n/messages";
 
 	let { data }: PageProps = $props();
 	let username = $derived(data.user.account.username);
@@ -29,28 +30,32 @@
 			/>
 			<h1 class="mb-2">{username}</h1>
 			<div class="mb-2">
-				☯️ <a href={resolve("/(app)/page/[part1]", { part1: "karma" })} title="karma">{data.user.account.karma}</a>
-				karma <br />
+				☯️ <a href={resolve("/(app)/page/[part1]", { part1: "karma" })} title={m.user_karma()}
+					>{data.user.account.karma}</a
+				>
+				{m.user_karma()} <br />
 				{#if data.user.account.country}
 					{countryFlag(data.user.account.country)}
 					{countryName(data.user.account.country)} <br />
 				{/if}
-				🎉 Joined us in {joinDate.toLocaleString("en", { month: "long" })}
-				{joinDate.toLocaleString("default", { year: "numeric" })}!
+				{m.user_joined({
+					month: joinDate.toLocaleString($language, { month: "long" }),
+					year: joinDate.toLocaleString("default", { year: "numeric" }),
+				})}
 			</div>
-			{#if data.user.account.bio}<p class="mt-2" title={`${data.user.account.username}'s bio`}>
+			{#if data.user.account.bio}<p class="mt-2" title={m.user_bioTitle({ username: data.user.account.username })}>
 					📝 {data.user.account.bio}
 				</p>{/if}
 			{#if data.isOwnProfile}
-				<Button color="primary" href="/account" class="mt-2">✏️ Edit profile</Button>
+				<Button color="primary" href="/account" class="mt-2">{m.user_editProfile()}</Button>
 				{#if !data.user.account.bio || !data.user.account.country}
 					<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
 						{#if !data.user.account.bio && !data.user.account.country}
-							Your profile looks empty — add a bio and your country so other players see them here.
+							{m.user_emptyProfile()}
 						{:else if !data.user.account.bio}
-							Add a bio so other players see it here.
+							{m.user_addBio()}
 						{:else}
-							Add your country so other players see the flag here.
+							{m.user_addCountry()}
 						{/if}
 					</p>
 				{/if}
@@ -60,7 +65,7 @@
 			<UserGames {userId} />
 
 			{#if likedGames.length > 0}
-				<Card class="border-gray-300 mt-4 dark:border-gray-600" header="Liked games">
+				<Card class="border-gray-300 mt-4 dark:border-gray-600" header={m.user_likedGames()}>
 					<ul class="grid grid-cols-1 gap-2 sm:grid-cols-2">
 						{#each likedGames as game (game.game)}
 							<li>
@@ -75,7 +80,9 @@
 									</span>
 									<span
 										class="flex shrink-0 items-center gap-1 text-sm text-gray-500 dark:text-gray-400"
-										title="{game.likeCount} like{game.likeCount === 1 ? '' : 's'}"
+										title={game.likeCount === 1
+											? m.user_like({ count: game.likeCount })
+											: m.user_like_plural({ count: game.likeCount })}
 									>
 										<IconMeepleFill size="0.85em" />
 										{game.likeCount}
@@ -87,14 +94,14 @@
 				</Card>
 			{/if}
 
-			<Card class="border-gray-300 mt-4 dark:border-gray-600" header="Statistics">
+			<Card class="border-gray-300 mt-4 dark:border-gray-600" header={m.user_statistics()}>
 				<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 					<div class="mb-3">
 						<UserElo gamePreferences={data.elo} />
 					</div>
 					<div>
-						<h3 class="text-lg font-semibold">Tournaments</h3>
-						<p>No Tournament info available</p>
+						<h3 class="text-lg font-semibold">{m.user_tournaments()}</h3>
+						<p>{m.user_noTournaments()}</p>
 					</div>
 				</div>
 			</Card>

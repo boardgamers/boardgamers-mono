@@ -9,6 +9,7 @@
 		updatePreference,
 		useGamePreferencesFallback,
 	} from "@/lib/game-preferences.svelte";
+	import { m } from "@/lib/i18n/messages";
 
 	let { game: gameInfo, framed = false }: { game: GameInfoFront; framed?: boolean } = $props();
 
@@ -27,7 +28,7 @@
 			? [
 					{
 						name: "alternateUI",
-						label: "Use alternate UI",
+						label: m.userGameSettings_alternateUI(),
 						type: "checkbox",
 						items: null,
 						category: null,

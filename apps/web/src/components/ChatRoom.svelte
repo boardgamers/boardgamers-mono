@@ -7,6 +7,7 @@
 	import { fly } from "svelte/transition";
 	import UserAvatar from "./User/UserAvatar.svelte";
 	import UsernameLink from "./User/UsernameLink.svelte";
+	import { m } from "@/lib/i18n/messages";
 
 	let isOpen = $state(false);
 	let toggle = () => {
@@ -155,7 +156,7 @@
 						class="max-w-[75%] rounded-2xl px-3 py-2 text-sm leading-snug whitespace-pre-wrap {sent
 							? 'rounded-br-md bg-blue-500 text-white'
 							: 'rounded-bl-md bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100'}"
-						title={"Sent at " + chatTime(message._id)}
+						title={m.chat_sentAt({ time: chatTime(message._id) })}
 					>
 						{message.data.text}
 					</div>
@@ -173,8 +174,8 @@
 		>
 			<InputGroup>
 				<!-- text-base: iOS Safari zooms the page on focus of inputs smaller than 16px -->
-				<Input type="text" bind:value={currentMessage} placeholder="Type a message…" class="text-base" />
-				<Button type="submit" color="primary">Send</Button>
+				<Input type="text" bind:value={currentMessage} placeholder={m.chat_placeholder()} class="text-base" />
+				<Button type="submit" color="primary">{m.chat_send()}</Button>
 			</InputGroup>
 		</form>
 	</ModalFooter>
