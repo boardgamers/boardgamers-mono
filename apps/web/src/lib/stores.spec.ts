@@ -14,6 +14,7 @@ import {
 	seedAccountFromSSR,
 	seedActiveGamesFromSSR,
 	seedLikedBoardgamesFromSSR,
+	setAccount,
 } from "./stores.svelte";
 
 const userA = { _id: "user-a" } as never;
@@ -52,6 +53,25 @@ describe("SSR-seeded client stores (seed once per identity)", () => {
 			seedAccountFromSSR(userA);
 			seedAccountFromSSR(userB);
 			expect(get(account)).toBe(userB);
+		});
+
+		it("a stale snapshot resolving after a direct write does not clobber it (email-confirm race)", () => {
+			// The confirm flow: setAuthData's invalidateAll() and the goto("/account")
+			// navigation race two root-layout loads. The navigation's load can capture a
+			// pre-confirm snapshot (confirmed=false) yet resolve last; without the guard
+			// stamp in setAccount it would re-seed the store over the confirmed user.
+			const unconfirmed = { _id: "user-a", security: { confirmed: false } } as never;
+			const confirmed = { _id: "user-a", security: { confirmed: true } } as never;
+			setAccount(confirmed); // direct write from the confirm response
+			seedAccountFromSSR(unconfirmed); // late-arriving stale snapshot, same identity
+			expect(get(account)).toBe(confirmed);
+		});
+
+		it("a fresh same-identity snapshot still re-seeds after a direct write", () => {
+			const confirmed = { _id: "user-a", security: { confirmed: true } } as never;
+			setAccount(confirmed);
+			seedAccountFromSSR(confirmed); // invalidateAll()'s own fresh snapshot
+			expect(get(account)).toBe(confirmed);
 		});
 	});
 
