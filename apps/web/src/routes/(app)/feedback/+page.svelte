@@ -25,8 +25,8 @@
 	// svelte-ignore state_referenced_locally
 	let siteRequests = $state<FeedbackRequestListing[]>(data.siteRequests.map((r) => ({ ...r })));
 
-	const byLikesThenOldest = (a: { likeCount?: number; createdAt?: string }, b: typeof a) =>
-		(b.likeCount ?? 0) - (a.likeCount ?? 0) || (a.createdAt ?? "").localeCompare(b.createdAt ?? "");
+	const byLikesThenNewest = (a: { likeCount?: number; createdAt?: string }, b: typeof a) =>
+		(b.likeCount ?? 0) - (a.likeCount ?? 0) || (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
 
 	const statusBadge: Record<FeedbackStatus, { color: "secondary" | "info" | "success"; label: string }> = {
 		open: { color: "secondary", label: "Open" },
@@ -53,7 +53,7 @@
 			// The create response carries the requester's ObjectId (the listing resolves
 			// it to a username) — substitute the current user's name for display.
 			created.requestedBy = user?.account.username;
-			gameRequests = [...gameRequests, created].sort(byLikesThenOldest);
+			gameRequests = [...gameRequests, created].sort(byLikesThenNewest);
 			gameLabel = gameDescription = "";
 		} catch (err) {
 			if (gameForumGate?.handle(err)) {
@@ -269,7 +269,7 @@
 					oncreated={(created) => {
 						// Same ObjectId → username substitution as the game request (see above).
 						created.requestedBy = user?.account.username;
-						siteRequests = [...siteRequests, created as FeedbackRequestListing].sort(byLikesThenOldest);
+						siteRequests = [...siteRequests, created as FeedbackRequestListing].sort(byLikesThenNewest);
 					}}
 				/>
 			</div>

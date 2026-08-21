@@ -90,6 +90,7 @@ router.post("/", loggedIn, actionRateLimit("feedback/create"), async (ctx) => {
 		likeCount: 0,
 		status: "open",
 		forumTid: topic.tid,
+		createdAt: new Date(),
 	};
 	const { insertedId } = await colls.feedbackRequests.insertOne(doc);
 
@@ -110,7 +111,7 @@ router.get("/", async (ctx) => {
 
 	const requests = await colls.feedbackRequests
 		.find(kind === "game" ? { kind, game: game! } : { kind })
-		.sort({ likeCount: -1, createdAt: 1 })
+		.sort({ likeCount: -1, createdAt: -1 })
 		.toArray();
 
 	const liked = ctx.state.user ? await likedFeedbackRequestIds(ctx.state.user._id) : new Set<string>();

@@ -29,8 +29,8 @@
 	// svelte-ignore state_referenced_locally
 	let requestList = $state<FeedbackRequestListing[]>(requests.map((r) => ({ ...r })));
 
-	const byLikesThenOldest = (a: { likeCount?: number; createdAt?: string }, b: typeof a) =>
-		(b.likeCount ?? 0) - (a.likeCount ?? 0) || (a.createdAt ?? "").localeCompare(b.createdAt ?? "");
+	const byLikesThenNewest = (a: { likeCount?: number; createdAt?: string }, b: typeof a) =>
+		(b.likeCount ?? 0) - (a.likeCount ?? 0) || (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
 
 	const statusBadge: Record<FeedbackStatus, { color: "secondary" | "info" | "success"; label: string }> = {
 		open: { color: "secondary", label: "Open" },
@@ -121,7 +121,7 @@
 			submitLabel="Submit request"
 			oncreated={(created) => {
 				created.requestedBy = user?.account.username;
-				requestList = [...requestList, created as FeedbackRequestListing].sort(byLikesThenOldest);
+				requestList = [...requestList, created as FeedbackRequestListing].sort(byLikesThenNewest);
 			}}
 		/>
 	</div>
