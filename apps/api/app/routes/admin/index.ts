@@ -35,12 +35,13 @@ const router = new Router<Application.DefaultState, Context>();
 // Each sub-router declares the permission it needs. The mount-level gate is a
 // SUBSET check — the caller must hold at least one grant satisfying the
 // permission (grantSatisfies: a full admin holds them all; a per-boardgame
-// `gameinfo:<game>` grant also satisfies gameinfo/games/users/pages, for the
-// per-game routes inside those routers). Blanket enforcement then happens
-// inside the sub-router: gameinfo/games re-check the grant against the target
-// game of every write, users blanket-gates everything but the beta-grant
-// routes, pages re-checks the page's game slug, and the other routers are
-// blanket-gated with requirePermission.
+// `gameinfo:<game>` grant also satisfies gameinfo/games/users/pages/feedback,
+// for the per-game routes inside those routers). Blanket enforcement then
+// happens inside the sub-router: gameinfo/games re-check the grant against the
+// target game of every write, users blanket-gates everything but the
+// beta-grant routes, pages re-checks the page's game slug, feedback scopes its
+// listing to the caller's games, and the other routers are blanket-gated with
+// requirePermission.
 const requireSomeGrant = (permission: AdminPermission) => {
 	return async (ctx: Context, next: Next) => {
 		const permissions = userPermissions(ctx.state.user);
@@ -52,7 +53,10 @@ const requireSomeGrant = (permission: AdminPermission) => {
 };
 
 router.use("/changelog", requirePermission("changelog"), changelogRouter.routes(), changelogRouter.allowedMethods());
-router.use("/feedback", requirePermission("feedback"), feedbackRouter.routes(), feedbackRouter.allowedMethods());
+// /feedback gets the subset gate: a per-boardgame admin (gameinfo:<game>)
+// triages their game's feedback requests — the listing inside is scoped to
+// the caller's granted games.
+router.use("/feedback", requireSomeGrant("feedback"), feedbackRouter.routes(), feedbackRouter.allowedMethods());
 router.use("/gameinfo", requireSomeGrant("gameinfo"), gameInfo.routes(), gameInfo.allowedMethods());
 router.use("/games", requireSomeGrant("games"), gamesRouter.routes(), gamesRouter.allowedMethods());
 router.use("/loki", requirePermission("loki"), loki.routes(), loki.allowedMethods());

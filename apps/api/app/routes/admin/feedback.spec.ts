@@ -60,12 +60,18 @@ describe("Admin feedback listing API", () => {
 	let fullAdmin: Awaited<ReturnType<typeof insertUserWithAuth>>;
 	let feedbackAdmin: Awaited<ReturnType<typeof insertUserWithAuth>>;
 	let usersAdmin: Awaited<ReturnType<typeof insertUserWithAuth>>;
+	let gameAdmin: Awaited<ReturnType<typeof insertUserWithAuth>>;
+	let multiGameAdmin: Awaited<ReturnType<typeof insertUserWithAuth>>;
 	let requester: Awaited<ReturnType<typeof insertUserWithAuth>>;
 
 	before(async () => {
 		fullAdmin = await insertUserWithAuth("full", { authority: "admin" });
 		feedbackAdmin = await insertUserWithAuth("scoped", { adminGrants: ["feedback"] });
 		usersAdmin = await insertUserWithAuth("users", { adminGrants: ["users"] });
+		gameAdmin = await insertUserWithAuth("game", { adminGrants: ["gameinfo:fbadmingame"] });
+		multiGameAdmin = await insertUserWithAuth("multi", {
+			adminGrants: ["gameinfo:fbadmingame", "gameinfo:fbothergame"],
+		});
 		requester = await insertUserWithAuth("requester");
 
 		await colls.feedbackRequests.insertMany([
@@ -99,6 +105,14 @@ describe("Admin feedback listing API", () => {
 				title: "Admin list game legacy",
 				requestedBy: requester.userId,
 			},
+			{
+				kind: "game",
+				game: "fbothergame",
+				title: "Admin list other game open",
+				requestedBy: requester.userId,
+				likeCount: 1,
+				status: "open",
+			},
 			// Order fixtures: same likeCount as "Admin list site open" (5) but newer —
 			// ties break newest-first.
 			{
@@ -122,11 +136,13 @@ describe("Admin feedback listing API", () => {
 
 	after(() => db().dropDatabase());
 
-	it("requires the feedback permission", async () => {
+	it("requires the feedback permission or a per-game grant", async () => {
 		assert.strictEqual((await api("GET", "/api/admin/feedback")).status, 403);
 		assert.strictEqual((await api("GET", "/api/admin/feedback", requester.authHeaders)).status, 403);
 		// A scoped admin holding another permission doesn't pass.
 		assert.strictEqual((await api("GET", "/api/admin/feedback", usersAdmin.authHeaders)).status, 403);
+		// A per-boardgame admin does pass (their listing is scoped — tested below).
+		assert.strictEqual((await api("GET", "/api/admin/feedback", gameAdmin.authHeaders)).status, 200);
 	});
 
 	it("lists all kinds and games in one call, for scoped and full admins", async () => {
@@ -145,6 +161,7 @@ describe("Admin feedback listing API", () => {
 					"Admin list site open",
 					"Admin list game planned",
 					"Admin list site done",
+					"Admin list other game open",
 					"Admin list game legacy",
 				],
 			);
@@ -156,6 +173,7 @@ describe("Admin feedback listing API", () => {
 					["site", "open"],
 					["game", "planned"],
 					["site", "done"],
+					["game", "open"],
 					["game", "open"], // legacy doc without a status field
 				],
 			);
@@ -181,6 +199,7 @@ describe("Admin feedback listing API", () => {
 				["Admin list site open", 5],
 				["Admin list game planned", 3],
 				["Admin list site done", 2],
+				["Admin list other game open", 1],
 				["Admin list game legacy", 0],
 			],
 		);
@@ -206,6 +225,7 @@ describe("Admin feedback listing API", () => {
 			"Admin list tie newest",
 			"Admin list tie oldest",
 			"Admin list site open",
+			"Admin list other game open",
 			"Admin list game legacy",
 		]);
 		assert.deepStrictEqual(titles((await api("GET", "/api/admin/feedback?status=planned", headers)).data), [
@@ -220,6 +240,71 @@ describe("Admin feedback listing API", () => {
 	it("rejects invalid filter values", async () => {
 		assert.strictEqual((await api("GET", "/api/admin/feedback?kind=nope", feedbackAdmin.authHeaders)).status, 400);
 		assert.strictEqual((await api("GET", "/api/admin/feedback?status=nope", feedbackAdmin.authHeaders)).status, 400);
+	});
+
+	it("scopes a per-game admin's listing to their granted games", async () => {
+		const titles = (data: unknown) =>
+			z
+				.array(feedbackItem)
+				.parse(data)
+				.filter((r) => r.title.startsWith("Admin list"))
+				.map((r) => r.title);
+
+		// Only their game's requests — site feedback and other games' are excluded.
+		assert.deepStrictEqual(titles((await api("GET", "/api/admin/feedback", gameAdmin.authHeaders)).data), [
+			"Admin list game planned",
+			"Admin list game legacy",
+		]);
+		// A multi-game admin sees exactly their games' requests.
+		assert.deepStrictEqual(titles((await api("GET", "/api/admin/feedback", multiGameAdmin.authHeaders)).data), [
+			"Admin list game planned",
+			"Admin list other game open",
+			"Admin list game legacy",
+		]);
+		// A game filter inside their scope still applies; outside it matches nothing.
+		assert.deepStrictEqual(
+			titles((await api("GET", "/api/admin/feedback?game=fbadmingame", gameAdmin.authHeaders)).data),
+			["Admin list game planned", "Admin list game legacy"],
+		);
+		assert.deepStrictEqual(
+			titles((await api("GET", "/api/admin/feedback?game=fbothergame", gameAdmin.authHeaders)).data),
+			[],
+		);
+		// kind=site can never match anything for a per-game admin.
+		assert.deepStrictEqual(titles((await api("GET", "/api/admin/feedback?kind=site", gameAdmin.authHeaders)).data), []);
+	});
+
+	it("lets a per-game admin triage their own game's requests only", async () => {
+		const own = await colls.feedbackRequests.findOne({ title: "Admin list game legacy" });
+		const res = await api("PATCH", `/api/feedback/${own!._id.toHexString()}/status`, gameAdmin.authHeaders, {
+			status: "planned",
+		});
+		assert.strictEqual(res.status, 200);
+		assert.strictEqual(feedbackItem.parse(res.data).status, "planned");
+		assert.strictEqual((await colls.feedbackRequests.findOne({ _id: own!._id }))?.status, "planned");
+
+		// Another game's request and site feedback are out of scope.
+		const otherGame = await colls.feedbackRequests.findOne({ title: "Admin list other game open" });
+		assert.strictEqual(
+			(
+				await api("PATCH", `/api/feedback/${otherGame!._id.toHexString()}/status`, gameAdmin.authHeaders, {
+					status: "done",
+				})
+			).status,
+			403,
+		);
+		const site = await colls.feedbackRequests.findOne({ title: "Admin list site open" });
+		assert.strictEqual(
+			(
+				await api("PATCH", `/api/feedback/${site!._id.toHexString()}/status`, gameAdmin.authHeaders, {
+					status: "done",
+				})
+			).status,
+			403,
+		);
+		// Neither was modified.
+		assert.strictEqual((await colls.feedbackRequests.findOne({ _id: otherGame!._id }))?.status, "open");
+		assert.strictEqual((await colls.feedbackRequests.findOne({ _id: site!._id }))?.status, "open");
 	});
 
 	it("a scoped feedback admin can change a request's status", async () => {
