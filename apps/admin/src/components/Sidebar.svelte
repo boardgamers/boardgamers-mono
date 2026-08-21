@@ -112,6 +112,16 @@
 			>
 				Feedback
 			</a>
+			<a
+				href={resolve("/game-requests")}
+				class="pl-6 pr-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 {isActive(
+					'/game-requests'
+				)
+					? 'bg-gray-100 dark:bg-gray-800 font-semibold'
+					: ''}"
+			>
+				Game requests
+			</a>
 		{/if}
 		{#if can(data.me, "newsletter")}
 			<a
