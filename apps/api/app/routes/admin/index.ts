@@ -22,6 +22,7 @@ import { z } from "zod";
 import { grantSatisfies, isGameAdminGrant, userPermissions, type AdminPermission } from "@bgs/models";
 import { requirePermission } from "../utils.ts";
 import changelogRouter from "./changelog.ts";
+import feedbackRouter from "./feedback.ts";
 import gameInfo from "./gameinfo.ts";
 import gamesRouter from "./games.ts";
 import loki from "./loki.ts";
@@ -51,6 +52,7 @@ const requireSomeGrant = (permission: AdminPermission) => {
 };
 
 router.use("/changelog", requirePermission("changelog"), changelogRouter.routes(), changelogRouter.allowedMethods());
+router.use("/feedback", requirePermission("feedback"), feedbackRouter.routes(), feedbackRouter.allowedMethods());
 router.use("/gameinfo", requireSomeGrant("gameinfo"), gameInfo.routes(), gameInfo.allowedMethods());
 router.use("/games", requireSomeGrant("games"), gamesRouter.routes(), gamesRouter.allowedMethods());
 router.use("/loki", requirePermission("loki"), loki.routes(), loki.allowedMethods());

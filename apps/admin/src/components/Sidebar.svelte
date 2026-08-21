@@ -133,6 +133,16 @@
 				Changelog
 			</a>
 		{/if}
+		{#if can(data.me, "feedback")}
+			<a
+				href={resolve("/feedback")}
+				class="px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive('/feedback')
+					? 'bg-gray-100 dark:bg-gray-800 font-semibold'
+					: ''}"
+			>
+				Feedback
+			</a>
+		{/if}
 
 		{#if data.games.length > 0 || can(data.me, "gameinfo")}
 			<div class="mt-4">
