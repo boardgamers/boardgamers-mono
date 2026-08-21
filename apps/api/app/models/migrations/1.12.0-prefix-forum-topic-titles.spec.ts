@@ -8,7 +8,7 @@ import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { migration } from "./1.12.0-prefix-forum-topic-titles.ts";
 
-type Call = { method: string; path: string; body?: Record<string, unknown> };
+type Call = { method: string; path: string; queryUid?: string; body?: Record<string, unknown> };
 
 describe("migration 1.12.0 — prefix existing forum topic titles & tags", () => {
 	let savedToken: string | undefined;
@@ -35,7 +35,7 @@ describe("migration 1.12.0 — prefix existing forum topic titles & tags", () =>
 			const body = (typeof init?.body === "string" ? JSON.parse(init.body) : undefined) as
 				| Record<string, unknown>
 				| undefined;
-			calls.push({ method, path: url.pathname, body });
+			calls.push({ method, path: url.pathname, queryUid: url.searchParams.get("_uid") ?? undefined, body });
 
 			const topicMatch = /^\/api\/v3\/topics\/(\d+)$/.exec(url.pathname);
 			const tagsMatch = /^\/api\/v3\/topics\/(\d+)\/tags$/.exec(url.pathname);
@@ -152,19 +152,19 @@ describe("migration 1.12.0 — prefix existing forum topic titles & tags", () =>
 		// Site feedback: retitled via a main-post edit (content re-sent unchanged), then tagged.
 		assert.strictEqual(topics.get(101)!.title, "[Site feedback] Add dark mode");
 		const postEdit101 = calls.find((c) => c.method === "PUT" && c.path === "/api/v3/posts/1001");
-		assert.deepStrictEqual(postEdit101?.body, { content: "body 101", title: "[Site feedback] Add dark mode" });
+		assert.deepStrictEqual(postEdit101?.body, { content: "body 101", title: "[Site feedback] Add dark mode", _uid: 1 });
 		const tags101 = calls.find((c) => c.method === "PUT" && c.path === "/api/v3/topics/101/tags");
-		assert.deepStrictEqual(tags101?.body, { tags: ["site-feedback"] });
+		assert.deepStrictEqual(tags101?.body, { tags: ["site-feedback"], _uid: 1 });
 
 		// Game-specific feedback: prefix is the game's label, tag is the slug.
 		assert.strictEqual(topics.get(102)!.title, "[Some Game] New maps");
 		const tags102 = calls.find((c) => c.method === "PUT" && c.path === "/api/v3/topics/102/tags");
-		assert.deepStrictEqual(tags102?.body, { tags: ["somegame"] });
+		assert.deepStrictEqual(tags102?.body, { tags: ["somegame"], _uid: 1 });
 
 		// Whole-game request.
 		assert.strictEqual(topics.get(105)!.title, "[Game request] Wanted Game");
 		const tags105 = calls.find((c) => c.method === "PUT" && c.path === "/api/v3/topics/105/tags");
-		assert.deepStrictEqual(tags105?.body, { tags: ["game-request"] });
+		assert.deepStrictEqual(tags105?.body, { tags: ["game-request"], _uid: 1 });
 
 		// Already-prefixed topic: read but never written to.
 		assert.strictEqual(topics.get(103)!.title, "[Site feedback] Already prefixed");
@@ -176,6 +176,21 @@ describe("migration 1.12.0 — prefix existing forum topic titles & tags", () =>
 
 		// Deleted topic: logged & skipped, did not abort the migration (105 was still done).
 		assert.ok(!calls.some((c) => c.method === "PUT" && c.path.startsWith("/api/v3/topics/104")));
+	});
+
+	it("acts as the forum admin uid on every call (master token requires _uid)", async () => {
+		await seedRequests();
+
+		await migration.up();
+
+		assert.ok(calls.length > 0);
+		for (const call of calls) {
+			if (call.method === "GET") {
+				assert.strictEqual(call.queryUid, "1", `GET ${call.path} carries ?_uid=1`);
+			} else {
+				assert.strictEqual(call.body?._uid, 1, `${call.method} ${call.path} carries _uid: 1 in the body`);
+			}
+		}
 	});
 
 	it("is idempotent: a re-run only reads, never writes", async () => {

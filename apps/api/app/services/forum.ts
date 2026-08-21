@@ -35,17 +35,28 @@ export interface FeedbackTopic {
 	url: string;
 }
 
-/** Bearer-token JSON call against the NodeBB Write API. Returns null on any failure. */
+/**
+ * Bearer-token JSON call against the NodeBB Write API. Returns null on any failure.
+ *
+ * The token is a *master* token (uid 0): NodeBB rejects every call — reads
+ * included — that doesn't say which user to act as
+ * (`[[error:api.master-token-no-uid]]`, src/middleware/user.js). Callers pass
+ * the acting `uid`: writes send it as `_uid` in the JSON body; GETs have no
+ * body, so it is appended as a `?_uid=` query parameter instead (the
+ * middleware accepts either).
+ */
 async function forumFetch(
 	method: "GET" | "POST" | "PUT",
 	path: string,
 	payload?: Record<string, unknown>,
+	uid?: number,
 ): Promise<unknown> {
 	if (!env.forumWriteToken) {
 		return null;
 	}
 	try {
-		const res = await fetch(`${env.forumUrl}${path}`, {
+		const url = `${env.forumUrl}${path}${uid !== undefined ? `${path.includes("?") ? "&" : "?"}_uid=${uid}` : ""}`;
+		const res = await fetch(url, {
 			method,
 			headers: {
 				"content-type": "application/json",
@@ -83,7 +94,7 @@ export interface ForumTopicInfo {
 
 /** Read a topic (title, main post id, tags) via the Write API; null when unreachable/deleted. */
 export async function getForumTopic(tid: number): Promise<ForumTopicInfo | null> {
-	const payload = writeApiResponse(await forumFetch("GET", `/api/v3/topics/${tid}`));
+	const payload = writeApiResponse(await forumFetch("GET", `/api/v3/topics/${tid}`, undefined, env.forumWriteUid));
 	if (typeof payload?.title !== "string" || typeof payload.mainPid !== "number") {
 		return null;
 	}
@@ -108,7 +119,8 @@ export async function editForumTopic(input: {
 	title: string;
 	tags: string[];
 }): Promise<boolean> {
-	const post = writeApiResponse(await forumFetch("GET", `/api/v3/posts/${input.mainPid}`));
+	const uid = env.forumWriteUid;
+	const post = writeApiResponse(await forumFetch("GET", `/api/v3/posts/${input.mainPid}`, undefined, uid));
 	if (typeof post?.content !== "string") {
 		console.warn(`[forum] could not read main post ${input.mainPid} of topic ${input.tid}`);
 		return false;
@@ -116,11 +128,16 @@ export async function editForumTopic(input: {
 	const edited = await forumFetch("PUT", `/api/v3/posts/${input.mainPid}`, {
 		content: post.content,
 		title: input.title,
+		_uid: uid,
 	});
 	if (edited === null) {
 		return false;
 	}
-	return (await forumFetch("PUT", `/api/v3/topics/${input.tid}/tags`, { tags: input.tags })) !== null;
+	// Replace the topic's tags: `PUT /api/v3/topics/:tid/tags` takes an array of
+	// strings (write-api updateTags → Topics.updateTopicTags: delete + re-add).
+	// Unknown tags are created on the fly — they only need to pass cleanUpTag
+	// (trim/lowercase, strip [,/#!$^*;:{}=_`<>'"~()?|], 3+ chars).
+	return (await forumFetch("PUT", `/api/v3/topics/${input.tid}/tags`, { tags: input.tags, _uid: uid })) !== null;
 }
 
 /**
@@ -172,9 +189,9 @@ export async function forumUidForUser(userId: ObjectId): Promise<number | null> 
  * forum topic exists, so there is no topic-less fallback.
  *
  * When `forumUid` is set, the topic is posted AS that user via the Write API's
- * `_uid` impersonation (the server token must be allowed to impersonate). When
- * absent, the topic is posted by the token's own (bot) account with a
- * "Requested by <username>" attribution line.
+ * `_uid` impersonation. When absent, it is posted as the configured system uid
+ * (`env.forumWriteUid`) — the token is a master token, so some `_uid` is always
+ * required — with a "Requested by <username>" attribution line.
  */
 export async function createFeedbackTopic(input: {
 	title: string;
@@ -191,12 +208,16 @@ export async function createFeedbackTopic(input: {
 		`Requested by [${input.username}](https://${env.site}/user/${encodeURIComponent(input.username)}) on [boardgamers.space](${input.requestUrl}).`,
 	];
 
+	// `tags` is an array of strings — Topics.post stores `tags.join(',')` on the
+	// topic and createTags registers each one; unknown tags are created on the
+	// fly. `_uid` is the requester's forum uid when linked (posted AS them),
+	// otherwise the configured system uid.
 	const data = await forumFetch("POST", "/api/v3/topics", {
 		cid: FEEDBACK_CATEGORY_ID,
 		title,
 		content: lines.join("\n\n"),
 		...(input.tags?.length ? { tags: input.tags } : {}),
-		...(input.forumUid ? { _uid: input.forumUid } : {}),
+		_uid: input.forumUid ?? env.forumWriteUid,
 	});
 	if (data === null) {
 		console.warn(`[forum] topic creation for "${title}" failed`);

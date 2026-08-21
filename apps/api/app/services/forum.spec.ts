@@ -205,6 +205,23 @@ describe("Forum topics on feedback/game requests (#340)", () => {
 		assert.strictEqual(doc?.forumTid, 1234);
 	});
 
+	it("falls back to the system write uid when the caller passes no forum uid", async () => {
+		const { createFeedbackTopic } = await import("./forum.ts");
+
+		const topic = await createFeedbackTopic({
+			title: "Direct service call",
+			tag: "Site feedback",
+			tags: ["site-feedback"],
+			requestUrl: "https://boardgamers.space/feedback",
+			username: "someone",
+		});
+
+		assert.strictEqual(topic?.tid, 42);
+		assert.strictEqual(forumCalls.length, 1);
+		assert.strictEqual(forumCalls[0]._uid, 1, "a master token is rejected without any _uid");
+		assert.deepStrictEqual(forumCalls[0].tags, ["site-feedback"]);
+	});
+
 	it("creates a forum topic when a game request is created, storing forumTid", async () => {
 		forumBehavior = { kind: "ok", tid: 555 };
 		const res = await api(
