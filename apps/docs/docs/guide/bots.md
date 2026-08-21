@@ -54,7 +54,8 @@ To host bot players, your engine must:
   single move per call is all that's needed — and important, because the normal after-move flow (logs, clocks,
   notifications) runs between calls.
 - **Return saveable data.** The result goes through [`toSave`](./engine-api.md#tosave) like any move; if `toSave`
-  declines to store it, the driver gives up (the game stays put, bot stuck).
+  declines to store it, the driver gives up (the game stays put, bot stuck). A bot move must therefore always
+  complete a full turn — a partial, non-saveable result is an error, not a dry run.
 - Keep it simple: reusing the auto-play logic from `dropPlayer` is a good starting point, and a random legal move
   is fine. Bots are deliberately **dumb** — they exist for testing the UI solo and filling seats, not for a
   challenge. See [issue #251](https://github.com/boardgamers/boardgamers-mono/issues/251) for real AI opponents.
