@@ -14,9 +14,113 @@ const FEEDBACK_CATEGORY_ID = 4;
 // A slow forum must not hold up request creation — fail safe past this.
 const FORUM_TIMEOUT_MS = 4000;
 
+// NodeBB's `maximumTitleLength` default — keep the composed title (tag prefix
+// included) under it.
+const MAX_TOPIC_TITLE_LENGTH = 255;
+
+/**
+ * Compose the forum topic title: a bracketed kind tag (`[Site feedback]`,
+ * `[<game label>]`, `[Game request]`) so the forum topic list is scannable at
+ * a glance, then the request's own title, truncated to stay under NodeBB's
+ * title limit. Forum-only — the stored request title never gets the prefix.
+ */
+export function composeTopicTitle(tag: string, title: string): string {
+	const prefix = `[${tag}] `;
+	const room = MAX_TOPIC_TITLE_LENGTH - prefix.length;
+	return prefix + (title.length > room ? title.slice(0, room) : title);
+}
+
 export interface FeedbackTopic {
 	tid: number;
 	url: string;
+}
+
+/** Bearer-token JSON call against the NodeBB Write API. Returns null on any failure. */
+async function forumFetch(
+	method: "GET" | "POST" | "PUT",
+	path: string,
+	payload?: Record<string, unknown>,
+): Promise<unknown> {
+	if (!env.forumWriteToken) {
+		return null;
+	}
+	try {
+		const res = await fetch(`${env.forumUrl}${path}`, {
+			method,
+			headers: {
+				"content-type": "application/json",
+				authorization: `Bearer ${env.forumWriteToken}`,
+			},
+			...(payload ? { body: JSON.stringify(payload) } : {}),
+			signal: AbortSignal.timeout(FORUM_TIMEOUT_MS),
+		});
+		if (!res.ok) {
+			console.warn(`[forum] ${method} ${path} failed: HTTP ${res.status}`);
+			return null;
+		}
+		return await res.json();
+	} catch (err) {
+		console.warn(`[forum] ${method} ${path} failed:`, err instanceof Error ? err.message : err);
+		return null;
+	}
+}
+
+function writeApiResponse(data: unknown): Record<string, unknown> | null {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- NodeBB write-API response shape
+	const payload = (data as { response?: unknown })?.response;
+	if (typeof payload !== "object" || payload === null) {
+		return null;
+	}
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- NodeBB write-API response shape
+	return payload as Record<string, unknown>;
+}
+
+export interface ForumTopicInfo {
+	title: string;
+	mainPid: number;
+	tags: string[];
+}
+
+/** Read a topic (title, main post id, tags) via the Write API; null when unreachable/deleted. */
+export async function getForumTopic(tid: number): Promise<ForumTopicInfo | null> {
+	const payload = writeApiResponse(await forumFetch("GET", `/api/v3/topics/${tid}`));
+	if (typeof payload?.title !== "string" || typeof payload.mainPid !== "number") {
+		return null;
+	}
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- NodeBB write-API response shape
+	const tags = Array.isArray(payload.tags) ? (payload.tags as { value?: unknown }[]) : [];
+	return {
+		title: payload.title,
+		mainPid: payload.mainPid,
+		tags: tags.map((t) => t?.value).filter((v): v is string => typeof v === "string"),
+	};
+}
+
+/**
+ * Retitle a topic by editing its main post (the Write API accepts `title` on
+ * main posts only) and replace its tags. The post content is re-sent
+ * unchanged — the write API requires it and the API re-render would no-op.
+ * Fail-safe: returns false (and logs) on any failure.
+ */
+export async function editForumTopic(input: {
+	tid: number;
+	mainPid: number;
+	title: string;
+	tags: string[];
+}): Promise<boolean> {
+	const post = writeApiResponse(await forumFetch("GET", `/api/v3/posts/${input.mainPid}`));
+	if (typeof post?.content !== "string") {
+		console.warn(`[forum] could not read main post ${input.mainPid} of topic ${input.tid}`);
+		return false;
+	}
+	const edited = await forumFetch("PUT", `/api/v3/posts/${input.mainPid}`, {
+		content: post.content,
+		title: input.title,
+	});
+	if (edited === null) {
+		return false;
+	}
+	return (await forumFetch("PUT", `/api/v3/topics/${input.tid}/tags`, { tags: input.tags })) !== null;
 }
 
 /**
@@ -74,50 +178,35 @@ export async function forumUidForUser(userId: ObjectId): Promise<number | null> 
  */
 export async function createFeedbackTopic(input: {
 	title: string;
+	tag: string;
+	tags?: string[];
 	body?: string;
 	requestUrl: string;
 	username: string;
 	forumUid?: number;
 }): Promise<FeedbackTopic | null> {
-	if (!env.forumWriteToken) {
-		return null;
-	}
-
+	const title = composeTopicTitle(input.tag, input.title);
 	const lines = [
 		...(input.body ? [input.body, ""] : []),
 		`Requested by [${input.username}](https://${env.site}/user/${encodeURIComponent(input.username)}) on [boardgamers.space](${input.requestUrl}).`,
 	];
 
-	try {
-		const res = await fetch(`${env.forumUrl}/api/v3/topics`, {
-			method: "POST",
-			headers: {
-				"content-type": "application/json",
-				authorization: `Bearer ${env.forumWriteToken}`,
-			},
-			body: JSON.stringify({
-				cid: FEEDBACK_CATEGORY_ID,
-				title: input.title,
-				content: lines.join("\n\n"),
-				...(input.forumUid ? { _uid: input.forumUid } : {}),
-			}),
-			signal: AbortSignal.timeout(FORUM_TIMEOUT_MS),
-		});
-		if (!res.ok) {
-			console.warn(`[forum] topic creation for "${input.title}" failed: HTTP ${res.status}`);
-			return null;
-		}
-		const data: unknown = await res.json();
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- NodeBB write-API response shape
-		const payload = (data as { response?: { tid?: unknown; slug?: unknown } })?.response;
-		if (typeof payload?.tid !== "number") {
-			console.warn(`[forum] topic creation for "${input.title}" returned no tid`);
-			return null;
-		}
-		const slug = typeof payload.slug === "string" ? payload.slug : `topic/${payload.tid}`;
-		return { tid: payload.tid, url: `${env.forumUrl}/${slug}` };
-	} catch (err) {
-		console.warn(`[forum] topic creation for "${input.title}" failed:`, err instanceof Error ? err.message : err);
+	const data = await forumFetch("POST", "/api/v3/topics", {
+		cid: FEEDBACK_CATEGORY_ID,
+		title,
+		content: lines.join("\n\n"),
+		...(input.tags?.length ? { tags: input.tags } : {}),
+		...(input.forumUid ? { _uid: input.forumUid } : {}),
+	});
+	if (data === null) {
+		console.warn(`[forum] topic creation for "${title}" failed`);
 		return null;
 	}
+	const payload = writeApiResponse(data);
+	if (typeof payload?.tid !== "number") {
+		console.warn(`[forum] topic creation for "${title}" returned no tid`);
+		return null;
+	}
+	const slug = typeof payload.slug === "string" ? payload.slug : `topic/${payload.tid}`;
+	return { tid: payload.tid, url: `${env.forumUrl}/${slug}` };
 }

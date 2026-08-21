@@ -59,7 +59,14 @@ type ForumBehavior =
 	| { kind: "notid" };
 
 let forumBehavior: ForumBehavior = { kind: "ok", tid: 42 };
-let forumCalls: { cid: number; title: string; content: string; authorization?: string; _uid?: number }[] = [];
+let forumCalls: {
+	cid: number;
+	title: string;
+	content: string;
+	tags?: string[];
+	authorization?: string;
+	_uid?: number;
+}[] = [];
 
 const realFetch = globalThis.fetch;
 
@@ -120,6 +127,7 @@ describe("Forum topics on feedback/game requests (#340)", () => {
 					cid: number;
 					title: string;
 					content: string;
+					tags?: string[];
 					_uid?: number;
 				};
 				const headers = new Headers(init?.headers);
@@ -127,6 +135,7 @@ describe("Forum topics on feedback/game requests (#340)", () => {
 					cid: parsed.cid,
 					title: parsed.title,
 					content: parsed.content,
+					tags: parsed.tags,
 					authorization: headers.get("authorization") ?? undefined,
 					_uid: parsed._uid,
 				});
@@ -180,10 +189,11 @@ describe("Forum topics on feedback/game requests (#340)", () => {
 		assert.strictEqual(created.forumTid, 1234);
 
 		// The topic was posted to the Comments & Feedback category, AS the user
-		// (_uid impersonation), with both links.
+		// (_uid impersonation), with both links, a kind prefix and a forum tag.
 		assert.strictEqual(forumCalls.length, 1);
 		assert.strictEqual(forumCalls[0].cid, 4);
-		assert.strictEqual(forumCalls[0].title, "Forum topic site request");
+		assert.strictEqual(forumCalls[0].title, "[Site feedback] Forum topic site request");
+		assert.deepStrictEqual(forumCalls[0].tags, ["site-feedback"]);
 		assert.strictEqual(forumCalls[0]._uid, 11, "feedback topics are posted as the requester");
 		assert.ok(forumCalls[0].content.includes("Please add this feature"));
 		assert.ok(forumCalls[0].content.includes("forumuseralice"));
@@ -209,7 +219,8 @@ describe("Forum topics on feedback/game requests (#340)", () => {
 		assert.strictEqual(created.forumTid, 555);
 
 		assert.strictEqual(forumCalls.length, 1);
-		assert.strictEqual(forumCalls[0].title, "Forum Topic Game");
+		assert.strictEqual(forumCalls[0].title, "[Game request] Forum Topic Game");
+		assert.deepStrictEqual(forumCalls[0].tags, ["game-request"]);
 		assert.strictEqual(forumCalls[0]._uid, 11, "game-request topics are posted as the requester");
 		assert.ok(forumCalls[0].content.includes("A game we want"));
 
@@ -221,6 +232,37 @@ describe("Forum topics on feedback/game requests (#340)", () => {
 			.array(z.object({ _id: z.string(), forumTid: z.number().optional() }))
 			.parse((await api("GET", "/api/boardgame/requests")).data);
 		assert.strictEqual(list.find((r) => r._id === "forum-topic-game")?.forumTid, 555);
+	});
+
+	it("prefixes game-specific feedback with the game's label and tags it with the game slug", async () => {
+		const res = await api(
+			"POST",
+			"/api/feedback",
+			{ kind: "game", game: "forumgame", title: "More maps please" },
+			alice.authHeaders,
+		);
+		assert.strictEqual(res.status, 201);
+		const created = z.object({ _id: z.string() }).parse(res.data);
+		ownFeedbackIds.push(new ObjectId(created._id));
+
+		assert.strictEqual(forumCalls.length, 1);
+		assert.strictEqual(forumCalls[0].title, "[Forum Game] More maps please");
+		assert.deepStrictEqual(forumCalls[0].tags, ["forumgame"]);
+
+		// The stored request keeps the raw, unprefixed title.
+		const doc = await colls.feedbackRequests.findOne({ _id: new ObjectId(created._id) });
+		assert.strictEqual(doc?.title, "More maps please");
+	});
+
+	it("truncates the user portion so the prefixed title stays under NodeBB's limit", async () => {
+		const longTitle = "x".repeat(200);
+		const res = await api("POST", "/api/feedback", { kind: "site", title: longTitle }, alice.authHeaders);
+		assert.strictEqual(res.status, 201);
+		ownFeedbackIds.push(new ObjectId(z.object({ _id: z.string() }).parse(res.data)._id));
+
+		assert.strictEqual(forumCalls.length, 1);
+		assert.strictEqual(forumCalls[0].title, `[Site feedback] ${"x".repeat(200)}`);
+		assert.strictEqual(forumCalls[0].title.length, 216);
 	});
 
 	it("fails the request (and persists nothing) when the forum returns an error", async () => {
