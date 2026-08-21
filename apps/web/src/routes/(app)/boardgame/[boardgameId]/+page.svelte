@@ -21,7 +21,8 @@
 	import { useGameInfos, gameInfoKey, applyGameLike, patchGameInfosLike } from "@/lib/game-info.svelte";
 	import { gamePreferences, useGamePreferencesFallback } from "@/lib/game-preferences.svelte";
 	import { page } from "$app/state";
-	import { goto } from "$app/navigation";
+	import { goto, replaceState } from "$app/navigation";
+	import { browser } from "$app/environment";
 	import { untrack } from "svelte";
 	import type { GamePace } from "@/utils";
 	import { peekGames, gameListParams, type SetupOptionFilter } from "@/lib/games.svelte";
@@ -55,12 +56,30 @@
 	const rulesToggleHref = "#";
 
 	// Lobby filters (#55): pace plus this game's setup options (map / variant / …).
-	let lobbyPace = $state<"" | GamePace>("");
+	// Pace initializes from ?pace= so a shared link restores the filter.
+	const initialPace = page.url.searchParams.get("pace");
+	let lobbyPace = $state<"" | GamePace>(initialPace === "live" || initialPace === "async" ? initialPace : "");
 	let lobbyOptions = $state<SetupOptionFilter | undefined>(undefined);
 	let lobbyPaceFilter = $derived<GamePace | undefined>(lobbyPace === "" ? undefined : lobbyPace);
-	// The lobby's loaded open games — the filter derives its option choices from them.
-	// Seeded once (untrack) from the +page.ts prefetch cache so the SSR render (where the
-	// child's bind-back hasn't run yet) derives the same filter choices as hydration.
+	// Reflect the pace filter in the URL without a history entry or a navigation.
+	$effect(() => {
+		if (!browser) {
+			return;
+		}
+		const url = new URL(page.url);
+		if (lobbyPace === "") {
+			url.searchParams.delete("pace");
+		} else {
+			url.searchParams.set("pace", lobbyPace);
+		}
+		if (url.href !== page.url.href) {
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- only the query string changes; the pathname is already the current route
+			replaceState(url, page.state);
+		}
+	});
+	// The lobby's loaded open games. Seeded once (untrack) from the +page.ts prefetch
+	// cache so the SSR render (where the child's bind-back hasn't run yet) derives the
+	// same filter choices as hydration.
 	let lobbyGames = $state<GameFront[]>(
 		untrack(
 			() =>
@@ -68,6 +87,16 @@
 					?.games ?? []
 		)
 	);
+	// The last lobby list fetched WITHOUT a pace filter — what the filter's chips
+	// (pace visibility + option groups) derive from. Anchoring to the unfiltered set
+	// keeps the chips rendered after filtering narrows the list to a single pace (or
+	// to nothing), which is exactly when the user needs them to switch back.
+	let unfilteredLobbyGames = $state<GameFront[]>(untrack(() => lobbyGames));
+	$effect(() => {
+		if (lobbyPaceFilter === undefined) {
+			unfilteredLobbyGames = lobbyGames;
+		}
+	});
 
 	async function newGame() {
 		if (needOwnership && !hasOwnership) {
@@ -154,7 +183,7 @@
 				{#snippet headerContent()}
 					<SetupOptionsFilter
 						info={boardgame}
-						games={lobbyGames}
+						games={unfilteredLobbyGames}
 						bind:pace={lobbyPace}
 						bind:optionFilter={lobbyOptions}
 					/>

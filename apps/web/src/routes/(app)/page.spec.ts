@@ -12,6 +12,7 @@ vi.mock("@/lib/api", () => ({ get: vi.fn() }));
 import { get } from "@/lib/api";
 import { clearGamesCache, gameListParams, loadGames, peekGames, type LoadGamesResult } from "@/lib/games.svelte";
 import { hasPaceChoice } from "@/components/Game/SetupOptionsFilter.svelte";
+import { page } from "$app/state";
 import type { GameFront } from "@bgs/models";
 import { load } from "./+page";
 import type { PageLoad } from "./$types";
@@ -125,5 +126,56 @@ describe("home lobby — SSR/hydration pace-filter agreement (#346)", () => {
 		await runLoad();
 
 		expect(hasPaceChoice(seededLobbyGames())).toBe(true);
+	});
+});
+
+// The lobby's pace filter initializes from the ?pace= query param (a shared link
+// restores the filter) — mirrored on the boardgame page and the /games page.
+describe("home lobby — pace filter URL init", () => {
+	it("initializes from ?pace=live / ?pace=async, ignoring invalid values", () => {
+		// The exact expression +page.svelte uses for its lobbyPace initializer.
+		const initPace = () => {
+			const param = page.url.searchParams.get("pace");
+			return param === "live" || param === "async" ? param : "";
+		};
+		// The $app/state mock's `url` is a plain URL; the typed `$app/state` narrows
+		// the pathname to known routes, which doesn't apply to the mock.
+		const setUrl = (href: string) => {
+			page.url = new URL(href) as typeof page.url;
+		};
+
+		setUrl("http://localhost/?pace=live");
+		expect(initPace()).toBe("live");
+
+		setUrl("http://localhost/?pace=async");
+		expect(initPace()).toBe("async");
+
+		setUrl("http://localhost/?pace=bogus");
+		expect(initPace()).toBe("");
+
+		setUrl("http://localhost/");
+		expect(initPace()).toBe("");
+	});
+});
+
+// The chip-visibility anchoring rule: the parent derives hasPaceChoice from the
+// last lobby list fetched WITHOUT a pace filter — never from the filtered list.
+// A filtered list (single pace, or empty) must therefore never reach the filter
+// component: with one live + one async game, filtering to live keeps the chips.
+describe("home lobby — pace chips anchored to the unfiltered set", () => {
+	const liveGame = { _id: "g-live", options: { timing: { timePerGame: 3600 } } } as unknown as GameFront;
+	const asyncGame = { _id: "g-async", options: { timing: { timePerGame: 172800 } } } as unknown as GameFront;
+
+	it("the unfiltered set keeps the chips visible where the filtered set would not", () => {
+		const unfiltered = [liveGame, asyncGame];
+		const filteredToLive = [liveGame]; // what GameList binds back with pace=live
+		const filteredToNothing: GameFront[] = []; // a filter matching no open game
+
+		// The parent passes the unfiltered set — the regression case from the bug:
+		// had it passed the filtered list, hasPaceChoice would flip to false and
+		// the chips would vanish, stranding the user on the live filter.
+		expect(hasPaceChoice(unfiltered)).toBe(true);
+		expect(hasPaceChoice(filteredToLive)).toBe(false);
+		expect(hasPaceChoice(filteredToNothing)).toBe(true); // empty is safe either way
 	});
 });

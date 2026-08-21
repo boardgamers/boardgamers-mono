@@ -20,6 +20,10 @@ vi.stubGlobal("window", dom.window);
 vi.stubGlobal("document", dom.window.document);
 vi.stubGlobal("localStorage", dom.window.localStorage);
 vi.stubGlobal("navigator", dom.window.navigator);
+// Svelte's attribute setter walks an element's prototype chain up to the global
+// `Element`; jsdom nodes are created from the jsdom realm's Element, so the
+// walk must compare against that one (otherwise it walks past it into null).
+vi.stubGlobal("Element", dom.window.Element);
 
 // jsdom doesn't implement matchMedia, but modules like `lib/theme.ts` call it at
 // module scope when the browser branch is active (SANITIZE_TEST_BROWSER=1). Stub it
