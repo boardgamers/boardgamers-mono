@@ -56,10 +56,7 @@ with a restrictive `sandbox` attribute. All viewer ↔ platform communication go
 
 1. The viewer emits `move`; the web app forwards it to the game-server.
 2. The game-server loads the game's engine version, calls `move(data, move, player)` in the worker thread, then
-   `toSave`, `logSlice`, `scores`, `currentPlayer`… If `toSave` returns a state, it is stored in the database;
-   if it returns nothing (a partial/tentative move), nothing is persisted and the result only goes back to the
-   acting player's viewer.
-3. Clocks are updated — the `timePerMove` increment is granted only when the state was saved — notifications
-   (and [bot](./bots.md) auto-play) are scheduled, and the api pushes the update to every connected client over
-   websocket.
+   `toSave`, `logSlice`, `scores`, `currentPlayer`… and stores the new JSON state only if `toSave` returns a state.
+3. Clocks are updated, notifications (and [bot](./bots.md) auto-play) are scheduled, and the api pushes the
+   update to every connected client over websocket.
 4. Each viewer receives `state:updated`, fetches the new state/log, and re-renders.
