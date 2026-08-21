@@ -45,6 +45,7 @@ const requestListItem = z.object({
 	_id: z.string(),
 	label: z.string(),
 	description: z.string().optional(),
+	status: z.enum(["requested", "beta"]).optional(),
 	likeCount: z.number(),
 	liked: z.boolean(),
 	requestedBy: z.string().optional(),
@@ -68,6 +69,20 @@ describe("Boardgame API — game requests (#340)", () => {
 		});
 		// The label slugifies to the game id ("Implemented Game" → "implemented-game").
 		await colls.gameMetadatas.insertOne({ _id: "implemented-game", label: "Implemented Game", players: [2] });
+		// A beta game (versions exist, none public): it stays on the requests page
+		// until publicly released.
+		await colls.gameInfos.insertOne({
+			_id: { game: "beta-game", version: 1 },
+			viewer: { url: "//test.com/beta-game" },
+			public: false,
+		});
+		await colls.gameMetadatas.insertOne({
+			_id: "beta-game",
+			label: "Beta Game",
+			players: [2],
+			status: "beta",
+			likeCount: 5,
+		});
 		alice = await insertUserWithAuth("alice");
 		bob = await insertUserWithAuth("bob");
 
@@ -164,6 +179,12 @@ describe("Boardgame API — game requests (#340)", () => {
 		assert.strictEqual(res.status, 409);
 	});
 
+	it("rejects a label that is already a beta game — vote for it instead", async () => {
+		const res = await api("POST", "/api/boardgame/request", { label: "Beta Game" }, bob.authHeaders);
+		assert.strictEqual(res.status, 409);
+		assert.match(typeof res.data === "object" && res.data !== null && "message" in res.data ? String(res.data.message) : "", /already requested/);
+	});
+
 	it("validates the label", async () => {
 		assert.strictEqual((await api("POST", "/api/boardgame/request", { label: "x" }, alice.authHeaders)).status, 400);
 		assert.strictEqual((await api("POST", "/api/boardgame/request", { label: "!!!" }, alice.authHeaders)).status, 400);
@@ -215,6 +236,24 @@ describe("Boardgame API — game requests (#340)", () => {
 		);
 	});
 
+	it("lists beta games on the requests page, flagged beta, until publicly released", async () => {
+		const list = z
+			.array(requestListItem)
+			.parse((await api("GET", "/api/boardgame/requests")).data)
+			.filter((r) => ["beta-game", "implemented-game"].includes(r._id));
+		assert.strictEqual(list.length, 1);
+		assert.strictEqual(list[0]._id, "beta-game");
+		assert.strictEqual(list[0].status, "beta");
+		assert.strictEqual(list[0].likeCount, 5);
+	});
+
+	it("votes on a beta game through the regular like endpoints", async () => {
+		const res = await api("POST", "/api/boardgame/beta-game/like", undefined, bob.authHeaders);
+		assert.strictEqual(res.status, 200);
+		assert.deepStrictEqual(res.data, { liked: true, likeCount: 6 });
+		await api("DELETE", "/api/boardgame/beta-game/like", undefined, bob.authHeaders);
+	});
+
 	it("keeps requested games out of the regular game-info list", async () => {
 		const list = z
 			.array(z.object({ _id: z.object({ game: z.string(), version: z.number() }) }))
@@ -223,11 +262,31 @@ describe("Boardgame API — game requests (#340)", () => {
 		assert.ok(games.includes("implemented-game"));
 		assert.ok(!games.includes("requested-game-one"));
 		assert.ok(!games.includes("requested-game-two"));
+		// A beta game has no public version, so it doesn't show either.
+		assert.ok(!games.includes("beta-game"));
 	});
 
 	it("404s requested games on the game-info / like-param routes (they are not playable)", async () => {
 		assert.strictEqual((await api("GET", "/api/boardgame/requested-game-one")).status, 404);
 		assert.strictEqual((await api("GET", "/api/boardgame/requested-game-one/info")).status, 404);
+	});
+
+	it("404s beta games on the game-info routes for non-grantees (nothing public to serve)", async () => {
+		assert.strictEqual((await api("GET", "/api/boardgame/beta-game")).status, 404);
+		assert.strictEqual((await api("GET", "/api/boardgame/beta-game/info")).status, 404);
+	});
+
+	it("serves beta games on the game-info routes to access grantees", async () => {
+		await colls.gamePreferences.updateOne(
+			{ user: alice.userId, game: "beta-game" },
+			{ $set: { "access.maxVersion": 1 } },
+			{ upsert: true },
+		);
+		const res = await api("GET", "/api/boardgame/beta-game", undefined, alice.authHeaders);
+		assert.strictEqual(res.status, 200);
+		const info = z.object({ _id: z.object({ game: z.string(), version: z.number() }), label: z.string() }).parse(res.data);
+		assert.strictEqual(info._id.game, "beta-game");
+		assert.strictEqual(info.label, "Beta Game");
 	});
 
 	it("keeps requested games out of the sidebar's my-boardgames (liked but not playable)", async () => {
@@ -242,14 +301,27 @@ describe("Boardgame API — game requests (#340)", () => {
 		assert.ok(!rows.some((r) => r.boardgame === "requested-game-one"));
 	});
 
-	it("keeps requested games out of the profile's liked-games", async () => {
+	it("shows liked beta games in the sidebar's my-boardgames (they have an implementation)", async () => {
+		await api("POST", "/api/boardgame/beta-game/like", undefined, alice.authHeaders);
+		const res = await api(
+			"GET",
+			`/api/game/my-boardgames?user=${alice.userId.toHexString()}`,
+			undefined,
+			alice.authHeaders,
+		);
+		assert.strictEqual(res.status, 200);
+		const rows = z.array(z.object({ boardgame: z.string() })).parse(res.data);
+		assert.ok(rows.some((r) => r.boardgame === "beta-game"));
+	});
+
+	it("keeps requested games out of the profile's liked-games, but shows beta games", async () => {
 		await api("POST", "/api/boardgame/implemented-game/like", undefined, alice.authHeaders);
 		const res = await api("GET", `/api/user/${alice.userId.toHexString()}/liked-games`);
 		assert.strictEqual(res.status, 200);
 		const rows = z.array(z.object({ game: z.string() })).parse(res.data);
 		assert.deepStrictEqual(
 			rows.map((r) => r.game),
-			["implemented-game"],
+			["beta-game", "implemented-game"],
 		);
 	});
 

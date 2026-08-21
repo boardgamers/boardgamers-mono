@@ -59,6 +59,15 @@ const gameRequests: RequestedGame[] = [
 		createdAt: "2025-01-01T00:00:00.000Z",
 	},
 	{ _id: "brass", label: "Brass: Birmingham", likeCount: 3, liked: true, createdAt: "2025-01-02T00:00:00.000Z" },
+	{
+		_id: "outpost",
+		label: "Outpost",
+		status: "beta",
+		likeCount: 4,
+		liked: false,
+		requestedBy: "alice",
+		createdAt: "2025-01-03T00:00:00.000Z",
+	},
 ];
 
 const siteRequests = [
@@ -161,6 +170,18 @@ describe("/feedback page", () => {
 		unmount(instance as never);
 	});
 
+	it("flags beta games with a badge and a play-testing note", () => {
+		const { target, instance } = mountPage();
+		const text = target.textContent!;
+		expect(text).toContain("Outpost");
+		expect(text).toContain("In beta");
+		expect(text).toContain("Being play-tested");
+		// A plain request carries neither the badge nor the note.
+		const ttaCard = [...target.querySelectorAll("li")].find((li) => li.textContent!.includes("Through the Ages"))!;
+		expect(ttaCard.textContent).not.toContain("In beta");
+		unmount(instance as never);
+	});
+
 	it("links to the adding-a-game guide and the site's GitHub source", () => {
 		const { target, instance } = mountPage();
 		const docsLink = target.querySelector<HTMLAnchorElement>(
@@ -186,7 +207,7 @@ describe("/feedback page", () => {
 		account.set({ _id: "u1" } as never);
 		putMock.mockResolvedValue({ liked: true, likeCount: 8 } as never);
 		const { target, instance } = mountPage();
-		const tournamentCard = target.querySelectorAll("li")[2]; // first site request
+		const tournamentCard = [...target.querySelectorAll("li")].find((li) => li.textContent!.includes("Tournament mode"))!;
 		const button = tournamentCard.querySelector<HTMLButtonElement>("button[aria-pressed]")!;
 		expect(button.getAttribute("aria-pressed")).toBe("false");
 		button.click();

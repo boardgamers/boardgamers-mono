@@ -14,7 +14,7 @@ import { z } from "zod";
 import { canUserManageGame, isGameAdminGrant, userPermissions } from "@bgs/models";
 import { colls } from "../../config/db.ts";
 import { findByEmail, findByUsername, findGameInfoWithVersion } from "../../models/index.ts";
-import { lastAccessibleVersion } from "../../services/gameinfo.ts";
+import { deriveGameMetaStatus, lastAccessibleVersion } from "../../services/gameinfo.ts";
 import { gameBundleS3Key, publicObjectUrl, putObject, s3Enabled } from "../../services/s3.ts";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -45,7 +45,9 @@ function requireGameAccess(ctx: Context, game: string) {
 // gameMetadatas, so a game with N versions appears once (the per-version list
 // broke keyed {#each} blocks in the admin panel with duplicate keys). Whole-game
 // requests (status "requested") are excluded: they show on the requests page.
-// The version page's tabs need the per-version list — /:game/versions below.
+// Beta games are included — an admin must be able to manage the version that
+// will take the game public. The version page's tabs need the per-version list —
+// /:game/versions below.
 router.get("/", async (ctx) => {
 	const permissions = userPermissions(ctx.state.user);
 	const fullAccess = permissions.has("gameinfo") || permissions.has("games");
@@ -212,10 +214,18 @@ async function upsert(ctx: Context) {
 		}
 		await colls.gameMetadatas.updateOne({ _id: game }, metadataUpdate, { upsert: true });
 
-		// A version doc makes the game real: a requested game (#340) flips to
-		// implemented — it leaves the requests page and joins the regular game
-		// list, keeping its votes.
-		await colls.gameMetadatas.updateOne({ _id: game, status: "requested" }, { $set: { status: "implemented" } });
+		// A version doc makes the game real (#340): re-derive the lifecycle status
+		// from the version docs. No public version yet → "beta": the game KEEPS its
+		// place on the requests page (votes included) until it is publicly released.
+		// A public version → status cleared: it leaves the requests page and joins
+		// the regular game list. Runs unconditionally (not just on "requested" docs)
+		// so a game first uploaded under a different id than its request, or saved
+		// public from the start, is normalized too.
+		const status = await deriveGameMetaStatus(game);
+		await colls.gameMetadatas.updateOne(
+			{ _id: game },
+			status ? { $set: { status } } : { $unset: { status: true } },
+		);
 	}
 
 	const merged = await findGameInfoWithVersion(game, version);

@@ -2,12 +2,15 @@ import { get, toKitError } from "@/lib/api";
 import type { FeedbackRequestFront } from "@bgs/models";
 import type { PageLoad } from "./$types";
 
-// A requested game (#340): a `gameMetadatas` doc with status "requested" — no
-// version yet, voted on with the regular gamelike mechanic.
+// A requested game (#340): a `gameMetadatas` doc with status "requested" (no
+// version yet) or "beta" (an implementation exists but is not publicly released
+// yet — it stays on the requests page until then). Voted on with the regular
+// gamelike mechanic.
 export type RequestedGame = {
 	_id: string;
 	label: string;
 	description?: string;
+	status?: "requested" | "beta";
 	likeCount: number;
 	liked: boolean;
 	requestedBy?: string;

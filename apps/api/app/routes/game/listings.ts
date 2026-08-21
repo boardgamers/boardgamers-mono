@@ -148,7 +148,8 @@ export async function myBoardgames(ctx: Context) {
 	// `likedAt` so the sidebar derives the same blended ordering; `lastActivity` is
 	// the blended max (kept for back-compat).
 	// Requested games (#340) are excluded: a request is not a playable game and
-	// never appears in the sidebar (voting on requests happens on the requests page).
+	// never appears in the sidebar (voting on requests happens on the requests
+	// page). Beta games have an implementation and DO appear when liked/played.
 	const likes = await colls.gameLikes.find({ user }, { projection: { game: 1, createdAt: 1 } }).toArray();
 	const requested = new Set(
 		likes.length === 0

@@ -17,6 +17,7 @@ import { migration as hoistPublicFlag } from "./1.9.0-hoist-public-flag.ts";
 import { migration as creditsToGameMetadata } from "./1.10.0-credits-to-game-metadata.ts";
 import { migration as backfillRequestCreatedAt } from "./1.11.0-backfill-request-created-at.ts";
 import { migration as prefixForumTopicTitles } from "./1.12.0-prefix-forum-topic-titles.ts";
+import { migration as betaGameStatus } from "./1.13.0-beta-game-status.ts";
 
 export type Migration = {
 	up(): Promise<void>;
@@ -41,6 +42,7 @@ const migrationMap: Record<string, Migration> = {
 	"1.10.0": creditsToGameMetadata,
 	"1.11.0": backfillRequestCreatedAt,
 	"1.12.0": prefixForumTopicTitles,
+	"1.13.0": betaGameStatus,
 };
 
 export const migrations: [string, Migration][] = Object.entries(migrationMap).sort(([a], [b]) => semver.compare(a, b));

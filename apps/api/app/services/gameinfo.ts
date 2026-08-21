@@ -1,4 +1,4 @@
-import type { UserDoc, GamePreferencesDoc } from "@bgs/models";
+import type { GameMetadataDoc, GamePreferencesDoc, UserDoc } from "@bgs/models";
 import type { WithId } from "mongodb";
 import type { PickDeep } from "type-fest";
 import { colls } from "../config/db.ts";
@@ -12,6 +12,29 @@ import { mergeGameInfo } from "../models/gameinfo.ts";
 // the public branch only — a private-grant version (access.maxVersion) stays
 // reachable for its grantees, since archiving blocks on having no ongoing games.
 const NOT_ARCHIVED = { "meta.archived": { $ne: true } } as const;
+
+// Implemented games (with or without versions) are never on the requests page;
+// "requested" (no version yet) and "beta" (versioned, nothing public) are.
+// Typed wide (not `as const`) so `.includes(someStatus)` narrows without a cast.
+export const REQUEST_STATUSES: readonly GameMetadataDoc["status"][] = ["requested", "beta"];
+
+// The request-page bucket is derived, never stored piecemeal: a game is
+// "requested" while it has no version doc, "beta" while none of its versions is
+// publicly listed, and implemented (status cleared) as soon as one is. Re-stamped
+// on every version upsert so the metadata doc always matches reality — including
+// when a game goes straight to public (no beta phase) or is first uploaded under
+// a different id than the request's.
+export async function deriveGameMetaStatus(game: string): Promise<GameMetadataDoc["status"]> {
+	const hasPublicVersion = await colls.gameInfos.findOne(
+		{ "_id.game": game, public: true, ...NOT_ARCHIVED },
+		{ projection: { _id: 1 } },
+	);
+	if (hasPublicVersion) {
+		return undefined;
+	}
+	const hasAnyVersion = await colls.gameInfos.findOne({ "_id.game": game }, { projection: { _id: 1 } });
+	return hasAnyVersion ? "beta" : "requested";
+}
 
 export async function lastAccessibleVersion(game: string, user?: WithId<UserDoc>) {
 	const versionDocPromise = (async () => {
@@ -45,7 +68,9 @@ export async function lastAccessibleVersion(game: string, user?: WithId<UserDoc>
 	const [versionDoc, metadata] = await Promise.all([
 		versionDocPromise,
 		// Requested games (#340) have no version yet and are not playable games:
-		// they must 404 on every game-info route.
+		// they must 404 on every game-info route. Beta games DO have versions and
+		// pass here — reachability is governed by the versionDoc pick above
+		// (nothing public → only access.maxVersion grantees get a doc back).
 		colls.gameMetadatas.findOne({ _id: game, status: { $ne: "requested" } }),
 	]);
 	return mergeGameInfo(versionDoc, metadata);

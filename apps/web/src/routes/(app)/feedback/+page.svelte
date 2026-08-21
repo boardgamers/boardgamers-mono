@@ -91,8 +91,8 @@
 				</a>
 			</div>
 			<p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-				The games players want on the site, most voted first. Requests for expansions or options of an existing game
-				live on that game's page.
+				The games players want on the site, most voted first. Games in beta stay listed until their public release.
+				Requests for expansions or options of an existing game live on that game's page.
 			</p>
 
 			{#if gameRequests.length === 0}
@@ -107,7 +107,12 @@
 						<li class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
 							<div class="flex items-start justify-between gap-3">
 								<div class="min-w-0">
-									<h3 class="font-semibold">{request.label}</h3>
+									<div class="flex flex-wrap items-center gap-2">
+										<h3 class="font-semibold">{request.label}</h3>
+										{#if request.status === "beta"}
+											<Badge color="info">In beta</Badge>
+										{/if}
+									</div>
 									{#if request.description}
 										<p class="mt-1 text-sm whitespace-pre-line text-gray-600 dark:text-gray-400">
 											{request.description}
@@ -125,6 +130,9 @@
 							<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
 								{#if request.requestedBy}
 									<span>Requested by <UsernameLink username={request.requestedBy} /></span>
+								{/if}
+								{#if request.status === "beta"}
+									<span>Being play-tested — it leaves this list once publicly released.</span>
 								{/if}
 								{#if request.forumTid}
 									<a href="https://forum.boardgamers.space/topic/{request.forumTid}">Forum discussion</a>
