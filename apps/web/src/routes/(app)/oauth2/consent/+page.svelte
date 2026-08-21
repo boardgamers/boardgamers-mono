@@ -6,6 +6,7 @@
 	import { post } from "@/lib/api";
 	import { handleError } from "@/utils";
 	import type { ConsentInfo } from "./+page.server";
+	import { m } from "@/lib/i18n/messages";
 
 	let { data }: { data: { info: ConsentInfo } } = $props();
 
@@ -14,28 +15,29 @@
 
 	type ScopeDescription = { title: string; description: string; icon: "identity" | "profile" | "email" };
 
-	const SCOPE_INFO: Record<string, ScopeDescription> = {
+	// Scope copy resolves per render so a language switch re-labels in place.
+	let SCOPE_INFO = $derived<Record<string, ScopeDescription>>({
 		openid: {
-			title: "Verify your identity",
-			description: "Confirm that you own this Boardgamers account",
+			title: m.oauth_scope_openid_title(),
+			description: m.oauth_scope_openid_description(),
 			icon: "identity",
 		},
 		profile: {
-			title: "Your username & avatar",
-			description: "Read your public profile (username, avatar)",
+			title: m.oauth_scope_profile_title(),
+			description: m.oauth_scope_profile_description(),
 			icon: "profile",
 		},
 		email: {
-			title: "Your email address",
-			description: "Read the email address registered on your account",
+			title: m.oauth_scope_email_title(),
+			description: m.oauth_scope_email_description(),
 			icon: "email",
 		},
 		role: {
-			title: "Your account role",
-			description: "See your account role (e.g. admin)",
+			title: m.oauth_scope_role_title(),
+			description: m.oauth_scope_role_description(),
 			icon: "identity",
 		},
-	};
+	});
 
 	const scopeInfo = (scope: string): ScopeDescription =>
 		SCOPE_INFO[scope] ?? { title: scope, description: "", icon: "identity" };
@@ -90,13 +92,13 @@
 					<IconGlobe size="1.75rem" />
 				{/if}
 			</div>
-			<h1 class="mt-4 text-2xl font-bold">Authorize {data.info.clientName}</h1>
+			<h1 class="mt-4 text-2xl font-bold">{m.oauth_authorize({ client: data.info.clientName })}</h1>
 			<p class="mt-1 break-all text-sm text-gray-500 dark:text-gray-400">{data.info.clientHost}</p>
 		</div>
 
 		<div class="border-t border-gray-200 px-5 py-5 dark:border-gray-700 sm:px-8">
 			<h2 class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-				This application will be able to
+				{m.oauth_willBeAble()}
 			</h2>
 			<ul class="divide-y divide-gray-100 dark:divide-gray-700/60">
 				{#each data.info.scopes as scope (scope)}
@@ -152,24 +154,23 @@
 					outline
 					class="w-full sm:w-auto"
 					disabled={busy !== null}
-					aria-label="Deny access to {data.info.clientName}"
+					aria-label={m.oauth_denyAria({ client: data.info.clientName })}
 					onclick={() => decide("deny")}
 				>
-					{busy === "deny" ? "Denying…" : "Deny"}
+					{busy === "deny" ? m.oauth_denying() : m.oauth_deny()}
 				</Button>
 				<Button
 					color="primary"
 					class="w-full sm:w-auto"
 					disabled={busy !== null}
-					aria-label="Authorize {data.info.clientName}"
+					aria-label={m.oauth_authorizeAria({ client: data.info.clientName })}
 					onclick={() => decide("approve")}
 				>
-					{busy === "approve" ? "Authorizing…" : "Authorize"}
+					{busy === "approve" ? m.oauth_authorizing() : m.oauth_authorizeButton()}
 				</Button>
 			</div>
 			<p class="mt-4 text-center text-xs text-gray-500 dark:text-gray-400">
-				This application is identified by <code class="break-all">{data.info.clientId}</code> and is not run by Boardgamers.
-				Only continue if you trust it.
+				{m.oauth_trustWarning({ clientId: data.info.clientId })}
 			</p>
 		</div>
 	</div>

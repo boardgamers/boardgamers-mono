@@ -24,6 +24,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { Button } from "@/modules/cdk";
+	import { m } from "@/lib/i18n/messages";
 
 	let {
 		draftKey,
@@ -78,9 +79,8 @@
 		role="alert"
 	>
 		<p>
-			Requests are posted on our forum. Link your account to submit. It uses your Boardgamers login, and your draft is
-			saved.
+			{m.feedback_forumGate()}
 		</p>
-		<Button color="primary" class="mt-2" onclick={linkForumAccount}>Link forum account</Button>
+		<Button color="primary" class="mt-2" onclick={linkForumAccount}>{m.feedback_linkForum()}</Button>
 	</div>
 {/if}

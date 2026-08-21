@@ -127,6 +127,47 @@ describe("Account API — country", () => {
 	after(() => db().dropDatabase());
 });
 
+describe("Account API — language preference (#306)", () => {
+	const userId = new ObjectId();
+	let authHeaders: Record<string, string> = {};
+
+	before(async () => {
+		await colls.users.insertOne(
+			testUser({
+				_id: userId,
+				account: { username: "languser", email: "lang@test.com" },
+				security: { confirmed: true, slug: "languser" },
+			}),
+		);
+		const code = generateRefreshCode();
+		const tokenDoc = { user: userId, codeHash: hashRefreshCode(code), createdAt: new Date() };
+		await colls.jwtRefreshTokens.insertOne(tokenDoc);
+		authHeaders = { Authorization: `Bearer ${await createAccessToken(tokenDoc, ["all"], false)}` };
+	});
+
+	it("persists settings.language via the generic settings flattening and returns it", async () => {
+		const res = await api("POST", "/api/account", { settings: { language: "de" } }, authHeaders);
+		assert.strictEqual(res.status, 200, JSON.stringify(res.data));
+
+		const stored = await colls.users.findOne({ _id: userId });
+		assert.strictEqual(stored?.settings?.language, "de");
+
+		// The web layout reads the preference back from GET /account.
+		const get = await api("GET", "/api/account", undefined, authHeaders);
+		const language = z.object({ settings: z.object({ language: z.string().optional() }) }).parse(get.data)
+			.settings.language;
+		assert.strictEqual(language, "de");
+
+		// …without clobbering sibling settings.
+		await api("POST", "/api/account", { settings: { home: { showMyGames: false } } }, authHeaders);
+		const stored2 = await colls.users.findOne({ _id: userId });
+		assert.strictEqual(stored2?.settings?.language, "de");
+		assert.strictEqual(stored2?.settings?.home?.showMyGames, false);
+	});
+
+	after(() => db().dropDatabase());
+});
+
 describe("Account API — notification webhook (#85/#33)", () => {
 	const userId = new ObjectId();
 	let authHeaders: Record<string, string> = {};

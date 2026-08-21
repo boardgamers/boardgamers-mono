@@ -73,6 +73,7 @@
 
 <script lang="ts">
 	import marked from "marked";
+	import { m } from "@/lib/i18n/messages";
 
 	// Open-game filters (#55) as chips that sit inline with the lobby title (the
 	// parent passes this via GameList's headerContent) — NOT a select-bar above the
@@ -135,11 +136,12 @@
 		}
 	});
 
-	// No "All" chip: clicking the selected chip again clears the filter.
-	const paceChoices: { value: GamePace; label: string }[] = [
-		{ value: "live", label: "⚡ Live" },
-		{ value: "async", label: "🐢 Async" },
-	];
+	// No "All" chip: clicking the selected chip again clears the filter. Labels
+	// resolve per render so a language switch re-labels the chips in place.
+	let paceChoices = $derived<{ value: GamePace; label: string }[]>([
+		{ value: "live", label: m.pace_live() },
+		{ value: "async", label: m.pace_async() },
+	]);
 
 	// Hide the pace filter when it couldn't narrow anything: every game in the
 	// (unfiltered) lobby is the same pace (all live, or all async).
@@ -156,7 +158,7 @@
 
 <!-- Pace chips (hidden when every visible game is the same pace — nothing to filter). -->
 {#if showPaceFilter}
-	<div class="flex items-center gap-1" role="group" aria-label="Filter games by pace">
+	<div class="flex items-center gap-1" role="group" aria-label={m.pace_filterAria()}>
 		{#each paceChoices as choice (choice.value)}
 			<button
 				type="button"
@@ -174,6 +176,7 @@
 {#each optionGroups as group (group.name)}
 	<div class="flex items-center gap-1" role="group" aria-label={`Filter by ${group.label}`}>
 		<span class="text-xs font-medium text-gray-500 dark:text-gray-400">{group.label}:</span>
+
 		{#each group.choices as choice (choice.name)}
 			<button
 				type="button"

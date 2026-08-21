@@ -7,6 +7,7 @@
 	import { Badge } from "@/modules/cdk";
 	import type { FeedbackStatus, GameInfoFront, UserFront } from "@bgs/models";
 	import type { FeedbackRequestListing } from "@/routes/(app)/feedback/+page";
+	import { m } from "@/lib/i18n/messages";
 
 	let {
 		boardgameId,
@@ -41,12 +42,13 @@
 	const byLikesThenNewest = (a: { likeCount?: number; createdAt?: string }, b: typeof a) =>
 		(b.likeCount ?? 0) - (a.likeCount ?? 0) || (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
 
-	const statusBadge: Record<FeedbackStatus, { color: "secondary" | "info" | "success"; label: string }> = {
-		open: { color: "secondary", label: "Open" },
-		planned: { color: "info", label: "Planned" },
-		done: { color: "success", label: "Done" },
-		declined: { color: "secondary", label: "Declined" },
-	};
+	// Labels resolve per render so a language switch re-labels the badges in place.
+	let statusBadge = $derived<Record<FeedbackStatus, { color: "secondary" | "info" | "success"; label: string }>>({
+		open: { color: "secondary", label: m.feedback_status_open() },
+		planned: { color: "info", label: m.feedback_status_planned() },
+		done: { color: "success", label: m.feedback_status_done() },
+		declined: { color: "secondary", label: m.feedback_status_declined() },
+	});
 </script>
 
 <section
@@ -58,7 +60,7 @@
 			id="game-feedback-heading"
 			class="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"
 		>
-			Requests &amp; feedback
+			{m.boardgame_requestsFeedback()}
 		</h2>
 		{#if sourceUrl}
 			<a
@@ -68,20 +70,20 @@
 				class="inline-flex items-center gap-1 text-xs text-gray-500 no-underline hover:text-primary dark:text-gray-400 dark:hover:text-primary-lighter"
 			>
 				<IconGithub size="0.9em" />
-				Game source on GitHub
+				{m.boardgame_gameSource()}
 				<IconBoxArrowUpRight size="0.6em" class="opacity-60" />
 			</a>
 		{/if}
 	</div>
 	<p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-		Expansions, variants and improvements for this game, most voted first.
+		{m.boardgame_requestsHelp()}
 	</p>
 
 	{#if requestList.length === 0}
 		<p
 			class="mt-4 rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-gray-500 dark:border-gray-700 dark:text-gray-400"
 		>
-			No requests for this game yet — be the first!
+			{m.boardgame_noRequests()}
 		</p>
 	{:else}
 		<ul class="mt-4 space-y-3">
@@ -108,10 +110,10 @@
 					</div>
 					<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
 						{#if request.requestedBy}
-							<span>Requested by <UsernameLink username={request.requestedBy} /></span>
+							<span>{m.feedback_requestedBy()} <UsernameLink username={request.requestedBy} /></span>
 						{/if}
 						{#if request.forumTid}
-							<a href="https://forum.boardgamers.space/topic/{request.forumTid}">Forum discussion</a>
+							<a href="https://forum.boardgamers.space/topic/{request.forumTid}">{m.feedback_forumDiscussion()}</a>
 						{/if}
 					</div>
 				</li>
@@ -129,7 +131,7 @@
 			formMounted ||= formOpen;
 		}}
 	>
-		{formOpen ? "− Hide the request form" : "＋ Request an expansion or feature"}
+		{formOpen ? `− ${m.boardgame_hideRequestForm()}` : `＋ ${m.boardgame_requestExpansion()}`}
 	</button>
 	{#if formMounted}
 		<div
@@ -141,10 +143,10 @@
 				kind="game"
 				game={boardgameId}
 				{user}
-				heading="Request an expansion or feature"
-				titlePlaceholder="New map"
-				bodyPlaceholder="How it would work…"
-				submitLabel="Submit request"
+				heading={m.boardgame_requestExpansion()}
+				titlePlaceholder={m.boardgame_requestExpansionTitle()}
+				bodyPlaceholder={m.boardgame_requestBody()}
+				submitLabel={m.boardgame_submitRequest()}
 				oncreated={(created) => {
 					created.requestedBy = user?.account.username;
 					requestList = [...requestList, created as FeedbackRequestListing].sort(byLikesThenNewest);

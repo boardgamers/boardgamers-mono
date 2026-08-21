@@ -3,9 +3,10 @@
 	import { loadEloRankings, type EloRanking } from "@/lib/elo-rankings.svelte";
 	import { countryFlag, countryName } from "@/lib/countries";
 	import { Loading, Pagination } from "@/modules/cdk";
-	import { createWatcher, handleError, pluralize } from "@/utils";
+	import { createWatcher, handleError } from "@/utils";
 	import { untrack } from "svelte";
 	import UserAvatar from "./User/UserAvatar.svelte";
+	import { m } from "@/lib/i18n/messages";
 
 	let {
 		boardgameId,
@@ -29,7 +30,7 @@
 	let boardgameElo = $state<EloRanking[]>(untrack(() => initial?.rankings ?? []));
 	let loading = $state(untrack(() => !initial));
 
-	let title = $derived(top ? "Top ranked players" : "Elo");
+	let title = $derived(top ? m.boardgame_topRanked() : m.boardgame_elo());
 
 	async function load(refresh: boolean) {
 		try {
@@ -90,7 +91,8 @@
 							{#if bgElo.user.country}<span title={countryName(bgElo.user.country)}
 									>{countryFlag(bgElo.user.country)}</span
 								>{/if}
-							- <b>{bgElo.elo.value}</b> elo in {pluralize(bgElo.elo.games, "game")}
+							- <b>{bgElo.elo.value}</b> elo in {bgElo.elo.games}
+							{bgElo.elo.games === 1 ? m.common_game() : m.common_game_plural()}
 						</span>
 					</a>
 				</li>

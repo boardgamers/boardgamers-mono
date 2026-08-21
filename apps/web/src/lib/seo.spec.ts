@@ -18,7 +18,7 @@ describe("resolveSeo (single <svelte:head> source)", () => {
 		const s = resolveSeo(undefined);
 		expect(s).toEqual({
 			title: siteName,
-			description: defaultDescription,
+			description: defaultDescription(),
 			image: defaultOgImage.path,
 			imageWidth: defaultOgImage.width,
 			imageHeight: defaultOgImage.height,

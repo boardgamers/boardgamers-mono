@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
 	import { useGameInfos, gameInfoKey } from "@/lib/game-info.svelte";
-	import { pluralize } from "@/utils";
 	import { gameDisplayName } from "@/utils/game-label";
+	import { m } from "@/lib/i18n/messages";
 	import type { GamePreferencesFront } from "@bgs/models";
 	import IconInfoCircleFill from "@/components/icons/IconInfoCircleFill.svelte";
 
@@ -30,7 +30,8 @@
 				<li class="cursor-pointer px-4 py-2 hover:bg-accent/5">
 					<span>
 						{gameName(gamePref.game)} - <b>{gamePref.elo!.value}</b> in
-						{pluralize(gamePref.elo!.games, "game")}
+						{gamePref.elo!.games}
+						{gamePref.elo!.games === 1 ? m.common_game() : m.common_game_plural()}
 					</span>
 				</li>
 			{/each}
