@@ -256,9 +256,7 @@ when a player executes a move without confirming it, a dry run so to speak.
 
 The platform adds the per-move time increment (`timePerMove`) to the player's
 clock every time `toSave` returns a state. That's why `toSave` should only
-return a state for **full, completed turns**: a partial move that returns a
-state would grant the player time — and persist to the database — for something
-that isn't a real turn yet. Anything short of a full turn (tentative moves,
+return a state for **full, completed turns**. Anything short of a full turn (tentative moves,
 partial input, dry runs) must return `undefined`: it costs nothing and grants
 nothing.
 
