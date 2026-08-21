@@ -67,8 +67,8 @@
 		<p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
 			Whole-game ("add game") requests voted on at the
 			<WebLink path="/feedback">public feedback page</WebLink>. Delete spam/duplicates, or merge a duplicate into the
-			canonical request — or into the existing game — to carry its votes over. Beta games with an implementation are
-			managed from their boardgame page instead.
+			canonical request — or into the existing game — to carry its votes over. Only a request whose implementation was
+			already uploaded is out of scope here: manage it from its boardgame page instead.
 			{#if !can(data.me, "feedback")}
 				<span class="block mt-1">
 					You admin {data.me.games.length === 1 ? "one game" : `${data.me.games.length} games`} — only their requests are
