@@ -5,7 +5,7 @@ type GameCounts = Record<string, number>;
 type RecentGame = Pick<GameFront, "_id" | "game" | "status" | "lastMove" | "createdAt">;
 
 export interface GamesPageData {
-	// Named gameCounts (not games) — `games` is the layout's GameInfoFront[] and would be shadowed in page.data.
+	// Named gameCounts (not games) — `games` is the layout's boardgame list and would be shadowed in page.data.
 	gameCounts: GameCounts;
 	recentGames: RecentGame[];
 	hangsTotal: number;

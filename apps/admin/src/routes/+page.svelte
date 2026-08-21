@@ -3,7 +3,7 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { filesize, gameEmoji, timeAgo } from "$lib/utils.ts";
-	import type { GameInfoFront } from "@bgs/models";
+	import type { BoardgameEntry } from "./+layout.ts";
 	import WebLink from "$components/WebLink.svelte";
 	import type { PageProps } from "./$types";
 
@@ -22,7 +22,7 @@
 
 	// Map boardgame id → emoji, built from the sidebar's GameInfo labels.
 	const gameEmojiByName = $derived(
-		Object.fromEntries((page.data.games as GameInfoFront[]).map((g) => [g._id.game, gameEmoji(g.label)]))
+		Object.fromEntries((page.data.games as BoardgameEntry[]).map((g) => [g._id, gameEmoji(g.label)]))
 	);
 
 	async function refresh() {
