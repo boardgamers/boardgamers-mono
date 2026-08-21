@@ -123,6 +123,13 @@ export default {
 	// practice — a request is only created once its topic exists, so without a
 	// token every request fails with 503. Never log this value.
 	forumWriteToken: process.env.forumWriteToken || undefined,
+	// The write token is a NodeBB *master* token (uid 0): the write-api rejects
+	// every call — reads included — without a `_uid` to act as
+	// (`[[error:api.master-token-no-uid]]`, src/middleware/user.js). System calls
+	// (reading/retitling/tagging topics, e.g. the 1.12.0 migration) act as this
+	// forum uid; 1 is NodeBB's initial admin. User-initiated topic creation
+	// passes the requester's own forum uid instead.
+	forumWriteUid: Math.max(1, Number(process.env.forumWriteUid) || 1),
 	// Cron (game notifications, scheduled games, emails) is on by default — in dev the
 	// single process must run it. PM2 workers opt out with cron=false so only the
 	// dedicated api-cron process runs it (see ecosystem.config.cjs).
