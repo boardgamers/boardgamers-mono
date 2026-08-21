@@ -12,6 +12,7 @@
 	let subject = $state("");
 	let markdown = $state("");
 	let sendingTest = $state(false);
+	let sendingTransactional = $state(false);
 	let queueing = $state(false);
 	let confirming = $state(false);
 	// Re-fetched when the dialog opens so the admin confirms the live number.
@@ -32,6 +33,21 @@
 			toast.error(err instanceof Error ? err.message : "Failed to send the test");
 		} finally {
 			sendingTest = false;
+		}
+	}
+
+	// Deliverability canary for the TRANSACTIONAL domain: a canned copy of the
+	// "your turn" notification (the newsletter test exercises the newsletter
+	// domain). Independent of the composer.
+	async function sendTransactionalTest() {
+		sendingTransactional = true;
+		try {
+			const res = await api.post<{ to: string }>("/admin/newsletter/test-transactional", {});
+			toast.success(`Transactional test sent to ${res.to}`);
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed to send the transactional test");
+		} finally {
+			sendingTransactional = false;
 		}
 	}
 
@@ -121,6 +137,14 @@
 				Always send a test first — it's exactly what subscribers receive, from the newsletter address.
 			</span>
 			<div class="flex gap-2">
+				<button
+					onclick={sendTransactionalTest}
+					disabled={sendingTransactional}
+					title="A canned copy of the 'your turn' notification, sent from the transactional mail domain — check it doesn't land in spam"
+					class="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+				>
+					{sendingTransactional ? "Sending…" : "Send transactional test"}
+				</button>
 				<button
 					onclick={sendTest}
 					disabled={!ready || sendingTest}

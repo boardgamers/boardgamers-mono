@@ -47,6 +47,7 @@ describe("Admin API — newsletter", () => {
 	let pagesAdmin: Record<string, string>;
 	let regularUser: Record<string, string>;
 	let sentMails: MailSendData[];
+	let sentDomains: (string | undefined)[];
 
 	const composeBody = { subject: "Big news", markdown: "Hello **subscribers**!" };
 
@@ -76,8 +77,10 @@ describe("Admin API — newsletter", () => {
 		regularUser = await makeAuthHeaders(userId);
 
 		sentMails = [];
-		setSendmailForTests(async (data) => {
+		sentDomains = [];
+		setSendmailForTests(async (data, domain) => {
 			sentMails.push(data);
+			sentDomains.push(domain);
 		});
 	});
 
@@ -92,6 +95,7 @@ describe("Admin API — newsletter", () => {
 				assert.strictEqual((await api("GET", "/api/admin/newsletter", headers)).status, 403);
 				assert.strictEqual((await api("GET", "/api/admin/newsletter/count", headers)).status, 403);
 				assert.strictEqual((await api("POST", "/api/admin/newsletter/test", headers, composeBody)).status, 403);
+				assert.strictEqual((await api("POST", "/api/admin/newsletter/test-transactional", headers, {})).status, 403);
 				assert.strictEqual((await api("POST", "/api/admin/newsletter/send", headers, composeBody)).status, 403);
 			}
 			assert.strictEqual((await api("GET", "/api/admin/newsletter/count", newsAdmin)).status, 200);
@@ -111,6 +115,9 @@ describe("Admin API — newsletter", () => {
 
 		it("goes from the newsletter subdomain, tagged newsletter, with a newsletter-scoped unsubscribe", async () => {
 			const mail = sentMails[0];
+			// POSTed to the newsletter Mailgun domain — the From lives there, and
+			// DKIM alignment requires signing with that domain's key.
+			assert.strictEqual(sentDomains[0], env.mailing.domain.newsletter);
 			assert.deepEqual(mail["o:tag"], ["newsletter"]);
 			assert.match(
 				String(mail.from),
@@ -125,6 +132,27 @@ describe("Admin API — newsletter", () => {
 			const token = decodeURIComponent(/token=([^>]+)>$/.exec(String(oneClick))![1]);
 			assert.deepEqual(verifyUnsubscribeToken(token), { userId: newsAdminId.toHexString(), scope: "newsletter" });
 			assert.match(String(mail.html), /\/unsubscribe\?token=/, "the body footer links the landing page");
+		});
+	});
+
+	describe("POST /api/admin/newsletter/test-transactional", () => {
+		it("sends a canned 'your turn' copy to the caller, from the TRANSACTIONAL domain", async () => {
+			sentMails = [];
+			sentDomains = [];
+			const res = await api("POST", "/api/admin/newsletter/test-transactional", newsAdmin, {});
+			assert.strictEqual(res.status, 200);
+			assert.strictEqual(sentMails.length, 1);
+			const mail = sentMails[0];
+			assert.strictEqual(mail.to, newsAdminEmail);
+			assert.match(String(mail.subject), /^\[TEST\] Your turn$/);
+			// The whole point: this probe goes through the transactional Mailgun
+			// domain and From address, not the newsletter ones.
+			assert.strictEqual(sentDomains[0], env.mailing.domain.standard);
+			assert.strictEqual(mail.from, env.noreply);
+			assert.deepEqual(mail["o:tag"], ["your-turn"]);
+			// Mirrors the real notification: game-scoped unsubscribe headers.
+			const token = decodeURIComponent(/token=([^>]+)>$/.exec(String(mail["h:List-Unsubscribe"]))![1]);
+			assert.deepEqual(verifyUnsubscribeToken(token), { userId: newsAdminId.toHexString(), scope: "game" });
 		});
 	});
 
@@ -245,6 +273,7 @@ describe("Admin API — newsletter", () => {
 
 		it("delivers only to opted-in users, resuming from the cursor without re-sending", async () => {
 			sentMails = [];
+			sentDomains = [];
 			// Enqueued now that the 3 opted-in users exist, so the snapshot counts them.
 			const res = await api("POST", "/api/admin/newsletter/send", newsAdmin, composeBody);
 			assert.strictEqual(res.status, 201, JSON.stringify(res.data));
@@ -280,6 +309,10 @@ describe("Admin API — newsletter", () => {
 		});
 
 		it("every delivered email carries a newsletter-scoped unsubscribe (header + footer)", async () => {
+			assert.ok(
+				sentDomains.length > 0 && sentDomains.every((d) => d === env.mailing.domain.newsletter),
+				"every newsletter send is POSTed to the newsletter Mailgun domain",
+			);
 			const byEmail = new Map([
 				["nl-a@test.com", optedInA],
 				["nl-b@test.com", optedInB],

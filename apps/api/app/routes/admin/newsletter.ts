@@ -5,6 +5,7 @@ import { marked } from "marked";
 import { z } from "zod";
 import type { NewsletterDoc } from "@bgs/models";
 import { colls } from "../../config/db.ts";
+import env from "../../config/env.ts";
 import { signUnsubscribeToken } from "../../models/user.ts";
 import { sendMail } from "../../services/mail.ts";
 import { countNewsletterRecipients } from "../../services/newsletter.ts";
@@ -32,6 +33,32 @@ router.post("/test", async (ctx) => {
 		subject: `[TEST] ${subject}`,
 		html: marked(markdown, { async: false }),
 		unsubscribeToken: signUnsubscribeToken(admin._id.toHexString(), "newsletter"),
+	});
+
+	ctx.status = 200;
+	ctx.body = { to: admin.account.email };
+});
+
+// POST /api/admin/newsletter/test-transactional — a canned copy of the
+// "your turn" notification to the caller's own address, from the TRANSACTIONAL
+// sending domain. The /test route above exercises the newsletter domain; this
+// one checks what game notifications actually use — a spam-folder canary for
+// both domains, one click each.
+router.post("/test-transactional", async (ctx) => {
+	const admin = ctx.state.user!;
+	if (!admin.account.email) {
+		throw createError(400, "Your account has no email address to send the test to");
+	}
+
+	await sendMail({
+		kind: "your-turn",
+		to: admin.account.email,
+		subject: "[TEST] Your turn",
+		html: `
+		<p>Hello ${admin.account.username}</p>
+		<p>This is a deliverability test of the transactional mail domain — it mirrors the "your turn" notification.
+		Click <a href='https://${env.site}/user/${encodeURIComponent(admin.account.username)}'>here</a> to see your active games.</p>`,
+		unsubscribeToken: signUnsubscribeToken(admin._id.toHexString(), "game"),
 	});
 
 	ctx.status = 200;
