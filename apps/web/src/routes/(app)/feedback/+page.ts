@@ -9,6 +9,9 @@ import type { PageLoad } from "./$types";
 export type RequestedGame = {
 	_id: string;
 	label: string;
+	// Public display name when the real name is trademarked (#106) — a beta game
+	// keeps its alias on the requests page (gem-trader shows as "Gem Trader").
+	alias?: string;
 	description?: string;
 	status?: "requested" | "beta";
 	likeCount: number;

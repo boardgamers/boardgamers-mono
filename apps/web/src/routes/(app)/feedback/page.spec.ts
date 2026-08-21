@@ -68,6 +68,15 @@ const gameRequests: RequestedGame[] = [
 		requestedBy: "alice",
 		createdAt: "2025-01-03T00:00:00.000Z",
 	},
+	{
+		_id: "gem-trader",
+		label: "💎 Splendor",
+		alias: "Gem Trader",
+		status: "beta",
+		likeCount: 2,
+		liked: false,
+		createdAt: "2025-01-04T00:00:00.000Z",
+	},
 ];
 
 const siteRequests = [
@@ -182,14 +191,23 @@ describe("/feedback page", () => {
 		unmount(instance as never);
 	});
 
+	it("displays an aliased beta game under its alias, noting the canonical rules (#106)", () => {
+		const { target, instance } = mountPage();
+		const card = [...target.querySelectorAll("li")].find((li) => li.textContent!.includes("Gem Trader"))!;
+		expect(card.querySelector("h3")!.textContent).toBe("💎 Gem Trader");
+		expect(card.textContent).toContain("Splendor rules");
+		expect(card.textContent).toContain("In beta");
+		unmount(instance as never);
+	});
+
 	it("links to the adding-a-game guide and the site's GitHub source", () => {
 		const { target, instance } = mountPage();
 		const docsLink = target.querySelector<HTMLAnchorElement>(
-			'a[href="https://docs.boardgamers.space/guide/adding-a-game"]',
+			'a[href="https://docs.boardgamers.space/guide/adding-a-game"]'
 		);
 		expect(docsLink?.textContent).toContain("How games get added");
 		const githubLink = target.querySelector<HTMLAnchorElement>(
-			'a[href="https://github.com/boardgamers/boardgamers-mono"]',
+			'a[href="https://github.com/boardgamers/boardgamers-mono"]'
 		);
 		expect(githubLink?.textContent).toContain("Site source on GitHub");
 		unmount(instance as never);
@@ -207,7 +225,9 @@ describe("/feedback page", () => {
 		account.set({ _id: "u1" } as never);
 		putMock.mockResolvedValue({ liked: true, likeCount: 8 } as never);
 		const { target, instance } = mountPage();
-		const tournamentCard = [...target.querySelectorAll("li")].find((li) => li.textContent!.includes("Tournament mode"))!;
+		const tournamentCard = [...target.querySelectorAll("li")].find((li) =>
+			li.textContent!.includes("Tournament mode")
+		)!;
 		const button = tournamentCard.querySelector<HTMLButtonElement>("button[aria-pressed]")!;
 		expect(button.getAttribute("aria-pressed")).toBe("false");
 		button.click();
@@ -276,7 +296,7 @@ describe("/feedback page", () => {
 	it("prompts to link a forum account when the API requires one", async () => {
 		account.set({ _id: "u1", account: { username: "alice" } } as never);
 		postMock.mockRejectedValue(
-			new ApiError("Link your forum account to submit feedback", 403, "forum_account_required"),
+			new ApiError("Link your forum account to submit feedback", 403, "forum_account_required")
 		);
 		const { target, instance } = mountPage();
 
@@ -299,7 +319,7 @@ describe("/feedback page", () => {
 	it("prompts to link a forum account for a game request, stashing the draft", async () => {
 		account.set({ _id: "u1", account: { username: "alice" } } as never);
 		postMock.mockRejectedValue(
-			new ApiError("Link your forum account to request a game", 403, "forum_account_required"),
+			new ApiError("Link your forum account to request a game", 403, "forum_account_required")
 		);
 		const { target, instance } = mountPage();
 
@@ -320,11 +340,11 @@ describe("/feedback page", () => {
 		// Clicking the link button stashes the draft under its own key (distinct from
 		// the site form's "feedback-draft-site") and starts the forum SSO.
 		const linkButton = [...target.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
-			b.textContent!.includes("Link forum account"),
+			b.textContent!.includes("Link forum account")
 		)!;
 		linkButton.click();
 		expect(sessionStorage.getItem("feedback-draft-game-request")).toBe(
-			JSON.stringify({ label: "Terraforming Mars", description: "" }),
+			JSON.stringify({ label: "Terraforming Mars", description: "" })
 		);
 		expect(sessionStorage.getItem("feedback-draft-site")).toBeNull();
 		unmount(instance as never);
@@ -334,13 +354,13 @@ describe("/feedback page", () => {
 		account.set({ _id: "u1", account: { username: "alice" } } as never);
 		sessionStorage.setItem(
 			"feedback-draft-game-request",
-			JSON.stringify({ label: "Terraforming Mars", description: "Card drafting in space" }),
+			JSON.stringify({ label: "Terraforming Mars", description: "Card drafting in space" })
 		);
 		const { target, instance } = mountPage();
 
 		expect(target.querySelector<HTMLInputElement>("#game-request-label")!.value).toBe("Terraforming Mars");
 		expect(target.querySelector<HTMLTextAreaElement>("#game-request-description")!.value).toBe(
-			"Card drafting in space",
+			"Card drafting in space"
 		);
 		// The draft is consumed (a later plain visit doesn't resurrect it).
 		expect(sessionStorage.getItem("feedback-draft-game-request")).toBeNull();

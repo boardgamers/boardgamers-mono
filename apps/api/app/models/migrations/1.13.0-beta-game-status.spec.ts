@@ -21,6 +21,8 @@ async function seed() {
 			{ _id: { game: "container", version: 2 }, viewer: { url: "//v2" }, public: false },
 			// Only-public-version-archived edge: nothing publicly listed → beta.
 			{ _id: { game: "retired", version: 1 }, viewer: { url: "//v1" }, public: true, meta: { archived: true } },
+			// A private implementation: beta-only but exempted from the requests page.
+			{ _id: { game: "clash", version: 1 }, viewer: { url: "//v1" }, public: false },
 		]);
 	await db()
 		.collection("gamemetadatas")
@@ -29,6 +31,7 @@ async function seed() {
 			{ _id: "outpost", label: "Outpost", players: [2], status: "implemented", likeCount: 4 },
 			{ _id: "container", label: "Container", players: [3] },
 			{ _id: "retired", label: "Retired", players: [2] },
+			{ _id: "clash", label: "Clash", players: [2] },
 			// No version doc: a plain request, untouched by the migration.
 			{ _id: "draftosaurus", label: "Draftosaurus", players: [], status: "requested", likeCount: 1 },
 		]);
@@ -56,6 +59,9 @@ describe("migration 1.13.0 — beta game status", () => {
 
 		const retired = await colls.gameMetadatas.findOne({ _id: "retired" });
 		assert.strictEqual(retired!.status, "beta", "an archived public version is not a public release");
+
+		const clash = await colls.gameMetadatas.findOne({ _id: "clash" });
+		assert.strictEqual(clash!.status, "implemented", "private implementations are exempted from the requests page");
 
 		const draftosaurus = await colls.gameMetadatas.findOne({ _id: "draftosaurus" });
 		assert.strictEqual(draftosaurus!.status, "requested", "version-less requests are untouched");

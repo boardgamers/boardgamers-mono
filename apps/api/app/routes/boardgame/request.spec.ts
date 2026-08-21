@@ -44,6 +44,7 @@ async function insertUserWithAuth(suffix: string) {
 const requestListItem = z.object({
 	_id: z.string(),
 	label: z.string(),
+	alias: z.string().optional(),
 	description: z.string().optional(),
 	status: z.enum(["requested", "beta"]).optional(),
 	likeCount: z.number(),
@@ -82,6 +83,15 @@ describe("Boardgame API — game requests (#340)", () => {
 			players: [2],
 			status: "beta",
 			likeCount: 5,
+		});
+		// A beta game with a trademarked name (#106): listed under its alias.
+		await colls.gameMetadatas.insertOne({
+			_id: "aliased-beta",
+			label: "💎 Trademarked Game",
+			alias: "Inoffensive Name",
+			players: [2],
+			status: "beta",
+			likeCount: 0,
 		});
 		alice = await insertUserWithAuth("alice");
 		bob = await insertUserWithAuth("bob");
@@ -182,7 +192,10 @@ describe("Boardgame API — game requests (#340)", () => {
 	it("rejects a label that is already a beta game — vote for it instead", async () => {
 		const res = await api("POST", "/api/boardgame/request", { label: "Beta Game" }, bob.authHeaders);
 		assert.strictEqual(res.status, 409);
-		assert.match(typeof res.data === "object" && res.data !== null && "message" in res.data ? String(res.data.message) : "", /already requested/);
+		assert.match(
+			typeof res.data === "object" && res.data !== null && "message" in res.data ? String(res.data.message) : "",
+			/already requested/,
+		);
 	});
 
 	it("validates the label", async () => {
@@ -247,6 +260,16 @@ describe("Boardgame API — game requests (#340)", () => {
 		assert.strictEqual(list[0].likeCount, 5);
 	});
 
+	it("lists aliased beta games with their alias (#106)", async () => {
+		const list = z
+			.array(requestListItem)
+			.parse((await api("GET", "/api/boardgame/requests")).data)
+			.filter((r) => r._id === "aliased-beta");
+		assert.strictEqual(list.length, 1);
+		assert.strictEqual(list[0].alias, "Inoffensive Name");
+		assert.strictEqual(list[0].status, "beta");
+	});
+
 	it("votes on a beta game through the regular like endpoints", async () => {
 		const res = await api("POST", "/api/boardgame/beta-game/like", undefined, bob.authHeaders);
 		assert.strictEqual(res.status, 200);
@@ -284,7 +307,9 @@ describe("Boardgame API — game requests (#340)", () => {
 		);
 		const res = await api("GET", "/api/boardgame/beta-game", undefined, alice.authHeaders);
 		assert.strictEqual(res.status, 200);
-		const info = z.object({ _id: z.object({ game: z.string(), version: z.number() }), label: z.string() }).parse(res.data);
+		const info = z
+			.object({ _id: z.object({ game: z.string(), version: z.number() }), label: z.string() })
+			.parse(res.data);
 		assert.strictEqual(info._id.game, "beta-game");
 		assert.strictEqual(info.label, "Beta Game");
 	});

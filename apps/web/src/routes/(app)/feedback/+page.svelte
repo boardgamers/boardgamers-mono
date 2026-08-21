@@ -10,6 +10,7 @@
 	import { post } from "@/lib/api";
 	import { account, live } from "@/lib/stores.svelte";
 	import { Badge, Button, Input } from "@/modules/cdk";
+	import { gameBasedOnLabel, gameDisplayName } from "@/utils/game-label";
 	import type { FeedbackStatus, UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
 	import type { FeedbackRequestListing, RequestedGame } from "./+page";
@@ -108,11 +109,14 @@
 							<div class="flex items-start justify-between gap-3">
 								<div class="min-w-0">
 									<div class="flex flex-wrap items-center gap-2">
-										<h3 class="font-semibold">{request.label}</h3>
+										<h3 class="font-semibold">{gameDisplayName(request)}</h3>
 										{#if request.status === "beta"}
 											<Badge color="info">In beta</Badge>
 										{/if}
 									</div>
+									{#if gameBasedOnLabel(request)}
+										<p class="text-xs text-gray-500 dark:text-gray-400">{gameBasedOnLabel(request)}</p>
+									{/if}
 									{#if request.description}
 										<p class="mt-1 text-sm whitespace-pre-line text-gray-600 dark:text-gray-400">
 											{request.description}

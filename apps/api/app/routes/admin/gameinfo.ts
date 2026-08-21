@@ -222,10 +222,7 @@ async function upsert(ctx: Context) {
 		// so a game first uploaded under a different id than its request, or saved
 		// public from the start, is normalized too.
 		const status = await deriveGameMetaStatus(game);
-		await colls.gameMetadatas.updateOne(
-			{ _id: game },
-			status ? { $set: { status } } : { $unset: { status: true } },
-		);
+		await colls.gameMetadatas.updateOne({ _id: game }, status ? { $set: { status } } : { $unset: { status: true } });
 	}
 
 	const merged = await findGameInfoWithVersion(game, version);

@@ -166,7 +166,18 @@ router.get("/requests", async (ctx) => {
 	const requests = await colls.gameMetadatas
 		.find(
 			{ status: { $in: [...REQUEST_STATUSES] } },
-			{ projection: { label: 1, description: 1, status: 1, likeCount: 1, requestedBy: 1, forumTid: 1, createdAt: 1 } },
+			{
+				projection: {
+					label: 1,
+					alias: 1,
+					description: 1,
+					status: 1,
+					likeCount: 1,
+					requestedBy: 1,
+					forumTid: 1,
+					createdAt: 1,
+				},
+			},
 		)
 		.sort({ likeCount: -1, createdAt: -1 })
 		.toArray();
@@ -177,6 +188,9 @@ router.get("/requests", async (ctx) => {
 	ctx.body = requests.map((r) => ({
 		_id: r._id,
 		label: r.label,
+		// A beta game whose real name is trademarked (gem-trader → "Gem Trader")
+		// displays under its alias, like everywhere else on the site (#106).
+		...(r.alias ? { alias: r.alias } : {}),
 		...(r.description ? { description: r.description } : {}),
 		...(r.status ? { status: r.status } : {}),
 		likeCount: r.likeCount ?? 0,
