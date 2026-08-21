@@ -1,6 +1,7 @@
 import type { Context } from "koa";
 import Router from "koa-router";
 import { colls } from "../../config/db.ts";
+import { negotiateContentLanguage } from "../../services/language.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -14,8 +15,15 @@ router.get("/", async (ctx) => {
 });
 
 router.get("/:page", async (ctx) => {
-	// Todo: add query params & do language matching
-	const page = await colls.pages.findOne({ "_id.name": ctx.params.page, "_id.lang": "en" });
+	// Language negotiation (#306): the visitor's preferred content language
+	// (lang cookie, else Accept-Language), with English as the fallback when the
+	// page has no row in that language.
+	const lang = negotiateContentLanguage(ctx);
+	let page = await colls.pages.findOne({ _id: { name: ctx.params.page, lang } });
+
+	if (!page && lang !== "en") {
+		page = await colls.pages.findOne({ _id: { name: ctx.params.page, lang: "en" } });
+	}
 
 	if (page) {
 		ctx.body = page;
