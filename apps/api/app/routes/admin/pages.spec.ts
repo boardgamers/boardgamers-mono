@@ -240,6 +240,7 @@ describe("Admin pages API — LLM translation (#306)", () => {
 			req.on("data", (chunk) => (raw += chunk));
 			req.on("end", () => {
 				assert.strictEqual(req.url, "/chat/completions");
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse is any; fields are defaulted below
 				const body = JSON.parse(raw) as { messages: { role: string; content: string }[] };
 				const user = body.messages.find((m) => m.role === "user")?.content ?? "";
 				llmCalls.push({ system: body.messages.find((m) => m.role === "system")?.content ?? "", user });
@@ -249,6 +250,7 @@ describe("Admin pages API — LLM translation (#306)", () => {
 		});
 		await new Promise<void>((resolve) => llm.listen(0, "127.0.0.1", resolve));
 		env.translation.apiKey = "test-key";
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- listen(0, "127.0.0.1") binds a TCP port, so the address is an AddressInfo
 		env.translation.baseUrl = `http://127.0.0.1:${(llm.address() as AddressInfo).port}`;
 	});
 

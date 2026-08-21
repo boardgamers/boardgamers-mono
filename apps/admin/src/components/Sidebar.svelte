@@ -33,13 +33,11 @@
 	const pageEntries = $derived.by(() => {
 		const names = [...new Set(data.pages.map((p) => p._id.name))].sort();
 		const existing = new Set(data.pages.map((p) => `${p._id.name}/${p._id.lang}`));
-		return names.map(
-			(name): PageEntry => ({
-				name,
-				lang: pageLang,
-				missing: !existing.has(`${name}/${pageLang}`),
-			}),
-		);
+		return names.map((name): PageEntry => ({
+			name,
+			lang: pageLang,
+			missing: !existing.has(`${name}/${pageLang}`),
+		}));
 	});
 
 	function isActive(href: string): boolean {

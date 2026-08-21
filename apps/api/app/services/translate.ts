@@ -84,9 +84,12 @@ export async function translateMarkdown({
 		throw new TranslationError(`Translation request failed: ${err instanceof Error ? err.message : String(err)}`);
 	}
 
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- untyped upstream JSON; fields are guarded below
 	const body = (await response.json().catch(() => null)) as ChatCompletionsResponse | null;
 	if (!response.ok) {
-		throw new TranslationError(`Translation API error (${response.status}): ${body?.error?.message ?? "unknown error"}`);
+		throw new TranslationError(
+			`Translation API error (${response.status}): ${body?.error?.message ?? "unknown error"}`,
+		);
 	}
 	const translated = body?.choices?.[0]?.message?.content;
 	if (typeof translated !== "string" || translated.trim() === "") {
