@@ -220,9 +220,12 @@ describe("Admin pages API — LLM translation (#306)", () => {
 	let scopedHeaders: Record<string, string>;
 
 	// Stub OpenAI-compatible chat-completions server: echoes a recognizable
-	// translation and records the prompts it was called with.
+	// translation and records the requests it was called with. When
+	// `llmFinishReason` is set, answers with that finish_reason and a partial
+	// body (simulating a completion cut off by the token limit).
 	let llm: http.Server;
-	let llmCalls: { system: string; user: string }[];
+	let llmCalls: { system: string; user: string; maxTokens: number }[];
+	let llmFinishReason: string | undefined;
 
 	before(async () => {
 		await Promise.all([colls.pages.deleteMany({}), colls.pageHistories.deleteMany({})]);
@@ -235,17 +238,31 @@ describe("Admin pages API — LLM translation (#306)", () => {
 		scopedHeaders = await makeAuthHeaders(scopedId);
 
 		llmCalls = [];
+		llmFinishReason = undefined;
 		llm = http.createServer((req, res) => {
 			let raw = "";
 			req.on("data", (chunk) => (raw += chunk));
 			req.on("end", () => {
 				assert.strictEqual(req.url, "/chat/completions");
 				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse is any; fields are defaulted below
-				const body = JSON.parse(raw) as { messages: { role: string; content: string }[] };
+				const body = JSON.parse(raw) as { messages: { role: string; content: string }[]; max_tokens?: number };
 				const user = body.messages.find((m) => m.role === "user")?.content ?? "";
-				llmCalls.push({ system: body.messages.find((m) => m.role === "system")?.content ?? "", user });
+				llmCalls.push({
+					system: body.messages.find((m) => m.role === "system")?.content ?? "",
+					user,
+					maxTokens: body.max_tokens ?? 0,
+				});
 				res.setHeader("content-type", "application/json");
-				res.end(JSON.stringify({ choices: [{ message: { content: `[de] ${user.split("\n\n").at(-1)}` } }] }));
+				const content = `[de] ${user.split("\n\n").at(-1)}`;
+				res.end(
+					JSON.stringify({
+						choices: [
+							llmFinishReason
+								? { message: { content: content.slice(0, 12) }, finish_reason: llmFinishReason }
+								: { message: { content }, finish_reason: "stop" },
+						],
+					}),
+				);
 			});
 		});
 		await new Promise<void>((resolve) => llm.listen(0, "127.0.0.1", resolve));
@@ -283,8 +300,46 @@ describe("Admin pages API — LLM translation (#306)", () => {
 			assert.match(call.user, /from en to de/);
 		}
 
+		// Token budget: input-sized estimate (chars/2) + a multi-thousand-token
+		// headroom for reasoning-model overhead and target-language expansion.
+		const contentCall = llmCalls.find((c) => c.user.includes("# Welcome"))!;
+		assert.strictEqual(contentCall.maxTokens, Math.ceil("# Welcome\nPlay **Gaia Project** online.".length / 2) + 4096);
+		const titleCall = llmCalls.find((c) => c.user.includes("About us"))!;
+		assert.strictEqual(titleCall.maxTokens, Math.ceil("About us".length / 2) + 4096);
+
 		// A create-upsert has no previous version to archive.
 		assert.strictEqual(await colls.pageHistories.countDocuments({ page: { name: "about", lang: "de" } }), 0);
+	});
+
+	it("502s without saving when the model truncates the completion (finish_reason length)", async () => {
+		await api("PUT", "/api/admin/page/cut/en", adminHeaders, {
+			title: "Cut",
+			content: "A long page that the model will truncate.",
+		});
+		llmFinishReason = "length";
+		try {
+			const res = await api("POST", "/api/admin/page/cut/en/translate", adminHeaders, { targetLang: "de" });
+			assert.strictEqual(res.status, 502);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- error body shape
+			assert.match((res.data as { message: string }).message, /truncated/);
+		} finally {
+			llmFinishReason = undefined;
+		}
+
+		// The truncated page must not have been upserted.
+		assert.strictEqual(await colls.pages.countDocuments({ _id: { name: "cut", lang: "de" } }), 0);
+		assert.strictEqual(await colls.pageHistories.countDocuments({ page: { name: "cut", lang: "de" } }), 0);
+	});
+
+	it("treats the 'max_tokens' finish_reason variant as truncation too", async () => {
+		llmFinishReason = "max_tokens";
+		try {
+			const res = await api("POST", "/api/admin/page/cut/en/translate", adminHeaders, { targetLang: "de" });
+			assert.strictEqual(res.status, 502);
+		} finally {
+			llmFinishReason = undefined;
+		}
+		assert.strictEqual(await colls.pages.countDocuments({ _id: { name: "cut", lang: "de" } }), 0);
 	});
 
 	it("overwriting an existing translation archives the previous version", async () => {
