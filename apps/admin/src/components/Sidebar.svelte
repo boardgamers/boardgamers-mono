@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import { resolve } from "$app/paths";
-	import { can, type AdminMe } from "$lib/permissions.ts";
+	import { can, canSee, type AdminMe } from "$lib/permissions.ts";
 	import { gameLabelParts } from "$lib/utils.ts";
 	import type { GameInfoFront, PageFront } from "@bgs/models";
 
@@ -133,7 +133,7 @@
 				Changelog
 			</a>
 		{/if}
-		{#if can(data.me, "feedback")}
+		{#if canSee(data.me, "feedback")}
 			<a
 				href={resolve("/feedback")}
 				class="px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive('/feedback')
@@ -221,7 +221,7 @@
 			</div>
 		{/if}
 
-		{#if can(data.me, "pages")}
+		{#if canSee(data.me, "pages")}
 			<div class="mt-4">
 				<button
 					onclick={() => (pagesOpen = !pagesOpen)}

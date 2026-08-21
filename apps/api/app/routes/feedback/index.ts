@@ -1,5 +1,11 @@
 import createError from "http-errors";
-import { feedbackKindSchema, feedbackStatusSchema, type FeedbackRequestDoc } from "@bgs/models";
+import {
+	canUser,
+	canUserManageGame,
+	feedbackKindSchema,
+	feedbackStatusSchema,
+	type FeedbackRequestDoc,
+} from "@bgs/models";
 import type { Context } from "koa";
 import Router from "koa-router";
 import { z } from "zod";
@@ -9,7 +15,7 @@ import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { likedFeedbackRequestIds, setFeedbackRequestLike } from "../../services/feedbacklike.ts";
 import { createFeedbackTopic, forumUidForUser } from "../../services/forum.ts";
 import { zObjectId } from "../../utils/zod.ts";
-import { loggedIn, requirePermission, usernamesById } from "../utils.ts";
+import { loggedIn, usernamesById } from "../utils.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -141,7 +147,13 @@ const statusBodySchema = z.object({
 	status: feedbackStatusSchema,
 });
 
-router.patch("/:id/status", requirePermission("feedback"), async (ctx) => {
+// Status triage: blanket "feedback" admins, plus per-boardgame admins on the
+// requests of the game(s) they manage (site feedback stays blanket-only).
+router.patch("/:id/status", async (ctx) => {
+	const request = ctx.state.foundFeedbackRequest!;
+	if (!canUser(ctx.state.user, "feedback") && !(request.game && canUserManageGame(ctx.state.user, request.game))) {
+		throw createError(403, "Missing admin permission: feedback");
+	}
 	const { status } = statusBodySchema.parse(ctx.request.body);
 	const updated = await colls.feedbackRequests.findOneAndUpdate(
 		{ _id: ctx.state.foundFeedbackRequest!._id },

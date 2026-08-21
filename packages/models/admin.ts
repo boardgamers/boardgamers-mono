@@ -68,8 +68,9 @@ export function grantsIncludeGame(grants: readonly string[], game: string): bool
  * Equality always does; the global "games" grant also satisfies "gameinfo"
  * (the games admin manages boardgame info too); and a per-boardgame
  * `gameinfo:<game>` grant satisfies the game-scoped mounts (gameinfo/games),
- * "users" (whose router hosts the per-game beta-grant routes) and "pages"
- * (whose router hosts the game's CMS pages) — the routers behind those mounts
+ * "users" (whose router hosts the per-game beta-grant routes), "pages"
+ * (whose router hosts the game's CMS pages) and "feedback" (whose router
+ * hosts the game's feedback requests) — the routers behind those mounts
  * then re-check the grant against the request's target game, so the scoped
  * grant never acts blanket-wide.
  */
@@ -83,7 +84,13 @@ export function grantSatisfies(grant: string, permission: AdminPermission): bool
 	if (!isGameAdminGrant(grant)) {
 		return false;
 	}
-	return permission === "gameinfo" || permission === "games" || permission === "users" || permission === "pages";
+	return (
+		permission === "gameinfo" ||
+		permission === "games" ||
+		permission === "users" ||
+		permission === "pages" ||
+		permission === "feedback"
+	);
 }
 
 /**

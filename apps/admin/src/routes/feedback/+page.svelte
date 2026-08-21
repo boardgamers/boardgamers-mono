@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from "$app/navigation";
 	import { api } from "$lib/api.ts";
+	import { can } from "$lib/permissions.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { timeAgo } from "$lib/utils.ts";
 	import WebLink from "$components/WebLink.svelte";
@@ -83,6 +84,12 @@
 			Site feature requests and per-game requests submitted on the
 			<WebLink path="/feedback">public feedback page</WebLink>. Triage them here: mark what you plan to do, what
 			shipped, and what you decline.
+			{#if !can(data.me, "feedback")}
+				<span class="block mt-1">
+					You admin {data.me.games.length === 1 ? "one game" : `${data.me.games.length} games`} — only their requests are
+					shown.
+				</span>
+			{/if}
 		</p>
 	</div>
 

@@ -37,6 +37,20 @@ export function can(me: AdminMe | null | undefined, permission: AdminPermission)
 	return !!me && (me.fullAdmin || me.permissions.includes(permission));
 }
 
+// Whether the sidebar shows an entry for a permission. Per-boardgame admins
+// additionally get the entries whose pages are game-scoped for them: the API
+// scopes those (pages list, feedback list) to their granted games.
+export function canSee(me: AdminMe | null | undefined, permission: AdminPermission): boolean {
+	if (can(me, permission)) {
+		return true;
+	}
+	return (
+		(permission === "pages" || permission === "feedback") &&
+		!!me &&
+		(me.permissions.includes("gameinfo") || me.permissions.includes("games") || me.games.length > 0)
+	);
+}
+
 export function canManageGame(me: AdminMe | null | undefined, game: string): boolean {
 	return (
 		!!me &&
