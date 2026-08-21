@@ -35,7 +35,7 @@
 	let gameFilter = $state("");
 	let updatingId = $state<string | null>(null);
 
-	const gameLabelById = $derived(Object.fromEntries(data.games.map((g) => [g._id.game, g.label] as const)));
+	const gameLabelById = $derived(Object.fromEntries(data.games.map((g) => [g._id, g.label] as const)));
 
 	const filtered = $derived(
 		data.requests.filter(
@@ -128,8 +128,8 @@
 				class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 			>
 				<option value="">All games</option>
-				{#each data.games as g (g._id.game)}
-					<option value={g._id.game}>{g.label}</option>
+				{#each data.games as g (g._id)}
+					<option value={g._id}>{g.label}</option>
 				{/each}
 			</select>
 		</label>

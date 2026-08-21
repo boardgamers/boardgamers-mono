@@ -43,6 +43,8 @@ async function insertGameInfo(game: string, version = 1) {
 		createdAt: new Date(),
 		updatedAt: new Date(),
 	});
+	// The gameinfo list is one entry per game, sourced from gameMetadatas.
+	await colls.gameMetadatas.updateOne({ _id: game }, { $setOnInsert: { label: game, players: [2] } }, { upsert: true });
 }
 
 describe("Granular admin permissions", () => {
@@ -224,17 +226,17 @@ describe("Granular admin permissions", () => {
 			const res = await api("GET", "/api/admin/gameinfo", gameAdminA);
 			assert.strictEqual(res.status, 200);
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
-			const list = res.data as { _id: { game: string; version: number } }[];
+			const list = res.data as { _id: string }[];
 			assert.ok(list.length > 0);
 			assert.ok(
-				list.every((v) => v._id.game === "game-a"),
+				list.every((v) => v._id === "game-a"),
 				JSON.stringify(list),
 			);
 
 			const full = await api("GET", "/api/admin/gameinfo", fullAdmin);
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
-			const fullList = full.data as { _id: { game: string; version: number } }[];
-			assert.ok(fullList.some((v) => v._id.game === "game-b"));
+			const fullList = full.data as { _id: string }[];
+			assert.ok(fullList.some((v) => v._id === "game-b"));
 		});
 
 		it("can upsert the granted game's versions, denied on another game", async () => {
@@ -576,7 +578,7 @@ describe("Granular admin permissions", () => {
 			const list = await api("GET", "/api/admin/gameinfo", bearer);
 			assert.strictEqual(list.status, 200);
 			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
-			assert.ok((list.data as { _id: { game: string } }[]).every((v) => v._id.game === "game-a"));
+			assert.ok((list.data as { _id: string }[]).every((v) => v._id === "game-a"));
 
 			const denied = await api("POST", "/api/admin/gameinfo/game-b/9", bearer, {
 				viewer: { url: "https://example.com/x.js" },

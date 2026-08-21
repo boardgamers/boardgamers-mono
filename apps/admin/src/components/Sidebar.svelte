@@ -3,46 +3,16 @@
 	import { resolve } from "$app/paths";
 	import { can, canSee, type AdminMe } from "$lib/permissions.ts";
 	import { gameLabelParts } from "$lib/utils.ts";
-	import type { GameInfoFront, PageFront } from "@bgs/models";
+	import type { PageFront } from "@bgs/models";
+	import type { BoardgameEntry } from "../routes/+layout.ts";
 
-	let { data }: { data: { games: GameInfoFront[]; pages: PageFront[]; me: AdminMe } } = $props();
+	let { data }: { data: { games: BoardgameEntry[]; pages: PageFront[]; me: AdminMe } } = $props();
 
 	let gamesOpen = $state(true);
 	let pagesOpen = $state(true);
-	let archivedOpen = $state(false);
 
-	// One sidebar entry per boardgame (not per version): group the version docs by
-	// game, linking each game to its latest (highest-version) doc. A game with any
-	// active version is active; a game whose every version is archived is archived.
-	interface BoardgameEntry {
-		game: string;
-		label: string;
-		alias?: string;
-		latestVersion: number;
-		archived: boolean;
-	}
-	const boardgames = $derived.by(() => {
-		const byGame: Record<string, BoardgameEntry> = {};
-		for (const g of data.games) {
-			const existing = byGame[g._id.game];
-			const archived = !!g.meta?.archived;
-			if (!existing) {
-				byGame[g._id.game] = {
-					game: g._id.game,
-					label: g.label,
-					alias: g.alias,
-					latestVersion: g._id.version,
-					archived,
-				};
-			} else {
-				existing.latestVersion = Math.max(existing.latestVersion, g._id.version);
-				existing.archived = existing.archived && archived;
-			}
-		}
-		return Object.values(byGame);
-	});
-	const activeGames = $derived(boardgames.filter((g) => !g.archived));
-	const archivedGames = $derived(boardgames.filter((g) => g.archived));
+	// data.games is already one entry per boardgame (the API dedupes versions).
+	const boardgames = $derived(data.games);
 
 	function isActive(href: string): boolean {
 		return page.url.pathname === href;
@@ -177,8 +147,8 @@
 						>
 							+ New game
 						</a>
-						{#each activeGames as g (g.game)}
-							{@const href = resolve("/game/[game]/[version]", { game: g.game, version: String(g.latestVersion) })}
+						{#each boardgames as g (g._id)}
+							{@const href = resolve("/game/[gameId]", { gameId: g._id })}
 							{@const { emoji, name } = gameLabelParts(g.label)}
 							<a
 								{href}
@@ -187,45 +157,12 @@
 								)
 									? 'bg-gray-100 dark:bg-gray-800 font-semibold'
 									: ''}"
-								title={g.game}
+								title={g._id}
 							>
 								{#if emoji}<span class="flex-shrink-0">{emoji}</span>{/if}
-								<span class="truncate flex-1">{name || g.game}</span>
+								<span class="truncate flex-1">{name || g._id}</span>
 							</a>
 						{/each}
-						{#if archivedGames.length > 0}
-							<button
-								onclick={() => (archivedOpen = !archivedOpen)}
-								class="w-full flex items-center justify-between px-3 py-1.5 rounded-md text-xs font-medium text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-							>
-								Archived ({archivedGames.length})
-								<svg
-									class="w-3.5 h-3.5 transition-transform {archivedOpen ? 'rotate-90' : ''}"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-									><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg
-								>
-							</button>
-							{#if archivedOpen}
-								{#each archivedGames as g (g.game)}
-									{@const href = resolve("/game/[game]/[version]", { game: g.game, version: String(g.latestVersion) })}
-									{@const { emoji, name } = gameLabelParts(g.label)}
-									<a
-										{href}
-										class="flex items-center gap-2 pl-6 pr-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive(
-											href
-										)
-											? 'bg-gray-100 dark:bg-gray-800 font-semibold'
-											: ''}"
-										title={g.game}
-									>
-										{#if emoji}<span class="flex-shrink-0">{emoji}</span>{/if}
-										<span class="truncate flex-1 line-through text-gray-400">{name || g.game}</span>
-									</a>
-								{/each}
-							{/if}
-						{/if}
 					</div>
 				{/if}
 			</div>

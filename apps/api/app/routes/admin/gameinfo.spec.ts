@@ -17,6 +17,61 @@ const baseInfo = {
 	meta: {},
 };
 
+// The gameinfo list is one entry per GAME ({ _id: slug, label, alias }) — a game
+// with N versions appears once (the per-version list broke keyed {#each} blocks
+// in the admin panel). The per-version view lives on /:game/versions instead.
+describe("Admin gameinfo API — game list, one entry per game", () => {
+	let headers: Record<string, string>;
+
+	before(async () => {
+		headers = await makeAdminHeaders();
+		await colls.gameInfos.insertMany([
+			{ _id: { game: "multigame", version: 1 }, viewer: { url: "//v1" }, public: true, meta: {} },
+			{ _id: { game: "multigame", version: 2 }, viewer: { url: "//v2" }, public: true, meta: {} },
+			{ _id: { game: "multigame", version: 3 }, viewer: { url: "//v3" }, public: true, meta: { archived: true } },
+			{ _id: { game: "singlegame", version: 1 }, viewer: { url: "//v1" }, public: true, meta: {} },
+		]);
+		await colls.gameMetadatas.insertMany([
+			{ _id: "multigame", label: "Multi Game", alias: "MG", players: [2] },
+			{ _id: "singlegame", label: "Single Game", players: [2] },
+			{ _id: "requestedgame", label: "Requested Game", players: [], status: "requested" },
+		]);
+	});
+
+	after(() => db().dropDatabase());
+
+	it("lists one entry per game, whatever its version count", async () => {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo`, { headers });
+		assert.strictEqual(res.status, 200);
+		const list = z
+			.array(z.object({ _id: z.string(), label: z.string(), alias: z.string().optional() }))
+			.parse(await res.json());
+		assert.deepStrictEqual(
+			list.filter((g) => g._id === "multigame"),
+			[{ _id: "multigame", label: "Multi Game", alias: "MG" }],
+		);
+		assert.deepStrictEqual(
+			list.filter((g) => g._id === "singlegame"),
+			[{ _id: "singlegame", label: "Single Game" }],
+		);
+		// Whole-game requests (#340) show on the requests page, not the game list.
+		assert.ok(!list.some((g) => g._id === "requestedgame"));
+	});
+
+	it("GET /:game/versions returns that game's versions, latest first, with archived flags", async () => {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/multigame/versions`, { headers });
+		assert.strictEqual(res.status, 200);
+		assert.deepStrictEqual(await res.json(), [
+			{ version: 3, archived: true },
+			{ version: 2, archived: false },
+			{ version: 1, archived: false },
+		]);
+
+		const single = await fetch(`${baseURL()}/api/admin/gameinfo/singlegame/versions`, { headers });
+		assert.deepStrictEqual(await single.json(), [{ version: 1, archived: false }]);
+	});
+});
+
 async function makeAdminHeaders() {
 	const adminId = new ObjectId();
 	await colls.users.insertOne(testUser({ _id: adminId, authority: "admin" }));

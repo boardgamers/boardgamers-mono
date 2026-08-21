@@ -41,29 +41,29 @@ function requireGameAccess(ctx: Context, game: string) {
 	}
 }
 
+// One entry per GAME ({ _id: <slug>, label, alias }) — sourced from
+// gameMetadatas, so a game with N versions appears once (the per-version list
+// broke keyed {#each} blocks in the admin panel with duplicate keys). Whole-game
+// requests (status "requested") are excluded: they show on the requests page.
+// The version page's tabs need the per-version list — /:game/versions below.
 router.get("/", async (ctx) => {
 	const permissions = userPermissions(ctx.state.user);
 	const fullAccess = permissions.has("gameinfo") || permissions.has("games");
 	// A scoped (per-boardgame) admin only lists the games their grants cover.
-	const filter = fullAccess
-		? {}
-		: {
-				"_id.game": {
-					$in: [...permissions].flatMap((p) => (isGameAdminGrant(p) ? [p.slice("gameinfo:".length)] : [])),
-				},
-			};
-	const versions = await colls.gameInfos
-		.find(filter, { projection: { _id: 1, "meta.archived": 1 } })
-		.sort({ "_id.game": 1, "_id.version": -1 })
-		.toArray();
+	const grantedGames = fullAccess
+		? null
+		: [...permissions].flatMap((p) => (isGameAdminGrant(p) ? [p.slice("gameinfo:".length)] : []));
 	const metas = await colls.gameMetadatas
-		.find(fullAccess ? {} : { _id: filter["_id.game"] }, { projection: { label: 1, alias: 1 } })
+		.find(
+			{
+				status: { $ne: "requested" },
+				...(grantedGames ? { _id: { $in: grantedGames } } : {}),
+			},
+			{ projection: { label: 1, alias: 1 } },
+		)
+		.sort({ _id: 1 })
 		.toArray();
-	const metaByGame = new Map(metas.map((m) => [m._id, m]));
-	ctx.body = versions.map((v) => {
-		const meta = metaByGame.get(v._id.game);
-		return { _id: v._id, label: meta?.label ?? v._id.game, alias: meta?.alias, meta: v.meta };
-	});
+	ctx.body = metas.map((m) => ({ _id: m._id, label: m.label, alias: m.alias }));
 });
 
 // The per-game metadata (label/alias/description/rules/credits/links/players/
@@ -304,6 +304,19 @@ router.delete("/:game/beta-users/:userId", async (ctx) => {
 		{ $unset: { "access.maxVersion": true } },
 	);
 	ctx.status = 200;
+});
+
+// GET /api/admin/gameinfo/:game/versions — this game's versions, latest first,
+// with the archived flag. Feeds the version tabs on the admin game page (the
+// list route above is one-per-game since the sidebar/feedback dedupe). Read
+// stays open to any scoped admin like the other reads. Registered BEFORE
+// /:game/:version, which would otherwise swallow "versions" as a version.
+router.get("/:game/versions", async (ctx) => {
+	const versions = await colls.gameInfos
+		.find({ "_id.game": ctx.params.game }, { projection: { _id: 1, "meta.archived": 1 } })
+		.sort({ "_id.version": -1 })
+		.toArray();
+	ctx.body = versions.map((v) => ({ version: v._id.version, archived: !!v.meta?.archived }));
 });
 
 // GET /api/admin/gameinfo/:game/ongoing-games — per-version count of ongoing

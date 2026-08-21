@@ -6,7 +6,7 @@
 	import { toast } from "$lib/toast.svelte.ts";
 	import { gameLabelParts, timeAgo } from "$lib/utils.ts";
 	import WebLink from "$components/WebLink.svelte";
-	import type { GameInfoFront } from "@bgs/models";
+	import type { BoardgameEntry } from "../../+layout.ts";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -22,7 +22,7 @@
 
 	const game = $derived(info?.game);
 	const gameLabel = $derived(
-		gameLabelParts((page.data.games as GameInfoFront[]).find((g) => g._id.game === game?.game.name)?.label).name ||
+		gameLabelParts((page.data.games as BoardgameEntry[]).find((g) => g._id === game?.game.name)?.label).name ||
 			game?.game.name
 	);
 	const statusColor = $derived(
