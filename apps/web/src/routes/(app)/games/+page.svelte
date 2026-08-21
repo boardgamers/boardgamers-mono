@@ -2,7 +2,8 @@
 	import { fade } from "svelte/transition";
 	import { GameList } from "@/components";
 	import { Nav, NavItem, NavLink, Input } from "@/modules/cdk";
-	import { goto } from "$app/navigation";
+	import { goto, replaceState } from "$app/navigation";
+	import { browser } from "$app/environment";
 	import { resolve } from "$app/paths";
 	import type { Pathname } from "$app/types";
 	import { page } from "$app/state";
@@ -44,9 +45,27 @@
 	});
 
 	// Live/async pace filter (#55) — "" = no filter. Passed to each GameList, which
-	// maps it to a server-side timePerGame bound.
-	let pace = $state<"" | GamePace>("");
+	// maps it to a server-side timePerGame bound. Initialized from ?pace= so a shared
+	// link restores the filter; kept in sync by the effect below.
+	const initialPace = page.url.searchParams.get("pace");
+	let pace = $state<"" | GamePace>(initialPace === "live" || initialPace === "async" ? initialPace : "");
 	let paceFilter = $derived<GamePace | undefined>(pace === "" ? undefined : pace);
+	// Reflect the filter in the URL without a history entry or a navigation.
+	$effect(() => {
+		if (!browser) {
+			return;
+		}
+		const url = new URL(page.url);
+		if (pace === "") {
+			url.searchParams.delete("pace");
+		} else {
+			url.searchParams.set("pace", pace);
+		}
+		if (url.href !== page.url.href) {
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- only the query string changes; the pathname is already the current route
+			replaceState(url, page.state);
+		}
+	});
 	// The viewer's karma (SSR snapshot) — threaded into the open-games list (#345).
 	let viewerKarma = $derived((page.data.user as UserFront | null)?.account?.karma);
 </script>

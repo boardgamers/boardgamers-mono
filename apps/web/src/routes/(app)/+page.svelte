@@ -9,6 +9,8 @@
 	import { account } from "@/lib/account.svelte";
 	import { activeGames, live } from "@/lib/stores.svelte";
 	import { page } from "$app/state";
+	import { replaceState } from "$app/navigation";
+	import { browser } from "$app/environment";
 	import { untrack } from "svelte";
 	import type { GamePace } from "@/utils";
 	import type { GameFront, UserFront } from "@bgs/models";
@@ -23,12 +25,31 @@
 	let user = $derived(live($account, (page.data.user as UserFront | null) ?? null));
 	let myGames = $derived(live($activeGames, (page.data.activeGames as string[]) ?? []));
 
-	// Lobby pace filter (#55) — "" = no filter.
-	let lobbyPace = $state<"" | GamePace>("");
+	// Lobby pace filter (#55) — "" = no filter. Initialized from ?pace= so a shared
+	// link restores the filter; kept in sync by the effect below.
+	const initialPace = page.url.searchParams.get("pace");
+	let lobbyPace = $state<"" | GamePace>(initialPace === "live" || initialPace === "async" ? initialPace : "");
 	let lobbyPaceFilter = $derived<GamePace | undefined>(lobbyPace === "" ? undefined : lobbyPace);
-	// The lobby's loaded open games — the pace chips hide when they're all one pace.
-	// Seeded once (untrack) from the +page.ts prefetch cache so the SSR render (where the
-	// child's bind-back hasn't run yet) derives the same filter visibility as hydration.
+	// Reflect the filter in the URL without a history entry or a navigation (the
+	// lobby's games come from the client-side games cache, not the page load).
+	$effect(() => {
+		if (!browser) {
+			return;
+		}
+		const url = new URL(page.url);
+		if (lobbyPace === "") {
+			url.searchParams.delete("pace");
+		} else {
+			url.searchParams.set("pace", lobbyPace);
+		}
+		if (url.href !== page.url.href) {
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- only the query string changes; the pathname is already the current route
+			replaceState(url, page.state);
+		}
+	});
+	// The lobby's loaded open games. Seeded once (untrack) from the +page.ts prefetch
+	// cache so the SSR render (where the child's bind-back hasn't run yet) derives the
+	// same filter visibility as hydration.
 	let lobbyGames = $state<GameFront[]>(
 		untrack(
 			() =>
@@ -36,6 +57,16 @@
 					?.games ?? []
 		)
 	);
+	// The last lobby list fetched WITHOUT a pace filter — what the pace chips derive
+	// their visibility from. Anchoring to the unfiltered set keeps the chips rendered
+	// after filtering narrows the list to a single pace (or to nothing), which is
+	// exactly when the user needs them to switch back.
+	let unfilteredLobbyGames = $state<GameFront[]>(untrack(() => lobbyGames));
+	$effect(() => {
+		if (lobbyPaceFilter === undefined) {
+			unfilteredLobbyGames = lobbyGames;
+		}
+	});
 
 	let websiteJsonLd = $derived(
 		JSON.stringify({
@@ -136,7 +167,7 @@
 					bind:games={lobbyGames}
 				>
 					{#snippet headerContent()}
-						<SetupOptionsFilter games={lobbyGames} bind:pace={lobbyPace} />
+						<SetupOptionsFilter games={unfilteredLobbyGames} bind:pace={lobbyPace} />
 					{/snippet}
 				</GameList>
 			</div>

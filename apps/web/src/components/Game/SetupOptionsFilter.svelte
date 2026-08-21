@@ -7,10 +7,13 @@
 	export type OptionGroup = { name: string; label: string; choices: OptionChoice[] };
 
 	/**
-	 * Whether the pace filter offers a real choice: the visible games are not all
-	 * the same pace. True for an empty list (no majority pace) — the parent seeds
-	 * `games` from the prefetch cache, so SSR and hydration see the same rows and
-	 * agree on the filter's visibility.
+	 * Whether the pace filter offers a real choice: the UNFILTERED lobby games are
+	 * not all the same pace. True for an empty list (no majority pace) — the parent
+	 * seeds `games` from the prefetch cache, so SSR and hydration see the same rows
+	 * and agree on the filter's visibility. The parent must keep passing the last
+	 * pace-unfiltered list (not the list narrowed by an active pace filter), or the
+	 * chips would vanish the moment a filter leaves only same-pace games — exactly
+	 * when the user needs them to switch back.
 	 */
 	export function hasPaceChoice(games: GameFront[]): boolean {
 		if (games.length === 0) {
@@ -84,7 +87,9 @@
 	}: {
 		/** The boardgame's game-info — its `options` + the loaded games drive the option chips. */
 		info?: GameInfoFront | undefined;
-		/** The open games currently loaded (bind:games from GameList). */
+		/** The open games the chip visibility derives from. Must be the last
+		 *  pace-UNFILTERED list (the parent freezes it while a pace filter is active) —
+		 *  passing the filtered list would hide the chips as soon as one pace remains. */
 		games?: GameFront[];
 		pace?: "" | GamePace;
 		optionFilter?: SetupOptionFilter | undefined;
@@ -111,6 +116,10 @@
 		}
 	});
 
+	// The last filter VALUE bound out — kept so the effect only writes on an actual
+	// change. Writing a fresh-but-equal object each run would re-trigger the effect
+	// through the parent's bind target and loop it.
+	let lastBoundFilter: string | undefined;
 	$effect(() => {
 		const next: SetupOptionFilter = {};
 		for (const group of optionGroups) {
@@ -119,17 +128,21 @@
 				next[group.name] = value;
 			}
 		}
-		optionFilter = Object.keys(next).length > 0 ? next : undefined;
+		const key = Object.keys(next).length > 0 ? JSON.stringify(next) : undefined;
+		if (key !== lastBoundFilter) {
+			lastBoundFilter = key;
+			optionFilter = key ? next : undefined;
+		}
 	});
 
-	const paceChoices: { value: "" | GamePace; label: string }[] = [
-		{ value: "", label: "All" },
+	// No "All" chip: clicking the selected chip again clears the filter.
+	const paceChoices: { value: GamePace; label: string }[] = [
 		{ value: "live", label: "⚡ Live" },
 		{ value: "async", label: "🐢 Async" },
 	];
 
-	// Hide the pace filter when it couldn't narrow anything: every visible game is
-	// the same pace (all live, or all async).
+	// Hide the pace filter when it couldn't narrow anything: every game in the
+	// (unfiltered) lobby is the same pace (all live, or all async).
 	let showPaceFilter = $derived(hasPaceChoice(games));
 
 	// Chip styling, matching the setup-badge / pace-chip design language. The
@@ -149,7 +162,7 @@
 				type="button"
 				class="{chipBase} {pace === choice.value ? chipActive : chipInactive}"
 				aria-pressed={pace === choice.value}
-				onclick={() => (pace = choice.value)}
+				onclick={() => (pace = pace === choice.value ? "" : choice.value)}
 			>
 				{choice.label}
 			</button>
@@ -161,20 +174,12 @@
 {#each optionGroups as group (group.name)}
 	<div class="flex items-center gap-1" role="group" aria-label={`Filter by ${group.label}`}>
 		<span class="text-xs font-medium text-gray-500 dark:text-gray-400">{group.label}:</span>
-		<button
-			type="button"
-			class="{chipBase} {(selections[group.name] ?? '') === '' ? chipActive : chipInactive}"
-			aria-pressed={(selections[group.name] ?? "") === ""}
-			onclick={() => (selections[group.name] = "")}
-		>
-			All
-		</button>
 		{#each group.choices as choice (choice.name)}
 			<button
 				type="button"
 				class="{chipBase} {selections[group.name] === choice.name ? chipActive : chipInactive}"
 				aria-pressed={selections[group.name] === choice.name}
-				onclick={() => (selections[group.name] = choice.name)}
+				onclick={() => (selections[group.name] = selections[group.name] === choice.name ? "" : choice.name)}
 			>
 				{choice.label}
 			</button>
