@@ -47,15 +47,23 @@ describe("BoardgameRequests SSR", () => {
 		expect(body).toContain("alice");
 		expect(body).toContain('aria-pressed="true"');
 		expect(body).toContain("https://forum.boardgamers.space/topic/123");
-		// Logged in: the submit form is in the SSR HTML
-		expect(body).toContain("<form");
+		// The form stays collapsed server-side even for a logged-in user: only the
+		// disclosure trigger is rendered, the panel mounts on click after hydration.
+		// No aria-controls yet — the referent doesn't exist until the first expand.
+		expect(body).not.toContain("<form");
+		expect(body).toContain('aria-expanded="false"');
+		expect(body).not.toContain("aria-controls");
+		expect(body).not.toContain('id="game-feedback-form"');
+		expect(body).toContain("Request an expansion or feature");
 	});
 
-	it("renders the login prompt (no form) server-side for anonymous users", () => {
+	it("renders the collapsed trigger (no form, no login prompt) server-side for anonymous users", () => {
 		const { body } = render(BoardgameRequests, { props: { boardgameId: "testgame", requests, user: null } });
 		expect(body).toContain("New map");
 		expect(body).not.toContain("<form");
-		expect(body).toContain("Log in");
+		expect(body).not.toContain("Log in");
+		expect(body).toContain('aria-expanded="false"');
+		expect(body).toContain("Request an expansion or feature");
 	});
 
 	it("renders the empty state server-side when the game has no requests", () => {

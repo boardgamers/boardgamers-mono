@@ -41,6 +41,17 @@ import BoardgameRequests from "./BoardgameRequests.svelte";
 const postMock = vi.mocked(post);
 const putMock = vi.mocked(put);
 
+// The disclosure trigger — before the first expand it has no aria-controls yet
+// (the panel doesn't exist), so match on aria-expanded instead.
+const formTrigger = (target: ParentNode) => target.querySelector<HTMLButtonElement>("button[aria-expanded]")!;
+
+function expandForm(target: ParentNode) {
+	const trigger = formTrigger(target);
+	trigger.click();
+	flushSync();
+	return trigger;
+}
+
 // Already in API order (the server sorts most-voted first, then oldest).
 const requests = [
 	{
@@ -107,9 +118,48 @@ describe("BoardgameRequests", () => {
 		// forumTid → forum discussion link
 		const forumLink = target.querySelector<HTMLAnchorElement>('a[href="https://forum.boardgamers.space/topic/123"]');
 		expect(forumLink?.textContent).toContain("Forum discussion");
-		// Anonymous: the form is replaced by a login prompt
+		unmount(instance as never);
+	});
+
+	it("keeps the request form collapsed behind a disclosure until the trigger is clicked", () => {
+		const { target, instance } = mountSection({ user: { _id: "u1", account: { username: "alice" } } });
+		// Collapsed by default: a trigger, no form panel — and no dangling aria-controls
+		const trigger = formTrigger(target);
+		expect(trigger.getAttribute("aria-expanded")).toBe("false");
+		expect(trigger.getAttribute("aria-controls")).toBeNull();
+		expect(trigger.textContent).toContain("Request an expansion or feature");
+		expect(target.querySelector("#game-feedback-form")).toBeNull();
 		expect(target.querySelectorAll("form")).toHaveLength(0);
-		expect(text).toContain("Log in");
+
+		// Clicking the trigger expands the form and flips aria-expanded
+		expandForm(target);
+		expect(trigger.getAttribute("aria-expanded")).toBe("true");
+		expect(trigger.getAttribute("aria-controls")).toBe("game-feedback-form");
+		const panel = target.querySelector<HTMLElement>("#game-feedback-form")!;
+		expect(panel.hidden).toBe(false);
+		expect(panel.querySelector("form")).not.toBeNull();
+
+		// …and clicking again hides it, but keeps it mounted so a typed draft survives
+		const titleInput = panel.querySelector<HTMLInputElement>("#feedback-request-game-testgame-title")!;
+		titleInput.value = "New faction";
+		titleInput.dispatchEvent(new Event("input", { bubbles: true }));
+		flushSync();
+		trigger.click();
+		flushSync();
+		expect(trigger.getAttribute("aria-expanded")).toBe("false");
+		expect(target.querySelector<HTMLElement>("#game-feedback-form")!.hidden).toBe(true);
+		trigger.click();
+		flushSync();
+		expect(target.querySelector<HTMLInputElement>("#feedback-request-game-testgame-title")!.value).toBe("New faction");
+		unmount(instance as never);
+	});
+
+	it("reveals the login prompt when an anonymous user expands the form", () => {
+		const { target, instance } = mountSection();
+		expect(target.textContent).not.toContain("Log in");
+		expandForm(target);
+		expect(target.querySelectorAll("form")).toHaveLength(0);
+		expect(target.querySelector("#game-feedback-form")!.textContent).toContain("Log in");
 		unmount(instance as never);
 	});
 
@@ -161,6 +211,7 @@ describe("BoardgameRequests", () => {
 		};
 		postMock.mockResolvedValue(created as never);
 		const { target, instance } = mountSection({ user: { _id: "u1", account: { username: "alice" } } });
+		expandForm(target);
 
 		const titleInput = target.querySelector<HTMLInputElement>("#feedback-request-game-testgame-title")!;
 		titleInput.value = "New faction";
@@ -181,6 +232,7 @@ describe("BoardgameRequests", () => {
 			new ApiError("Link your forum account to submit feedback", 403, "forum_account_required"),
 		);
 		const { target, instance } = mountSection({ user: { _id: "u1", account: { username: "alice" } } });
+		expandForm(target);
 
 		const titleInput = target.querySelector<HTMLInputElement>("#feedback-request-game-testgame-title")!;
 		titleInput.value = "New faction";
