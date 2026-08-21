@@ -6,6 +6,8 @@ import Router from "koa-router";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
+import { actionRateLimit } from "../../services/actionratelimit.ts";
+import { TranslationError, translateMarkdown } from "../../services/translate.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -107,28 +109,98 @@ router.get("/:name/:lang/history/:id", async (ctx) => {
 	ctx.body = { ...entry, editedByUsername: editor?.account.username ?? null };
 });
 
-async function upsert(ctx: Context) {
-	requirePageAccess(ctx, ctx.params.name);
-	const pageId = { name: ctx.params.name, lang: ctx.params.lang };
+// Upsert a page's fields, archiving the pre-edit state so a bad edit stays
+// recoverable (#350). An upsert that created the page has no previous version
+// to record. Returns the resulting page doc.
+async function upsertPage(
+	pageId: PageDoc["_id"],
+	fields: Record<string, unknown>,
+	editedBy: ObjectId,
+): Promise<PageDoc | null> {
 	const result = await colls.pages.findOneAndUpdate(
 		{ _id: pageId },
-		{ $set: omit(z.record(z.string(), z.unknown()).parse(ctx.request.body), "_id", "createdAt", "updatedAt") },
+		{ $set: fields },
 		// "before" returns the pre-edit doc (null on a create-upsert) so it can be
 		// archived — "after" would return the new content, which isn't history.
 		{ upsert: true, returnDocument: "before", includeResultMetadata: true },
 	);
-	// Archive the pre-edit state so a bad edit stays recoverable (#350). An
-	// upsert that created the page has no previous version to record.
 	if (result.lastErrorObject?.updatedExisting && result.value) {
-		await recordPageHistory(result.value, ctx.state.user!._id);
+		await recordPageHistory(result.value, editedBy);
 	}
-	ctx.body = await colls.pages.findOne({ _id: pageId });
+	return colls.pages.findOne({ _id: pageId });
+}
+
+async function upsert(ctx: Context) {
+	requirePageAccess(ctx, ctx.params.name);
+	const pageId = { name: ctx.params.name, lang: ctx.params.lang };
+	const fields = omit(z.record(z.string(), z.unknown()).parse(ctx.request.body), "_id", "createdAt", "updatedAt");
+	ctx.body = await upsertPage(pageId, fields, ctx.state.user!._id);
 }
 
 // oxlint-disable no-async-endpoint-handlers -- Express-specific rule; Koa awaits async middleware natively
 router.post("/:name/:lang", upsert);
 router.put("/:name/:lang", upsert);
 // oxlint-enable no-async-endpoint-handlers
+
+const translateSchema = z.object({
+	// ISO-639 2–3 letter language code of the page to create/overwrite.
+	targetLang: z
+		.string()
+		.trim()
+		.toLowerCase()
+		.regex(/^[a-z]{2,3}$/, "targetLang must be a 2–3 letter language code"),
+	// Defaults to the page's :lang (the common case: translate the page you're viewing).
+	sourceLang: z
+		.string()
+		.trim()
+		.toLowerCase()
+		.regex(/^[a-z]{2,3}$/)
+		.optional(),
+});
+
+// POST /:name/:lang/translate — LLM-translate the page into another language
+// (#306), upserting {name, targetLang}. The upsert goes through the same
+// history-archiving path as a manual edit, so an overwritten translation is
+// recoverable from the page's history. Rate-limited per admin: every call is
+// two paid LLM completions (title + content).
+router.post("/:name/:lang/translate", actionRateLimit("admin/translate-page"), async (ctx) => {
+	requirePageAccess(ctx, ctx.params.name);
+	const { targetLang, sourceLang = ctx.params.lang } = translateSchema.parse(ctx.request.body ?? {});
+	if (sourceLang === targetLang) {
+		throw createError(400, "Source and target languages are the same");
+	}
+
+	const source = await colls.pages.findOne({ _id: { name: ctx.params.name, lang: sourceLang } });
+	if (!source) {
+		throw createError(404, `Page not found: ${ctx.params.name} (${sourceLang})`);
+	}
+
+	let title: string;
+	let content: string;
+	try {
+		[title, content] = await Promise.all([
+			translateMarkdown({
+				text: source.title,
+				sourceLang,
+				targetLang,
+				context: `title of the "${source._id.name}" page`,
+			}),
+			translateMarkdown({
+				text: source.content,
+				sourceLang,
+				targetLang,
+				context: `content of the "${source._id.name}" page`,
+			}),
+		]);
+	} catch (err) {
+		if (err instanceof TranslationError) {
+			throw createError(err.status, err.message);
+		}
+		throw err;
+	}
+
+	ctx.body = await upsertPage({ name: ctx.params.name, lang: targetLang }, { title, content }, ctx.state.user!._id);
+});
 
 router.delete("/:name/:lang", async (ctx) => {
 	requirePageAccess(ctx, ctx.params.name);

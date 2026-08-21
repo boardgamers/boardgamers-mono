@@ -42,6 +42,9 @@ export const ACTION_RATE_LIMITS: Record<string, ActionRateLimitOptions> = {
 	"feedback/create": { max: 10, windowMs: 24 * 60 * 60 * 1000 },
 	// PUT/DELETE /feedback/:id/like — idempotent set/unset, mirrors boardgame/like.
 	"feedback/like": { max: 60, windowMs: 60 * 1000 },
+	// POST /admin/page/:name/:lang/translate (#306) — every call is two paid LLM
+	// completions (title + content), so cap it per admin.
+	"admin/translate-page": { max: 20, windowMs: 60 * 60 * 1000 },
 };
 
 let testLimits: ActionRateLimitOptions | null = null;
