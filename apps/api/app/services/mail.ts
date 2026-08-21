@@ -68,5 +68,9 @@ export function buildMailData({ kind, to, subject, html, unsubscribeToken }: Mai
 }
 
 export function sendMail(message: MailMessage): Promise<unknown> {
-	return sendmail(buildMailData(message));
+	// Newsletter mail must be POSTed to the newsletter Mailgun domain — its From
+	// address lives there, and DKIM alignment requires signing with that
+	// domain's key (see sendmail.ts).
+	const domain = message.kind === "newsletter" ? env.mailing.domain.newsletter : env.mailing.domain.standard;
+	return sendmail(buildMailData(message), domain);
 }

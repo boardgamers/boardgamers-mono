@@ -8,15 +8,23 @@ export type MailSendData = Mailgun.messages.SendData & {
 	"h:List-Unsubscribe-Post"?: string;
 };
 
-const mailgun = Mailgun({
-	apiKey: env.mailing.api.key,
-	domain: env.mailing.domain.standard,
-	host: env.mailing.api.host,
-});
+// A message must be POSTed to the Mailgun domain matching its From address —
+// DKIM is signed with the sending domain's key, so posting newsletter mail
+// (From newsletter.<domain>) through the transactional domain would emit
+// misaligned mail. One lazily-built client per sending domain.
+const clients = new Map<string, Mailgun.Mailgun>();
+function clientFor(domain: string): Mailgun.Mailgun {
+	let client = clients.get(domain);
+	if (!client) {
+		client = Mailgun({ apiKey: env.mailing.api.key, domain, host: env.mailing.api.host });
+		clients.set(domain, client);
+	}
+	return client;
+}
 
-type Sendmail = (data: MailSendData) => Promise<unknown>;
+type Sendmail = (data: MailSendData, domain?: string) => Promise<unknown>;
 
-const mailgunSend: Sendmail = (data) => mailgun.messages().send(data);
+const mailgunSend: Sendmail = (data, domain = env.mailing.domain.standard) => clientFor(domain).messages().send(data);
 let sendmail = mailgunSend;
 
 // Tests swap in a recorder to assert on outbound mail without touching Mailgun.
@@ -24,4 +32,4 @@ export function setSendmailForTests(mock: Sendmail | null) {
 	sendmail = mock ?? mailgunSend;
 }
 
-export default (data: MailSendData) => sendmail(data);
+export default (data: MailSendData, domain?: string) => sendmail(data, domain);
