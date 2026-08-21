@@ -116,6 +116,10 @@ router.post("/request", loggedIn, actionRateLimit("boardgame/request"), async (c
 	// request (503) and nothing is persisted — there is no topic-less fallback.
 	const topic = await createFeedbackTopic({
 		title: label,
+		// Forum-only bracketed prefix ([Game request]) so the topic list is
+		// scannable — the stored request label stays untagged.
+		tag: "Game request",
+		tags: ["game-request"],
 		body: description,
 		requestUrl: `https://${env.site}/feedback`,
 		username: user.account.username,

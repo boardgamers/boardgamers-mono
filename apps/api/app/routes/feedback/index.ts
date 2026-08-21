@@ -34,6 +34,7 @@ router.post("/", loggedIn, actionRateLimit("feedback/create"), async (ctx) => {
 	const { kind, game, title, body } = createBodySchema.parse(ctx.request.body);
 	const user = ctx.state.user!;
 
+	let gameLabel: string | undefined;
 	if (kind === "game") {
 		if (!game) {
 			throw createError(400, 'A game request needs its "game" id');
@@ -41,13 +42,14 @@ router.post("/", loggedIn, actionRateLimit("feedback/create"), async (ctx) => {
 		// Only implemented games accept game-specific requests — requesting an
 		// expansion on a game that doesn't exist yet makes no sense (vote on the
 		// whole-game request instead).
-		const exists = await colls.gameMetadatas.findOne(
+		const meta = await colls.gameMetadatas.findOne(
 			{ _id: game, status: { $ne: "requested" } },
-			{ projection: { _id: 1 } },
+			{ projection: { label: 1 } },
 		);
-		if (!exists) {
+		if (!meta) {
 			throw createError(404, `Unknown game "${game}"`);
 		}
+		gameLabel = meta.label ?? game;
 	}
 
 	const openRequests = await colls.feedbackRequests.countDocuments({
@@ -72,6 +74,10 @@ router.post("/", loggedIn, actionRateLimit("feedback/create"), async (ctx) => {
 	// request (503) and nothing is persisted — there is no topic-less fallback.
 	const topic = await createFeedbackTopic({
 		title,
+		// Forum-only bracketed prefix ([Site feedback] / [<game label>]) so the
+		// topic list is scannable — the stored request title stays untagged.
+		tag: kind === "game" ? gameLabel! : "Site feedback",
+		tags: kind === "game" ? [game!] : ["site-feedback"],
 		body,
 		requestUrl: `https://${env.site}/feedback`,
 		username: user.account.username,
