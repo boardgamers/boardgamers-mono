@@ -90,6 +90,8 @@ Only relevant when a coordinator runs several workers on one machine. **Never ru
 
   Always set `dbName`. Don't set `dbUrl` if the coordinator gave you an `.env` — it already points at the right Mongo; if there is no `apps/api/.env`, ask the coordinator for the Mongo URL.
 
+You do not need to wait after launching the agent. You'll be pinged back automatically when there's new work.
+
 ### PR review process (swarm)
 
 - One PR per worker; worker branches are `moon/<name>`.
