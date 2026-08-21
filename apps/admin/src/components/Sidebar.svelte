@@ -148,7 +148,7 @@
 							+ New game
 						</a>
 						{#each boardgames as g (g._id)}
-							{@const href = resolve("/game/[gameId]", { gameId: g._id })}
+							{@const href = resolve("/boardgame/[game]", { game: g._id })}
 							{@const { emoji, name } = gameLabelParts(g.label)}
 							<a
 								{href}
