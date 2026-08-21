@@ -3,6 +3,8 @@
 // the API server.
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import { ObjectId } from "mongodb";
 import { MAX_PAGE_HISTORY_VERSIONS } from "@bgs/models";
 import { colls, db } from "../../config/db.ts";
@@ -206,5 +208,167 @@ describe("Admin pages API — edit history (#350)", () => {
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
 		const id = (res.data as HistoryListEntry[])[0]._id;
 		assert.strictEqual((await api("GET", `/api/admin/page/credits/en/history/${id}`, userHeaders)).status, 403);
+	});
+});
+
+describe("Admin pages API — LLM translation (#306)", () => {
+	const adminId = new ObjectId();
+	const userId = new ObjectId();
+	const scopedId = new ObjectId();
+	let adminHeaders: Record<string, string>;
+	let userHeaders: Record<string, string>;
+	let scopedHeaders: Record<string, string>;
+
+	// Stub OpenAI-compatible chat-completions server: echoes a recognizable
+	// translation and records the prompts it was called with.
+	let llm: http.Server;
+	let llmCalls: { system: string; user: string }[];
+
+	before(async () => {
+		await Promise.all([colls.pages.deleteMany({}), colls.pageHistories.deleteMany({})]);
+		await colls.users.insertOne(testUser({ _id: adminId, authority: "admin" }));
+		await colls.users.insertOne(testUser({ _id: userId }));
+		// Per-boardgame admin: may translate their game's pages, nothing else.
+		await colls.users.insertOne(testUser({ _id: scopedId, adminGrants: ["gameinfo:gaia"] }));
+		adminHeaders = await makeAuthHeaders(adminId);
+		userHeaders = await makeAuthHeaders(userId);
+		scopedHeaders = await makeAuthHeaders(scopedId);
+
+		llmCalls = [];
+		llm = http.createServer((req, res) => {
+			let raw = "";
+			req.on("data", (chunk) => (raw += chunk));
+			req.on("end", () => {
+				assert.strictEqual(req.url, "/chat/completions");
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse is any; fields are defaulted below
+				const body = JSON.parse(raw) as { messages: { role: string; content: string }[] };
+				const user = body.messages.find((m) => m.role === "user")?.content ?? "";
+				llmCalls.push({ system: body.messages.find((m) => m.role === "system")?.content ?? "", user });
+				res.setHeader("content-type", "application/json");
+				res.end(JSON.stringify({ choices: [{ message: { content: `[de] ${user.split("\n\n").at(-1)}` } }] }));
+			});
+		});
+		await new Promise<void>((resolve) => llm.listen(0, "127.0.0.1", resolve));
+		env.translation.apiKey = "test-key";
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- listen(0, "127.0.0.1") binds a TCP port, so the address is an AddressInfo
+		env.translation.baseUrl = `http://127.0.0.1:${(llm.address() as AddressInfo).port}`;
+	});
+
+	after(async () => {
+		env.translation.apiKey = "";
+		env.translation.baseUrl = "https://openrouter.ai/api/v1";
+		await new Promise((resolve) => llm.close(resolve));
+		await db().dropDatabase();
+	});
+
+	it("translates a page into a new language (title + content, terminology-preserving prompt)", async () => {
+		await api("PUT", "/api/admin/page/about/en", adminHeaders, {
+			title: "About us",
+			content: "# Welcome\nPlay **Gaia Project** online.",
+		});
+		llmCalls = [];
+
+		const res = await api("POST", "/api/admin/page/about/en/translate", adminHeaders, { targetLang: "de" });
+		assert.strictEqual(res.status, 200);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const page = res.data as PageBody;
+		assert.deepEqual(page._id, { name: "about", lang: "de" });
+		assert.equal(page.title, "[de] About us");
+		assert.equal(page.content, "[de] # Welcome\nPlay **Gaia Project** online.");
+
+		// One completion per field, each carrying the terminology-preservation rule.
+		assert.strictEqual(llmCalls.length, 2);
+		for (const call of llmCalls) {
+			assert.match(call.system, /Do NOT translate boardgame names/);
+			assert.match(call.user, /from en to de/);
+		}
+
+		// A create-upsert has no previous version to archive.
+		assert.strictEqual(await colls.pageHistories.countDocuments({ page: { name: "about", lang: "de" } }), 0);
+	});
+
+	it("overwriting an existing translation archives the previous version", async () => {
+		const res = await api("POST", "/api/admin/page/about/en/translate", adminHeaders, { targetLang: "de" });
+		assert.strictEqual(res.status, 200);
+
+		const entries = await colls.pageHistories.find({ page: { name: "about", lang: "de" } }).toArray();
+		assert.strictEqual(entries.length, 1);
+		assert.equal(entries[0].title, "[de] About us");
+		assert.equal(entries[0].editedBy.toHexString(), adminId.toHexString());
+	});
+
+	it("supports an explicit sourceLang different from the URL lang", async () => {
+		const res = await api("POST", "/api/admin/page/about/de/translate", adminHeaders, {
+			targetLang: "fr",
+			sourceLang: "en",
+		});
+		assert.strictEqual(res.status, 200);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		assert.deepEqual((res.data as PageBody)._id, { name: "about", lang: "fr" });
+	});
+
+	it("rejects translating a page into its own language", async () => {
+		const res = await api("POST", "/api/admin/page/about/en/translate", adminHeaders, { targetLang: "en" });
+		assert.strictEqual(res.status, 400);
+	});
+
+	it("validates targetLang", async () => {
+		assert.strictEqual(
+			(await api("POST", "/api/admin/page/about/en/translate", adminHeaders, { targetLang: "x" })).status,
+			400,
+		);
+		assert.strictEqual(
+			(await api("POST", "/api/admin/page/about/en/translate", adminHeaders, { targetLang: "../../etc" })).status,
+			400,
+		);
+		assert.strictEqual((await api("POST", "/api/admin/page/about/en/translate", adminHeaders, {})).status, 400);
+	});
+
+	it("404s when the source page does not exist", async () => {
+		assert.strictEqual(
+			(await api("POST", "/api/admin/page/nope/en/translate", adminHeaders, { targetLang: "de" })).status,
+			404,
+		);
+		assert.strictEqual(
+			(await api("POST", "/api/admin/page/about/fr/translate", adminHeaders, { targetLang: "de", sourceLang: "it" }))
+				.status,
+			404,
+		);
+	});
+
+	it("503s when no translation API key is configured", async () => {
+		const key = env.translation.apiKey;
+		env.translation.apiKey = "";
+		try {
+			const res = await api("POST", "/api/admin/page/about/en/translate", adminHeaders, { targetLang: "de" });
+			assert.strictEqual(res.status, 503);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- error body shape
+			assert.match((res.data as { message: string }).message, /not configured/);
+		} finally {
+			env.translation.apiKey = key;
+		}
+	});
+
+	it("requires page access: a plain user is denied, a scoped game admin may translate their game's pages", async () => {
+		assert.strictEqual(
+			(await api("POST", "/api/admin/page/about/en/translate", userHeaders, { targetLang: "de" })).status,
+			403,
+		);
+		assert.strictEqual((await api("POST", "/api/admin/page/about/en/translate")).status, 403);
+
+		await api("PUT", "/api/admin/page/gaia:rules/en", adminHeaders, {
+			title: "Rules",
+			content: "The Terrans terraform.",
+		});
+		// The scoped admin can't touch site-wide pages…
+		assert.strictEqual(
+			(await api("POST", "/api/admin/page/about/en/translate", scopedHeaders, { targetLang: "de" })).status,
+			403,
+		);
+		// …but can translate their own game's pages.
+		const res = await api("POST", "/api/admin/page/gaia:rules/en/translate", scopedHeaders, { targetLang: "de" });
+		assert.strictEqual(res.status, 200);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		assert.deepEqual((res.data as PageBody)._id, { name: "gaia:rules", lang: "de" });
 	});
 });

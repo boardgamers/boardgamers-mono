@@ -183,4 +183,16 @@ export default {
 		// request time in routes/auth.ts — no env/registration needed at all.
 	},
 	silent: false,
+	// LLM auto-translation of CMS pages (#306, admin panel's Translate button).
+	// Any OpenAI-compatible chat-completions API works (OpenRouter, Together, …).
+	// Empty apiKey = feature disabled: the translate endpoint answers 503 and the
+	// admin UI's translate control just surfaces that message.
+	translation: {
+		apiKey: process.env.translationApiKey ?? "",
+		baseUrl: process.env.translationBaseUrl ?? "https://openrouter.ai/api/v1",
+		model: process.env.translationModel ?? "google/gemini-2.5-flash",
+		// Abort the upstream call after this long — a stuck LLM request must not
+		// hang the admin request (and its rate-limit hit) forever.
+		timeoutMs: Number(process.env.translationTimeoutMs) || 60_000,
+	},
 };

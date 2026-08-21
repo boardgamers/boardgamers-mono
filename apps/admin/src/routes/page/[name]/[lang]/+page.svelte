@@ -13,16 +13,23 @@
 
 	let { data }: PageProps = $props();
 
-	const name = $derived(data.value?._id.name ?? "");
-	const lang = $derived(data.value?._id.lang ?? "");
+	// Params (not data.value) survive a 404: a missing translation opens as a
+	// blank editor prefilled with the requested name+lang, ready to create.
+	const name = $derived(data.params.name);
+	const lang = $derived(data.params.lang);
 
 	// Editable (bind:value into PageEdit); re-synced from load data by the $effect.
+	// A missing page (404 in load) becomes a blank editor to create it.
 	// eslint-disable-next-line svelte/prefer-writable-derived -- PageEdit mutates `value` via bind:value; it is not purely derived from `data`.
-	let value = $state<PageData | null>(untrack(() => data.value));
+	let value = $state<PageData | null>(untrack(() => data.value ?? blankPage()));
 
 	$effect(() => {
-		value = data.value;
+		value = data.value ?? blankPage();
 	});
+
+	function blankPage(): PageData {
+		return { _id: { name: data.params.name, lang: data.params.lang }, title: "", content: "" };
+	}
 
 	async function save(saveData: NonNullable<PageData>) {
 		try {
@@ -31,6 +38,21 @@
 			await loadPages();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed to save");
+		}
+	}
+
+	// LLM auto-translate (#306): translate this page into `targetLang` on the
+	// server, then open the translated page for review.
+	async function translate(targetLang: string) {
+		try {
+			await api.post(`/admin/page/${encodeURIComponent(name)}/${encodeURIComponent(lang)}/translate`, {
+				targetLang,
+			});
+			toast.success(`Translated ${name} → ${targetLang}`);
+			await loadPages();
+			goto(resolve("/page/[name]/[lang]", { name, lang: targetLang }));
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Translation failed");
 		}
 	}
 
@@ -66,8 +88,15 @@
 				<WebLink path={`/page/${name.replaceAll(":", "/")}`} />
 			</div>
 		</div>
-		<PageEdit mode="edit" bind:value onsave={save} ondelete={remove} />
-		<PageHistory {name} {lang} onrestore={restore} />
+		{#if data.value}
+			<PageEdit mode="edit" bind:value onsave={save} ondelete={remove} ontranslate={translate} />
+			<PageHistory {name} {lang} onrestore={restore} />
+		{:else}
+			<p class="mb-5 text-sm text-amber-600 dark:text-amber-400">
+				No {lang} version of this page yet — you're creating it.
+			</p>
+			<PageEdit mode="new" bind:value onsave={save} />
+		{/if}
 	</div>
 {:else}
 	<div class="flex items-center justify-center h-32">

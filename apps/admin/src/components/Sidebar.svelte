@@ -14,6 +14,32 @@
 	// data.games is already one entry per boardgame (the API dedupes versions).
 	const boardgames = $derived(data.games);
 
+	// Pages section (#306): one entry per page NAME in the selected language
+	// (default "en"). Pages missing in the selected language still show, dimmed
+	// and marked "(missing)", so an admin can create the translation.
+	let pageLang = $state("en");
+	const pageLangs = $derived.by(() => {
+		const langs: Record<string, true> = { en: true, de: true };
+		for (const p of data.pages) {
+			langs[p._id.lang] = true;
+		}
+		return Object.keys(langs).sort();
+	});
+	interface PageEntry {
+		name: string;
+		lang: string;
+		missing: boolean;
+	}
+	const pageEntries = $derived.by(() => {
+		const names = [...new Set(data.pages.map((p) => p._id.name))].sort();
+		const existing = new Set(data.pages.map((p) => `${p._id.name}/${p._id.lang}`));
+		return names.map((name): PageEntry => ({
+			name,
+			lang: pageLang,
+			missing: !existing.has(`${name}/${pageLang}`),
+		}));
+	});
+
 	function isActive(href: string): boolean {
 		return page.url.pathname === href;
 	}
@@ -195,21 +221,35 @@
 				</button>
 				{#if pagesOpen}
 					<div class="flex flex-col gap-0.5">
+						<div class="flex items-center gap-2 px-3 py-1">
+							<label for="pages-lang" class="text-xs text-gray-400">Language</label>
+							<select
+								id="pages-lang"
+								bind:value={pageLang}
+								class="ml-auto text-xs rounded border border-gray-300 dark:border-gray-700 bg-transparent px-1.5 py-0.5"
+							>
+								{#each pageLangs as lang (lang)}
+									<option value={lang}>{lang}</option>
+								{/each}
+							</select>
+						</div>
 						<a
 							href={resolve("/page/new")}
 							class="px-3 py-1.5 rounded-md text-emerald-600 dark:text-emerald-400 hover:bg-gray-100 dark:hover:bg-gray-800 font-medium"
 						>
 							+ New page
 						</a>
-						{#each data.pages as p (`${p._id.name}/${p._id.lang}`)}
-							{@const href = resolve("/page/[name]/[lang]", { name: p._id.name, lang: p._id.lang })}
+						{#each pageEntries as p (`${p.name}/${p.lang}`)}
+							{@const href = resolve("/page/[name]/[lang]", { name: p.name, lang: p.lang })}
 							<a
 								{href}
-								class="px-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 truncate {isActive(href)
-									? 'bg-gray-100 dark:bg-gray-800 font-semibold'
-									: ''}"
+								class="px-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 truncate {p.missing
+									? 'text-gray-400 dark:text-gray-500 italic'
+									: ''} {isActive(href) ? 'bg-gray-100 dark:bg-gray-800 font-semibold' : ''}"
+								title={p.missing ? `No ${p.lang} version yet — opens the editor to create it` : p.name}
 							>
-								{p._id.name} <span class="text-gray-400">({p._id.lang})</span>
+								{p.name}
+								{#if p.missing}<span class="text-xs not-italic">(missing)</span>{/if}
 							</a>
 						{/each}
 					</div>
