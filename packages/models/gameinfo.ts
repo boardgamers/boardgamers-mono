@@ -135,6 +135,29 @@ export type GameVersionDoc = z.output<typeof gameVersionSchema>;
 // One doc per game: the game's identity and configuration, shared by all its
 // versions. These fields were previously duplicated identically onto every version
 // doc in `gameInfos` — hoisted here so they can drift no further (#298).
+//
+// Per-language translations of the game-level free-text fields, keyed by base
+// language subtag ("de", "fr", …) — part of the #306 multi-language feature.
+// The top-level description/rules/credits stay the English (source) text and
+// the per-field fallback. Named `translations` (not `i18n`/`localized`) to match
+// the shape other #306 slices put on their docs. Not in GAME_METADATA_FIELDS:
+// the admin metadata form round-trips only those whitelisted keys, so a regular
+// metadata save can never clobber translations stored on the doc (editing UI +
+// LLM auto-translate are follow-ups). Deliberately NOT picked onto
+// `gameInfoSchema`: the api resolves the request's language at merge time and
+// serves the winning string in the regular description/rules/credits slots, so
+// clients and payloads stay unchanged.
+export const gameMetadataTranslationsSchema = z.record(
+	z.string().regex(/^[a-z]{2,3}$/, "language keys must be base subtags (2–3 lowercase letters)"),
+	z.object({
+		description: z.string().optional(),
+		rules: z.string().optional(),
+		credits: z.string().optional(),
+	}),
+);
+
+export type GameMetadataTranslations = z.output<typeof gameMetadataTranslationsSchema>;
+
 export const gameMetadataSchema = z.object({
 	_id: z.string(),
 	label: z.string(),
@@ -149,6 +172,8 @@ export const gameMetadataSchema = z.object({
 	// game doesn't change with an engine version) — supersedes the #348 per-game
 	// `<game>:credits` CMS pages, migrated here by migration 1.10.0.
 	credits: z.string().optional(),
+	// See gameMetadataTranslationsSchema above.
+	translations: gameMetadataTranslationsSchema.optional(),
 	links: z
 		.object({
 			source: z.string().optional(),

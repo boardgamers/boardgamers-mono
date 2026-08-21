@@ -11,6 +11,7 @@ import { likedGameIds, setGameLike } from "../../services/gamelike.ts";
 import { createFeedbackTopic, forumUidForUser } from "../../services/forum.ts";
 import { lastAccessibleVersion, REQUEST_STATUSES } from "../../services/gameinfo.ts";
 import { findGameInfoWithVersion, mergeGameInfo } from "../../models/gameinfo.ts";
+import { requestLanguage } from "../../models/gameinfo-i18n.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { loggedIn, queryCount, skipCount, usernamesById } from "../utils.ts";
 
@@ -37,7 +38,8 @@ router.param("boardgame", async (boardgame, ctx, next) => {
 	// users with an `access.maxVersion` grant: their granted version now wins over an
 	// older latest-public one (consistent with game creation), and the grant path
 	// returns a merged doc (it could previously serve a doc missing game-level fields).
-	const foundGame = await lastAccessibleVersion(boardgame, ctx.state.user);
+	// `requestLanguage` (#306) localizes description/rules/credits (en fallback).
+	const foundGame = await lastAccessibleVersion(boardgame, ctx.state.user, requestLanguage(ctx));
 
 	if (!foundGame) {
 		throw createError(404, "Boardgame not found");
@@ -235,9 +237,12 @@ router.get("/info", async (ctx) => {
 	const liked = ctx.state.user ? await likedGameIds(ctx.state.user._id) : new Set<string>();
 	// The list projection drops `viewer` (the endpoint never serves it), so the
 	// merged doc legitimately lacks it — mergeGameInfo only spreads fields through.
+	// The lobby list is localized too (#306): descriptions resolve to the
+	// request's language with per-field en fallback.
+	const lang = requestLanguage(ctx);
 	ctx.body = versions.map((v) => ({
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- viewer is intentionally omitted from the list
-		...mergeGameInfo(v as GameVersionDoc, metaByGame.get(v._id.game) ?? null),
+		...mergeGameInfo(v as GameVersionDoc, metaByGame.get(v._id.game) ?? null, lang),
 		liked: liked.has(v._id.game),
 	}));
 });
@@ -259,7 +264,7 @@ router.get("/:boardgame/info", async (ctx) => {
 });
 
 router.get("/:boardgame/info/latest", async (ctx) => {
-	const game = await lastAccessibleVersion(ctx.params.boardgame, ctx.state.user);
+	const game = await lastAccessibleVersion(ctx.params.boardgame, ctx.state.user, requestLanguage(ctx));
 
 	if (game) {
 		ctx.body = game;
@@ -317,7 +322,7 @@ router.get("/:boardgame/elo/count", async (ctx) => {
 });
 
 router.get("/:boardgame/info/:version", async (ctx) => {
-	const game = await findGameInfoWithVersion(ctx.params.boardgame, +ctx.params.version);
+	const game = await findGameInfoWithVersion(ctx.params.boardgame, +ctx.params.version, requestLanguage(ctx));
 
 	if (game) {
 		ctx.body = game;
