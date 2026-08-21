@@ -357,7 +357,8 @@
 	// Game-level metadata fields (hoisted to `gameMetadatas` in #298); when
 	// `metadataReadOnly` the version page renders them read-only and never saves them.
 	// `expansions` is version-scoped (a setup option that can differ per version), so
-	// it is NOT stripped here.
+	// it is NOT stripped here. Keep in sync with GAME_METADATA_FIELDS in
+	// @bgs/models (unlisted included): anything missing rides the version save.
 	const METADATA_FIELDS = [
 		"label",
 		"alias",
@@ -367,6 +368,7 @@
 		"links",
 		"players",
 		"needOwnership",
+		"unlisted",
 	] as const;
 
 	function handleSave() {

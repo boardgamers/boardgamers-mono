@@ -209,7 +209,9 @@ async function upsert(ctx: Context) {
 	// Brand-new game? (no version doc before this write) Then it has no associated
 	// player request: it is opted out of the public requests page by default
 	// (`unlisted` on insert below) — a private implementation must not show up
-	// there as a beta game. The admin can list it from the game page.
+	// there as a beta game. The admin can list it from the game page. (TOCTOU vs a
+	// concurrent delete of the game's last version is accepted: admin-only, and
+	// the failure lands on the conservative unlisted side.)
 	const isNewGame = !(await colls.gameInfos.findOne({ "_id.game": game }, { projection: { _id: 1 } }));
 
 	const versionDoc = await colls.gameInfos.findOneAndUpdate(
