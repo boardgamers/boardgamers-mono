@@ -254,8 +254,11 @@ Middleware to process data to be stored in the database.
 Return `undefined` to NOT store the data. It can happen for example
 when a player executes a move without confirming it, a dry run so to speak.
 
-The platform grants the per-move time increment (`timePerMove`) only when `toSave`
-returns a state — a move whose result is not saved costs nothing and grants nothing.
+The platform adds the per-move time increment (`timePerMove`) to the player's
+clock every time `toSave` returns a state. That's why `toSave` should only
+return a state for **full, completed turns**. Anything short of a full turn (tentative moves,
+partial input, dry runs) must return `undefined`: it costs nothing and grants
+nothing.
 
 #### Undo and tentative moves
 
