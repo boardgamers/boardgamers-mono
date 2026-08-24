@@ -216,6 +216,7 @@
 	"gameSidebar.notes": "Notes",
 	"gameSidebar.quit": "Quit",
 	"gameSidebar.replay": "Replay",
+	"gameSidebar.rules": "Rules",
 	"gameSidebar.setupOptions": "Setup options",
 	"gameSidebar.voteCancel": "Vote to cancel",
 	"gameSidebar.voteCancelConfirm": "This vote cannot be taken back. If all active players vote to cancel, the game will be cancelled.",

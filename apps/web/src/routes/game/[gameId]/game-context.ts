@@ -14,6 +14,8 @@ export type GameContext = {
 	 * `live($account?._id ?? null, viewerUserId)` — SSR snapshot server-side, live store after.
 	 */
 	viewerUserId: string | null;
+	/** The game's `<game>:rules` CMS page (title only), when it exists — drives the sidebar's Rules link. */
+	rulesPage: { title: string } | null;
 	replayData: { start: number; end: number; current: number } | null;
 	emitter: EventEmitter;
 	log: string[];

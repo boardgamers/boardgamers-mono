@@ -5,12 +5,14 @@ const routes: Record<string, string> = {
 	"/(app)": "/",
 	"/(app)/games": "/games",
 	"/(app)/login": "/login",
+	"/(app)/page/[part1]/[...part2]": "/page",
 };
 
-// Matches the real resolve() shape (accepts optional route params, ignored here).
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- params part of the real signature
-export function resolve(id: string, _params?: Record<string, string>): string {
-	return routes[id] ?? id;
+// Matches the real resolve() shape; route params (when mapped) are appended path-style.
+export function resolve(id: string, params?: Record<string, string>): string {
+	const base = routes[id] ?? id;
+	const rest = params ? Object.values(params).filter(Boolean).join("/") : "";
+	return rest ? `${base}/${rest}` : base;
 }
 export const base = "";
 export const assets = "";

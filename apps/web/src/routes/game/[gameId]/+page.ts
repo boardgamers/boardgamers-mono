@@ -3,7 +3,7 @@ import type { PageLoad } from "./$types";
 import { loadGame, loadGamePlayers, loadGameSettings } from "@/lib/game.svelte";
 import { getGameInfo } from "@/lib/game-info.svelte";
 import { getGamePreferences } from "@/lib/game-preferences.svelte";
-import { toKitError } from "@/lib/api";
+import { get, toKitError } from "@/lib/api";
 import { gameSeo } from "@/lib/game-seo";
 
 export const load: PageLoad = async ({ params, parent }) => {
@@ -22,9 +22,13 @@ export const load: PageLoad = async ({ params, parent }) => {
 		throw error(404, "Game data is incomplete");
 	}
 
-	const [gameInfo, preferences] = await Promise.all([
+		const [gameInfo, preferences, rulesPage] = await Promise.all([
 		getGameInfo(game.game.name, game.game.version),
 		getGamePreferences(game.game.name),
+		// Probe for the game-scoped `<game>:rules` CMS page (e.g. `powergrid:rules`): the
+		// sidebar shows a "Rules" link when it exists. Non-fatal — a pages-api failure
+		// (or a 404) must not break the game page, just hide the link.
+		get<{ title: string }>(`/page/${game.game.name}:rules`).catch(() => null),
 	]);
 
 	// Per-player in-game settings (e.g. Gaia Project's faction-specific toggles). SSR'd so
@@ -45,6 +49,8 @@ export const load: PageLoad = async ({ params, parent }) => {
 		gameInfo,
 		preferences,
 		settings,
+		// Title only — the sidebar links to /page/<game>/rules, it never renders the body.
+		rulesPage: rulesPage ? { title: rulesPage.title } : null,
 		// The SSR request's user (the viewer). The `account` store is null server-side, so
 		// components resolve their viewer-gated UI ("Your turn!", "Vote to cancel", the
 		// settings panel's playerUser) against this during SSR via `live($account?._id, viewerUserId)`.
