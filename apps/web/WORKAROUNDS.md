@@ -55,3 +55,11 @@ spread attributes crash components mounted in the vitest jsdom env
 `$props()` rest-spread issue documented on the `src/lib/__mocks__` stubs). If the
 jsdom/spread issue is ever fixed, the action can go back to a spread (or a plain
 attribute once TS types it).
+
+## `playerClick` legacy `{ name }` payload tolerance
+
+The viewer uplink contract (`apps/docs/docs/guide/viewer-api.md`, "player:clicked") is
+`{ index: number }`, relayed verbatim by the iframe shim as `event.data.player`.
+`StartedGame.svelte` resolves the username from `game.players[index].name`, but still
+honors a legacy `{ name: string }` payload when present. Removable once no published
+viewer emits `player:clicked` with a `{ name }` payload.

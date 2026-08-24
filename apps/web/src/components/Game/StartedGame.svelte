@@ -245,7 +245,13 @@
 					)
 				);
 			} else if (event.data.type === "playerClick") {
-				goto(resolve("/(app)/user/[username]", { username: event.data.player.name }));
+				// The viewer contract (viewer-api.md "player:clicked") is { index }; legacy
+				// viewers sent { name } directly — honor it when present (see WORKAROUNDS.md).
+				const player = event.data.player;
+				const username = typeof player?.name === "string" ? player.name : context.game?.players[player?.index]?.name;
+				if (username) {
+					goto(resolve("/(app)/user/[username]", { username }));
+				}
 			} else if (event.data.type === "gameMove") {
 				await addMove(event.data.move);
 			} else if (event.data.type === "displayReady") {

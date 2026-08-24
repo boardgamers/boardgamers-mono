@@ -35,6 +35,7 @@ vi.mock("@/lib/stores.svelte", async () => {
 	};
 });
 
+import { goto } from "$app/navigation";
 import { get, post } from "@/lib/api";
 import { lastGameUpdate } from "@/lib/stores.svelte";
 import type { GameContext } from "@/routes/game/[gameId]/game-context";
@@ -42,6 +43,7 @@ import StartedGame from "./StartedGame.svelte";
 
 const postMock = vi.mocked(post);
 const getMock = vi.mocked(get);
+const gotoMock = vi.mocked(goto);
 const lastGameUpdateStore = lastGameUpdate as unknown as Writable<Date>;
 
 let posted: { type: string; state?: unknown }[];
@@ -102,6 +104,29 @@ async function receiveFromViewer(type: string, data: Record<string, unknown> = {
 	await flushMicrotasks();
 }
 
+function mountGame(game: unknown) {
+	const context = $state(makeContext(game));
+	const target = document.createElement("div");
+	document.body.appendChild(target);
+
+	const instance = mount(StartedGame as never, {
+		target,
+		props: {},
+		context: new Map([["game", context]]),
+	}) as Record<string, unknown>;
+	flushSync();
+
+	// jsdom gives iframes a real contentWindow, but it can't run the viewer; stub
+	// postMessage to record everything the host posts to the iframe.
+	iframe = target.querySelector("iframe")!;
+	Object.defineProperty(iframe, "contentWindow", {
+		configurable: true,
+		value: { postMessage: vi.fn((msg) => posted.push(msg)) },
+	});
+
+	return { context, target, instance };
+}
+
 describe("StartedGame live updates", () => {
 	beforeEach(() => {
 		postMock.mockReset();
@@ -112,29 +137,6 @@ describe("StartedGame live updates", () => {
 		posted = [];
 		document.body.innerHTML = "";
 	});
-
-	function mountGame(game: unknown) {
-		const context = $state(makeContext(game));
-		const target = document.createElement("div");
-		document.body.appendChild(target);
-
-		const instance = mount(StartedGame as never, {
-			target,
-			props: {},
-			context: new Map([["game", context]]),
-		}) as Record<string, unknown>;
-		flushSync();
-
-		// jsdom gives iframes a real contentWindow, but it can't run the viewer; stub
-		// postMessage to record everything the host posts to the iframe.
-		iframe = target.querySelector("iframe")!;
-		Object.defineProperty(iframe, "contentWindow", {
-			configurable: true,
-			value: { postMessage: vi.fn((msg) => posted.push(msg)) },
-		});
-
-		return { context, target, instance };
-	}
 
 	it("ignores a push that only echoes what we already hold (own move, page-load echo)", async () => {
 		const t0 = new Date("2026-08-14T00:00:00Z");
@@ -269,6 +271,49 @@ describe("StartedGame live updates", () => {
 		// the replay (the viewer ignores `state:updated` pings while replaying).
 		expect((context.game as { cancelled?: boolean }).cancelled).toBe(true);
 		expect(posted.some((m) => m.type === "state")).toBe(false);
+
+		unmount(instance as never);
+	});
+});
+
+// The viewer uplink contract (viewer-api.md "player:clicked") is { index: number },
+// relayed verbatim by the iframe shim as event.data.player; legacy viewers sent
+// { name }. Reading .name off a conforming payload used to hand `undefined` to
+// resolve(), which throws "Missing parameter 'username'".
+describe("StartedGame playerClick", () => {
+	beforeEach(() => {
+		postMock.mockReset();
+		getMock.mockReset();
+		getMock.mockResolvedValue(makeGame(new Date(0)) as never);
+		gotoMock.mockClear();
+		posted = [];
+		document.body.innerHTML = "";
+	});
+
+	it("navigates to the seat's profile from a conforming { index } payload", async () => {
+		const { instance } = mountGame(makeGame(new Date(0)));
+
+		await receiveFromViewer("playerClick", { player: { index: 1 } });
+		expect(gotoMock).toHaveBeenCalledWith("/(app)/user/opponent");
+
+		unmount(instance as never);
+	});
+
+	it("still honors a legacy { name } payload", async () => {
+		const { instance } = mountGame(makeGame(new Date(0)));
+
+		await receiveFromViewer("playerClick", { player: { name: "someone" } });
+		expect(gotoMock).toHaveBeenCalledWith("/(app)/user/someone");
+
+		unmount(instance as never);
+	});
+
+	it("does nothing when no username can be resolved", async () => {
+		const { instance } = mountGame(makeGame(new Date(0)));
+
+		await receiveFromViewer("playerClick", { player: { index: 99 } });
+		await receiveFromViewer("playerClick", {});
+		expect(gotoMock).not.toHaveBeenCalled();
 
 		unmount(instance as never);
 	});
