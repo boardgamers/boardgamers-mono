@@ -133,11 +133,11 @@
 			</label>
 			<MarkdownEditor bind:value={details} label="Details (optional, Markdown — changelog page only)" rows={4} />
 			<label class="block">
-				<span class="block text-xs text-gray-500 dark:text-gray-400 mb-1">GitHub link (optional)</span>
+				<span class="block text-xs text-gray-500 dark:text-gray-400 mb-1">PR link (optional)</span>
 				<input
 					bind:value={github}
 					type="url"
-					placeholder="https://github.com/boardgamers/boardgamers-mono/pull/…"
+					placeholder="https://codeberg.org/boardgamers/boardgamers/pulls/…"
 					class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 				/>
 			</label>
@@ -184,7 +184,7 @@
 								<input
 									bind:value={editGithub}
 									type="url"
-									placeholder="https://github.com/boardgamers/boardgamers-mono/pull/…"
+									placeholder="https://codeberg.org/boardgamers/boardgamers/pulls/…"
 									class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 								/>
 								<div class="flex items-center justify-between">

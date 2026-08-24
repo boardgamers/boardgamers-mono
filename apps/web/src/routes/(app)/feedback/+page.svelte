@@ -5,7 +5,7 @@
 	import FeedbackRequestForm from "@/components/FeedbackRequestForm.svelte";
 	import ForumLinkGate, { type ForumLinkGate as ForumLinkGateHandle } from "@/components/ForumLinkGate.svelte";
 	import IconBoxArrowUpRight from "@/components/icons/IconBoxArrowUpRight.svelte";
-	import IconGithub from "@/components/icons/IconGithub.svelte";
+	import IconCodeberg from "@/components/icons/IconCodeberg.svelte";
 	import UsernameLink from "@/components/User/UsernameLink.svelte";
 	import { post } from "@/lib/api";
 	import { account, live } from "@/lib/stores.svelte";
@@ -221,12 +221,12 @@
 			<div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
 				<h2 id="site-requests-heading">{m.feedback_siteRequests()}</h2>
 				<a
-					href="https://github.com/boardgamers/boardgamers-mono"
+					href="https://codeberg.org/boardgamers/boardgamers"
 					target="_blank"
 					rel="external noopener noreferrer"
 					class="inline-flex items-center gap-1 text-xs text-gray-500 no-underline hover:text-primary dark:text-gray-400 dark:hover:text-primary-lighter"
 				>
-					<IconGithub size="0.9em" />
+					<IconCodeberg size="0.9em" />
 					{m.feedback_siteSource()}
 					<IconBoxArrowUpRight size="0.6em" class="opacity-60" />
 				</a>
