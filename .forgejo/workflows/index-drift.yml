@@ -10,14 +10,14 @@ name: Index Drift
 on:
   pull_request:
     paths:
-      - ".github/workflows/index-drift.yml"
+      - ".forgejo/workflows/index-drift.yml"
       - "packages/models/**"
       - "scripts/apply-indexes.mjs"
   push:
     branches:
       - main
     paths:
-      - ".github/workflows/index-drift.yml"
+      - ".forgejo/workflows/index-drift.yml"
       - "packages/models/**"
       - "scripts/apply-indexes.mjs"
 
@@ -26,19 +26,14 @@ permissions:
 
 jobs:
   index-drift:
-    runs-on: ubuntu-latest
+    runs-on: docker
     services:
       mongo:
-        image: mongo:8
-        ports:
-          - 27017:27017
+        image: docker.io/library/mongo:8
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
       - run: corepack enable
       - run: pnpm install --filter @bgs/models...
 
@@ -48,7 +43,7 @@ jobs:
       #    packages/models is the base's.
       - name: Apply base branch indexes
         env:
-          dbUrl: mongodb://localhost:27017/admin
+          dbUrl: mongodb://mongo:27017/admin
           dbName: bgs-index-drift
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
@@ -63,6 +58,6 @@ jobs:
       #    is fine; dropping/rebuilding existing ones is the prod crash scenario.
       - name: Check PR index plan is non-destructive
         env:
-          dbUrl: mongodb://localhost:27017/admin
+          dbUrl: mongodb://mongo:27017/admin
           dbName: bgs-index-drift
         run: node scripts/apply-indexes.mjs plan

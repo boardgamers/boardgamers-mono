@@ -7,10 +7,9 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-    if: github.repository == 'boardgamers/boardgamers-mono'
+    runs-on: docker
+    if: github.repository == 'boardgamers/boardgamers'
     timeout-minutes: 10
-    environment: deploy
     steps:
       - name: Checkout (for the remote deploy script)
         uses: actions/checkout@v4
