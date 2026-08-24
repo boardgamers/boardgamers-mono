@@ -14,7 +14,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/boardgamers/boardgamers-mono",
+		"url": "https://codeberg.org/boardgamers/boardgamers",
 		"directory": "packages/nodebb-plugin-sso-bgs"
 	},
 	"main": "library.js",
