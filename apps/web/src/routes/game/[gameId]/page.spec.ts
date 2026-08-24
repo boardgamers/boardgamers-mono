@@ -25,7 +25,7 @@ function mockApi({ rules = null as null | { title: string }, rulesError = null a
 			if (rulesError) {
 				return Promise.reject(rulesError) as never;
 			}
-			return rules ? (Promise.resolve(rules) as never) : Promise.reject(new Error("Not Found")) as never;
+			return rules ? (Promise.resolve(rules) as never) : (Promise.reject(new Error("Not Found")) as never);
 		}
 		if (url === "/gameplay/g1") {
 			return Promise.resolve(GAME) as never;

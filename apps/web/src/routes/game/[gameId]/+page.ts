@@ -22,7 +22,7 @@ export const load: PageLoad = async ({ params, parent }) => {
 		throw error(404, "Game data is incomplete");
 	}
 
-		const [gameInfo, preferences, rulesPage] = await Promise.all([
+	const [gameInfo, preferences, rulesPage] = await Promise.all([
 		getGameInfo(game.game.name, game.game.version),
 		getGamePreferences(game.game.name),
 		// Probe for the game-scoped `<game>:rules` CMS page (e.g. `powergrid:rules`): the
