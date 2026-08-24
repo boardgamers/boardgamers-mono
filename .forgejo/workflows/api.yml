@@ -1,0 +1,58 @@
+name: Api-Node
+on:
+  push:
+    paths:
+      - ".forgejo/workflows/api.yml"
+      - "apps/api/**"
+      - "packages/**"
+    branches:
+      - main
+  pull_request:
+    paths:
+      - ".forgejo/workflows/api.yml"
+      - "apps/api/**"
+      - "packages/**"
+
+defaults:
+  run:
+    working-directory: apps/api
+
+jobs:
+  lint_and_test:
+    runs-on: docker
+    services:
+      mongo:
+        image: docker.io/library/mongo:8
+        # Single-member replica set, self-initiating (same trick as the root
+        # docker-compose.yml healthcheck). The member host must be "mongo:27017" —
+        # the service's DNS name on the job network — so driver topology discovery
+        # resolves it from the job container.
+        cmd:
+          - bash
+          - -ec
+          - |
+            mongod --replSet rs0 --bind_ip_all &
+            until mongosh --quiet --eval 'try { rs.status().ok } catch (e) { rs.initiate({_id:"rs0",members:[{_id:0,host:"mongo:27017"}]}).ok }' | grep -q 1; do
+              sleep 1
+            done
+            wait
+    steps:
+      - uses: actions/checkout@v4
+      - run: corepack enable
+      - run: pnpm install --filter {./}...
+      - run: pnpm run lint-check
+      - run: pnpm run tsc
+      # Tests connect to the mongo service container (the default dbUrl points at a
+      # dev port, so override it here). db name gets "-test" appended automatically
+      # under NODE_ENV=test.
+      - run: pnpm run test
+        env:
+          dbUrl: mongodb://mongo:27017/admin
+
+      - name: Check new migrations will run when merged
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          pnpm run check-migrations

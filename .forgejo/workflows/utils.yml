@@ -2,13 +2,13 @@ name: Utils
 on:
   push:
     paths:
-      - ".github/workflows/utils.yml"
+      - ".forgejo/workflows/utils.yml"
       - "packages/utils/**"
     branches:
       - main
   pull_request:
     paths:
-      - ".github/workflows/utils.yml"
+      - ".forgejo/workflows/utils.yml"
       - "packages/utils/**"
 
 defaults:
@@ -17,12 +17,9 @@ defaults:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: docker
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
       - run: corepack enable
       - run: pnpm install --filter {./}...
       - run: pnpm run lint-check

@@ -3,7 +3,7 @@ name: Web
 on:
   push:
     paths:
-      - ".github/workflows/web.yml"
+      - ".forgejo/workflows/web.yml"
       - "apps/web/**"
       - "apps/admin/**"
       - "packages/**"
@@ -11,7 +11,7 @@ on:
       - main
   pull_request:
     paths:
-      - ".github/workflows/web.yml"
+      - ".forgejo/workflows/web.yml"
       - "apps/web/**"
       - "apps/admin/**"
       - "packages/**"
@@ -26,15 +26,12 @@ jobs:
   # but fails `vite build` (this broke the pr-303 preview env). Build in CI so that
   # class of error is caught before merge.
   web:
-    runs-on: ubuntu-latest
+    runs-on: docker
     defaults:
       run:
         working-directory: apps/web
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
       - run: corepack enable
       - run: pnpm install --filter {./}...
       # svelte-kit sync generates .svelte-kit/tsconfig.json (gitignored) — the build
@@ -48,15 +45,12 @@ jobs:
 
   # Same production-build guard for the admin panel.
   admin:
-    runs-on: ubuntu-latest
+    runs-on: docker
     defaults:
       run:
         working-directory: apps/admin
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
       - run: corepack enable
       - run: pnpm install --filter {./}...
       - run: npx svelte-kit sync

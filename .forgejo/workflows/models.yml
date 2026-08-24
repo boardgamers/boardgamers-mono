@@ -3,13 +3,13 @@ name: Models
 on:
   push:
     paths:
-      - ".github/workflows/models.yml"
+      - ".forgejo/workflows/models.yml"
       - "packages/models/**"
     branches:
       - main
   pull_request:
     paths:
-      - ".github/workflows/models.yml"
+      - ".forgejo/workflows/models.yml"
       - "packages/models/**"
 
 permissions:
@@ -21,17 +21,12 @@ defaults:
 
 jobs:
   lint_and_test:
-    runs-on: ubuntu-latest
+    runs-on: docker
     services:
       mongo:
-        image: mongo:8
-        ports:
-          - 27017:27017
+        image: docker.io/library/mongo:8
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
       - run: corepack enable
       - run: pnpm install --filter {./}...
       - run: pnpm run lint-check
@@ -43,5 +38,5 @@ jobs:
       - run: pnpm run test
         env:
           NODE_ENV: test
-          dbUrl: mongodb://localhost:27017/admin
+          dbUrl: mongodb://mongo:27017/admin
           dbName: bgs-models
