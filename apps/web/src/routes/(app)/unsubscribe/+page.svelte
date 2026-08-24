@@ -3,15 +3,17 @@
 	import { resolve } from "$app/paths";
 	import { Button } from "@/modules/cdk";
 	import { get, post } from "@/lib/api";
+	import { m } from "@/lib/i18n/messages";
 
 	type UnsubscribeInfo = { scope: "game" | "newsletter"; username: string };
 
 	const token = page.url.searchParams.get("token") ?? "";
 
-	const scopeLabels: Record<UnsubscribeInfo["scope"], string> = {
-		game: "game notification emails (your turn, game cancelled)",
-		newsletter: "the newsletter",
-	};
+	// Scope copy resolves per render so a language switch re-labels in place.
+	let scopeLabels = $derived<Record<UnsubscribeInfo["scope"], string>>({
+		game: m.unsubscribe_scope_game(),
+		newsletter: m.unsubscribe_scope_newsletter(),
+	});
 
 	let info = $state<UnsubscribeInfo | null>(null);
 	let invalid = $state(false);
@@ -37,21 +39,23 @@
 </script>
 
 <div class="container mx-auto max-w-xl px-4">
-	<h1>Unsubscribe</h1>
+	<h1>{m.unsubscribe_title()}</h1>
 	{#if done && info}
-		<p>Done — <b>{info.username}</b> is unsubscribed from {scopeLabels[info.scope]}.</p>
-		<p>You can re-enable them any time from your <a href={resolve("/(app)/account")}>account page</a>.</p>
-	{:else if invalid}
-		<p>This unsubscribe link is invalid or has expired.</p>
+		<p>{m.unsubscribe_done({ username: info.username, scope: scopeLabels[info.scope] })}</p>
 		<p>
-			You can manage your email notifications from your <a href={resolve("/(app)/account")}>account page</a>.
+			{m.unsubscribe_reenable()} <a href={resolve("/(app)/account")}>{m.unsubscribe_accountPage()}</a>.
+		</p>
+	{:else if invalid}
+		<p>{m.unsubscribe_invalid()}</p>
+		<p>
+			{m.unsubscribe_manage()} <a href={resolve("/(app)/account")}>{m.unsubscribe_accountPage()}</a>.
 		</p>
 	{:else if info}
 		<p>
-			Hi <b>{info.username}</b> — click the button below to stop receiving {scopeLabels[info.scope]}.
+			{m.unsubscribe_prompt({ username: info.username, scope: scopeLabels[info.scope] })}
 		</p>
-		<Button color="primary" disabled={busy} onclick={unsubscribe}>Unsubscribe</Button>
+		<Button color="primary" disabled={busy} onclick={unsubscribe}>{m.unsubscribe_button()}</Button>
 	{:else}
-		<p>Checking your unsubscribe link…</p>
+		<p>{m.unsubscribe_checking()}</p>
 	{/if}
 </div>

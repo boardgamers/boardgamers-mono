@@ -42,6 +42,9 @@ jobs:
       - run: npx svelte-kit sync
       - run: pnpm run build
       - run: pnpm run check
+      # Vitest — includes the i18n catalog completeness gate (#306): every locale
+      # must carry the exact key set of messages/en.json.
+      - run: pnpm run test
 
   # Same production-build guard for the admin panel.
   admin:

@@ -23,6 +23,7 @@
 	import { developerSettings } from "@/lib/stores.svelte";
 	import { page } from "$app/state";
 	import TimeRangeSlider from "@/components/Form/TimeRangeSlider.svelte";
+	import { m } from "@/lib/i18n/messages";
 
 	useLoggedIn();
 
@@ -251,7 +252,7 @@
 	<div class="container mx-auto px-4">
 		<h1 class="mb-2"><GameName {info} /></h1>
 		<p class="mb-6 text-gray-500 dark:text-gray-400">
-			Set up a new game. Only the essentials are required — everything else has a sensible default.
+			{m.newGame_setup()}
 		</p>
 
 		<form
@@ -264,8 +265,8 @@
 			<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 				<div>
 					<div class="mb-4">
-						<span class="mb-1 block font-medium">Number of players</span>
-						<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Number of players">
+						<span class="mb-1 block font-medium">{m.newGame_nbPlayers()}</span>
+						<div class="flex flex-wrap gap-2" role="radiogroup" aria-label={m.newGame_nbPlayers()}>
 							{#each info.players as option, i (i)}
 								<button
 									type="button"
@@ -283,8 +284,8 @@
 
 					{#if botsSupported}
 						<div class="mb-4">
-							<span class="mb-1 block font-medium">Bot players</span>
-							<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Number of bot players">
+							<span class="mb-1 block font-medium">{m.newGame_botPlayers()}</span>
+							<div class="flex flex-wrap gap-2" role="radiogroup" aria-label={m.newGame_botPlayers()}>
 								{#each Array.from({ length: maxBots + 1 }, (_, i) => i) as option (option)}
 									<button
 										type="button"
@@ -294,7 +295,7 @@
 										aria-pressed={numBots === option}
 										onclick={() => (numBots = option)}
 									>
-										{option === 0 ? "None" : option}
+										{option === 0 ? m.newGame_noBots() : option}
 									</button>
 								{/each}
 							</div>
@@ -303,15 +304,14 @@
 									class="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
 									transition:fade
 								>
-									🤖 Bots are <b>dumb</b>: they auto-play engine-chosen moves. They're meant for
-									<b>testing the UI solo</b>, not for enjoyment. Real AI opponents may come later.
+									{m.newGame_botsWarning()}
 								</p>
 							{/if}
 						</div>
 					{/if}
 
 					<div class="mb-4">
-						<label for="gameId" class="mb-1 block font-medium">Game name</label>
+						<label for="gameId" class="mb-1 block font-medium">{m.newGame_gameName()}</label>
 						<input
 							class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
 							id="gameId"
@@ -319,18 +319,17 @@
 							maxlength="25"
 							name="gameId"
 							bind:value={gameId}
-							placeholder="Game ID"
-							aria-label="Game ID"
+							placeholder={m.newGame_gameIdPlaceholder()}
+							aria-label={m.newGame_gameIdPlaceholder()}
 							required
 						/>
-						<small class="text-xs text-gray-500 dark:text-gray-400"
-							>A name for your game (letters, numbers, hyphens).</small
-						>
+						<small class="text-xs text-gray-500 dark:text-gray-400">{m.newGame_gameNameHelp()}</small>
 					</div>
 
 					<div class="mb-4">
 						<label for="description" class="mb-1 block font-medium"
-							>Description <span class="font-normal text-gray-500 dark:text-gray-400">(optional)</span></label
+							>{m.newGame_description()}
+							<span class="font-normal text-gray-500 dark:text-gray-400">{m.common_optional()}</span></label
 						>
 						<Input
 							type="textarea"
@@ -338,11 +337,9 @@
 							maxlength="1000"
 							rows="3"
 							bind:value={description}
-							placeholder="Casual game, beginners welcome — one move a day is fine!"
+							placeholder={m.newGame_descriptionPlaceholder()}
 						/>
-						<small class="text-xs text-gray-500 dark:text-gray-400"
-							>A note about your game, shown on its page. Markdown supported.</small
-						>
+						<small class="text-xs text-gray-500 dark:text-gray-400">{m.newGame_descriptionHelp()}</small>
 					</div>
 
 					<!-- Important game selects (map / variant / etc.) promoted out of Advanced -->
@@ -363,7 +360,7 @@
 
 					{#if (info.expansions ?? []).length > 0}
 						<div class="mt-4">
-							<h3>Expansions</h3>
+							<h3>{m.newGame_expansions()}</h3>
 							<div class="flex flex-wrap gap-2">
 								{#each info.expansions ?? [] as expansion (expansion.name)}
 									<label
@@ -384,7 +381,7 @@
 
 				<!-- Game options as toggle chips -->
 				<div>
-					<span class="mb-1 block font-medium">Options</span>
+					<span class="mb-1 block font-medium">{m.newGame_options()}</span>
 					<div class="flex flex-wrap gap-2">
 						<label
 							class="cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {options.includes(
@@ -394,7 +391,7 @@
 								: 'border-gray-300 text-gray-700 hover:border-primary hover:text-primary dark:border-gray-600 dark:text-gray-200 dark:hover:text-primary-lighter'}"
 						>
 							<input type="checkbox" class="sr-only" bind:group={options} value="join" />
-							Join this game as a player
+							{m.newGame_joinAsPlayer()}
 						</label>
 						<label
 							class="cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {options.includes(
@@ -404,7 +401,7 @@
 								: 'border-gray-300 text-gray-700 hover:border-primary hover:text-primary dark:border-gray-600 dark:text-gray-200 dark:hover:text-primary-lighter'}"
 						>
 							<input type="checkbox" class="sr-only" bind:group={options} value="unlisted" />
-							Unlisted
+							{m.newGame_unlisted()}
 						</label>
 						{#each (info.options ?? []).filter((opt) => opt.type === "checkbox") as option (option.name)}
 							<label
@@ -423,13 +420,13 @@
 			</div>
 
 			<!-- Timing -->
-			<h3 class="mt-4">Timing</h3>
+			<h3 class="mt-4">{m.newGame_timing()}</h3>
 			<p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
-				How long each player has for the whole game, plus extra time added per move.
+				{m.newGame_timingHelp()}
 			</p>
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<div class="mb-3">
-					<label for="timePerGame">Time per player per game</label>
+					<label for="timePerGame">{m.newGame_timePerGame()}</label>
 					<select
 						bind:value={timePerGame}
 						id="timePerGame"
@@ -442,7 +439,7 @@
 				</div>
 
 				<div class="mb-3">
-					<label for="timePerMove">Additional time per move</label>
+					<label for="timePerMove">{m.newGame_timePerMove()}</label>
 					<select
 						bind:value={timePerMove}
 						id="timePerMove"
@@ -458,9 +455,9 @@
 			<!-- Subtle note about the daily timer window (lives in Advanced) -->
 			<p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
 				{#if pauseOvernight}
-					🌙 Clock runs {timerStart} – {timerEnd} daily, pauses overnight.
+					{m.newGame_clockWindow({ start: timerStart, end: timerEnd })}
 				{:else}
-					⏱️ Clock runs continuously (no overnight pause).
+					{m.newGame_clockContinuous()}
 				{/if}
 				<button
 					type="button"
@@ -471,17 +468,20 @@
 							() => document.getElementById("timerEnd")?.scrollIntoView({ behavior: "smooth", block: "center" }),
 							50
 						);
-					}}>Edit</button
+					}}>{m.newGame_edit()}</button
 				>
 			</p>
 
 			{#if !scheduledDay || !scheduledTime}
 				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400" transition:fade>
-					The game is cancelled automatically if it doesn't start within {timePerGame <= 600
-						? "an hour"
-						: timePerGame <= 3600
-							? "three hours"
-							: "a week"}.
+					{m.newGame_cancelNotice({
+						delay:
+							timePerGame <= 600
+								? m.newGame_cancelDelay_hour()
+								: timePerGame <= 3600
+									? m.newGame_cancelDelay_threeHours()
+									: m.newGame_cancelDelay_week(),
+					})}
 				</p>
 			{/if}
 
@@ -493,7 +493,7 @@
 					aria-expanded={showAdvanced}
 					onclick={() => (showAdvanced = !showAdvanced)}
 				>
-					Advanced options
+					{m.newGame_advanced()}
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						viewBox="0 0 16 16"
@@ -513,7 +513,7 @@
 					<div class="space-y-4 border-t border-gray-200 px-3 py-4 dark:border-gray-700">
 						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<div>
-								<label for="playerOrder">Player order</label>
+								<label for="playerOrder">{m.newGame_playerOrder()}</label>
 								<Input type="select" bind:value={playerOrder} id="playerOrder" required>
 									{#each playerOrders as item (item.name)}
 										<option value={item.name}>{item.label}</option>
@@ -522,29 +522,27 @@
 							</div>
 
 							<div>
-								<label for="seed">Custom seed</label>
+								<label for="seed">{m.newGame_customSeed()}</label>
 								<input
 									class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
 									id="seed"
 									type="text"
 									maxlength="25"
 									bind:value={seed}
-									placeholder="Random seed"
-									aria-label="Random seed"
+									placeholder={m.newGame_seedPlaceholder()}
+									aria-label={m.newGame_seedPlaceholder()}
 								/>
-								<small class="text-xs text-gray-500 dark:text-gray-400"
-									>Games with the same seed share configuration.</small
-								>
+								<small class="text-xs text-gray-500 dark:text-gray-400">{m.newGame_seedHelp()}</small>
 							</div>
 						</div>
 
 						<div>
-							<Checkbox bind:checked={enableKarma}>Restrict who can join by karma</Checkbox>
+							<Checkbox bind:checked={enableKarma}>{m.newGame_restrictKarma()}</Checkbox>
 							<div class="mt-2 max-w-xs">
 								<Input
 									type="number"
 									disabled={!enableKarma}
-									placeholder="Minimum karma to join"
+									placeholder={m.newGame_minKarmaPlaceholder()}
 									bind:value={minimumKarma}
 									max={karma - 5}
 								/>
@@ -552,22 +550,34 @@
 						</div>
 
 						<div>
-							<Checkbox bind:checked={enableEloRange}>Restrict who can join by Elo</Checkbox>
+							<Checkbox bind:checked={enableEloRange}>{m.newGame_restrictElo()}</Checkbox>
 							<div class="mt-2 flex max-w-xs items-center gap-2">
-								<Input type="number" disabled={!enableEloRange} placeholder="Min Elo" bind:value={minElo} min={0} />
+								<Input
+									type="number"
+									disabled={!enableEloRange}
+									placeholder={m.newGame_minElo()}
+									bind:value={minElo}
+									min={0}
+								/>
 								<span>–</span>
-								<Input type="number" disabled={!enableEloRange} placeholder="Max Elo" bind:value={maxElo} min={0} />
+								<Input
+									type="number"
+									disabled={!enableEloRange}
+									placeholder={m.newGame_maxElo()}
+									bind:value={maxElo}
+									min={0}
+								/>
 							</div>
 							<small class="text-xs text-gray-500 dark:text-gray-400">
-								Your Elo is {ownElo}. The range must include it and be at least 100 wide.
+								{m.newGame_eloRangeHelp({ elo: ownElo })}
 							</small>
 						</div>
 
 						<fieldset>
-							<legend class="mb-2 font-medium">Scheduled start (optional)</legend>
+							<legend class="mb-2 font-medium">{m.newGame_scheduledStart()}</legend>
 							<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<div>
-									<label for="scheduledDate">Day</label>
+									<label for="scheduledDate">{m.newGame_day()}</label>
 									<input
 										type="date"
 										class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
@@ -576,7 +586,7 @@
 									/>
 								</div>
 								<div>
-									<label for="scheduledTime">Time</label>
+									<label for="scheduledTime">{m.newGame_time()}</label>
 									<input
 										type="time"
 										class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
@@ -585,11 +595,11 @@
 									/>
 								</div>
 							</div>
-							<small class="text-xs text-gray-500 dark:text-gray-400">The game starts then, or is cancelled.</small>
+							<small class="text-xs text-gray-500 dark:text-gray-400">{m.newGame_scheduledHelp()}</small>
 						</fieldset>
 
 						<fieldset>
-							<legend class="mb-2 font-medium">Daily timer window (optional)</legend>
+							<legend class="mb-2 font-medium">{m.newGame_timerWindow()}</legend>
 							<div class="mb-3">
 								<Checkbox
 									checked={pauseOvernight}
@@ -603,7 +613,7 @@
 										}
 									}}
 								>
-									Pause everyone's clock overnight
+									{m.newGame_pauseOvernight()}
 								</Checkbox>
 							</div>
 
@@ -618,7 +628,7 @@
 			</div>
 
 			<div class="mt-5 flex items-center justify-end gap-3 border-t border-gray-200 pt-4 dark:border-gray-700">
-				<Button type="submit" color="primary" disabled={submitting}>Create game</Button>
+				<Button type="submit" color="primary" disabled={submitting}>{m.newGame_create()}</Button>
 			</div>
 		</form>
 	</div>

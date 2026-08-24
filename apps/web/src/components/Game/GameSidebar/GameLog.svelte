@@ -4,6 +4,7 @@
 	import { oneLineMarked } from "@/utils";
 	import SanitizedHtml from "../../SanitizedHtml.svelte";
 	import { getContext } from "svelte";
+	import { m } from "@/lib/i18n/messages";
 
 	const context: GameContext = getContext("game");
 	let log = $derived(context.log ?? []);
@@ -39,12 +40,12 @@
 {#if log.length > 0}
 	<div class="mt-3 thin-scrollbar">
 		<div class="flex items-baseline">
-			<h3 class="mb-0">Log</h3>
+			<h3 class="mb-0">{m.gameSidebar_log()}</h3>
 			<div class="ms-2" style="font-size: smaller">
 				(<button
 					class="cursor-pointer border-0 bg-transparent p-0 text-inherit underline"
 					style="font-weight: unset !important"
-					onclick={() => toggleShowLog()}>{showLog ? "hide" : "show"}</button
+					onclick={() => toggleShowLog()}>{showLog ? m.common_hide() : m.common_show()}</button
 				>)
 			</div>
 		</div>

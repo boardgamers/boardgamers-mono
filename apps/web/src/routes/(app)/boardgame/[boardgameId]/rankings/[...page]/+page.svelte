@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { BoardgameElo } from "@/components";
 	import type { PageProps } from "./$types";
+	import { m } from "@/lib/i18n/messages";
 
 	let { data }: PageProps = $props();
 </script>
 
 <div class="container mx-auto px-4">
-	<h1>Rankings</h1>
+	<h1>{m.boardgame_rankings()}</h1>
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 		<div>
 			<BoardgameElo

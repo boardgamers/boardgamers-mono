@@ -28,6 +28,7 @@
 	import { peekGames, gameListParams, type SetupOptionFilter } from "@/lib/games.svelte";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
+	import { m } from "@/lib/i18n/messages";
 
 	let { data }: PageProps = $props();
 
@@ -100,9 +101,7 @@
 
 	async function newGame() {
 		if (needOwnership && !hasOwnership) {
-			await confirm(
-				"You need to have game ownership to host a new game. You can set game ownership in your account settings."
-			);
+			await confirm(m.boardgame_ownershipRequired());
 		} else {
 			goto(resolve("/(app)/boardgame/[boardgameId]/new-game", { boardgameId }));
 		}
@@ -129,7 +128,7 @@
 				{#snippet headerContent()}
 					<div class="flex items-center">
 						<span class="flex-1"></span>
-						<span class="font-semibold">{rules ? "Rules" : "Description"}</span>
+						<span class="font-semibold">{rules ? m.boardgame_rules() : m.boardgame_description()}</span>
 						<span class="flex flex-1 justify-end">
 							<BoardgameLinks links={boardgame.links} />
 						</span>
@@ -146,13 +145,13 @@
 							rules = !rules;
 						}}
 					>
-						{rules ? "See description" : "See rules"}
+						{rules ? m.boardgame_seeDescription() : m.boardgame_seeRules()}
 					</a>
 				{/snippet}
 			</Card>
 		</div>
 		<div>
-			<UserGameSettings title="Settings" game={boardgame} class="h-full" />
+			<UserGameSettings title={m.common_settings()} game={boardgame} class="h-full" />
 		</div>
 	</div>
 
@@ -164,7 +163,7 @@
 				userId={user?._id}
 				perPage={5}
 				topRecords
-				title={user?._id ? "My games" : "Featured games"}
+				title={user?._id ? m.boardgame_myGames() : m.boardgame_featuredGames()}
 			/>
 		</div>
 		<div class="mt-3">
@@ -174,7 +173,7 @@
 				perPage={5}
 				{boardgameId}
 				gameStatus="open"
-				title="Lobby"
+				title={m.boardgame_lobby()}
 				pace={lobbyPaceFilter}
 				optionFilter={lobbyOptions}
 				viewerKarma={user?.account?.karma}
@@ -193,9 +192,13 @@
 	</div>
 
 	<div class="mt-3 text-center">
-		<Button color="accent" href={`/boardgame/${boardgameId}/games` as Pathname} class="text-base">All games</Button>
-		<Button color="primary" class="mx-3 text-base" onclick={newGame}>New Game</Button>
-		<Button color="accent" href={`/boardgame/${boardgameId}/rankings` as Pathname} class="text-base">Rankings</Button>
+		<Button color="accent" href={`/boardgame/${boardgameId}/games` as Pathname} class="text-base"
+			>{m.boardgame_allGames()}</Button
+		>
+		<Button color="primary" class="mx-3 text-base" onclick={newGame}>{m.boardgame_newGame()}</Button>
+		<Button color="accent" href={`/boardgame/${boardgameId}/rankings` as Pathname} class="text-base"
+			>{m.boardgame_rankings()}</Button
+		>
 	</div>
 
 	<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -205,7 +208,7 @@
 				{boardgameId}
 				topRecords
 				perPage={5}
-				title={data.featuredStatus === "ended" ? "Recently finished" : "Featured games"}
+				title={data.featuredStatus === "ended" ? m.boardgame_recentlyFinished() : m.boardgame_featuredGames()}
 			/>
 			<!-- <h3>Tournaments</h3>
       <p> No Tournament info available </p> -->
@@ -226,7 +229,9 @@
 		/>
 		{#if boardgame?.credits}
 			<section class="mt-6 border-t border-gray-200 pt-4 dark:border-gray-700">
-				<h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Credits</h2>
+				<h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+					{m.boardgame_credits()}
+				</h2>
 				<div class="prose prose-sm dark:prose-invert max-w-none text-gray-600 dark:text-gray-300">
 					<SanitizedHtml html={marked(boardgame.credits)} />
 				</div>

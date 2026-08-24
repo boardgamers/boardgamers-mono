@@ -20,6 +20,7 @@
 	import type { IterableElement } from "type-fest";
 	import type { UserFront } from "@bgs/models";
 	import type { PageProps } from "./$types";
+	import { m } from "@/lib/i18n/messages";
 
 	let { data }: PageProps = $props();
 
@@ -50,9 +51,7 @@
 
 	const onClick = async (gameInfo: IterableElement<typeof info>) => {
 		if (gameInfo.needOwnership && !owns(gameInfo._id.game)) {
-			await confirm(
-				"You need to have game ownership to host a new game. You can set game ownership in your account settings."
-			);
+			await confirm(m.boardgame_ownershipRequired());
 		} else {
 			goto(resolve("/(app)/boardgame/[boardgameId]/new-game", { boardgameId: gameInfo._id.game }));
 		}
@@ -61,9 +60,9 @@
 </script>
 
 <div class="container mx-auto px-4">
-	<h1 class="mb-1">Choose which game to play</h1>
+	<h1 class="mb-1">{m.newGame_title()}</h1>
 	<p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
-		Missing a game? <a href={resolve("/(app)/feedback#game-requests")}>Suggest it</a>
+		{m.newGame_missing()} <a href={resolve("/(app)/feedback#game-requests")}>{m.newGame_suggest()}</a>
 	</p>
 	<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 		{#each info as game (game._id.game)}
@@ -88,9 +87,9 @@
 								class:dark:text-gray-400={!owns(game._id.game)}
 							>
 								{#if owns(game._id.game)}
-									You own this game
+									{m.boardgames_own()}
 								{:else}
-									You do not own this game
+									{m.boardgames_notOwn()}
 								{/if}
 							</span>
 							<GameLikeButton

@@ -1,7 +1,42 @@
 import tailwindcss from "@tailwindcss/vite";
 import { sveltekit } from "@sveltejs/kit/vite";
-import { defineConfig } from "vite";
-import { execSync } from "node:child_process";
+import { defineConfig, type Plugin } from "vite";
+import { execFile, execSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+// Compile messages/<locale>.json → src/lib/paraglide (gitignored) before the
+// sveltekit plugin resolves imports. Runs on dev-server start, on `vite build`,
+// and on every messages/*.json change in watch mode. Offline by design — see
+// scripts/compile-i18n.mts for why this isn't paraglideVitePlugin.
+function paraglideCompile(): Plugin {
+	const run = () =>
+		new Promise<void>((resolvePromise, reject) => {
+			execFile(
+				process.execPath,
+				["--experimental-strip-types", "scripts/compile-i18n.mts"],
+				{ cwd: fileURLToPath(new URL(".", import.meta.url)) },
+				(err, stdout, stderr) => {
+					if (stdout.trim()) console.log(stdout.trim());
+					if (err) reject(new Error(stderr || err.message));
+					else resolvePromise();
+				},
+			);
+		});
+	return {
+		name: "bgs-paraglide-compile",
+		async buildStart() {
+			await run();
+		},
+		configureServer(server) {
+			server.watcher.add("messages/*.json");
+			server.watcher.on("change", (file) => {
+				if (/messages[\\/][^\\/]+\.json$/.test(file)) {
+					void run();
+				}
+			});
+		},
+	};
+}
 
 // VITE_backend locates the api service; the gameplay/ws/resources backends default to
 // the same host on their standard ports, so multi-instance dev (one loopback IP per
@@ -55,7 +90,7 @@ export default defineConfig({
 	define: {
 		__APP_RELEASE__: JSON.stringify(release),
 	},
-	plugins: [tailwindcss(), sveltekit()],
+	plugins: [paraglideCompile(), tailwindcss(), sveltekit()],
 	server: {
 		port: 8612,
 		proxy: {

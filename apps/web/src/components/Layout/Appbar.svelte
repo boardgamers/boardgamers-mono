@@ -5,6 +5,7 @@
 		Dropdown,
 		DropdownToggle,
 		DropdownMenu,
+		DropdownItem,
 		Button,
 		Input,
 		FormGroup,
@@ -22,6 +23,7 @@
 	import IconSunFill from "@/components/icons/IconSunFill.svelte";
 	import IconMoonFill from "@/components/icons/IconMoonFill.svelte";
 	import IconCircleHalf from "@/components/icons/IconCircleHalf.svelte";
+	import IconGlobe from "@/components/icons/IconGlobe.svelte";
 	import { handleError } from "@/utils";
 	import { enhance } from "$app/forms";
 	import { account, login, logout } from "@/lib/account.svelte";
@@ -33,12 +35,15 @@
 	import UserAvatar from "../User/UserAvatar.svelte";
 	import { page } from "$app/state";
 	import type { UserFront } from "@bgs/models";
+	import { m, language, switchLanguage } from "@/lib/i18n/messages";
+	import { locales, localeNames, type Locale } from "@/lib/i18n/locales";
+	import { post } from "@/lib/api";
 
-	const themeLabel: Record<Theme, string> = {
-		light: "Light",
-		dark: "Dark",
-		system: "System",
-	};
+	const themeLabel = $derived<Record<Theme, string>>({
+		light: m.theme_light(),
+		dark: m.theme_dark(),
+		system: m.theme_system(),
+	});
 
 	let { class: className = "", ...rest } = $props();
 	let email = $state("");
@@ -113,7 +118,7 @@
 					(document.getElementById("sound-notification") as HTMLAudioElement).play();
 				}
 				if (localStorage.getItem("notifications")) {
-					new Notification("Boardgamers 🌌", { icon: "/favicon-active.ico", body: "It's your turn!" });
+					new Notification("Boardgamers 🌌", { icon: "/favicon-active.ico", body: m.nav_turnNotification() });
 				}
 			}
 		}
@@ -123,6 +128,19 @@
 		hasGames;
 		if (browser) onHasGamesChanged();
 	});
+
+	// Language switcher (#306): flip the UI language client-side (cookie stamped by
+	// switchLanguage), and persist the preference on the account when logged in so
+	// the next session — on any device — resolves it (fire-and-forget; a failure
+	// leaves the local switch in place and toasts).
+	async function chooseLanguage(locale: Locale) {
+		await switchLanguage(locale);
+		if (user) {
+			post<UserFront>("/account", { settings: { language: locale } })
+				.then((updated) => account.set(updated))
+				.catch(() => handleError(m.lang_persist_error()));
+		}
+	}
 </script>
 
 <Navbar color="primary" class={className} dark expand>
@@ -148,17 +166,15 @@
 				hasGames ? "bg-green-600 hover:bg-green-500" : "bg-gray-500 hover:bg-gray-400"
 			}`}
 			href={resolve("/(app)/next-game")}
-			title={hasGames
-				? `${myActiveGames.length} ${myActiveGames.length === 1 ? "game" : "games"} waiting for your move — click to jump to the next one`
-				: "No games waiting for your move"}
+			title={hasGames ? m.nav_activeGamesWaiting({ count: myActiveGames.length }) : m.nav_noActiveGames()}
 			id="active-game-count"
 		>
 			{myActiveGames.length}
 		</a>
 	{/if}
 
-	<a href={resolve("/(app)/boardgames")} title="Boardgames list" data-sveltekit-preload-data="hover">
-		<img src="/images/icons/dice.svg" height="28" width="28" alt="Boardgames list" />
+	<a href={resolve("/(app)/boardgames")} title={m.nav_boardgamesList()} data-sveltekit-preload-data="hover">
+		<img src="/images/icons/dice.svg" height="28" width="28" alt={m.nav_boardgamesList()} />
 	</a>
 
 	<audio preload="none" id="sound-notification">
@@ -169,7 +185,7 @@
 	<Nav class="ms-auto" navbar>
 		<button
 			onclick={cycleTheme}
-			title={`Theme: ${themeLabel[$currentTheme]}`}
+			title={m.theme_title({ theme: themeLabel[$currentTheme] })}
 			class="me-2 flex items-center gap-1 rounded-md px-2 py-1 text-white hover:bg-white/10"
 		>
 			{#if $currentTheme === "light"}
@@ -182,68 +198,96 @@
 			<span class="hidden sm:inline">{themeLabel[$currentTheme]}</span>
 		</button>
 
+		<!-- Language switcher (#306): cookie + optional account preference, no /de/ URLs. -->
+		<Dropdown nav inNavbar>
+			<DropdownToggle
+				nav
+				caret
+				title={m.lang_switcher_title({ language: localeNames[$language] })}
+				aria-label={m.lang_switcher_label()}
+				class="flex items-center gap-1"
+			>
+				<IconGlobe size="1.25rem" />
+				<span class="hidden uppercase sm:inline">{$language}</span>
+			</DropdownToggle>
+			<DropdownMenu right class="dropdown-menu mt-4 text-gray-900 dark:text-gray-100">
+				{#each locales as locale (locale)}
+					<DropdownItem
+						onclick={() => chooseLanguage(locale)}
+						aria-current={locale === $language}
+						class="flex items-center justify-between gap-3 {locale === $language ? 'font-semibold' : ''}"
+					>
+						{localeNames[locale]}
+						{#if locale === $language}
+							<span aria-hidden="true">✓</span>
+						{/if}
+					</DropdownItem>
+				{/each}
+			</DropdownMenu>
+		</Dropdown>
+
 		{#if !user}
-			<span class="hidden text-white sm:inline">Have an account?</span>
+			<span class="hidden text-white sm:inline">{m.nav_haveAccount()}</span>
 			<Dropdown nav inNavbar>
-				<DropdownToggle nav caret>Login</DropdownToggle>
+				<DropdownToggle nav caret>{m.nav_login()}</DropdownToggle>
 				<!-- No-JS (#151): dropdowns need JS — render a plain link to the login page. -->
 				<noscript>
-					<a href={resolve("/(app)/login")} class="px-3 py-2 rounded-md text-white no-underline">Login page</a>
+					<a href={resolve("/(app)/login")} class="px-3 py-2 rounded-md text-white no-underline">{m.nav_loginPage()}</a>
 				</noscript>
 				<!-- text-gray-900: the navbar paints its text white, reset it so the menu is readable in light mode -->
 				<DropdownMenu right class="dropdown-menu mt-4 min-w-[250px] p-3.5 pb-0 text-gray-900 dark:text-gray-100">
 					<div>
-						Log in with
+						{m.nav_logInWith()}
 						<div class="mt-3 mb-1 flex justify-around">
 							<!-- OAuth endpoints, not app routes: off-site navigation (rel="external"). -->
 							{#each socialProviders as provider (provider.name)}
 								<a
 									href={provider.href}
 									rel="external"
-									title="Continue with {provider.name}"
-									aria-label="Continue with {provider.name}"
+									title={m.nav_continueWith({ provider: provider.name })}
+									aria-label={m.nav_continueWith({ provider: provider.name })}
 									class="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-800 no-underline transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
 								>
 									<provider.icon size="1.25rem" />
 								</a>
 							{/each}
 						</div>
-						or
+						{m.nav_or()}
 						<form class="mt-3" method="POST" action={resolve("/(app)/login")} use:enhance={enhanceLogin}>
 							<input type="hidden" name="redirect" value={loginRedirect} />
 							<FormGroup>
-								<Label hidden for="email">Email or username</Label>
+								<Label hidden for="email">{m.nav_emailOrUsername()}</Label>
 								<Input
 									id="email"
 									type="text"
 									name="email"
-									placeholder="Email address or username"
+									placeholder={m.nav_emailOrUsernamePlaceholder()}
 									required
 									bind:value={email}
 									autofocus
 								/>
 							</FormGroup>
 							<FormGroup>
-								<Label hidden for="password">Password</Label>
+								<Label hidden for="password">{m.common_password()}</Label>
 								<Input
 									id="password"
 									type="password"
 									name="password"
-									placeholder="Password"
+									placeholder={m.common_password()}
 									bind:value={password}
 									required
 								/>
 								<FormText class="mt-2 pt-2">
-									<a href={resolve("/(app)/forgotten-password")}>Forgotten password ?</a>
+									<a href={resolve("/(app)/forgotten-password")}>{m.nav_forgottenPassword()}</a>
 								</FormText>
 							</FormGroup>
 							<FormGroup>
-								<Button type="submit" color="primary" block>Log in</Button>
+								<Button type="submit" color="primary" block>{m.common_logIn()}</Button>
 							</FormGroup>
 						</form>
 					</div>
 					<div class="mt-3 border-t border-gray-200 p-3.5 text-center dark:border-gray-700">
-						New ? <a href={resolve("/(app)/signup")}><b>Join us</b></a>
+						{m.nav_newJoinUs()} <a href={resolve("/(app)/signup")}><b>{m.nav_joinUs()}</b></a>
 					</div>
 				</DropdownMenu>
 			</Dropdown>
@@ -251,7 +295,7 @@
 			{#if admin}
 				<NavLink href={adminLink} rel="external" class="flex items-center gap-2">
 					<IconGearFill size="1.25rem" />
-					<span class="hidden sm:inline">Admin</span>
+					<span class="hidden sm:inline">{m.nav_admin()}</span>
 				</NavLink>
 			{/if}
 			<NavLink
@@ -266,11 +310,11 @@
 			<form method="POST" action={resolve("/(app)/logout")} use:enhance={enhanceLogout} class="flex">
 				<button
 					type="submit"
-					title="Log out"
+					title={m.nav_logOutTitle()}
 					class="flex items-center gap-2 rounded-md px-2 py-1 text-white hover:bg-white/10 hover:text-white"
 				>
 					<IconPower size="1.25rem" />
-					<span class="hidden sm:inline">Log out</span>
+					<span class="hidden sm:inline">{m.nav_logout()}</span>
 				</button>
 			</form>
 		{/if}
