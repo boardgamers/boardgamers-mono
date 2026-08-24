@@ -5,6 +5,9 @@ const routes: Record<string, string> = {
 	"/(app)": "/",
 	"/(app)/games": "/games",
 	"/(app)/login": "/login",
+	// `[...part2]` is spelled `[part2]` here so the substitution below (which only
+	// matches word characters) fills the rest segment too.
+	"/(app)/page/[part1]/[...part2]": "/page/[part1]/[part2]",
 };
 
 // Matches the real resolve() shape; unlike the real one it leaves an unmatched

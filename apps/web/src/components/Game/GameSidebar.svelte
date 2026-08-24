@@ -8,6 +8,8 @@
 	import type { JsonObject, JsonValue } from "type-fest";
 	import { Button, Badge } from "@/modules/cdk";
 	import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
+	import IconBook from "@/components/icons/IconBook.svelte";
+	import { resolve } from "$app/paths";
 	import { getContext, onDestroy } from "svelte";
 	import { GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings } from "./GameSidebar";
 	import type { GameContext } from "@/routes/game/[gameId]/game-context";
@@ -24,6 +26,7 @@
 	let game = $derived(context.game);
 	let players = $derived(context.players);
 	let gameInfo = $derived(context.gameInfo);
+	let rulesPage = $derived(context.rulesPage);
 
 	let secondsCounter = $state(0);
 
@@ -180,6 +183,15 @@
 			/ {duration(game.options.timing.timePerGame ?? 0)} + {duration(game.options.timing.timePerMove ?? 0)}
 		</span>
 	</div>
+	{#if rulesPage}
+		<div class="mt-1 flex items-center">
+			<IconBook class="me-1" />
+			<a
+				href={resolve("/(app)/page/[part1]/[...part2]", { part1: game.game.name, part2: "rules" })}
+				title={rulesPage.title}>{m.gameSidebar_rules()}</a
+			>
+		</div>
+	{/if}
 	{#if game.status === "ended"}
 		<div class="mt-3">
 			<b>{m.gameSidebar_gameEnded()}</b>

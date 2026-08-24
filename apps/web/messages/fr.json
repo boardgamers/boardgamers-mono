@@ -216,6 +216,7 @@
 	"gameSidebar.notes": "Notes",
 	"gameSidebar.quit": "Abandonner",
 	"gameSidebar.replay": "Replay",
+	"gameSidebar.rules": "Règles",
 	"gameSidebar.setupOptions": "Options de configuration",
 	"gameSidebar.voteCancel": "Voter l'annulation",
 	"gameSidebar.voteCancelConfirm": "Ce vote est définitif. Si tous les joueurs actifs votent l'annulation, la partie sera annulée.",
