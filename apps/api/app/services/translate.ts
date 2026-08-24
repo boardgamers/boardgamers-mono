@@ -76,13 +76,13 @@ export async function translateMarkdown({
 			body: JSON.stringify({
 				model: env.translation.model,
 				temperature: 0.2,
-				// Input-sized estimate (translations run roughly as long as their
-				// source at ~4 chars/token, longer for FR/DE/…) PLUS a fixed
-				// allowance: reasoning models (e.g. the default gemini-2.5-flash)
-				// burn thousands of reasoning tokens before the visible answer.
-				// A too-tight budget here silently truncates the translation
-				// (finish_reason "length"), which we surface as an error below.
-				max_tokens: Math.max(4096, Math.ceil(text.length / 2) + 4096),
+				// Deliberately not sized to the input: reasoning models (e.g. the
+				// default gemini-2.5-flash) burn an unpredictable number of
+				// thinking tokens before the visible answer, so any input-based
+				// estimate eventually truncates (finish_reason "length", surfaced
+				// as an error below). This is a low-volume admin endpoint — a flat
+				// generous cap only needs to bound a runaway repetition loop.
+				max_tokens: 32768,
 				messages: [
 					{ role: "system", content: SYSTEM_PROMPT },
 					{ role: "user", content: userPrompt },

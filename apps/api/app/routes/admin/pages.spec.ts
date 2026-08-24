@@ -300,12 +300,11 @@ describe("Admin pages API — LLM translation (#306)", () => {
 			assert.match(call.user, /from en to de/);
 		}
 
-		// Token budget: input-sized estimate (chars/2) + a multi-thousand-token
-		// headroom for reasoning-model overhead and target-language expansion.
-		const contentCall = llmCalls.find((c) => c.user.includes("# Welcome"))!;
-		assert.strictEqual(contentCall.maxTokens, Math.ceil("# Welcome\nPlay **Gaia Project** online.".length / 2) + 4096);
-		const titleCall = llmCalls.find((c) => c.user.includes("About us"))!;
-		assert.strictEqual(titleCall.maxTokens, Math.ceil("About us".length / 2) + 4096);
+		// Token budget: a flat generous cap (not input-sized) so reasoning-model
+		// thinking tokens can't eat into the answer; it only bounds runaway loops.
+		for (const call of llmCalls) {
+			assert.ok(call.maxTokens >= 32768, `max_tokens ${call.maxTokens} leaves no headroom for reasoning tokens`);
+		}
 
 		// A create-upsert has no previous version to archive.
 		assert.strictEqual(await colls.pageHistories.countDocuments({ page: { name: "about", lang: "de" } }), 0);
