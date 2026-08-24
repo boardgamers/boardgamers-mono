@@ -28,7 +28,9 @@ vi.hoisted(() => {
 	}
 });
 
+import { browser } from "$app/environment";
 import EventEmitter from "eventemitter3";
+import { updatePreference } from "@/lib/game-preferences.svelte";
 import { developerSettings } from "@/lib/stores.svelte";
 import type { GameContext } from "@/routes/game/[gameId]/game-context";
 import StartedGame from "./StartedGame.svelte";
@@ -113,5 +115,23 @@ describe("StartedGame preferences posting", () => {
 		developerSettings.set(true);
 		flushSync();
 		expect(lastPreferences().devMode).toBe(true);
+	});
+
+	// browser flavor only: updatePreference mutates gamePreferences, a client-only store whose
+	// SSR guard throws in the default (browser: false) run.
+	it.runIf(browser)("re-posts preferences into the running iframe when a sidebar preference changes", async () => {
+		window.dispatchEvent(new window.MessageEvent("message", { data: { type: "gameReady" } }));
+		expect("flatBuildings" in lastPreferences()).toBe(false);
+
+		// The regression this guards: updatePreference used to mutate the per-game object in
+		// place, so the component's derived chain never saw a new reference and the running
+		// game only picked the change up after a full page refresh.
+		await updatePreference("gaia-project", 1, "flatBuildings", true);
+		flushSync();
+		expect(lastPreferences().flatBuildings).toBe(true);
+
+		await updatePreference("gaia-project", 1, "flatBuildings", false);
+		flushSync();
+		expect(lastPreferences().flatBuildings).toBe(false);
 	});
 });

@@ -1,7 +1,7 @@
 import { browser } from "$app/environment";
 import { getContext, hasContext, setContext } from "svelte";
 import type { GameInfoFront, GamePreferencesFront } from "@bgs/models";
-import { isEmpty, set } from "lodash";
+import { isEmpty } from "lodash";
 import { get as getStore } from "svelte/store";
 import type { Primitive } from "type-fest";
 import { account, clientWritable } from "./stores.svelte";
@@ -50,8 +50,20 @@ export function addDefaults(prefs: GamePreferencesFront, gameinfo: GameInfoFront
 
 export async function updatePreference(gameName: string, version: number, key: string, value: Primitive) {
 	gamePreferences.update((gamePreferences) => {
-		set(gamePreferences, `${gameName}.preferences.${key}`, value);
-		return { ...gamePreferences };
+		// Immutable update: replace the per-game object (and its `preferences`) rather than
+		// mutating it in place with lodash `set`. Downstream `$derived` chains (StartedGame's
+		// `storedPrefs` → `prefs` → the postPreferences $effect) compare by reference - an
+		// in-place mutation kept the same per-game reference, so a sidebar toggle never
+		// re-posted the preferences into the running game iframe (only a page refresh did).
+		const game = gamePreferences[gameName];
+		const updated = {
+			...game,
+			preferences: { ...game?.preferences, [key]: value },
+		} as typeof game;
+		return {
+			...gamePreferences,
+			[gameName]: updated,
+		};
 	});
 
 	if (getStore(account)) {

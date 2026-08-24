@@ -49,10 +49,12 @@
 	);
 	let prefs = $derived(addDefaults(storedPrefs, context.gameInfo!));
 
-	// Derive alternateUI straight from the store. The `prefs` chain (storedPrefs → addDefaults)
-	// goes stale in the iframe component (a Svelte 5 chained-derived reactivity bug), so reading
-	// `prefs.preferences.alternateUI` for the iframe src/key never updated on toggle. Reading the
-	// store directly here recomputes reliably, which is what remounts the iframe live.
+	// Derive alternateUI straight from the store. Historically the `prefs` chain (storedPrefs →
+	// addDefaults) appeared to "go stale" here — the real cause was `updatePreference` mutating
+	// the per-game object in place, so `storedPrefs` recomputed to the same reference and the
+	// chain stopped propagating. `updatePreference` is immutable now (game-preferences.svelte.ts),
+	// which also un-stuck the postPreferences $effect below; this direct read is kept as
+	// belt-and-braces since it also drives the iframe remount key.
 	const alternateUI = $derived.by(() => {
 		const stored = $gamePreferences[gameName ?? ""] ?? ssrPrefs[gameName ?? ""];
 		return Boolean(addDefaults(stored as GamePreferencesFront, context.gameInfo!)?.preferences?.alternateUI);
