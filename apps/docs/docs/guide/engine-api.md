@@ -104,7 +104,7 @@ Splendor and Gaia Project. Reusing the auto-play logic from [dropPlayer](#droppl
 starting point; a simple random legal move is fine.
 
 Bots are deliberately **dumb** — they're for testing the UI solo, not for enjoyment. See
-[issue #251](https://github.com/boardgamers/boardgamers-mono/issues/251) for real AI opponents.
+[issue #251](https://codeberg.org/boardgamers/boardgamers/issues/251) for real AI opponents.
 
 ### currentPlayer
 

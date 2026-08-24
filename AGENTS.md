@@ -16,6 +16,13 @@ Boardgamers — an online board game platform. pnpm workspace, Node ≥ 24, ESM 
 | `packages/models`  | Shared Zod schemas + Mongo collection definitions (`@bgs/models`) |
 | `packages/utils`   | Shared helpers (`@bgs/utils`)                                     |
 
+## Forge: Codeberg
+
+The repo lives at <https://codeberg.org/boardgamers/boardgamers> (Forgejo). It used to be on GitHub — don't use `gh` or `github.com/boardgamers/boardgamers-mono` URLs; issues/PRs migrated with their numbers intact.
+
+- **Issues/PRs**: use the `fj` CLI (`fj pr create`, `fj issue view`, `fj actions secrets create`, …) or the REST API (`https://codeberg.org/api/v1`, `Authorization: token <t>`).
+- **CI**: Forgejo Actions — workflows in `.forgejo/workflows/`, executed by a self-hosted runner on the preview minipc. `runs-on: docker` = a `node:24-bookworm` job container (matches prod's Node; corepack included, no `setup-node` needed). Note Forgejo also executes `.github/workflows/` — don't add files there.
+
 ## Working in this repo
 
 Work directly in your checkout on a branch. Worktrees/parallel instances are only for the coordinator-orchestrated swarm setup (below) — solo agents can skip that section.
@@ -34,7 +41,7 @@ Don't read env vars/secrets directly — load them from files or env without pri
 - **Document shapes live in `@bgs/models`** as Zod schemas: they define the types (`z.infer`) and are inserted in DB as validation schemas (`"warn"`).
 - **Tests**: colocated `*.spec.ts` with `node:test` (api/game-server); API tests run with `NODE_ENV=test` against a `…-test` db. Build fixtures inline via `app/config/test-helpers.ts`, no shared seed data.
 - **Workarounds**: log temporary shims in the project's `WORKAROUNDS.md`; check for removable entries when touching related code. Any deploy-window / backward-compat shim (code tolerating a stale client, a pre-migration data shape, or an in-flight deploy) MUST get a `WORKAROUNDS.md` entry marked "removable once \<condition\>" when added, so it can be found and cleaned up after the window closes.
-- **Plans live in GitHub issues, not `docs/`**: open/update an issue with the plan; don't commit plan markdown files.
+- **Plans live in Codeberg issues, not `docs/`**: open/update an issue with the plan; don't commit plan markdown files.
 
 ## Local dev services
 
@@ -45,12 +52,12 @@ Don't read env vars/secrets directly — load them from files or env without pri
 
 ## Pull requests
 
-- **Merging to `main` auto-deploys to production** (git pull + build + pm2 restart). Merging = shipping.
+- **Merging to `main` auto-deploys to production** (`.forgejo/workflows/deploy.yml` → git pull + build + pm2 reload on coyo). Merging = shipping.
 - **UI PRs must include screenshots** (see below).
 
 ## Screenshots on PRs/issues
 
-- GitHub's asset upload fails from agent tokens; don't commit screenshots to the PR branch or use throwaway releases.
+- Don't commit screenshots to the PR branch or use throwaway releases.
 - **The convention**: push to the long-lived **`pr-assets`** branch under `pr-<N>/`, then embed the raw URL:
 
 ```bash
@@ -61,7 +68,7 @@ git add pr-<N> && git commit -m "PR <N>: <what>" && git push origin pr-assets
 ```
 
 ```
-![alt](https://raw.githubusercontent.com/boardgamers/boardgamers-mono/pr-assets/pr-<N>/<name>.png)
+![alt](https://codeberg.org/boardgamers/boardgamers/raw/branch/pr-assets/pr-<N>/<name>.png)
 ```
 
 ## Multi-agent swarms (coordinator)
@@ -101,7 +108,7 @@ Only relevant when a coordinator runs several workers on one machine. **Never ru
 
 ## Preview environments & test credentials
 
-- Each open PR can get an ephemeral preview at `https://pr-<N>.boardgamers.space`, deployed by `.github/workflows/pr-preview.yml` when a MEMBER/OWNER/COLLABORATOR pushes (or the PR has the `preview` label). The preview db is a **sanitized prod dump** — architecture in `infra/pr-preview/README.md`.
+- Each open PR can get an ephemeral preview at `https://pr-<N>.boardgamers.space`. ⚠️ **Currently inactive since the Codeberg move**: the trigger (`.github/workflows/pr-preview.yml`) is GitHub-only (`pull_request_target` has no Forgejo equivalent) and shows as a skipped check until it's redesigned for Forgejo Actions. The preview infra on the minipc itself still works. The preview db is a **sanitized prod dump** — architecture in `infra/pr-preview/README.md`.
 - **Every preview user's password is `password`**, so you can log in as anyone (e.g. admin `coyotte508`):
 
   ```bash

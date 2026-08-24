@@ -92,7 +92,12 @@ Local dev uses the MinIO service from the root `docker-compose.yml` instead
     `coyo-pr-preview.nginx.conf` to coyo:
     `sudo cp … /etc/nginx/sites-available/pr-preview && sudo nginx -t && sudo systemctl reload nginx`.
 
-## GitHub side
+## Forge side
+
+⚠️ **Inactive since the move to Codeberg**: this workflow is GitHub-only (`pull_request_target`
+and GitHub Deployments have no Forgejo equivalent) and hasn't been ported to Forgejo Actions
+yet. The description below documents the old GitHub trigger; the minipc infra it calls is
+still operational.
 
 `.github/workflows/pr-preview.yml` (`pull_request_target`): gated on
 MEMBER/OWNER/COLLABORATOR or a `preview` label, calls

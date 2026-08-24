@@ -197,7 +197,7 @@ export function renderPage(content: DocsContent, page: DocPage): string {
   <a class="brand" href="/">BGS Docs</a>
   <nav>
     <a href="/guide">Guide</a>
-    <a href="https://github.com/boardgamers">GitHub</a>
+    <a href="https://codeberg.org/boardgamers/boardgamers">Codeberg</a>
     <a href="https://boardgamers.space">boardgamers.space</a>
   </nav>
 </header>

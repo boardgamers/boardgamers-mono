@@ -118,16 +118,16 @@ Admin panel health widgets: `admin.boardgamers.space/health` (queries Loki via `
 
 ## Deploy
 
-Automated via GitHub Actions (`.github/workflows/deploy.yml`). On push to `master`:
+Automated via Forgejo Actions (`.forgejo/workflows/deploy.yml`, self-hosted runner on the preview minipc). On push to `main`:
 
 1. CI passes (lint, tsc, tests, prettier)
 2. Action SSHes into coyo as `bgs`
-3. `git pull origin master`
+3. `git pull origin main`
 4. `pnpm install` (workspace root)
 5. `pnpm --filter @bgs/web build` (rebuild SvelteKit SSR)
 6. `pm2 reload ecosystem.config.cjs` (zero-downtime reload of all apps)
 
-### Required GitHub secrets
+### Required Codeberg Actions secrets
 
 | Secret             | Purpose                                                         |
 | ------------------ | --------------------------------------------------------------- |
@@ -136,7 +136,7 @@ Automated via GitHub Actions (`.github/workflows/deploy.yml`). On push to `maste
 | `COYO_SSH_PORT`    | SSH port (default `22`)                                         |
 | `COYO_KNOWN_HOSTS` | Output of `ssh-keyscan` for coyo (pins host key, prevents MITM) |
 
-To set up: generate an SSH keypair, add the public key to `~bgs/.ssh/authorized_keys` on coyo, and add the private key as a GitHub secret. For `COYO_KNOWN_HOSTS`, run `ssh-keyscan -p 22 62.210.93.85` and paste the output as the secret value.
+To set up: generate an SSH keypair, add the public key to `~bgs/.ssh/authorized_keys` on coyo, and add the private key as a Codeberg Actions secret (`fj actions secrets create COYO_SSH_KEY -- "$(cat <keyfile>)"` — note the `--`, the key starts with a dash). For `COYO_KNOWN_HOSTS`, run `ssh-keyscan -p 22 62.210.93.85` and paste the output as the secret value.
 
 ### Manual deploy (fallback)
 
