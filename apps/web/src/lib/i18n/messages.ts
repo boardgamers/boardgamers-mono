@@ -97,6 +97,7 @@ export const m = new Proxy(messages as unknown as Record<string, unknown>, {
 const localeModules: Record<Locale, () => Promise<unknown>> = {
 	en: () => import("@/lib/paraglide/messages/en.js"),
 	de: () => import("@/lib/paraglide/messages/de.js"),
+	fr: () => import("@/lib/paraglide/messages/fr.js"),
 };
 
 const loadedLocales = new Set<Locale>([defaultLocale]);
