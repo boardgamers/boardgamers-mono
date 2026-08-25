@@ -5,6 +5,14 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# One deploy at a time; a burst of merges keeps only the newest queued run
+# (each deploys origin/main's tip, so intermediate runs are redundant).
+# scripts/deploy-remote.sh also holds a server-side flock as a second line
+# of defense.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: docker

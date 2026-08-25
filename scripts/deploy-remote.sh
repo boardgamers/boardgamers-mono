@@ -1,6 +1,20 @@
 set -euo pipefail
 cd ~/boardgamers-mono
 
+# Serialize deploys: several PRs merged back-to-back trigger one deploy job each,
+# and concurrent runs of this script race each other (shared checkout, build-dir
+# swaps — the 2026-08-25 blank-site incident). Abort rather than queue: every
+# run deploys origin/main's tip, so the loser can simply be re-triggered (or the
+# next merge's deploy covers it). The workflow-side `concurrency` group already
+# dedupes queued runs; this lock is the belt-and-braces for anything that slips
+# through (e.g. manual runs).
+exec 9> /tmp/bgs-deploy.lock
+echo ":: acquiring deploy lock"
+if ! flock -n 9; then
+	echo "::error:: another deploy is already running (lock /tmp/bgs-deploy.lock held) — aborting; re-run once it finishes"
+	exit 1
+fi
+
 echo ":: pulling latest code"
 git fetch origin main
 # Save the pre-deploy commit for rollback guidance if the smoke check fails.

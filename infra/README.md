@@ -138,16 +138,34 @@ Automated via Forgejo Actions (`.forgejo/workflows/deploy.yml`, self-hosted runn
 
 To set up: generate an SSH keypair, add the public key to `~bgs/.ssh/authorized_keys` on coyo, and add the private key as a Codeberg Actions secret (`fj actions secrets create COYO_SSH_KEY -- "$(cat <keyfile>)"` — note the `--`, the key starts with a dash). For `COYO_KNOWN_HOSTS`, run `ssh-keyscan -p 22 62.210.93.85` and paste the output as the secret value.
 
+### nginx proxy buffers (web vhost)
+
+SvelteKit SSR sends a large `Link` (modulepreload) header that grows with the
+client-chunk count — it crossed nginx's default `proxy_buffer_size` (4k) in
+2026-08, which made nginx 502 every page and serve the ancient `@static`
+fallback instead (the "blank site" incident). The boardgamers.space server
+block in `/etc/nginx/sites-enabled/gaia-project` on coyo therefore carries:
+
+```nginx
+proxy_buffer_size 32k;
+proxy_buffers 8 32k;
+proxy_busy_buffers_size 64k;
+```
+
+If the site ever goes "blank but 200" again, check `last-modified` on the
+response (the fallback's is from 2021) and `upstream sent too big header` in
+`/var/log/nginx/error.log`.
+
 ### Manual deploy (fallback)
+
+Run the same script CI runs — it pulls origin/main, builds, swaps, reloads, and
+holds the deploy lock + runs the post-deploy smoke check:
 
 ```bash
 ssh coyo
 sudo su - bgs
 cd ~/boardgamers-mono
-git pull origin master
-pnpm install
-pnpm --filter @bgs/web build
-pm2 reload ecosystem.config.cjs
+bash scripts/deploy-remote.sh
 ```
 
 ## Database
