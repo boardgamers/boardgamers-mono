@@ -11,11 +11,13 @@ import type { Context } from "koa";
 import Router from "koa-router";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
-import { canUserManageGame, isGameAdminGrant, userPermissions } from "@bgs/models";
+import { canUserManageGame, isGameAdminGrant, locales, userPermissions } from "@bgs/models";
 import { colls } from "../../config/db.ts";
 import { findByEmail, findByUsername, findGameInfoWithVersion } from "../../models/index.ts";
+import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { deriveGameMetaStatus, lastAccessibleVersion } from "../../services/gameinfo.ts";
 import { gameBundleS3Key, publicObjectUrl, putObject, s3Enabled } from "../../services/s3.ts";
+import { TranslationError, translateMarkdown } from "../../services/translate.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -137,6 +139,139 @@ router.put("/:game/meta", async (ctx) => {
 	}
 
 	ctx.body = doc;
+});
+
+// The base (English) description/rules/credits that have a non-empty string —
+// the source every translate call below works from. Typed so callers don't
+// need a cast.
+function metadataSourceStrings(doc: {
+	description?: string;
+	rules?: string;
+	credits?: string;
+}): Record<string, string> {
+	const source: Record<string, string> = {};
+	for (const field of ["description", "rules", "credits"] as const) {
+		const value = doc[field];
+		if (typeof value === "string" && value) {
+			source[field] = value;
+		}
+	}
+	return source;
+}
+
+// POST /:game/meta/translate — LLM-translate the game's free-text metadata
+// (description/rules/credits) into `targetLang`, storing the result in the
+// `translations` overlay (#306). The base (English) fields are the source and
+// stay untouched; the api serves the winning per-language string at read time
+// (models/gameinfo-i18n.ts). Rate-limited per admin: every call is up to three
+// paid LLM completions.
+const metadataTranslateSchema = z.object({
+	targetLang: z
+		.string()
+		.trim()
+		.regex(/^[a-z]{2,3}$/, "targetLang must be a base language subtag (2–3 lowercase letters)"),
+});
+
+router.post("/:game/meta/translate", actionRateLimit("admin/translate-gameinfo"), async (ctx) => {
+	const game = ctx.params.game;
+	requireGameAccess(ctx, game);
+	const { targetLang } = metadataTranslateSchema.parse(ctx.request.body ?? {});
+
+	const doc = await colls.gameMetadatas.findOne({ _id: game });
+	if (!doc) {
+		throw createError(404, `No metadata for ${game}`);
+	}
+
+	// Only translate fields that have a base (English) source; the rest are left
+	// out of the overlay for this language.
+	const source = metadataSourceStrings(doc);
+	if (Object.keys(source).length === 0) {
+		throw createError(400, `${game} has no description/rules/credits to translate`);
+	}
+
+	let translated: Record<string, string>;
+	try {
+		translated = Object.fromEntries(
+			await Promise.all(
+				Object.entries(source).map(async ([field, text]) => [
+					field,
+					await translateMarkdown({
+						text,
+						sourceLang: "en",
+						targetLang,
+						context: `${field} of the boardgame "${doc.label ?? game}"`,
+					}),
+				]),
+			),
+		);
+	} catch (err) {
+		if (err instanceof TranslationError) {
+			throw createError(err.status, err.message);
+		}
+		throw err;
+	}
+
+	ctx.body = await colls.gameMetadatas.findOneAndUpdate(
+		{ _id: game },
+		{ $set: { [`translations.${targetLang}`]: translated } },
+		{ returnDocument: "after" },
+	);
+});
+
+// POST /:game/meta/translate-all — bulk variant (#306): translate the metadata
+// into every supported UI locale that doesn't have an overlay yet. Synchronous
+// (unlike the page translate-bulk's 202+job+poll): per-language `$set` persists
+// incrementally and a retry skips completed languages, so a proxy/client
+// timeout mid-run self-heals on re-call. Sequential per language — a 9× burst
+// of paid completions against the provider is avoided and failures stay
+// isolated per language.
+router.post("/:game/meta/translate-all", actionRateLimit("admin/translate-gameinfo-bulk"), async (ctx) => {
+	const game = ctx.params.game;
+	requireGameAccess(ctx, game);
+
+	const doc = await colls.gameMetadatas.findOne({ _id: game });
+	if (!doc) {
+		throw createError(404, `No metadata for ${game}`);
+	}
+	const source = metadataSourceStrings(doc);
+	if (Object.keys(source).length === 0) {
+		throw createError(400, `${game} has no description/rules/credits to translate`);
+	}
+
+	// Base subtags of every supported UI locale except English (the source).
+	const allTargets = [...new Set(locales.map((l) => l.split("-")[0]))].filter((l) => l !== "en");
+	const targets = allTargets.filter((l) => !doc.translations?.[l]);
+	const skipped = allTargets.length - targets.length;
+	if (targets.length === 0) {
+		ctx.body = { translated: 0, skipped, errors: [], langs: [] };
+		return;
+	}
+
+	const translated: string[] = [];
+	const errors: { lang: string; message: string }[] = [];
+	for (const targetLang of targets) {
+		try {
+			const overlay = Object.fromEntries(
+				await Promise.all(
+					Object.entries(source).map(async ([field, text]) => [
+						field,
+						await translateMarkdown({
+							text,
+							sourceLang: "en",
+							targetLang,
+							context: `${field} of the boardgame "${doc.label ?? game}"`,
+						}),
+					]),
+				),
+			);
+			await colls.gameMetadatas.updateOne({ _id: game }, { $set: { [`translations.${targetLang}`]: overlay } });
+			translated.push(targetLang);
+		} catch (err) {
+			errors.push({ lang: targetLang, message: err instanceof Error ? err.message : String(err) });
+		}
+	}
+
+	ctx.body = { translated: translated.length, skipped, errors, langs: translated };
 });
 
 // Fields that are REMOVED from the doc when the admin sends them as null (the JSON

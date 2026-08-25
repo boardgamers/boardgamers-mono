@@ -2,6 +2,7 @@ import type { PageLoad } from "./$types";
 import { get } from "@/lib/api";
 import { loadGames, clearGamesCache, gameListParams } from "@/lib/games.svelte";
 import { shareImageUrl } from "@/lib/seo";
+import { m } from "@/lib/i18n/messages";
 
 export const load: PageLoad = async ({ parent }) => {
 	clearGamesCache();
@@ -31,9 +32,8 @@ export const load: PageLoad = async ({ parent }) => {
 	return {
 		announcement: await get<{ content: string }>("/site/announcement"),
 		seo: {
-			title: "Boardgamers — play boardgames online",
-			description:
-				"Play Gaia Project, Powergrid, 6nimmt and Container online with other people, live or asynchronously. All games and the platform are open source!",
+			title: m.seo_homeTitle(),
+			description: m.seo_homeDescription(),
 			image: shareImageUrl({ kind: "home" }),
 		},
 	};

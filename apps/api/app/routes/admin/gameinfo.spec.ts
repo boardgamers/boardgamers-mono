@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import { after, before, describe, it } from "node:test";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
@@ -883,5 +885,164 @@ describe("Admin gameinfo API — requested game enters beta, then leaves on publ
 			.parse(await off.json());
 		assert.strictEqual(offBody.unlisted, true);
 		assert.strictEqual(offBody.status, "implemented");
+	});
+});
+
+// LLM translation of the game-level free-text metadata (description/rules/
+// credits) into the `translations` overlay (#306). A stub OpenAI-compatible
+// server echoes a recognizable translation; the tests assert the overlay is
+// written per language and the base (English) fields stay untouched.
+describe("Admin gameinfo API — metadata translation (#306)", () => {
+	let headers: Record<string, string>;
+	let llm: http.Server;
+
+	before(async () => {
+		headers = await makeAdminHeaders();
+		await colls.gameInfos.insertOne({
+			_id: { game: "transgame", version: 1 },
+			viewer: { url: "//v1" },
+			public: true,
+			meta: {},
+		});
+		await colls.gameMetadatas.insertOne({
+			_id: "transgame",
+			label: "Trans Game",
+			players: [2],
+			description: "A **great** game.",
+			rules: "Build first.",
+			// no credits — only fields with a base string are translated
+		});
+
+		llm = http.createServer((req, res) => {
+			let raw = "";
+			req.on("data", (chunk) => (raw += chunk));
+			req.on("end", () => {
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse is any; fields are defaulted below
+				const body = JSON.parse(raw) as { messages: { role: string; content: string }[] };
+				const user = body.messages.find((m) => m.role === "user")?.content ?? "";
+				res.setHeader("content-type", "application/json");
+				res.end(
+					JSON.stringify({
+						choices: [{ message: { content: `[de] ${user.split("\n\n").at(-1)}` }, finish_reason: "stop" }],
+					}),
+				);
+			});
+		});
+		await new Promise<void>((resolve) => llm.listen(0, "127.0.0.1", resolve));
+		env.translation.apiKey = "test-key";
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- listen(0, "127.0.0.1") binds a TCP port, so the address is an AddressInfo
+		env.translation.baseUrl = `http://127.0.0.1:${(llm.address() as AddressInfo).port}`;
+	});
+
+	after(async () => {
+		env.translation.apiKey = "";
+		env.translation.baseUrl = "https://openrouter.ai/api/v1";
+		await new Promise((resolve) => llm.close(resolve));
+		await db().dropDatabase();
+	});
+
+	it("translates description+rules into targetLang, leaving base fields and missing credits untouched", async () => {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/transgame/meta/translate`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ targetLang: "de" }),
+		});
+		const resBody = await res.text();
+		assert.strictEqual(res.status, 200, resBody);
+		const doc = z
+			.object({
+				description: z.string(),
+				rules: z.string(),
+				translations: z
+					.record(z.string(), z.object({ description: z.string().optional(), rules: z.string().optional() }))
+					.optional(),
+			})
+			.parse(JSON.parse(resBody));
+		// Base (English) fields untouched.
+		assert.strictEqual(doc.description, "A **great** game.");
+		assert.strictEqual(doc.rules, "Build first.");
+		// Overlay written for de, only for the fields that had a source.
+		assert.strictEqual(doc.translations?.de?.description, "[de] A **great** game.");
+		assert.strictEqual(doc.translations?.de?.rules, "[de] Build first.");
+		assert.strictEqual(doc.translations?.de && "credits" in doc.translations.de, false);
+	});
+
+	it("translate-all fills every missing UI locale and skips existing ones", async () => {
+		// de already exists from the previous test — translate-all must skip it.
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/transgame/meta/translate-all`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({}),
+		});
+		const resBody = await res.text();
+		assert.strictEqual(res.status, 200, resBody);
+		const body = z
+			.object({ translated: z.number(), errors: z.array(z.object({ lang: z.string() })) })
+			.parse(JSON.parse(resBody));
+		assert.strictEqual(body.errors.length, 0);
+		// 10 UI locales → 9 non-en base subtags; de already done → 8 new.
+		assert.strictEqual(body.translated, 8);
+
+		const doc = await colls.gameMetadatas.findOne({ _id: "transgame" });
+		assert.strictEqual(doc?.translations?.de?.description, "[de] A **great** game.");
+		assert.strictEqual(doc?.translations?.fr?.description, "[de] A **great** game."); // stub echoes [de] regardless
+		assert.strictEqual(Object.keys(doc?.translations ?? {}).length, 9);
+	});
+
+	it("rejects a scoped admin of a DIFFERENT game and an unauthenticated caller", async () => {
+		// Per-boardgame admin of another game: paid LLM endpoint, so cross-game must 403.
+		const otherId = new ObjectId();
+		await colls.users.insertOne(testUser({ _id: otherId, adminGrants: ["gameinfo:othergame"] }));
+		const code = generateRefreshCode();
+		const tokenDoc = { user: otherId, codeHash: hashRefreshCode(code), createdAt: new Date() };
+		await colls.jwtRefreshTokens.insertOne(tokenDoc);
+		const otherHeaders = { Authorization: `Bearer ${await createAccessToken(tokenDoc, ["all"], true)}` };
+
+		const scoped = await fetch(`${baseURL()}/api/admin/gameinfo/transgame/meta/translate`, {
+			method: "POST",
+			headers: otherHeaders,
+			body: JSON.stringify({ targetLang: "de" }),
+		});
+		assert.strictEqual(scoped.status, 403);
+
+		const anon = await fetch(`${baseURL()}/api/admin/gameinfo/transgame/meta/translate`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ targetLang: "de" }),
+		});
+		// Unauthenticated: 401 (no user) or 403 (mount gate) — either way rejected.
+		assert.ok(anon.status === 401 || anon.status === 403, `expected 401/403, got ${anon.status}`);
+	});
+
+	it("400s on an invalid targetLang", async () => {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/transgame/meta/translate`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ targetLang: "../../etc" }),
+		});
+		assert.strictEqual(res.status, 400);
+	});
+
+	it("404s on an unknown game and 400s when there's nothing to translate", async () => {
+		const notFound = await fetch(`${baseURL()}/api/admin/gameinfo/nogame/meta/translate`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ targetLang: "de" }),
+		});
+		assert.strictEqual(notFound.status, 404);
+
+		await colls.gameInfos.insertOne({
+			_id: { game: "emptygame", version: 1 },
+			viewer: { url: "//v1" },
+			public: true,
+			meta: {},
+		});
+		await colls.gameMetadatas.insertOne({ _id: "emptygame", label: "Empty", players: [2] });
+		const empty = await fetch(`${baseURL()}/api/admin/gameinfo/emptygame/meta/translate`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ targetLang: "de" }),
+		});
+		assert.strictEqual(empty.status, 400);
 	});
 });

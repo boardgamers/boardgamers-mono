@@ -75,8 +75,7 @@
 			"@type": "WebSite",
 			name: "Boardgamers",
 			url: page.url.origin,
-			description:
-				"Play Gaia Project, Powergrid, 6nimmt and Container online with other people. All games and the platform are open source!",
+			description: m.seo_homeDescription(),
 		})
 	);
 </script>

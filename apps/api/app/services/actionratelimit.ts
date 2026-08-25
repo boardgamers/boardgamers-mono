@@ -49,6 +49,13 @@ export const ACTION_RATE_LIMITS: Record<string, ActionRateLimitOptions> = {
 	// BULK_TRANSLATE_MAX_PAIRS × two paid LLM completions (a whole language
 	// refresh, or one page into every locale), so only a few runs per hour.
 	"admin/translate-bulk": { max: 5, windowMs: 60 * 60 * 1000 },
+	// POST /admin/gameinfo/:game/meta/translate (#306) — every call is up to
+	// three paid LLM completions (description/rules/credits).
+	"admin/translate-gameinfo": { max: 20, windowMs: 60 * 60 * 1000 },
+	// POST /admin/gameinfo/:game/meta/translate-all (#306) — one call is up to
+	// 9 languages × 3 paid completions, so a much lower cap than the
+	// single-language variant (mirrors translate-bulk's 5/h).
+	"admin/translate-gameinfo-bulk": { max: 5, windowMs: 60 * 60 * 1000 },
 };
 
 let testLimits: ActionRateLimitOptions | null = null;

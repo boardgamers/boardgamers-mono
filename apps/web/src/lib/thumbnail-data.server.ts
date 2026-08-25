@@ -5,6 +5,7 @@ import { apiFetch, get, toKitError } from "@/lib/api";
 import { fetchGameInfo, fetchGameInfos } from "@/lib/game-info.svelte";
 import { countryFlag, countryName } from "@/lib/countries";
 import { firstSentence, siteName, truncate } from "@/lib/seo";
+import { m } from "@/lib/i18n/messages";
 import { gameBasedOn, gameDisplayName, gameEmoji } from "@/utils/game-label";
 import { gamePace } from "@/utils/time";
 import type { GameFront, GameInfoFront, GamePreferencesFront, UserFront } from "@bgs/models";
@@ -45,7 +46,7 @@ export interface CardData {
 export async function loadHomeCard(): Promise<CardData> {
 	const card: OgCardData = {
 		title: siteName,
-		subtitle: "Play Gaia Project, Powergrid, 6nimmt and Container online. All games and the platform are open source!",
+		subtitle: m.thumbnail_homeSubtitle(),
 	};
 	return { card, etagData: card };
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
 	import { resolve } from "$app/paths";
 	import { pollBulkTranslateJob, startBulkTranslate } from "$lib/api.ts";
@@ -21,7 +22,23 @@
 	// Pages section (#306): one entry per page NAME in the selected language
 	// (default "en"). Pages missing in the selected language still show, dimmed
 	// and marked "(missing)", so an admin can create the translation.
-	let pageLang = $state("en");
+	// The language is mirrored to the ?pageLang query param so a refresh (or a
+	// shared link) restores it. `|| "en"` also covers a hand-crafted `?pageLang=`.
+	let pageLang = $state(page.url.searchParams.get("pageLang") || "en");
+
+	// Keep the URL in sync when the admin switches language (replaceState, not
+	// pushState — switching language isn't a navigation worth a history entry).
+	$effect(() => {
+		const url = new URL(page.url);
+		if (pageLang === "en") {
+			url.searchParams.delete("pageLang");
+		} else {
+			url.searchParams.set("pageLang", pageLang);
+		}
+		if (url.search !== page.url.search) {
+			goto(url.pathname + url.search + url.hash, { replaceState: true, noScroll: true, keepFocus: true });
+		}
+	});
 	// Offer every supported UI locale, plus any extra language a page already
 	// exists in (CMS page languages are unconstrained).
 	const pageLangs = $derived.by(() => {
@@ -59,29 +76,36 @@
 	}
 
 	// Bulk refresh (#306): LLM-translate every page that's missing or outdated
-	// in the selected language, as a server-side job polled to completion.
-	let refreshing = $state(false);
-	let refreshProgress = $state<{ done: number; total: number } | null>(null);
+	// in a language, as a server-side job polled to completion. The job is
+	// keyed by LANGUAGE, not tied to the currently selected one: an admin can
+	// start a bulk for one language, switch to another, and start a second
+	// bulk there — each runs independently and shows its own progress.
+	interface BulkRun {
+		done: number;
+		total: number;
+	}
+	let bulkRuns = $state<Record<string, BulkRun>>({});
+	const currentRun = $derived(bulkRuns[pageLang]);
 
-	async function refreshAll() {
-		if (refreshing) return;
-		refreshing = true;
-		refreshProgress = null;
+	async function refreshAll(lang: string) {
+		if (bulkRuns[lang]) return;
+		bulkRuns[lang] = { done: 0, total: 0 };
 		try {
-			const jobId = await startBulkTranslate({ targetLang: pageLang });
-			const job = await pollBulkTranslateJob(jobId, (j) => (refreshProgress = { done: j.done, total: j.total }));
+			const jobId = await startBulkTranslate({ targetLang: lang });
+			const job = await pollBulkTranslateJob(jobId, (j) => (bulkRuns[lang] = { done: j.done, total: j.total }));
 			const summary = `Translated ${job.translated}, skipped ${job.skipped} up-to-date`;
 			if (job.errors.length > 0) {
-				toast.error(`${summary}, ${job.errors.length} error(s): ${job.errors[0].page} (${job.errors[0].lang})`);
+				toast.error(
+					`[${lang}] ${summary}, ${job.errors.length} error(s): ${job.errors[0].page} (${job.errors[0].lang})`
+				);
 			} else {
-				toast.success(summary);
+				toast.success(`[${lang}] ${summary}`);
 			}
 			await loadPages();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Bulk translation failed");
 		} finally {
-			refreshing = false;
-			refreshProgress = null;
+			delete bulkRuns[lang];
 		}
 	}
 </script>
@@ -274,14 +298,14 @@
 								{/each}
 							</select>
 							<button
-								onclick={refreshAll}
-								disabled={refreshing}
+								onclick={() => refreshAll(pageLang)}
+								disabled={!!currentRun}
 								title="LLM-translate every page that's missing or outdated in {pageLang}"
 								class="text-xs rounded border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 hover:bg-violet-50 dark:hover:bg-violet-950 disabled:opacity-50 whitespace-nowrap"
 							>
-								{refreshing
-									? refreshProgress
-										? `${refreshProgress.done}/${refreshProgress.total}…`
+								{currentRun
+									? currentRun.total > 0
+										? `${currentRun.done}/${currentRun.total} pages…`
 										: "Starting…"
 									: "Refresh all"}
 							</button>

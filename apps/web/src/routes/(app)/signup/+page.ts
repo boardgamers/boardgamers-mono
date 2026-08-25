@@ -1,10 +1,11 @@
 import type { PageLoad } from "./$types";
+import { m } from "@/lib/i18n/messages";
 
 export const load: PageLoad = () => {
 	return {
 		seo: {
 			title: "Create an account",
-			description: "Create a free account and play Gaia Project, Powergrid, 6nimmt and more online.",
+			description: m.seo_signupDescription(),
 		},
 	};
 };

@@ -2,6 +2,7 @@ import { redirect } from "@sveltejs/kit";
 import type { PageLoad } from "./$types";
 import { account } from "@/lib/account.svelte";
 import { redirectLoggedOut } from "@/utils/redirect";
+import { m } from "@/lib/i18n/messages";
 import { get as $ } from "svelte/store";
 
 export const load: PageLoad = async ({ url, parent }) => {
@@ -20,7 +21,7 @@ export const load: PageLoad = async ({ url, parent }) => {
 	return {
 		seo: {
 			title: "Login",
-			description: "Log in to Boardgamers to play boardgames online with other people.",
+			description: m.seo_loginDescription(),
 			noindex: true,
 		},
 	};
