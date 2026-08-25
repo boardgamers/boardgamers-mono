@@ -15,6 +15,11 @@ export default [
 			...tseslint.configs.recommended.rules,
 			"@typescript-eslint/no-explicit-any": "warn",
 			"@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+			// Runtime imports of the @bgs/models root pull mongodb into the browser
+			// bundle (root → helpers.ts → mongodb) and crash hydration in prod — import
+			// from a subpath (e.g. @bgs/models/locale) or use `import type` (erased at
+			// build time, safe). `allowTypeImports` keeps type-only imports allowed.
+			"no-restricted-imports": ["error", { paths: [{ name: "@bgs/models", allowTypeImports: true }] }],
 		},
 	},
 	...eslintPluginSvelte.configs["flat/recommended"],

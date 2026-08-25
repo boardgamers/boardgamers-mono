@@ -6,13 +6,20 @@ import { execSync } from "node:child_process";
 // reliably detect a deploy by comparing against /_app/version.json — with the default
 // (build timestamp), a cached old version.json can equal the served one and make
 // SvelteKit's "reload after failed chunk import" check report a false negative.
+// The fallback MUST be deterministic: SvelteKit evaluates this config twice per
+// `vite build` (client pass, then server pass) and hashes version.name into the
+// `__sveltekit_<hash>` global that ties the hydration payload to the client
+// bundle. A per-evaluation value (e.g. Date.now()) gives the two passes
+// different hashes and the app crashes at hydration with
+// "Cannot read properties of undefined (reading 'data')" — this happened in the
+// CI smoke job, where the container has no usable git checkout.
 const release =
 	process.env.APP_RELEASE ??
 	(() => {
 		try {
 			return execSync("git rev-parse --short HEAD").toString().trim();
 		} catch {
-			return Date.now().toString();
+			return process.env.npm_package_version ?? "dev";
 		}
 	})();
 

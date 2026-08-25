@@ -22,6 +22,13 @@ export default [
 			"@typescript-eslint/no-empty-function": "off",
 			"@typescript-eslint/no-explicit-any": "off",
 			"@typescript-eslint/no-require-imports": "off",
+			// Runtime imports of the @bgs/models root pull mongodb into the browser
+			// bundle (root → helpers.ts → mongodb) and crash hydration in prod
+			// (`class heritage t.EventEmitter is not an object or null`) — import
+			// from a subpath (e.g. @bgs/models/locale) or use `import type`
+			// (erased at build time, safe). `allowTypeImports` keeps type-only
+			// imports allowed.
+			"no-restricted-imports": ["error", { paths: [{ name: "@bgs/models", allowTypeImports: true }] }],
 		},
 	},
 	...eslintPluginSvelte.configs["flat/recommended"],
