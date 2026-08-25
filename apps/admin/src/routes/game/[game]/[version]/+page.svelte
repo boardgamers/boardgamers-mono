@@ -6,6 +6,7 @@
 	import { toast } from "$lib/toast.svelte.ts";
 	import { loadGames } from "$lib/stores.svelte.ts";
 	import GameEdit, { type GameInfoData } from "$components/GameEdit.svelte";
+	import UserAutocomplete from "$components/UserAutocomplete.svelte";
 	import WebLink from "$components/WebLink.svelte";
 	import type { PageProps } from "./$types";
 
@@ -239,12 +240,7 @@
 					<p class="px-5 py-4 text-sm text-gray-500">No users in this beta yet.</p>
 				{/if}
 				<div class="px-5 py-3 border-t border-gray-200 dark:border-gray-800 flex items-center gap-2">
-					<input
-						bind:value={inviteName}
-						placeholder="Username or email"
-						class="w-64 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-						onkeydown={(e) => e.key === "Enter" && inviteBeta()}
-					/>
+					<UserAutocomplete bind:value={inviteName} class="w-64" onsubmit={inviteBeta} />
 					<button
 						onclick={inviteBeta}
 						disabled={inviting || !inviteName.trim()}
