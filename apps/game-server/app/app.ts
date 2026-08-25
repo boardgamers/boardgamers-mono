@@ -20,7 +20,9 @@ import router from "./routes/index.ts";
 const app = new Koa<Koa.DefaultState & { user: { id: string; isAdmin: boolean }; requestId: string }>();
 
 /* App stuff */
-app.use(morgan("dev"));
+if (!env.silent) {
+	app.use(morgan("dev"));
+}
 // Assign a request ID, preferring the incoming X-Request-ID header so it
 // correlates with the web app / nginx. Echo it back in the response header.
 app.use(async (ctx, next) => {
@@ -63,7 +65,7 @@ app.use(async (ctx, next) => {
 				isAdmin: decoded.isAdmin,
 			};
 		}
-	} else {
+	} else if (!env.silent) {
 		console.log("no token");
 	}
 
@@ -134,7 +136,9 @@ async function listen() {
 
 	await promise;
 
-	console.log("app started on port", env.listen.port);
+	if (!env.silent) {
+		console.log("app started on port", env.listen.port);
+	}
 
 	return server;
 }

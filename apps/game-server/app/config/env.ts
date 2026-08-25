@@ -45,6 +45,8 @@ export default {
 		},
 	},
 	isProduction: process.env.NODE_ENV === "production",
+	// Silence per-request/app log noise (morgan, console.log) in tests (#405).
+	silent: process.env.NODE_ENV === "test",
 	seedEncryptionKey: process.env.seedEncryptionKey || "hashing key for seed",
 	// Cron (start/drop/quit games, engine install) is on by default — in dev the single
 	// process must run it. PM2 workers opt out with cron=false so only the dedicated

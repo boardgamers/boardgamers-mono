@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "fs-extra";
 import pkg from "../../package.json" with { type: "json" };
 import { colls } from "../config/db.ts";
+import env from "../config/env.ts";
 import locks from "../config/locks.ts";
 import type { Engine } from "../types/engine.ts";
 import { engineKey, enginePath, refreshEngine } from "./engines.ts";
@@ -16,7 +17,9 @@ async function detectBotSupport(game: string, version: number) {
 		const engine = (await import(await enginePath(game, version))) as Engine;
 		const bots = typeof engine.moveAI === "function";
 		await colls.gameInfos.updateOne({ _id: { game, version } }, { $set: { "meta.bots": bots } });
-		console.log("engine", `${game} v${version}`, "bot support:", bots);
+		if (!env.silent) {
+			console.log("engine", `${game} v${version}`, "bot support:", bots);
+		}
 	} catch (err) {
 		console.error("could not probe bot support for", `${game} v${version}:`, err);
 		await colls.gameInfos.updateOne({ _id: { game, version } }, { $set: { "meta.bots": false } }).catch(() => {});

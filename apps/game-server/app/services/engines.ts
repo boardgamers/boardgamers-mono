@@ -1,5 +1,6 @@
 import assert from "node:assert";
 import { colls } from "../config/db.ts";
+import env from "../config/env.ts";
 import type { Engine } from "../types/engine.ts";
 
 const engines: Record<string, Engine> = {};
@@ -45,6 +46,8 @@ export async function getEngine(name: string, version: number): Promise<Engine> 
 }
 
 export function refreshEngine(name: string, version: number) {
-	console.log("refreshing engine", name, version);
+	if (!env.silent) {
+		console.log("refreshing engine", name, version);
+	}
 	delete engines[`${name}_${version}`];
 }

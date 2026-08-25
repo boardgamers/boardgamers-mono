@@ -43,6 +43,11 @@ export const DEFAULT_TARGETS: WatchdogTarget[] = [
 ];
 
 function log(level: "info" | "warn" | "error", msg: string, fields: Record<string, unknown> = {}) {
+	// Same convention as @bgs/utils/log: structured logs are for deployed
+	// environments — don't flood the node:test output with them (#405).
+	if (process.env.NODE_ENV === "test" && process.env.logToStdout !== "true") {
+		return;
+	}
 	const line = JSON.stringify({ level, msg, source: "watchdog", ...fields, time: new Date().toISOString() });
 	(level === "error" ? process.stderr : process.stdout).write(line + "\n");
 }

@@ -9,6 +9,11 @@
 
 type Level = "info" | "warn" | "error";
 
+// Structured logs are for deployed environments (collected into Loki); under
+// NODE_ENV=test they only drown the node:test output (#405). Set
+// logToStdout=true to keep them while debugging a failing spec.
+const quiet = process.env.NODE_ENV === "test" && process.env.logToStdout !== "true";
+
 function levelForStatus(status: number): Level {
 	if (status >= 500) {
 		return "error";
@@ -24,6 +29,9 @@ function levelForStatus(status: number): Level {
  * can split streams); info/warn to stdout.
  */
 export function logEvent(level: Level, msg: string, fields: Record<string, unknown> = {}): void {
+	if (quiet) {
+		return;
+	}
 	const line = JSON.stringify({ level, msg, ...fields, time: new Date().toISOString() });
 	if (level === "error") {
 		process.stderr.write(line + "\n");

@@ -1,5 +1,6 @@
 import { logEvent } from "@bgs/utils/log";
 import { colls } from "../config/db.ts";
+import env from "../config/env.ts";
 import locks from "../config/locks.ts";
 import type { GameData } from "../types/engine.ts";
 import { delay } from "../utils/delay.ts";
@@ -42,7 +43,9 @@ export function scheduleBotMoves(gameId: string): void {
 	void runBotMoves(gameId)
 		.catch((err) => {
 			logEvent("error", "botDriver", { source: "game-server", gameId, error: String(err) });
-			console.error(err);
+			if (!env.silent) {
+				console.error(err);
+			}
 		})
 		.finally(() => running.delete(gameId));
 }
@@ -114,7 +117,9 @@ async function runBotMoves(gameId: string): Promise<void> {
 				// Leave the bot stuck (it can be dropped like any player) rather than
 				// retry-looping on a broken engine.
 				logEvent("error", "botDriver", { source: "game-server", gameId, error: String(err) });
-				console.error(`Bot move failed in game ${gameId}:`, err);
+				if (!env.silent) {
+					console.error(`Bot move failed in game ${gameId}:`, err);
+				}
 				return;
 			}
 

@@ -2,7 +2,12 @@ import type { ApiErrorDoc } from "@bgs/models";
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 import type { Engine } from "../types/engine.ts";
-import { currentEngineCall, moveString, setSlowCallRecorder, trackedEngine } from "./engine-call-context.ts";
+
+// This spec asserts on the structured log lines themselves — opt back into
+// stdout logging (they're suppressed under NODE_ENV=test, see @bgs/utils/log).
+// Set before importing the module under test: the flag is read at module load.
+process.env.logToStdout = "true";
+const { currentEngineCall, moveString, setSlowCallRecorder, trackedEngine } = await import("./engine-call-context.ts");
 
 // Capture persisted slow-call docs instead of hitting Mongo — this spec must run
 // without a db connection (the default recorder lazily imports config/db.ts).
