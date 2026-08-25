@@ -47,7 +47,7 @@ export const userSchema = z.object({
 	}),
 	settings: z
 		.object({
-			// Preferred UI language (#306) — a supported-locale code ("en", "de", "fr", …;
+			// Preferred UI language (#306) — a supported-locale code ("en", "de", "fr", "pl", …;
 			// the web app's supported list lives in apps/web/src/lib/i18n/locales.ts).
 			// Free-form string: the api stays locale-agnostic and the web app
 			// validates against its own list before applying it.

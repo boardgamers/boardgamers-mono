@@ -98,6 +98,13 @@ const localeModules: Record<Locale, () => Promise<unknown>> = {
 	en: () => import("@/lib/paraglide/messages/en.js"),
 	de: () => import("@/lib/paraglide/messages/de.js"),
 	fr: () => import("@/lib/paraglide/messages/fr.js"),
+	pl: () => import("@/lib/paraglide/messages/pl.js"),
+	ro: () => import("@/lib/paraglide/messages/ro.js"),
+	el: () => import("@/lib/paraglide/messages/el.js"),
+	hi: () => import("@/lib/paraglide/messages/hi.js"),
+	ru: () => import("@/lib/paraglide/messages/ru.js"),
+	da: () => import("@/lib/paraglide/messages/da.js"),
+	"pt-BR": () => import("@/lib/paraglide/messages/pt-BR.js"),
 };
 
 const loadedLocales = new Set<Locale>([defaultLocale]);

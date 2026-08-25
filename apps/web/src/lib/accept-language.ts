@@ -31,3 +31,22 @@ export function parsePreferredLanguage(header: string | null | undefined): strin
 	const base = first.split("-")[0];
 	return /^[a-z]{2,3}$/.test(base) ? base : null;
 }
+
+/**
+ * Like parsePreferredLanguage, but keeps the region subtag of a language the
+ * site localizes regionally (pt-BR → "pt-br", matching the locale code's
+ * lowercase form); everything else still collapses to the base subtag.
+ */
+export function parsePreferredLanguageTag(header: string | null | undefined): string | null {
+	if (!header) {
+		return null;
+	}
+	const first = header.split(",")[0]?.split(";")[0]?.trim().toLowerCase();
+	if (!first || first === "*") {
+		return null;
+	}
+	if (!/^[a-z]{2,3}(-[a-z0-9]+)*$/.test(first)) {
+		return null;
+	}
+	return first === "pt-br" ? first : first.split("-")[0];
+}

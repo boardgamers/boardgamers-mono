@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePreferredLanguage } from "./accept-language";
+import { parsePreferredLanguage, parsePreferredLanguageTag } from "./accept-language";
 
 describe("parsePreferredLanguage", () => {
 	it("returns null for a missing/empty header", () => {
@@ -45,5 +45,20 @@ describe("parsePreferredLanguage", () => {
 
 	it("accepts 3-letter ISO 639 codes", () => {
 		expect(parsePreferredLanguage("haw-US")).toBe("haw");
+	});
+});
+
+describe("parsePreferredLanguageTag", () => {
+	it("keeps the region subtag of regionally-localized languages only", () => {
+		expect(parsePreferredLanguageTag("pt-BR,pt;q=0.9")).toBe("pt-br");
+		expect(parsePreferredLanguageTag("fr-FR,fr;q=0.9")).toBe("fr");
+		expect(parsePreferredLanguageTag("zh-Hant-TW")).toBe("zh");
+	});
+
+	it("handles missing, wildcard and malformed headers like parsePreferredLanguage", () => {
+		expect(parsePreferredLanguageTag(null)).toBeNull();
+		expect(parsePreferredLanguageTag("*")).toBeNull();
+		expect(parsePreferredLanguageTag("123")).toBeNull();
+		expect(parsePreferredLanguageTag("english-US")).toBeNull();
 	});
 });
