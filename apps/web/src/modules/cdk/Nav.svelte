@@ -22,7 +22,7 @@
 	let classes = $derived(
 		classnames(
 			"flex",
-			navbar ? "items-center gap-2" : pills || tabs ? "gap-2" : "flex-col gap-1",
+			navbar ? "items-center gap-1 sm:gap-2" : pills || tabs ? "gap-2" : "flex-col gap-1",
 			vertical ? "flex-col" : "",
 			tabs ? "border-b border-gray-200 dark:border-gray-700" : "",
 			className

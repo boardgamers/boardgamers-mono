@@ -43,7 +43,7 @@
 	let classes = $derived(
 		classnames(
 			nav
-				? "px-3 py-2 rounded-md hover:bg-white/10 cursor-pointer"
+				? "px-2 sm:px-3 py-2 rounded-md hover:bg-white/10 cursor-pointer"
 				: classnames(btnBase, color ? (solid[color] ?? solid.secondary) : solid.secondary),
 			caret ? "after:content-['▾'] after:ml-1 after:text-xs" : "",
 			className

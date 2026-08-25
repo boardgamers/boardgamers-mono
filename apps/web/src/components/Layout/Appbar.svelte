@@ -157,12 +157,12 @@
 			}
 		}}
 		data-sveltekit-preload-data="hover"
-		class="me-2 text-xl font-bold text-white no-underline hover:text-white">BGS</a
+		class="me-1 sm:me-2 text-xl font-bold text-white no-underline hover:text-white">BGS</a
 	>
 
 	{#if user}
 		<a
-			class={`me-3 flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-bold text-white no-underline transition hover:text-white ${
+			class={`me-1 sm:me-3 flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-sm font-bold text-white no-underline transition hover:text-white ${
 				hasGames ? "bg-green-600 hover:bg-green-500" : "bg-gray-500 hover:bg-gray-400"
 			}`}
 			href={resolve("/(app)/next-game")}
@@ -173,7 +173,12 @@
 		</a>
 	{/if}
 
-	<a href={resolve("/(app)/boardgames")} title={m.nav_boardgamesList()} data-sveltekit-preload-data="hover">
+	<a
+		href={resolve("/(app)/boardgames")}
+		title={m.nav_boardgamesList()}
+		data-sveltekit-preload-data="hover"
+		class="shrink-0"
+	>
 		<img src="/images/icons/dice.svg" height="28" width="28" alt={m.nav_boardgamesList()} />
 	</a>
 
@@ -186,7 +191,7 @@
 		<button
 			onclick={cycleTheme}
 			title={m.theme_title({ theme: themeLabel[$currentTheme] })}
-			class="me-2 flex items-center gap-1 rounded-md px-2 py-1 text-white hover:bg-white/10"
+			class="me-1 sm:me-2 flex items-center gap-1 rounded-md px-1 sm:px-2 py-1 text-white hover:bg-white/10"
 		>
 			{#if $currentTheme === "light"}
 				<IconSunFill size="1.25rem" />
@@ -293,7 +298,7 @@
 			</Dropdown>
 		{:else}
 			{#if admin}
-				<NavLink href={adminLink} rel="external" class="flex items-center gap-2">
+				<NavLink href={adminLink} rel="external" class="flex items-center gap-2 !px-2 sm:!px-3">
 					<IconGearFill size="1.25rem" />
 					<span class="hidden sm:inline">{m.nav_admin()}</span>
 				</NavLink>
@@ -301,7 +306,7 @@
 			<NavLink
 				href={resolve("/(app)/user/[username]", { username: user.account.username })}
 				data-sveltekit-preload-data="hover"
-				class="flex items-center gap-2 rounded-md px-2 py-1 no-underline hover:bg-white/10 hover:text-white"
+				class="flex shrink-0 items-center gap-2 rounded-md px-1 sm:px-2 py-1 no-underline hover:bg-white/10 hover:text-white"
 			>
 				<UserAvatar username={user.account.username} userId={user._id} size="1.75rem" v={$avatarVersion} />
 				<span class="hidden sm:inline">{user.account.username}</span>
@@ -311,7 +316,7 @@
 				<button
 					type="submit"
 					title={m.nav_logOutTitle()}
-					class="flex items-center gap-2 rounded-md px-2 py-1 text-white hover:bg-white/10 hover:text-white"
+					class="flex items-center gap-2 rounded-md px-1 sm:px-2 py-1 text-white hover:bg-white/10 hover:text-white"
 				>
 					<IconPower size="1.25rem" />
 					<span class="hidden sm:inline">{m.nav_logout()}</span>
