@@ -648,9 +648,18 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
 			data: { text: `${player.name} voted to cancel this game` },
 		});
 
-		// Bots auto-consent: no one can act for a bot, so it would otherwise block
-		// the vote forever. Only human players' votes are required.
-		const ended = game.players.every((pl) => pl.voteCancel || pl.dropped || pl.isBot);
+		// Bots auto-consent (no one can act for a bot), and overdue players — droppable
+		// like the /drop route requires (current, deadline elapsed) — count as having
+		// voted (#403). The vote only exists once a real active player voted, so an
+		// all-bot or all-overdue game never cancels itself.
+		const overdueIds = new Set(
+			(game.currentPlayers ?? [])
+				.filter((cp) => cp.deadline && cp.deadline.getTime() < Date.now())
+				.map((cp) => cp._id.toHexString()),
+		);
+		const ended =
+			game.players.some((pl) => pl.voteCancel && !pl.dropped && !pl.isBot) &&
+			game.players.every((pl) => pl.voteCancel || pl.dropped || pl.isBot || overdueIds.has(pl._id.toHexString()));
 		if (ended) {
 			await colls.chatMessages.insertOne({
 				_id: new ObjectId(),

@@ -749,6 +749,95 @@ describe("Game API", () => {
 			assert.strictEqual(game?.status, "ended", "Both humans voted, bot auto-consents");
 			assert.strictEqual(game?.cancelled, true);
 		});
+
+		it("should cancel when the only other player is overdue (droppable) — #403", async () => {
+			const overdueId = new ObjectId();
+			await colls.games.insertOne(
+				testGame({
+					_id: "cancel-overdue",
+					creator: userId,
+					status: "active",
+					players: [
+						{ _id: userId, name: "human1" },
+						{ _id: overdueId, name: "stalled" },
+					],
+					currentPlayers: [
+						{ _id: overdueId, timerStart: new Date(Date.now() - 3600_000), deadline: new Date(Date.now() - 60_000) },
+					],
+					game: { name: "test", version: 1 },
+				}),
+			);
+
+			const res = await api("POST", "/api/game/cancel-overdue/cancel", {}, authHeaders);
+			assert.strictEqual(res.ok, true, JSON.stringify(res.data));
+
+			const game = await colls.games.findOne({ _id: "cancel-overdue" });
+			assert.strictEqual(game?.status, "ended", "The overdue player counts as having voted cancel");
+			assert.strictEqual(game?.cancelled, true);
+			assert.deepStrictEqual(game?.currentPlayers, []);
+			assert.ok(
+				await colls.gameNotifications.findOne({ game: "cancel-overdue", kind: "gameEnded" }),
+				"gameEnded notification emitted",
+			);
+		});
+
+		it("should not cancel when another active player's deadline is still running — #403", async () => {
+			const healthyId = new ObjectId();
+			await colls.games.insertOne(
+				testGame({
+					_id: "cancel-healthy",
+					creator: userId,
+					status: "active",
+					players: [
+						{ _id: userId, name: "human1" },
+						{ _id: healthyId, name: "active-player" },
+					],
+					currentPlayers: [{ _id: healthyId, timerStart: new Date(), deadline: new Date(Date.now() + 3600_000) }],
+					game: { name: "test", version: 1 },
+				}),
+			);
+
+			const res = await api("POST", "/api/game/cancel-healthy/cancel", {}, authHeaders);
+			assert.strictEqual(res.ok, true, JSON.stringify(res.data));
+
+			const game = await colls.games.findOne({ _id: "cancel-healthy" });
+			assert.strictEqual(game?.status, "active", "A non-overdue active player still blocks the cancel");
+			assert.strictEqual(game?.cancelled, false);
+			assert.strictEqual(game?.players[0].voteCancel, true, "The vote is still recorded");
+		});
+
+		it("should cancel when the caller votes and the only other vote is a now-overdue player's — #403", async () => {
+			// A player who voted cancel and then went overdue counts as an implied vote,
+			// not as the required real one — but the caller's own fresh vote fills that
+			// role, so the game is cancelled.
+			const overdueVoterId = new ObjectId();
+			await colls.games.insertOne(
+				testGame({
+					_id: "cancel-overdue-voter",
+					creator: userId,
+					status: "active",
+					players: [
+						{ _id: userId, name: "human1" },
+						{ _id: overdueVoterId, name: "stalled", voteCancel: true },
+					],
+					currentPlayers: [
+						{
+							_id: overdueVoterId,
+							timerStart: new Date(Date.now() - 3600_000),
+							deadline: new Date(Date.now() - 60_000),
+						},
+					],
+					game: { name: "test", version: 1 },
+				}),
+			);
+
+			const res = await api("POST", "/api/game/cancel-overdue-voter/cancel", {}, authHeaders);
+			assert.strictEqual(res.ok, true, JSON.stringify(res.data));
+
+			const game = await colls.games.findOne({ _id: "cancel-overdue-voter" });
+			assert.strictEqual(game?.status, "ended", "The caller's own vote is the required real vote");
+			assert.strictEqual(game?.cancelled, true);
+		});
 	});
 
 	it("should be able to leave the game", async () => {

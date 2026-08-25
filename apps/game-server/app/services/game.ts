@@ -356,11 +356,20 @@ export async function afterMove(
 
 	if (
 		(engine.cancelled && engine.cancelled(gameData)) ||
-		// Cancel vote: bots auto-consent (no one can act for a bot), so only human
-		// players' votes are required. The `some` guard keeps an all-bot game from
-		// cancelling itself — a vote only exists once a human voted/dropped/quit.
+		// Cancel vote: bots auto-consent (no one can act for a bot), and overdue
+		// players — droppable like the api's /drop route requires (current, deadline
+		// elapsed) — count as having voted (#403). The `some` guard keeps an all-bot
+		// or all-overdue game from cancelling itself: a vote only exists once a
+		// human voted/dropped/quit.
 		(game.players.some((pl) => !pl.isBot && (pl.dropped || pl.quit || pl.voteCancel)) &&
-			game.players.every((pl) => pl.dropped || pl.quit || pl.voteCancel || pl.isBot))
+			game.players.every(
+				(pl) =>
+					pl.dropped ||
+					pl.quit ||
+					pl.voteCancel ||
+					pl.isBot ||
+					oldPlayers.some((cp) => cp._id.equals(pl._id) && cp.deadline && cp.deadline.getTime() < Date.now()),
+			))
 	) {
 		game.currentPlayers = [];
 		game.status = "ended";
