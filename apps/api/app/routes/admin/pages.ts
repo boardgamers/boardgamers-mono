@@ -79,23 +79,41 @@ const langTag = z
 // paid LLM completions.
 const BULK_TRANSLATE_MAX_PAIRS = 50;
 
-interface BulkTranslateJob {
-	status: "running" | "done";
-	total: number;
-	done: number;
-	translated: number;
-	skipped: number;
-	errors: { page: string; lang: string; message: string }[];
+const bulkTranslateJobSchema = z.object({
+	status: z.enum(["running", "done"]),
+	total: z.number(),
+	done: z.number(),
+	translated: z.number(),
+	skipped: z.number(),
+	errors: z.array(z.object({ page: z.string(), lang: z.string(), message: z.string() })),
+});
+
+type BulkTranslateJob = z.infer<typeof bulkTranslateJobSchema>;
+
+// Job state lives in the settings collection, NOT in memory: the api runs as
+// a PM2 cluster, so an in-memory job created by the POST on one worker 404s
+// when the admin's poll lands on another. Settings docs are cheap, admin-only
+// traffic is tiny, and a lost job (process reload) just means re-clicking.
+// Finished jobs are reaped after an hour so the collection can't grow
+// unbounded.
+const BULK_JOB_KEY_PREFIX = "bulkTranslateJob:";
+const BULK_JOB_TTL_MS = 3600_000;
+
+async function readBulkJob(jobId: string): Promise<BulkTranslateJob | null> {
+	const doc = await colls.settings.findOne({ _id: BULK_JOB_KEY_PREFIX + jobId });
+	const parsed = bulkTranslateJobSchema.safeParse(doc?.value);
+	return parsed.success ? parsed.data : null;
 }
 
-// In-memory on purpose: admin-only, a handful of runs per hour, and the api
-// serves /api/admin from a single process (PM2 forks are for cron, which
-// mounts no routes). A lost job (process reload) just means re-clicking.
-// Finished jobs are evicted after an hour so the map can't grow unbounded.
-const bulkTranslateJobs = new Map<string, BulkTranslateJob>();
+async function writeBulkJob(jobId: string, job: BulkTranslateJob): Promise<void> {
+	await colls.settings.updateOne({ _id: BULK_JOB_KEY_PREFIX + jobId }, { $set: { value: job } }, { upsert: true });
+}
 
-function evictJob(jobId: string) {
-	setTimeout(() => bulkTranslateJobs.delete(jobId), 3600_000).unref();
+function reapBulkJob(jobId: string) {
+	setTimeout(
+		() => colls.settings.deleteOne({ _id: BULK_JOB_KEY_PREFIX + jobId }).catch(() => {}),
+		BULK_JOB_TTL_MS,
+	).unref();
 }
 
 const bulkTranslateSchema = z
@@ -117,6 +135,7 @@ function isOutdated(translation: PageDoc, source: PageDoc | undefined): boolean 
 }
 
 async function runBulkTranslateJob(
+	jobId: string,
 	job: BulkTranslateJob,
 	pairs: { name: string; targetLang: string }[],
 	sourceLang: string,
@@ -158,9 +177,12 @@ async function runBulkTranslateJob(
 			job.errors.push({ page: name, lang: targetLang, message: err instanceof Error ? err.message : String(err) });
 		} finally {
 			job.done++;
+			// Persist progress per pair so polls from other cluster workers see it.
+			await writeBulkJob(jobId, job);
 		}
 	}
 	job.status = "done";
+	await writeBulkJob(jobId, job);
 }
 
 // POST /translate-bulk — kick off a bulk translation run (#306): either
@@ -201,11 +223,12 @@ router.post("/translate-bulk", actionRateLimit("admin/translate-bulk"), async (c
 		errors: [],
 	};
 	const jobId = randomUUID();
-	bulkTranslateJobs.set(jobId, job);
-	evictJob(jobId);
-	void runBulkTranslateJob(job, pairs, sourceLang, ctx.state.user!._id).catch((err) => {
+	await writeBulkJob(jobId, job);
+	reapBulkJob(jobId);
+	void runBulkTranslateJob(jobId, job, pairs, sourceLang, ctx.state.user!._id).catch(async (err) => {
 		job.status = "done";
 		job.errors.push({ page: "*", lang: "*", message: err instanceof Error ? err.message : String(err) });
+		await writeBulkJob(jobId, job).catch(() => {});
 	});
 
 	ctx.status = 202;
@@ -213,7 +236,7 @@ router.post("/translate-bulk", actionRateLimit("admin/translate-bulk"), async (c
 });
 
 router.get("/translate-bulk/:jobId", async (ctx) => {
-	const job = bulkTranslateJobs.get(ctx.params.jobId);
+	const job = await readBulkJob(ctx.params.jobId);
 	if (!job) {
 		throw createError(404, "Job not found");
 	}
