@@ -8,12 +8,37 @@ cd ~/boardgamers-mono
 # next merge's deploy covers it). The workflow-side `concurrency` group already
 # dedupes queued runs; this lock is the belt-and-braces for anything that slips
 # through (e.g. manual runs).
-exec 9> /tmp/bgs-deploy.lock
+#
+# The lock is held by a detached `flock` process (setsid), NOT by this shell:
+# `exec 9>lock; flock 9` leaks the fd to every child this script spawns, and a
+# daemon among them (the `podman restart bgs-grafana` below leaked it into
+# rootlessport/conmon) then holds the lock forever, aborting all later deploys.
+# A detached flock holds it for exactly this script's lifetime and releases it
+# when killed at exit — children never see the fd.
+#
+# Exception: if this script is SIGKILLed (OOM, `kill -9`), the EXIT trap can't
+# run and the detached flock would hold the lock forever. Recover with:
+#   ssh coyo 'sudo su - bgs -c "pkill -f \"flock -n /tmp/bgs-deploy.lock\""'
+# (SIGTERM/SIGINT — including runner timeout/cancel — do run the trap.)
 echo ":: acquiring deploy lock"
-if ! flock -n 9; then
+setsid flock -n /tmp/bgs-deploy.lock sleep infinity </dev/null >/dev/null 2>&1 &
+LOCK_PID=$!
+disown
+# Give flock a moment to either acquire or fail (a contended flock -n fails in
+# ~30ms, so 1s is ample).
+sleep 1
+if ! kill -0 "$LOCK_PID" 2>/dev/null; then
 	echo "::error:: another deploy is already running (lock /tmp/bgs-deploy.lock held) — aborting; re-run once it finishes"
 	exit 1
 fi
+# Release the lock however this script exits (success, error, signal). The lock
+# is held by both the flock process and its `sleep` child, so kill the whole
+# process group (setsid made LOCK_PID the group leader) — killing flock alone
+# would leave the child holding the lock.
+release_lock() {
+	kill -- -"$LOCK_PID" 2>/dev/null || true
+}
+trap release_lock EXIT
 
 echo ":: pulling latest code"
 git fetch origin main
