@@ -3,6 +3,10 @@ cd ~/boardgamers-mono
 
 echo ":: pulling latest code"
 git fetch origin main
+# Save the pre-deploy commit for rollback guidance if the smoke check fails.
+# (ORIG_HEAD is unreliable here: pnpm install can run git operations — e.g.
+# dep patching — that overwrite it; a plain reset --hard does not set it.)
+PREV_COMMIT=$(git rev-parse HEAD)
 git reset --hard origin/main
 
 echo ":: installing dependencies"
@@ -21,23 +25,46 @@ echo ":: installing Playwright Chromium (OG share-image renderer)"
 pnpm --filter @bgs/web exec playwright install chromium ||
   echo ":: WARNING: Chromium install failed — /share.webp/* will 503 until browser+deps are present (see comment above)"
 
+# Carry immutable chunks from previous builds into the new build dir.
+# $1: previous build's immutable dir, $2: new build's immutable dir.
+#
+# Same-named files are normally byte-identical (content-hashed), but that
+# assumption broke once: a rollback rebuilt a chunk with the same name and
+# different content, and `cp -n` kept the poisoned file from the broken build
+# (2026-08-25 incident, #421/#422). So on a name collision, cmp the files and
+# the NEW build always wins.
+#
+# Identical old files are still copied over (cp -p keeps the original mtime, so
+# the 30-day pruning below ages chunks from their first build, not last copy),
+# because the content-hash makes no freshness guarantee: the #421/#422 rollback
+# produced SAME-name SAME-content chunks a few seconds apart, and keeping only
+# the new one would have reset a still-referenced chunk's 30-day clock.
+deploy_carry_over_immutable() {
+  local prev="$1" dest="$2" f rel
+  [ -d "$prev" ] || return 0
+  find "$prev" -type f | while read -r f; do
+    rel="${f#"$prev"/}"
+    if [ ! -e "$dest/$rel" ]; then
+      mkdir -p "$(dirname "$dest/$rel")"
+      cp -p "$f" "$dest/$rel"
+    elif ! cmp -s "$f" "$dest/$rel"; then
+      echo ":: WARNING: chunk '$rel' exists in the new build with different content — keeping the new build's file (see #421/#422)"
+    else
+      cp -p "$f" "$dest/$rel"
+    fi
+  done
+}
+
 echo ":: building web (SvelteKit SSR)"
 # Build into a temp dir so the live build/ is never half-written.
 WEB_ADAPTER_OUT=build-new pnpm --filter @bgs/web build
 
 # Keep immutable chunks from recent builds for ~30 days: clients with an
 # already-loaded page still reference old hashed filenames, and deleting them
-# breaks client-side navigation until a refresh. Files under _app/immutable are
-# content-hashed, so a same-named carry-over is byte-identical. build-old (the
-# pre-swap build) is copied first because it accumulated chunks from earlier
-# deploys; cp -n never overwrites, so duplicates are skipped. cp -p preserves
-# mtimes so the age-based pruning below measures from the chunk's first build,
-# not its last copy.
-for prev in apps/web/build-old apps/web/build; do
-  if [ -d "$prev/client/_app/immutable" ]; then
-    cp -prn "$prev/client/_app/immutable/." apps/web/build-new/client/_app/immutable/
-  fi
-done
+# breaks client-side navigation until a refresh. build-old (the pre-swap build)
+# is carried over first because it accumulated chunks from earlier deploys.
+deploy_carry_over_immutable apps/web/build-old/client/_app/immutable apps/web/build-new/client/_app/immutable
+deploy_carry_over_immutable apps/web/build/client/_app/immutable apps/web/build-new/client/_app/immutable
 find apps/web/build-new/client/_app/immutable -type f -mtime +30 -delete
 
 # Atomically swap the new build into place, then reload PM2.
@@ -55,11 +82,8 @@ echo ":: building admin (SPA)"
 ADMIN_ADAPTER_OUT=dist-new pnpm --filter @bgs/admin build
 
 # Same immutable-chunk retention as the web app (nginx serves dist/ directly).
-for prev in apps/admin/dist-old apps/admin/dist; do
-  if [ -d "$prev/_app/immutable" ]; then
-    cp -prn "$prev/_app/immutable/." apps/admin/dist-new/_app/immutable/
-  fi
-done
+deploy_carry_over_immutable apps/admin/dist-old/_app/immutable apps/admin/dist-new/_app/immutable
+deploy_carry_over_immutable apps/admin/dist/_app/immutable apps/admin/dist-new/_app/immutable
 find apps/admin/dist-new/_app/immutable -type f -mtime +30 -delete
 
 rm -rf apps/admin/dist-old
@@ -77,6 +101,113 @@ pm2 reload ecosystem.config.cjs
 if podman container exists bgs-grafana; then
   echo ":: restarting grafana (dashboard re-provisioning)"
   podman restart bgs-grafana
+fi
+
+# --- Post-deploy smoke check -------------------------------------------------
+# Prod-only script, so the prod URLs are hardcoded. The build swap already
+# happened above: a failure here leaves the new build live but turns the
+# deploy job red, and prints rollback guidance.
+#
+# Why: a poisoned/missing client chunk once survived a rollback and kept being
+# served (2026-08-25, #421/#422). Fetching / plus the entry chunks it points to
+# catches that class of breakage at the source.
+
+# $1: URL. Prints body on stdout on HTTP 200; returns 1 otherwise.
+deploy_fetch_ok() {
+  local url="$1" out code
+  out=$(mktemp)
+  code=$(curl -sS -o "$out" -w '%{http_code}' --max-time 15 "$url") || {
+    echo "::error::curl failed for $url"
+    rm -f "$out"
+    return 1
+  }
+  if [ "$code" != 200 ]; then
+    echo "::error::HTTP $code for $url (expected 200)"
+    rm -f "$out"
+    return 1
+  fi
+  cat "$out"
+  rm -f "$out"
+}
+
+# $1: site base URL, $2: min bytes for a non-trivial / body, $3: label.
+deploy_smoke_check() {
+  local base="$1" min_bytes="$2" label="$3"
+  local html size path chunk_size
+
+  if ! html=$(deploy_fetch_ok "$base/"); then
+    echo "::error::$label: smoke check FAILED — cannot fetch $base/"
+    return 1
+  fi
+  size=${#html}
+  if [ "$size" -lt "$min_bytes" ]; then
+    echo "::error::$label: / body is suspiciously small ($size bytes < $min_bytes)"
+    return 1
+  fi
+
+  # Entry chunks boot the client; the SSR HTML references them as
+  # "/_app/immutable/entry/<file>.js" (admin) or "./_app/..." (web).
+  local chunks
+  # `|| true`: grep exits 1 on no match, which would kill the script under
+  # `set -e` if this is ever called outside a condition guard.
+  chunks=$(printf '%s' "$html" | grep -oE '(\./)?/_app/immutable/entry/[^"'"'"' )]*\.js' | sed 's|^\./||' | sort -u || true)
+  if [ -z "$chunks" ]; then
+    echo "::error::$label: no /_app/immutable/entry/*.js chunks found in / HTML"
+    return 1
+  fi
+
+  local failed=0
+  for path in $chunks; do
+    local body
+    if ! body=$(deploy_fetch_ok "$base$path"); then
+      echo "::error::$label: entry chunk $path is not served"
+      failed=1
+      continue
+    fi
+    # No lower size bound beyond non-empty: SvelteKit's start.*.js entry is a
+    # legitimately tiny (~80 bytes) re-export shim.
+    chunk_size=${#body}
+    if [ "$chunk_size" -eq 0 ]; then
+      echo "::error::$label: entry chunk $path is empty"
+      failed=1
+    fi
+  done
+  [ "$failed" -eq 0 ] || return 1
+  echo ":: $label smoke check OK (/ = $size bytes, $(printf '%s\n' "$chunks" | wc -l) entry chunks)"
+}
+
+SMOKE_FAILED=0
+
+# Wait for the reloaded web process to serve (pm2 reload is graceful; the new
+# workers can take a few seconds to come up).
+echo ":: smoke check: waiting for https://boardgamers.space/ to come up"
+web_up=0
+for _ in $(seq 1 6); do
+  if code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 https://boardgamers.space/) && [ "$code" = 200 ]; then
+    web_up=1
+    break
+  fi
+  sleep 5
+done
+if [ "$web_up" -ne 1 ]; then
+  echo "::error::web: https://boardgamers.space/ did not return HTTP 200 within ~30s of pm2 reload"
+  SMOKE_FAILED=1
+else
+  deploy_smoke_check https://boardgamers.space 1000 web || SMOKE_FAILED=1
+fi
+
+# Admin is nginx-served static files (no process to wait for).
+deploy_smoke_check https://admin.boardgamers.space 500 admin || SMOKE_FAILED=1
+
+if [ "$SMOKE_FAILED" -ne 0 ]; then
+  cat <<EOF
+::error::================ POST-DEPLOY SMOKE CHECK FAILED ================
+::error::The new build IS already live (the swap + pm2 reload happened before
+::error::this check). Investigate the errors above. To roll back:
+::error::  ssh bgs 'cd ~/boardgamers-mono && git checkout $PREV_COMMIT && bash scripts/deploy-remote.sh'
+::error::(that re-runs the deploy from the previous commit, $PREV_COMMIT)
+EOF
+  exit 1
 fi
 
 echo ":: deploy complete"
