@@ -6,9 +6,13 @@ import type { GameMetadataDoc } from "@bgs/models";
 import type { Context } from "koa";
 import { negotiateContentLanguage } from "../services/language.ts";
 
-/** The request's preferred base language subtag (see services/language.ts). */
+/**
+ * The request's preferred base language subtag (see services/language.ts).
+ * Game-metadata translation keys are base subtags (`gameMetadataTranslationsSchema`),
+ * so unlike content pages the region is stripped here (pt-BR → pt).
+ */
 export function requestLanguage(ctx: Context): string {
-	return negotiateContentLanguage(ctx);
+	return negotiateContentLanguage(ctx).split("-")[0];
 }
 
 type Translations = GameMetadataDoc["translations"];

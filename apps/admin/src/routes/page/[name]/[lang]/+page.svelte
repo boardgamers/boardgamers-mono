@@ -3,7 +3,7 @@
 	import { resolve } from "$app/paths";
 	import { page as pageState } from "$app/state";
 	import { untrack } from "svelte";
-	import { api } from "$lib/api.ts";
+	import { api, pollBulkTranslateJob, startBulkTranslate } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { loadPages } from "$lib/stores.svelte.ts";
 	import PageEdit from "$components/PageEdit.svelte";
@@ -61,6 +61,24 @@
 		}
 	}
 
+	// Bulk variant (#306): this page into every supported locale where it's
+	// missing or outdated, as a server-side job polled to completion.
+	async function translateAll() {
+		try {
+			const jobId = await startBulkTranslate({ pageName: name });
+			const job = await pollBulkTranslateJob(jobId);
+			const summary = `Translated ${job.translated}, skipped ${job.skipped} up-to-date`;
+			if (job.errors.length > 0) {
+				toast.error(`${summary}, ${job.errors.length} error(s): ${job.errors[0].lang}`);
+			} else {
+				toast.success(summary);
+			}
+			await loadPages();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Translation failed");
+		}
+	}
+
 	// Language to translate from when this page is missing in `lang`: English is
 	// the source language, otherwise any existing version. null = nothing to
 	// translate from → plain blank editor.
@@ -69,6 +87,15 @@
 		const langs = new Set(allPages.filter((p) => p._id.name === name && p._id.lang !== lang).map((p) => p._id.lang));
 		if (langs.has("en")) return "en";
 		return [...langs].sort()[0] ?? null;
+	});
+
+	// Current updatedAt of the version this page was translated from (#306) —
+	// PageEdit compares it against translatedFrom.updatedAt to flag the
+	// translation as outdated.
+	const sourceUpdatedAt = $derived.by(() => {
+		const from = data.value?.translatedFrom;
+		if (!from) return null;
+		return allPages.find((p) => p._id.name === name && p._id.lang === from.lang)?.updatedAt ?? null;
 	});
 
 	let creatingFrom = $state(false);
@@ -125,7 +152,15 @@
 			</div>
 		</div>
 		{#if data.value}
-			<PageEdit mode="edit" bind:value onsave={save} ondelete={remove} ontranslate={translate} />
+			<PageEdit
+				mode="edit"
+				bind:value
+				onsave={save}
+				ondelete={remove}
+				ontranslate={translate}
+				ontranslateAll={translateAll}
+				{sourceUpdatedAt}
+			/>
 			<PageHistory {name} {lang} onrestore={restore} />
 		{:else}
 			<div class="mb-5 flex flex-wrap items-center gap-3 text-sm text-amber-600 dark:text-amber-400">

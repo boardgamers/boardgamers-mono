@@ -1,7 +1,7 @@
 import type { Context } from "koa";
 import Router from "koa-router";
 import { colls } from "../../config/db.ts";
-import { negotiateContentLanguage } from "../../services/language.ts";
+import { contentLanguageCandidates, negotiateContentLanguage } from "../../services/language.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -16,14 +16,24 @@ router.get("/", async (ctx) => {
 
 router.get("/:page", async (ctx) => {
 	// Language negotiation (#306): the visitor's preferred content language
-	// (lang cookie, else Accept-Language), with English as the fallback when the
-	// page has no row in that language.
-	const lang = negotiateContentLanguage(ctx);
-	let page = await colls.pages.findOne({ _id: { name: ctx.params.page, lang } });
-
-	if (!page && lang !== "en") {
-		page = await colls.pages.findOne({ _id: { name: ctx.params.page, lang: "en" } });
-	}
+	// (lang cookie, else Accept-Language), then a candidate chain — regional
+	// variants both ways ("pt" ↔ "pt-BR"), English last.
+	const candidates = contentLanguageCandidates(negotiateContentLanguage(ctx));
+	// An exact {name, lang} key match would rely on scan order to prefer the
+	// best candidate; matching on the exploded fields + aggregating keeps the
+	// preference order explicit.
+	const [page] = await colls.pages
+		.aggregate(
+			[
+				{ $match: { "_id.name": ctx.params.page, "_id.lang": { $in: candidates } } },
+				{ $addFields: { rank: { $indexOfArray: [candidates, "$_id.lang"] } } },
+				{ $sort: { rank: 1 } },
+				{ $limit: 1 },
+				{ $project: { rank: 0 } },
+			],
+			{ allowDiskUse: false },
+		)
+		.toArray();
 
 	if (page) {
 		ctx.body = page;

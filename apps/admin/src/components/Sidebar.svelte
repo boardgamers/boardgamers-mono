@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import { resolve } from "$app/paths";
+	import { pollBulkTranslateJob, startBulkTranslate } from "$lib/api.ts";
 	import { can, canSee, type AdminMe } from "$lib/permissions.ts";
+	import { loadPages } from "$lib/stores.svelte.ts";
+	import { toast } from "$lib/toast.svelte.ts";
 	import { gameLabelParts } from "$lib/utils.ts";
+	import { locales } from "@bgs/models/locale";
 	import type { PageFront } from "@bgs/models";
 	import type { BoardgameEntry } from "../routes/+layout.ts";
 
@@ -18,8 +22,10 @@
 	// (default "en"). Pages missing in the selected language still show, dimmed
 	// and marked "(missing)", so an admin can create the translation.
 	let pageLang = $state("en");
+	// Offer every supported UI locale, plus any extra language a page already
+	// exists in (CMS page languages are unconstrained).
 	const pageLangs = $derived.by(() => {
-		const langs: Record<string, true> = { en: true, de: true };
+		const langs: Record<string, true> = Object.fromEntries(locales.map((l) => [l, true]));
 		for (const p of data.pages) {
 			langs[p._id.lang] = true;
 		}
@@ -29,19 +35,54 @@
 		name: string;
 		lang: string;
 		missing: boolean;
+		outdated: boolean;
 	}
 	const pageEntries = $derived.by(() => {
 		const names = [...new Set(data.pages.map((p) => p._id.name))].sort();
-		const existing = new Set(data.pages.map((p) => `${p._id.name}/${p._id.lang}`));
-		return names.map((name): PageEntry => ({
-			name,
-			lang: pageLang,
-			missing: !existing.has(`${name}/${pageLang}`),
-		}));
+		const byKey = new Map(data.pages.map((p) => [`${p._id.name}/${p._id.lang}`, p]));
+		return names.map((name): PageEntry => {
+			const page = byKey.get(`${name}/${pageLang}`);
+			// Outdated (#306): LLM-translated from a source that has been updated
+			// since the translation was made.
+			const source = page?.translatedFrom && byKey.get(`${name}/${page.translatedFrom.lang}`);
+			const outdated = !!(
+				page?.translatedFrom &&
+				source?.updatedAt &&
+				new Date(source.updatedAt).getTime() > new Date(page.translatedFrom.updatedAt).getTime()
+			);
+			return { name, lang: pageLang, missing: !page, outdated };
+		});
 	});
 
 	function isActive(href: string): boolean {
 		return page.url.pathname === href;
+	}
+
+	// Bulk refresh (#306): LLM-translate every page that's missing or outdated
+	// in the selected language, as a server-side job polled to completion.
+	let refreshing = $state(false);
+	let refreshProgress = $state<{ done: number; total: number } | null>(null);
+
+	async function refreshAll() {
+		if (refreshing) return;
+		refreshing = true;
+		refreshProgress = null;
+		try {
+			const jobId = await startBulkTranslate({ targetLang: pageLang });
+			const job = await pollBulkTranslateJob(jobId, (j) => (refreshProgress = { done: j.done, total: j.total }));
+			const summary = `Translated ${job.translated}, skipped ${job.skipped} up-to-date`;
+			if (job.errors.length > 0) {
+				toast.error(`${summary}, ${job.errors.length} error(s): ${job.errors[0].page} (${job.errors[0].lang})`);
+			} else {
+				toast.success(summary);
+			}
+			await loadPages();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Bulk translation failed");
+		} finally {
+			refreshing = false;
+			refreshProgress = null;
+		}
 	}
 </script>
 
@@ -232,6 +273,18 @@
 									<option value={lang}>{lang}</option>
 								{/each}
 							</select>
+							<button
+								onclick={refreshAll}
+								disabled={refreshing}
+								title="LLM-translate every page that's missing or outdated in {pageLang}"
+								class="text-xs rounded border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 hover:bg-violet-50 dark:hover:bg-violet-950 disabled:opacity-50 whitespace-nowrap"
+							>
+								{refreshing
+									? refreshProgress
+										? `${refreshProgress.done}/${refreshProgress.total}…`
+										: "Starting…"
+									: "Refresh all"}
+							</button>
 						</div>
 						<a
 							href={resolve("/page/new")}
@@ -246,10 +299,17 @@
 								class="px-3 py-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 truncate {p.missing
 									? 'text-gray-400 dark:text-gray-500 italic'
 									: ''} {isActive(href) ? 'bg-gray-100 dark:bg-gray-800 font-semibold' : ''}"
-								title={p.missing ? `No ${p.lang} version yet — opens the editor to create it` : p.name}
+								title={p.missing
+									? `No ${p.lang} version yet — opens the editor to create it`
+									: p.outdated
+										? `The source this ${p.lang} version was translated from has been updated since`
+										: p.name}
 							>
 								{p.name}
 								{#if p.missing}<span class="text-xs not-italic">(missing)</span>{/if}
+								{#if !p.missing && p.outdated}
+									<span class="text-xs text-amber-500 dark:text-amber-400">(outdated)</span>
+								{/if}
 							</a>
 						{/each}
 					</div>

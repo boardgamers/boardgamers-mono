@@ -116,6 +116,10 @@ export { gamePreferencesSchema, GAME_PREFERENCES_COLLECTION, gamePreferencesInde
 export type { ImageDoc } from "./image.ts";
 export { imageSchema, IMAGES_COLLECTION, imageIndexes } from "./image.ts";
 
+// --- Locale (supported UI languages, #306) ---
+export type { Locale } from "./locale.ts";
+export { locales, defaultLocale, localeNames, isLocale, regionalLocaleDefaults } from "./locale.ts";
+
 // --- JWT Refresh Token ---
 export type { JwtRefreshTokenDoc } from "./jwtrefreshtoken.ts";
 export { jwtRefreshTokenSchema, JWT_REFRESH_TOKENS_COLLECTION, jwtRefreshTokenIndexes } from "./jwtrefreshtoken.ts";

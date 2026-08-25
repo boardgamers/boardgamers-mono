@@ -113,3 +113,42 @@ export const api = {
 	patch: <T = unknown>(path: string, body: unknown = {}) => request<T>("PATCH", path, body),
 	del: <T = unknown>(path: string) => request<T>("DELETE", path),
 };
+
+// Bulk page translation job (#306) — POST /admin/page/translate-bulk returns
+// 202 + a job id; poll until status flips to "done".
+export interface BulkTranslateJob {
+	status: "running" | "done";
+	total: number;
+	done: number;
+	translated: number;
+	skipped: number;
+	errors: { page: string; lang: string; message: string }[];
+}
+
+export async function startBulkTranslate(body: { targetLang: string } | { pageName: string }): Promise<string> {
+	const { jobId } = await api.post<{ jobId: string }>("/admin/page/translate-bulk", body);
+	return jobId;
+}
+
+export function pollBulkTranslateJob(
+	jobId: string,
+	onProgress?: (job: BulkTranslateJob) => void,
+	intervalMs = 1500,
+): Promise<BulkTranslateJob> {
+	return new Promise((resolve, reject) => {
+		const tick = async () => {
+			try {
+				const job = await api.get<BulkTranslateJob>(`/admin/page/translate-bulk/${jobId}`);
+				onProgress?.(job);
+				if (job.status === "done") {
+					resolve(job);
+				} else {
+					setTimeout(tick, intervalMs);
+				}
+			} catch (err) {
+				reject(err instanceof Error ? err : new Error(String(err)));
+			}
+		};
+		void tick();
+	});
+}

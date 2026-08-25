@@ -4,6 +4,7 @@
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { timeAgo } from "$lib/utils.ts";
+	import { locales } from "@bgs/models/locale";
 
 	interface UserResult {
 		_id: string;
@@ -146,9 +147,9 @@
 		/bot|crawler|spider|scrape|slurp|python|curl|wget|httpclient|headless|phantom|axios|go-http|java\//i;
 	const isLikelyBot = (ua: string) => BOT_PATTERN.test(ua);
 
-	// Languages the site is actually translated into. The i18n support list — extend
-	// as translations land; the checkmark in the table reads from this.
-	const SUPPORTED_LANGUAGES: readonly string[] = ["en"];
+	// Languages the site is actually translated into (UI locales, #306) — base
+	// subtags, since the stats below are keyed by Accept-Language base subtag.
+	const SUPPORTED_LANGUAGES: readonly string[] = [...new Set(locales.map((l) => l.split("-")[0]))];
 
 	// Country code → display name, localized in English (no new dep).
 	const countryNames = new Intl.DisplayNames(["en"], { type: "region" });

@@ -4,6 +4,7 @@ export interface PageData {
 	_id: { name: string; lang: string };
 	title: string;
 	content: string;
+	translatedFrom?: { lang: string; updatedAt: string };
 }
 
 export async function load({ params }: { params: { name: string; lang: string } }): Promise<{

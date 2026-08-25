@@ -34,6 +34,8 @@ describe("Pages API — language negotiation (#306)", () => {
 			{ _id: { name: "about", lang: "en" }, title: "About", content: "English about" },
 			{ _id: { name: "about", lang: "de" }, title: "Über", content: "Deutsche Infos" },
 			{ _id: { name: "faq", lang: "en" }, title: "FAQ", content: "English only" },
+			{ _id: { name: "contact", lang: "en" }, title: "Contact", content: "English contact" },
+			{ _id: { name: "contact", lang: "pt-BR" }, title: "Contato", content: "Conteúdo em português" },
 		]);
 	});
 
@@ -92,6 +94,24 @@ describe("Pages API — language negotiation (#306)", () => {
 		assert.deepStrictEqual(pageBody(res)._id, { name: "about", lang: "de" });
 	});
 
+	it("serves the pt-BR row when the lang cookie says pt-BR (region subtag survives negotiation)", async () => {
+		const res = await getPage("/contact", { Cookie: `lang=${encodeURIComponent("pt-BR")}` });
+		assert.strictEqual(res.status, 200);
+		assert.deepStrictEqual(pageBody(res)._id, { name: "contact", lang: "pt-BR" });
+	});
+
+	it("serves the pt-BR row when Accept-Language prefers pt-BR", async () => {
+		const res = await getPage("/contact", { "Accept-Language": "pt-BR,pt;q=0.9" });
+		assert.strictEqual(res.status, 200);
+		assert.deepStrictEqual(pageBody(res)._id, { name: "contact", lang: "pt-BR" });
+	});
+
+	it("a bare pt request matches pt-BR content via the regional default", async () => {
+		const res = await getPage("/contact", { "Accept-Language": "pt" });
+		assert.strictEqual(res.status, 200);
+		assert.deepStrictEqual(pageBody(res)._id, { name: "contact", lang: "pt-BR" });
+	});
+
 	it("404s a page that exists in no language", async () => {
 		const res = await getPage("/no-such-page", { "Accept-Language": "de" });
 		assert.strictEqual(res.status, 404);
@@ -104,6 +124,7 @@ describe("Pages API — language negotiation (#306)", () => {
 		const ids = (res.data as PageBody[]).map((p) => p._id);
 		assert.deepStrictEqual(ids, [
 			{ name: "about", lang: "en" },
+			{ name: "contact", lang: "en" },
 			{ name: "faq", lang: "en" },
 		]);
 	});

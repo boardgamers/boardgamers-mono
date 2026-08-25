@@ -45,6 +45,10 @@ export const ACTION_RATE_LIMITS: Record<string, ActionRateLimitOptions> = {
 	// POST /admin/page/:name/:lang/translate (#306) — every call is two paid LLM
 	// completions (title + content), so cap it per admin.
 	"admin/translate-page": { max: 20, windowMs: 60 * 60 * 1000 },
+	// POST /admin/page/translate-bulk (#306) — one run is up to
+	// BULK_TRANSLATE_MAX_PAIRS × two paid LLM completions (a whole language
+	// refresh, or one page into every locale), so only a few runs per hour.
+	"admin/translate-bulk": { max: 5, windowMs: 60 * 60 * 1000 },
 };
 
 let testLimits: ActionRateLimitOptions | null = null;
