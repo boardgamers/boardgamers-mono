@@ -18,7 +18,7 @@
 import { createRequire } from "node:module";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { defaultLocale, locales } from "../src/lib/i18n/locales.ts";
 
 const require = createRequire(import.meta.url);
@@ -26,8 +26,10 @@ const require = createRequire(import.meta.url);
 // @bgs/web), so resolve it through paraglide's own package — pnpm's strict
 // node_modules layout doesn't hoist it to the app.
 const paraglideEntry = require.resolve("@inlang/paraglide-js");
-const sdk = await import(require.resolve("@inlang/sdk", { paths: [paraglideEntry] }));
-const paraglide = await import(paraglideEntry);
+// require.resolve returns a filesystem path; on Windows that is a bare drive path
+// ("C:\...") and import() rejects it with ERR_UNSUPPORTED_ESM_URL_SCHEME.
+const sdk = await import(pathToFileURL(require.resolve("@inlang/sdk", { paths: [paraglideEntry] })).href);
+const paraglide = await import(pathToFileURL(paraglideEntry).href);
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outdir = path.join(root, "src/lib/paraglide");
