@@ -28,16 +28,24 @@
 
 	// Keep the URL in sync when the admin switches language (replaceState, not
 	// pushState — switching language isn't a navigation worth a history entry).
+	// Compare the RESOLVED pageLang (URL param vs state), NOT the raw search
+	// string: goto() re-navigates and SvelteKit can normalize the query string
+	// (param order/encoding), so a string compare of `url.search` can keep
+	// mismatching after the goto and loop forever (param added → goto → removed
+	// → goto → …). The value compare is idempotent: once the URL's pageLang
+	// equals the state's, no more goto.
 	$effect(() => {
+		const urlLang = page.url.searchParams.get("pageLang") || "en";
+		if (urlLang === pageLang) {
+			return;
+		}
 		const url = new URL(page.url);
 		if (pageLang === "en") {
 			url.searchParams.delete("pageLang");
 		} else {
 			url.searchParams.set("pageLang", pageLang);
 		}
-		if (url.search !== page.url.search) {
-			goto(url.pathname + url.search + url.hash, { replaceState: true, noScroll: true, keepFocus: true });
-		}
+		goto(url.pathname + url.search + url.hash, { replaceState: true, noScroll: true, keepFocus: true });
 	});
 	// Offer every supported UI locale, plus any extra language a page already
 	// exists in (CMS page languages are unconstrained).
