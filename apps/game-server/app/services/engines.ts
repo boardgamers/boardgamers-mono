@@ -3,7 +3,13 @@ import { colls } from "../config/db.ts";
 import env from "../config/env.ts";
 import type { Engine } from "../types/engine.ts";
 
-const engines: Record<string, Engine> = {};
+const engines: Record<string, { path: string; engine: Engine; checkedAt: number }> = {};
+
+/** How long a worker may serve a cached engine before re-checking the installed
+ * package version. Only the cron process runs the installer (and refreshEngine),
+ * so worker processes must notice a hot-swapped engine on their own — a stale
+ * cache here serves outdated stripSecret/currentPlayer to live games. */
+const PATH_RECHECK_MS = 30_000;
 
 /** npm-alias key an engine package is installed under in `games/`. Unique per
  * package name+version (see installer.ts) so a new engine version always gets a
@@ -32,17 +38,24 @@ export async function enginePath(name: string, version: number): Promise<string>
 export async function getEngine(name: string, version: number): Promise<Engine> {
 	const key = `${name}_${version}`;
 
-	if (!engines[key]) {
-		// NOTE: we can't `decache` the previous module here — that only clears the
-		// CommonJS require.cache, but engines are loaded via dynamic `import()`
-		// (ESM), whose cache decache never touches. Because the import path embeds
-		// the package version, a bumped engine resolves to a new, uncached path.
-		engines[key] = await import(await requirePath(name, version));
+	const cached = engines[key];
+	if (cached && Date.now() - cached.checkedAt < PATH_RECHECK_MS) {
+		return cached.engine;
 	}
+	// NOTE: we can't `decache` the previous module here — that only clears the
+	// CommonJS require.cache, but engines are loaded via dynamic `import()`
+	// (ESM), whose cache decache never touches. Because the import path embeds
+	// the package version, a bumped engine resolves to a new, uncached path.
+	const path = await requirePath(name, version);
+	if (cached && cached.path === path) {
+		cached.checkedAt = Date.now();
+		return cached.engine;
+	}
+	const engine: Engine = await import(path);
+	assert(engine, "Game server hasn't loaded the engine for this game yet");
+	engines[key] = { path, engine, checkedAt: Date.now() };
 
-	assert(engines[key], "Game server hasn't loaded the engine for this game yet");
-
-	return engines[key];
+	return engine;
 }
 
 export function refreshEngine(name: string, version: number) {
