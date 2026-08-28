@@ -68,13 +68,25 @@ async function runBotMoves(gameId: string): Promise<void> {
 				return;
 			}
 
-			const botIndex = (game.currentPlayers ?? []).reduce((found, current) => {
-				if (found !== -1) {
-					return found;
-				}
-				const index = game.players.findIndex((pl) => pl._id.equals(current._id));
-				return index >= 0 && game.players[index].isBot ? index : -1;
-			}, -1);
+			const engine = trackedEngine(await getEngine(game.game.name, game.game.version), {
+				gameId,
+				game: game.game.name,
+				version: game.game.version,
+			});
+
+			// The bot to move comes from the engine's own currentPlayer (the source of
+			// truth), not the stored currentPlayers: a stale stored set (e.g. naming a
+			// seat that already acted) would otherwise make the driver call moveAI for a
+			// seat that can't move and abort, wedging the game. afterMove re-persists
+			// the correct set on the next move.
+			const current = engine.currentPlayer(game.data);
+			const currentSeats = new Set(
+				(current === undefined ? [] : Array.isArray(current) ? current : [current]).filter(
+					(seat) => seat >= 0 && seat < game.players.length,
+				),
+			);
+
+			const botIndex = game.players.findIndex((pl, index) => pl.isBot && currentSeats.has(index));
 
 			if (botIndex === -1) {
 				return;
@@ -84,14 +96,6 @@ async function runBotMoves(gameId: string): Promise<void> {
 				logEvent("warn", "botDriver", { source: "game-server", gameId, error: "bot move cap reached" });
 				return;
 			}
-
-			const engine = trackedEngine(await getEngine(game.game.name, game.game.version), {
-				gameId,
-				game: game.game.name,
-				version: game.game.version,
-				playerIndex: botIndex,
-				playerName: game.players[botIndex].name,
-			});
 
 			try {
 				const path = await enginePath(game.game.name, game.game.version);
