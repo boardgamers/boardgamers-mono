@@ -40,7 +40,17 @@ const filterAccessibleGames = async <T>(userId: T) => {
 	return {
 		$and: [
 			{
-				$or: [...games.entries()].map(([game, version]) => ({ "game.name": game, "game.version": { $lte: version } })),
+				// A game on a version above the requester's accessible ceiling (e.g. a
+				// private-beta version) is hidden from their lists — UNLESS they're a
+				// player in it. Being in `players` (including a pending invite) must
+				// surface the game so the invitee can find and accept it, mirroring the
+				// `options.meta.unlisted` player bypass in gameConditions below.
+				$or: [
+					// Only a logged-in requester can be a player; skip the clause for
+					// anonymous requests so `players._id: undefined` matches nothing.
+					...(userId ? [{ "players._id": userId }] : []),
+					...[...games.entries()].map(([game, version]) => ({ "game.name": game, "game.version": { $lte: version } })),
+				],
 			},
 		],
 	};
