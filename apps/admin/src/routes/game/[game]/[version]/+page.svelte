@@ -8,6 +8,7 @@
 	import GameEdit, { type GameInfoData } from "$components/GameEdit.svelte";
 	import UserAutocomplete from "$components/UserAutocomplete.svelte";
 	import WebLink from "$components/WebLink.svelte";
+	import { localeNames, locales, regionalLocaleDefaults, type Locale } from "@bgs/models/locale";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -93,6 +94,61 @@
 			await loadGames();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed to save metadata");
+		}
+	}
+
+	// LLM auto-translate of the game-level free text (description/rules/credits)
+	// into the `translations` overlay (#306). `data.metadata` carries the overlay
+	// (the GameInfoData `value` doesn't — translations is deliberately not picked
+	// onto gameInfoSchema). After a translate we invalidateAll to refetch it.
+	const existingLangs = $derived(new Set(Object.keys(data.metadata?.translations ?? {})));
+	// Base subtags of every supported UI locale except English (the source).
+	const targetLangs = $derived([...new Set(locales.map((l) => l.split("-")[0]))].filter((l) => l !== "en"));
+	const missingLangs = $derived(targetLangs.filter((l) => !existingLangs.has(l)));
+	// Chip labels are base subtags; the tooltip shows the full locale name, mapping
+	// a bare subtag to its regional default first (pt → pt-BR → "Português (Brasil)").
+	function langName(lang: string): string {
+		const full = (regionalLocaleDefaults[lang] ?? lang) as Locale;
+		return localeNames[full] ?? lang;
+	}
+
+	let translating = $state<string | null>(null);
+	let translatingAll = $state(false);
+
+	async function translateMeta(targetLang: string) {
+		if (translating || translatingAll) return;
+		translating = targetLang;
+		try {
+			await api.post(`/admin/gameinfo/${encodeURIComponent(gameId)}/meta/translate`, { targetLang });
+			toast.success(`Translated metadata → ${targetLang}`);
+			await invalidateAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Translation failed");
+		} finally {
+			translating = null;
+		}
+	}
+
+	async function translateMetaAll() {
+		if (translating || translatingAll) return;
+		translatingAll = true;
+		try {
+			const result = await api.post<{ translated: number; skipped: number; errors: { lang: string }[] }>(
+				`/admin/gameinfo/${encodeURIComponent(gameId)}/meta/translate-all`,
+				{}
+			);
+			if (result.errors.length > 0) {
+				toast.error(`Translated ${result.translated}, ${result.errors.length} error(s): ${result.errors[0].lang}`);
+			} else if (result.translated === 0) {
+				toast.success("All languages already translated");
+			} else {
+				toast.success(`Translated metadata into ${result.translated} language(s)`);
+			}
+			await invalidateAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Translation failed");
+		} finally {
+			translatingAll = false;
 		}
 	}
 
@@ -186,6 +242,34 @@
 		<!-- ===== Game metadata (shared by all versions) ===== -->
 		<section class="space-y-4">
 			<GameEdit mode="edit" bind:value sections="game" onsave={saveMetadata} />
+
+			<!-- Translations of the free-text metadata (#306): the api serves the
+			     winning per-language string at read time. -->
+			<div class="flex flex-wrap items-center gap-2 text-sm">
+				<span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Translations</span>
+				{#each targetLangs as lang (lang)}
+					{@const done = existingLangs.has(lang)}
+					<button
+						onclick={() => translateMeta(lang)}
+						disabled={translating !== null || translatingAll}
+						title={done ? `Re-translate into ${langName(lang)} (overwrites)` : `Translate into ${langName(lang)}`}
+						class="px-2 py-0.5 rounded border text-xs disabled:opacity-50 {done
+							? 'border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400'
+							: 'border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950'}"
+					>
+						{translating === lang ? "…" : lang}{done ? " ✓" : ""}
+					</button>
+				{/each}
+				{#if missingLangs.length > 0}
+					<button
+						onclick={translateMetaAll}
+						disabled={translating !== null || translatingAll}
+						class="px-2 py-0.5 rounded border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 text-xs hover:bg-violet-50 dark:hover:bg-violet-950 disabled:opacity-50"
+					>
+						{translatingAll ? "Translating…" : `Translate all (${missingLangs.length} missing)`}
+					</button>
+				{/if}
+			</div>
 		</section>
 
 		<!-- ===== Private beta (only while the latest version is not public) ===== -->
