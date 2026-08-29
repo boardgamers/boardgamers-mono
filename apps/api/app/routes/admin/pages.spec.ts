@@ -597,8 +597,9 @@ describe("Admin pages API — bulk translation (#306)", () => {
 		await api("PUT", "/api/admin/page/beta/es", adminHeaders, { title: "Beta es", content: "Versión española" });
 
 		const job = await runBulk({ targetLang: "es" });
+		assert.equal(job.total, 1, "the up-to-date beta/es is filtered out at job creation");
 		assert.equal(job.translated, 1, "only alpha/es was missing");
-		assert.equal(job.skipped, 1, "beta/es already existed");
+		assert.equal(job.skipped, 0, "nothing left for the in-loop safety net to skip");
 		assert.deepEqual(job.errors, []);
 
 		const alpha = await colls.pages.findOne({ _id: { name: "alpha", lang: "es" } });
@@ -627,8 +628,9 @@ describe("Admin pages API — bulk translation (#306)", () => {
 		});
 
 		const job = await runBulk({ targetLang: "hi" });
+		assert.equal(job.total, 3, "the up-to-date delta/hi is filtered out at job creation");
 		assert.equal(job.translated, 3, "the outdated gamma/hi was re-translated; alpha/beta/hi were missing");
-		assert.equal(job.skipped, 1, "only the up-to-date delta was skipped");
+		assert.equal(job.skipped, 0);
 		assert.deepEqual(job.errors, []);
 
 		const gamma = await colls.pages.findOne({ _id: { name: "gamma", lang: "hi" } });
@@ -647,10 +649,10 @@ describe("Admin pages API — bulk translation (#306)", () => {
 		await api("PUT", "/api/admin/page/epsilon/en", adminHeaders, { title: "Epsilon", content: "New page" });
 
 		const job = await runBulk({ pageName: "epsilon" });
-		// 10 locales total: en is the source (skipped), the other 9 are created.
-		assert.equal(job.total, 10);
+		// 10 locales: en is the source (filtered out), the other 9 are created.
+		assert.equal(job.total, 9);
 		assert.equal(job.translated, 9);
-		assert.equal(job.skipped, 1);
+		assert.equal(job.skipped, 0);
 		assert.deepEqual(job.errors, []);
 
 		const langs = await colls.pages
@@ -660,47 +662,75 @@ describe("Admin pages API — bulk translation (#306)", () => {
 		assert.deepEqual(langs.toSorted(), ["da", "de", "el", "en", "fr", "hi", "pl", "pt-BR", "ro", "ru"]);
 	});
 
-	it("isolates per-page failures: one failing page doesn't block the others", async () => {
-		await api("PUT", "/api/admin/page/zeta/en", adminHeaders, { title: "Zeta", content: "boom marker page" });
-		await api("PUT", "/api/admin/page/eta/en", adminHeaders, { title: "Eta", content: "fine page" });
-		llmFailOn = "boom marker";
-		try {
-			const job = await runBulk({ targetLang: "it" });
-			assert.equal(job.translated, 6, "alpha, beta, gamma, delta, epsilon, eta translated");
-			assert.equal(job.errors.length, 1);
-			assert.equal(job.errors[0].page, "zeta");
-			assert.equal(job.errors[0].lang, "it");
-		} finally {
-			llmFailOn = undefined;
-		}
-		assert.strictEqual(await colls.pages.countDocuments({ _id: { name: "zeta", lang: "it" } }), 0);
-		assert.strictEqual(await colls.pages.countDocuments({ _id: { name: "eta", lang: "it" } }), 1);
-	});
-
 	// Every hit on the endpoint counts against the bulk rate limit — even
-	// rejected ones — so all non-202 probes share ONE test, run with a
-	// temporary per-admin override so the suite's own budget is untouched.
-	it("validates the request body and requires page access", async (t) => {
+	// rejected ones — so all probes beyond the default budget (5/h) share ONE
+	// test, run with a temporary per-admin override so the suite's own budget
+	// is untouched. Subtests keep the override active until all have run.
+	it("extra runs: failure isolation, total-0, request validation", async (t) => {
 		const override = { max: 100, windowMs: 60 * 60 * 1000 };
 		ACTION_RATE_LIMITS["admin/translate-bulk"] = override;
 		t.after(() => {
 			ACTION_RATE_LIMITS["admin/translate-bulk"] = { max: 5, windowMs: 60 * 60 * 1000 };
 		});
 
-		assert.strictEqual((await api("POST", "/api/admin/page/translate-bulk", adminHeaders, {})).status, 400);
-		assert.strictEqual(
-			(await api("POST", "/api/admin/page/translate-bulk", adminHeaders, { targetLang: "es", pageName: "alpha" }))
-				.status,
-			400,
+		await t.test("isolates per-page failures: one failing page doesn't block the others", async () => {
+			await api("PUT", "/api/admin/page/zeta/en", adminHeaders, { title: "Zeta", content: "boom marker page" });
+			await api("PUT", "/api/admin/page/eta/en", adminHeaders, { title: "Eta", content: "fine page" });
+			llmFailOn = "boom marker";
+			try {
+				const job = await runBulk({ targetLang: "it" });
+				assert.equal(job.total, 7, "only the six missing pages + failing zeta are counted");
+				assert.equal(job.translated, 6, "alpha, beta, gamma, delta, epsilon, eta translated");
+				assert.equal(job.errors.length, 1);
+				assert.equal(job.errors[0].page, "zeta");
+				assert.equal(job.errors[0].lang, "it");
+			} finally {
+				llmFailOn = undefined;
+			}
+			assert.strictEqual(await colls.pages.countDocuments({ _id: { name: "zeta", lang: "it" } }), 0);
+			assert.strictEqual(await colls.pages.countDocuments({ _id: { name: "eta", lang: "it" } }), 1);
+		});
+
+		await t.test(
+			"counts only the previously-failed page on a re-run, then total 0 when all is up-to-date",
+			async () => {
+				// A re-run right after the failure-isolation one: every page has an
+				// up-to-date it version except zeta, whose translation failed above
+				// (no it version exists) — so the creation-time filter keeps exactly
+				// that one pair, and it now translates fine (llmFailOn was reset).
+				const retry = await runBulk({ targetLang: "it" });
+				assert.equal(retry.total, 1, "only zeta/it is still missing");
+				assert.equal(retry.translated, 1);
+				assert.equal(retry.skipped, 0);
+				assert.deepEqual(retry.errors, []);
+
+				// Nothing left to translate → no pair survives the filter and the
+				// job is already done on the first poll.
+				const job = await runBulk({ targetLang: "it" });
+				assert.equal(job.total, 0);
+				assert.equal(job.done, 0);
+				assert.equal(job.translated, 0);
+				assert.equal(job.skipped, 0);
+				assert.deepEqual(job.errors, []);
+			},
 		);
-		assert.strictEqual(
-			(await api("POST", "/api/admin/page/translate-bulk", adminHeaders, { targetLang: "../../etc" })).status,
-			400,
-		);
-		assert.strictEqual(
-			(await api("POST", "/api/admin/page/translate-bulk", userHeaders, { targetLang: "es" })).status,
-			403,
-		);
-		assert.strictEqual((await api("GET", "/api/admin/page/translate-bulk/nope", adminHeaders)).status, 404);
+
+		await t.test("validates the request body and requires page access", async () => {
+			assert.strictEqual((await api("POST", "/api/admin/page/translate-bulk", adminHeaders, {})).status, 400);
+			assert.strictEqual(
+				(await api("POST", "/api/admin/page/translate-bulk", adminHeaders, { targetLang: "es", pageName: "alpha" }))
+					.status,
+				400,
+			);
+			assert.strictEqual(
+				(await api("POST", "/api/admin/page/translate-bulk", adminHeaders, { targetLang: "../../etc" })).status,
+				400,
+			);
+			assert.strictEqual(
+				(await api("POST", "/api/admin/page/translate-bulk", userHeaders, { targetLang: "es" })).status,
+				403,
+			);
+			assert.strictEqual((await api("GET", "/api/admin/page/translate-bulk/nope", adminHeaders)).status, 404);
+		});
 	});
 });

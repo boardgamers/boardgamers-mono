@@ -134,6 +134,28 @@ function isOutdated(translation: PageDoc, source: PageDoc | undefined): boolean 
 	return !!(translation.translatedFrom && source?.updatedAt && source.updatedAt > translation.translatedFrom.updatedAt);
 }
 
+// The version a pair would be translated from: the requested sourceLang,
+// else en, else the first version by lang. Shared by the job-creation
+// filter and the job loop so both count/skip the same pairs.
+function resolveSource(versions: PageDoc[], sourceLang: string): PageDoc | undefined {
+	return (
+		versions.find((p) => p._id.lang === sourceLang) ??
+		versions.find((p) => p._id.lang === "en") ??
+		versions.sort((a, b) => a._id.lang.localeCompare(b._id.lang))[0]
+	);
+}
+
+// A pair is worth a (paid) translation only when there is a source version
+// in another language and the target version is missing or outdated.
+function needsTranslation(versions: PageDoc[], targetLang: string, sourceLang: string): boolean {
+	const source = resolveSource(versions, sourceLang);
+	if (!source || source._id.lang === targetLang) {
+		return false;
+	}
+	const existing = versions.find((p) => p._id.lang === targetLang);
+	return !existing || isOutdated(existing, source);
+}
+
 async function runBulkTranslateJob(
 	jobId: string,
 	job: BulkTranslateJob,
@@ -144,15 +166,15 @@ async function runBulkTranslateJob(
 	for (const { name, targetLang } of pairs) {
 		try {
 			const versions = await colls.pages.find({ "_id.name": name }).toArray();
-			const source =
-				versions.find((p) => p._id.lang === sourceLang) ??
-				versions.find((p) => p._id.lang === "en") ??
-				versions.sort((a, b) => a._id.lang.localeCompare(b._id.lang))[0];
-			const existing = versions.find((p) => p._id.lang === targetLang);
-			if (!source || source._id.lang === targetLang || (existing && !isOutdated(existing, source))) {
+			// Keep this in-loop check as a safety net: pages can be edited between
+			// job creation (which pre-filters pairs with the same predicate) and
+			// processing.
+			if (!needsTranslation(versions, targetLang, sourceLang)) {
 				job.skipped++;
 				continue;
 			}
+			// oxlint-disable-next-line typescript/no-non-null-assertion -- needsTranslation guarantees a source in another language
+			const source = resolveSource(versions, sourceLang)!;
 			const [title, content] = await Promise.all([
 				translateMarkdown({
 					text: source.title,
@@ -195,21 +217,33 @@ router.post("/translate-bulk", actionRateLimit("admin/translate-bulk"), async (c
 	const pages = await colls.pages.find({}, { projection: { _id: 1 } }).toArray();
 	const names = [...new Set(pages.map((p) => p._id.name))].filter((name) => canManagePage(ctx.state.user, name));
 
-	const pairs: { name: string; targetLang: string }[] = [];
+	let candidates: { name: string; targetLang: string }[];
 	if (targetLang) {
-		for (const name of names) {
-			pairs.push({ name, targetLang });
-		}
+		candidates = names.map((name) => ({ name, targetLang }));
 	} else {
 		// oxlint-disable-next-line typescript/no-non-null-assertion -- the refine guarantees pageName when targetLang is absent
 		const name = pageName!;
 		if (!canManagePage(ctx.state.user, name)) {
 			throw createError(403, "Missing admin permission: pages");
 		}
-		for (const lang of locales) {
-			pairs.push({ name, targetLang: lang });
-		}
+		candidates = locales.map((lang) => ({ name, targetLang: lang }));
 	}
+
+	// Count only pairs that will actually be translated (missing or outdated
+	// target version) so the progress total isn't inflated by up-to-date
+	// pages — the sidebar shows done/total. One $in fetch covers every
+	// candidate page; the job loop re-checks each pair as a safety net.
+	const versionsByName = new Map<string, PageDoc[]>();
+	for (const version of await colls.pages
+		.find({ "_id.name": { $in: [...new Set(candidates.map((c) => c.name))] } })
+		.toArray()) {
+		const list = versionsByName.get(version._id.name) ?? [];
+		list.push(version);
+		versionsByName.set(version._id.name, list);
+	}
+	const pairs = candidates.filter(({ name, targetLang: lang }) =>
+		needsTranslation(versionsByName.get(name) ?? [], lang, sourceLang),
+	);
 	if (pairs.length > BULK_TRANSLATE_MAX_PAIRS) {
 		throw createError(400, `Too many (page, language) pairs: ${pairs.length} > ${BULK_TRANSLATE_MAX_PAIRS}`);
 	}
