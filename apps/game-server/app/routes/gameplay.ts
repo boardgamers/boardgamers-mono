@@ -185,10 +185,20 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 		if (toSave) {
 			const { timePerMove, timePerGame } = game.options.timing;
 			const player = game.players[playerIndex];
-			if (timePerMove !== undefined && timePerGame !== undefined && player && timePerMove <= 15 * 60) {
+			// For fast games, add time back every move. afterMove must then skip its
+			// own increment for the mover (incrementCredited), else alternating movers
+			// get it twice (Codeberg #311).
+			const incrementCredited =
+				timePerMove !== undefined && timePerGame !== undefined && player !== undefined && timePerMove <= 15 * 60;
+			if (incrementCredited) {
 				player.remainingTime = Math.min(timePerGame, (player.remainingTime ?? timePerGame) + timePerMove);
 			}
-			await afterMove(engine, game, toSave, false, { player: playerIndex, move, logLengthBefore: initialLogIndex });
+			await afterMove(engine, game, toSave, false, {
+				player: playerIndex,
+				move,
+				logLengthBefore: initialLogIndex,
+				incrementCredited,
+			});
 		}
 
 		ctx.body = {

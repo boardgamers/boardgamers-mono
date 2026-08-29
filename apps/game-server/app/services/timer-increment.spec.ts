@@ -85,7 +85,10 @@ function makeGame(gameId: string): GameDoc {
 
 // The gameplay route adds the increment for short games (timePerMove <= 15min)
 // before calling afterMove — replicate that here so the test exercises the same
-// sequence production runs.
+// sequence production runs. The mover-stays-current path must keep depending on
+// that route pre-credit: afterMove must NOT also add the increment for route
+// moves, or repeat movers would get nothing (they never enter the
+// leaving-player block) and alternating movers would get it twice (#311).
 function routeAddIncrement(game: GameDoc, playerIndex: number) {
 	const player = game.players[playerIndex];
 	player.remainingTime = Math.min(timePerGame, (player.remainingTime ?? timePerGame) + timePerMove);
@@ -125,6 +128,7 @@ describe("afterMove timing — per-move increment (issue #12)", () => {
 				player: 0,
 				move: "move",
 				logLengthBefore: engine.logLength(data) - 1,
+				incrementCredited: true,
 			});
 
 			const afterMove_ = (await colls.games.findOne({ _id: gameId }))?.players[0].remainingTime ?? 0;
@@ -151,7 +155,12 @@ describe("afterMove timing — per-move increment (issue #12)", () => {
 
 		const data = await engine.move(before.data, "move", 0);
 		routeAddIncrement(before, 0);
-		await afterMove(engine, before, data, false, { player: 0, move: "move", logLengthBefore: 0 });
+		await afterMove(engine, before, data, false, {
+			player: 0,
+			move: "move",
+			logLengthBefore: 0,
+			incrementCredited: true,
+		});
 
 		const result = await colls.games.findOne({ _id: gameId });
 		const deadlineAfter = result?.currentPlayers?.[0].deadline?.getTime() ?? 0;
