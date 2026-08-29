@@ -105,15 +105,20 @@ type BulkTranslateJob = z.infer<typeof bulkTranslateJobSchema>;
 // traffic is tiny, and a lost job (process reload) just means re-clicking.
 const BULK_JOB_KEY_PREFIX = "bulkTranslateJob:";
 // A "running" job that hasn't persisted progress in this long is dead — its
-// loop died with a process reload (the job doc outlives the process).
-const BULK_JOB_STALE_MS = 10 * 60_000;
+// loop died with a process reload (the job doc outlives the process). Must
+// exceed BULK_PAIR_TIMEOUT_MS with margin: the max updatedAt gap of a healthy
+// job is one pair timeout, and a slow-but-progressing pair must not look dead.
+const BULK_JOB_STALE_MS = 15 * 60_000;
 // Terminal jobs are lazily deleted after 24h when read/listed (no timers —
 // a setTimeout dies with the process and the doc would linger forever).
 const BULK_JOB_REAP_MS = 24 * 3600_000;
 // Upper bound on one pair's LLM work: a hung provider call must not stall
 // the whole job forever. translateMarkdown has its own per-request timeout
-// (env.translation.timeoutMs) — this backstops a hang that outlives it.
-const BULK_PAIR_TIMEOUT_MS = 3 * 60_000;
+// (env.translation.timeoutMs, default 3 min) — a pair makes TWO sequential
+// calls (title + content), so keep this comfortably above 2× that default:
+// a slow-but-progressing pair must not be killed while its second call is
+// still within its own timeout. This backstops a hang that outlives both.
+const BULK_PAIR_TIMEOUT_MS = 7 * 60_000;
 
 class PairTimeoutError extends Error {
 	constructor() {

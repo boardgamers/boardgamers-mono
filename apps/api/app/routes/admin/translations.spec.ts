@@ -110,14 +110,14 @@ describe("Admin translations overview + bulk job lifecycle (#306)", () => {
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- listen(0, "127.0.0.1") binds a TCP port, so the address is an AddressInfo
 		env.translation.baseUrl = `http://127.0.0.1:${(llm.address() as AddressInfo).port}`;
 		// Keep the per-request LLM timeout short: the hung-pair test below would
-		// otherwise wait the full 60s default before the fetch aborts.
+		// otherwise wait the full 3-min default before the fetch aborts.
 		env.translation.timeoutMs = 2000;
 	});
 
 	after(async () => {
 		env.translation.apiKey = "";
 		env.translation.baseUrl = "https://openrouter.ai/api/v1";
-		env.translation.timeoutMs = 60_000;
+		env.translation.timeoutMs = 180_000;
 		await new Promise((resolve) => llm.close(resolve));
 		await db().dropDatabase();
 	});

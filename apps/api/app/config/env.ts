@@ -192,7 +192,12 @@ export default {
 		baseUrl: process.env.translationBaseUrl ?? "https://openrouter.ai/api/v1",
 		model: process.env.translationModel ?? "google/gemini-2.5-flash",
 		// Abort the upstream call after this long — a stuck LLM request must not
-		// hang the admin request (and its rate-limit hit) forever.
-		timeoutMs: Number(process.env.translationTimeoutMs) || 60_000,
+		// hang the admin request (and its rate-limit hit) forever. Sized for long
+		// pages on reasoning models (the default gemini-2.5-flash burns thinking
+		// tokens before answering), which can take well over a minute. The bulk
+		// job (routes/admin/pages.ts) wraps each (page, lang) pair — two
+		// sequential translateMarkdown calls — in its own BULK_PAIR_TIMEOUT_MS,
+		// kept comfortably above 2× this value.
+		timeoutMs: Number(process.env.translationTimeoutMs) || 180_000,
 	},
 };
