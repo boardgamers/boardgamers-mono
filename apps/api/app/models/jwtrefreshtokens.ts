@@ -45,6 +45,16 @@ export async function lookupRefreshToken(code: string) {
 	return colls.jwtRefreshTokens.findOne({ codeHash: hashRefreshCode(code) });
 }
 
+/**
+ * Single-use consume: atomically removes the session and returns it, or null when
+ * the code is unknown. findOneAndDelete (not findOne → deleteOne) so concurrent
+ * consumers can't both pass the lookup before either delete lands — the same
+ * single-use pattern as the OAuth flow store (oauthflows.ts).
+ */
+export async function takeRefreshToken(code: string) {
+	return colls.jwtRefreshTokens.findOneAndDelete({ codeHash: hashRefreshCode(code) });
+}
+
 export async function revokeRefreshToken(code: string) {
 	await colls.jwtRefreshTokens.deleteOne({ codeHash: hashRefreshCode(code) });
 }

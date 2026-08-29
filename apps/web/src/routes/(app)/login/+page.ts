@@ -8,7 +8,9 @@ import { get as $ } from "svelte/store";
 export const load: PageLoad = async ({ url, parent }) => {
 	// After an auth redirect (e.g. social login), the API has set the session cookie —
 	// just load the account (cookie-auth) and bounce away if already logged in.
-	if (url.searchParams.has("refreshToken") || url.searchParams.has("auth")) {
+	// (?refreshToken= handoffs never get here — +page.server.ts exchanges the code
+	// server-side and redirects first.)
+	if (url.searchParams.has("auth")) {
 		const { loadAccount } = await import("@/lib/account.svelte");
 		await loadAccount();
 	}

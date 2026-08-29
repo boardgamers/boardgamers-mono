@@ -12,7 +12,7 @@ function resolveWebHost(hostname: string, viteWebHost?: string): string {
 		return `http://${viteWebHost}`;
 	}
 	if (hostname === "localhost" || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
-		return "http://localhost:8612";
+		return `http://${hostname}:8612`;
 	}
 	return `//${hostname.replace(/^admin\./, "")}`;
 }
@@ -30,8 +30,8 @@ describe("webHost", () => {
 		assert.equal(resolveWebHost("localhost"), "http://localhost:8612");
 	});
 
-	it("resolves raw IPs (devcontainer instance IPs) to the local web dev server", () => {
-		assert.equal(resolveWebHost("127.0.0.5"), "http://localhost:8612");
+	it("keeps raw IPs (devcontainer instance IPs) so instances stay on their own web server", () => {
+		assert.equal(resolveWebHost("127.0.0.5"), "http://127.0.0.5:8612");
 	});
 
 	it("honours the VITE_web_host override in dev", () => {

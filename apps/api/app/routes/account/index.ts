@@ -20,6 +20,7 @@ import {
 	lookupRefreshToken,
 	markAuthEmailSent,
 	revokeRefreshToken,
+	takeRefreshToken,
 } from "../../models/index.ts";
 import { parseRefreshCookie, clearRefreshCookie } from "../../models/session.ts";
 import {
@@ -568,6 +569,38 @@ router.post("/mint", mintAccessToken);
 // DEPRECATED: use /account/mint. Kept for the old web app / external clients during
 // the auth migration — remove once nothing calls /refresh anymore.
 router.post("/refresh", mintAccessToken);
+
+/**
+ * Exchange a one-time refresh code (handed cross-subdomain in a URL, e.g. the admin
+ * panel's "login as" → boardgamers.space/login?refreshToken=…) for a real session:
+ * the code is consumed and a fresh session is minted, so `sendAuthInfo` sets the
+ * session cookie on the host the browser is actually talking to. Needed since the
+ * cookie went host-only (#153): a Set-Cookie from the admin host's own login-as
+ * response never reaches the player-facing host.
+ *
+ * Any valid refresh code is accepted, not just login-as ones: a leaked code is
+ * already a full session credential on its own host (the cookie carries the same
+ * code) — this only upgrades it to a cookie on THIS host, which is exactly the
+ * cross-host handoff the endpoint exists for.
+ */
+router.post("/session", async (ctx) => {
+	const { code } = z.object({ code: z.string() }).parse(ctx.request.body);
+
+	// Atomic single-use consume: a code that kept working after the exchange would
+	// be a permanent session-minting credential riding in URLs/logs.
+	const rt = await takeRefreshToken(code);
+	if (!rt) {
+		throw createError(404, "Can't find refresh token");
+	}
+
+	const user = await colls.users.findOne({ _id: rt.user });
+	if (!user) {
+		throw createError(404, "User not found");
+	}
+
+	ctx.state.user = user;
+	await sendAuthInfo(ctx, rt.loginMethod);
+});
 
 router.post("/reset", rateLimitAttempt, loggedOut, passport.authenticate("local-reset", { session: false }), (ctx) =>
 	sendAuthInfo(ctx, "password"),

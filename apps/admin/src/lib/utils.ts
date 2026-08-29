@@ -20,8 +20,10 @@ export function gameEmoji(label: string | undefined): string {
 
 /**
  * Base URL of the public site, derived from the admin host
- * (admin.boardgamers.space → boardgamers.space). In dev, override with
- * VITE_web_host (host or host:port, e.g. "127.0.0.1:8612").
+ * (admin.boardgamers.space → boardgamers.space). In dev (localhost / raw IP),
+ * the web dev server runs on the same host on its standard port 8612 — keep the
+ * host so multi-instance loopback IPs (127.1.x.y) stay on their own instance.
+ * Override with VITE_web_host (host or host:port, e.g. "127.0.0.1:8612").
  */
 export function webHost(): string {
 	const devHost = import.meta.env.VITE_web_host;
@@ -29,7 +31,7 @@ export function webHost(): string {
 		return `http://${devHost}`;
 	}
 	if (location.hostname === "localhost" || /^\d{1,3}(\.\d{1,3}){3}$/.test(location.hostname)) {
-		return "http://localhost:8612";
+		return `http://${location.hostname}:8612`;
 	}
 	return `//${location.hostname.replace(/^admin\./, "")}`;
 }

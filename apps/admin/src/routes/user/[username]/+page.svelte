@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
-	import { timeAgo } from "$lib/utils.ts";
+	import { timeAgo, webHost } from "$lib/utils.ts";
 	import { trim } from "$lib/actions.ts";
 	import { goto, invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
@@ -77,12 +77,14 @@
 		if (!user) return;
 		try {
 			const res = await api.post<{ refreshToken: unknown }>("/admin/login-as", { username: user.account.username });
-			const token = encodeURIComponent(JSON.stringify(res.refreshToken));
-			if (location.hostname === "localhost") {
-				location.href = `http://localhost:8615/login?refreshToken=${token}`;
-			} else {
-				location.href = `//${location.hostname.slice("admin.".length)}/login?refreshToken=${token}`;
-			}
+			// The session cookie is host-only (#153), so it can't travel across subdomains:
+			// hand the one-time code to the web app's /login, which exchanges it server-side
+			// (POST /account/session) for a session cookie on the player-facing host.
+			// URLSearchParams encodes once — an encodeURIComponent here would double-encode
+			// (searchParams.get already decodes) and corrupt codes containing %.
+			const target = new URL(`${webHost()}/login`, location.origin);
+			target.searchParams.set("refreshToken", JSON.stringify(res.refreshToken));
+			location.href = target.href;
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Failed");
 		}
