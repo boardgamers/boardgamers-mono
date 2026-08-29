@@ -5,14 +5,68 @@ import { forwardSessionCookies } from "@/lib/auth.server";
 import { redirectLoggedOut, safeRedirectTarget } from "@/utils/redirect";
 
 /**
+ * Cross-host session handoff (admin "login as" → boardgamers.space/login?refreshToken=…).
+ * The session cookie is host-only (#153), so the login-as response can only set it on
+ * the admin host — instead the one-time code rides the URL and is exchanged here, on
+ * the player-facing host: POST /account/session revokes it and sets this host's
+ * session cookie, which we relay to the browser. Server-side (not +page.ts) so the
+ * exchange also works without JS, and so the code never reaches client-side storage.
+ */
+async function exchangeHandoffCode(event: Parameters<PageServerLoad>[0]) {
+	const { url } = event;
+	const raw = url.searchParams.get("refreshToken");
+
+	// Failure path: back to the login page with an error banner, the dead code dropped
+	// from the URL (it's single-use — keeping it would just re-fail on refresh).
+	const fail = (error: string): never => {
+		const target = new URL(url);
+		target.searchParams.delete("refreshToken");
+		target.searchParams.set("error", error);
+		throw redirect(303, target.pathname + target.search);
+	};
+
+	// The handoff payload is the API's refresh-token JSON ({ code, expiresAt }). Parse
+	// defensively: a malformed value just fails the exchange with a login error.
+	let code: string | null = null;
+	try {
+		const parsed: unknown = JSON.parse(raw!);
+		if (parsed && typeof parsed === "object" && typeof (parsed as { code?: unknown }).code === "string") {
+			code = (parsed as { code: string }).code;
+		}
+	} catch {
+		code = null;
+	}
+	if (!code) {
+		fail("Invalid login link");
+	}
+
+	const response = await apiFetch("/account/session", {
+		method: "POST",
+		body: JSON.stringify({ code }),
+		headers: { "Content-Type": "application/json" },
+	}).catch(() => null);
+
+	if (!response?.ok) {
+		fail("This login link has expired — please try again.");
+	}
+
+	// fail() throws (never returns), so response is a non-null ok Response here.
+	forwardSessionCookies(event, response as Response);
+	throw redirect(303, redirectLoggedOut(url));
+}
+
+/**
  * Server-side mirror of the client-side guard in +page.ts: without JS (e.g. after a
  * no-JS login redirect that bounces back here via ?redirect=/login), the fresh session
  * cookie makes parent() return the user — bounce to the target instead of looping.
  */
-export const load: PageServerLoad = async ({ url, parent }) => {
-	const { user } = await parent();
+export const load: PageServerLoad = async (event) => {
+	if (event.url.searchParams.has("refreshToken")) {
+		await exchangeHandoffCode(event);
+	}
+	const { user } = await event.parent();
 	if (user) {
-		throw redirect(302, redirectLoggedOut(url));
+		throw redirect(302, redirectLoggedOut(event.url));
 	}
 };
 

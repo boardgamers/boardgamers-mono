@@ -569,6 +569,35 @@ router.post("/mint", mintAccessToken);
 // the auth migration — remove once nothing calls /refresh anymore.
 router.post("/refresh", mintAccessToken);
 
+/**
+ * Exchange a one-time refresh code (handed cross-subdomain in a URL, e.g. the admin
+ * panel's "login as" → boardgamers.space/login?refreshToken=…) for a real session:
+ * the code is revoked and a fresh session is minted, so `sendAuthInfo` sets the
+ * session cookie on the host the browser is actually talking to. Needed since the
+ * cookie went host-only (#153): a Set-Cookie from the admin host's own login-as
+ * response never reaches the player-facing host.
+ */
+router.post("/session", async (ctx) => {
+	const { code } = z.object({ code: z.string() }).parse(ctx.request.body);
+
+	const rt = await lookupRefreshToken(code);
+	if (!rt) {
+		throw createError(404, "Can't find refresh token");
+	}
+
+	const user = await colls.users.findOne({ _id: rt.user });
+	if (!user) {
+		throw createError(404, "User not found");
+	}
+
+	// One-time: a code that kept working after the exchange would be a permanent
+	// session-minting credential riding in URLs/logs.
+	await revokeRefreshToken(code);
+
+	ctx.state.user = user;
+	await sendAuthInfo(ctx, rt.loginMethod);
+});
+
 router.post("/reset", rateLimitAttempt, loggedOut, passport.authenticate("local-reset", { session: false }), (ctx) =>
 	sendAuthInfo(ctx, "password"),
 );
