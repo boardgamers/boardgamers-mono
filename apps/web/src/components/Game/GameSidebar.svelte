@@ -9,6 +9,7 @@
 	import { Button, Badge } from "@/modules/cdk";
 	import IconClockHistory from "@/components/icons/IconClockHistory.svelte";
 	import IconBook from "@/components/icons/IconBook.svelte";
+	import IconMeeple from "@/components/icons/IconMeeple.svelte";
 	import { resolve } from "$app/paths";
 	import { getContext, onDestroy } from "svelte";
 	import { GameLog, ReplayControls, GameNotes, GamePreferences, GameSettings } from "./GameSidebar";
@@ -182,6 +183,10 @@
 				: `${timerTimeInTz(game.options.timing.timer?.start ?? 0, tz)}-${timerTimeInTz(game.options.timing.timer?.end ?? 0, tz)}`}
 			/ {duration(game.options.timing.timePerGame ?? 0)} + {duration(game.options.timing.timePerMove ?? 0)}
 		</span>
+	</div>
+	<div class="mt-1 flex items-center">
+		<IconMeeple class="me-1" />
+		<a href={resolve("/(app)/boardgame/[boardgameId]", { boardgameId: game.game.name })}>{m.gameSidebar_gamePage()}</a>
 	</div>
 	{#if rulesPage}
 		<div class="mt-1 flex items-center">

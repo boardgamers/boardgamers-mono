@@ -212,6 +212,7 @@
 	"gameSidebar.drop": "Usuń gracza {player}",
 	"gameSidebar.expansions": "Dodatki",
 	"gameSidebar.gameEnded": "Gra zakończona!",
+	"gameSidebar.gamePage": "Strona gry",
 	"gameSidebar.log": "Dziennik",
 	"gameSidebar.notes": "Notatki",
 	"gameSidebar.quit": "Wyjdź",

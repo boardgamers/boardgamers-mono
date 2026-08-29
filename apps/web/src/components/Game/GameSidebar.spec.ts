@@ -49,6 +49,19 @@ function mountSidebar(rulesPage: GameContext["rulesPage"]) {
 }
 
 describe("GameSidebar rules link", () => {
+	it("links to the boardgame page (/boardgame/<game>) whether or not a rules page exists", () => {
+		for (const rulesPage of [{ title: "Power Grid rules" }, null] as GameContext["rulesPage"][]) {
+			const { target, instance } = mountSidebar(rulesPage);
+
+			// resolve() doesn't strip the (app) group segment in the vitest env.
+			const link = target.querySelector<HTMLAnchorElement>('a[href="/(app)/boardgame/powergrid"]');
+			expect(link).not.toBeNull();
+			expect(link?.textContent).toContain("Game page");
+
+			unmount(instance as never);
+		}
+	});
+
 	it("links to /page/<game>/rules when the rules CMS page exists", () => {
 		const { target, instance } = mountSidebar({ title: "Power Grid rules" });
 
