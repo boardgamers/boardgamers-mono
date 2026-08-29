@@ -313,10 +313,11 @@ function reconstructLastMoveInfo(engine: Engine, game: GameDoc, gameData: GameDa
 		if (!text) {
 			continue;
 		}
-		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- log entries are engine-defined; probed defensively
-		const record =
-			entry && typeof entry === "object" && !Array.isArray(entry) ? (entry as Record<string, unknown>) : null;
-		const playerIndex = typeof record?.player === "number" ? record.player : undefined;
+		// Log entries are engine-defined; probe `player` defensively via `in`
+		// narrowing (no assertion).
+		const playerValue =
+			entry && typeof entry === "object" && !Array.isArray(entry) && "player" in entry ? entry.player : undefined;
+		const playerIndex = typeof playerValue === "number" ? playerValue : undefined;
 		const player = playerIndex !== undefined ? game.players[playerIndex] : undefined;
 		const move = text.length > LAST_MOVE_MAX_LEN ? text.slice(0, LAST_MOVE_MAX_LEN - 1) + "…" : text;
 		return {
