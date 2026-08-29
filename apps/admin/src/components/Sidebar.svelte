@@ -1,3 +1,13 @@
+<script lang="ts" module>
+	// Shared across every mounted Sidebar instance. The layout mounts TWO Sidebars
+	// (desktop + mobile drawer, the latter only hidden via CSS — never unmounted), and
+	// a per-instance `$state` made their URL-sync `$effect`s fight: sidebar A's goto()
+	// re-ran sidebar B's effect with B's stale pageLang, B goto'd back, A re-ran, … —
+	// an infinite replaceState loop (the pageLang flicker). One shared state means both
+	// effects converge on the same value and the urlLang === pageLang guard stops them.
+	let pageLang = $state("en");
+</script>
+
 <script lang="ts">
 	import { goto } from "$app/navigation";
 	import { page } from "$app/state";
@@ -24,7 +34,9 @@
 	// and marked "(missing)", so an admin can create the translation.
 	// The language is mirrored to the ?pageLang query param so a refresh (or a
 	// shared link) restores it. `|| "en"` also covers a hand-crafted `?pageLang=`.
-	let pageLang = $state(page.url.searchParams.get("pageLang") || "en");
+	// Sync the shared state from the URL on mount (it's module-level, see the
+	// module script above for why it can't be a per-instance $state initializer).
+	pageLang = page.url.searchParams.get("pageLang") || "en";
 
 	// Keep the URL in sync when the admin switches language (replaceState, not
 	// pushState — switching language isn't a navigation worth a history entry).
