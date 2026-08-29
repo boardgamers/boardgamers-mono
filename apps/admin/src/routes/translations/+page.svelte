@@ -47,7 +47,10 @@
 			return { label: "interrupted", cls: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" };
 		}
 		if (job.status === "error" || job.errors.length > 0) {
-			return { label: job.status === "error" ? "error" : "done w/ errors", cls: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300" };
+			return {
+				label: job.status === "error" ? "error" : "done w/ errors",
+				cls: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+			};
 		}
 		return { label: "done", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" };
 	}
@@ -74,7 +77,9 @@
 				<div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
 					<table class="w-full text-sm">
 						<thead>
-							<tr class="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-gray-200 dark:border-gray-800">
+							<tr
+								class="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-gray-200 dark:border-gray-800"
+							>
 								<th class="px-3 py-2">Status</th>
 								<th class="px-3 py-2">Progress</th>
 								<th class="px-3 py-2">Translated</th>
@@ -90,7 +95,9 @@
 								{@const badge = statusBadge(job)}
 								<tr class="border-b border-gray-100 dark:border-gray-800/60 align-top">
 									<td class="px-3 py-2">
-										<span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium {badge.cls}">{badge.label}</span>
+										<span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium {badge.cls}"
+											>{badge.label}</span
+										>
 									</td>
 									<td class="px-3 py-2 tabular-nums">{job.done}/{job.total}</td>
 									<td class="px-3 py-2 tabular-nums">{job.translated}</td>
@@ -115,8 +122,12 @@
 											—
 										{/if}
 									</td>
-									<td class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{timeAgo(job.createdAt)}</td>
-									<td class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{timeAgo(job.updatedAt)}</td>
+									<td class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap"
+										>{timeAgo(job.createdAt)}</td
+									>
+									<td class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap"
+										>{timeAgo(job.updatedAt)}</td
+									>
 								</tr>
 								{#if expandedJobs[job.jobId] && job.errors.length > 0}
 									<tr class="border-b border-gray-100 dark:border-gray-800/60 bg-gray-50 dark:bg-gray-900/40">
@@ -148,7 +159,9 @@
 			<div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
 				<table class="text-sm">
 					<thead>
-						<tr class="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-gray-200 dark:border-gray-800">
+						<tr
+							class="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-gray-200 dark:border-gray-800"
+						>
 							<th class="px-3 py-2 sticky left-0 bg-white dark:bg-gray-900">Page</th>
 							{#each overview.locales as lang (lang)}
 								<th class="px-2 py-2 text-center">
@@ -170,7 +183,10 @@
 					<tbody>
 						{#each overview.pages as row (row.name)}
 							<tr class="border-b border-gray-100 dark:border-gray-800/60">
-								<td class="px-3 py-1.5 sticky left-0 bg-white dark:bg-gray-900 whitespace-nowrap max-w-64 truncate" title={row.title}>
+								<td
+									class="px-3 py-1.5 sticky left-0 bg-white dark:bg-gray-900 whitespace-nowrap max-w-64 truncate"
+									title={row.title}
+								>
 									{row.name}
 								</td>
 								{#each overview.locales as lang (lang)}
@@ -179,7 +195,9 @@
 										<a
 											href={resolve("/page/[name]/[lang]", { name: row.name, lang })}
 											title="{row.name} ({lang}): {cell?.status ?? 'missing'}"
-											class="inline-block w-6 h-6 rounded text-[10px] leading-6 font-medium {cellCls[cell?.status ?? 'missing']}"
+											class="inline-block w-6 h-6 rounded text-[10px] leading-6 font-medium {cellCls[
+												cell?.status ?? 'missing'
+											]}"
 										>
 											{cell?.status === "ok" ? "✓" : cell?.status === "outdated" ? "!" : "·"}
 										</a>
@@ -191,9 +209,14 @@
 				</table>
 			</div>
 			<div class="flex gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
-				<span><span class="inline-block w-3 h-3 rounded bg-emerald-200 dark:bg-emerald-900/60 align-middle"></span> ok</span>
-				<span><span class="inline-block w-3 h-3 rounded bg-amber-200 dark:bg-amber-900/60 align-middle"></span> outdated</span>
-				<span><span class="inline-block w-3 h-3 rounded bg-gray-200 dark:bg-gray-800 align-middle"></span> missing</span>
+				<span
+					><span class="inline-block w-3 h-3 rounded bg-emerald-200 dark:bg-emerald-900/60 align-middle"></span> ok</span
+				>
+				<span
+					><span class="inline-block w-3 h-3 rounded bg-amber-200 dark:bg-amber-900/60 align-middle"></span> outdated</span
+				>
+				<span><span class="inline-block w-3 h-3 rounded bg-gray-200 dark:bg-gray-800 align-middle"></span> missing</span
+				>
 			</div>
 		</section>
 
@@ -201,13 +224,15 @@
 		<section>
 			<h2 class="text-lg font-semibold mb-1">Game metadata</h2>
 			<p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
-				Whether each game has a translations overlay per locale (description / rules / credits). No outdated
-				tracking exists for metadata — presence only.
+				Whether each game has a translations overlay per locale (description / rules / credits). No outdated tracking
+				exists for metadata — presence only.
 			</p>
 			<div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
 				<table class="text-sm">
 					<thead>
-						<tr class="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-gray-200 dark:border-gray-800">
+						<tr
+							class="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-gray-200 dark:border-gray-800"
+						>
 							<th class="px-3 py-2 sticky left-0 bg-white dark:bg-gray-900">Game</th>
 							{#each overview.metaLangs as lang (lang)}
 								<th class="px-2 py-2 text-center">{lang}</th>
@@ -226,7 +251,9 @@
 									{@const cell = row.cells[lang]}
 									<td class="px-1 py-1 text-center">
 										<span
-											title="{row.game} ({lang}): {cell?.translated ? `translated (${cell.fields.join(', ')})` : 'no translation'}"
+											title="{row.game} ({lang}): {cell?.translated
+												? `translated (${cell.fields.join(', ')})`
+												: 'no translation'}"
 											class="inline-block w-6 h-6 rounded text-[10px] leading-6 font-medium {cell?.translated
 												? cellCls.ok
 												: cellCls.missing}"
