@@ -69,6 +69,23 @@ describe("POST /account/session — one-time code exchange (admin login-as hando
 		assert.strictEqual(res.status, 404);
 	});
 
+	it("concurrent exchanges of the same code: exactly one wins (atomic single-use)", async () => {
+		const raceCode = generateRefreshCode();
+		await colls.jwtRefreshTokens.insertOne({
+			user: userId,
+			codeHash: hashRefreshCode(raceCode),
+			loginMethod: "admin",
+			createdAt: new Date(),
+		});
+
+		const results = await Promise.all(Array.from({ length: 5 }, () => exchange(raceCode)));
+		assert.deepEqual(
+			results.map((r) => r.status).sort(),
+			[200, 404, 404, 404, 404],
+			"one exchange mints a session, the rest 404",
+		);
+	});
+
 	it("an unknown code 404s and sets no cookie", async () => {
 		const res = await exchange(generateRefreshCode());
 		assert.strictEqual(res.status, 404);

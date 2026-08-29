@@ -38,5 +38,20 @@ if (!dom.window.matchMedia) {
 		addListener() {},
 		removeListener() {},
 		dispatchEvent: () => false,
-	})) as typeof window.matchMedia;
+	})) as unknown as typeof window.matchMedia;
 }
+
+// lib/api.ts captures `globalThis.fetch` into its module-scope `context` at import
+// time (browser branch — vitest resolves the "browser" condition), so a
+// `vi.stubGlobal("fetch", …)` inside a spec lands too late: the module already holds
+// the original. Install a delegating stub up front instead — specs swap the active
+// implementation via `stubFetch()` and keep asserting on their own vi.fn().
+const originalFetch = globalThis.fetch;
+let activeFetch: typeof fetch | null = null;
+
+export function stubFetch(mock: typeof fetch | null): void {
+	activeFetch = mock;
+}
+
+vi.stubGlobal("fetch", ((input: RequestInfo | URL, init?: RequestInit) =>
+	(activeFetch ?? originalFetch)(input, init)) as typeof fetch);

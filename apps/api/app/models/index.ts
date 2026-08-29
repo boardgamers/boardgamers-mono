@@ -28,6 +28,7 @@ export {
 	hashRefreshCode,
 	lookupRefreshToken,
 	revokeRefreshToken,
+	takeRefreshToken,
 } from "./jwtrefreshtokens.ts";
 export {
 	createOAuthState,
