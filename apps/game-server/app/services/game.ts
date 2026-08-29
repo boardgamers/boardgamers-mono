@@ -360,7 +360,7 @@ export async function afterMove(
 	game: GameDoc,
 	gameData: GameData,
 	alreadyEnded = false,
-	lastMove?: { player: number; move: unknown; logLengthBefore?: number },
+	lastMove?: { player: number; move: unknown; logLengthBefore?: number; incrementCredited?: boolean },
 ) {
 	// No-op when the caller already passed a tracked engine (its more specific
 	// attribution — acting player + raw move — wins).
@@ -473,7 +473,14 @@ export async function afterMove(
 			player.remainingTime = (player.remainingTime ?? timePerGame ?? 0) - elapsedSeconds(oldPlayer.timerStart, timer);
 
 			if (!player.dropped) {
-				player.remainingTime += timePerMove ?? 0;
+				// The /move route pre-credits the mover's increment for short games
+				// (gameplay.ts "add time back every move") and says so via
+				// incrementCredited — don't add it a second time (Codeberg #311).
+				// Callers without the pre-credit (bot moves, replays) get it here.
+				const routeCredited = lastMove?.incrementCredited === true;
+				if (!routeCredited) {
+					player.remainingTime += timePerMove ?? 0;
+				}
 
 				player.remainingTime = Math.max(
 					Math.min(timePerGame ?? player.remainingTime, player.remainingTime),
