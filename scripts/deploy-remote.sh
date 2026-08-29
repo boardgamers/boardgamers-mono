@@ -41,11 +41,13 @@ release_lock() {
 trap release_lock EXIT
 
 echo ":: pulling latest code"
-# The deploy must fetch from the forge that triggered it. REPO_URL is passed by
-# the workflow (github.server_url + github.repository); if the checkout's origin
-# still points at the old forge (Codeberg→GitHub move), flip it so we don't
-# deploy stale code.
-if [ -n "${REPO_URL:-}" ]; then
+# The deploy must fetch from the forge that triggered it. The repo URL is passed
+# as $1 by the workflow (env vars don't cross the ssh boundary — the workflow's
+# REPO_URL never reaches this script over 'ssh bash -s'). If the checkout's
+# origin still points at the old forge (Codeberg→GitHub move), flip it so we
+# don't deploy stale code.
+REPO_URL="${1:-}"
+if [ -n "$REPO_URL" ]; then
   CURRENT_ORIGIN=$(git remote get-url origin 2>/dev/null || true)
   case "$CURRENT_ORIGIN" in
     "$REPO_URL" | "$REPO_URL.git") ;;

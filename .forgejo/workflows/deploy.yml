@@ -51,4 +51,8 @@ jobs:
           # 'bash -s' over ssh stdin avoids the fragile multi-level quoting of
           # 'ssh bash -lc "..."' (which expanded $prev to empty in CI and broke
           # the deploy twice). The script lives in scripts/deploy-remote.sh.
-          ssh -i ~/.ssh/coyo_deploy_key -p "$SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes bgs@"$SSH_HOST" 'bash -s' < scripts/deploy-remote.sh
+          # REPO_URL is passed as the script's $1 (the args after 'bash -s' go to
+          # the remote bash): env vars don't cross the ssh boundary, so it can't
+          # go through the script's environ. Quoted for the REMOTE shell — the
+          # URL has no spaces/metachars, so double-quoting is safe.
+          ssh -i ~/.ssh/coyo_deploy_key -p "$SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes bgs@"$SSH_HOST" "bash -s -- '$REPO_URL'" < scripts/deploy-remote.sh
