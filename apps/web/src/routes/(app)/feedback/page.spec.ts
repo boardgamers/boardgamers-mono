@@ -213,6 +213,39 @@ describe("/feedback page", () => {
 		unmount(instance as never);
 	});
 
+	it("clamps long descriptions/bodies behind a Read more toggle (#436)", () => {
+		const longText = "A very long request. ".repeat(30);
+		const { target, instance } = mountPage({
+			gameRequests: [{ ...(gameRequests[0] as object), description: longText }],
+			siteRequests: [{ ...(siteRequests[0] as object), body: longText }],
+		});
+		const toggles = [...target.querySelectorAll<HTMLButtonElement>("button[aria-expanded]")].filter((b) =>
+			b.textContent!.includes("Read more"),
+		);
+		expect(toggles).toHaveLength(2);
+		for (const toggle of toggles) {
+			expect(toggle.getAttribute("aria-expanded")).toBe("false");
+			expect(toggle.closest("li")!.querySelector(".line-clamp-5")).not.toBeNull();
+			toggle.click();
+		}
+		flushSync();
+		for (const toggle of toggles) {
+			expect(toggle.getAttribute("aria-expanded")).toBe("true");
+			expect(toggle.textContent).toContain("Show less");
+			expect(toggle.closest("li")!.querySelector(".line-clamp-5")).toBeNull();
+		}
+		unmount(instance as never);
+	});
+
+	it("does not show a Read more toggle for short descriptions/bodies", () => {
+		const { target, instance } = mountPage();
+		const toggles = [...target.querySelectorAll<HTMLButtonElement>("button")].filter((b) =>
+			b.textContent!.includes("Read more"),
+		);
+		expect(toggles).toHaveLength(0);
+		unmount(instance as never);
+	});
+
 	it("redirects an anonymous vote click to login", () => {
 		const { target, instance } = mountPage();
 		target.querySelector<HTMLButtonElement>("button[aria-pressed]")!.click();
