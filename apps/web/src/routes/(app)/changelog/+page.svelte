@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
 	import SanitizedHtml from "@/components/SanitizedHtml.svelte";
-	import IconCodeberg from "@/components/icons/IconCodeberg.svelte";
 	import IconGithub from "@/components/icons/IconGithub.svelte";
 	import marked from "marked";
 	import type { PageProps } from "./$types";
@@ -46,11 +45,7 @@
 									rel="noopener noreferrer"
 									class="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-gray-100"
 								>
-									{#if entry.github.includes("github.com")}
-										<IconGithub size="0.9em" />
-									{:else}
-										<IconCodeberg size="0.9em" />
-									{/if}
+									<IconGithub size="0.9em" />
 									PR
 								</a>
 								<!-- eslint-enable svelte/no-navigation-without-resolve -->
