@@ -1,7 +1,8 @@
 // The sidebar links to the game's `<game>:rules` CMS page (/page/<game>/rules) when the
-// game page's load found one (context.rulesPage), and shows nothing otherwise. Mounts
-// the real GameSidebar in jsdom with a fake game context (same harness as
-// GameSidebar/GameLog.spec.ts).
+// game page's load found one (context.rulesPage), and shows nothing otherwise. Same for
+// the Settings/Preferences "i" links (#429), gated on context.settingsPage /
+// context.preferencesPage. Mounts the real GameSidebar in jsdom with a fake game
+// context (same harness as GameSidebar/GameLog.spec.ts).
 import { flushSync, mount, unmount } from "svelte";
 import { describe, expect, it } from "vitest";
 
@@ -22,27 +23,40 @@ function makeGame() {
 	} as never;
 }
 
-function makeContext(rulesPage: GameContext["rulesPage"]): GameContext {
+function makeContext(
+	rulesPage: GameContext["rulesPage"],
+	{ settingsPage = false, preferencesPage = false } = {},
+): GameContext {
 	return {
 		game: makeGame(),
 		players: [],
-		gameInfo: { _id: { game: "powergrid", version: 1 }, label: "Power Grid" } as never,
+		gameInfo: {
+			_id: { game: "powergrid", version: 1 },
+			label: "Power Grid",
+			// One visible preference so the Preferences section (and its "i" link) renders.
+			preferences: [{ name: "theme", label: "Theme", type: "checkbox" }],
+		} as never,
 		settings: null,
 		viewerUserId: null,
 		rulesPage,
+		settingsPage,
+		preferencesPage,
 		replayData: null,
 		emitter: { on() {}, off() {}, emit() {} } as unknown as GameContext["emitter"],
 		log: [],
 	};
 }
 
-function mountSidebar(rulesPage: GameContext["rulesPage"]) {
+function mountSidebar(
+	rulesPage: GameContext["rulesPage"],
+	opts: { settingsPage?: boolean; preferencesPage?: boolean } = {},
+) {
 	const target = document.createElement("div");
 	document.body.appendChild(target);
 	const instance = mount(GameSidebar as never, {
 		target,
 		props: {},
-		context: new Map([["game", makeContext(rulesPage)]]),
+		context: new Map([["game", makeContext(rulesPage, opts)]]),
 	}) as Record<string, unknown>;
 	flushSync();
 	return { target, instance };
@@ -50,7 +64,7 @@ function mountSidebar(rulesPage: GameContext["rulesPage"]) {
 
 describe("GameSidebar rules link", () => {
 	it("links to the boardgame page (/boardgame/<game>) whether or not a rules page exists", () => {
-		for (const rulesPage of [{ title: "Power Grid rules" }, null] as GameContext["rulesPage"][]) {
+		for (const rulesPage of [true, false] as GameContext["rulesPage"][]) {
 			const { target, instance } = mountSidebar(rulesPage);
 
 			// resolve() doesn't strip the (app) group segment in the vitest env.
@@ -63,7 +77,7 @@ describe("GameSidebar rules link", () => {
 	});
 
 	it("links to /page/<game>/rules when the rules CMS page exists", () => {
-		const { target, instance } = mountSidebar({ title: "Power Grid rules" });
+		const { target, instance } = mountSidebar(true);
 
 		const link = target.querySelector<HTMLAnchorElement>('a[href="/page/powergrid/rules"]');
 		expect(link).not.toBeNull();
@@ -73,9 +87,37 @@ describe("GameSidebar rules link", () => {
 	});
 
 	it("renders no rules link when the probe found no page", () => {
-		const { target, instance } = mountSidebar(null);
+		const { target, instance } = mountSidebar(false);
 
 		expect(target.querySelector('a[href="/page/powergrid/rules"]')).toBeNull();
+
+		unmount(instance as never);
+	});
+});
+
+// #429: the Settings/Preferences "i" links follow the same existence gating as the
+// rules link — shown only when the game page's load found the target CMS page.
+describe("GameSidebar settings/preferences info links", () => {
+	it("links to /page/<game>/preferences when the preferences CMS page exists", () => {
+		const { target, instance } = mountSidebar(false, { preferencesPage: true });
+
+		expect(target.querySelector('a[href="/page/powergrid/preferences"]')).not.toBeNull();
+
+		unmount(instance as never);
+	});
+
+	it("renders no preferences info link when the probe found no page", () => {
+		const { target, instance } = mountSidebar(false);
+
+		expect(target.querySelector('a[href="/page/powergrid/preferences"]')).toBeNull();
+
+		unmount(instance as never);
+	});
+
+	it("renders no settings info link when the probe found no page", () => {
+		const { target, instance } = mountSidebar(false);
+
+		expect(target.querySelector('a[href="/page/powergrid/settings"]')).toBeNull();
 
 		unmount(instance as never);
 	});

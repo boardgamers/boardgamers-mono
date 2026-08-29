@@ -14,6 +14,31 @@ router.get("/", async (ctx) => {
 		.toArray();
 });
 
+// Lightweight existence check (#429): one call answers "which of these page names
+// exist" for every probe a page needs (the game sidebar checks <game>:rules /
+// :settings / :preferences). Registered before /:page so `_exists` isn't read as a
+// page name. Name-only, any language — the link target (/page/<name>) is itself
+// language-negotiated at render time, so existence doesn't need the negotiation
+// aggregation. Projection {_id: 1}: no markdown body over the wire.
+router.get("/_exists", async (ctx) => {
+	const names = (typeof ctx.query.names === "string" ? ctx.query.names : "")
+		.split(",")
+		.map((name) => name.trim())
+		.filter(Boolean)
+		// Cap the probe list — a huge $in only ever comes from abuse, not the sidebar.
+		.slice(0, 50);
+
+	if (names.length === 0) {
+		ctx.body = { exists: [] };
+		return;
+	}
+
+	const rows = await colls.pages.find({ "_id.name": { $in: names } }, { projection: { _id: 1 } }).toArray();
+	const found = new Set(rows.map((row) => row._id.name));
+	// Preserve the request's order, de-duplicated.
+	ctx.body = { exists: names.filter((name, i) => found.has(name) && names.indexOf(name) === i) };
+});
+
 router.get("/:page", async (ctx) => {
 	// Language negotiation (#306): the visitor's preferred content language
 	// (lang cookie, else Accept-Language), then a candidate chain — regional

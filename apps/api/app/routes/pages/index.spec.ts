@@ -25,6 +25,9 @@ interface PageBody {
 // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
 const pageBody = (res: { data: unknown }) => res.data as PageBody;
 
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+const existsBody = (res: { data: unknown }) => (res.data as { exists: string[] }).exists;
+
 describe("Pages API — language negotiation (#306)", () => {
 	before(async () => {
 		// Clean slate: specs share the *-test db, and this one asserts on exact
@@ -139,6 +142,45 @@ describe("Pages API — language negotiation (#306)", () => {
 		it("404s when the exact {name, lang} row does not exist (no en fallback)", async () => {
 			const res = await getPage("/about/fr");
 			assert.strictEqual(res.status, 404);
+		});
+	});
+
+	describe("GET /page/_exists (#429)", () => {
+		it("returns the names that exist, across all languages", async () => {
+			const res = await getPage("/_exists?names=about");
+			assert.strictEqual(res.status, 200);
+			assert.deepStrictEqual(existsBody(res), ["about"]);
+		});
+
+		it("omits names that do not exist", async () => {
+			const res = await getPage("/_exists?names=no-such-page");
+			assert.strictEqual(res.status, 200);
+			assert.deepStrictEqual(existsBody(res), []);
+		});
+
+		it("answers several names in one call, preserving request order", async () => {
+			const res = await getPage("/_exists?names=contact,no-such-page,about,faq");
+			assert.strictEqual(res.status, 200);
+			assert.deepStrictEqual(existsBody(res), ["contact", "about", "faq"]);
+		});
+
+		it("a page existing only in a non-en language still counts as existing", async () => {
+			// `contact` has en + pt-BR rows; probe a name present in any language.
+			const res = await getPage("/_exists?names=contact");
+			assert.deepStrictEqual(existsBody(res), ["contact"]);
+		});
+
+		it("empty / missing names yields an empty list", async () => {
+			for (const path of ["/_exists", "/_exists?names="]) {
+				const res = await getPage(path);
+				assert.strictEqual(res.status, 200, path);
+				assert.deepStrictEqual(existsBody(res), [], path);
+			}
+		});
+
+		it("de-duplicates repeated names", async () => {
+			const res = await getPage("/_exists?names=about,about,faq");
+			assert.deepStrictEqual(existsBody(res), ["about", "faq"]);
 		});
 	});
 });

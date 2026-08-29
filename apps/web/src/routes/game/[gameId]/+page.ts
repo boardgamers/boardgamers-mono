@@ -22,13 +22,18 @@ export const load: PageLoad = async ({ params, parent }) => {
 		throw error(404, "Game data is incomplete");
 	}
 
-	const [gameInfo, preferences, rulesPage] = await Promise.all([
+	const sidebarPages = ["rules", "settings", "preferences"].map((kind) => `${game.game.name}:${kind}`);
+	const [gameInfo, preferences, existingPages] = await Promise.all([
 		getGameInfo(game.game.name, game.game.version),
 		getGamePreferences(game.game.name),
-		// Probe for the game-scoped `<game>:rules` CMS page (e.g. `powergrid:rules`): the
-		// sidebar shows a "Rules" link when it exists. Non-fatal — a pages-api failure
-		// (or a 404) must not break the game page, just hide the link.
-		get<{ title: string }>(`/page/${game.game.name}:rules`).catch(() => null),
+		// One existence probe for the game-scoped CMS pages the sidebar links to
+		// (`<game>:rules` / `:settings` / `:preferences`): the Rules link and the
+		// Settings/Preferences "i" links only render when the target page exists
+		// (#429). Non-fatal — a pages-api failure must not break the game page, just
+		// hide the links.
+		get<{ exists: string[] }>(`/page/_exists?names=${sidebarPages.join(",")}`)
+			.then((res) => new Set(res.exists))
+			.catch(() => null),
 	]);
 
 	// Per-player in-game settings (e.g. Gaia Project's faction-specific toggles). SSR'd so
@@ -49,8 +54,11 @@ export const load: PageLoad = async ({ params, parent }) => {
 		gameInfo,
 		preferences,
 		settings,
-		// Title only — the sidebar links to /page/<game>/rules, it never renders the body.
-		rulesPage: rulesPage ? { title: rulesPage.title } : null,
+		// Booleans only — the sidebar links to /page/<game>/{rules,settings,preferences},
+		// it never renders the body. A failed probe (null) hides all three links.
+		rulesPage: existingPages?.has(`${game.game.name}:rules`) ?? false,
+		settingsPage: existingPages?.has(`${game.game.name}:settings`) ?? false,
+		preferencesPage: existingPages?.has(`${game.game.name}:preferences`) ?? false,
 		// The SSR request's user (the viewer). The `account` store is null server-side, so
 		// components resolve their viewer-gated UI ("Your turn!", "Vote to cancel", the
 		// settings panel's playerUser) against this during SSR via `live($account?._id, viewerUserId)`.

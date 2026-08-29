@@ -34,9 +34,11 @@
 	<div class="mt-3">
 		<h3 class="flex items-center gap-1">
 			Settings
-			<a href={resolve("/(app)/page/[part1]/[...part2]", { part1: game.game.name, part2: "settings" })}>
-				<IconInfoCircleFill class="text-xs" />
-			</a>
+			{#if context.settingsPage}
+				<a href={resolve("/(app)/page/[part1]/[...part2]", { part1: game.game.name, part2: "settings" })}>
+					<IconInfoCircleFill class="text-xs" />
+				</a>
+			{/if}
 		</h3>
 		<!-- Code very similar to PreferencesChooser -->
 		{#each gameInfo.settings ?? [] as setting (setting.name)}
