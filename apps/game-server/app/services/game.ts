@@ -297,6 +297,37 @@ function logEntries(slice: unknown): unknown[] {
 	return [];
 }
 
+// Reconstruct lastMoveInfo after an engine replay (no `lastMove` arg): the
+// stored info describes a move the replay rewound past, so rebuild it from the
+// new state's own log. `move` text and `moveNumber` are always inferable;
+// `player` only when the engine tags it on the log entry, and `at` never (the
+// original move's timestamp is unknowable) — both are left out rather than
+// guessed. Returns null when the log yields no move at all (e.g. replay to
+// move 0), so the caller clears the stale info rather than keep a lie.
+function reconstructLastMoveInfo(engine: Engine, game: GameDoc, gameData: GameData): GameDoc["lastMoveInfo"] {
+	const moveNumber = engine.logLength(gameData);
+	const entries = logEntries(engine.logSlice(gameData, { start: 0 }));
+	for (let i = entries.length - 1; i >= 0; i--) {
+		const entry = entries[i];
+		const text = logEntryText(entry).trim();
+		if (!text) {
+			continue;
+		}
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- log entries are engine-defined; probed defensively
+		const record =
+			entry && typeof entry === "object" && !Array.isArray(entry) ? (entry as Record<string, unknown>) : null;
+		const playerIndex = typeof record?.player === "number" ? record.player : undefined;
+		const player = playerIndex !== undefined ? game.players[playerIndex] : undefined;
+		const move = text.length > LAST_MOVE_MAX_LEN ? text.slice(0, LAST_MOVE_MAX_LEN - 1) + "…" : text;
+		return {
+			...(player ? { player: player._id } : {}),
+			move,
+			moveNumber,
+		};
+	}
+	return null;
+}
+
 // Human-readable summary of the last move: the newest log line the move
 // produced (what the viewer shows), bounded to LAST_MOVE_MAX_LEN chars.
 // Falls back to the raw move notation when the log slice yields nothing
@@ -465,11 +496,11 @@ export async function afterMove(
 			at: game.lastMove,
 			moveNumber: engine.logLength(gameData),
 		};
-	} else if (game.lastMoveInfo) {
-		// No lastMove (engine replay / data edit): keep the prior lastMoveInfo's
-		// player/move/at, but resync moveNumber to the state's actual log length —
-		// a replay rewinds the game, leaving the stored count stale.
-		game.lastMoveInfo.moveNumber = engine.logLength(gameData);
+	} else {
+		// No lastMove (engine replay / data edit): the stored lastMoveInfo describes
+		// a move the replay rewound past — rebuild it from the new state's own log
+		// (or clear it when nothing attributable remains, e.g. replay to move 0).
+		game.lastMoveInfo = reconstructLastMoveInfo(engine, game, gameData);
 	}
 
 	// withAutoUpdatedAt stamps a *copy*, so read the stored `updatedAt` back: the move

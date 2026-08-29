@@ -111,11 +111,14 @@ export const gameSchema = z.object({
 	// line for the move (what the viewer shows), read from the log entries the move
 	// appended via logSlice; it falls back to the raw move notation when the engine
 	// logged nothing. Bounded to ~80 chars.
+	// `player`/`at` are optional: after an engine replay the stored info is rebuilt
+	// from the rewound log, where the mover isn't always tagged on the log entry and
+	// the original move's timestamp is unknowable.
 	lastMoveInfo: z
 		.object({
-			player: zObjectId(),
+			player: zObjectId().optional(),
 			move: z.string(),
-			at: zDate(),
+			at: zDate().optional(),
 			moveNumber: z.number(),
 		})
 		.nullable()

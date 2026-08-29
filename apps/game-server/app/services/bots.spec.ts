@@ -228,10 +228,10 @@ describe("bot driver", () => {
 		// Bot moves count for the standardized last-move field (#208), and the text is
 		// the engine's log line for that move (not raw notation) — read from logSlice.
 		assert.ok(game.lastMoveInfo, "The bot move was recorded");
-		assert.ok(game.lastMoveInfo.player.equals(game.players[0]._id), "Last mover is the bot");
+		assert.ok(game.lastMoveInfo.player!.equals(game.players[0]._id), "Last mover is the bot");
 		assert.strictEqual(game.lastMoveInfo.move, "player 0 banks a charge", "Last-move text is the engine log line");
 		assert.strictEqual(game.lastMoveInfo.moveNumber, data?.moves[0]);
-		assert.ok(game.lastMoveInfo.at.getTime() > 0);
+		assert.ok(game.lastMoveInfo.at!.getTime() > 0);
 	});
 
 	it("bots chain moves between themselves and the game ends with scores", async () => {
@@ -264,7 +264,7 @@ describe("bot driver", () => {
 			"Rankings recorded",
 		);
 		assert.ok(game.lastMoveInfo, "The last bot move was recorded (#208)");
-		assert.ok(game.lastMoveInfo.player.equals(game.players[1]._id), "Player 2 played last (strict alternation)");
+		assert.ok(game.lastMoveInfo.player!.equals(game.players[1]._id), "Player 2 played last (strict alternation)");
 		assert.strictEqual(game.lastMoveInfo.move, "player 1 banks a charge", "Last-move text is the newest log line");
 		assert.strictEqual(game.lastMoveInfo.moveNumber, 6);
 
