@@ -39,4 +39,7 @@ WORKDIR /repo
 COPY entrypoint.sh /usr/local/bin/preview-entrypoint.sh
 COPY db-needs-seed.sh /usr/local/bin/db-needs-seed.sh
 COPY serve-admin.mjs /usr/local/bin/serve-admin.mjs
+# COPY takes the checkout's file modes; enforce exec bits so a mode regression in git
+# can't produce an image whose entrypoint crun refuses to exec (Permission denied).
+RUN chmod 755 /usr/local/bin/preview-entrypoint.sh /usr/local/bin/db-needs-seed.sh
 ENTRYPOINT ["/usr/local/bin/preview-entrypoint.sh"]
