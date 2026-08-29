@@ -200,16 +200,16 @@ describe("/feedback page", () => {
 		unmount(instance as never);
 	});
 
-	it("links to the adding-a-game guide and the site's Codeberg source", () => {
+	it("links to the adding-a-game guide and the site's GitHub source", () => {
 		const { target, instance } = mountPage();
 		const docsLink = target.querySelector<HTMLAnchorElement>(
 			'a[href="https://docs.boardgamers.space/guide/adding-a-game"]',
 		);
 		expect(docsLink?.textContent).toContain("How games get added");
-		const codebergLink = target.querySelector<HTMLAnchorElement>(
-			'a[href="https://codeberg.org/boardgamers/boardgamers"]',
+		const githubLink = target.querySelector<HTMLAnchorElement>(
+			'a[href="https://github.com/boardgamers/boardgamers-mono"]',
 		);
-		expect(codebergLink?.textContent).toContain("Site source on Codeberg");
+		expect(githubLink?.textContent).toContain("Site source on GitHub");
 		unmount(instance as never);
 	});
 

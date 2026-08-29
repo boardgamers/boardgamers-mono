@@ -1,0 +1,134 @@
+name: Web
+
+on:
+  push:
+    paths:
+      - ".github/workflows/web.yml"
+      - "apps/web/**"
+      - "apps/admin/**"
+      - "packages/**"
+    branches:
+      - main
+  pull_request:
+    paths:
+      - ".github/workflows/web.yml"
+      - "apps/web/**"
+      - "apps/admin/**"
+      - "packages/**"
+
+permissions:
+  contents: read
+
+jobs:
+  # Production `vite build` for the player frontend. svelte-check (the `check`
+  # script) does NOT catch everything the rollup build does — e.g. a `{@const}`
+  # that is not the immediate child of an {#if}/{#each}/… block passes svelte-check
+  # but fails `vite build` (this broke the pr-303 preview env). Build in CI so that
+  # class of error is caught before merge.
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: corepack enable
+      - run: pnpm install --filter {./}...
+      # svelte-kit sync generates .svelte-kit/tsconfig.json (gitignored) — the build
+      # and svelte-check need it.
+      - run: npx svelte-kit sync
+      - run: pnpm run build
+      # The build passes even when a server-only package (mongodb via @bgs/models
+      # root, …) leaks into the client bundle — it only crashes in the browser.
+      # Sniff the shipped chunks for server-only signatures before trusting it.
+      - run: node scripts/check-client-bundle.mjs
+        working-directory: .
+      - run: pnpm run check
+      # Vitest — includes the i18n catalog completeness gate (#306): every locale
+      # must carry the exact key set of messages/en.json.
+      - run: pnpm run test
+
+  # Same production-build guard for the admin panel.
+  admin:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: corepack enable
+      - run: pnpm install --filter {./}...
+      - run: npx svelte-kit sync
+      - run: pnpm run build
+      # Same client-bundle guard as the web job (see above).
+      - run: node scripts/check-client-bundle.mjs
+        working-directory: .
+      - run: pnpm run check
+
+  # Browser smoke test: build the web app, boot it against a stub api (no
+  # Mongo), and load the home page in headless Chromium. This is the only gate
+  # that executes the client bundle — it catches crashes that pass both
+  # svelte-check and vite build, like the mongodb-in-browser hydration crash
+  # from a runtime @bgs/models root import (see scripts/check-client-bundle.mjs).
+  smoke:
+    runs-on: ubuntu-latest
+    env:
+      # No playwright CDN download of chromium (the job installs Ubuntu's).
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: corepack enable
+      - run: pnpm install --filter {./}...
+      - run: npx svelte-kit sync
+      - run: pnpm run build
+      # Ubuntu's chromium instead of `playwright install`; PLAYWRIGHT_CHROMIUM_
+      # EXECUTABLE_PATH tells playwright to use it, skip-browser-download keeps
+      # `pnpm install` from fetching the playwright one anyway.
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq chromium-browser
+        working-directory: .
+      - run: echo "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=$(which chromium)" >> "$GITHUB_ENV"
+        working-directory: .
+      # Stub api (127.0.0.1:50801) + the built app behind a thin /api proxy
+      # (127.0.0.1:8612) — the proxy stands in for nginx, which routes direct
+      # client-side /api/* calls in prod; SSR fetches reach the stub through
+      # handleFetch's VITE_backend rewrite.
+      # setsid + nohup: the runner reaps a step's process tree when the step's
+      # shell returns, killing a plain `cmd &` server. Detach from the step's
+      # process group so the servers outlive their step.
+      - run: |
+          setsid nohup node scripts/stub-api.mjs >/tmp/stub-api.log 2>&1 &
+          setsid nohup env HOST=127.0.0.1 PORT=8612 VITE_backend=127.0.0.1 SMOKE_STATUS_FILE=/tmp/smoke-web-status.log node scripts/run-smoke-web.mjs >/tmp/smoke-web.log 2>&1 &
+        working-directory: .
+      # Readiness probe instead of a blind sleep: fail fast (with logs in the
+      # job output) if either background server didn't come up, instead of the
+      # smoke script failing on a race with an opaque connection error.
+      - run: |
+          for i in $(seq 1 60); do
+            stub=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:50801/boardgame/info || true)
+            app=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8612/ || true)
+            [ "$stub" = 200 ] && [ "$app" = 200 ] && exit 0
+            sleep 1
+          done
+          echo "smoke stack did not come up (stub=$stub app=$app)" >&2
+          # Diagnose why: backgrounded steps don't get their stdout collected,
+          # so the servers log to files.
+          echo "--- smoke-web status:" >&2; cat /tmp/smoke-web-status.log >&2 2>/dev/null || true
+          echo "--- smoke-web log:" >&2; cat /tmp/smoke-web.log >&2 2>/dev/null || true
+          echo "--- stub-api log:" >&2; cat /tmp/stub-api.log >&2 2>/dev/null || true
+          ps aux | grep -E "node (scripts|build)" | grep -v grep >&2 || echo "no node servers alive" >&2
+          exit 1
+        working-directory: .
+      - run: node scripts/smoke-e2e.mjs
+        working-directory: .

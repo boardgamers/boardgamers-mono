@@ -170,7 +170,7 @@
 	"feedback.requestedBy": "Запросил(а)",
 	"feedback.siteRequests": "Запросы функций сайта",
 	"feedback.siteRequestsHelp": "Улучшения и новые функции самого сайта, по количеству голосов.",
-	"feedback.siteSource": "Исходный код сайта на Codeberg",
+	"feedback.siteSource": "Исходный код сайта на GitHub",
 	"feedback.status.declined": "Отклонено",
 	"feedback.status.done": "Готово",
 	"feedback.status.open": "Открыто",

@@ -1,0 +1,19 @@
+name: All
+on: [pull_request, push]
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      # corepack fetches the pnpm version pinned by package.json's packageManager field.
+      - run: corepack enable
+      - run: pnpm install
+      # oxfmt formats JS/TS/YAML/MD/JSON across the repo (Svelte excluded — oxfmt's
+      # Svelte parser is still beta). Svelte files are checked by prettier.
+      - run: pnpm run format-check
+      - run: cd apps/admin && npx prettier --check "src/**/*.svelte"
+      - run: cd apps/web && npx prettier --check "src/**/*.svelte"

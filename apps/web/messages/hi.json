@@ -170,7 +170,7 @@
 	"feedback.requestedBy": "अनुरोधकर्ता",
 	"feedback.siteRequests": "साइट सुविधा अनुरोध",
 	"feedback.siteRequestsHelp": "साइट के लिए सुधार और नई सुविधाएँ, सबसे अधिक वोट पहले।",
-	"feedback.siteSource": "Codeberg पर साइट का स्रोत कोड",
+	"feedback.siteSource": "GitHub पर साइट का स्रोत कोड",
 	"feedback.status.declined": "अस्वीकृत",
 	"feedback.status.done": "पूर्ण",
 	"feedback.status.open": "खुला",

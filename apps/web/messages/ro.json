@@ -170,7 +170,7 @@
 	"feedback.requestedBy": "Cerut de",
 	"feedback.siteRequests": "Cereri de funcționalități pentru site",
 	"feedback.siteRequestsHelp": "Îmbunătățiri și funcționalități noi pentru site-ul însuși, în ordinea voturilor.",
-	"feedback.siteSource": "Codul sursă al site-ului pe Codeberg",
+	"feedback.siteSource": "Codul sursă al site-ului pe GitHub",
 	"feedback.status.declined": "Respins",
 	"feedback.status.done": "Finalizat",
 	"feedback.status.open": "Deschis",

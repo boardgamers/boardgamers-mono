@@ -58,7 +58,7 @@ To host bot players, your engine must:
   complete a full turn.
 - Keep it simple: reusing the auto-play logic from `dropPlayer` is a good starting point, and a random legal move
   is fine. Bots are deliberately **dumb** — they exist for testing the UI solo and filling seats, not for a
-  challenge. See [issue #251](https://codeberg.org/boardgamers/boardgamers/issues/251) for real AI opponents.
+  challenge. See [issue #251](https://github.com/boardgamers/boardgamers-mono/issues/251) for real AI opponents.
 
 ## Dropped players vs bot slots
 

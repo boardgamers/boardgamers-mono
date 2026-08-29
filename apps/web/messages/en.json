@@ -170,7 +170,7 @@
 	"feedback.requestedBy": "Requested by",
 	"feedback.siteRequests": "Site feature requests",
 	"feedback.siteRequestsHelp": "Improvements and new features for the site itself, most voted first.",
-	"feedback.siteSource": "Site source on Codeberg",
+	"feedback.siteSource": "Site source on GitHub",
 	"feedback.status.declined": "Declined",
 	"feedback.status.done": "Done",
 	"feedback.status.open": "Open",

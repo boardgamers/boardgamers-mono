@@ -26,7 +26,7 @@ title: BGS Docs
     <h2>Open source</h2>
     <p>The platform and every game on it are open source — read real engines and viewers for inspiration, and
     contribute your own.</p>
-    <p><a href="https://codeberg.org/boardgamers/boardgamers">Platform source →</a> · <a href="https://github.com/boardgamers">Game repos →</a></p>
+    <p><a href="https://github.com/boardgamers/boardgamers-mono">Platform source →</a> · <a href="https://github.com/boardgamers">Game repos →</a></p>
   </div>
 </div>
 

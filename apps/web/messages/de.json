@@ -170,7 +170,7 @@
 	"feedback.requestedBy": "Gewünscht von",
 	"feedback.siteRequests": "Feature-Wünsche für die Seite",
 	"feedback.siteRequestsHelp": "Verbesserungen und neue Features für die Seite selbst, die meistgewählten zuerst.",
-	"feedback.siteSource": "Seiten-Quellcode auf Codeberg",
+	"feedback.siteSource": "Seiten-Quellcode auf GitHub",
 	"feedback.status.declined": "Abgelehnt",
 	"feedback.status.done": "Fertig",
 	"feedback.status.open": "Offen",

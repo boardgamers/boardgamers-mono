@@ -1,0 +1,52 @@
+name: Api-Node
+on:
+  push:
+    paths:
+      - ".github/workflows/api.yml"
+      - "apps/api/**"
+      - "packages/**"
+    branches:
+      - main
+  pull_request:
+    paths:
+      - ".github/workflows/api.yml"
+      - "apps/api/**"
+      - "packages/**"
+
+defaults:
+  run:
+    working-directory: apps/api
+
+jobs:
+  lint_and_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Start MongoDB
+        uses: supercharge/mongodb-github-action@1.12.0
+        with:
+          mongodb-version: 8.0
+          mongodb-replica-set: rs0
+
+      - run: corepack enable
+      - run: pnpm install --filter {./}...
+      - run: pnpm run lint-check
+      - run: pnpm run tsc
+      # Tests connect to the MongoDB action instance on localhost:27017 (the default
+      # dbUrl points at a dev port, so override it here). db name gets "-test" appended
+      # automatically under NODE_ENV=test.
+      - run: pnpm run test
+        env:
+          dbUrl: mongodb://localhost:27017/admin
+
+      - name: Check new migrations will run when merged
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          pnpm run check-migrations

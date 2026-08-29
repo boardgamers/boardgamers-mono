@@ -1,0 +1,68 @@
+name: Index Drift
+
+# Catches index-shape changes in packages/models before merge: changing an
+# existing index's options used to crash-loop the API at boot
+# (IndexKeySpecsConflict — see packages/models/setup.ts). This workflow applies
+# the BASE branch's index set to a scratch database, then asks the PR's code
+# what it would do to that database. Anything destructive (drop/rebuild) fails
+# the check unless the PR declared the drop explicitly.
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/index-drift.yml"
+      - "packages/models/**"
+      - "scripts/apply-indexes.mjs"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/index-drift.yml"
+      - "packages/models/**"
+      - "scripts/apply-indexes.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  index-drift:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:8
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: corepack enable
+      - run: pnpm install --filter @bgs/models...
+
+      # 1. Check out the BASE branch in a sibling directory and apply its index
+      #    set — that's the state a production database is already in. The apply
+      #    script comes from the PR checkout (the base may predate it); only
+      #    packages/models is the base's.
+      - name: Apply base branch indexes
+        env:
+          dbUrl: mongodb://localhost:27017/admin
+          dbName: bgs-index-drift
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          git worktree add /tmp/base-checkout "$BASE_SHA"
+          cp scripts/apply-indexes.mjs /tmp/base-checkout/scripts/ 2>/dev/null || \
+            { mkdir -p /tmp/base-checkout/scripts && cp scripts/apply-indexes.mjs /tmp/base-checkout/scripts/; }
+          cd /tmp/base-checkout
+          pnpm install --filter @bgs/models...
+          node scripts/apply-indexes.mjs
+
+      # 2. Plan the PR's index set against that database. Creating NEW indexes
+      #    is fine; dropping/rebuilding existing ones is the prod crash scenario.
+      - name: Check PR index plan is non-destructive
+        env:
+          dbUrl: mongodb://localhost:27017/admin
+          dbName: bgs-index-drift
+        run: node scripts/apply-indexes.mjs plan

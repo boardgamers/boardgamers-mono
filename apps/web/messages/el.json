@@ -170,7 +170,7 @@
 	"feedback.requestedBy": "Αίτημα από",
 	"feedback.siteRequests": "Αιτήματα λειτουργιών ιστότοπου",
 	"feedback.siteRequestsHelp": "Βελτιώσεις και νέες λειτουργίες για τον ίδιο τον ιστότοπο, κατά σειρά ψήφων.",
-	"feedback.siteSource": "Πηγαίος κώδικας ιστότοπου στο Codeberg",
+	"feedback.siteSource": "Πηγαίος κώδικας ιστότοπου στο GitHub",
 	"feedback.status.declined": "Απορρίφθηκε",
 	"feedback.status.done": "Ολοκληρώθηκε",
 	"feedback.status.open": "Ανοιχτό",

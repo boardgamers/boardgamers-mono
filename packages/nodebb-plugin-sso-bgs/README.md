@@ -1,6 +1,6 @@
 # nodebb-plugin-sso-bgs
 
-Boardgamers SSO for the NodeBB forum (issue [#196](https://codeberg.org/boardgamers/boardgamers/issues/196)).
+Boardgamers SSO for the NodeBB forum (issue [#196](https://github.com/boardgamers/boardgamers-mono/issues/196)).
 A thin shim around [`nodebb-plugin-sso-oauth2-multiple`](https://github.com/NodeBB/nodebb-plugin-sso-oauth2-multiple)
 that makes it work against the Boardgamers OAuth2/OIDC provider
 (`apps/api/app/routes/oauth2` in this monorepo).

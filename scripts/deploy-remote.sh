@@ -41,6 +41,20 @@ release_lock() {
 trap release_lock EXIT
 
 echo ":: pulling latest code"
+# The deploy must fetch from the forge that triggered it. REPO_URL is passed by
+# the workflow (github.server_url + github.repository); if the checkout's origin
+# still points at the old forge (Codeberg→GitHub move), flip it so we don't
+# deploy stale code.
+if [ -n "${REPO_URL:-}" ]; then
+  CURRENT_ORIGIN=$(git remote get-url origin 2>/dev/null || true)
+  case "$CURRENT_ORIGIN" in
+    "$REPO_URL" | "$REPO_URL.git") ;;
+    *)
+      echo ":: origin is '$CURRENT_ORIGIN', expected '$REPO_URL' — repointing"
+      git remote set-url origin "$REPO_URL"
+      ;;
+  esac
+fi
 git fetch origin main
 # Save the pre-deploy commit for rollback guidance if the smoke check fails.
 # (ORIG_HEAD is unreliable here: pnpm install can run git operations — e.g.

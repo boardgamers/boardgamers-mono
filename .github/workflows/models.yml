@@ -1,0 +1,47 @@
+name: Models
+
+on:
+  push:
+    paths:
+      - ".github/workflows/models.yml"
+      - "packages/models/**"
+    branches:
+      - main
+  pull_request:
+    paths:
+      - ".github/workflows/models.yml"
+      - "packages/models/**"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: packages/models
+
+jobs:
+  lint_and_test:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:8
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: corepack enable
+      - run: pnpm install --filter {./}...
+      - run: pnpm run lint-check
+      - run: pnpm run tsc
+      # The index-reconcile specs (setup.spec.ts) are the only coverage of the
+      # boot crash-loop fix; they need a real MongoDB. dbUrl is passed
+      # explicitly (no .env on the runner); dbName gets "-test" appended by the
+      # specs under NODE_ENV=test.
+      - run: pnpm run test
+        env:
+          NODE_ENV: test
+          dbUrl: mongodb://localhost:27017/admin
+          dbName: bgs-models

@@ -170,7 +170,7 @@
 	"feedback.requestedBy": "Pedido por",
 	"feedback.siteRequests": "Pedidos de recursos do site",
 	"feedback.siteRequestsHelp": "Melhorias e novos recursos para o próprio site, mais votados primeiro.",
-	"feedback.siteSource": "Código-fonte do site no Codeberg",
+	"feedback.siteSource": "Código-fonte do site no GitHub",
 	"feedback.status.declined": "Recusado",
 	"feedback.status.done": "Concluído",
 	"feedback.status.open": "Aberto",

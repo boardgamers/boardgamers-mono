@@ -15,9 +15,10 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: docker
-    if: github.repository == 'boardgamers/boardgamers'
+    runs-on: ubuntu-latest
+    if: github.repository == 'boardgamers/boardgamers-mono'
     timeout-minutes: 10
+    environment: deploy
     steps:
       - name: Checkout (for the remote deploy script)
         uses: actions/checkout@v4
@@ -29,7 +30,7 @@ jobs:
           SSH_PORT: ${{ secrets.COYO_SSH_PORT || '22' }}
           KNOWN_HOSTS: ${{ secrets.COYO_KNOWN_HOSTS }}
           # The server checkout's origin may still point at the old forge
-          # (GitHub→Codeberg move); the script repoints it to this before fetching.
+          # (Codeberg→GitHub move); the script repoints it to this before fetching.
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
           set -euo pipefail

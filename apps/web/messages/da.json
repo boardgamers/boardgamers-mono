@@ -170,7 +170,7 @@
 	"feedback.requestedBy": "Anmodet af",
 	"feedback.siteRequests": "Anmodninger om sitefunktioner",
 	"feedback.siteRequestsHelp": "Forbedringer og nye funktioner til selve sitet, flest stemte først.",
-	"feedback.siteSource": "Sitets kildekode på Codeberg",
+	"feedback.siteSource": "Sitets kildekode på GitHub",
 	"feedback.status.declined": "Afvist",
 	"feedback.status.done": "Færdig",
 	"feedback.status.open": "Åben",

@@ -16,12 +16,12 @@ Boardgamers — an online board game platform. pnpm workspace, Node ≥ 24, ESM 
 | `packages/models`  | Shared Zod schemas + Mongo collection definitions (`@bgs/models`) |
 | `packages/utils`   | Shared helpers (`@bgs/utils`)                                     |
 
-## Forge: Codeberg
+## Forge: GitHub
 
-The repo lives at <https://codeberg.org/boardgamers/boardgamers> (Forgejo). It used to be on GitHub — don't use `gh` or `github.com/boardgamers/boardgamers-mono` URLs; issues/PRs migrated with their numbers intact.
+The repo lives at <https://github.com/boardgamers/boardgamers-mono> (temporarily back from Codeberg — the self-hosted CI machine was lost). Issues/PRs migrated with their numbers intact.
 
-- **Issues/PRs**: use the `fj` CLI (`fj pr create`, `fj issue view`, `fj actions secrets create`, …) or the REST API (`https://codeberg.org/api/v1`, `Authorization: token <t>`).
-- **CI**: Forgejo Actions — workflows in `.forgejo/workflows/`, executed by a self-hosted runner on the preview minipc. `runs-on: docker` = a `node:24-bookworm` job container (matches prod's Node; corepack included, no `setup-node` needed). Note Forgejo also executes `.github/workflows/` — don't add files there.
+- **Issues/PRs**: use the `gh` CLI (`gh pr create`, `gh issue view`, `gh secret set`, …) or the REST API (`https://api.github.com`, `Authorization: token <t>`).
+- **CI**: GitHub Actions — workflows in `.github/workflows/` on `ubuntu-latest` runners (Node via `actions/setup-node`). The Forgejo Actions workflows in `.forgejo/workflows/` are kept around but have no runner while the project is on GitHub.
 
 ## Working in this repo
 
@@ -41,7 +41,7 @@ Don't read env vars/secrets directly — load them from files or env without pri
 - **Document shapes live in `@bgs/models`** as Zod schemas: they define the types (`z.infer`) and are inserted in DB as validation schemas (`"warn"`).
 - **Tests**: colocated `*.spec.ts` with `node:test` (api/game-server); API tests run with `NODE_ENV=test` against a `…-test` db. Build fixtures inline via `app/config/test-helpers.ts`, no shared seed data.
 - **Workarounds**: log temporary shims in the project's `WORKAROUNDS.md`; check for removable entries when touching related code. Any deploy-window / backward-compat shim (code tolerating a stale client, a pre-migration data shape, or an in-flight deploy) MUST get a `WORKAROUNDS.md` entry marked "removable once \<condition\>" when added, so it can be found and cleaned up after the window closes.
-- **Plans live in Codeberg issues, not `docs/`**: open/update an issue with the plan; don't commit plan markdown files.
+- **Plans live in GitHub issues, not `docs/`**: open/update an issue with the plan; don't commit plan markdown files.
 
 ## Local dev services
 
@@ -68,7 +68,7 @@ git add pr-<N> && git commit -m "PR <N>: <what>" && git push origin pr-assets
 ```
 
 ```
-![alt](https://codeberg.org/boardgamers/boardgamers/raw/branch/pr-assets/pr-<N>/<name>.png)
+![alt](https://raw.githubusercontent.com/boardgamers/boardgamers-mono/pr-assets/pr-<N>/<name>.png)
 ```
 
 ## Multi-agent swarms (coordinator)
@@ -108,7 +108,7 @@ Only relevant when a coordinator runs several workers on one machine. **Never ru
 
 ## Preview environments & test credentials
 
-- Each open PR can get an ephemeral preview at `https://pr-<N>.boardgamers.space`. ⚠️ **Currently inactive since the Codeberg move**: the trigger (`.github/workflows/pr-preview.yml`) is GitHub-only (`pull_request_target` has no Forgejo equivalent) and shows as a skipped check until it's redesigned for Forgejo Actions. The preview infra on the minipc itself still works. The preview db is a **sanitized prod dump** — architecture in `infra/pr-preview/README.md`.
+- Each open PR can get an ephemeral preview at `https://pr-<N>.boardgamers.space`, triggered by `.github/workflows/pr-preview.yml` (`pull_request_target`). The preview db is a **sanitized prod dump** — architecture in `infra/pr-preview/README.md`.
 - **Every preview user's password is `password`**, so you can log in as anyone (e.g. admin `coyotte508`):
 
   ```bash
