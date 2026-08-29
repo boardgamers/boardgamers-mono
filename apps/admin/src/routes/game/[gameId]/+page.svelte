@@ -73,6 +73,9 @@
 		try {
 			await api.post(`/gameplay/${encodeURIComponent(game._id)}/replay`, { to: replayTo });
 			toast.success("Replay started");
+			// The replay rewinds the game (moveNumber, lastMove, …) — reload so the
+			// page reflects the new state instead of the pre-replay move count.
+			await invalidateAll();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Replay failed");
 		}
