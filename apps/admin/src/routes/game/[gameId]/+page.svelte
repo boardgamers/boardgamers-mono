@@ -5,6 +5,7 @@
 	import { api } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { gameLabelParts, timeAgo } from "$lib/utils.ts";
+	import { untrack } from "svelte";
 	import WebLink from "$components/WebLink.svelte";
 	import type { BoardgameEntry } from "../../+layout.ts";
 	import type { PageProps } from "./$types";
@@ -14,7 +15,11 @@
 	// Deleted locally after a successful DELETE; otherwise tracks the loaded data.
 	let deleted = $state(false);
 	let expandedError = $state<string | null>(null);
-	let replayTo = $state(0);
+	// Default to the last move: the common case is replaying everything (or
+	// backing off a few moves from the end), not replaying from scratch. untrack:
+	// data is stable for the page's lifetime and this is an editable seed value,
+	// not a live binding.
+	let replayTo = $state(untrack(() => data.info?.game.lastMoveInfo?.moveNumber ?? 0));
 	let editJson = $state("");
 	let showJsonEditor = $state(false);
 
