@@ -1,17 +1,13 @@
-// Reproduction for Codeberg issue #311: "Short games: per-move increment
-// applied twice for alternating movers".
+// Regression for Codeberg issue #311: "Short games: per-move increment applied
+// twice for alternating movers".
 //
-// In a short game (timePerMove <= 15min), the gameplay route adds +timePerMove
-// to the mover's remainingTime before calling afterMove ("add time back every
-// move" workaround for #12), and afterMove's leaving-current-player block used
-// to add +timePerMove a second time. The double-count was masked by the
-// min(timePerGame, …) Fischer cap on both layers — it only shows when the cap
-// isn't hit (a player down on time making a quick move).
-//
-// These tests replicate the exact production sequence (route pre-credit, then
-// afterMove) and assert the increment lands exactly once for alternating
-// movers, still lands for bot moves (no route pre-credit there), and that the
-// Fischer cap still holds.
+// The double-count came from the increment living in two layers: the /move
+// route pre-credited +timePerMove for short games ("add time back every move",
+// the #12 workaround) and afterMove's leaving-current-player block credited
+// again. The increment now lives in afterMove alone: a real saved move
+// (lastMove set — route and bot moves) credits exactly the mover exactly once,
+// capped at timePerGame; callers without lastMove (replays, admin data edits,
+// drop/quit) get no increment at all.
 //
 // Run via `pnpm test` (needs a Mongo db, see AGENTS.md), NOT bare `node --test`.
 import assert from "node:assert/strict";
@@ -89,21 +85,18 @@ function makeGame(gameId: string): GameDoc {
 	return game as GameDoc;
 }
 
-// The gameplay route's pre-credit for short games (gameplay.ts "for fast games,
-// add time back every move") — replicated so the test runs the same sequence
-// production does. Callers then pass incrementCredited: true to afterMove, like
-// the route.
-function routeAddIncrement(game: GameDoc, playerIndex: number) {
-	const player = game.players[playerIndex];
-	player.remainingTime = Math.min(timePerGame, (player.remainingTime ?? timePerGame) + timePerMove);
-}
-
 async function remainingTime(gameId: string, playerIndex: number): Promise<number> {
 	const stored = await colls.games.findOne({ _id: gameId }, { projection: { players: 1 } });
 	return stored?.players[playerIndex].remainingTime ?? 0;
 }
 
-describe("afterMove timing — double per-move increment (Codeberg #311)", () => {
+async function freshGame(gameId: string): Promise<GameDoc> {
+	const game = await colls.games.findOne({ _id: gameId });
+	assert.ok(game);
+	return game;
+}
+
+describe("afterMove timing — per-move increment exactly once (Codeberg #311)", () => {
 	after(async () => {
 		await closeDb();
 	});
@@ -115,19 +108,12 @@ describe("afterMove timing — double per-move increment (Codeberg #311)", () =>
 		await colls.gameNotifications.deleteMany({ game: gameId });
 		await colls.games.insertOne(makeGame(gameId));
 
-		const game = await colls.games.findOne({ _id: gameId });
-		assert.ok(game);
+		const game = await freshGame(gameId);
 
-		// Player 0 moves (~0s of think time); player 1 becomes current. Route
-		// pre-credit: 100 -> 130. afterMove must NOT add a second +30.
+		// Player 0 moves (~0s of think time); player 1 becomes current. afterMove
+		// alone must credit exactly one +30.
 		const data = await engine.move(game.data, "move", 0);
-		routeAddIncrement(game, 0);
-		await afterMove(engine, game, data, false, {
-			player: 0,
-			move: "move",
-			logLengthBefore: 0,
-			incrementCredited: true,
-		});
+		await afterMove(engine, game, data, false, { player: 0, move: "move", logLengthBefore: 0 });
 
 		const rt = await remainingTime(gameId, 0);
 		assert.ok(
@@ -136,17 +122,16 @@ describe("afterMove timing — double per-move increment (Codeberg #311)", () =>
 		);
 	});
 
-	it("still credits the increment on bot moves, which get no route pre-credit", async () => {
+	it("credits a bot move exactly once", async () => {
 		const engine = makeEngine();
 		const gameId = "timer-game-bot-move";
 		await colls.games.deleteMany({ _id: gameId });
 		await colls.gameNotifications.deleteMany({ game: gameId });
 		await colls.games.insertOne(makeGame(gameId));
 
-		const game = await colls.games.findOne({ _id: gameId });
-		assert.ok(game);
+		const game = await freshGame(gameId);
 
-		// The bot driver (bots.ts) calls afterMove with lastMove but no route
+		// The bot driver (bots.ts) calls afterMove with lastMove and no route
 		// pre-credit — afterMove must add the increment itself.
 		const data = await engine.move(game.data, "move", 0);
 		await afterMove(engine, game, data, false, { player: 0, move: null, logLengthBefore: 0 });
@@ -165,23 +150,70 @@ describe("afterMove timing — double per-move increment (Codeberg #311)", () =>
 		await colls.gameNotifications.deleteMany({ game: gameId });
 		await colls.games.insertOne(makeGame(gameId));
 
-		// Player 0 nearly at the cap: route pre-credit clamps to timePerGame, and
-		// afterMove must leave it there.
+		// Player 0 nearly at the cap: the credit must clamp to timePerGame.
 		await colls.games.updateOne({ _id: gameId }, { $set: { "players.0.remainingTime": 290 } });
-		const game = await colls.games.findOne({ _id: gameId });
-		assert.ok(game);
+		const game = await freshGame(gameId);
 
 		const data = await engine.move(game.data, "move", 0);
-		routeAddIncrement(game, 0);
-		await afterMove(engine, game, data, false, {
-			player: 0,
-			move: "move",
-			logLengthBefore: 0,
-			incrementCredited: true,
-		});
+		await afterMove(engine, game, data, false, { player: 0, move: "move", logLengthBefore: 0 });
 
 		const rt = await remainingTime(gameId, 0);
 		assert.ok(rt <= timePerGame, `remainingTime must stay capped at ${timePerGame}, got ${rt}`);
 		assert.ok(rt > 290 - 2, `remainingTime should not drop below the pre-move value, got ${rt}`);
+	});
+
+	it("credits no increment without lastMove (replay / admin data edit / drop-quit)", async () => {
+		const engine = makeEngine();
+		const gameId = "timer-game-replay";
+		await colls.games.deleteMany({ _id: gameId });
+		await colls.gameNotifications.deleteMany({ game: gameId });
+		await colls.games.insertOne(makeGame(gameId));
+
+		const game = await freshGame(gameId);
+
+		// Replays, admin data edits and drop/quit call afterMove with no lastMove:
+		// nobody gets credited — not even the player leaving the current set.
+		const data = await engine.move(game.data, "move", 0);
+		await afterMove(engine, game, data, false);
+
+		const rt0 = await remainingTime(gameId, 0);
+		assert.ok(Math.abs(rt0 - 100) <= 2, `expected player 0 remainingTime ≈ 100 (no increment on replay), got ${rt0}`);
+		const rt1 = await remainingTime(gameId, 1);
+		assert.ok(
+			Math.abs(rt1 - timePerGame) <= 2,
+			`expected player 1 remainingTime ≈ ${timePerGame} (untouched), got ${rt1}`,
+		);
+	});
+
+	it("still floors a flagged mover's credit at timePerMove", async () => {
+		const engine = makeEngine();
+		const gameId = "timer-game-flagged";
+		await colls.games.deleteMany({ _id: gameId });
+		await colls.gameNotifications.deleteMany({ game: gameId });
+		await colls.games.insertOne(makeGame(gameId));
+
+		// Player 0 has 5s left but their clock has been running for 60s: the
+		// elapsed charge drives remainingTime negative. The increment's floor
+		// (max(·, timePerMove)) still gives them a full increment to move with —
+		// flagging is enforced by the deadline watchdog, not by this charge.
+		await colls.games.updateOne(
+			{ _id: gameId },
+			{
+				$set: {
+					"players.0.remainingTime": 5,
+					"currentPlayers.0.timerStart": new Date(Date.now() - 60000),
+				},
+			},
+		);
+		const game = await freshGame(gameId);
+
+		const data = await engine.move(game.data, "move", 0);
+		await afterMove(engine, game, data, false, { player: 0, move: "move", logLengthBefore: 0 });
+
+		const rt = await remainingTime(gameId, 0);
+		assert.ok(
+			Math.abs(rt - timePerMove) <= 2,
+			`expected remainingTime ≈ ${timePerMove} (floor at the increment), got ${rt}`,
+		);
 	});
 });

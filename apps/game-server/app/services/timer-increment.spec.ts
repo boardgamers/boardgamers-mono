@@ -83,17 +83,10 @@ function makeGame(gameId: string): GameDoc {
 	return game as GameDoc;
 }
 
-// The gameplay route adds the increment for short games (timePerMove <= 15min)
-// before calling afterMove — replicate that here so the test exercises the same
-// sequence production runs. The mover-stays-current path must keep depending on
-// that route pre-credit: afterMove must NOT also add the increment for route
-// moves, or repeat movers would get nothing (they never enter the
-// leaving-player block) and alternating movers would get it twice (#311).
-function routeAddIncrement(game: GameDoc, playerIndex: number) {
-	const player = game.players[playerIndex];
-	player.remainingTime = Math.min(timePerGame, (player.remainingTime ?? timePerGame) + timePerMove);
-}
-
+// afterMove owns the per-move increment end to end (the route pre-credit
+// workaround is gone): a real saved move (lastMove set) credits the mover
+// exactly once, whether they stay current or leave. The tests below call
+// afterMove exactly like the /move route does.
 describe("afterMove timing — per-move increment (issue #12)", () => {
 	after(async () => {
 		await closeDb();
@@ -123,12 +116,10 @@ describe("afterMove timing — per-move increment (issue #12)", () => {
 			assert.ok(fresh);
 
 			data = await engine.move(data, "move", 0);
-			routeAddIncrement(fresh, 0);
 			await afterMove(engine, fresh, data, false, {
 				player: 0,
 				move: "move",
 				logLengthBefore: engine.logLength(data) - 1,
-				incrementCredited: true,
 			});
 
 			const afterMove_ = (await colls.games.findOne({ _id: gameId }))?.players[0].remainingTime ?? 0;
@@ -147,19 +138,17 @@ describe("afterMove timing — per-move increment (issue #12)", () => {
 		await colls.games.insertOne(makeGame(gameId));
 
 		// Player 0 stays current and makes a move. Their remainingTime goes up by
-		// the increment (via the route), so their turn DEADLINE — what the frontend
-		// counts down to and what the inactivity auto-cancel reads — must move out.
+		// the increment, so their turn DEADLINE — what the frontend counts down to
+		// and what the inactivity auto-cancel reads — must move out.
 		const before = await colls.games.findOne({ _id: gameId });
 		assert.ok(before);
 		const deadlineBefore = before.currentPlayers?.[0].deadline?.getTime() ?? 0;
 
 		const data = await engine.move(before.data, "move", 0);
-		routeAddIncrement(before, 0);
 		await afterMove(engine, before, data, false, {
 			player: 0,
 			move: "move",
 			logLengthBefore: 0,
-			incrementCredited: true,
 		});
 
 		const result = await colls.games.findOne({ _id: gameId });
@@ -176,5 +165,58 @@ describe("afterMove timing — per-move increment (issue #12)", () => {
 		assert.ok(cp?.timerStart && cp.deadline, "current player has timerStart + deadline");
 		const driftMs = Math.abs(cp.deadline.getTime() - (cp.timerStart.getTime() + rt * 1000));
 		assert.ok(driftMs < 2000, `deadline ≈ timerStart + remainingTime (drift ${driftMs}ms)`);
+	});
+
+	it("credits a repeat mover exactly once, charging elapsed think-time before the increment", async () => {
+		const engine = makeEngine();
+		const gameId = "timer-game-repeat-exactly-once";
+		await colls.games.deleteMany({ _id: gameId });
+		await colls.gameNotifications.deleteMany({ game: gameId });
+		await colls.games.insertOne(makeGame(gameId));
+
+		// Back-date the running clock by 10s of think time.
+		await colls.games.updateOne(
+			{ _id: gameId },
+			{ $set: { "currentPlayers.0.timerStart": new Date(Date.now() - 10000) } },
+		);
+		const game = await colls.games.findOne({ _id: gameId });
+		assert.ok(game);
+
+		const data = await engine.move(game.data, "move", 0);
+		await afterMove(engine, game, data, false, { player: 0, move: "move", logLengthBefore: 0 });
+
+		const rt = (await colls.games.findOne({ _id: gameId }))?.players[0].remainingTime ?? 0;
+		// Charge-then-credit: 150 - ~10 elapsed + 30 increment ≈ 170. A double
+		// credit would give ≈ 200; credit-then-charge would clamp the charge at
+		// the Fischer cap (300) instead of the pre-move 150.
+		assert.ok(
+			Math.abs(rt - (150 - 10 + timePerMove)) <= 2,
+			`expected remainingTime ≈ ${150 - 10 + timePerMove} (elapsed charged, then one increment), got ${rt}`,
+		);
+	});
+
+	it("caps a repeat mover's credit at timePerGame (Fischer cap)", async () => {
+		const engine = makeEngine();
+		const gameId = "timer-game-repeat-capped";
+		await colls.games.deleteMany({ _id: gameId });
+		await colls.gameNotifications.deleteMany({ game: gameId });
+		await colls.games.insertOne(makeGame(gameId));
+
+		// Nearly at the cap already: 290 - ~2 elapsed + 30 would exceed 300.
+		await colls.games.updateOne({ _id: gameId }, { $set: { "players.0.remainingTime": 290 } });
+		const game = await colls.games.findOne({ _id: gameId });
+		assert.ok(game);
+
+		const data = await engine.move(game.data, "move", 0);
+		await afterMove(engine, game, data, false, { player: 0, move: "move", logLengthBefore: 0 });
+
+		const rt = (await colls.games.findOne({ _id: gameId }))?.players[0].remainingTime ?? 0;
+		// Credited (290 - ~2 elapsed + 30 = ~318) then clamped to the cap — not
+		// merely "still under the cap" (which a missing credit would also pass).
+		assert.ok(rt <= timePerGame, `remainingTime must stay capped at ${timePerGame}, got ${rt}`);
+		assert.ok(
+			rt >= timePerGame - 1,
+			`expected remainingTime ≈ ${timePerGame} (increment credited, then clamped to the cap), got ${rt}`,
+		);
 	});
 });
