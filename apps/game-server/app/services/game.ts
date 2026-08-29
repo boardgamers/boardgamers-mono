@@ -465,6 +465,11 @@ export async function afterMove(
 			at: game.lastMove,
 			moveNumber: engine.logLength(gameData),
 		};
+	} else if (game.lastMoveInfo) {
+		// No lastMove (engine replay / data edit): keep the prior lastMoveInfo's
+		// player/move/at, but resync moveNumber to the state's actual log length —
+		// a replay rewinds the game, leaving the stored count stale.
+		game.lastMoveInfo.moveNumber = engine.logLength(gameData);
 	}
 
 	// withAutoUpdatedAt stamps a *copy*, so read the stored `updatedAt` back: the move
