@@ -244,6 +244,16 @@
 				Newsletter
 			</a>
 		{/if}
+		{#if canSee(data.me, "pages")}
+			<a
+				href={resolve("/translations")}
+				class="px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive('/translations')
+					? 'bg-gray-100 dark:bg-gray-800 font-semibold'
+					: ''}"
+			>
+				Translations
+			</a>
+		{/if}
 
 		{#if data.games.length > 0 || can(data.me, "gameinfo")}
 			<div class="mt-4">

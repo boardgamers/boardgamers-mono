@@ -29,6 +29,7 @@ import loki from "./loki.ts";
 import newsletterRouter from "./newsletter.ts";
 import pagesRouter from "./pages.ts";
 import tokensRouter from "./tokens.ts";
+import translationsRouter from "./translations.ts";
 import usersRouter from "./users.ts";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -71,6 +72,14 @@ router.use(
 // their game's CMS pages — every route inside re-checks the page's slug.
 router.use("/page", requireSomeGrant("pages"), pagesRouter.routes(), pagesRouter.allowedMethods());
 router.use("/tokens", requirePermission("tokens"), tokensRouter.routes(), tokensRouter.allowedMethods());
+// /translations gets the subset gate like /page: a per-boardgame admin sees
+// their games' pages/metadata — the overview scopes its rows to the caller.
+router.use(
+	"/translations",
+	requireSomeGrant("pages"),
+	translationsRouter.routes(),
+	translationsRouter.allowedMethods(),
+);
 // /users gets the subset gate, not the blanket one: the per-game beta-grant
 // routes inside (/:userId/access/*) are reachable by per-boardgame admins —
 // everything else in the router is blanket-gated on "users".

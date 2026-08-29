@@ -80,12 +80,21 @@ const langTag = z
 const BULK_TRANSLATE_MAX_PAIRS = 50;
 
 const bulkTranslateJobSchema = z.object({
-	status: z.enum(["running", "done"]),
+	// "error" is terminal too: set when the job loop itself dies (catch path)
+	// or when a "running" job is found stale (server reload — the in-process
+	// loop died with the process). Clients must treat both as finished.
+	status: z.enum(["running", "done", "error"]),
 	total: z.number(),
 	done: z.number(),
 	translated: z.number(),
 	skipped: z.number(),
 	errors: z.array(z.object({ page: z.string(), lang: z.string(), message: z.string() })),
+	// The (page, lang) pair currently being processed — makes a stuck job
+	// self-explaining on the translations dashboard.
+	current: z.object({ page: z.string(), lang: z.string() }).optional(),
+	createdAt: z.date().optional(),
+	updatedAt: z.date().optional(),
+	finishedAt: z.date().optional(),
 });
 
 type BulkTranslateJob = z.infer<typeof bulkTranslateJobSchema>;
@@ -94,26 +103,90 @@ type BulkTranslateJob = z.infer<typeof bulkTranslateJobSchema>;
 // a PM2 cluster, so an in-memory job created by the POST on one worker 404s
 // when the admin's poll lands on another. Settings docs are cheap, admin-only
 // traffic is tiny, and a lost job (process reload) just means re-clicking.
-// Finished jobs are reaped after an hour so the collection can't grow
-// unbounded.
 const BULK_JOB_KEY_PREFIX = "bulkTranslateJob:";
-const BULK_JOB_TTL_MS = 3600_000;
+// A "running" job that hasn't persisted progress in this long is dead — its
+// loop died with a process reload (the job doc outlives the process).
+const BULK_JOB_STALE_MS = 10 * 60_000;
+// Terminal jobs are lazily deleted after 24h when read/listed (no timers —
+// a setTimeout dies with the process and the doc would linger forever).
+const BULK_JOB_REAP_MS = 24 * 3600_000;
+// Upper bound on one pair's LLM work: a hung provider call must not stall
+// the whole job forever. translateMarkdown has its own per-request timeout
+// (env.translation.timeoutMs) — this backstops a hang that outlives it.
+const BULK_PAIR_TIMEOUT_MS = 3 * 60_000;
+
+class PairTimeoutError extends Error {
+	constructor() {
+		super("Pair timed out");
+		this.name = "PairTimeoutError";
+	}
+}
+
+// Race a pair's work against BULK_PAIR_TIMEOUT_MS. The loser keeps running in
+// the background (a resolved promise can't be cancelled) but its result is
+// discarded — the loop moves on to the next pair.
+function withPairTimeout<T>(work: Promise<T>): Promise<T> {
+	let timer: NodeJS.Timeout;
+	return Promise.race([
+		work.finally(() => clearTimeout(timer)),
+		new Promise<never>((_, reject) => {
+			timer = setTimeout(() => reject(new PairTimeoutError()), BULK_PAIR_TIMEOUT_MS);
+			timer.unref();
+		}),
+	]);
+}
+
+// Mark stale "running" jobs "error" and delete old terminal jobs — lazily,
+// on read/list, so reaping survives process reloads without timers. Returns
+// the surviving jobs, each paired with its jobId.
+async function reapAndNormalizeBulkJobs(
+	docs: { _id: string; value: unknown }[],
+): Promise<{ jobId: string; job: BulkTranslateJob }[]> {
+	const now = Date.now();
+	const jobs: { jobId: string; job: BulkTranslateJob }[] = [];
+	for (const doc of docs) {
+		const parsed = bulkTranslateJobSchema.safeParse(doc.value);
+		if (!parsed.success) {
+			continue;
+		}
+		const jobId = doc._id.slice(BULK_JOB_KEY_PREFIX.length);
+		const job = parsed.data;
+		const updatedAt = job.updatedAt?.getTime() ?? job.createdAt?.getTime() ?? now;
+		if (job.status === "running" && now - updatedAt > BULK_JOB_STALE_MS) {
+			job.status = "error";
+			job.finishedAt = new Date(now);
+			job.errors.push({ page: "*", lang: "*", message: "interrupted (server reload)" });
+			await writeBulkJob(jobId, job).catch(() => {});
+		} else if (job.status !== "running" && now - updatedAt > BULK_JOB_REAP_MS) {
+			await colls.settings.deleteOne({ _id: doc._id }).catch(() => {});
+			continue;
+		}
+		jobs.push({ jobId, job });
+	}
+	return jobs;
+}
 
 async function readBulkJob(jobId: string): Promise<BulkTranslateJob | null> {
 	const doc = await colls.settings.findOne({ _id: BULK_JOB_KEY_PREFIX + jobId });
-	const parsed = bulkTranslateJobSchema.safeParse(doc?.value);
-	return parsed.success ? parsed.data : null;
+	if (!doc) {
+		return null;
+	}
+	const [entry] = await reapAndNormalizeBulkJobs([doc]);
+	return entry?.job ?? null;
+}
+
+// Exported for the translations dashboard's aggregate overview endpoint.
+export async function listBulkJobs(): Promise<{ jobId: string; job: BulkTranslateJob }[]> {
+	const docs = await colls.settings.find({ _id: { $regex: `^${BULK_JOB_KEY_PREFIX}` } }).toArray();
+	const jobs = await reapAndNormalizeBulkJobs(docs);
+	return jobs.sort((a, b) => (b.job.createdAt?.getTime() ?? 0) - (a.job.createdAt?.getTime() ?? 0));
 }
 
 async function writeBulkJob(jobId: string, job: BulkTranslateJob): Promise<void> {
+	const now = new Date();
+	job.updatedAt = now;
+	job.createdAt ??= now;
 	await colls.settings.updateOne({ _id: BULK_JOB_KEY_PREFIX + jobId }, { $set: { value: job } }, { upsert: true });
-}
-
-function reapBulkJob(jobId: string) {
-	setTimeout(
-		() => colls.settings.deleteOne({ _id: BULK_JOB_KEY_PREFIX + jobId }).catch(() => {}),
-		BULK_JOB_TTL_MS,
-	).unref();
 }
 
 const bulkTranslateSchema = z
@@ -164,46 +237,66 @@ async function runBulkTranslateJob(
 	editedBy: ObjectId,
 ) {
 	for (const { name, targetLang } of pairs) {
+		job.current = { page: name, lang: targetLang };
+		await writeBulkJob(jobId, job);
 		try {
-			const versions = await colls.pages.find({ "_id.name": name }).toArray();
-			// Keep this in-loop check as a safety net: pages can be edited between
-			// job creation (which pre-filters pairs with the same predicate) and
-			// processing.
-			if (!needsTranslation(versions, targetLang, sourceLang)) {
-				job.skipped++;
-				continue;
-			}
-			// oxlint-disable-next-line typescript/no-non-null-assertion -- needsTranslation guarantees a source in another language
-			const source = resolveSource(versions, sourceLang)!;
-			const [title, content] = await Promise.all([
-				translateMarkdown({
-					text: source.title,
-					sourceLang: source._id.lang,
-					targetLang,
-					context: `title of the "${name}" page`,
-				}),
-				translateMarkdown({
-					text: source.content,
-					sourceLang: source._id.lang,
-					targetLang,
-					context: `content of the "${name}" page`,
-				}),
-			]);
-			await upsertPage(
-				{ name, lang: targetLang },
-				{ title, content, translatedFrom: { lang: source._id.lang, updatedAt: source.updatedAt ?? new Date() } },
-				editedBy,
+			await withPairTimeout(
+				(async () => {
+					const versions = await colls.pages.find({ "_id.name": name }).toArray();
+					// Keep this in-loop check as a safety net: pages can be edited
+					// between job creation (which pre-filters pairs with the same
+					// predicate) and processing.
+					if (!needsTranslation(versions, targetLang, sourceLang)) {
+						job.skipped++;
+						return;
+					}
+					// oxlint-disable-next-line typescript/no-non-null-assertion -- needsTranslation guarantees a source in another language
+					const source = resolveSource(versions, sourceLang)!;
+					const [title, content] = await Promise.all([
+						translateMarkdown({
+							text: source.title,
+							sourceLang: source._id.lang,
+							targetLang,
+							context: `title of the "${name}" page`,
+						}),
+						translateMarkdown({
+							text: source.content,
+							sourceLang: source._id.lang,
+							targetLang,
+							context: `content of the "${name}" page`,
+						}),
+					]);
+					await upsertPage(
+						{ name, lang: targetLang },
+						{
+							title,
+							content,
+							translatedFrom: { lang: source._id.lang, updatedAt: source.updatedAt ?? new Date() },
+						},
+						editedBy,
+					);
+					job.translated++;
+				})(),
 			);
-			job.translated++;
 		} catch (err) {
-			job.errors.push({ page: name, lang: targetLang, message: err instanceof Error ? err.message : String(err) });
+			const message =
+				err instanceof PairTimeoutError
+					? `timed out after ${Math.round(BULK_PAIR_TIMEOUT_MS / 60_000)} min`
+					: err instanceof Error
+						? err.message
+						: String(err);
+			job.errors.push({ page: name, lang: targetLang, message });
 		} finally {
 			job.done++;
 			// Persist progress per pair so polls from other cluster workers see it.
 			await writeBulkJob(jobId, job);
 		}
 	}
+	// `current = undefined` would round-trip through Mongo as null and fail
+	// the schema on the next read — actually remove the key.
+	delete job.current;
 	job.status = "done";
+	job.finishedAt = new Date();
 	await writeBulkJob(jobId, job);
 }
 
@@ -258,9 +351,9 @@ router.post("/translate-bulk", actionRateLimit("admin/translate-bulk"), async (c
 	};
 	const jobId = randomUUID();
 	await writeBulkJob(jobId, job);
-	reapBulkJob(jobId);
 	void runBulkTranslateJob(jobId, job, pairs, sourceLang, ctx.state.user!._id).catch(async (err) => {
-		job.status = "done";
+		job.status = "error";
+		job.finishedAt = new Date();
 		job.errors.push({ page: "*", lang: "*", message: err instanceof Error ? err.message : String(err) });
 		await writeBulkJob(jobId, job).catch(() => {});
 	});
@@ -275,6 +368,15 @@ router.get("/translate-bulk/:jobId", async (ctx) => {
 		throw createError(404, "Job not found");
 	}
 	ctx.body = job;
+});
+
+// All bulk jobs, newest first — the translations dashboard's jobs table.
+// Reaping is lazy: stale "running" jobs come back as "error" (interrupted),
+// terminal jobs older than BULK_JOB_REAP_MS are deleted and omitted.
+// Registered AFTER /translate-bulk/:jobId: koa-router matches in declaration
+// order, and the param route would otherwise swallow this exact path.
+router.get("/translate-bulk", async (ctx) => {
+	ctx.body = (await listBulkJobs()).map(({ jobId, job }) => ({ jobId, ...job }));
 });
 
 router.get("/", async (ctx) => {

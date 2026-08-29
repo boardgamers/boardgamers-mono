@@ -115,14 +115,40 @@ export const api = {
 };
 
 // Bulk page translation job (#306) — POST /admin/page/translate-bulk returns
-// 202 + a job id; poll until status flips to "done".
+// 202 + a job id; poll until the status turns terminal ("done" or "error").
 export interface BulkTranslateJob {
-	status: "running" | "done";
+	status: "running" | "done" | "error";
 	total: number;
 	done: number;
 	translated: number;
 	skipped: number;
 	errors: { page: string; lang: string; message: string }[];
+	current?: { page: string; lang: string };
+	createdAt?: string;
+	updatedAt?: string;
+	finishedAt?: string;
+}
+
+export interface ListedBulkTranslateJob extends BulkTranslateJob {
+	jobId: string;
+}
+
+export interface TranslationsOverview {
+	locales: string[];
+	metaLangs: string[];
+	pages: { name: string; title: string; cells: Record<string, { status: "ok" | "outdated" | "missing" }> }[];
+	games: {
+		game: string;
+		label: string;
+		alias?: string;
+		sourceFields: string[];
+		cells: Record<string, { translated: boolean; fields: string[] }>;
+	}[];
+	jobs: ListedBulkTranslateJob[];
+}
+
+export async function loadTranslationsOverview(): Promise<TranslationsOverview> {
+	return api.get<TranslationsOverview>("/admin/translations/overview");
 }
 
 export async function startBulkTranslate(body: { targetLang: string } | { pageName: string }): Promise<string> {
@@ -140,7 +166,7 @@ export function pollBulkTranslateJob(
 			try {
 				const job = await api.get<BulkTranslateJob>(`/admin/page/translate-bulk/${jobId}`);
 				onProgress?.(job);
-				if (job.status === "done") {
+				if (job.status !== "running") {
 					resolve(job);
 				} else {
 					setTimeout(tick, intervalMs);
