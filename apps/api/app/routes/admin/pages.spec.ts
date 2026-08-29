@@ -734,3 +734,91 @@ describe("Admin pages API — bulk translation (#306)", () => {
 		});
 	});
 });
+
+describe("Admin pages API — translate rate-limit exemption for site admins", () => {
+	const adminId = new ObjectId();
+	const scopedId = new ObjectId();
+	let adminHeaders: Record<string, string>;
+	let scopedHeaders: Record<string, string>;
+
+	// Fake LLM server, same pattern as the translate suites above. Only the
+	// scoped-admin hits reach it (the site admin bypasses the limit by NOT
+	// calling the route at all — see below).
+	let llm: http.Server;
+
+	before(async () => {
+		await Promise.all([colls.pages.deleteMany({}), colls.pageHistories.deleteMany({})]);
+		await colls.users.insertOne(testUser({ _id: adminId, authority: "admin" }));
+		// Per-boardgame admin: may translate their game's pages, but is NOT a
+		// site admin — the LLM-cost guard is meant for them.
+		await colls.users.insertOne(testUser({ _id: scopedId, adminGrants: ["gameinfo:gaia"] }));
+		adminHeaders = await makeAuthHeaders(adminId);
+		scopedHeaders = await makeAuthHeaders(scopedId);
+
+		llm = http.createServer((req, res) => {
+			let raw = "";
+			req.on("data", (chunk) => (raw += chunk));
+			req.on("end", () => {
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse is any; only the shape below is read
+				const body = JSON.parse(raw) as { messages: { role: string; content: string }[] };
+				const user = body.messages.find((m) => m.role === "user")?.content ?? "";
+				res.setHeader("content-type", "application/json");
+				res.end(
+					JSON.stringify({
+						choices: [{ message: { content: `[t] ${user.split("\n\n").at(-1)}` }, finish_reason: "stop" }],
+					}),
+				);
+			});
+		});
+		await new Promise<void>((resolve) => llm.listen(0, "127.0.0.1", resolve));
+		env.translation.apiKey = "test-key";
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- listen(0, "127.0.0.1") binds a TCP port, so the address is an AddressInfo
+		env.translation.baseUrl = `http://127.0.0.1:${(llm.address() as AddressInfo).port}`;
+	});
+
+	after(async () => {
+		env.translation.apiKey = "";
+		env.translation.baseUrl = "https://openrouter.ai/api/v1";
+		await new Promise((resolve) => llm.close(resolve));
+		await db().dropDatabase();
+	});
+
+	it("a site admin exceeds the registered admin/translate-page cap without 429", async () => {
+		// Tighten the registered cap for this test only (the suite-wide setup
+		// relaxed it), so "exceeding the cap" takes 3 hits, not 20.
+		const max = 3;
+		ACTION_RATE_LIMITS["admin/translate-page"] = { max, windowMs: 60_000 };
+		try {
+			// The admin is exempt, so the translate route must never run for them
+			// here: asserting 404 (page rl-missing does not exist) instead of 429
+			// proves the hit sailed past the limiter without paying LLM calls.
+			for (let i = 0; i < max + 2; i++) {
+				const res = await api("POST", "/api/admin/page/rl-missing/en/translate", adminHeaders, { targetLang: "de" });
+				assert.strictEqual(res.status, 404, `hit ${i + 1} must pass the limiter: ${JSON.stringify(res.data)}`);
+			}
+			// …and none of the exempt hits were counted.
+			assert.strictEqual(await colls.userActions.countDocuments({ userId: adminId }), 0);
+		} finally {
+			delete ACTION_RATE_LIMITS["admin/translate-page"];
+		}
+	});
+
+	it("a scoped game admin is still capped at the registered limit", async () => {
+		const max = 3;
+		ACTION_RATE_LIMITS["admin/translate-page"] = { max, windowMs: 60_000 };
+		try {
+			await api("PUT", "/api/admin/page/gaia:rl/en", adminHeaders, {
+				title: "RL",
+				content: "Rate limit me.",
+			});
+			for (let i = 0; i < max; i++) {
+				const res = await api("POST", "/api/admin/page/gaia:rl/en/translate", scopedHeaders, { targetLang: "de" });
+				assert.strictEqual(res.status, 200, `hit ${i + 1} must succeed: ${JSON.stringify(res.data)}`);
+			}
+			const blocked = await api("POST", "/api/admin/page/gaia:rl/en/translate", scopedHeaders, { targetLang: "de" });
+			assert.strictEqual(blocked.status, 429, "the scoped admin hits the cap the site admin bypassed");
+		} finally {
+			delete ACTION_RATE_LIMITS["admin/translate-page"];
+		}
+	});
+});
