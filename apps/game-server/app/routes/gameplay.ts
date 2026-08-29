@@ -2,6 +2,7 @@ import { keyBy } from "@bgs/utils/array";
 import { logEvent } from "@bgs/utils/log";
 import { omit, pick } from "@bgs/utils/object";
 import assert from "node:assert";
+import createError from "http-errors";
 import { ObjectId } from "mongodb";
 import Router from "koa-router";
 import { z } from "zod";
@@ -70,7 +71,13 @@ router.post("/:gameId/replay", isAdmin, async (ctx) => {
 			await afterMove(engine, game, toSave, game.status === "ended");
 			ctx.status = 200;
 		} else {
-			ctx.status = 500;
+			// engine.toSave returned undefined: the replayed-to state is not a clean
+			// save point (e.g. powergrid's newTurn === false mid-turn). Not a server
+			// fault — tell the admin which move to pick instead of a bare 500.
+			throw createError(
+				422,
+				`Replaying to move ${to ?? "the end"} leaves the game in a non-savable state (mid-turn); pick a move that ends a turn`,
+			);
 		}
 	}
 });
