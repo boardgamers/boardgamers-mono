@@ -183,21 +183,12 @@ router.post("/:gameId/move", loggedIn, async (ctx) => {
 		const toSave = engine.toSave ? engine.toSave(gameData) : gameData;
 
 		if (toSave) {
-			const { timePerMove, timePerGame } = game.options.timing;
-			const player = game.players[playerIndex];
-			// For fast games, add time back every move. afterMove must then skip its
-			// own increment for the mover (incrementCredited), else alternating movers
-			// get it twice (Codeberg #311).
-			const incrementCredited =
-				timePerMove !== undefined && timePerGame !== undefined && player !== undefined && timePerMove <= 15 * 60;
-			if (incrementCredited) {
-				player.remainingTime = Math.min(timePerGame, (player.remainingTime ?? timePerGame) + timePerMove);
-			}
+			// The per-move increment is credited by afterMove (single layer — see the
+			// creditIncrement helper there); the route deliberately stays out of it.
 			await afterMove(engine, game, toSave, false, {
 				player: playerIndex,
 				move,
 				logLengthBefore: initialLogIndex,
-				incrementCredited,
 			});
 		}
 

@@ -360,7 +360,7 @@ export async function afterMove(
 	game: GameDoc,
 	gameData: GameData,
 	alreadyEnded = false,
-	lastMove?: { player: number; move: unknown; logLengthBefore?: number; incrementCredited?: boolean },
+	lastMove?: { player: number; move: unknown; logLengthBefore?: number },
 ) {
 	// No-op when the caller already passed a tracked engine (its more specific
 	// attribution — acting player + raw move — wins).
@@ -377,6 +377,22 @@ export async function afterMove(
 	const { timePerGame, timePerMove, timer } = game.options.timing;
 
 	gameData = await handleMessages(engine, game._id, gameData);
+
+	// The per-move (Fischer) increment lives here and only here: the mover of a
+	// real saved move (lastMove set — route and bot moves; replays, data edits
+	// and drop/quit pass none) is credited exactly once, whether they leave the
+	// current-player set or stay in it (repeat mover, #12). Charge-then-credit
+	// keeps the credit if the elapsed charge floored at 0 — a repeat mover who
+	// flag-fell already loses the game to the deadline watchdog.
+	const creditIncrement = (player: (typeof game.players)[number]) => {
+		if (lastMove === undefined || !player._id.equals(game.players[lastMove.player]?._id)) {
+			return;
+		}
+		player.remainingTime = Math.max(
+			Math.min(timePerGame ?? Number.POSITIVE_INFINITY, (player.remainingTime ?? 0) + (timePerMove ?? 0)),
+			timePerMove ?? 0,
+		);
+	};
 
 	if (engine.round) {
 		const round = engine.round(gameData);
@@ -420,13 +436,15 @@ export async function afterMove(
 			assert(player, `No player at index ${playerNumber}`);
 			const oldPlayer = oldPlayers.find((p) => p._id.equals(player._id));
 			if (oldPlayer) {
-				// Mover is still current (issue #12): charge elapsed think-time, then
-				// restart clock + deadline from the already-incremented remainingTime,
-				// else the deadline stays frozen and they get dropped mid-game.
+				// Mover is still current (issue #12): charge elapsed think-time,
+				// credit the increment, then restart clock + deadline from the new
+				// remainingTime, else the deadline stays frozen and they get dropped
+				// mid-game.
 				player.remainingTime = Math.max(
 					(player.remainingTime ?? timePerGame ?? 0) - elapsedSeconds(oldPlayer.timerStart, timer),
 					0,
 				);
+				creditIncrement(player);
 				return {
 					_id: player._id,
 					timerStart: new Date(),
@@ -473,19 +491,9 @@ export async function afterMove(
 			player.remainingTime = (player.remainingTime ?? timePerGame ?? 0) - elapsedSeconds(oldPlayer.timerStart, timer);
 
 			if (!player.dropped) {
-				// The /move route pre-credits the mover's increment for short games
-				// (gameplay.ts "add time back every move") and says so via
-				// incrementCredited — don't add it a second time (Codeberg #311).
-				// Callers without the pre-credit (bot moves, replays) get it here.
-				const routeCredited = lastMove?.incrementCredited === true;
-				if (!routeCredited) {
-					player.remainingTime += timePerMove ?? 0;
-				}
-
-				player.remainingTime = Math.max(
-					Math.min(timePerGame ?? player.remainingTime, player.remainingTime),
-					timePerMove ?? 0,
-				);
+				// Exactly the mover gets the increment, exactly once (Codeberg #311
+				// was the route and this block both crediting an alternating mover).
+				creditIncrement(player);
 			}
 		}
 	}
