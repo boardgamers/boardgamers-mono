@@ -212,6 +212,7 @@
 	"gameSidebar.drop": "Exclure {player}",
 	"gameSidebar.expansions": "Extensions",
 	"gameSidebar.gameEnded": "Partie terminée !",
+	"gameSidebar.gamePage": "Page du jeu",
 	"gameSidebar.log": "Historique",
 	"gameSidebar.notes": "Notes",
 	"gameSidebar.quit": "Abandonner",
