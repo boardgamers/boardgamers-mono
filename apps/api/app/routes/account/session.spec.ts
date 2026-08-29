@@ -80,7 +80,7 @@ describe("POST /account/session — one-time code exchange (admin login-as hando
 
 		const results = await Promise.all(Array.from({ length: 5 }, () => exchange(raceCode)));
 		assert.deepEqual(
-			results.map((r) => r.status).sort(),
+			results.map((r) => r.status).sort((a, b) => a - b),
 			[200, 404, 404, 404, 404],
 			"one exchange mints a session, the rest 404",
 		);
