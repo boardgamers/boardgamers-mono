@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
+	import ExpandableText from "@/components/ExpandableText.svelte";
 	import FeedbackLikeButton from "@/components/FeedbackLikeButton.svelte";
 	import FeedbackRequestForm from "@/components/FeedbackRequestForm.svelte";
 	import ForumLinkGate, { type ForumLinkGate as ForumLinkGateHandle } from "@/components/ForumLinkGate.svelte";
@@ -121,9 +122,9 @@
 										<p class="text-xs text-gray-500 dark:text-gray-400">{gameBasedOnLabel(request)}</p>
 									{/if}
 									{#if request.description}
-										<p class="mt-1 text-sm whitespace-pre-line text-gray-600 dark:text-gray-400">
-											{request.description}
-										</p>
+										<div class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+											<ExpandableText text={request.description} />
+										</div>
 									{/if}
 								</div>
 								<FeedbackLikeButton
@@ -253,7 +254,9 @@
 										<Badge color={status.color}>{status.label}</Badge>
 									</div>
 									{#if request.body}
-										<p class="mt-1 text-sm whitespace-pre-line text-gray-600 dark:text-gray-400">{request.body}</p>
+										<div class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+											<ExpandableText text={request.body} />
+										</div>
 									{/if}
 								</div>
 								<FeedbackLikeButton

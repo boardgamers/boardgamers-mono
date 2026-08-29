@@ -1,10 +1,7 @@
 <script lang="ts">
-	import marked from "marked";
-
-	import SanitizedHtml from "./SanitizedHtml.svelte";
 	import { m } from "@/lib/i18n/messages";
 
-	let { markdown, lines = 5 }: { markdown?: string; lines?: number } = $props();
+	let { text, lines = 5 }: { text: string; lines?: number } = $props();
 
 	let expanded = $state(false);
 
@@ -17,12 +14,10 @@
 
 	// SSR-friendly heuristic: show the toggle when the source is long enough to overflow
 	// the clamp (DOM measurement would only work after hydration, causing a pop-in).
-	let long = $derived((markdown ?? "").length > lines * 60);
+	let long = $derived(text.length > lines * 60);
 </script>
 
-<div class="prose dark:prose-invert max-w-none {expanded || !long ? '' : lineClamp[lines]}">
-	<SanitizedHtml html={marked(markdown ?? "")} />
-</div>
+<p class="whitespace-pre-line {expanded || !long ? '' : lineClamp[lines]}">{text}</p>
 {#if long}
 	<button
 		type="button"
