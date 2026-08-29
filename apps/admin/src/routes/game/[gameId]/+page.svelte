@@ -285,12 +285,17 @@
 			<h3 class="text-sm font-semibold">Game Management</h3>
 			<div>
 				<label class="block text-xs font-medium text-gray-500 mb-1" for="replay-to">Replay to move #</label>
-				<input
-					id="replay-to"
-					type="number"
-					bind:value={replayTo}
-					class="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-				/>
+				<div class="flex items-center gap-2">
+					<input
+						id="replay-to"
+						type="number"
+						bind:value={replayTo}
+						class="w-24 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+					/>
+					{#if game.lastMoveInfo}
+						<span class="text-xs text-gray-500 dark:text-gray-400">/ {game.lastMoveInfo.moveNumber} moves</span>
+					{/if}
+				</div>
 			</div>
 			{#if showJsonEditor}
 				<div>
