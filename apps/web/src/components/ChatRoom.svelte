@@ -3,7 +3,7 @@
 	import { get, post } from "@/lib/api";
 	import { Modal, ModalHeader, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
 	import IconChat from "@/components/icons/IconChat.svelte";
-	import { dateFromObjectId, handleError } from "@/utils";
+	import { countUnreadMessages, dateFromObjectId, handleError } from "@/utils";
 	import { fly } from "svelte/transition";
 	import UserAvatar from "./User/UserAvatar.svelte";
 	import UsernameLink from "./User/UsernameLink.svelte";
@@ -90,10 +90,7 @@
 		room;
 		loadLastRead();
 	});
-	let unreadMessages = $derived(
-		$chatMessages.filter((msg) => msg.type !== "system" && !!msg._id && dateFromObjectId(msg._id).getTime() > lastRead)
-			.length
-	);
+	let unreadMessages = $derived(countUnreadMessages($chatMessages, lastRead, userId));
 
 	// Close on Escape while the chat is open.
 	$effect(() => {
