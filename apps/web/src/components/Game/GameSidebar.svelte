@@ -191,9 +191,8 @@
 	{#if rulesPage}
 		<div class="mt-1 flex items-center">
 			<IconBook class="me-1" />
-			<a
-				href={resolve("/(app)/page/[part1]/[...part2]", { part1: game.game.name, part2: "rules" })}
-				title={rulesPage.title}>{m.gameSidebar_rules()}</a
+			<a href={resolve("/(app)/page/[part1]/[...part2]", { part1: game.game.name, part2: "rules" })}
+				>{m.gameSidebar_rules()}</a
 			>
 		</div>
 	{/if}

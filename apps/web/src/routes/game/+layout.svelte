@@ -25,7 +25,9 @@
 	let gameInfo = $derived(page.data.gameInfo as GameInfoFront | undefined);
 	let settings = $derived((page.data.settings as Record<string, unknown> | null | undefined) ?? null);
 	let viewerUserId = $derived((page.data.viewerUserId as string | null | undefined) ?? null);
-	let rulesPage = $derived((page.data.rulesPage as { title: string } | null | undefined) ?? null);
+	let rulesPage = $derived((page.data.rulesPage as boolean | undefined) ?? false);
+	let settingsPage = $derived((page.data.settingsPage as boolean | undefined) ?? false);
+	let preferencesPage = $derived((page.data.preferencesPage as boolean | undefined) ?? false);
 
 	let gameId = $derived(game?._id);
 	$effect(() => {
@@ -41,7 +43,9 @@
 		gameInfo: (page.data.gameInfo as GameInfoFront) ?? null,
 		settings: (page.data.settings as Record<string, unknown> | null) ?? null,
 		viewerUserId: (page.data.viewerUserId as string | null) ?? null,
-		rulesPage: (page.data.rulesPage as { title: string } | null) ?? null,
+		rulesPage: (page.data.rulesPage as boolean) ?? false,
+		settingsPage: (page.data.settingsPage as boolean) ?? false,
+		preferencesPage: (page.data.preferencesPage as boolean) ?? false,
 		replayData: null as { start: number; end: number; current: number } | null,
 		emitter: new EventEmitter(),
 		log: [] as string[],
@@ -57,6 +61,8 @@
 		context.settings = settings;
 		context.viewerUserId = viewerUserId;
 		context.rulesPage = rulesPage;
+		context.settingsPage = settingsPage;
+		context.preferencesPage = preferencesPage;
 	});
 
 	// Client-side: the head's og:title/og:description track the live game (status, round,

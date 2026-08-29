@@ -1,6 +1,8 @@
-// The game page's load probes the `<game>:rules` CMS page so the sidebar can show a
-// "Rules" link when it exists. The probe must be non-fatal: a 404 (no rules page) or a
-// pages-api failure means "no link", never a broken game page.
+// The game page's load makes ONE existence probe (`/page/_exists?names=…`) covering the
+// `<game>:rules` / `:settings` / `:preferences` CMS pages, so the sidebar shows the
+// "Rules" link and the Settings/Preferences "i" links only when the target page exists
+// (#429). The probe must be non-fatal: a pages-api failure means "no links", never a
+// broken game page.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api", () => ({ get: vi.fn() }));
@@ -19,13 +21,15 @@ const GAME = {
 	options: { setup: { nbPlayers: 2 }, timing: { timer: { start: 0, end: 0 } } },
 };
 
-function mockApi({ rules = null as null | { title: string }, rulesError = null as null | Error } = {}) {
+const EXISTS_URL = "/page/_exists?names=powergrid:rules,powergrid:settings,powergrid:preferences";
+
+function mockApi({ exists = [] as string[], existsError = null as null | Error } = {}) {
 	getMock.mockImplementation((url: string) => {
-		if (url === "/page/powergrid:rules") {
-			if (rulesError) {
-				return Promise.reject(rulesError) as never;
+		if (url === EXISTS_URL) {
+			if (existsError) {
+				return Promise.reject(existsError) as never;
 			}
-			return rules ? (Promise.resolve(rules) as never) : (Promise.reject(new Error("Not Found")) as never);
+			return Promise.resolve({ exists }) as never;
 		}
 		if (url === "/gameplay/g1") {
 			return Promise.resolve(GAME) as never;
@@ -52,38 +56,56 @@ async function runLoad() {
 	// collapses the return type away from the load's actual data shape.
 	return data as Awaited<ReturnType<typeof load>> & {
 		game: unknown;
-		rulesPage: { title: string } | null;
+		rulesPage: boolean;
+		settingsPage: boolean;
+		preferencesPage: boolean;
 	};
 }
 
-describe("game page load — rules page probe", () => {
+describe("game page load — sidebar CMS page existence probe (#429)", () => {
 	beforeEach(() => {
 		getMock.mockReset();
 	});
 
-	it("returns the rules page title when the <game>:rules CMS page exists", async () => {
-		mockApi({ rules: { title: "Power Grid rules" } });
+	it("probes all three sidebar pages in a single _exists call", async () => {
+		mockApi({ exists: ["powergrid:rules", "powergrid:settings", "powergrid:preferences"] });
 
 		const data = await runLoad();
 
-		expect(getMock).toHaveBeenCalledWith("/page/powergrid:rules");
-		expect(data.rulesPage).toEqual({ title: "Power Grid rules" });
+		expect(getMock).toHaveBeenCalledWith(EXISTS_URL);
+		expect(data.rulesPage).toBe(true);
+		expect(data.settingsPage).toBe(true);
+		expect(data.preferencesPage).toBe(true);
 	});
 
-	it("returns null when the rules page does not exist (404)", async () => {
-		mockApi();
+	it("flags only the pages that exist", async () => {
+		mockApi({ exists: ["powergrid:settings"] });
 
 		const data = await runLoad();
 
-		expect(data.rulesPage).toBeNull();
+		expect(data.rulesPage).toBe(false);
+		expect(data.settingsPage).toBe(true);
+		expect(data.preferencesPage).toBe(false);
 	});
 
-	it("returns null when the pages api fails, without breaking the game page", async () => {
-		mockApi({ rulesError: new Error("connection reset") });
+	it("returns false for all three when none of the pages exist", async () => {
+		mockApi({ exists: [] });
 
 		const data = await runLoad();
 
-		expect(data.rulesPage).toBeNull();
+		expect(data.rulesPage).toBe(false);
+		expect(data.settingsPage).toBe(false);
+		expect(data.preferencesPage).toBe(false);
+	});
+
+	it("hides all links when the pages api fails, without breaking the game page", async () => {
+		mockApi({ existsError: new Error("connection reset") });
+
+		const data = await runLoad();
+
+		expect(data.rulesPage).toBe(false);
+		expect(data.settingsPage).toBe(false);
+		expect(data.preferencesPage).toBe(false);
 		expect(data.game).toMatchObject({ _id: "g1" });
 	});
 });
