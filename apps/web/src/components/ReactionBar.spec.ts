@@ -27,9 +27,9 @@ function mountBar(props = {}) {
 	return { target, instance };
 }
 
-// The chips row is the only non-picker flex-wrap container (the picker carries role=menu).
+// The chips row is the only element anchored below the bubble (the picker opens above, bottom-full).
 function chipsRow(target: HTMLElement): HTMLDivElement | null {
-	return target.querySelector<HTMLDivElement>('div.flex-wrap:not([role="menu"])');
+	return target.querySelector<HTMLDivElement>("div.top-full");
 }
 
 function chips(target: HTMLElement): HTMLButtonElement[] {
@@ -70,23 +70,43 @@ describe("ReactionBar", () => {
 	});
 
 	// Layout itself is browser-verified (jsdom has no layout) — assert the classes
-	// that implement the overlap: pulled up over the bubble's bottom edge, in flow,
-	// left-inset for received messages and mirrored bottom-right for own ones.
-	it("overlaps the bubble edge, mirrored for own messages", () => {
+	// that implement the overlay: absolutely positioned (zero impact on flow),
+	// overlapping the bubble's bottom edge by the -mt-2 look, painted above
+	// neighbours, left-inset for received messages and mirrored for own ones.
+	it("overlays the bubble edge out of flow, mirrored for own messages", () => {
 		chatReactions.set({ m1: [{ emoji: "👍", users: [{ _id: "u1", name: "alice" }] }] });
 		const { target, instance } = mountBar();
 		const row = chipsRow(target)!;
-		expect(row.className).toContain("-mt-2.5");
-		expect(row.className).toContain("relative");
-		expect(row.className).toContain("ml-1.5");
-		expect(row.className).not.toContain("justify-end");
+		expect(row.className).toContain("absolute");
+		expect(row.className).toContain("top-full");
+		expect(row.className).toContain("-mt-2");
+		expect(row.className).toContain("z-[1]");
+		expect(row.className).toContain("left-1.5");
+		expect(row.className).not.toContain("right-1.5");
 		unmount(instance);
 
 		const { target: mineTarget, instance: mineInstance } = mountBar({ mine: true });
 		const mineRow = chipsRow(mineTarget)!;
-		expect(mineRow.className).toContain("justify-end");
-		expect(mineRow.className).toContain("mr-1.5");
+		expect(mineRow.className).toContain("right-1.5");
+		expect(mineRow.className).not.toContain("left-1.5");
 		unmount(mineInstance);
+	});
+
+	// The overlay must stay a single line: past the cap the remaining groups fold
+	// into a non-interactive "+N" chip whose tooltip lists them.
+	it("caps visible chips and folds the rest into a +N chip", () => {
+		const emojis = ["👍", "🎉", "😂", "❤️", "😮", "😢", "🔥"];
+		chatReactions.set({
+			m1: emojis.map((emoji) => ({ emoji, users: [{ _id: "u1", name: "alice" }] })),
+		});
+		const { target, instance } = mountBar();
+		const rendered = chips(target);
+		expect(rendered).toHaveLength(4);
+		const overflow = chipsRow(target)!.querySelector("span[title]")!;
+		expect(overflow.textContent).toContain("+3");
+		expect(overflow.getAttribute("title")).toContain("😢");
+		expect(overflow.getAttribute("title")).toContain("🔥");
+		unmount(instance);
 	});
 
 	it("shows no add-reaction affordance and disabled chips when logged out", () => {
