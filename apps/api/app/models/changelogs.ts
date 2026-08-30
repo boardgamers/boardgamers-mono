@@ -2,6 +2,7 @@ import { type ChangelogDoc, SettingsKey, announcementSchema, changelogSchema } f
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { colls } from "../config/db.ts";
+import { applyChangelogTranslation } from "./changelog-i18n.ts";
 
 // Admin create/update payload: `content` is the short one-liner (the entry itself),
 // `details`/`github` are optional extras rendered on /changelog only.
@@ -15,20 +16,24 @@ export const changelogInputSchema = changelogSchema
 // How many entries the homepage announcement box stitches together.
 export const ANNOUNCEMENT_ENTRY_COUNT = 4;
 
-// Both public listing and the announcement read newest-first.
-export async function latestChangelogs(limit: number, before?: Date): Promise<ChangelogDoc[]> {
-	return colls.changelogs
+// Both public listing and the announcement read newest-first. `lang` (a base
+// subtag from `requestLanguage`) localizes content/details per entry with
+// per-field English fallback; the `translations` map itself never leaves the
+// api (public clients keep the pre-#306 payload shape).
+export async function latestChangelogs(limit: number, before?: Date, lang = "en"): Promise<ChangelogDoc[]> {
+	const entries = await colls.changelogs
 		.find({ published: true, ...(before ? { createdAt: { $lt: before } } : {}) })
 		.sort({ createdAt: -1 })
 		.limit(limit)
 		.toArray();
+	return entries.map((entry) => applyChangelogTranslation(entry, lang));
 }
 
 // The announcement box is now a view over the changelog: the latest entries'
 // one-liners, joined back together. The box header ("Recent changes") is fixed
 // in the homepage markup.
-export async function announcementFromChangelog(): Promise<{ content: string } | undefined> {
-	const entries = await latestChangelogs(ANNOUNCEMENT_ENTRY_COUNT);
+export async function announcementFromChangelog(lang = "en"): Promise<{ content: string } | undefined> {
+	const entries = await latestChangelogs(ANNOUNCEMENT_ENTRY_COUNT, undefined, lang);
 	if (entries.length === 0) {
 		return undefined;
 	}

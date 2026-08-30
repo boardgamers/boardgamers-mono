@@ -4,6 +4,7 @@
 	import {
 		loadTranslationsOverview,
 		startBulkTranslate,
+		startChangelogBulkTranslate,
 		startMetadataBulkTranslate,
 		type ListedBulkTranslateJob,
 	} from "$lib/api.ts";
@@ -57,6 +58,27 @@
 		} finally {
 			metaRefreshing[key] = false;
 		}
+	}
+
+	// Key "" = the "all missing/outdated changelog pairs" run.
+	let changelogRefreshing = $state<Record<string, boolean>>({});
+
+	async function refreshChangelog(key: string, targetLang?: string) {
+		if (changelogRefreshing[key]) return;
+		changelogRefreshing[key] = true;
+		try {
+			await startChangelogBulkTranslate(targetLang ? { targetLang } : {});
+			await invalidateAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Bulk changelog translation failed");
+		} finally {
+			changelogRefreshing[key] = false;
+		}
+	}
+
+	function changelogCellTitle(lang: string, cell?: { ok: number; outdated: number; missing: number; unknown: number }) {
+		if (!cell) return `${lang}: no data`;
+		return `${lang}: ${cell.ok} fresh, ${cell.outdated} outdated, ${cell.missing} missing${cell.unknown ? `, ${cell.unknown} unknown` : ""}`;
 	}
 
 	// Jobs table pagination: client-side (the list is small — terminal jobs
@@ -377,5 +399,79 @@
 				>
 			</div>
 		</section>
+
+		<!-- Changelog -->
+		{#if overview.changelog}
+			<section class="mt-10">
+				<div class="flex items-baseline gap-3 mb-1">
+					<h2 class="text-lg font-semibold">Changelog</h2>
+					{#if can(me, "changelog")}
+						<button
+							onclick={() => refreshChangelog("")}
+							disabled={!!changelogRefreshing[""]}
+							title="LLM-translate every published changelog entry's missing or outdated languages"
+							class="text-xs rounded border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 px-2 py-0.5 hover:bg-violet-50 dark:hover:bg-violet-950 disabled:opacity-50"
+						>
+							{changelogRefreshing[""] ? "starting…" : "translate all missing"}
+						</button>
+					{/if}
+				</div>
+				<p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+					Coverage over the {overview.changelog.total} published entries (drafts are translated when published). Each cell
+					counts entries translated into that language; publishing an entry auto-translates it.
+				</p>
+				<div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
+					<table class="text-sm">
+						<thead>
+							<tr
+								class="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-gray-200 dark:border-gray-800"
+							>
+								<th class="px-3 py-2 sticky left-0 bg-white dark:bg-gray-900">Entries</th>
+								{#each overview.metaLangs as lang (lang)}
+									<th class="px-2 py-2 text-center">
+										<div>{lang}</div>
+										{#if can(me, "changelog")}
+											<button
+												onclick={() => refreshChangelog(lang, lang)}
+												disabled={!!changelogRefreshing[lang]}
+												title="LLM-translate every published entry missing or outdated in {lang}"
+												class="mt-0.5 text-[10px] font-normal normal-case rounded border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 px-1 py-px hover:bg-violet-50 dark:hover:bg-violet-950 disabled:opacity-50"
+											>
+												{changelogRefreshing[lang] ? "…" : "translate"}
+											</button>
+										{/if}
+									</th>
+								{/each}
+							</tr>
+						</thead>
+						<tbody>
+							<tr class="border-b border-gray-100 dark:border-gray-800/60">
+								<td class="px-3 py-1.5 sticky left-0 bg-white dark:bg-gray-900 whitespace-nowrap">
+									{overview.changelog.total} published
+								</td>
+								{#each overview.metaLangs as lang (lang)}
+									{@const cell = overview.changelog.cells[lang]}
+									{@const translated = (cell?.ok ?? 0) + (cell?.unknown ?? 0)}
+									{@const stale = (cell?.outdated ?? 0) + (cell?.missing ?? 0)}
+									<td class="px-1 py-1 text-center">
+										<span
+											title={changelogCellTitle(lang, cell)}
+											class="inline-block min-w-6 h-6 px-1 rounded text-[10px] leading-6 font-medium tabular-nums {stale ===
+											0
+												? cellCls.ok
+												: translated > 0 || (cell?.outdated ?? 0) > 0
+													? cellCls.outdated
+													: cellCls.missing}"
+										>
+											{translated}/{overview.changelog.total}
+										</span>
+									</td>
+								{/each}
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</section>
+		{/if}
 	{/if}
 </div>

@@ -2,6 +2,7 @@ import type { Context } from "koa";
 import Router from "koa-router";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
+import { requestLanguage } from "../../models/changelog-i18n.ts";
 import {
 	ANNOUNCEMENT_ENTRY_COUNT,
 	announcementFromChangelog,
@@ -18,7 +19,9 @@ const changelogQuerySchema = z.object({
 	before: z.iso.datetime().optional(),
 });
 
-// GET /api/site/changelog — latest published entries, newest first.
+// GET /api/site/changelog — latest published entries, newest first, localized
+// to the request's content language (#306: lang cookie → Accept-Language →
+// "en", base subtag; per-field English fallback — see models/changelog-i18n).
 // Lazily backfills from the legacy announcement blob when the collection is
 // empty: pre-#184 dbs get their history without waiting for api-cron, and the
 // migration's own empty check makes the seed-once guarantee race-safe.
@@ -27,16 +30,18 @@ router.get("/changelog", async (ctx) => {
 	if (!before) {
 		await seedChangelogsFromAnnouncement();
 	}
-	ctx.body = await latestChangelogs(limit, before ? new Date(before) : undefined);
+	ctx.body = await latestChangelogs(limit, before ? new Date(before) : undefined, requestLanguage(ctx));
 });
 
 // The homepage announcement box: the latest changelog one-liners joined into
-// { content } (the "Recent changes" header is fixed in the homepage markup).
-// Falls back to the stored legacy blob when there are no entries at all (e.g.
-// an announcement written by hand but never migrated).
+// { content } (the "Recent changes" header is fixed in the homepage markup),
+// localized like /changelog above. Falls back to the stored legacy blob when
+// there are no entries at all (e.g. an announcement written by hand but never
+// migrated).
 router.get("/announcement", async (ctx) => {
 	ctx.body =
-		(await announcementFromChangelog()) ?? (await colls.settings.findOne({ _id: SettingsKey.Announcement }))?.value;
+		(await announcementFromChangelog(requestLanguage(ctx))) ??
+		(await colls.settings.findOne({ _id: SettingsKey.Announcement }))?.value;
 });
 
 const errorReportSchema = z.object({

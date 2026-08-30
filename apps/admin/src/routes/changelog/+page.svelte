@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from "$app/navigation";
-	import { api } from "$lib/api.ts";
+	import { api, pollBulkTranslateJob, startChangelogBulkTranslate } from "$lib/api.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { timeAgo } from "$lib/utils.ts";
 	import MarkdownEditor from "$components/MarkdownEditor.svelte";
@@ -84,6 +84,35 @@
 		}
 	}
 
+	// Per-entry LLM translation (#306 follow-up): fire the bulk job scoped to
+	// this entry (all missing/outdated languages), poll it to completion, then
+	// refresh so the languages badge updates. Publishing auto-translates too —
+	// this button covers older entries and re-translation after an edit.
+	let translating = $state<Record<string, boolean>>({});
+
+	async function translate(entry: ChangelogFront) {
+		if (translating[entry._id]) return;
+		translating[entry._id] = true;
+		try {
+			const { jobId, total } = await startChangelogBulkTranslate({ entryId: entry._id });
+			if (total === 0) {
+				toast.success("Already translated into every language");
+				return;
+			}
+			const job = await pollBulkTranslateJob(jobId, undefined, 1500, "/admin/changelog/translate-bulk");
+			if (job.status === "error" || job.errors.length > 0) {
+				toast.error(`Translated ${job.translated}/${job.total} — ${job.errors.length} error(s), see the dashboard`);
+			} else {
+				toast.success(`Translated into ${job.translated} language${job.translated === 1 ? "" : "s"}`);
+			}
+			await invalidateAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Translation failed");
+		} finally {
+			translating[entry._id] = false;
+		}
+	}
+
 	async function remove(entry: ChangelogFront) {
 		if (!confirm(`Delete "${entry.content}"? This cannot be undone.`)) return;
 		try {
@@ -107,7 +136,8 @@
 			Entries shown on the homepage's "Recent changes" box (latest 4) and on the
 			<WebLink path="/changelog">public changelog page</WebLink>. An entry is a short one-liner (emoji + description);
 			`details` and the GitHub link are optional and only shown on the changelog page. Drafts stay hidden until
-			published.
+			published. Publishing auto-translates the entry into every supported language (LLM); visitors get their language
+			with English fallback.
 		</p>
 	</div>
 
@@ -228,6 +258,17 @@
 												details
 											</span>
 										{/if}
+										{#if Object.keys(entry.translations ?? {}).length > 0}
+											<span
+												class="px-2 py-0.5 text-xs font-medium rounded-full bg-violet-50 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300"
+												title="Translated into: {Object.keys(entry.translations ?? {}).join(', ')}"
+											>
+												{Object.keys(entry.translations ?? {}).length} lang{Object.keys(entry.translations ?? {})
+													.length === 1
+													? ""
+													: "s"}
+											</span>
+										{/if}
 										{#if entry.github}
 											<!-- eslint-disable svelte/no-navigation-without-resolve -- external URL from the entry (target=_blank), resolve() is for internal paths; the rule's report range spans the whole multi-line tag -->
 											<a
@@ -246,6 +287,16 @@
 									</div>
 								</div>
 								<div class="flex gap-2 flex-shrink-0">
+									{#if entry.published}
+										<button
+											onclick={() => translate(entry)}
+											disabled={!!translating[entry._id]}
+											title="LLM-translate this entry into every missing or outdated language"
+											class="px-3 py-1.5 text-xs font-medium rounded-lg border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950 disabled:opacity-50"
+										>
+											{translating[entry._id] ? "Translating…" : "Translate"}
+										</button>
+									{/if}
 									<button
 										onclick={() => togglePublished(entry)}
 										class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"

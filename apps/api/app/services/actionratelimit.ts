@@ -69,12 +69,17 @@ export const ACTION_RATE_LIMITS: Record<string, ActionRateLimitOptions> = {
 	// per hour (mirrors translate-bulk's 5/h). Site admins exempt — see
 	// SITE_ADMIN_BYPASSED_ACTIONS.
 	"admin/translate-metadata-bulk": { max: 5, windowMs: 60 * 60 * 1000 },
+	// POST /admin/changelog/translate-bulk (#306 follow-up) — one run is up to
+	// BULK_CHANGELOG_MAX_PAIRS × two paid LLM completions (content + details),
+	// so mirror translate-bulk's 5/h. Site admins exempt — see
+	// SITE_ADMIN_BYPASSED_ACTIONS.
+	"admin/translate-changelog-bulk": { max: 5, windowMs: 60 * 60 * 1000 },
 };
 
 // Actions a site admin (authority === "admin") performs without hitting the
-// rate limit, enforced in the actionRateLimit middleware. The four
+// rate limit, enforced in the actionRateLimit middleware. The
 // admin/translate-* caps are an LLM-cost guard aimed at scoped admins
-// (per-boardgame "gameinfo:<slug>" and "pages" grantees), who stay capped;
+// (per-boardgame "gameinfo:<slug>", "pages" and "changelog" grantees), who stay capped;
 // the site owner pays the LLM bill and runs platform-wide translation
 // maintenance that would otherwise stall on the 5/h bulk caps. Deliberately
 // NOT extended to other actions: account/email, feedback, etc. keep applying
@@ -85,6 +90,7 @@ const SITE_ADMIN_BYPASSED_ACTIONS = new Set([
 	"admin/translate-gameinfo",
 	"admin/translate-gameinfo-bulk",
 	"admin/translate-metadata-bulk",
+	"admin/translate-changelog-bulk",
 ]);
 
 let testLimits: ActionRateLimitOptions | null = null;
