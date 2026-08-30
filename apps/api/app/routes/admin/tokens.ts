@@ -5,6 +5,7 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
 import { createAdminToken, MAX_ADMIN_TOKEN_TTL_MS } from "../../models/index.ts";
+import { auditLog } from "./audit.ts";
 
 const DAY_MS = 24 * 3600 * 1000;
 const MAX_TTL_DAYS = MAX_ADMIN_TOKEN_TTL_MS / DAY_MS;
@@ -29,6 +30,8 @@ router.post("/", async (ctx) => {
 
 	const { doc, token } = await createAdminToken(ctx.state.user!._id, name, ttlDays * DAY_MS);
 
+	// Only the token's name/ttl are audited — never the raw token value.
+	auditLog(ctx, "token.create", { kind: "adminToken", id: doc._id.toHexString(), label: name }, { ttlDays });
 	ctx.status = 201;
 	ctx.body = {
 		_id: doc._id,
@@ -61,6 +64,7 @@ router.delete("/:id", async (ctx) => {
 		throw createError(404, "Token not found");
 	}
 
+	auditLog(ctx, "token.revoke", { kind: "adminToken", id: ctx.params.id });
 	ctx.status = 200;
 });
 

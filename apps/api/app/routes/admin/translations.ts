@@ -9,6 +9,7 @@ import { changelogSourceHash, changelogSourceStrings } from "../../models/change
 import { metadataNeedsTranslation, metadataSourceHash, metadataSourceStrings } from "../../models/gameinfo-i18n.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { translateMarkdown } from "../../services/translate.ts";
+import { auditLog } from "./audit.ts";
 import { type BulkTranslateJob, listBulkJobs, startBulkJob, writeBulkJob } from "./bulkjob.ts";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -226,6 +227,7 @@ router.post("/translate-metadata-bulk", actionRateLimit("admin/translate-metadat
 	};
 	const jobId = randomUUID();
 	await writeBulkJob(jobId, job);
+	auditLog(ctx, "translations.translateMetadataBulk", undefined, { jobId, total: pairs.length, targetLang });
 	startBulkJob(jobId, job, pairs, async ({ item: game, lang }) => {
 		const doc = await colls.gameMetadatas.findOne(
 			{ _id: game },

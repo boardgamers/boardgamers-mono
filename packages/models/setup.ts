@@ -1,5 +1,6 @@
 import type { Collection, Db, IndexDescription, IndexDescriptionInfo, IndexDirection } from "mongodb";
 import type { ZodType } from "zod";
+import { ADMIN_LOGS_COLLECTION, adminLogIndexes, adminLogSchema } from "./adminlog.ts";
 import { ADMIN_TOKENS_COLLECTION, adminTokenIndexes, adminTokenSchema } from "./admintoken.ts";
 import { API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollectionOptions, apiErrorSchema } from "./api-error.ts";
 import { CHANGELOGS_COLLECTION, changelogIndexes, changelogSchema } from "./changelog.ts";
@@ -501,6 +502,7 @@ export async function reconcileIndexes(
 }
 
 export const declaredIndexes: [string, IndexDescription[]][] = [
+	[ADMIN_LOGS_COLLECTION, adminLogIndexes],
 	[ADMIN_TOKENS_COLLECTION, adminTokenIndexes],
 	[GAMES_COLLECTION, gameIndexes],
 	[USERS_COLLECTION, userIndexes],
@@ -576,6 +578,7 @@ export function planIndexChanges(db: Db): Promise<IndexAction[]> {
 
 export async function ensureValidation(db: Db) {
 	const validationMap: [string, ZodType][] = [
+		[ADMIN_LOGS_COLLECTION, adminLogSchema],
 		[ADMIN_TOKENS_COLLECTION, adminTokenSchema],
 		[API_ERRORS_COLLECTION, apiErrorSchema],
 		[CHANGELOGS_COLLECTION, changelogSchema],

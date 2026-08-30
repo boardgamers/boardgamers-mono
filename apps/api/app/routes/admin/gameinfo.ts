@@ -19,6 +19,7 @@ import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { deriveGameMetaStatus, lastAccessibleVersion } from "../../services/gameinfo.ts";
 import { gameBundleS3Key, publicObjectUrl, putObject, s3Enabled } from "../../services/s3.ts";
 import { TranslationError, translateMarkdown } from "../../services/translate.ts";
+import { auditLog } from "./audit.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -142,6 +143,8 @@ router.put("/:game/meta", async (ctx) => {
 		{ upsert: true, returnDocument: "after" },
 	);
 
+	auditLog(ctx, "gameinfo.updateMeta", { kind: "boardgame", id: game }, { fields: Object.keys(body) });
+
 	// Toggling the requests-page opt-out changes the derived status (unlisted
 	// pins "implemented"; clearing it restores the version-derived bucket).
 	if (body.unlisted !== undefined && doc) {
@@ -208,6 +211,7 @@ router.post("/:game/meta/translate", actionRateLimit("admin/translate-gameinfo")
 		throw err;
 	}
 
+	auditLog(ctx, "gameinfo.translateMeta", { kind: "boardgame", id: game }, { targetLang });
 	ctx.body = await colls.gameMetadatas.findOneAndUpdate(
 		{ _id: game },
 		{
@@ -282,6 +286,7 @@ router.post("/:game/meta/translate-all", actionRateLimit("admin/translate-gamein
 		}
 	}
 
+	auditLog(ctx, "gameinfo.translateMetaAll", { kind: "boardgame", id: game }, { translated, skipped });
 	ctx.body = { translated: translated.length, skipped, errors, langs: translated };
 });
 
@@ -398,6 +403,8 @@ async function upsert(ctx: Context) {
 		await colls.gameMetadatas.updateOne({ _id: game }, status ? { $set: { status } } : { $unset: { status: true } });
 	}
 
+	auditLog(ctx, "gameinfo.upsertVersion", { kind: "boardgame", id: game }, { version, isNewGame });
+
 	const merged = await findGameInfoWithVersion(game, version);
 	ctx.body = merged ?? versionDoc;
 }
@@ -467,6 +474,12 @@ router.post("/:game/beta-users", async (ctx) => {
 		);
 	}
 
+	auditLog(
+		ctx,
+		"gameinfo.addBetaUser",
+		{ kind: "user", id: user._id.toHexString(), label: user.account.username },
+		{ game, maxVersion: gameInfo._id.version },
+	);
 	ctx.body = { userId: user._id, username: user.account.username, maxVersion: gameInfo._id.version };
 });
 
@@ -483,6 +496,7 @@ router.delete("/:game/beta-users/:userId", async (ctx) => {
 		{ user: new ObjectId(ctx.params.userId), game },
 		{ $unset: { "access.maxVersion": true } },
 	);
+	auditLog(ctx, "gameinfo.removeBetaUser", { kind: "user", id: ctx.params.userId }, { game });
 	ctx.status = 200;
 });
 
@@ -535,6 +549,7 @@ router.delete("/:game/:version", async (ctx) => {
 	// "beta".
 	const status = await deriveGameMetaStatus(game);
 	await colls.gameMetadatas.updateOne({ _id: game }, status ? { $set: { status } } : { $unset: { status: true } });
+	auditLog(ctx, "gameinfo.deleteVersion", { kind: "boardgame", id: game }, { version: +ctx.params.version });
 	ctx.status = 200;
 });
 
@@ -594,6 +609,7 @@ router.post("/:game/:version/archive", async (ctx) => {
 		}
 	}
 
+	auditLog(ctx, "gameinfo.archiveVersion", { kind: "boardgame", id: game }, { version, force });
 	ctx.body = await colls.gameInfos.findOneAndUpdate(
 		{ _id: { game, version } },
 		{ $set: { "meta.archived": true } },
@@ -611,6 +627,7 @@ router.post("/:game/:version/unarchive", async (ctx) => {
 		throw createError(404, `No game info for ${game} v${version}`);
 	}
 
+	auditLog(ctx, "gameinfo.unarchiveVersion", { kind: "boardgame", id: game }, { version });
 	ctx.body = await colls.gameInfos.findOneAndUpdate(
 		{ _id: { game, version } },
 		{ $unset: { "meta.archived": true } },
@@ -714,6 +731,12 @@ router.post("/:game/:version/viewer/file", async (ctx) => {
 	const dir = bundle ?? contentHash(body);
 	const key = gameBundleS3Key(game, version, alternate === "1" ? "viewer-alternate" : "viewer", dir, filename);
 	await putObject(key, body, VIEWER_CONTENT_TYPES[ext]);
+	auditLog(
+		ctx,
+		"gameinfo.uploadViewerFile",
+		{ kind: "boardgame", id: game },
+		{ version, filename, bytes: body.length },
+	);
 	ctx.body = { url: requirePublicUrl(key) };
 });
 
@@ -783,6 +806,12 @@ router.post("/:game/:version/engine", async (ctx) => {
 		{ _id: { game, version } },
 		{ $set: { "engine.package": { name: pkg.name, version: pkg.version, url } } },
 		{ returnDocument: "after" },
+	);
+	auditLog(
+		ctx,
+		"gameinfo.uploadEngine",
+		{ kind: "boardgame", id: game },
+		{ version, package: pkg.name, packageVersion: pkg.version },
 	);
 	ctx.body = doc;
 });

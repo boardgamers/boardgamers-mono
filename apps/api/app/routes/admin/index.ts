@@ -22,6 +22,7 @@ import { z } from "zod";
 import { grantSatisfies, isGameAdminGrant, userPermissions, type AdminPermission } from "@bgs/models";
 import locks from "../../config/locks.ts";
 import { requirePermission } from "../utils.ts";
+import auditRouter, { adminAuditTrail, auditLog, requireFullAdmin } from "./audit.ts";
 import changelogRouter from "./changelog.ts";
 import feedbackRouter from "./feedback.ts";
 import gameInfo from "./gameinfo.ts";
@@ -34,6 +35,11 @@ import translationsRouter from "./translations.ts";
 import usersRouter from "./users.ts";
 
 const router = new Router<Application.DefaultState, Context>();
+
+// Audit trail (#266): registered before every route/mount so ALL successful
+// mutating admin requests are recorded — routes enrich their event with
+// auditLog(), everything else gets the automatic method+path fallback.
+router.use(adminAuditTrail);
 
 // Each sub-router declares the permission it needs. The mount-level gate is a
 // SUBSET check — the caller must hold at least one grant satisfying the
@@ -73,6 +79,8 @@ router.use(
 // their game's CMS pages — every route inside re-checks the page's slug.
 router.use("/page", requireSomeGrant("pages"), pagesRouter.routes(), pagesRouter.allowedMethods());
 router.use("/tokens", requirePermission("tokens"), tokensRouter.routes(), tokensRouter.allowedMethods());
+// The audit log spans every admin domain — full admins only, no scoped grants.
+router.use("/audit-log", requireFullAdmin, auditRouter.routes(), auditRouter.allowedMethods());
 // /translations gets the subset gate like /page: a per-boardgame admin sees
 // their games' pages/metadata — the overview scopes its rows to the caller.
 router.use(
@@ -437,6 +445,8 @@ router.post("/resend-confirmation", requirePermission("users"), async (ctx) => {
 		return;
 	}
 
+	auditLog(ctx, "user.resendConfirmation", { kind: "user", id: user._id.toHexString(), label: user.account.username });
+
 	// The db holds only the hash of the confirm key (#164) — mint a fresh one, store
 	// its hash, and hand the plaintext to the mailer (the emailed link needs it).
 	const confirmKey = generateConfirmKey();
@@ -455,6 +465,8 @@ router.post("/login-as", requirePermission("users"), async (ctx) => {
 		throw createError(404, "User not found: " + username);
 	}
 
+	auditLog(ctx, "user.loginAs", { kind: "user", id: user._id.toHexString(), label: user.account.username });
+
 	ctx.state.user = user;
 
 	await sendAuthInfo(ctx, "admin");
@@ -471,6 +483,7 @@ router.post("/compute-karma", requirePermission("users"), async (ctx) => {
 	await recalculateKarma(user);
 	await colls.users.replaceOne({ _id: user._id }, user);
 
+	auditLog(ctx, "user.computeKarma", { kind: "user", id: user._id.toHexString(), label: user.account.username });
 	ctx.status = 200;
 });
 
@@ -480,6 +493,7 @@ router.post("/compute-all-karma", requirePermission("users"), async (ctx) => {
 		await colls.users.replaceOne({ _id: user._id }, user);
 	}
 
+	auditLog(ctx, "user.computeAllKarma");
 	ctx.status = 200;
 });
 
@@ -505,6 +519,8 @@ router.post("/load-games", requirePermission("serverinfo"), async (ctx) => {
 
 		await colls.games.replaceOne({ _id: gameId }, game);
 	}
+
+	auditLog(ctx, "server.loadGames", undefined, { path: dirPath });
 });
 
 router.post("/recreate-notifications", requirePermission("serverinfo"), async (ctx) => {
@@ -579,6 +595,7 @@ router.post("/recreate-notifications", requirePermission("serverinfo"), async (c
 			})),
 		);
 	}
+	auditLog(ctx, "server.recreateNotifications", undefined, { recreated: notifications.length });
 	ctx.status = 200;
 	ctx.body = notifications;
 });

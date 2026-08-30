@@ -204,6 +204,16 @@
 				Admin Tokens
 			</a>
 		{/if}
+		{#if data.me.fullAdmin}
+			<a
+				href={resolve("/audit-log")}
+				class="px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 {isActive('/audit-log')
+					? 'bg-gray-100 dark:bg-gray-800 font-semibold'
+					: ''}"
+			>
+				Audit log
+			</a>
+		{/if}
 		{#if can(data.me, "changelog")}
 			<a
 				href={resolve("/changelog")}

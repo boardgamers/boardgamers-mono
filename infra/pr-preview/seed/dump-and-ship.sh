@@ -33,7 +33,8 @@ MONGO_TOOLS="${dbUrl%/admin}"
 # ObjectIds (requestedBy/user) — the safe default for new user-linked collections
 # is exclusion; previews can create their own requests. newsletters (#1) is
 # cron-delivery state for admin blasts (createdBy + send progress) — previews
-# must not resume a prod blast. And games is dumped
+# must not resume a prod blast. adminlogs (#266) is the admin audit trail —
+# admin usernames + action metadata stay out of previews. And games is dumped
 # separately below with a status filter (open+active only),
 # because 99% of it is 2.8 GB of ended games.
 EXCLUDED=(
@@ -41,6 +42,7 @@ EXCLUDED=(
   apierrors logs gamenotifications deletedUsers oauthflows oauthconsents
   useractions feedbackrequests feedbackrequestlikes
   newsletters
+  adminlogs
   games
 )
 EXCLUDE_ARGS=()

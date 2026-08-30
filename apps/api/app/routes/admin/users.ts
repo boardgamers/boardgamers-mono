@@ -7,6 +7,14 @@ import { adminGrantSchema, canUser, canUserManageGame } from "@bgs/models";
 import { colls } from "../../config/db.ts";
 import { findGameInfoWithVersion, findByUsername } from "../../models/index.ts";
 import { queryCount } from "../utils.ts";
+import { auditLog, type AuditTarget } from "./audit.ts";
+
+// Audit-target helper: userTarget resolves the username for readability; the
+// lookup is a cheap projection and this only runs on (rare) admin mutations.
+async function userTarget(userId: ObjectId): Promise<AuditTarget> {
+	const user = await colls.users.findOne({ _id: userId }, { projection: { "account.username": 1 } });
+	return { kind: "user", id: userId.toHexString(), ...(user && { label: user.account.username }) };
+}
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -38,6 +46,7 @@ router.delete("/:userId/access/:game", async (ctx) => {
 		{ user: userId, game: ctx.params.game },
 		{ $unset: { "access.maxVersion": true } },
 	);
+	auditLog(ctx, "user.revokeBetaAccess", await userTarget(userId), { game: ctx.params.game });
 	ctx.status = 200;
 });
 
@@ -76,6 +85,10 @@ router.post("/:userId/access/grant", async (ctx) => {
 		{ $set: { "access.maxVersion": gameInfo._id.version } },
 		{ upsert: true },
 	);
+	auditLog(ctx, "user.grantBetaAccess", await userTarget(new ObjectId(ctx.params.userId)), {
+		game,
+		maxVersion: gameInfo._id.version,
+	});
 	ctx.status = 200;
 });
 
@@ -291,6 +304,7 @@ router.post("/:userId", async (ctx) => {
 			$set: { "account.karma": account.karma },
 		},
 	);
+	auditLog(ctx, "user.setKarma", await userTarget(new ObjectId(ctx.params.userId)), { karma: account.karma });
 	ctx.status = 200;
 });
 
@@ -310,6 +324,10 @@ router.post("/:userId/authority", async (ctx) => {
 		update = { $set: { authority } };
 	}
 	await colls.users.updateOne({ _id: new ObjectId(ctx.params.userId) }, update);
+	auditLog(ctx, "user.setAuthority", await userTarget(new ObjectId(ctx.params.userId)), {
+		authority,
+		...(adminGrants !== undefined && { adminGrants }),
+	});
 	ctx.status = 200;
 });
 
@@ -321,6 +339,7 @@ router.put("/:userId/grants", async (ctx) => {
 		{ _id: new ObjectId(ctx.params.userId) },
 		adminGrants.length > 0 ? { $set: { adminGrants: [...new Set(adminGrants)] } } : { $unset: { adminGrants: "" } },
 	);
+	auditLog(ctx, "user.setGrants", await userTarget(new ObjectId(ctx.params.userId)), { adminGrants });
 	ctx.status = 200;
 });
 
@@ -331,6 +350,10 @@ router.post("/:userId/elo/:game", async (ctx) => {
 		{ $set: { "elo.value": value } },
 		{ upsert: false },
 	);
+	auditLog(ctx, "user.setElo", await userTarget(new ObjectId(ctx.params.userId)), {
+		game: ctx.params.game,
+		value,
+	});
 	ctx.status = 200;
 });
 
@@ -375,6 +398,7 @@ router.delete("/:userId/refresh-tokens", async (ctx) => {
 
 	const { deletedCount } = await colls.jwtRefreshTokens.deleteMany({ user: userId });
 
+	auditLog(ctx, "user.clearSessions", await userTarget(userId), { deleted: deletedCount });
 	ctx.body = { deleted: deletedCount };
 });
 
@@ -535,6 +559,7 @@ router.post("/:userId/confirm", async (ctx) => {
 		{ _id: new ObjectId(ctx.params.userId) },
 		{ $set: { "security.confirmed": true, "security.confirmKey": null } },
 	);
+	auditLog(ctx, "user.confirmEmail", await userTarget(new ObjectId(ctx.params.userId)));
 	ctx.status = 200;
 });
 
@@ -545,6 +570,9 @@ router.delete("/:userId", async (ctx) => {
 		ctx.status = 404;
 		return;
 	}
+
+	// Resolve the target before the delete — the username is gone afterwards.
+	auditLog(ctx, "user.delete", await userTarget(userId));
 
 	await Promise.all([
 		colls.users.deleteOne({ _id: userId }),

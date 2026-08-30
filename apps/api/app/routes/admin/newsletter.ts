@@ -9,6 +9,7 @@ import env from "../../config/env.ts";
 import { signUnsubscribeToken } from "../../models/user.ts";
 import { sendMail } from "../../services/mail.ts";
 import { countNewsletterRecipients } from "../../services/newsletter.ts";
+import { auditLog } from "./audit.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -106,6 +107,12 @@ router.post("/send", async (ctx) => {
 		throw err;
 	}
 
+	auditLog(
+		ctx,
+		"newsletter.send",
+		{ kind: "newsletter", id: insertedId.toHexString(), label: subject },
+		{ recipientCount: doc.recipientCount },
+	);
 	ctx.status = 201;
 	ctx.body = { _id: insertedId, recipientCount: doc.recipientCount };
 });

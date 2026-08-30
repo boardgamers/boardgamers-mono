@@ -1,5 +1,7 @@
 import { type Collection, type Db, MongoClient } from "mongodb";
 import {
+	type AdminLogDoc,
+	ADMIN_LOGS_COLLECTION,
 	type AdminTokenDoc,
 	ADMIN_TOKENS_COLLECTION,
 	type ApiErrorDoc,
@@ -73,6 +75,7 @@ export function db(): Db {
 // collection before `initDb()` resolves is a programmer error.
 // oxlint-disable-next-line typescript/no-unsafe-type-assertion
 export const colls = {} as {
+	adminLogs: Collection<AdminLogDoc>;
 	adminTokens: Collection<AdminTokenDoc>;
 	apiErrors: Collection<ApiErrorDoc>;
 	changelogs: Collection<ChangelogDoc>;
@@ -104,6 +107,7 @@ export const colls = {} as {
 function initColls(database: Db) {
 	// withAutoUpdatedAt wraps the collections whose schema carries `updatedAt`.
 	Object.assign(colls, {
+		adminLogs: database.collection<AdminLogDoc>(ADMIN_LOGS_COLLECTION),
 		adminTokens: database.collection<AdminTokenDoc>(ADMIN_TOKENS_COLLECTION),
 		apiErrors: withAutoUpdatedAt(database.collection<ApiErrorDoc>(API_ERRORS_COLLECTION)),
 		changelogs: withAutoUpdatedAt(database.collection<ChangelogDoc>(CHANGELOGS_COLLECTION)),

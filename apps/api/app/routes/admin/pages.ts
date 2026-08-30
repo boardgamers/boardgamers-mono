@@ -16,6 +16,7 @@ import { z } from "zod";
 import { colls } from "../../config/db.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { TranslationError, translateMarkdown } from "../../services/translate.ts";
+import { auditLog } from "./audit.ts";
 import { type BulkTranslateJob, listBulkJobs, readBulkJob, startBulkJob, writeBulkJob } from "./bulkjob.ts";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -174,6 +175,7 @@ router.post("/translate-bulk", actionRateLimit("admin/translate-bulk"), async (c
 	};
 	const jobId = randomUUID();
 	await writeBulkJob(jobId, job);
+	auditLog(ctx, "page.translateBulk", undefined, { jobId, total: pairs.length, targetLang, pageName });
 	const editedBy = ctx.state.user!._id;
 	startBulkJob(
 		jobId,
@@ -324,6 +326,7 @@ async function upsert(ctx: Context) {
 	// tracking it against a source version (#306). Unset rather than omit so a
 	// stale client round-tripping the field can't keep the stamp alive.
 	fields.translatedFrom = null;
+	auditLog(ctx, "page.upsert", { kind: "page", id: `${pageId.name}/${pageId.lang}` });
 	ctx.body = await upsertPage(pageId, fields, ctx.state.user!._id);
 }
 
@@ -380,6 +383,7 @@ router.post("/:name/:lang/translate", actionRateLimit("admin/translate-page"), a
 		throw err;
 	}
 
+	auditLog(ctx, "page.translate", { kind: "page", id: `${ctx.params.name}/${targetLang}` }, { sourceLang });
 	ctx.body = await upsertPage(
 		{ name: ctx.params.name, lang: targetLang },
 		{
@@ -401,6 +405,7 @@ router.delete("/:name/:lang", async (ctx) => {
 		await recordPageHistory(page, ctx.state.user!._id);
 	}
 	await colls.pages.deleteOne({ _id: pageId });
+	auditLog(ctx, "page.delete", { kind: "page", id: `${pageId.name}/${pageId.lang}` });
 	ctx.status = 200;
 });
 
