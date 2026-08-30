@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { handleError, oneLineMarked, duration } from "@/utils";
+	import { handleError, oneLineMarked } from "@/utils";
 	import marked from "marked";
 	import { fromPairs } from "lodash";
 	import { Button, Input, Checkbox } from "@/modules/cdk";
@@ -23,6 +23,7 @@
 	import { developerSettings } from "@/lib/stores.svelte";
 	import { page } from "$app/state";
 	import TimeRangeSlider from "@/components/Form/TimeRangeSlider.svelte";
+	import TimingSettings from "@/components/Game/TimingSettings.svelte";
 	import { m } from "@/lib/i18n/messages";
 
 	useLoggedIn();
@@ -57,12 +58,18 @@
 	// Remember the last-used setup per boardgame in a cookie, so the form can render
 	// the saved options during SSR (no defaults→saved flash). Only non-secret fields.
 	let lastSetup = $derived(page.data.lastSetup as Record<string, any> | null);
+	// Cross-boardgame fallback: the last timing used on ANY game (#377), applied
+	// when this boardgame has no remembered setup of its own.
+	let lastTiming = $derived(page.data.lastTiming as { timePerGame?: number; timePerMove?: number } | null);
 
 	function saveLastSetup() {
 		if (!browser || !boardgameId) return;
 		try {
+			const cookieSuffix = `; Path=/; Max-Age=${365 * 24 * 3600}; SameSite=Lax`;
 			const value = JSON.stringify({ options, playerOrder, selects, expansions, numPlayers, timePerMove, timePerGame });
-			document.cookie = `new-game-setup:${boardgameId}=${encodeURIComponent(value)}; Path=/; Max-Age=${365 * 24 * 3600}; SameSite=Lax`;
+			document.cookie = `new-game-setup:${boardgameId}=${encodeURIComponent(value)}${cookieSuffix}`;
+			const timing = JSON.stringify({ timePerMove, timePerGame });
+			document.cookie = `new-game-timing=${encodeURIComponent(timing)}${cookieSuffix}`;
 		} catch {
 			// ignore storage errors
 		}
@@ -212,14 +219,18 @@
 	// Apply the user's saved setup on top of the defaults (one shot, on first load).
 	const applyLastSetup = () => {
 		const last = lastSetup;
-		if (!last) return;
-		if (Array.isArray(last.options) && last.options.length) options = last.options;
-		if (last.playerOrder) playerOrder = last.playerOrder;
-		if (last.selects) selects = { ...selects, ...last.selects };
-		if (Array.isArray(last.expansions)) expansions = last.expansions;
-		if (last.numPlayers && info?.players.includes(last.numPlayers)) numPlayers = last.numPlayers;
-		if (last.timePerMove) timePerMove = last.timePerMove;
-		if (last.timePerGame) timePerGame = last.timePerGame;
+		if (last) {
+			if (Array.isArray(last.options) && last.options.length) options = last.options;
+			if (last.playerOrder) playerOrder = last.playerOrder;
+			if (last.selects) selects = { ...selects, ...last.selects };
+			if (Array.isArray(last.expansions)) expansions = last.expansions;
+			if (last.numPlayers && info?.players.includes(last.numPlayers)) numPlayers = last.numPlayers;
+		}
+		// Timing: this boardgame's remembered setup wins, else the last timing
+		// used on any boardgame.
+		const timing = last?.timePerGame || last?.timePerMove ? last : lastTiming;
+		if (timing?.timePerMove) timePerMove = timing.timePerMove;
+		if (timing?.timePerGame) timePerGame = timing.timePerGame;
 	};
 
 	// Initial load: run synchronously during component init so SSR has data, applying
@@ -421,36 +432,7 @@
 
 			<!-- Timing -->
 			<h3 class="mt-4">{m.newGame_timing()}</h3>
-			<p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
-				{m.newGame_timingHelp()}
-			</p>
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<div class="mb-3">
-					<label for="timePerGame">{m.newGame_timePerGame()}</label>
-					<select
-						bind:value={timePerGame}
-						id="timePerGame"
-						class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
-					>
-						{#each [60, 180, 300, 600, 1800, 3600, 6 * 3600, 24 * 3600, 3 * 24 * 3600, 10 * 24 * 3600] as x (x)}
-							<option value={x}>{duration(x)}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div class="mb-3">
-					<label for="timePerMove">{m.newGame_timePerMove()}</label>
-					<select
-						bind:value={timePerMove}
-						id="timePerMove"
-						class="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-800"
-					>
-						{#each [5, 10, 30, 60, 5 * 60, 15 * 60, 3600, 2 * 3600, 6 * 3600, 24 * 3600] as x (x)}
-							<option value={x}>{duration(x)}</option>
-						{/each}
-					</select>
-				</div>
-			</div>
+			<TimingSettings bind:timePerGame bind:timePerMove />
 
 			<!-- Subtle note about the daily timer window (lives in Advanced) -->
 			<p class="mb-3 text-sm text-gray-500 dark:text-gray-400">

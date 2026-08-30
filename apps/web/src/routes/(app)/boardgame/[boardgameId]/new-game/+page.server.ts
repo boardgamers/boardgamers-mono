@@ -7,21 +7,23 @@ import { gameDisplayName } from "@/utils/game-label";
 // form can render the saved options during SSR (avoiding a defaults→saved flash on hydration).
 export const load: PageServerLoad = async ({ params, request }) => {
 	const cookieHeader = request.headers.get("cookie") ?? "";
-	const name = `new-game-setup:${params.boardgameId}`;
-	const raw = cookieHeader
-		.split(";")
-		.map((x) => x.trim())
-		.find((x) => x.startsWith(`${name}=`))
-		?.slice(name.length + 1);
-
-	let lastSetup: Record<string, unknown> | null = null;
-	if (raw) {
+	const readJsonCookie = (name: string): Record<string, unknown> | null => {
+		const raw = cookieHeader
+			.split(";")
+			.map((x) => x.trim())
+			.find((x) => x.startsWith(`${name}=`))
+			?.slice(name.length + 1);
+		if (!raw) return null;
 		try {
-			lastSetup = JSON.parse(decodeURIComponent(raw));
+			return JSON.parse(decodeURIComponent(raw));
 		} catch {
-			lastSetup = null;
+			return null;
 		}
-	}
+	};
+
+	const lastSetup = readJsonCookie(`new-game-setup:${params.boardgameId}`);
+	// Timing used on the last created game, across all boardgames (#377).
+	const lastTiming = readJsonCookie("new-game-timing");
 
 	// `parent()` in a server load only sees server layouts, not the boardgame layout's
 	// client-side load — fetch the game-info doc directly (SSR-safe, request-scoped).
@@ -30,6 +32,7 @@ export const load: PageServerLoad = async ({ params, request }) => {
 
 	return {
 		lastSetup,
+		lastTiming,
 		seo: {
 			title: `Create a ${label} game`,
 			description: truncate(stripMarkdown(gameInfo?.description ?? ""), 200),
