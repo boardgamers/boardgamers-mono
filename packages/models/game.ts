@@ -82,6 +82,10 @@ export const gameSchema = z.object({
 		meta: z
 			.object({
 				unlisted: z.boolean().optional(),
+				// Codeberg #6: the game does not auto-start when full — the creator starts
+				// it from the lobby (POST /game/:id/start), possibly with fewer players
+				// than nbPlayers when the boardgame supports that count.
+				manualStart: z.boolean().optional(),
 				minimumKarma: z.number().optional(),
 				eloRange: z
 					.object({
@@ -99,6 +103,10 @@ export const gameSchema = z.object({
 		options: z.unknown().optional(),
 	}),
 	status: gameStatusSchema,
+	// Stamped when a manual-start game (options.meta.manualStart) fills its last
+	// seat: cancelOldOpenGames measures the creator's window to press Start from
+	// here instead of createdAt. Cleared when a seat frees up (unjoin/kick).
+	filledAt: zDate().optional(),
 	ready: z.boolean().optional(),
 	cancelled: z.boolean().optional(),
 	// Set once the inactivity warning has been posted for the current stall (#94);

@@ -59,6 +59,18 @@ async function markGameReadyIfFull(game: GameDoc): Promise<void> {
 		return;
 	}
 
+	if (game.options.meta?.manualStart) {
+		// Manual start (#6): a full game does NOT auto-start — the creator presses
+		// Start (the /start route). Surface it as waiting on the creator (no deadline:
+		// processUnreadyGames must not cancel it) and stamp the fill time, which is
+		// where cancelOldOpenGames' AWOL-creator clock starts.
+		if (!game.currentPlayers?.some((pl) => pl._id.equals(game.creator))) {
+			game.currentPlayers = [{ _id: game.creator, timerStart: new Date() }];
+		}
+		game.filledAt = game.filledAt ?? new Date();
+		return;
+	}
+
 	if (game.options.setup.playerOrder === "host") {
 		game.currentPlayers = [{ _id: game.creator, timerStart: new Date(), deadline: addDays(new Date(), 1) }];
 	} else {
@@ -206,7 +218,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 			continue;
 		}
 
-		if (["join", "unlisted"].includes(key)) {
+		if (["join", "unlisted", "manualStart"].includes(key)) {
 			assert(typeof val === "boolean", "Invalid value for option: " + key);
 		} else if (key === "playerOrder") {
 			assert(playerOrderSchema.safeParse(val).success, "Invalid value for option: " + key);
@@ -271,6 +283,9 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 	const meta: GameDoc["options"]["meta"] = {
 		unlisted: !!options.unlisted,
 	};
+	if (options.manualStart === true) {
+		meta.manualStart = true;
+	}
 	if (minimumKarma !== undefined && minimumKarma !== null) {
 		assert(+minimumKarma === minimumKarma && Math.floor(minimumKarma) === minimumKarma && minimumKarma >= 0);
 		assert(minimumKarma + 5 <= user.account.karma, "You can't create a game with that high of a karma restriction");
@@ -325,7 +340,7 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 			name: gameInfo._id.game,
 			version: gameInfo._id.version,
 			expansions: (expansions ?? []).filter((exp: string) => gameExpansions.some((exp2) => exp2.name === exp)),
-			options: omit(options, "join", "playerOrder", "unlisted"),
+			options: omit(options, "join", "playerOrder", "unlisted", "manualStart"),
 		},
 		status: "open",
 		ready: false,
@@ -634,6 +649,20 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
 	ctx.body = withoutData(ctx.state.game);
 });
 
+// Shared by unjoin (a player leaving) and kick (the creator removing a player):
+// drops the player and resets the waiting-on-host markers. Mutates in place — the
+// caller persists the doc (and holds the game:<id> lock).
+function removePlayerFromOpenGame(game: GameDoc, playerId: ObjectId): void {
+	game.players = game.players.filter((pl) => !pl._id.equals(playerId));
+	// In case host needed to choose options after all players joined, and player left before
+	// he could chose the options, he now has to wait again
+	game.currentPlayers = (game.currentPlayers ?? []).filter(
+		(pl) => !pl._id.equals(playerId) && !pl._id.equals(game.creator),
+	);
+	// The game is no longer full — the manual-start AWOL-creator clock stops.
+	delete game.filledAt;
+}
+
 router.post("/:gameId/unjoin", loggedIn, async (ctx) => {
 	const user = ctx.state.user!;
 	{
@@ -649,12 +678,7 @@ router.post("/:gameId/unjoin", loggedIn, async (ctx) => {
 		assert(index >= 0, "You're not part of that game");
 		assert(!game.ready, "You can't unjoin a game that's ready to start");
 
-		game.players = game.players.filter((pl) => !pl._id.equals(user._id));
-		// In case host needed to choose options after all players joined, and player unjoined before
-		// he could chose the options, he now has to wait again
-		game.currentPlayers = (game.currentPlayers ?? []).filter(
-			(pl) => !pl._id.equals(user._id) && !pl._id.equals(game.creator),
-		);
+		removePlayerFromOpenGame(game, user._id);
 
 		if (/* user._id.equals(game.creator) && */ game.players.length === 0) {
 			// Remove game if its own creator leaves, and there's no one else
@@ -662,6 +686,47 @@ router.post("/:gameId/unjoin", loggedIn, async (ctx) => {
 		} else {
 			await colls.games.replaceOne({ _id: game._id }, game);
 		}
+
+		ctx.state.game = game;
+	}
+	ctx.body = withoutData(ctx.state.game);
+});
+
+// Creator removes a joined (or invited) player from an open game (#6). No
+// user-facing notification mechanism exists for lobby events (invites don't
+// notify either) — the system chat message is what the kicked player can see.
+router.post("/:gameId/kick/:userId", loggedIn, async (ctx) => {
+	const user = ctx.state.user!;
+	const { userId: targetId } = z.object({ userId: zObjectId() }).parse({ userId: ctx.params.userId });
+	assert(!targetId.equals(user._id), "You can't kick yourself — leave the game instead");
+
+	{
+		await using _lock = await locks.lockWait("game", ctx.params.gameId);
+		const game = await colls.games.findOne({ _id: ctx.params.gameId, status: "open" });
+
+		if (!game) {
+			ctx.status = 404;
+			return;
+		}
+
+		assert(user._id.equals(game.creator), "You must be the creator of the game to remove a player");
+		assert(!game.ready, "You can't remove a player from a game that's ready to start");
+		const player = game.players.find((pl) => pl._id.equals(targetId));
+		assert(player, "That user is not in the player list");
+		assert(!player.isBot, "Bots can't be removed from the game");
+
+		removePlayerFromOpenGame(game, targetId);
+
+		// Unlike unjoin, an emptied game is kept: the creator is clearing seats, not
+		// abandoning the game.
+		await colls.games.replaceOne({ _id: game._id }, game);
+
+		await colls.chatMessages.insertOne({
+			_id: new ObjectId(),
+			room: game._id,
+			type: "system",
+			data: { text: `${player.name} was removed from the game by the host` },
+		});
 
 		ctx.state.game = game;
 	}
@@ -685,9 +750,25 @@ router.post("/:gameId/start", loggedIn, async (ctx) => {
 		}
 
 		assert(
-			game.players.length === game.options.setup.nbPlayers,
-			"You can only start the game when all players have joined",
+			!game.players.some((pl) => pl.pending),
+			"You can only start the game when every invitation has been accepted",
 		);
+
+		if (game.players.length !== game.options.setup.nbPlayers) {
+			// Manual start (#6): the creator may start below capacity when the
+			// boardgame supports the current player count — the game shrinks to it.
+			assert(game.options.meta?.manualStart, "You can only start the game when all players have joined");
+			assert(
+				game.players.some((pl) => !pl.isBot),
+				"There must be at least one human player",
+			);
+			const metadata = await colls.gameMetadatas.findOne({ _id: game.game.name }, { projection: { players: 1 } });
+			assert(
+				metadata?.players.includes(game.players.length),
+				`${game.game.name} can't be played with ${game.players.length} player(s)`,
+			);
+			game.options.setup.nbPlayers = game.players.length;
+		}
 
 		const { playerOrder } = z.object({ playerOrder: z.array(z.string()).optional() }).parse(ctx.request.body);
 
@@ -697,6 +778,7 @@ router.post("/:gameId/start", loggedIn, async (ctx) => {
 			);
 		}
 		game.ready = true;
+		delete game.filledAt;
 
 		await colls.games.replaceOne({ _id: game._id }, game);
 

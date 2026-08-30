@@ -3,7 +3,7 @@
 // the API server. Running this file directly leaves `colls` uninitialized →
 // "Cannot read properties of undefined (reading 'insertOne')".
 import assert from "node:assert/strict";
-import { after, before, describe, it } from "node:test";
+import { after, afterEach, before, describe, it } from "node:test";
 import { ObjectId } from "mongodb";
 import { db } from "../../config/db.ts";
 import env from "../../config/env.ts";
@@ -690,6 +690,187 @@ describe("Game API", () => {
 		});
 	});
 
+	describe("manual start (#6)", () => {
+		// Each test leaves its game open — clean up as we go, or the creator's
+		// open-games cap trips midway through the file.
+		afterEach(async () => {
+			await colls.games.deleteMany({ _id: /^test-manual/ });
+		});
+
+		it("should not auto-start a full manual-start game — the creator starts it", async () => {
+			const createRes = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-manual-full", { options: { join: true, manualStart: true } }),
+				authHeaders,
+			);
+			assert.strictEqual(createRes.ok, true, JSON.stringify(createRes.data));
+
+			const joinRes = await api("POST", "/api/game/test-manual-full/join", {}, joinerAuthHeaders);
+			assert.strictEqual(joinRes.ok, true, JSON.stringify(joinRes.data));
+
+			const game = await colls.games.findOne({ _id: "test-manual-full" });
+			assert.ok(game, "Game should exist");
+			assert.strictEqual(game.options.meta?.manualStart, true);
+			assert.strictEqual(game.ready, false, "Filling the last seat must NOT auto-start a manual-start game");
+			assert.ok(game.filledAt, "The fill time is stamped for the auto-cancel window");
+			assert.ok(
+				game.currentPlayers?.length === 1 &&
+					game.currentPlayers[0]._id.equals(userId) &&
+					!game.currentPlayers[0].deadline,
+				"Waiting on the creator, without a deadline (processUnreadyGames must not cancel it)",
+			);
+			assert.strictEqual(
+				await colls.gameNotifications.countDocuments({ game: "test-manual-full", kind: "gameStarted" }),
+				0,
+				"No gameStarted notification until the creator starts the game",
+			);
+
+			// Only the creator can start it.
+			const foreignStart = await api("POST", "/api/game/test-manual-full/start", {}, joinerAuthHeaders);
+			assert.strictEqual(foreignStart.status, 404, "Non-creators can't start the game");
+
+			const startRes = await api("POST", "/api/game/test-manual-full/start", {}, authHeaders);
+			assert.strictEqual(startRes.ok, true, JSON.stringify(startRes.data));
+			const started = await colls.games.findOne({ _id: "test-manual-full" });
+			assert.strictEqual(started?.ready, true);
+			assert.strictEqual(started.filledAt, undefined, "The auto-cancel clock is cleared on start");
+			assert.strictEqual(
+				await colls.gameNotifications.countDocuments({ game: "test-manual-full", kind: "gameStarted" }),
+				1,
+				"The creator's start goes through the same path as an auto-start",
+			);
+		});
+
+		it("should reject starting below the boardgame's supported player counts", async () => {
+			const createRes = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-manual-short", { options: { join: true, manualStart: true } }),
+				authHeaders,
+			);
+			assert.strictEqual(createRes.ok, true, JSON.stringify(createRes.data));
+
+			// "test" only supports 2 players — starting with 1 is not possible.
+			const startRes = await api("POST", "/api/game/test-manual-short/start", {}, authHeaders);
+			assert.strictEqual(startRes.status, 422);
+			assert.ok(errorMessage(startRes.data)?.includes("can't be played with 1 player(s)"));
+		});
+
+		it("should keep requiring a full game to start when manual start is off", async () => {
+			const createRes = await api("POST", "/api/game/new-game", newGameBody("test-manual-off"), authHeaders);
+			assert.strictEqual(createRes.ok, true, JSON.stringify(createRes.data));
+
+			const startRes = await api("POST", "/api/game/test-manual-off/start", {}, authHeaders);
+			assert.strictEqual(startRes.status, 422);
+			assert.strictEqual(errorMessage(startRes.data), "You can only start the game when all players have joined");
+			const game = await colls.games.findOne({ _id: "test-manual-off" });
+			assert.strictEqual(game?.filledAt, undefined, "filledAt is only stamped on manual-start games");
+		});
+
+		it("should start below capacity when the boardgame supports the player count", async () => {
+			const createRes = await api(
+				"POST",
+				"/api/game/new-game",
+				newGameBody("test-manual-below", {
+					game: { game: "test3", version: 1 },
+					players: 3,
+					options: { join: true, manualStart: true },
+				}),
+				authHeaders,
+			);
+			assert.strictEqual(createRes.ok, true, JSON.stringify(createRes.data));
+			const joinRes = await api("POST", "/api/game/test-manual-below/join", {}, joinerAuthHeaders);
+			assert.strictEqual(joinRes.ok, true, JSON.stringify(joinRes.data));
+
+			// 2 of 3 seats filled, and test3 supports 2-player games.
+			const startRes = await api("POST", "/api/game/test-manual-below/start", {}, authHeaders);
+			assert.strictEqual(startRes.ok, true, JSON.stringify(startRes.data));
+			const game = await colls.games.findOne({ _id: "test-manual-below" });
+			assert.strictEqual(game?.ready, true);
+			assert.strictEqual(game.options.setup.nbPlayers, 2, "The game shrinks to the started player count");
+			assert.strictEqual(
+				await colls.gameNotifications.countDocuments({ game: "test-manual-below", kind: "gameStarted" }),
+				1,
+			);
+		});
+	});
+
+	describe("kick from the lobby (#6)", () => {
+		const kickGameBody = (gameId: string) => newGameBody(gameId, { options: { join: true, manualStart: true } });
+
+		async function createWithJoiner(gameId: string) {
+			const createRes = await api("POST", "/api/game/new-game", kickGameBody(gameId), authHeaders);
+			assert.strictEqual(createRes.ok, true, JSON.stringify(createRes.data));
+			const joinRes = await api("POST", `/api/game/${gameId}/join`, {}, joinerAuthHeaders);
+			assert.strictEqual(joinRes.ok, true, JSON.stringify(joinRes.data));
+		}
+
+		afterEach(async () => {
+			await colls.games.deleteMany({ _id: /^test-kick/ });
+		});
+
+		it("should let the creator remove a joined player from an open game", async () => {
+			await createWithJoiner("test-kick");
+			assert.ok((await colls.games.findOne({ _id: "test-kick" }))?.filledAt, "Full: the auto-cancel clock runs");
+
+			const res = await api("POST", `/api/game/test-kick/kick/${joinerId.toHexString()}`, {}, authHeaders);
+			assert.strictEqual(res.ok, true, JSON.stringify(res.data));
+
+			const game = await colls.games.findOne({ _id: "test-kick" });
+			assert.ok(game, "The game survives the kick");
+			assert.strictEqual(game.players.length, 1, "The kicked player is out");
+			assert.ok(!game.players.some((pl) => pl._id.equals(joinerId)));
+			assert.strictEqual(game.filledAt, undefined, "No longer full: the auto-cancel clock is reset");
+
+			const chatMsg = await colls.chatMessages.findOne({ room: "test-kick", type: "system" });
+			assert.strictEqual(chatMsg?.data.text, "joiner was removed from the game by the host");
+
+			// The kicked player can rejoin (a kick is not a ban).
+			const rejoin = await api("POST", "/api/game/test-kick/join", {}, joinerAuthHeaders);
+			assert.strictEqual(rejoin.ok, true, JSON.stringify(rejoin.data));
+		});
+
+		it("should reject a kick by anyone but the creator", async () => {
+			await createWithJoiner("test-kick-auth");
+			const res = await api("POST", `/api/game/test-kick-auth/kick/${userId.toHexString()}`, {}, joinerAuthHeaders);
+			assert.strictEqual(res.status, 422);
+			assert.strictEqual(errorMessage(res.data), "You must be the creator of the game to remove a player");
+		});
+
+		it("should reject kicking yourself", async () => {
+			await createWithJoiner("test-kick-self");
+			const res = await api("POST", `/api/game/test-kick-self/kick/${userId.toHexString()}`, {}, authHeaders);
+			assert.strictEqual(res.status, 422);
+			assert.strictEqual(errorMessage(res.data), "You can't kick yourself — leave the game instead");
+		});
+
+		it("should reject kicking from a game that's not open", async () => {
+			await colls.games.insertOne(
+				testGame({
+					_id: "test-kick-active",
+					creator: userId,
+					status: "active",
+					players: [
+						{ _id: userId, name: "host" },
+						{ _id: joinerId, name: "joiner" },
+					],
+					game: { name: "test", version: 1 },
+				}),
+			);
+			const res = await api("POST", `/api/game/test-kick-active/kick/${joinerId.toHexString()}`, {}, authHeaders);
+			assert.strictEqual(res.status, 404);
+		});
+
+		it("should reject kicking from a ready game", async () => {
+			await createWithJoiner("test-kick-ready");
+			await colls.games.updateOne({ _id: "test-kick-ready" }, { $set: { ready: true } });
+			const res = await api("POST", `/api/game/test-kick-ready/kick/${joinerId.toHexString()}`, {}, authHeaders);
+			assert.strictEqual(res.status, 422);
+			assert.strictEqual(errorMessage(res.data), "You can't remove a player from a game that's ready to start");
+		});
+	});
+
 	describe("cancel vote", () => {
 		it("should cancel an active game with a bot when the human votes", async () => {
 			// The bot auto-consents — no one can act for it, so its vote is implied.
@@ -934,6 +1115,53 @@ describe("Game API", () => {
 				await colls.gameNotifications.findOne({ game: "lock-drop", kind: "dropPlayer", user: joinerId }),
 				"The drop notification was emitted once the lock was released",
 			);
+		});
+
+		it("start waits for the game:<id> lock", async () => {
+			await colls.games.insertOne(
+				testGame({
+					_id: "lock-start",
+					creator: userId,
+					players: [
+						{ _id: userId, name: "host" },
+						{ _id: joinerId, name: "joiner" },
+					],
+					options: {
+						setup: { seed: "lock-start", nbPlayers: 2, playerOrder: "random" },
+						timing: { timePerGame: 5000, timePerMove: 5000, timer: { start: 0, end: 86400 } },
+						meta: { unlisted: false, manualStart: true },
+					},
+					game: { name: "test", version: 1 },
+				}),
+			);
+
+			await assertWaitsForGameLock("lock-start", () => api("POST", "/api/game/lock-start/start", {}, authHeaders));
+
+			const game = await colls.games.findOne({ _id: "lock-start" });
+			assert.strictEqual(game?.ready, true, "The start was applied once the lock was released");
+			await colls.games.deleteOne({ _id: "lock-start" });
+		});
+
+		it("kick waits for the game:<id> lock", async () => {
+			await colls.games.insertOne(
+				testGame({
+					_id: "lock-kick",
+					creator: userId,
+					players: [
+						{ _id: userId, name: "host" },
+						{ _id: joinerId, name: "joiner" },
+					],
+					game: { name: "test", version: 1 },
+				}),
+			);
+
+			await assertWaitsForGameLock("lock-kick", () =>
+				api("POST", `/api/game/lock-kick/kick/${joinerId.toHexString()}`, {}, authHeaders),
+			);
+
+			const game = await colls.games.findOne({ _id: "lock-kick" });
+			assert.strictEqual(game?.players.length, 1, "The kick was applied once the lock was released");
+			await colls.games.deleteOne({ _id: "lock-kick" });
 		});
 
 		// The remaining unlocked game writes found in #421's review (#423): the

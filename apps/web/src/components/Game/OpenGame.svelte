@@ -134,6 +134,38 @@
 		);
 	};
 
+	let manualStart = $derived(!!context.game?.options.meta?.manualStart);
+
+	// Manual-start games can begin below capacity when the boardgame supports the
+	// current player count (e.g. 3 joined players in a 2-4 player game).
+	let canStartEarly = $derived(
+		Boolean(
+			context.game &&
+			manualStart &&
+			!context.game.ready &&
+			$user?._id === context.game.creator &&
+			context.game.players.length < context.game.options.setup.nbPlayers &&
+			!context.game.players.some((pl) => pl.pending) &&
+			context.gameInfo?.players.includes(context.game.players.length)
+		)
+	);
+
+	const kick = async (player: { _id: string; name: string }) => {
+		if (!gameId || !(await confirm(m.openGame_kickConfirm({ name: player.name })))) {
+			return;
+		}
+		try {
+			await post(`/game/${gameId}/kick/${player._id}`);
+			const [g, p] = await Promise.all([loadGame(gameId), loadGamePlayers(gameId)]);
+			if (g._id === context.game?._id) {
+				context.game = g;
+				context.players = p;
+			}
+		} catch (err) {
+			handleError(err);
+		}
+	};
+
 	let isOpen = $state(false);
 
 	let foundUsers = $state<UserFront[]>([]);
@@ -268,6 +300,11 @@
 							>
 						</li>
 					{/if}
+					{#if manualStart}
+						<li class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+							<span>🚦 {m.openGame_manualStart()}</span>
+						</li>
+					{/if}
 					{#if context.game?.options.timing.scheduledStart}
 						<li class="font-medium">
 							{m.openGame_scheduledStart({
@@ -362,6 +399,15 @@
 									>{m.openGame_host()}</span
 								>
 							{/if}
+							{#if $user?._id === context.game?.creator && !context.game?.ready && player._id !== context.game?.creator && !player.isBot}
+								<button
+									type="button"
+									class="ml-auto rounded-full px-2 py-0.5 text-gray-400 transition-colors hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-400"
+									title={m.openGame_kick({ name: player.name })}
+									aria-label={m.openGame_kick({ name: player.name })}
+									onclick={() => kick(player)}>✕</button
+								>
+							{/if}
 						</li>
 					{/each}
 				</ul>
@@ -393,8 +439,15 @@
 						</Dropdown>
 					</FormGroup>
 				{/if}
+				{#if canStartEarly && context.game}
+					<div class="mb-3">
+						<Button color="primary" onclick={start}
+							>{m.openGame_startWithCount({ count: context.game.players.length })}</Button
+						>
+					</div>
+				{/if}
 			{:else if context.game && !context.game.ready}
-				{#if $user?._id === context.game.creator}
+				{#if $user?._id === context.game.creator && !context.game.players.some((p) => p.pending)}
 					{#if context.game.options.setup.playerOrder === "host"}
 						<h3>{m.openGame_selectOrder()}</h3>
 						{#each playerOrder as playerIndex, i (i)}
@@ -415,9 +468,13 @@
 							</div>
 						{/each}
 						<Button color="primary" onclick={start} class="mt-4">{m.openGame_start()}</Button>
+					{:else if manualStart}
+						<Button color="primary" onclick={start}>{m.openGame_start()}</Button>
 					{/if}
 				{:else if context.game.players.some((p) => p.pending)}
 					<p class="text-sm text-gray-600 dark:text-gray-300">{m.openGame_waitingInvitations()}</p>
+				{:else if manualStart}
+					<p class="text-sm"><b>{m.openGame_waitingHostStart()}</b></p>
 				{:else}
 					<p class="text-sm"><b>{m.openGame_waitingHost()}</b></p>
 				{/if}

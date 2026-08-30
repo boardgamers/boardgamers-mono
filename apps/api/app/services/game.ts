@@ -33,28 +33,37 @@ export async function notifyGameStart(game: GameDoc) {
 }
 
 export async function cancelOldOpenGames() {
-	// Remove live games an hour old
-	await colls.games.deleteMany({
-		status: "open",
-		"options.timing.scheduledStart": { $exists: false },
-		"options.timing.timePerGame": { $lte: 600 },
-		createdAt: { $lt: subHours(Date.now(), 1) },
-	});
+	// A FULL manual-start game waiting on its creator (#6) gets the same schedule,
+	// but measured from the moment it filled (`filledAt`, stamped by the api and
+	// cleared when a seat frees up) instead of from creation — filling the last
+	// seat restarts the clock, so the creator always gets a full window to press
+	// Start before the game is removed (AWOL creator).
+	const stillWaitingForPlayers = {
+		$or: [{ "options.meta.manualStart": { $ne: true } }, { filledAt: { $exists: false } }],
+	};
 
-	// Remove fast games three hours old
-	await colls.games.deleteMany({
-		status: "open",
-		"options.timing.scheduledStart": { $exists: false },
-		"options.timing.timePerGame": { $lte: 3600 },
-		createdAt: { $lt: subHours(Date.now(), 3) },
-	});
+	// Live games after an hour, fast games after three hours, any game after a week.
+	const tiers: { timing: Record<string, unknown>; cutoff: Date }[] = [
+		{ timing: { "options.timing.timePerGame": { $lte: 600 } }, cutoff: subHours(Date.now(), 1) },
+		{ timing: { "options.timing.timePerGame": { $lte: 3600 } }, cutoff: subHours(Date.now(), 3) },
+		{ timing: {}, cutoff: subWeeks(Date.now(), 1) },
+	];
 
-	// Remove games a week old
-	await colls.games.deleteMany({
-		status: "open",
-		"options.timing.scheduledStart": { $exists: false },
-		createdAt: { $lt: subWeeks(Date.now(), 1) },
-	});
+	for (const { timing, cutoff } of tiers) {
+		await colls.games.deleteMany({
+			status: "open",
+			"options.timing.scheduledStart": { $exists: false },
+			...timing,
+			createdAt: { $lt: cutoff },
+			...stillWaitingForPlayers,
+		});
+		await colls.games.deleteMany({
+			status: "open",
+			"options.timing.scheduledStart": { $exists: false },
+			...timing,
+			filledAt: { $lt: cutoff },
+		});
+	}
 }
 
 export async function processSchedulesGames() {

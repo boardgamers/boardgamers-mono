@@ -414,6 +414,16 @@
 							<input type="checkbox" class="sr-only" bind:group={options} value="unlisted" />
 							{m.newGame_unlisted()}
 						</label>
+						<label
+							class="cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {options.includes(
+								'manualStart'
+							)
+								? 'border-primary bg-primary text-white'
+								: 'border-gray-300 text-gray-700 hover:border-primary hover:text-primary dark:border-gray-600 dark:text-gray-200 dark:hover:text-primary-lighter'}"
+						>
+							<input type="checkbox" class="sr-only" bind:group={options} value="manualStart" />
+							{m.newGame_manualStart()}
+						</label>
 						{#each (info.options ?? []).filter((opt) => opt.type === "checkbox") as option (option.name)}
 							<label
 								class="cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors {options.includes(

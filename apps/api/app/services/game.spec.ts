@@ -15,7 +15,7 @@ import { setSendmailForTests, type MailSendData } from "../config/sendmail.ts";
 import { testGame, testUser } from "../config/test-helpers.ts";
 import { signUnsubscribeToken } from "../models/user.ts";
 import { unsubscribeOneClickUrl, unsubscribePageUrl } from "./mail.ts";
-import { processStalledGame, processStalledGames } from "./game.ts";
+import { cancelOldOpenGames, processStalledGame, processStalledGames } from "./game.ts";
 
 const day = 24 * 3600 * 1000;
 
@@ -380,5 +380,104 @@ describe("processStalledGames — warn-then-auto-cancel for stalled games (#94)"
 		);
 		game = await colls.games.findOne({ _id: "warn-point" });
 		assert.equal(game?.status, "active");
+	});
+});
+
+describe("cancelOldOpenGames — manual-start interplay (#6)", () => {
+	const host = new ObjectId();
+	const guest = new ObjectId();
+	const asyncTiming = { timePerGame: 5000, timePerMove: 5000, timer: { start: 0, end: 86400 } };
+	const liveTiming2 = { timePerGame: 600, timePerMove: 60, timer: { start: 0, end: 86400 } };
+	const hour = 3600 * 1000;
+
+	function openGame(
+		_id: string,
+		opts: {
+			manualStart?: boolean;
+			filledAt?: Date;
+			createdAt: Date;
+			timing?: typeof asyncTiming;
+			scheduledStart?: Date;
+		},
+	) {
+		const timing = {
+			...(opts.timing ?? asyncTiming),
+			...(opts.scheduledStart ? { scheduledStart: opts.scheduledStart } : {}),
+		};
+		return testGame({
+			_id,
+			game: { name: "test", version: 1 },
+			status: "open",
+			creator: host,
+			players: [
+				{ _id: host, name: "host" },
+				{ _id: guest, name: "guest" },
+			],
+			options: {
+				setup: { seed: _id, nbPlayers: 2, playerOrder: "random" },
+				timing,
+				meta: { unlisted: false, ...(opts.manualStart ? { manualStart: true } : {}) },
+			},
+			...(opts.filledAt ? { filledAt: opts.filledAt } : {}),
+			createdAt: opts.createdAt,
+		});
+	}
+
+	before(async () => {
+		await colls.games.insertMany([
+			// Plain open game past the week window → removed (unchanged behavior).
+			openGame("coog-old-open", { createdAt: subDays(new Date(), 8) }),
+			// Manual-start but never filled: same clock as any open game → removed.
+			openGame("coog-manual-unfilled", { manualStart: true, createdAt: subDays(new Date(), 8) }),
+			// Manual-start, filled recently: the clock restarts at fill time → kept,
+			// even though the game itself is over a week old.
+			openGame("coog-manual-filled-fresh", {
+				manualStart: true,
+				createdAt: subDays(new Date(), 8),
+				filledAt: new Date(),
+			}),
+			// Manual-start, full for over a week (AWOL creator) → removed.
+			openGame("coog-manual-filled-old", {
+				manualStart: true,
+				createdAt: subDays(new Date(), 30),
+				filledAt: subDays(new Date(), 8),
+			}),
+			// Live game (≤10min/player) full for 2 hours → removed (1-hour tier, from fill time).
+			openGame("coog-manual-live-old", {
+				manualStart: true,
+				timing: liveTiming2,
+				createdAt: new Date(Date.now() - 2 * hour),
+				filledAt: new Date(Date.now() - 2 * hour),
+			}),
+			// Live game created 2 hours ago but filled 30 minutes ago → kept.
+			openGame("coog-manual-live-fresh", {
+				manualStart: true,
+				timing: liveTiming2,
+				createdAt: new Date(Date.now() - 2 * hour),
+				filledAt: new Date(Date.now() - 30 * 60 * 1000),
+			}),
+			// Scheduled games are exempt regardless of age (unchanged behavior).
+			openGame("coog-scheduled", {
+				manualStart: true,
+				createdAt: subDays(new Date(), 8),
+				filledAt: subDays(new Date(), 8),
+				scheduledStart: new Date(Date.now() + hour),
+			}),
+			// Fresh plain open game → kept.
+			openGame("coog-fresh", { createdAt: new Date() }),
+		]);
+	});
+
+	after(async () => {
+		await colls.games.deleteMany({ _id: /^coog-/ });
+	});
+
+	it("removes stale open games, measuring full manual-start games from fill time", async () => {
+		await cancelOldOpenGames();
+
+		const remaining = (await colls.games.find({ _id: /^coog-/ }, { projection: { _id: 1 } }).toArray())
+			.map((g) => g._id)
+			.sort();
+		assert.deepEqual(remaining, ["coog-fresh", "coog-manual-filled-fresh", "coog-manual-live-fresh", "coog-scheduled"]);
 	});
 });
