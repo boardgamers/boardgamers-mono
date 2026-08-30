@@ -57,32 +57,21 @@ export function metadataSourceHash(source: Record<string, string>): string {
  * Whether a (game, lang) pair is worth a (paid) translation. Shared by the
  * bulk metadata endpoint and the per-game translate-all so the two paths never
  * diverge: a pair needs translation when the game has source text and the
- * overlay is MISSING or OUTDATED (its `translatedFrom.hash` stamp no longer
- * matches the current source — mirroring the pages' needsTranslation and the
- * dashboard's cell status). Legacy stamp-less overlays ("unknown" on the
- * dashboard) are unverifiable: re-translating them is the honest reading, but
- * each one is up to three paid LLM completions for a translation that may be
- * perfectly fine — so they're only included under the explicit
- * `includeUnknown` opt-in (the bulk endpoint's flag), never by default.
+ * overlay doesn't carry a `translatedFrom.hash` stamp matching the current
+ * source — i.e. it is MISSING, OUTDATED (stale stamp), or a legacy stamp-less
+ * overlay ("unknown" on the dashboard). Unknown overlays are unverifiable, so
+ * they count too: worst case a fine translation is re-paid once, and the new
+ * write stamps a hash, making it a one-time cost.
  */
 export function metadataNeedsTranslation(
 	doc: Pick<GameMetadataDoc, "description" | "rules" | "credits" | "translations">,
 	targetLang: string,
-	{ includeUnknown = false }: { includeUnknown?: boolean } = {},
 ): boolean {
 	const source = metadataSourceStrings(doc);
 	if (Object.keys(source).length === 0) {
 		return false;
 	}
-	const overlay = doc.translations?.[targetLang];
-	if (!overlay) {
-		return true;
-	}
-	const stampedHash = overlay.translatedFrom?.hash;
-	if (!stampedHash) {
-		return includeUnknown;
-	}
-	return stampedHash !== metadataSourceHash(source);
+	return doc.translations?.[targetLang]?.translatedFrom?.hash !== metadataSourceHash(source);
 }
 
 /**

@@ -1,6 +1,11 @@
 import { api } from "$lib/api.ts";
 import type { GameInfoFront, GameMetadataDoc } from "@bgs/models";
 
+// The meta GET adds `sourceHash` (content hash of the current
+// description/rules/credits, null when there's no source text) so the page can
+// tell which overlays need translation with the server's own rule.
+export type GameMetadataWithHash = GameMetadataDoc & { sourceHash?: string | null };
+
 export interface VersionTab {
 	version: number;
 	archived: boolean;
@@ -18,14 +23,14 @@ export interface BetaUser {
 
 export async function load({ params }: { params: { game: string; version: string } }): Promise<{
 	value: GameInfoFront | null;
-	metadata: GameMetadataDoc | null;
+	metadata: GameMetadataWithHash | null;
 	versions: VersionTab[];
 	latestVersion: number;
 	betaUsers: BetaUser[];
 }> {
 	const [value, metadata, listed, ongoingCounts] = await Promise.all([
 		api.get<GameInfoFront>(`/admin/gameinfo/${params.game}/${params.version}`).catch(() => null),
-		api.get<GameMetadataDoc>(`/admin/gameinfo/${encodeURIComponent(params.game)}/meta`).catch(() => null),
+		api.get<GameMetadataWithHash>(`/admin/gameinfo/${encodeURIComponent(params.game)}/meta`).catch(() => null),
 		// This game's versions, latest first (the gameinfo list is one-per-game now).
 		api
 			.get<Array<{ version: number; archived: boolean }>>(`/admin/gameinfo/${encodeURIComponent(params.game)}/versions`)

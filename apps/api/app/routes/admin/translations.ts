@@ -127,8 +127,8 @@ function metadataTargetLangs(): string[] {
 // The source strings/hash/predicate helpers are shared with the per-game
 // translate routes and the overview above: models/gameinfo-i18n.ts
 // (metadataSourceStrings, metadataSourceHash, metadataNeedsTranslation — a
-// pair needs translation when its overlay is missing or outdated; stamp-less
-// "unknown" overlays only under the includeUnknown opt-in).
+// pair needs translation when its overlay is missing, outdated, or a legacy
+// stamp-less "unknown" one).
 
 // Defensive cap on (game, language) pairs per bulk run — every pair is up to
 // three paid LLM completions. Sized so a full-language refresh of the catalog
@@ -142,16 +142,12 @@ const metadataBulkSchema = z.object({
 		.trim()
 		.regex(/^[a-z]{2,3}$/, "targetLang must be a base language subtag (2–3 lowercase letters)")
 		.optional(),
-	// Also re-translate legacy stamp-less ("unknown") overlays. Off by default:
-	// they're unverifiable but possibly fine, and each is paid LLM work — see
-	// metadataNeedsTranslation.
-	includeUnknown: z.boolean().optional().default(false),
 });
 
 // POST /translate-metadata-bulk — kick off a bulk metadata translation run:
-// {targetLang} for "every game whose metadata overlay in that language is
-// missing or outdated", {} for every such (game, language) pair. Job-based
-// like the pages'
+// {targetLang} for "every game whose metadata overlay in that language needs
+// translation (missing / outdated / stamp-less)", {} for every such (game,
+// language) pair. Job-based like the pages'
 // translate-bulk (202 + job id, same settings-doc shape, same dashboard jobs
 // table) — a run is many games × 3 paid LLM completions, way past a request's
 // budget. Site "pages" admins only: the run spans every game, so per-game
@@ -160,7 +156,7 @@ router.post("/translate-metadata-bulk", actionRateLimit("admin/translate-metadat
 	if (!canUser(ctx.state.user, "pages")) {
 		throw createError(403, "Missing admin permission: pages");
 	}
-	const { targetLang, includeUnknown } = metadataBulkSchema.parse(ctx.request.body ?? {});
+	const { targetLang } = metadataBulkSchema.parse(ctx.request.body ?? {});
 
 	const metadatas = await colls.gameMetadatas
 		.find(
@@ -180,14 +176,12 @@ router.post("/translate-metadata-bulk", actionRateLimit("admin/translate-metadat
 		.toArray();
 
 	// Count only pairs that will actually be translated (source text present,
-	// overlay missing or outdated — plus unknown under the opt-in) so the
-	// progress total isn't inflated — the job loop re-checks each pair with the
-	// same predicate as a safety net against concurrent edits.
+	// overlay missing / outdated / stamp-less) so the progress total isn't
+	// inflated — the job loop re-checks each pair with the same predicate as a
+	// safety net against concurrent edits.
 	const targetLangs = targetLang ? [targetLang] : metadataTargetLangs();
 	const pairs = metadatas.flatMap((doc) =>
-		targetLangs
-			.filter((lang) => metadataNeedsTranslation(doc, lang, { includeUnknown }))
-			.map((lang) => ({ item: doc._id, lang })),
+		targetLangs.filter((lang) => metadataNeedsTranslation(doc, lang)).map((lang) => ({ item: doc._id, lang })),
 	);
 	if (pairs.length > BULK_METADATA_MAX_PAIRS) {
 		throw createError(400, `Too many (game, language) pairs: ${pairs.length} > ${BULK_METADATA_MAX_PAIRS}`);
@@ -209,11 +203,11 @@ router.post("/translate-metadata-bulk", actionRateLimit("admin/translate-metadat
 			{ _id: game },
 			{ projection: { label: 1, description: 1, rules: 1, credits: 1, translations: 1 } },
 		);
-		// In-loop re-check, same predicate (and includeUnknown mode) as job
-		// creation: an overlay can have been written or the source edited
-		// (per-game translate-all, another bulk run) in between — a pair that
-		// became fresh skip-counts instead of being re-paid.
-		if (!doc || !metadataNeedsTranslation(doc, lang, { includeUnknown })) {
+		// In-loop re-check, same predicate as job creation: an overlay can have
+		// been written or the source edited (per-game translate-all, another
+		// bulk run) in between — a pair that became fresh skip-counts instead
+		// of being re-paid.
+		if (!doc || !metadataNeedsTranslation(doc, lang)) {
 			return "skipped";
 		}
 		const source = metadataSourceStrings(doc);

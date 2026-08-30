@@ -104,7 +104,16 @@
 	const existingLangs = $derived(new Set(Object.keys(data.metadata?.translations ?? {})));
 	// Base subtags of every supported UI locale except English (the source).
 	const targetLangs = $derived([...new Set(locales.map((l) => l.split("-")[0]))].filter((l) => l !== "en"));
-	const missingLangs = $derived(targetLangs.filter((l) => !existingLangs.has(l)));
+	// Languages translate-all would actually translate — the server's
+	// metadataNeedsTranslation rule, computed against the meta GET's
+	// sourceHash: the overlay is missing, outdated (stamped against different
+	// source text), or a stamp-less legacy one. No source text → nothing to
+	// translate (the endpoint would 400).
+	const needingLangs = $derived(
+		data.metadata?.sourceHash
+			? targetLangs.filter((l) => data.metadata?.translations?.[l]?.translatedFrom?.hash !== data.metadata?.sourceHash)
+			: []
+	);
 	// Chip labels are base subtags; the tooltip shows the full locale name, mapping
 	// a bare subtag to its regional default first (pt → pt-BR → "Português (Brasil)").
 	function langName(lang: string): string {
@@ -260,13 +269,14 @@
 						{translating === lang ? "…" : lang}{done ? " ✓" : ""}
 					</button>
 				{/each}
-				{#if missingLangs.length > 0}
+				{#if needingLangs.length > 0}
 					<button
 						onclick={translateMetaAll}
 						disabled={translating !== null || translatingAll}
+						title="LLM-translate every language whose overlay is missing, outdated, or unverified (pre-tracking)"
 						class="px-2 py-0.5 rounded border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 text-xs hover:bg-violet-50 dark:hover:bg-violet-950 disabled:opacity-50"
 					>
-						{translatingAll ? "Translating…" : `Translate all (${missingLangs.length} missing)`}
+						{translatingAll ? "Translating…" : `Translate all (${needingLangs.length} missing or outdated)`}
 					</button>
 				{/if}
 			</div>
