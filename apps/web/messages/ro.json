@@ -323,7 +323,7 @@
 	"newGame.scheduledStart": "Start programat (opțional)",
 	"newGame.seedHelp": "Jocurile cu același seed au aceeași configurație.",
 	"newGame.seedPlaceholder": "Seed aleatoriu",
-	"newGame.setup": "Configurează un joc nou. Doar elementele esențiale sunt obligatorii — restul au valori implicite rezonabile.",
+	"newGame.setup": "Configurează un joc nou.",
 	"newGame.suggest": "Propune-l",
 	"newGame.time": "Timp",
 	"newGame.timePerGame": "Timp per jucător per joc",
