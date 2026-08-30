@@ -45,7 +45,7 @@ Covered by `app/routes/user/index.spec.ts`. Keep this note until we migrate off 
 
 `/api/admin/loki/query/:key` proxies pre-built LogQL queries to Loki at `process.env.lokiUrl || "http://127.0.0.1:3100"`. This works because the Loki container and the API run on the same host (coyo). If Loki ever moves to a separate host, set `lokiUrl` in the env. The route is intentionally query-key-only (no raw LogQL from the client) to prevent LogQL injection — the `QUERIES` map in `loki.ts` is the allow-list. New dashboard queries should be added there.
 
-The route inherits `router.use(isAdmin)` from the admin router (`app/routes/admin/index.ts:25`), so it's protected by the existing JWT → `authority === "admin"` check with no additional auth code.
+The route is mounted with `requirePermission("loki")` in the admin router (`app/routes/admin/index.ts`), so it's protected by the admin permission system with no additional auth code in `loki.ts` itself.
 
 ### `fetch()` errors and the `isLokiDown` helper
 

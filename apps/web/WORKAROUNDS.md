@@ -62,4 +62,9 @@ The viewer uplink contract (`apps/docs/docs/guide/viewer-api.md`, "player:clicke
 `{ index: number }`, relayed verbatim by the iframe shim as `event.data.player`.
 `StartedGame.svelte` resolves the username from `game.players[index].name`, but still
 honors a legacy `{ name: string }` payload when present. Removable once no published
-viewer emits `player:clicked` with a `{ name }` payload.
+viewer emits `player:clicked` with a `{ name }` payload. Audited 2026-08-30 (#118)
+against every viewer bundle referenced by prod gameinfo docs: the published
+gaia-project viewers (`@gaia-project/viewer@5.12.0`, `@gaia-project/old-ui@1.0.0`)
+emit `{ name, auth, index }` where `index` can be undefined when the store lacks
+player data — the `name` path is load-bearing there — and the take6 3D viewer emits
+`{ index, name }`. Condition not met; keep.
