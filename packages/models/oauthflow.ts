@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { IndexDescription } from "mongodb";
 import { zObjectId } from "./helpers.ts";
 import { oauthScopeSchema } from "./oauthconsent.ts";
+import { socialMetaEntrySchema } from "./user.ts";
 
 /**
  * Server-side state for an in-flight OAuth flow: the social-login PKCE handshake,
@@ -33,7 +34,7 @@ export const oauthFlowSchema = z.discriminatedUnion("kind", [
 		_id: z.string(),
 		provider: z.string(),
 		socialId: z.string(),
-		socialMeta: z.object({ username: z.string(), url: z.string() }).optional(),
+		socialMeta: socialMetaEntrySchema.optional(),
 		expiresAt: z.date(),
 	}),
 	z.object({

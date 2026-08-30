@@ -31,6 +31,7 @@
 	"account.profile": "Profil",
 	"account.socialAccounts": "Social-Logins",
 	"account.socialAccountsHelp": "Verknüpfte Konten können zum Anmelden mit einem Klick verwendet werden.",
+	"account.socialAvatar": "Meinen {provider}-Avatar verwenden",
 	"account.socialConnect": "Verbinden",
 	"account.socialConnected": "Verbunden",
 	"account.socialDisconnect": "Trennen",

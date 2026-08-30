@@ -13,6 +13,7 @@ import type { UserDoc } from "@bgs/models";
 import type { WithId } from "mongodb";
 import { colls } from "./db.ts";
 import { takePendingSignup } from "../models/oauthflows.ts";
+import { validSocialAvatarUrl } from "../services/socialavatar.ts";
 
 // Burn a pending-signup ticket (single-use, Mongo — models/oauthflows.ts) into the
 // payload the social-signup strategy consumes.
@@ -160,7 +161,9 @@ passport.use(
 								provider: z.enum(["google", "facebook", "discord", "github", "huggingface"]),
 								id: z.string(),
 								createSocialAccount: z.literal(true),
-								socialMeta: z.object({ username: z.string(), url: z.string() }).optional(),
+								socialMeta: z
+									.object({ username: z.string(), url: z.string().optional(), avatarUrl: z.string().optional() })
+									.optional(),
 							})
 							.transform(({ id, ...rest }) => ({ ...rest, socialId: id }))
 							.parse(jwt.verify(String(token), env.jwt.keys.public));
@@ -279,6 +282,12 @@ export type SocialProfile = {
 	id: string;
 	username?: string;
 	profileUrl?: string;
+	// passport convention (google): photos[0].value is the profile picture URL.
+	photos?: { value: string }[];
+	// passport-discord: the avatar hash (null for the default avatar).
+	avatar?: string | null;
+	// Direct avatar URL, set by the PKCE providers (github avatar_url, HF picture).
+	avatarUrl?: string;
 };
 
 // Default public profile URL per provider, for providers whose passport profile lacks
@@ -288,12 +297,38 @@ const defaultProfileUrl: Partial<Record<SocialProvider, (profile: SocialProfile)
 	huggingface: (profile) => `https://huggingface.co/${profile.username ?? profile.id}`,
 };
 
-// Extract ONLY non-sensitive display fields (public username + profile URL) from the
-// OAuth profile. Never persist tokens or the raw provider payload (profile._json).
+// Provider-specific avatar URL extraction. Discord's profile only carries the avatar
+// hash; the others hand a URL directly (google via the passport photos convention,
+// github/huggingface via the PKCE userinfo mapping). Facebook is deliberately absent:
+// it's being phased out (#99) and its default profile fields carry no photo.
+function rawAvatarUrlOf(provider: SocialProvider, profile: SocialProfile): string | undefined {
+	switch (provider) {
+		case "discord":
+			// Works for animated ("a_…") hashes too — the CDN serves a still png.
+			return profile.avatar
+				? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png?size=256`
+				: undefined;
+		case "google":
+			return profile.photos?.[0]?.value ?? profile.avatarUrl;
+		case "github":
+		case "huggingface":
+			return profile.avatarUrl;
+		default:
+			return undefined;
+	}
+}
+
+// Extract ONLY non-sensitive display fields (public username + profile URL + avatar
+// URL) from the OAuth profile. Never persist tokens or the raw provider payload
+// (profile._json). The avatar URL is kept only when https on the provider's known
+// CDN (validSocialAvatarUrl) — it's later fetched server-side, so nothing else may
+// ever be stored. `url` may be absent (google has no public profile URL, but does
+// have an avatar).
 function socialMetaOf(provider: SocialProvider, profile: SocialProfile) {
 	const username = profile.username ?? profile.profileUrl?.replace(/\/+$/, "").split("/").pop() ?? profile.id;
 	const url = profile.profileUrl ?? defaultProfileUrl[provider]?.(profile);
-	return url ? { username, url } : undefined;
+	const avatarUrl = validSocialAvatarUrl(provider, rawAvatarUrlOf(provider, profile));
+	return url || avatarUrl ? { username, ...(url ? { url } : {}), ...(avatarUrl ? { avatarUrl } : {}) } : undefined;
 }
 
 function makeSocialStrategy<T extends Strategy>(
@@ -359,8 +394,11 @@ export async function verifySocialProfile(
 	}
 
 	if (existingUser) {
-		// Backfill display meta for accounts linked before socialMeta existed.
-		if (socialMeta && !existingUser.account.socialMeta?.[provider]) {
+		// Backfill display meta for accounts linked before socialMeta existed, and
+		// refresh it when it changed (avatar CDN URLs rotate — Discord hashes — so a
+		// login keeps the stored URL usable).
+		const stored = existingUser.account.socialMeta?.[provider];
+		if (socialMeta && JSON.stringify(stored) !== JSON.stringify(socialMeta)) {
 			await colls.users.updateOne(
 				{ _id: existingUser._id },
 				{ $set: { [`account.socialMeta.${provider}`]: socialMeta } },

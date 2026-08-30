@@ -31,6 +31,7 @@
 	"account.profile": "Προφίλ",
 	"account.socialAccounts": "Σύνδεση μέσω κοινωνικών δικτύων",
 	"account.socialAccountsHelp": "Οι συνδεδεμένοι λογαριασμοί επιτρέπουν σύνδεση με ένα κλικ.",
+	"account.socialAvatar": "Χρήση του avatar μου από το {provider}",
 	"account.socialConnect": "Σύνδεση",
 	"account.socialConnected": "Συνδεδεμένο",
 	"account.socialDisconnect": "Αποσύνδεση",

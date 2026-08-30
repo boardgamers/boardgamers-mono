@@ -31,6 +31,7 @@
 	"account.profile": "Профиль",
 	"account.socialAccounts": "Вход через соцсети",
 	"account.socialAccountsHelp": "Привязанные аккаунты позволяют входить в один клик.",
+	"account.socialAvatar": "Использовать мой аватар {provider}",
 	"account.socialConnect": "Подключить",
 	"account.socialConnected": "Подключено",
 	"account.socialDisconnect": "Отключить",

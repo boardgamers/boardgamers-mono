@@ -31,6 +31,7 @@
 	"account.profile": "Profil",
 	"account.socialAccounts": "Sociale logins",
 	"account.socialAccountsHelp": "Tilknyttede konti kan bruges til at logge ind med ét klik.",
+	"account.socialAvatar": "Brug min {provider}-avatar",
 	"account.socialConnect": "Forbind",
 	"account.socialConnected": "Forbundet",
 	"account.socialDisconnect": "Fjern",

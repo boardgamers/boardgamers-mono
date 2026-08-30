@@ -15,6 +15,7 @@ import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../m
 import { hashUserSecret, setWebhookFetchForTests, type WebhookCall } from "../../models/user.ts";
 import { interceptS3Fetches, makeS3Mock } from "../../services/s3-mock.ts";
 import { s3Fetch, setS3ClientsForTests } from "../../services/s3.ts";
+import { setSocialAvatarFetchForTests } from "../../services/socialavatar.ts";
 
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
 
@@ -548,6 +549,141 @@ describe("Account API — avatar upload with S3 disabled", () => {
 	});
 
 	after(() => db().dropDatabase());
+});
+
+describe("Account API — social avatar selection (Codeberg #34)", () => {
+	const userId = new ObjectId();
+	let authHeaders: Record<string, string> = {};
+	const s3Mock = makeS3Mock();
+	// Registered in before(), not at module load: the interceptor slot is global
+	// and a load-time registration would hijack the earlier avatar-upload describe's.
+	let restoreFetchInterceptor: () => void;
+	const discordAvatarUrl = "https://cdn.discordapp.com/avatars/d-1/abc123.png?size=256";
+	let fetchedUrls: string[] = [];
+
+	before(async () => {
+		restoreFetchInterceptor = interceptS3Fetches(s3Mock);
+		setS3ClientsForTests(s3Mock.client);
+		s3Mock.reset();
+		// The mock hands back a real PNG so the sharp pipeline runs for real.
+		const png = await sharp({ create: { width: 300, height: 200, channels: 3, background: "#3366cc" } })
+			.png()
+			.toBuffer();
+		setSocialAvatarFetchForTests(async (url) => {
+			fetchedUrls.push(url);
+			return png;
+		});
+		await colls.users.insertOne(
+			testUser({
+				_id: userId,
+				account: {
+					username: "socialavataruser",
+					email: "socialavatar@test.com",
+					social: { discord: "d-1", github: "gh-1", google: "g-1" },
+					socialMeta: {
+						discord: { username: "gamer#42", url: "https://discord.com/users/d-1", avatarUrl: discordAvatarUrl },
+						// github connected but its profile carried no avatar URL.
+						github: { username: "octocat", url: "https://github.com/octocat" },
+					},
+				},
+				security: { confirmed: true, slug: "socialavataruser" },
+			}),
+		);
+		const code = generateRefreshCode();
+		const tokenDoc = { user: userId, codeHash: hashRefreshCode(code), createdAt: new Date() };
+		await colls.jwtRefreshTokens.insertOne(tokenDoc);
+		authHeaders = { Authorization: `Bearer ${await createAccessToken(tokenDoc, ["all"], false)}` };
+	});
+
+	it("requires authentication", async () => {
+		const res = await api("POST", "/api/account/avatar/social", { provider: "discord" });
+		assert.strictEqual(res.status, 401);
+	});
+
+	it("copies the provider avatar through the upload pipeline and flips account.avatar", async () => {
+		fetchedUrls = [];
+		const res = await api("POST", "/api/account/avatar/social", { provider: "discord" }, authHeaders);
+		assert.strictEqual(res.status, 200, JSON.stringify(res.data));
+		// The fetch went to the stored, whitelisted CDN URL — nothing else.
+		assert.deepStrictEqual(fetchedUrls, [discordAvatarUrl]);
+
+		// Same storage shape as an upload: webp in all three sizes, account.avatar = "upload".
+		const doc = await colls.images.findOne({ ref: userId, key: "avatar", refType: "User" });
+		assert.ok(doc, "expected an images doc");
+		assert.deepStrictEqual([...doc.formats].sort(), ["128x128", "256x256", "64x64"]);
+		const user = await colls.users.findOne({ _id: userId });
+		assert.strictEqual(user?.account.avatar, "upload");
+
+		// The response is the redacted updated user, ready for account.set() on the front.
+		const body = z.object({ account: z.object({ avatar: z.string(), password: z.undefined() }) }).parse(res.data);
+		assert.strictEqual(body.account.avatar, "upload");
+
+		// And it serves like any custom avatar (302 to the mock S3 public URL).
+		const redirect = await fetch(`${baseURL()}/api/user/${userId.toHexString()}/avatar?size=64`, {
+			redirect: "manual",
+		});
+		assert.strictEqual(redirect.status, 302);
+		const served = await s3Fetch(redirect.headers.get("location")!);
+		assert.ok(isWebp(Buffer.from(await served.arrayBuffer())));
+	});
+
+	it("404s when the provider is connected but carried no avatar URL", async () => {
+		fetchedUrls = [];
+		const res = await api("POST", "/api/account/avatar/social", { provider: "github" }, authHeaders);
+		assert.strictEqual(res.status, 404);
+		assert.deepStrictEqual(fetchedUrls, []);
+	});
+
+	it("404s when the provider is connected but has no stored meta at all", async () => {
+		const res = await api("POST", "/api/account/avatar/social", { provider: "google" }, authHeaders);
+		assert.strictEqual(res.status, 404);
+	});
+
+	it("404s when the provider isn't connected", async () => {
+		const res = await api("POST", "/api/account/avatar/social", { provider: "huggingface" }, authHeaders);
+		assert.strictEqual(res.status, 404);
+	});
+
+	it("rejects an unknown provider", async () => {
+		const res = await api("POST", "/api/account/avatar/social", { provider: "myspace" }, authHeaders);
+		assert.ok(!res.ok);
+	});
+
+	it("refuses to fetch a stored URL off the provider's CDN whitelist (defense in depth)", async () => {
+		// Simulate a doc written before the whitelist (or a tampered one).
+		await colls.users.updateOne(
+			{ _id: userId },
+			{ $set: { "account.socialMeta.discord.avatarUrl": "https://evil.example/avatar.png" } },
+		);
+		fetchedUrls = [];
+		try {
+			const res = await api("POST", "/api/account/avatar/social", { provider: "discord" }, authHeaders);
+			assert.strictEqual(res.status, 422, JSON.stringify(res.data));
+			assert.deepStrictEqual(fetchedUrls, [], "must not fetch a non-whitelisted URL");
+		} finally {
+			await colls.users.updateOne(
+				{ _id: userId },
+				{ $set: { "account.socialMeta.discord.avatarUrl": discordAvatarUrl } },
+			);
+		}
+	});
+
+	it("is rate-limited (account/avatar/social)", async () => {
+		// The registered cap is 10/hour; the successful copies above already counted.
+		let limited = false;
+		for (let i = 0; i < 12 && !limited; i++) {
+			const res = await api("POST", "/api/account/avatar/social", { provider: "discord" }, authHeaders);
+			limited = res.status === 429;
+		}
+		assert.ok(limited, "expected a 429 once the action rate limit is hit");
+	});
+
+	after(async () => {
+		setSocialAvatarFetchForTests(null);
+		setS3ClientsForTests(null);
+		restoreFetchInterceptor();
+		await db().dropDatabase();
+	});
 });
 
 describe("Account API — auth email cooldown (#195)", () => {

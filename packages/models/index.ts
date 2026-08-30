@@ -180,7 +180,7 @@ export { settingsSchema, SETTINGS_COLLECTION, SettingsKey, announcementSchema } 
 
 // --- User ---
 export type { UserDoc, UserFront } from "./user.ts";
-export { userSchema, USERS_COLLECTION, userIndexes } from "./user.ts";
+export { userSchema, socialMetaEntrySchema, USERS_COLLECTION, userIndexes } from "./user.ts";
 
 // --- User Action (per-user action rate-limit counters) ---
 export type { UserActionDoc } from "./useraction.ts";

@@ -4,6 +4,14 @@ import type { IndexDescription } from "mongodb";
 import { adminGrantSchema } from "./admin.ts";
 import { zObjectId, zDate } from "./helpers.ts";
 
+export const socialMetaEntrySchema = z.object({
+	username: z.string(),
+	// Public profile URL — absent for providers without one (google).
+	url: z.string().optional(),
+	// https URL on the provider's CDN, or absent when the provider returned none.
+	avatarUrl: z.string().optional(),
+});
+
 export const userSchema = z.object({
 	_id: zObjectId().optional(),
 	account: z.object({
@@ -24,16 +32,18 @@ export const userSchema = z.object({
 				huggingface: z.string().optional(),
 			})
 			.optional(),
-		// Non-sensitive display info from the OAuth profile (public username + profile URL).
-		// Never store tokens or the raw provider payload (profile._json) here. Intentionally
-		// NOT whitelisted in infra/pr-preview/seed/scrub-users.mjs: identifying → previews drop it.
+		// Non-sensitive display info from the OAuth profile (public username + profile URL +
+		// avatar URL, captured at link/login time — the avatar URL must be https on the
+		// provider's known CDN, see apps/api services/socialavatar.ts). Never store tokens or
+		// the raw provider payload (profile._json) here. Intentionally NOT whitelisted in
+		// infra/pr-preview/seed/scrub-users.mjs: identifying → previews drop it.
 		socialMeta: z
 			.object({
-				google: z.object({ username: z.string(), url: z.string() }).optional(),
-				facebook: z.object({ username: z.string(), url: z.string() }).optional(),
-				discord: z.object({ username: z.string(), url: z.string() }).optional(),
-				github: z.object({ username: z.string(), url: z.string() }).optional(),
-				huggingface: z.object({ username: z.string(), url: z.string() }).optional(),
+				google: socialMetaEntrySchema.optional(),
+				facebook: socialMetaEntrySchema.optional(),
+				discord: socialMetaEntrySchema.optional(),
+				github: socialMetaEntrySchema.optional(),
+				huggingface: socialMetaEntrySchema.optional(),
 			})
 			.optional(),
 		// Serialization-only hint, computed by the api's stripSensitiveFields (never

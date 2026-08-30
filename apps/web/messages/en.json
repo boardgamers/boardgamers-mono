@@ -31,6 +31,7 @@
 	"account.profile": "Profile",
 	"account.socialAccounts": "Social logins",
 	"account.socialAccountsHelp": "Connected accounts can be used to log in with one click.",
+	"account.socialAvatar": "Use my {provider} avatar",
 	"account.socialConnect": "Connect",
 	"account.socialConnected": "Connected",
 	"account.socialDisconnect": "Disconnect",

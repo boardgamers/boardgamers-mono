@@ -31,6 +31,7 @@
 	"account.profile": "Profil",
 	"account.socialAccounts": "Conturi sociale",
 	"account.socialAccountsHelp": "Conturile conectate pot fi folosite pentru autentificare cu un singur clic.",
+	"account.socialAvatar": "Folosește avatarul meu de pe {provider}",
 	"account.socialConnect": "Conectează",
 	"account.socialConnected": "Conectat",
 	"account.socialDisconnect": "Deconectează",
