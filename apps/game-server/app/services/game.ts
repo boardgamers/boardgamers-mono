@@ -175,6 +175,29 @@ export async function processQuit(notification: GameNotificationDoc) {
 				return true;
 			}
 
+			// Drops re-assert the /drop route's condition at apply time: the target must
+			// still be current with an elapsed deadline — and when the notification
+			// recorded the stall's deadline (meta.deadline, both the route and the
+			// inactivity sweep do), that exact one. A comeback move landing between the
+			// insert and this consumer (seconds normally, arbitrarily long if the
+			// consumer was down) resets the deadline, and the stale drop must be
+			// discarded, not applied after the move.
+			if (notification.kind === "dropPlayer") {
+				const cp = (game.currentPlayers ?? []).find((p) => p._id.equals(player._id));
+				const metaDeadline = notification.meta?.deadline;
+				const stillOverdue =
+					cp?.deadline !== undefined &&
+					cp.deadline.getTime() < Date.now() &&
+					(!(metaDeadline instanceof Date) || metaDeadline.getTime() === cp.deadline.getTime());
+				if (!stillOverdue) {
+					await colls.gameNotifications.updateOne(
+						{ _id: notification._id },
+						{ $set: { processed: true, updatedAt: new Date() } },
+					);
+					return true;
+				}
+			}
+
 			const playerIndex = game.players.findIndex((pl) => pl._id.equals(player._id));
 			const engine = trackedEngine(await getEngine(game.game.name, game.game.version), {
 				gameId: game._id,
@@ -502,6 +525,7 @@ export async function afterMove(
 	game.lastMove = new Date();
 	delete game.cancelWarn;
 	delete game.dropWarn;
+	delete game.dropWarnAt;
 	game.data = JSON.parse(JSON.stringify(gameData));
 
 	if (lastMove !== undefined) {

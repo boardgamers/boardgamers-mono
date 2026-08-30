@@ -149,12 +149,21 @@ export default {
 	// after the deadline (same path and karma cost as a manual drop; the game then
 	// continues, or is cancelled by afterMove when it can't), and cancel the whole
 	// game penalty-free at autoCancelGraceMs as a safety net. Games without a
-	// deadline (live/realtime) are untouched. autoDrop: "on" (default) drops,
-	// "dry-run" only logs who would be dropped, "off" restores warn-then-cancel.
-	autoDrop:
-		process.env.autoDrop === "off" || process.env.autoDrop === "dry-run"
-			? process.env.autoDrop
-			: ("on" as "off" | "dry-run" | "on"),
+	// deadline (live/realtime) are untouched. autoDrop: "on" (default when unset)
+	// drops, "dry-run" only logs who would be dropped, "off" restores
+	// warn-then-cancel. Any other value is a typo on a kill switch — fail safe to
+	// "off" (with a warning) rather than silently dropping players.
+	autoDrop: ((): "off" | "dry-run" | "on" => {
+		const raw = process.env.autoDrop;
+		if (raw === undefined || raw === "" || raw === "on") {
+			return "on";
+		}
+		if (raw === "off" || raw === "dry-run") {
+			return raw;
+		}
+		console.warn(`Unrecognized autoDrop value ${JSON.stringify(raw)} — falling back to "off"`);
+		return "off";
+	})(),
 	autoDropGraceMs: Number(process.env.autoDropGraceMs) || 3 * 24 * 3600 * 1000,
 	autoCancelGraceMs: Number(process.env.autoCancelGraceMs) || 10 * 24 * 3600 * 1000,
 	autoCancelWarnMs: Number(process.env.autoCancelWarnMs) || 24 * 3600 * 1000,

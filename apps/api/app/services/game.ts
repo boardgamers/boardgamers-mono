@@ -157,12 +157,20 @@ export async function processStalledGame(gameId: string): Promise<void> {
 		return;
 	}
 
+	// The notice promised by the warning (normally warn at deadline+24h, drop at
+	// deadline+3d → 2 days). The drop also waits for it to elapse *since the warning*
+	// (dropWarnAt), so a warning posted late (sweep backlog/outage) can't collapse
+	// the notice to the next sweep tick.
+	const noticeMs = Math.max(0, env.autoDropGraceMs - env.autoCancelWarnMs);
+
 	// Auto-drop stage: only players who got the drop warning (dropWarn — a game warned
 	// with the old cancel-only message keeps the penalty-free cancel it was promised)
-	// and whose own deadline is autoDropGraceMs past. Same path as the manual
-	// /drop/:userId route: a dropPlayer notification the game-server processes under
-	// the game lock (engine dropPlayer, karma, afterMove advancing or cancelling).
-	if (env.autoDrop !== "off" && (game.dropWarn || (env.autoDrop === "dry-run" && game.cancelWarn))) {
+	// at least noticeMs ago, and whose own deadline is autoDropGraceMs past. Same path
+	// as the manual /drop/:userId route: a dropPlayer notification the game-server
+	// processes under the game lock (engine dropPlayer, karma, afterMove advancing or
+	// cancelling).
+	const noticeElapsed = game.dropWarnAt === undefined || now.getTime() - game.dropWarnAt.getTime() >= noticeMs;
+	if (env.autoDrop !== "off" && noticeElapsed && (game.dropWarn || (env.autoDrop === "dry-run" && game.cancelWarn))) {
 		const toDrop = stalled.filter(({ deadline }) => now.getTime() - deadline.getTime() >= env.autoDropGraceMs);
 		if (toDrop.length > 0) {
 			if (env.autoDrop === "dry-run") {
@@ -179,7 +187,11 @@ export async function processStalledGame(gameId: string): Promise<void> {
 	if (stallAgeMs >= env.autoCancelWarnMs && !game.cancelWarn && !game.dropWarn) {
 		const names = stalled.map(({ player }) => player.name).join(", ") || "the current player(s)";
 		if (env.autoDrop === "on") {
-			const daysLeft = Math.max(1, Math.ceil((env.autoDropGraceMs - stallAgeMs) / (24 * 3600 * 1000)));
+			// The drop happens at max(deadline + autoDropGraceMs, warning + notice).
+			const daysLeft = Math.max(
+				1,
+				Math.ceil(Math.max(env.autoDropGraceMs - stallAgeMs, noticeMs) / (24 * 3600 * 1000)),
+			);
 			await colls.chatMessages.insertOne({
 				_id: new ObjectId(),
 				room: game._id,
@@ -188,7 +200,7 @@ export async function processStalledGame(gameId: string): Promise<void> {
 					text: `${names} will be dropped for inactivity in ${daysLeft} day${daysLeft > 1 ? "s" : ""} if no move is played (the other players can drop them sooner). The game then continues without them, or is cancelled if it can't continue.`,
 				},
 			});
-			await colls.games.updateOne({ _id: game._id }, { $set: { dropWarn: true } });
+			await colls.games.updateOne({ _id: game._id }, { $set: { dropWarn: true, dropWarnAt: now } });
 			await emailDropWarning(
 				game,
 				stalled.map(({ player }) => player),

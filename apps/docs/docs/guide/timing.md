@@ -51,7 +51,8 @@ The platform does not auto-drop a player the instant their deadline passes. Inst
   drop them (`POST /game/:id/drop/:userId`). The game-server then calls the engine's
   [`dropPlayer`](./engine-api.md#dropplayer), flags the player `dropped`, and the dropped player loses karma.
 - **Inactivity sweep.** If a deadline stays expired for 24 hours, a warning is posted in the game chat and the
-  stalled player is warned by email; if they still haven't moved 3 days past the deadline, they are
+  stalled player is warned by email; if they still haven't moved 3 days past the deadline (and at least the
+  promised notice — 2 days — after the warning), they are
   **dropped automatically** — same effect as a manual drop (engine `dropPlayer`, karma loss), so the game
   continues for the others, or is cancelled when it can't continue. If a game somehow stays stalled 10 days past
   the deadline (auto-drop disabled, or the drop couldn't be processed), it is **cancelled for inactivity**

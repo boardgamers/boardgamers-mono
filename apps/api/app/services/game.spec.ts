@@ -191,6 +191,7 @@ describe("processStalledGames — warn, auto-drop, then auto-cancel for stalled 
 					},
 				],
 				dropWarn: true,
+				dropWarnAt: ago(new Date(), 310_000),
 				options: { setup: { seed: "s", nbPlayers: 3, playerOrder: "random" }, timing },
 				lastMove: new Date(Date.now() - 310_000),
 				createdAt: subDays(new Date(), 60),
@@ -214,6 +215,7 @@ describe("processStalledGames — warn, auto-drop, then auto-cancel for stalled 
 					{ _id: pD, timerStart: new Date(), deadline: new Date(Date.now() + day) },
 				],
 				dropWarn: true,
+				dropWarnAt: ago(new Date(), 310_000),
 				options: { setup: { seed: "s", nbPlayers: 2, playerOrder: "random" }, timing },
 				lastMove: new Date(Date.now() - 310_000),
 				createdAt: subDays(new Date(), 60),
@@ -307,6 +309,7 @@ describe("processStalledGames — warn, auto-drop, then auto-cancel for stalled 
 		assert.equal(game?.status, "active");
 		assert.equal(game?.cancelled, false);
 		assert.equal(game?.dropWarn, true);
+		assert.ok(game?.dropWarnAt instanceof Date);
 		assert.equal(game?.cancelWarn, undefined);
 		assert.equal(await colls.gameNotifications.countDocuments({ game: "warn-point", kind: "dropPlayer" }), 0);
 	});
@@ -343,11 +346,12 @@ describe("processStalledGames — warn, auto-drop, then auto-cancel for stalled 
 		assert.equal(game?.status, "active", "cancelled only at the full grace, as promised");
 	});
 
-	it("an unwarned game past the drop grace is warned first, dropped on a later sweep", async () => {
+	it("an unwarned game past the drop grace is warned first, never dropped in the same sweep", async () => {
 		assert.equal(await colls.gameNotifications.countDocuments({ game: "warn-first", kind: "dropPlayer" }), 0);
 		const game = await colls.games.findOne({ _id: "warn-first" });
 		assert.equal(game?.status, "active");
 		assert.equal(game?.dropWarn, true);
+		assert.ok(game?.dropWarnAt instanceof Date);
 		const chat = await colls.chatMessages.findOne({ room: "warn-first", type: "system" });
 		assert.match(chat?.data?.text ?? "", /bob will be dropped for inactivity/);
 	});
@@ -356,9 +360,19 @@ describe("processStalledGames — warn, auto-drop, then auto-cancel for stalled 
 		await processStalledGames();
 		assert.equal(await colls.gameNotifications.countDocuments({ game: "drop-point", kind: "dropPlayer" }), 1);
 		assert.equal(await colls.gameNotifications.countDocuments({ game: "multi-current", kind: "dropPlayer" }), 1);
-		// …while warn-first, warned on the first sweep and already past the drop
-		// grace, is dropped by this one.
-		assert.equal(await colls.gameNotifications.countDocuments({ game: "warn-first", kind: "dropPlayer" }), 1);
+		// …and warn-first, though past the drop grace, still isn't dropped: the
+		// promised notice hasn't elapsed since its (late) warning.
+		assert.equal(await colls.gameNotifications.countDocuments({ game: "warn-first", kind: "dropPlayer" }), 0);
+	});
+
+	it("drops a late-warned game only once the promised notice elapsed since the warning", async () => {
+		// Simulate the notice (drop grace - warn threshold) having passed since
+		// warn-first's warning: backdate dropWarnAt past it.
+		await colls.games.updateOne({ _id: "warn-first" }, { $set: { dropWarnAt: ago(new Date(), 310_000) } });
+		await processStalledGame("warn-first");
+		const notifications = await colls.gameNotifications.find({ game: "warn-first", kind: "dropPlayer" }).toArray();
+		assert.equal(notifications.length, 1);
+		assert.ok(notifications[0].user?.equals(pB));
 	});
 
 	it("cancels a game still stalled after the full grace period (penalty-free cancel shape)", async () => {
@@ -522,7 +536,7 @@ describe("processStalledGames — warn, auto-drop, then auto-cancel for stalled 
 					"currentPlayers.0.deadline": new Date(Date.now() + day),
 				},
 				// The game-server clears the warning markers on a move.
-				$unset: { cancelWarn: "", dropWarn: "" },
+				$unset: { cancelWarn: "", dropWarn: "", dropWarnAt: "" },
 			},
 		);
 		await processStalledGame("warn-point");
@@ -572,7 +586,7 @@ describe("processStalledGames — warn, auto-drop, then auto-cancel for stalled 
 			lastMove: new Date(Date.now() - over.ageMs),
 			createdAt: subDays(new Date(), 60),
 			...(over.cancelWarn ? { cancelWarn: true } : {}),
-			...(over.dropWarn ? { dropWarn: true } : {}),
+			...(over.dropWarn ? { dropWarn: true, dropWarnAt: ago(new Date(), over.ageMs) } : {}),
 		});
 
 	it("autoDrop=dry-run: warns with the cancel message and never inserts a drop notification", async () => {

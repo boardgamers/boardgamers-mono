@@ -107,6 +107,10 @@ export const gameSchema = z.object({
 	// the cancel they were promised); `dropWarn` announces the auto-drop.
 	cancelWarn: z.boolean().optional(),
 	dropWarn: z.boolean().optional(),
+	// When the drop warning was posted: the auto-drop fires only once the promised
+	// notice has elapsed since the warning, not just N days past the deadline — so a
+	// late warning (sweep backlog/outage) can't collapse the notice window.
+	dropWarnAt: zDate().optional(),
 	lastMove: zDate().optional(),
 	// Denormalized summary of the last move, written by the game-server so listings
 	// can display it without loading game.data or replaying the engine. Null until

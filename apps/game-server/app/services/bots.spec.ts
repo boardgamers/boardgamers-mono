@@ -147,10 +147,30 @@ describe("bot driver", () => {
 		// concurrently against the same test db, and a dropDatabase() here would wipe
 		// another file's state mid-run.
 		await colls.games.deleteMany({
-			_id: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel", "bot-game-log", "bot-game-lock"] },
+			_id: {
+				$in: [
+					"bot-game-1",
+					"bot-game-2",
+					"bot-game-noai",
+					"bot-game-cancel",
+					"bot-game-log",
+					"bot-game-lock",
+					"bot-game-stale",
+				],
+			},
 		});
 		await colls.gameNotifications.deleteMany({
-			game: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel", "bot-game-log", "bot-game-lock"] },
+			game: {
+				$in: [
+					"bot-game-1",
+					"bot-game-2",
+					"bot-game-noai",
+					"bot-game-cancel",
+					"bot-game-log",
+					"bot-game-lock",
+					"bot-game-stale",
+				],
+			},
 		});
 		// A force-exited previous run can orphan this suite's `game:<id>` lock docs
 		// (they only age out via the 60s TTL); game mutations block on them since
@@ -159,9 +179,15 @@ describe("bot driver", () => {
 			.collection("locks")
 			.deleteMany({
 				action: {
-					$in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel", "bot-game-log", "bot-game-lock"].map(
-						(id) => `game:${id}`,
-					),
+					$in: [
+						"bot-game-1",
+						"bot-game-2",
+						"bot-game-noai",
+						"bot-game-cancel",
+						"bot-game-log",
+						"bot-game-lock",
+						"bot-game-stale",
+					].map((id) => `game:${id}`),
 				},
 			});
 		await colls.gameInfos.deleteMany({ "_id.game": { $in: [ENGINE_NAME, "bot-test-noai", "bot-test-log"] } });
@@ -300,7 +326,21 @@ describe("bot driver", () => {
 		const started = await colls.games.findOne({ _id: "bot-game-cancel" });
 		assert.strictEqual(started?.status, "active");
 
-		// The human times out and is dropped while the bot is current.
+		// The human times out and is dropped while the bot is (also) current. Drops
+		// re-validate "current + deadline elapsed" at apply time, so model the human
+		// as a timed-out current player alongside the bot (simultaneous turns).
+		await colls.games.updateOne(
+			{ _id: "bot-game-cancel" },
+			{
+				$push: {
+					currentPlayers: {
+						_id: human._id,
+						timerStart: new Date(Date.now() - 3600_000),
+						deadline: new Date(Date.now() - 60_000),
+					},
+				},
+			},
+		);
 		await processQuit({ kind: "dropPlayer", game: "bot-game-cancel", user: human._id, processed: false });
 
 		await waitFor(async () => {
@@ -312,6 +352,38 @@ describe("bot driver", () => {
 		assert.ok(game);
 		assert.strictEqual(game.cancelled, true, "Bot auto-consents to the human's cancel vote");
 		assert.strictEqual(game.players[1].dropped, true);
+	});
+
+	it("a stale dropPlayer notification is discarded after a comeback move", async () => {
+		// The inactivity sweep (or a manual dropper) queued a drop for an overdue
+		// player, but the player's comeback move landed before the consumer picked it
+		// up: the move reset their deadline, so the drop must be discarded — not
+		// applied right after the move (wrongful drop, −10 karma).
+		const mover = humanPlayer("mover");
+		await insertGame("bot-game-stale", [mover, humanPlayer("other")]);
+		await startGame("bot-game-stale");
+		// After start, mover is current with a fresh (future) deadline — exactly the
+		// post-comeback-move state. The notification still carries the stall's old
+		// deadline.
+		const inserted = await colls.gameNotifications.insertOne({
+			kind: "dropPlayer",
+			game: "bot-game-stale",
+			user: mover._id,
+			processed: false,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+			meta: { auto: true, deadline: new Date(Date.now() - 60_000) },
+		});
+		const notification = await colls.gameNotifications.findOne({ _id: inserted.insertedId });
+		assert.ok(notification);
+
+		await processQuit(notification);
+
+		const game = await colls.games.findOne({ _id: "bot-game-stale" });
+		assert.strictEqual(game?.status, "active");
+		assert.strictEqual(game?.players[0].dropped, false, "the comeback player must not be dropped");
+		const consumed = await colls.gameNotifications.findOne({ _id: inserted.insertedId });
+		assert.strictEqual(consumed?.processed, true, "the stale notification is consumed, not retried");
 	});
 
 	it("processQuit blocks while another actor holds the game:<id> lock (#280)", async () => {
