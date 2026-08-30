@@ -1,4 +1,6 @@
 import { m } from "@/lib/i18n/messages";
+import { currentLocale } from "@/lib/i18n/messages.svelte";
+import { getLocale } from "@/lib/paraglide/runtime.js";
 
 export function timerTime(value: number): string {
 	const d = new Date();
@@ -62,11 +64,34 @@ export function niceDate(date: string | Date): string {
 	}
 }
 
+type NarrowUnit = "second" | "minute" | "hour" | "day";
+
+const narrowUnitFormatters = new Map<string, Intl.NumberFormat>();
+
+/**
+ * Locale-correct compact unit via CLDR narrow units ("4d" en, "4j" fr, "4 д." ru)
+ * — no catalog cost. Locale resolution mirrors the m.* message calls (#306):
+ * tracked read of the language signal so components re-render on a language
+ * switch, then paraglide's getLocale() which is SSR-correct (per-request
+ * AsyncLocalStorage on the server), so server and client format identically.
+ */
+function narrowUnit(value: number, unit: NarrowUnit): string {
+	void currentLocale();
+	const locale = getLocale();
+	const key = `${locale}:${unit}`;
+	let formatter = narrowUnitFormatters.get(key);
+	if (!formatter) {
+		formatter = new Intl.NumberFormat(locale, { style: "unit", unit, unitDisplay: "narrow" });
+		narrowUnitFormatters.set(key, formatter);
+	}
+	return formatter.format(value);
+}
+
 // Localized unit labels (#306): each range carries its singular/plural message
 // function so durations render in the active UI language. English + German
 // pluralize identically here (n === 1 → singular), so a two-variant helper is
 // enough — no full ICU plural machinery.
-const timeRanges = [
+const timeRanges: { name: NarrowUnit; value: number; label: (count: number) => string }[] = [
 	{
 		name: "second",
 		value: 1,
@@ -134,11 +159,9 @@ export function shortDuration(seconds: number): string | undefined {
 				Math.floor((seconds - gap * Math.floor(n)) / timeRanges[i - 1].value) > 0
 			) {
 				return (
-					Math.floor(n) +
-					timeRanges[i].name[0] +
+					narrowUnit(Math.floor(n), timeRanges[i].name) +
 					" " +
-					Math.floor((seconds - gap * Math.floor(n)) / timeRanges[i - 1].value) +
-					timeRanges[i - 1].name[0]
+					narrowUnit(Math.floor((seconds - gap * Math.floor(n)) / timeRanges[i - 1].value), timeRanges[i - 1].name)
 				);
 			}
 			return timeRanges[i].label(Math.floor(n));
@@ -153,12 +176,13 @@ export function dateFromObjectId(objectId: string): Date {
 }
 
 /**
- * Compact duration for dense UI (game rows): 30m, 2h, 3d. Uses the largest whole unit.
+ * Compact duration for dense UI (game rows): "30m"/"2h"/"3d" in English,
+ * "30min"/"2h"/"3j" in French, … Uses the largest whole unit.
  */
 export function compactDuration(seconds: number): string {
-	if (seconds < 3600) return `${Math.max(1, Math.round(seconds / 60))}m`;
-	if (seconds < 86400) return `${Math.round(seconds / 3600)}h`;
-	return `${Math.round(seconds / 86400)}d`;
+	if (seconds < 3600) return narrowUnit(Math.max(1, Math.round(seconds / 60)), "minute");
+	if (seconds < 86400) return narrowUnit(Math.round(seconds / 3600), "hour");
+	return narrowUnit(Math.round(seconds / 86400), "day");
 }
 
 /**
