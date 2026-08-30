@@ -1,5 +1,5 @@
 import { browser } from "$app/environment";
-import type { ChatMessageFront, UserFront } from "@bgs/models";
+import type { ChatMessageFront, ChatReactionAggregate, UserFront } from "@bgs/models";
 import { SvelteDate } from "svelte/reactivity";
 import { writable, type Writable } from "svelte/store";
 import { setClientSessionKnown } from "./api";
@@ -218,10 +218,17 @@ if (browser) {
 
 export const room = clientWritable<string | null>("room", null);
 export const chatMessages = clientWritable<ChatMessageFront[]>("chatMessages", []);
+// Reactions per message id (#438) — fed by the websocket's "chat:reactions"
+// pushes, NOT part of chatMessages (reactions aren't messages: they must not
+// affect the unread count or scroll behaviour).
+export const chatReactions = clientWritable<Record<string, ChatReactionAggregate["reactions"]>>("chatReactions", {});
 
 if (browser) {
 	currentGameId.subscribe((val) => room.set(val));
-	room.subscribe(() => chatMessages.set([]));
+	room.subscribe(() => {
+		chatMessages.set([]);
+		chatReactions.set({});
+	});
 }
 
 // --- Sidebar open (UI state, cookie-backed) ---

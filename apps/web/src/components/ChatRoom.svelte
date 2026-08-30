@@ -8,6 +8,7 @@
 	import { canEditMessage, countUnreadMessages, dateFromObjectId, handleError, lastEditableMessage } from "@/utils";
 	import { flushSync } from "svelte";
 	import { fly } from "svelte/transition";
+	import ReactionBar from "./ReactionBar.svelte";
 	import UserAvatar from "./User/UserAvatar.svelte";
 	import UsernameLink from "./User/UsernameLink.svelte";
 	import ChatInput from "./ChatInput.svelte";
@@ -212,15 +213,25 @@
 							</InputGroup>
 						</form>
 					{:else}
-						<div
-							class="max-w-[75%] rounded-2xl px-3 py-2 text-sm leading-snug whitespace-pre-wrap {sent
-								? 'rounded-br-md bg-blue-500 text-white'
-								: 'rounded-bl-md bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100'}"
-							title={m.chat_sentAt({ time: chatTime(message._id) })}
-						>
-							{message.data.text}
-							{#if message.editedAt}
-								<span class="ml-1 text-xs italic opacity-70">{m.chat_edited()}</span>
+						<div class="relative flex max-w-[75%] flex-col {sent ? 'items-end' : 'items-start'}">
+							<div
+								class="rounded-2xl px-3 py-2 text-sm leading-snug whitespace-pre-wrap {sent
+									? 'rounded-br-md bg-blue-500 text-white'
+									: 'rounded-bl-md bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100'}"
+								title={m.chat_sentAt({ time: chatTime(message._id) })}
+							>
+								{message.data.text}
+								{#if message.editedAt}
+									<span class="ml-1 text-xs italic opacity-70">{m.chat_edited()}</span>
+								{/if}
+							</div>
+							{#if message._id}
+								<ReactionBar
+									messageId={message._id}
+									{room}
+									mine={sent}
+									editAffordance={canEditMessage(message, userId)}
+								/>
 							{/if}
 						</div>
 						{#if canEditMessage(message, userId)}

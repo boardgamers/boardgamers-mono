@@ -38,6 +38,18 @@ export {
 	chatMessagesCollectionOptions,
 } from "./chatmessage.ts";
 
+// --- Chat Reaction ---
+export type { ChatReactionDoc, ChatReactionAggregate } from "./chatreaction.ts";
+export {
+	chatReactionSchema,
+	chatReactionEmojiSchema,
+	CHAT_REACTIONS_COLLECTION,
+	chatReactionIndexes,
+	CHAT_REACTION_EMOJI,
+	CHAT_REACTION_QUICK,
+	MAX_CHAT_REACTIONS_PER_MESSAGE,
+} from "./chatreaction.ts";
+
 // --- Game ---
 export type { GameDoc, GameFront, PlayerInfo, PlayerInfoFront, GameStatus, PlayerOrder } from "./game.ts";
 export {

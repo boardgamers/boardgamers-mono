@@ -9,6 +9,7 @@ import env from "./config/env.ts";
 import type { GameDoc } from "@bgs/models";
 import { colls } from "./config/db.ts";
 import { accessTokenPayloadSchema, findGamesWithPlayersTurn } from "./models/index.ts";
+import { chatReactionAggregates } from "./services/chatreaction.ts";
 
 export const wss = new WebSocketServer({ port: env.listen.port.ws, host: env.listen.host });
 
@@ -80,6 +81,15 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
 						messages: roomMessages.toReversed(),
 					}),
 				);
+
+				// Existing reactions of the listed messages (#438) — only non-empty
+				// aggregates, the client starts from a blank slate per room.
+				const reactions = (await chatReactionAggregates(roomMessages.map((msg) => msg._id))).filter(
+					(aggregate) => aggregate.reactions.length > 0,
+				);
+				if (reactions.length > 0 && ws.readyState === ws.OPEN) {
+					ws.send(JSON.stringify({ room: data.room, command: "chat:reactions", updates: reactions }));
+				}
 			}
 			if ("game" in data) {
 				ws.game = data.game;
@@ -174,6 +184,7 @@ function sendActiveGames(ws: AugmentedWebSocket) {
 
 let lastChecked = ObjectId.createFromTime(Math.floor(Date.now() / 1000));
 let lastEditChecked = new Date();
+let lastReactionChecked = new Date();
 
 const gameCache = new cache({ stdTTL: 24 * 3600 });
 
@@ -246,6 +257,40 @@ async function run() {
 			}
 
 			lastEditChecked = new Date(Math.max(...editedMessages.map((msg) => msg.editedAt!.getTime())));
+		}
+
+		// Reaction changes (#438): set/unset both bump `updatedAt` (unset flips
+		// `active` instead of deleting precisely so this watermark sees it), so one
+		// indexed poll catches every change. Push the touched messages' FULL
+		// current aggregates — idempotent for clients, no add/remove deltas.
+		const touched = await colls.chatReactions
+			.find({ updatedAt: { $gt: lastReactionChecked } })
+			.project<{ room: string; message: ObjectId; updatedAt?: Date }>({ room: 1, message: 1, updatedAt: 1 })
+			.toArray();
+
+		if (touched.length > 0) {
+			lastReactionChecked = new Date(Math.max(...touched.map((doc) => doc.updatedAt?.getTime() ?? 0)));
+
+			const openRooms = new Set(clients().map((ws) => ws.room));
+			const perRoom = new Map<string, Map<string, ObjectId>>();
+			for (const doc of touched) {
+				if (!openRooms.has(doc.room)) {
+					continue;
+				}
+				const forRoom = perRoom.get(doc.room) ?? new Map<string, ObjectId>();
+				forRoom.set(doc.message.toHexString(), doc.message);
+				perRoom.set(doc.room, forRoom);
+			}
+
+			for (const [room, messageIds] of perRoom) {
+				const updates = await chatReactionAggregates([...messageIds.values()]);
+				const payload = JSON.stringify({ room, command: "chat:reactions", updates });
+				for (const ws of clients()) {
+					if (ws.room === room) {
+						ws.send(payload);
+					}
+				}
+			}
 		}
 
 		const gameConditions = uniqBy(

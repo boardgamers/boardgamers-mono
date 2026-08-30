@@ -6,13 +6,22 @@ import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
 import { z } from "zod";
-import { canUserManageGame, playerOrderSchema, type GameDoc, type RoomMetaDataDoc } from "@bgs/models";
-import { ObjectId } from "mongodb";
+import {
+	canUserManageGame,
+	chatReactionEmojiSchema,
+	playerOrderSchema,
+	type GameDoc,
+	type RoomMetaDataDoc,
+	type UserDoc,
+} from "@bgs/models";
+import { ObjectId, type WithId } from "mongodb";
 import { colls } from "../../config/db.ts";
 import { env } from "../../config/index.ts";
 import locks from "../../config/locks.ts";
 import { zObjectId } from "../../utils/zod.ts";
 import { notifyGameStart } from "../../services/game.ts";
+import { actionRateLimit } from "../../services/actionratelimit.ts";
+import { chatReactionAggregates, setChatReaction } from "../../services/chatreaction.ts";
 import { getUserElo } from "../../services/elo.ts";
 import { mergeGameInfo } from "../../models/gameinfo.ts";
 import { isConfirmed, loggedIn } from "../utils.ts";
@@ -451,6 +460,53 @@ router.patch("/:gameId/chat/:messageId", loggedIn, isConfirmed, async (ctx) => {
 	);
 	ctx.status = 200;
 });
+
+// Toggle an emoji reaction on a chat message (#438). PUT sets, DELETE unsets —
+// both idempotent (like boardgame/like). The emoji travels in the path
+// (URL-encoded) so the DELETE stays body-less.
+async function handleChatReaction(ctx: Context, active: boolean) {
+	// Plain koa Context types `state` loosely — the router middlewares guarantee both.
+	const user: WithId<UserDoc> = ctx.state.user;
+	const game: GameDoc = ctx.state.game;
+	assert(
+		canUserManageGame(user, game.game.name) || game.players.some((pl) => pl._id.equals(user._id)),
+		"You must be a player of the game to react!",
+	);
+	const { messageId, emoji } = z
+		.object({ messageId: zObjectId(), emoji: chatReactionEmojiSchema })
+		.parse({ messageId: ctx.params.messageId, emoji: ctx.params.emoji });
+
+	const message = await colls.chatMessages.findOne({ _id: messageId, room: game._id }, { projection: { _id: 1 } });
+	if (!message) {
+		throw createError(404, "Chat message not found");
+	}
+
+	await setChatReaction({
+		message: messageId,
+		room: game._id,
+		user: user._id,
+		userName: user.account.username,
+		emoji,
+		active,
+	});
+	ctx.body = (await chatReactionAggregates([messageId]))[0];
+}
+
+router.put(
+	"/:gameId/chat/:messageId/reaction/:emoji",
+	loggedIn,
+	isConfirmed,
+	actionRateLimit("game/chat-reaction"),
+	(ctx) => handleChatReaction(ctx, true),
+);
+
+router.delete(
+	"/:gameId/chat/:messageId/reaction/:emoji",
+	loggedIn,
+	isConfirmed,
+	actionRateLimit("game/chat-reaction"),
+	(ctx) => handleChatReaction(ctx, false),
+);
 
 router.post("/:gameId/invite", loggedIn, async (ctx) => {
 	const user = ctx.state.user!;
