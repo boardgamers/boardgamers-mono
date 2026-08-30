@@ -136,10 +136,12 @@
 		}
 		scrollState = next;
 	});
-	// Reactions/edits growing a message row must not detach the bottom anchor:
-	// measured BEFORE the DOM updates ($effect.pre), a view pinned to the bottom
-	// is re-pinned after the update (chips on the last message would otherwise be
-	// clipped below the fold). When scrolled up, scrollTop is left alone.
+	// Edits growing a message row must not detach the bottom anchor: measured
+	// BEFORE the DOM updates ($effect.pre), a view pinned to the bottom is
+	// re-pinned after the update. Reaction chips are out of flow (absolute) so
+	// they no longer change heights, but a wrapping edit still does — and the
+	// re-pin keeps chips protruding below the last bubble fully in view.
+	// When scrolled up, scrollTop is left alone.
 	// jsdom has no layout (scroll metrics are all 0), so this is browser-verified.
 	$effect.pre(() => {
 		$chatReactions;

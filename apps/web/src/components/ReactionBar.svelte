@@ -18,6 +18,10 @@
 		editAffordance = false,
 	}: { messageId: string; room: string; mine?: boolean; editAffordance?: boolean } = $props();
 
+	// Chips are out of flow (absolute), so a long list can't wrap into extra
+	// overlay lines — cap the row and fold the rest into a "+N" summary chip.
+	const MAX_CHIPS = 5;
+
 	let pickerOpen = $state(false);
 	let showAll = $state(false);
 	let container: HTMLDivElement | undefined = $state();
@@ -146,13 +150,17 @@
 {/if}
 
 {#if reactions.length > 0}
-	<!-- Chips overlap the bubble's bottom edge (mock in #442): pulled up by half a
-	     chip so the first reaction only adds the protruding half to the row. Kept
-	     in normal flow (not absolute) so wrapped chips push the next message down
-	     instead of covering it. `relative` paints the chips above the bubble;
-	     mirrored to the bottom-right on own (right-aligned) bubbles. -->
-	<div class="relative -mt-2 flex flex-wrap gap-1 {mine ? 'mr-1.5 justify-end' : 'ml-1.5'}">
-		{#each reactions as group (group.emoji)}
+	{@const visible = reactions.length > MAX_CHIPS ? reactions.slice(0, MAX_CHIPS - 1) : reactions}
+	{@const hidden = reactions.slice(visible.length)}
+	<!-- Chips overlap the bubble's bottom edge (mock in #442, -mt-2 look) but are
+	     OUT of flow (absolute in the `relative` bubble wrapper): reacting never
+	     moves any message. Trade-off (accepted): the protruding half may overlay
+	     the next message, so the row never wraps — beyond MAX_CHIPS it folds into
+	     a "+N" chip (hidden emojis stay toggleable through the picker). `w-max`
+	     keeps narrow bubbles from squishing the chips; z-[1] paints them above
+	     the neighbouring bubbles; mirrored to the bottom-right on own bubbles. -->
+	<div class="absolute top-full z-[1] -mt-2 flex w-max gap-1 {mine ? 'right-1.5' : 'left-1.5'}">
+		{#each visible as group (group.emoji)}
 			<button
 				type="button"
 				class="flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs leading-none transition-colors {ownReaction(
@@ -172,5 +180,13 @@
 				<span class="font-medium text-gray-700 dark:text-gray-200">{group.users.length}</span>
 			</button>
 		{/each}
+		{#if hidden.length > 0}
+			<span
+				class="flex items-center rounded-full border border-gray-300 bg-gray-100 px-1.5 py-0.5 text-xs leading-none font-medium text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+				title={hidden.map(tooltip).join("\n")}
+			>
+				+{hidden.length}
+			</span>
+		{/if}
 	</div>
 {/if}
