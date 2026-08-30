@@ -5,6 +5,7 @@ import { z } from "zod";
 import { canUser, feedbackKindSchema, feedbackStatusSchema, isGameAdminGrant, userPermissions } from "@bgs/models";
 import { colls } from "../../config/db.ts";
 import { usernamesById } from "../utils.ts";
+import { auditLog } from "./audit.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -123,6 +124,7 @@ router.delete("/game-requests/:game", async (ctx) => {
 
 	await colls.gameLikes.deleteMany({ game });
 	await colls.gameMetadatas.deleteOne({ _id: game });
+	auditLog(ctx, "feedback.deleteGameRequest", { kind: "gameRequest", id: game });
 	ctx.status = 204;
 });
 
@@ -175,6 +177,7 @@ router.post("/game-requests/:game/merge", async (ctx) => {
 	await colls.gameMetadatas.updateOne({ _id: into }, { $set: { likeCount } });
 	await colls.gameMetadatas.deleteOne({ _id: game });
 
+	auditLog(ctx, "feedback.mergeGameRequest", { kind: "gameRequest", id: game }, { into, likeCount });
 	ctx.body = { into, likeCount };
 });
 

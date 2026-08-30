@@ -13,6 +13,13 @@ declare global {
 			foundUser?: WithId<UserDoc>;
 			foundBoardgame?: GameInfoDoc;
 			foundFeedbackRequest?: WithId<FeedbackRequestDoc>;
+			// Rich audit event staged by a route via auditLog() (routes/admin/audit.ts);
+			// the admin audit middleware persists it after a successful response.
+			audit?: {
+				action: string;
+				target?: { kind: string; id: string; label?: string };
+				meta?: Record<string, unknown>;
+			};
 			ip: string;
 			requestId: string;
 		}

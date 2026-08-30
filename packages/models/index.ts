@@ -17,6 +17,10 @@ export {
 	userRoles,
 } from "./admin.ts";
 
+// --- Admin Log (audit trail) ---
+export type { AdminLogDoc, AdminLogFront } from "./adminlog.ts";
+export { adminLogSchema, ADMIN_LOGS_COLLECTION, adminLogIndexes, ADMIN_LOG_TTL_SECONDS } from "./adminlog.ts";
+
 // --- Admin Token ---
 export type { AdminTokenDoc, AdminTokenFront } from "./admintoken.ts";
 export { adminTokenSchema, ADMIN_TOKENS_COLLECTION, adminTokenIndexes } from "./admintoken.ts";

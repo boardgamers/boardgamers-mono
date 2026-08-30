@@ -5,6 +5,7 @@ import { canUserManageGame, isGameAdminGrant, userPermissions } from "@bgs/model
 import { colls } from "../../config/db.ts";
 import locks from "../../config/locks.ts";
 import { cancelGame } from "../../services/game.ts";
+import { auditLog } from "./audit.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -42,6 +43,7 @@ router.post("/:gameId/cancel", async (ctx) => {
 	}
 
 	await cancelGame(game, new Date(), "Game cancelled by an admin");
+	auditLog(ctx, "game.cancel", { kind: "game", id: game._id, label: game.game.name });
 	ctx.status = 200;
 });
 

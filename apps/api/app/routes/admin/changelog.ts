@@ -15,6 +15,7 @@ import {
 import { changelogInputSchema } from "../../models/index.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { isTranslationConfigured, translateMarkdown } from "../../services/translate.ts";
+import { auditLog } from "./audit.ts";
 import { type BulkPair, type BulkTranslateJob, readBulkJob, startBulkJob, writeBulkJob } from "./bulkjob.ts";
 
 const router = new Router<Application.DefaultState, Context>();
@@ -158,6 +159,7 @@ router.post("/translate-bulk", actionRateLimit("admin/translate-changelog-bulk")
 	}
 
 	const { jobId, total } = await launchChangelogTranslateJob(pairs);
+	auditLog(ctx, "changelog.translateBulk", undefined, { jobId, total, targetLang, entryId });
 	ctx.status = 202;
 	ctx.body = { jobId, total };
 });
@@ -196,6 +198,7 @@ router.post("/", async (ctx) => {
 	await colls.changelogs.insertOne(doc);
 	autoTranslateOnPublish(doc);
 
+	auditLog(ctx, "changelog.create", { kind: "changelog", id: doc._id.toHexString() }, { published });
 	ctx.status = 201;
 	ctx.body = doc;
 });
@@ -235,6 +238,7 @@ router.put("/:id", async (ctx) => {
 		throw createError(404, "Changelog entry not found");
 	}
 	autoTranslateOnPublish(updated);
+	auditLog(ctx, "changelog.update", { kind: "changelog", id }, { fields: Object.keys({ ...changes, ...unset }) });
 	ctx.status = 200;
 });
 
@@ -245,6 +249,7 @@ router.delete("/:id", async (ctx) => {
 	if (!deletedCount) {
 		throw createError(404, "Changelog entry not found");
 	}
+	auditLog(ctx, "changelog.delete", { kind: "changelog", id });
 	ctx.status = 200;
 });
 
