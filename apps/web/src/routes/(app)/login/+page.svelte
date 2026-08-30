@@ -73,4 +73,9 @@
 	<hr />
 
 	<p class="mt-3">{m.auth_needAccount()} <a href={resolve("/(app)/signup")}>{m.auth_register()}</a></p>
+
+	<!-- Facebook phase-out step 1 (codeberg boardgamers#99): the social button row (appbar
+	     dropdown) is shared by login and signup, so the Facebook button stays for existing
+	     users — this note explains why new accounts can't use it. -->
+	<p class="mt-3 text-xs text-gray-500 dark:text-gray-400">{m.auth_facebookPhaseout()}</p>
 </div>

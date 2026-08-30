@@ -602,3 +602,75 @@ describe("Account API — PKCE OAuth round-trip", () => {
 
 	after(() => db().dropDatabase());
 });
+
+describe("Account API — Facebook phase-out, step 1 (codeberg #99)", () => {
+	it("REJECTS a facebook profile that matches no user (no new registrations)", async () => {
+		const { err, user } = await verifySocial("facebook", "fb-new-1");
+		assert.strictEqual(user, undefined);
+		// A deliberate, exposable 4xx: the callback redirect shows this message on /login.
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- http-errors shape
+		const httpErr = err as { status?: number; expose?: boolean; message?: string };
+		assert.strictEqual(httpErr.status, 403);
+		assert.strictEqual(httpErr.expose, true);
+		assert.match(String(httpErr.message), /phased out/);
+		assert.match(String(httpErr.message), /email address, or with Google, Discord, GitHub or Hugging Face/);
+		// No signup feedback → no pending-signup ticket can ever be minted for facebook.
+	});
+
+	it("still LOGS IN an existing facebook-linked user", async () => {
+		await colls.users.insertOne(
+			testUser({ account: { username: "fboldtimer", email: "fbold@test.com", social: { facebook: "fb-old-1" } } }),
+		);
+		const { err, user } = await verifySocial("facebook", "fb-old-1");
+		assert.ifError(err);
+		isUserDoc(user);
+		assert.strictEqual(user.account.username, "fboldtimer");
+	});
+
+	it("REJECTS linking facebook to a logged-in user without an existing link", async () => {
+		const doc = await colls.users.insertOne(testUser({ account: { username: "fblinkme", email: "fblink@test.com" } }));
+		const current = await colls.users.findOne({ _id: doc.insertedId });
+
+		const { err, user } = await verifySocial("facebook", "fb-new-2", current!);
+		assert.strictEqual(user, undefined);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- http-errors shape
+		const httpErr = err as { status?: number; message?: string };
+		assert.strictEqual(httpErr.status, 403);
+		assert.match(String(httpErr.message), /connecting new Facebook accounts/);
+
+		const stored = await colls.users.findOne({ _id: doc.insertedId });
+		assert.strictEqual(stored?.account.social?.facebook, undefined, "no link may be stored");
+	});
+
+	it("keeps an EXISTING facebook link working for the logged-in user (re-auth)", async () => {
+		const doc = await colls.users.insertOne(
+			testUser({ account: { username: "fblinked", email: "fblinked@test.com", social: { facebook: "fb-old-2" } } }),
+		);
+		const current = await colls.users.findOne({ _id: doc.insertedId });
+
+		const { err, user } = await verifySocial("facebook", "fb-old-2", current!);
+		assert.ifError(err);
+		isUserDoc(user);
+		assert.deepStrictEqual(user._id, doc.insertedId);
+	});
+
+	it("rejects a legacy facebook signup JWT on /signup/social (defense in depth)", async () => {
+		// verifySocialProfile no longer emits facebook signup feedback, but a signed
+		// legacy JWT (old interstitial flow) could still carry one — must 403 too.
+		const token = jwt.sign(
+			{ createSocialAccount: true, provider: "facebook", id: "fb-legacy-1" },
+			env.jwt.keys.private,
+			{ expiresIn: "1h", algorithm: env.jwt.algorithm },
+		);
+		const res = await fetch(`${baseURL()}/api/account/signup/social`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ jwt: token, username: "fbnewbie", termsAndConditions: true }),
+		});
+		assert.strictEqual(res.status, 403, `expected 403, got ${res.status}`);
+		assert.match(await res.text(), /phased out/);
+		assert.strictEqual(await colls.users.findOne({ "account.username": "fbnewbie" }), null);
+	});
+
+	after(() => db().dropDatabase());
+});

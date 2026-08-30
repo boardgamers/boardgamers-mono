@@ -165,6 +165,12 @@ passport.use(
 							.transform(({ id, ...rest }) => ({ ...rest, socialId: id }))
 							.parse(jwt.verify(String(token), env.jwt.keys.public));
 
+				// Facebook phase-out: verifySocialProfile no longer emits facebook signup
+				// tickets, but a signed legacy JWT could still carry one — reject it here too.
+				if (decoded.provider === "facebook") {
+					throw createError(403, facebookSignupClosed);
+				}
+
 				// create the user
 				const slug = username.toLowerCase().replace(/\s+/g, "-");
 				const social = { [decoded.provider]: decoded.socialId };
@@ -326,6 +332,16 @@ function makeSocialStrategy<T extends Strategy>(
 	);
 }
 
+// Facebook is being phased out (codeberg boardgamers/boardgamers#99, step 1): no NEW
+// registrations or account links — existing facebook-linked accounts keep logging in
+// until the cutover. 4xx http-errors are exposed to the user by the callback redirect
+// (routes/auth.ts).
+const facebookSignupClosed =
+	"Facebook login is being phased out: new accounts can no longer sign up with Facebook. " +
+	"Please sign up with an email address, or with Google, Discord, GitHub or Hugging Face.";
+const facebookLinkClosed =
+	"Facebook login is being phased out — connecting new Facebook accounts is no longer possible.";
+
 // Link-or-create logic shared by every social login (passport strategies for
 // discord/google/facebook, hand-rolled PKCE for github/huggingface). Resolves the
 // OAuth profile to an existing user, links to the logged-in user, or yields a
@@ -338,6 +354,13 @@ export async function verifySocialProfile(
 	const socialMeta = socialMetaOf(provider, profile);
 	const currentUser = req.user;
 	const existingUser = await colls.users.findOne({ [`account.social.${provider}`]: profile.id });
+
+	// Facebook phase-out (step 1): a facebook id that matches no user would either
+	// register a new account or link a new connection — both are closed. Matching is
+	// strictly by social id (never by email), so every existing-user login stays intact.
+	if (provider === "facebook" && !existingUser) {
+		throw createError(403, currentUser ? facebookLinkClosed : facebookSignupClosed);
+	}
 
 	if (currentUser) {
 		if (existingUser && existingUser._id.equals(currentUser._id)) {

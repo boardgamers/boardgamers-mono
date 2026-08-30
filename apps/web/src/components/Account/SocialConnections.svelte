@@ -96,6 +96,15 @@
 				>
 					{m.account_socialDisconnect()}
 				</Button>
+			{:else if provider === "facebook"}
+				<!-- Facebook phase-out step 1 (codeberg boardgamers#99): the api rejects new
+				     links, so no Connect button — existing links keep working until cutover. -->
+				<span
+					class="shrink-0 cursor-help text-xs text-gray-400 dark:text-gray-500"
+					title={m.account_socialFacebookPhaseoutTooltip()}
+				>
+					{m.account_socialPhasedOut()}
+				</span>
 			{:else}
 				<!-- OAuth endpoints are not app routes: off-site navigation (rel="external"). -->
 				<Button size="sm" color={provider} class="shrink-0" href={`/auth/${provider}` as Pathname} rel="external">

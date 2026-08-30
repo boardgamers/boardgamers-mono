@@ -93,9 +93,31 @@ describe("SocialConnections (#427)", () => {
 		expect(profileLink?.textContent).toBe("gamer#42");
 
 		expect(buttonByText(target, "Disconnect")).toHaveLength(1);
-		// The four other providers offer Connect instead.
-		expect(buttonByText(target, "Connect")).toHaveLength(4);
+		// Google, GitHub and Hugging Face offer Connect; facebook is phased out (#99).
+		expect(buttonByText(target, "Connect")).toHaveLength(3);
 		expect(target.textContent).not.toContain("only way to log in");
+
+		unmount(component);
+	});
+
+	it("offers no facebook Connect while it's being phased out (codeberg #99), only the notice", () => {
+		const component = mount(SocialConnections, { target, props: { user: makeUser({ hasPassword: true }) } });
+		flushSync();
+
+		expect(buttonByText(target, "Connect")).toHaveLength(4);
+		expect(target.textContent).toContain("Being phased out");
+		expect(target.querySelector('[title*="phased out"]')).not.toBeNull();
+
+		unmount(component);
+	});
+
+	it("keeps Disconnect for an already-linked facebook account (existing links still work)", () => {
+		const user = makeUser({ social: { facebook: "f-1" }, hasPassword: true });
+		const component = mount(SocialConnections, { target, props: { user } });
+		flushSync();
+
+		expect(buttonByText(target, "Disconnect")).toHaveLength(1);
+		expect(target.textContent).not.toContain("Being phased out");
 
 		unmount(component);
 	});

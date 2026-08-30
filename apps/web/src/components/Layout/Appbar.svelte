@@ -80,6 +80,9 @@
 	const socialProviders = [
 		{ name: "Google", href: "/auth/google", icon: IconGoogle },
 		{ name: "Discord", href: "/auth/discord", icon: IconDiscord },
+		// Facebook is being phased out (codeberg boardgamers#99, step 1): the button stays
+		// because this row is the LOGIN surface for existing facebook-linked accounts; the
+		// api rejects unknown facebook ids with a clear message, so no new signups happen.
 		{ name: "Facebook", href: "/auth/facebook", icon: IconFacebook },
 		{ name: "GitHub", href: "/auth/github", icon: IconGithub },
 		{ name: "Hugging Face", href: "/auth/huggingface", icon: IconHuggingFace },

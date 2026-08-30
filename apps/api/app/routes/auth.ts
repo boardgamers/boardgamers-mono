@@ -112,7 +112,11 @@ function authenticateCallback(ctx: Context, next: Next, provider: string): Promi
 		},
 		async (err: unknown, user: unknown) => {
 			if (err || !user) {
-				redirectAfterAuth(ctx, `/login?error=${encodeURIComponent("Social login failed")}`);
+				// Deliberate 4xx rejections (http-errors with expose, e.g. the facebook
+				// phase-out in verifySocialProfile) carry a user-facing message; anything
+				// else stays generic so internals never leak into the redirect.
+				const message = createError.isHttpError(err) && err.expose ? err.message : "Social login failed";
+				redirectAfterAuth(ctx, `/login?error=${encodeURIComponent(message)}`);
 				return;
 			}
 			ctx.state.user = user;
