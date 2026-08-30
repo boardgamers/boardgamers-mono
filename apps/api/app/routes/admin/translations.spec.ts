@@ -578,13 +578,33 @@ describe("Admin bulk metadata translation (#306 follow-up)", () => {
 		const ovbare = await colls.gameMetadatas.findOne({ _id: "ovbare" });
 		assert.equal(ovbare?.translations, undefined, "no source fields → never translated");
 
-		// The job shows in the overview's jobs table, labelled as metadata.
+		// Bulk-written overlays carry the same translatedFrom.hash stamp as the
+		// per-game translate routes — the source hash at translation time.
+		assert.ok(ovgame);
+		assert.strictEqual(
+			ovgame.translations?.fr?.translatedFrom?.hash,
+			metadataSourceHash(metadataSourceStrings(ovgame)),
+		);
+		assert.ok(ovfull);
+		assert.strictEqual(
+			ovfull.translations?.fr?.translatedFrom?.hash,
+			metadataSourceHash(metadataSourceStrings(ovfull)),
+		);
+
+		// The job shows in the overview's jobs table, labelled as metadata; the
+		// bulk-translated cells read "ok" (stamped fresh), while the untouched
+		// pre-existing de overlay stays stamp-less → "unknown".
 		const overview = await api("GET", "/api/admin/translations/overview", adminHeaders);
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
-		const listed = (overview.data as Overview).jobs.find((j) => j.jobId === jobId);
+		const overviewData = overview.data as Overview;
+		const listed = overviewData.jobs.find((j) => j.jobId === jobId);
 		assert.ok(listed, "the metadata job shows up in the overview listing");
 		assert.equal(listed.kind, "metadata");
 		assert.equal(listed.status, "done");
+		const ovgameRow = overviewData.games.find((g) => g.game === "ovgame");
+		assert.equal(ovgameRow?.cells.fr.status, "ok");
+		assert.equal(ovgameRow?.cells.de.status, "unknown");
+		assert.equal(overviewData.games.find((g) => g.game === "ovfull")?.cells.fr.status, "ok");
 	});
 
 	it("skips pairs whose overlay already exists (no re-translation)", async () => {
