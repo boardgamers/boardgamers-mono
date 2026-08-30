@@ -37,6 +37,7 @@
 	"account.socialDisconnectConfirm": "Deconectezi contul {provider}? Nu te vei mai putea autentifica cu el.",
 	"account.socialDisconnected": "Contul {provider} a fost deconectat",
 	"account.socialLastLogin": "Este singura ta metodă de autentificare — setează o parolă sau conectează alt cont înainte de a-l deconecta.",
+	"account.socialNotConnected": "Neconectat",
 	"account.termsAndConditions": "Termeni și condiții",
 	"account.testConfirm": "Aceasta este o fereastră de confirmare de test. Continui?",
 	"account.testConfirmCancel": "Ai apăsat Anulează ❌",

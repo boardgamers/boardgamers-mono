@@ -37,6 +37,7 @@
 	"account.socialDisconnectConfirm": "Αποσύνδεση του λογαριασμού {provider}; Δεν θα μπορείτε πλέον να συνδέεστε με αυτόν.",
 	"account.socialDisconnected": "Ο λογαριασμός {provider} αποσυνδέθηκε",
 	"account.socialLastLogin": "Είναι ο μόνος τρόπος σύνδεσής σας — ορίστε κωδικό πρόσβασης ή συνδέστε άλλον λογαριασμό πριν τον αποσυνδέσετε.",
+	"account.socialNotConnected": "Μη συνδεδεμένο",
 	"account.termsAndConditions": "Όροι και Προϋποθέσεις",
 	"account.testConfirm": "Αυτό είναι ένα δοκιμαστικό παράθυρο επιβεβαίωσης. Συνέχεια;",
 	"account.testConfirmCancel": "Πατήσατε Άκυρο ❌",

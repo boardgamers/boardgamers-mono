@@ -37,6 +37,7 @@
 	"account.socialDisconnectConfirm": "Dissocier votre compte {provider} ? Vous ne pourrez plus vous connecter avec.",
 	"account.socialDisconnected": "Compte {provider} dissocié",
 	"account.socialLastLogin": "C'est votre seul moyen de connexion — définissez un mot de passe ou liez un autre compte avant de le dissocier.",
+	"account.socialNotConnected": "Non connecté",
 	"account.termsAndConditions": "Conditions générales",
 	"account.testConfirm": "Ceci est une boîte de confirmation de test. Continuer ?",
 	"account.testConfirmCancel": "Tu as cliqué sur Annuler ❌",

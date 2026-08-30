@@ -37,6 +37,7 @@
 	"account.socialDisconnectConfirm": "Odłączyć konto {provider}? Nie będzie już można się nim logować.",
 	"account.socialDisconnected": "Konto {provider} odłączone",
 	"account.socialLastLogin": "To Twój jedyny sposób logowania — ustaw hasło lub połącz inne konto, zanim je odłączysz.",
+	"account.socialNotConnected": "Niepołączono",
 	"account.termsAndConditions": "Regulamin",
 	"account.testConfirm": "To jest testowe okno potwierdzenia. Kontynuować?",
 	"account.testConfirmCancel": "Kliknięto Anuluj ❌",

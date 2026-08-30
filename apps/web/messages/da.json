@@ -37,6 +37,7 @@
 	"account.socialDisconnectConfirm": "Fjern din {provider}-konto? Du vil ikke længere kunne logge ind med den.",
 	"account.socialDisconnected": "{provider}-kontoen er fjernet",
 	"account.socialLastLogin": "Dette er din eneste måde at logge ind på — angiv en adgangskode eller forbind en anden konto, før du fjerner den.",
+	"account.socialNotConnected": "Ikke forbundet",
 	"account.termsAndConditions": "Vilkår og betingelser",
 	"account.testConfirm": "Dette er en test-bekræftelsesdialog. Fortsæt?",
 	"account.testConfirmCancel": "Du klikkede Annuller ❌",

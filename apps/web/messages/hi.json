@@ -37,6 +37,7 @@
 	"account.socialDisconnectConfirm": "अपना {provider} खाता हटाएँ? आप फिर उससे लॉगिन नहीं कर पाएँगे।",
 	"account.socialDisconnected": "{provider} खाता हटा दिया गया",
 	"account.socialLastLogin": "यह आपका लॉगिन करने का एकमात्र तरीका है — इसे हटाने से पहले पासवर्ड सेट करें या कोई दूसरा खाता जोड़ें।",
+	"account.socialNotConnected": "जुड़ा नहीं है",
 	"account.termsAndConditions": "नियम और शर्तें",
 	"account.testConfirm": "यह एक परीक्षण पुष्टिकरण संवाद है। आगे बढ़ें?",
 	"account.testConfirmCancel": "आपने रद्द करें पर क्लिक किया ❌",

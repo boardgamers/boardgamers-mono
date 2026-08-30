@@ -37,6 +37,7 @@
 	"account.socialDisconnectConfirm": "Отключить аккаунт {provider}? Вы больше не сможете входить с его помощью.",
 	"account.socialDisconnected": "Аккаунт {provider} отключён",
 	"account.socialLastLogin": "Это ваш единственный способ входа — задайте пароль или подключите другой аккаунт, прежде чем отключать его.",
+	"account.socialNotConnected": "Не подключено",
 	"account.termsAndConditions": "Условия использования",
 	"account.testConfirm": "Это тестовое окно подтверждения. Продолжить?",
 	"account.testConfirmCancel": "Вы нажали «Отмена» ❌",

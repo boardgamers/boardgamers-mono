@@ -37,6 +37,7 @@
 	"account.socialDisconnectConfirm": "{provider}-Konto trennen? Du kannst dich damit dann nicht mehr anmelden.",
 	"account.socialDisconnected": "{provider}-Konto getrennt",
 	"account.socialLastLogin": "Dies ist deine einzige Anmeldemöglichkeit — lege ein Passwort fest oder verbinde ein anderes Konto, bevor du sie trennst.",
+	"account.socialNotConnected": "Nicht verbunden",
 	"account.termsAndConditions": "Nutzungsbedingungen",
 	"account.testConfirm": "Dies ist ein Test-Bestätigungsdialog. Fortfahren?",
 	"account.testConfirmCancel": "Du hast Abbrechen geklickt ❌",

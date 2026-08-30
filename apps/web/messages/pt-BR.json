@@ -37,6 +37,7 @@
 	"account.socialDisconnectConfirm": "Desconectar sua conta {provider}? Você não poderá mais entrar com ela.",
 	"account.socialDisconnected": "Conta {provider} desconectada",
 	"account.socialLastLogin": "Este é seu único meio de entrar — defina uma senha ou conecte outra conta antes de desconectá-lo.",
+	"account.socialNotConnected": "Não conectado",
 	"account.termsAndConditions": "Termos e Condições",
 	"account.testConfirm": "Esta é uma caixa de confirmação de teste. Continuar?",
 	"account.testConfirmCancel": "Você clicou em Cancelar ❌",

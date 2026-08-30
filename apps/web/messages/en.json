@@ -37,6 +37,7 @@
 	"account.socialDisconnectConfirm": "Disconnect your {provider} account? You will no longer be able to log in with it.",
 	"account.socialDisconnected": "{provider} account disconnected",
 	"account.socialLastLogin": "This is your only way to log in — set a password or connect another account before disconnecting it.",
+	"account.socialNotConnected": "Not connected",
 	"account.termsAndConditions": "Terms and Conditions",
 	"account.testConfirm": "This is a test confirmation dialog. Proceed?",
 	"account.testConfirmCancel": "You clicked Cancel ❌",

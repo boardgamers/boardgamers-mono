@@ -13,8 +13,24 @@ vi.mock("@/lib/account.svelte", async () => {
 	const { writable } = await import("svelte/store");
 	return { account: writable(null) };
 });
-// The real Button crashes when mounted in this jsdom env (leaf `$props()`
-// rest-spread issue — see the stub's comment); it isn't what this spec exercises.
+// The real Button and brand icons crash when mounted in this jsdom env (leaf
+// `$props()` rest-spread issue — see the stubs' comments); they aren't what
+// this spec exercises.
+vi.mock("@/components/icons/IconGoogle.svelte", async () => ({
+	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
+}));
+vi.mock("@/components/icons/IconDiscord.svelte", async () => ({
+	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
+}));
+vi.mock("@/components/icons/IconFacebook.svelte", async () => ({
+	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
+}));
+vi.mock("@/components/icons/IconGithub.svelte", async () => ({
+	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
+}));
+vi.mock("@/components/icons/IconHuggingFace.svelte", async () => ({
+	default: (await import("@/lib/__mocks__/IconStub.svelte")).default,
+}));
 vi.mock("@/modules/cdk", async () => {
 	const actual = await vi.importActual<typeof import("@/modules/cdk")>("@/modules/cdk");
 	return { ...actual, Button: (await import("@/lib/__mocks__/ButtonStub.svelte")).default };
