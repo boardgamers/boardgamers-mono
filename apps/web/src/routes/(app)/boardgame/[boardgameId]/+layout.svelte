@@ -3,17 +3,29 @@
 	import { boardgameRoomId } from "@bgs/models/chatroom";
 	import GameListSidebar from "@/components/Layout/GameListSidebar.svelte";
 	import PublicRoomChat from "@/components/PublicRoomChat.svelte";
+	import { chatRoomAccessible } from "@/lib/boardgame-chat";
+	import { gameInfosState } from "@/lib/game-info.svelte";
 	import { provideGamePreferences } from "@/lib/game-preferences.svelte";
+	import { account } from "@/lib/stores.svelte";
 	import { gameDisplayName } from "@/utils/game-label";
 	import type { Snippet } from "svelte";
 	import type { LayoutProps } from "./$types";
 
 	let { data, children }: LayoutProps & { children: Snippet } = $props();
 
-	// Per-boardgame public chat room (#91) on every page of the boardgame section.
-	// Public versions only: the api 404s the room otherwise (a beta game reached
-	// via a tester grant has no public room yet).
-	let chatBoardgame = $derived(data.gameInfo?.public ? data.gameInfo._id.game : null);
+	// Per-boardgame chat room (#91) on every page of the boardgame section, shown
+	// when the api would serve the room (see chatRoomAccessible) — decided on ALL
+	// the versions the user can see, NOT the picked-latest `data.gameInfo` (for a
+	// beta grantee that's their private grant even when public versions exist).
+	const gameInfos = gameInfosState();
+	let chatBoardgame = $derived.by(() => {
+		const boardgame = data.gameInfo?._id.game;
+		if (!boardgame) {
+			return null;
+		}
+		const versions = Object.values(gameInfos).filter((info) => info._id.game === boardgame);
+		return chatRoomAccessible(versions, !!$account) ? boardgame : null;
+	});
 
 	// SSR: provide this boardgame's SSR-fetched prefs via context during init so descendants
 	// render them server-side (setContext must run at init; $effect does NOT run during SSR).

@@ -1,14 +1,15 @@
-// Public chat rooms (#91): one persistent room per public boardgame
+// Public chat rooms (#91): one persistent room per boardgame
 // ("boardgame:<slug>"), plus the dormant site-wide lobby. Same chat data layer
 // and ws push as game rooms (rooms are plain string ids), but the auth differs —
 // any logged-in (confirmed) user can post, no game-participant check. Room ids
-// are validated per request (isOpenPublicChatRoom): everything outside the
-// public namespace, or a boardgame without a public version, 404s — otherwise
-// this router would open a chat room on any string.
+// are validated per request (canAccessChatRoom, per user: public version, or
+// beta grant/admin): everything outside the public namespace, or a boardgame
+// the requester can't access, 404s — otherwise this router would open a chat
+// room on any string.
 import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
-import { isOpenPublicChatRoom } from "../../services/chatroom.ts";
+import { canAccessChatRoom } from "../../services/chatroom.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { isConfirmed, loggedIn } from "../utils.ts";
 import { adminAuditTrail, auditLog, requireFullAdmin } from "../admin/audit.ts";
@@ -24,7 +25,7 @@ import {
 const router = new Router<Application.DefaultState, Context>();
 
 router.param("roomId", async (roomId, ctx, next) => {
-	if (!(await isOpenPublicChatRoom(roomId))) {
+	if (!(await canAccessChatRoom(roomId, ctx.state.user))) {
 		throw createError(404, "Unknown room: " + roomId);
 	}
 	await next();
