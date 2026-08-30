@@ -2,13 +2,21 @@ import { convert } from "html-to-text";
 import env from "../config/env.ts";
 import sendmail, { type MailSendData } from "../config/sendmail.ts";
 
-export type MailKind = "confirm" | "reset" | "mail-change" | "your-turn" | "game-cancelled" | "newsletter";
+export type MailKind =
+	| "confirm"
+	| "reset"
+	| "mail-change"
+	| "your-turn"
+	| "game-cancelled"
+	| "drop-warning"
+	| "newsletter";
 
 // Unsubscribable kinds map to the mailing setting they flip (see
 // applyUnsubscribe in models/user.ts); transactional kinds are absent.
 export const unsubscribeScopes = {
 	"your-turn": "game",
 	"game-cancelled": "game",
+	"drop-warning": "game",
 	newsletter: "newsletter",
 } as const satisfies Partial<Record<MailKind, string>>;
 

@@ -46,8 +46,9 @@ if (env.cron) {
 	every(1000, singleton("scheduledGames", processSchedulesGames));
 	every(5000, singleton("cancelOldOpenGames", cancelOldOpenGames));
 	every(10000, singleton("unreadyGames", processUnreadyGames));
-	// Inactivity sweep (#94): warns stalled games in chat, then cancels them after
-	// the grace period (never auto-drops players). Hourly is plenty — thresholds are days.
+	// Inactivity sweep (#94): warns stalled games in chat/email, auto-drops the warned
+	// player after the drop grace, and cancels games still stalled after the full
+	// grace period. Hourly is plenty — thresholds are days.
 	every(3600 * 1000, singleton("stalledGames", processStalledGames));
 	// Dead-user cleanup (archives to deletedUsers; only with cleanupDeadUsers="delete",
 	// otherwise dry-run log/off). It self-throttles to at most once per 24h via a

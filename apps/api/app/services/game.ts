@@ -133,41 +133,115 @@ export async function processStalledGame(gameId: string): Promise<void> {
 
 	const now = new Date();
 
-	const expiredDeadlines = (game.currentPlayers ?? [])
-		.map((cp) => cp.deadline)
-		.filter((dl): dl is Date => dl !== undefined && dl.getTime() < now.getTime());
-	if (expiredDeadlines.length === 0) {
-		return;
-	}
-
+	// Current players whose own deadline has expired, paired with the game player.
 	// A bot whose clock expired is a bug, not inactivity — leave it for an admin.
-	const stalledPlayers = (game.currentPlayers ?? [])
-		.map((cp) => game.players.find((pl) => pl._id.equals(cp._id)))
-		.filter((pl): pl is PlayerInfo => pl !== undefined && !pl.isBot && !pl.dropped && !pl.quit);
-	if (stalledPlayers.length === 0) {
+	const stalled = (game.currentPlayers ?? [])
+		.flatMap((cp) => {
+			const player = game.players.find((pl) => pl._id.equals(cp._id));
+			return cp.deadline !== undefined && cp.deadline.getTime() < now.getTime() && player
+				? [{ cp, deadline: cp.deadline, player }]
+				: [];
+		})
+		.filter(({ player }) => !player.isBot && !player.dropped && !player.quit);
+	if (stalled.length === 0) {
 		return;
 	}
 
-	const stallSince = new Date(Math.min(...expiredDeadlines.map((dl) => dl.getTime())));
+	const stallSince = new Date(Math.min(...stalled.map(({ deadline }) => deadline.getTime())));
 	const stallAgeMs = now.getTime() - stallSince.getTime();
 
+	// Safety net: whatever the warn said (drop or cancel), a game still stalled after
+	// the full grace — auto-drop off, or the drop path failing — is cancelled penalty-free.
 	if (stallAgeMs >= env.autoCancelGraceMs) {
 		await cancelInactiveGame(game, now);
 		return;
 	}
 
-	if (stallAgeMs >= env.autoCancelWarnMs && !game.cancelWarn) {
-		const daysLeft = Math.max(1, Math.ceil((env.autoCancelGraceMs - stallAgeMs) / (24 * 3600 * 1000)));
-		const names = stalledPlayers.map((pl) => pl.name).join(", ") || "the current player(s)";
-		await colls.chatMessages.insertOne({
-			_id: new ObjectId(),
-			room: game._id,
-			type: "system",
-			data: {
-				text: `This game will be cancelled for inactivity in ${daysLeft} day${daysLeft > 1 ? "s" : ""} if no move is played. Waiting on ${names} — the other players can drop the inactive player to keep the game going.`,
+	// Auto-drop stage: only players who got the drop warning (dropWarn — a game warned
+	// with the old cancel-only message keeps the penalty-free cancel it was promised)
+	// and whose own deadline is autoDropGraceMs past. Same path as the manual
+	// /drop/:userId route: a dropPlayer notification the game-server processes under
+	// the game lock (engine dropPlayer, karma, afterMove advancing or cancelling).
+	if (env.autoDrop !== "off" && (game.dropWarn || (env.autoDrop === "dry-run" && game.cancelWarn))) {
+		const toDrop = stalled.filter(({ deadline }) => now.getTime() - deadline.getTime() >= env.autoDropGraceMs);
+		if (toDrop.length > 0) {
+			if (env.autoDrop === "dry-run") {
+				console.log(
+					`[autoDrop dry-run] would drop ${toDrop.map(({ player }) => player.name).join(", ")} from game ${game._id}`,
+				);
+				return;
+			}
+			await autoDropPlayers(game, toDrop, now);
+			return;
+		}
+	}
+
+	if (stallAgeMs >= env.autoCancelWarnMs && !game.cancelWarn && !game.dropWarn) {
+		const names = stalled.map(({ player }) => player.name).join(", ") || "the current player(s)";
+		if (env.autoDrop === "on") {
+			const daysLeft = Math.max(1, Math.ceil((env.autoDropGraceMs - stallAgeMs) / (24 * 3600 * 1000)));
+			await colls.chatMessages.insertOne({
+				_id: new ObjectId(),
+				room: game._id,
+				type: "system",
+				data: {
+					text: `${names} will be dropped for inactivity in ${daysLeft} day${daysLeft > 1 ? "s" : ""} if no move is played (the other players can drop them sooner). The game then continues without them, or is cancelled if it can't continue.`,
+				},
+			});
+			await colls.games.updateOne({ _id: game._id }, { $set: { dropWarn: true } });
+			await emailDropWarning(
+				game,
+				stalled.map(({ player }) => player),
+				daysLeft,
+			);
+		} else {
+			const daysLeft = Math.max(1, Math.ceil((env.autoCancelGraceMs - stallAgeMs) / (24 * 3600 * 1000)));
+			await colls.chatMessages.insertOne({
+				_id: new ObjectId(),
+				room: game._id,
+				type: "system",
+				data: {
+					text: `This game will be cancelled for inactivity in ${daysLeft} day${daysLeft > 1 ? "s" : ""} if no move is played. Waiting on ${names} — the other players can drop the inactive player to keep the game going.`,
+				},
+			});
+			await colls.games.updateOne({ _id: game._id }, { $set: { cancelWarn: true } });
+		}
+	}
+}
+
+// Insert the dropPlayer notification(s) the game-server acts on — the exact shape the
+// manual /drop/:userId route produces, minus `dropper` (plus `auto` for the logs).
+// Skips players with a still-unprocessed drop notification so an hourly re-sweep
+// doesn't double-drop while the game-server is behind.
+async function autoDropPlayers(
+	game: GameDoc,
+	toDrop: { cp: NonNullable<GameDoc["currentPlayers"]>[number]; deadline: Date; player: PlayerInfo }[],
+	now: Date,
+): Promise<void> {
+	for (const { cp, deadline, player } of toDrop) {
+		const pending = await colls.gameNotifications.findOne({
+			kind: "dropPlayer",
+			game: game._id,
+			user: player._id,
+			processed: false,
+		});
+		if (pending) {
+			continue;
+		}
+		await colls.gameNotifications.insertOne({
+			kind: "dropPlayer",
+			user: player._id,
+			game: game._id,
+			processed: false,
+			createdAt: now,
+			updatedAt: now,
+			meta: {
+				auto: true,
+				deadline,
+				timerStart: cp.timerStart,
+				remainingTime: player.remainingTime,
 			},
 		});
-		await colls.games.updateOne({ _id: game._id }, { $set: { cancelWarn: true } });
 	}
 }
 
@@ -228,28 +302,72 @@ async function emailCancelNotice(game: GameDoc): Promise<void> {
 	);
 }
 
+// Best-effort pre-drop warning email to the stalled player(s) themselves, sent with
+// the chat warning. Same opt-in/confirmed rules as the other game emails.
+async function emailDropWarning(game: GameDoc, stalledPlayers: PlayerInfo[], daysLeft: number): Promise<void> {
+	const users = await colls.users
+		.find(
+			{ _id: { $in: stalledPlayers.map((pl) => pl._id) } },
+			{
+				projection: { "account.username": 1, "account.email": 1, "settings.mailing.game": 1, "security.confirmed": 1 },
+			},
+		)
+		.toArray();
+	const url = `https://${env.site}/game/${encodeURIComponent(game._id)}`;
+
+	await Promise.all(
+		users.map(async (user) => {
+			if (!user.account.email || !user.security.confirmed || !user.settings?.mailing?.game?.activated) {
+				return;
+			}
+			await sendMail({
+				kind: "drop-warning",
+				to: user.account.email,
+				subject: `Game ${game._id}: you will be dropped for inactivity in ${daysLeft} day${daysLeft > 1 ? "s" : ""}`,
+				html: `
+				<p>Hello ${user.account.username}</p>
+				<p>Your clock ran out in <a href='${url}'>${game._id}</a> (${game.game.name}). If you don't play a move within ${daysLeft} day${daysLeft > 1 ? "s" : ""}, you will be dropped from the game.</p>`,
+				unsubscribeToken: signUnsubscribeToken(user._id.toHexString(), "game"),
+			}).catch(console.error);
+		}),
+	);
+}
+
 export async function processStalledGames(): Promise<void> {
 	const now = Date.now();
 	const projection = { projection: { _id: 1 } };
 
-	// Unwarned games are candidates once past the warn threshold (to warn); already
-	// warned games only once past the grace threshold (to cancel).
-	const [toWarn, toCancel] = await Promise.all([
+	// Unwarned games are candidates once past the warn threshold (to warn); warned
+	// games once past the drop threshold (to drop) or the grace threshold (to cancel).
+	const [toWarn, toDrop, toCancel] = await Promise.all([
 		colls.games
 			.find(
 				{
 					status: "active",
 					cancelWarn: { $ne: true },
+					dropWarn: { $ne: true },
 					"currentPlayers.deadline": { $lt: new Date(now - env.autoCancelWarnMs) },
 				},
 				projection,
 			)
 			.toArray(),
+		env.autoDrop === "off"
+			? Promise.resolve([])
+			: colls.games
+					.find(
+						{
+							status: "active",
+							$or: [{ dropWarn: true }, { cancelWarn: true }],
+							"currentPlayers.deadline": { $lt: new Date(now - env.autoDropGraceMs) },
+						},
+						projection,
+					)
+					.toArray(),
 		colls.games
 			.find(
 				{
 					status: "active",
-					cancelWarn: true,
+					$or: [{ dropWarn: true }, { cancelWarn: true }],
 					"currentPlayers.deadline": { $lt: new Date(now - env.autoCancelGraceMs) },
 				},
 				projection,
@@ -257,7 +375,8 @@ export async function processStalledGames(): Promise<void> {
 			.toArray(),
 	]);
 
-	for (const { _id } of [...toWarn, ...toCancel]) {
+	const ids = new Set([...toWarn, ...toDrop, ...toCancel].map(({ _id }) => _id));
+	for (const _id of ids) {
 		try {
 			await processStalledGame(_id);
 		} catch (err) {

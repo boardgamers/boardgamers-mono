@@ -153,6 +153,23 @@ describe("afterMove cancel-vote tally — overdue players count as votes (#403)"
 		assert.strictEqual(game?.cancelled, false);
 	});
 
+	it("a move clears the inactivity warning markers (#94: cancelWarn and dropWarn)", async () => {
+		const gameId = "cancel-94-warn-reset";
+		await colls.games.deleteMany({ _id: gameId });
+		await colls.gameNotifications.deleteMany({ game: gameId });
+		const p0 = makePlayer("p0");
+		const p1 = makePlayer("p1");
+		const doc = makeGame(gameId, [p0, p1], [overdueEntry(p1._id)]);
+		doc.cancelWarn = true;
+		doc.dropWarn = true;
+		await colls.games.insertOne(doc);
+
+		const game = await runMove(gameId);
+		assert.strictEqual(game?.status, "active");
+		assert.strictEqual(game?.cancelWarn, undefined, "the move resets the stall episode (api sweep re-warns)");
+		assert.strictEqual(game?.dropWarn, undefined);
+	});
+
 	it("cancels when a voter dropped and the remaining player is overdue", async () => {
 		const gameId = "cancel-403-drop-overdue";
 		await colls.games.deleteMany({ _id: gameId });

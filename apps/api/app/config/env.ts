@@ -144,8 +144,18 @@ export default {
 			: ("off" as "off" | "dry-run" | "delete"),
 	cleanupDeadUsersMaxAgeDays: Number(process.env.cleanupDeadUsersMaxAgeDays) || 365,
 	cleanupDeadUsersBatchSize: Number(process.env.cleanupDeadUsersBatchSize) || 50,
-	// Inactivity sweep (#94): warn in chat, then cancel penalty-free. Never drops
-	// players; games without a deadline (live/realtime) are untouched.
+	// Inactivity sweep (#94): warn in chat (and by email) autoCancelWarnMs after a
+	// current player's deadline passes, auto-drop the warned player autoDropGraceMs
+	// after the deadline (same path and karma cost as a manual drop; the game then
+	// continues, or is cancelled by afterMove when it can't), and cancel the whole
+	// game penalty-free at autoCancelGraceMs as a safety net. Games without a
+	// deadline (live/realtime) are untouched. autoDrop: "on" (default) drops,
+	// "dry-run" only logs who would be dropped, "off" restores warn-then-cancel.
+	autoDrop:
+		process.env.autoDrop === "off" || process.env.autoDrop === "dry-run"
+			? process.env.autoDrop
+			: ("on" as "off" | "dry-run" | "on"),
+	autoDropGraceMs: Number(process.env.autoDropGraceMs) || 3 * 24 * 3600 * 1000,
 	autoCancelGraceMs: Number(process.env.autoCancelGraceMs) || 10 * 24 * 3600 * 1000,
 	autoCancelWarnMs: Number(process.env.autoCancelWarnMs) || 24 * 3600 * 1000,
 	mailing: {
