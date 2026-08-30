@@ -11,14 +11,24 @@ import HeroTagline from "./HeroTagline.svelte";
 
 type ListedGameInfo = SetOptional<GameInfoFront, "viewer">;
 
-function info(game: string, overrides: Partial<GameInfoFront> = {}): ListedGameInfo {
-	return { _id: { game, version: 1 }, label: game, public: true, ...overrides } as ListedGameInfo;
+function info(game: string, overrides: Partial<GameInfoFront> & { version?: number } = {}): ListedGameInfo {
+	const { version = 1, ...rest } = overrides;
+	return { _id: { game, version }, label: game, public: true, ...rest } as ListedGameInfo;
 }
 
-// The context map the root layout provides (keyed `<game>/<version>` + `<game>/latest`);
-// the hero only reads the `/latest` entries.
+// The context map the root layout provides, mirroring buildGameInfoMap: every version
+// keyed `<game>/<version>` plus `<game>/latest` for each game's highest version. The hero
+// reads ALL entries — "public" is a per-game any-version property.
 function contextOf(infos: ListedGameInfo[]): Map<string, Record<string, ListedGameInfo>> {
-	return new Map([["gameInfos", Object.fromEntries(infos.map((i) => [`${i._id.game}/latest`, i]))]]);
+	const map: Record<string, ListedGameInfo> = {};
+	for (const i of infos) {
+		map[`${i._id.game}/${i._id.version}`] = i;
+		const latest = map[`${i._id.game}/latest`];
+		if (!latest || latest._id.version < i._id.version) {
+			map[`${i._id.game}/latest`] = i;
+		}
+	}
+	return new Map([["gameInfos", map]]);
 }
 
 function mountHero(infos: ListedGameInfo[]) {
@@ -71,15 +81,29 @@ describe("HeroTagline", () => {
 		]);
 	});
 
-	it("shows the alias when one is set (#106)", () => {
+	it("cites a game whose latest version is a private beta when an older version is public", () => {
+		// A beta grantee's list carries the game's private-beta latest on top of the public
+		// version — the hero must show them the same list as everyone else.
+		const { target, instance } = mountHero([
+			info("gaia-project", { label: "🌌 Gaia Project", likeCount: 9, version: 2, public: false }),
+			info("gaia-project", { label: "🌌 Gaia Project", likeCount: 9, version: 1 }),
+			info("container", { label: "Container", likeCount: 1 }),
+		]);
+		cleanup = () => unmount(instance);
+
+		expect(target.textContent!.trim()).toBe("Play Gaia Project and Container online");
+		expect(links(target)[0]).toEqual({ text: "Gaia Project", href: "/boardgame/gaia-project" });
+	});
+
+	it("does not cite an aliased game (trademark discretion), even when it is the most liked", () => {
 		const { target, instance } = mountHero([
 			info("gem-trader", { label: "💎 Splendor", alias: "Gem Trader", likeCount: 2 }),
 			info("container", { label: "Container", likeCount: 1 }),
 		]);
 		cleanup = () => unmount(instance);
 
-		expect(target.textContent!.trim()).toBe("Play Gem Trader and Container online");
-		expect(links(target)[0]).toEqual({ text: "Gem Trader", href: "/boardgame/gem-trader" });
+		expect(target.textContent!.trim()).toBe("Play Container online");
+		expect(links(target)).toEqual([{ text: "Container", href: "/boardgame/container" }]);
 	});
 
 	it("renders the translated sentence and localized separators on language switch", async () => {
