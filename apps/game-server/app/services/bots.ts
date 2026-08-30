@@ -1,4 +1,5 @@
 import { logEvent } from "@bgs/utils/log";
+import createError from "http-errors";
 import { colls } from "../config/db.ts";
 import env from "../config/env.ts";
 import locks from "../config/locks.ts";
@@ -11,8 +12,13 @@ import { afterMove } from "./game.ts";
 
 // Small pause before each bot move so a human watching the game sees turns happen
 // (and live updates arrive) instead of the whole bot sequence applying at once.
-// Configurable for tests.
-const BOT_MOVE_DELAY_MS = Number(process.env.BOT_MOVE_DELAY_MS) || 1500;
+// Configurable for tests — read per call: specs set the env in their own body, which
+// runs after this module was already loaded (ESM imports hoist above the assignment).
+const botMoveDelayMs = () => Number(process.env.BOT_MOVE_DELAY_MS) || 1500;
+
+// Pause before re-enqueuing a driver run whose lockWait timed out (423) — see
+// scheduleBotMoves. Configurable for tests (read per call, same reason as above).
+const botLockRetryDelayMs = () => Number(process.env.BOT_LOCK_RETRY_DELAY_MS) || 5000;
 
 // Cap on moveAI calls per driver run: a buggy engine whose moveAI never un-currents
 // the bot must not loop forever (the engines' own dropPlayer auto-play loops are
@@ -42,6 +48,15 @@ export function scheduleBotMoves(gameId: string): void {
 	running.add(gameId);
 	void runBotMoves(gameId)
 		.catch((err) => {
+			// A 423 just means another actor held `game:<id>` past the lockWait cap (e.g.
+			// an orphaned lock aging out via the TTL monitor) — the bot is still due to
+			// move, so re-enqueue instead of leaving it idle until the next external
+			// trigger (#423). Bounded: the lock TTL guarantees a later attempt either
+			// acquires the lock or finds the game no longer active and exits.
+			if (createError.isHttpError(err) && err.status === 423) {
+				setTimeout(() => scheduleBotMoves(gameId), botLockRetryDelayMs()).unref();
+				return;
+			}
 			logEvent("error", "botDriver", { source: "game-server", gameId, error: String(err) });
 			if (!env.silent) {
 				console.error(err);
@@ -56,7 +71,7 @@ async function runBotMoves(gameId: string): Promise<void> {
 	for (;;) {
 		// Human-paced: delay first, so the previous move's response + live update
 		// reach clients before the bot acts.
-		await delay(BOT_MOVE_DELAY_MS);
+		await delay(botMoveDelayMs());
 
 		let played = false;
 

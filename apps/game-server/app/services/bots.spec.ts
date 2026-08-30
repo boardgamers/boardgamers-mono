@@ -8,6 +8,7 @@ import { after, before, describe, it } from "node:test";
 import { ObjectId } from "mongodb";
 import { colls, closeDb, db } from "../config/db.ts";
 import locks from "../config/locks.ts";
+import { scheduleBotMoves } from "./bots.ts";
 import { engineRunner } from "./engine-runner.ts";
 import { engineKey } from "./engines.ts";
 import { processQuit, startNextGame } from "./game.ts";
@@ -85,6 +86,9 @@ function botPlayer(name: string) {
 	};
 }
 
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- engine data shape is defined by the fixture engine
+const moves = (game: { data?: unknown } | null) => (game?.data as { moves: number[] } | undefined)?.moves;
+
 function humanPlayer(name: string) {
 	return {
 		_id: new ObjectId(),
@@ -147,10 +151,30 @@ describe("bot driver", () => {
 		// concurrently against the same test db, and a dropDatabase() here would wipe
 		// another file's state mid-run.
 		await colls.games.deleteMany({
-			_id: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel", "bot-game-log", "bot-game-lock"] },
+			_id: {
+				$in: [
+					"bot-game-1",
+					"bot-game-2",
+					"bot-game-noai",
+					"bot-game-cancel",
+					"bot-game-log",
+					"bot-game-lock",
+					"bot-game-retry",
+				],
+			},
 		});
 		await colls.gameNotifications.deleteMany({
-			game: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel", "bot-game-log", "bot-game-lock"] },
+			game: {
+				$in: [
+					"bot-game-1",
+					"bot-game-2",
+					"bot-game-noai",
+					"bot-game-cancel",
+					"bot-game-log",
+					"bot-game-lock",
+					"bot-game-retry",
+				],
+			},
 		});
 		// A force-exited previous run can orphan this suite's `game:<id>` lock docs
 		// (they only age out via the 60s TTL); game mutations block on them since
@@ -159,9 +183,15 @@ describe("bot driver", () => {
 			.collection("locks")
 			.deleteMany({
 				action: {
-					$in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel", "bot-game-log", "bot-game-lock"].map(
-						(id) => `game:${id}`,
-					),
+					$in: [
+						"bot-game-1",
+						"bot-game-2",
+						"bot-game-noai",
+						"bot-game-cancel",
+						"bot-game-log",
+						"bot-game-lock",
+						"bot-game-retry",
+					].map((id) => `game:${id}`),
 				},
 			});
 		await colls.gameInfos.deleteMany({ "_id.game": { $in: [ENGINE_NAME, "bot-test-noai", "bot-test-log"] } });
@@ -347,6 +377,62 @@ describe("bot driver", () => {
 
 		const game = await colls.games.findOne({ _id: "bot-game-lock" });
 		assert.strictEqual(game?.players[0].quit, true, "The quit was applied once the lock was released");
+	});
+
+	it("re-enqueues the bot after a lockWait timeout (423) instead of leaving it idle (#423)", async () => {
+		// Shrink the lockWait cap (read per call) so a contended driver run 423s
+		// quickly, and the re-enqueue delay so retries land within the test window.
+		process.env.LOCK_WAIT_CAP_MS = "300";
+		process.env.BOT_LOCK_RETRY_DELAY_MS = "100";
+		try {
+			await insertGame("bot-game-retry", [botPlayer("Rob (bot 1)"), humanPlayer("human")]);
+			await startGame("bot-game-retry");
+
+			// The driver scheduled by the start plays the bot until the human is current.
+			await waitFor(async () => {
+				const game = await colls.games.findOne({ _id: "bot-game-retry" });
+				return moves(game)?.[0] === 1;
+			});
+
+			// The driver's final iteration may still be in flight and briefly take the
+			// lock (to see no bot is current and exit) — grab it as soon as it's free.
+			const gameLock = await (async () => {
+				for (let i = 0; i < 400; i++) {
+					const lock = await locks.lock("game", "bot-game-retry");
+					if (lock) {
+						return lock;
+					}
+					await new Promise((r) => setTimeout(r, 25));
+				}
+				throw new Error("Timed out acquiring the game lock");
+			})();
+			try {
+				// Hand the turn back to the bot behind the driver's back, and trigger a
+				// run while the lock is held: every attempt during the hold (whether the
+				// tail of the original driver or this trigger) times out with 423 and
+				// must re-enqueue itself.
+				await colls.games.updateOne({ _id: "bot-game-retry" }, { $set: { "data.current": 0 } });
+				scheduleBotMoves("bot-game-retry");
+
+				// Long enough for the first run to time out (423) and retry — the lock is
+				// still held, so any progress here would mean the driver bypassed it.
+				await new Promise((r) => setTimeout(r, 800));
+				const held = await colls.games.findOne({ _id: "bot-game-retry" });
+				assert.strictEqual(moves(held)?.[0], 1, "No bot move was applied while the lock was held");
+			} finally {
+				await gameLock.free();
+			}
+
+			// Without the retry the bot would stay idle forever (nothing else triggers
+			// it); a re-enqueued run acquires the freed lock and plays the move.
+			await waitFor(async () => {
+				const game = await colls.games.findOne({ _id: "bot-game-retry" });
+				return moves(game)?.[0] === 2;
+			});
+		} finally {
+			delete process.env.LOCK_WAIT_CAP_MS;
+			delete process.env.BOT_LOCK_RETRY_DELAY_MS;
+		}
 	});
 
 	it("derives the last-move text from powergrid-style object log entries, and falls back to raw notation on an empty slice", async () => {

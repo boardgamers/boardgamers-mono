@@ -58,19 +58,34 @@ export async function cancelOldOpenGames() {
 }
 
 export async function processSchedulesGames() {
-	{
-		await using _lock = await locks.lock("game", "scheduled-games");
-		const cursor = colls.games.find({
-			status: "open",
-			"options.timing.scheduledStart": { $lt: new Date() },
-		});
-		for await (const game of cursor) {
-			const g: GameDoc = game;
+	// The singleton lock only guards the scan against a concurrent scan; each game's
+	// write happens under its own `game:<id>` lock (#423) — a replaceOne from the scan's
+	// stale snapshot could otherwise clobber a concurrent join on a scheduled game.
+	await using scanLock = await locks.lock("game", "scheduled-games");
+	if (!scanLock) {
+		return;
+	}
+	const due = await colls.games
+		.find({ status: "open", "options.timing.scheduledStart": { $lt: new Date() } }, { projection: { _id: 1 } })
+		.toArray();
+
+	for (const { _id } of due) {
+		try {
+			await using _lock = await locks.lockWait("game", _id);
+			// Re-read under the lock: a join/unjoin/cancel may have landed since the scan.
+			const g: GameDoc | null = await colls.games.findOne({
+				_id,
+				status: "open",
+				"options.timing.scheduledStart": { $lt: new Date() },
+			});
+			if (!g) {
+				continue;
+			}
 
 			if (!g.ready) {
 				await colls.chatMessages.insertOne({
 					_id: new ObjectId(),
-					room: game._id,
+					room: g._id,
 					type: "system",
 					data: { text: "Game cancelled because it's not fully ready at scheduled start date" },
 				});
@@ -83,6 +98,10 @@ export async function processSchedulesGames() {
 			g.options.timing.scheduledStart = undefined;
 			await colls.games.replaceOne({ _id: g._id }, g);
 			await notifyGameStart(g);
+		} catch (err) {
+			// A contended game (423) or a one-off failure must not abort the whole sweep —
+			// the game stays due and the next tick retries it.
+			console.error(err);
 		}
 	}
 }

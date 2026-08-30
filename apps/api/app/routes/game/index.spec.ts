@@ -9,6 +9,8 @@ import { db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { colls } from "../../config/db.ts";
 import locks from "../../config/locks.ts";
+import { processGameEnded } from "../../models/gamenotification.ts";
+import { processSchedulesGames } from "../../services/game.ts";
 import { testUser, testGame, testGamePrefs } from "../../config/test-helpers.ts";
 import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
 
@@ -932,6 +934,136 @@ describe("Game API", () => {
 				await colls.gameNotifications.findOne({ game: "lock-drop", kind: "dropPlayer", user: joinerId }),
 				"The drop notification was emitted once the lock was released",
 			);
+		});
+
+		// The remaining unlocked game writes found in #421's review (#423): the
+		// scheduled-games sweep, the admin delete route, and the gameEnded (karma/Elo)
+		// write-back now all block on the same `game:<id>` key.
+		it("processSchedulesGames waits for the game:<id> lock before writing (#423)", async () => {
+			await colls.games.insertOne(
+				testGame({
+					_id: "lock-scheduled",
+					creator: userId,
+					status: "open",
+					ready: true,
+					players: [
+						{ _id: userId, name: "human1" },
+						{ _id: joinerId, name: "human2" },
+					],
+					options: {
+						setup: { seed: "test", nbPlayers: 2, playerOrder: "join" },
+						timing: {
+							timePerGame: 5000,
+							timePerMove: 5000,
+							timer: { start: 0, end: 86400 },
+							scheduledStart: new Date(Date.now() - 1000),
+						},
+						meta: { unlisted: false },
+					},
+					game: { name: "test", version: 1 },
+				}),
+			);
+
+			const gameLock = await locks.lock("game", "lock-scheduled");
+			assert.ok(gameLock, "the test acquired the game lock");
+			try {
+				let settled = false;
+				const pending = processSchedulesGames().finally(() => {
+					settled = true;
+				});
+
+				await new Promise((r) => setTimeout(r, 400));
+				assert.strictEqual(settled, false, "the sweep waits while game:<id> is held");
+				const held = await colls.games.findOne({ _id: "lock-scheduled" });
+				assert.ok(held?.options.timing.scheduledStart, "No write was applied while the lock was held");
+
+				await gameLock.free();
+				await pending;
+			} finally {
+				await gameLock.free();
+			}
+
+			const game = await colls.games.findOne({ _id: "lock-scheduled" });
+			assert.ok(!game?.options.timing.scheduledStart, "The scheduled start was consumed once the lock was released");
+			assert.ok(
+				await colls.gameNotifications.findOne({ game: "lock-scheduled", kind: "gameStarted" }),
+				"The gameStarted notification was emitted",
+			);
+		});
+
+		it("admin game delete waits for the game:<id> lock (#423)", async () => {
+			const adminId = new ObjectId();
+			await colls.users.insertOne(testUser({ _id: adminId, authority: "admin" }));
+			const adminHeaders = await makeAuthHeaders(adminId);
+
+			await colls.games.insertOne(
+				testGame({
+					_id: "lock-delete",
+					creator: userId,
+					status: "active",
+					players: [{ _id: userId, name: "human" }],
+					game: { name: "test", version: 1 },
+				}),
+			);
+
+			await assertWaitsForGameLock("lock-delete", () =>
+				api("DELETE", "/api/game/lock-delete", undefined, adminHeaders),
+			);
+
+			assert.strictEqual(
+				await colls.games.findOne({ _id: "lock-delete" }),
+				null,
+				"The game was deleted once the lock was released",
+			);
+		});
+
+		it("gameEnded processing (karma/Elo write-back) waits for the game:<id> lock (#423)", async () => {
+			// Fresh player ids: the Elo upserts must not disturb the suite's shared users.
+			const winnerId = new ObjectId();
+			const loserId = new ObjectId();
+			await colls.games.insertOne(
+				testGame({
+					_id: "lock-ended",
+					creator: winnerId,
+					status: "ended",
+					players: [
+						{ _id: winnerId, name: "winner", score: 10, ranking: 1 },
+						{ _id: loserId, name: "loser", score: 5, ranking: 2 },
+					],
+					game: { name: "test", version: 1 },
+				}),
+			);
+			await colls.gameNotifications.insertOne({
+				game: "lock-ended",
+				kind: "gameEnded",
+				processed: false,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			});
+
+			const gameLock = await locks.lock("game", "lock-ended");
+			assert.ok(gameLock, "the test acquired the game lock");
+			try {
+				let settled = false;
+				const pending = processGameEnded().finally(() => {
+					settled = true;
+				});
+
+				await new Promise((r) => setTimeout(r, 400));
+				assert.strictEqual(settled, false, "the write-back waits while game:<id> is held");
+				const held = await colls.games.findOne({ _id: "lock-ended" });
+				assert.strictEqual(held?.players[0].elo, undefined, "No Elo was written while the lock was held");
+
+				await gameLock.free();
+				await pending;
+			} finally {
+				await gameLock.free();
+			}
+
+			const game = await colls.games.findOne({ _id: "lock-ended" });
+			assert.ok(game?.players[0].elo, "The Elo write-back was applied once the lock was released");
+			const notification = await colls.gameNotifications.findOne({ game: "lock-ended", kind: "gameEnded" });
+			assert.strictEqual(notification?.processed, true, "The notification was marked processed");
 		});
 	});
 
