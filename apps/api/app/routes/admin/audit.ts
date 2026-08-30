@@ -21,8 +21,10 @@ export interface AuditTarget {
 }
 
 // Belt-and-braces: call sites must not pass secrets, but any key that smells
-// like one is redacted anyway (recursively) before the event is stored.
-const SECRET_KEY = /token|password|secret|hash|credential|confirmkey/i;
+// like one is redacted anyway (recursively) before the event is stored. Bare
+// "key"/"code" only match as the WHOLE key name — substrings would eat
+// innocent fields like "monkeys" or "encodedAt".
+const SECRET_KEY = /token|password|secret|hash|credential|confirmkey|^key$|^code$/i;
 const MAX_SCRUB_DEPTH = 5;
 
 export function scrubMeta(meta: Record<string, unknown>, depth = 0): Record<string, unknown> {

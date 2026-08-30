@@ -183,6 +183,11 @@ describe("Admin audit trail", () => {
 				nested: { apiToken: "[redacted]", list: [{ secretValue: "[redacted]" }, "plain"] },
 			});
 		});
+
+		it("redacts bare key/code only as whole key names", () => {
+			const scrubbed = scrubMeta({ key: "s3cret", code: "123456", monkeys: 3, encodedAt: "2024" });
+			assert.deepEqual(scrubbed, { key: "[redacted]", code: "[redacted]", monkeys: 3, encodedAt: "2024" });
+		});
 	});
 
 	describe("GET /api/admin/audit-log", () => {
