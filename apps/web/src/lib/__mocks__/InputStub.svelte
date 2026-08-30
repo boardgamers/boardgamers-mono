@@ -4,6 +4,7 @@
 <script lang="ts">
 	let {
 		value = $bindable(""),
+		element = $bindable(undefined),
 		type = "text",
 		id = undefined,
 		placeholder = undefined,
@@ -12,6 +13,7 @@
 		class: className = "",
 	}: {
 		value?: unknown;
+		element?: HTMLInputElement | HTMLTextAreaElement;
 		type?: string;
 		id?: string;
 		placeholder?: string;
@@ -22,7 +24,7 @@
 </script>
 
 {#if type === "textarea"}
-	<textarea {id} class={className} {placeholder} {required} {disabled} bind:value></textarea>
+	<textarea {id} class={className} {placeholder} {required} {disabled} bind:value bind:this={element}></textarea>
 {:else}
-	<input {type} {id} class={className} {placeholder} {required} {disabled} bind:value />
+	<input {type} {id} class={className} {placeholder} {required} {disabled} bind:value bind:this={element} />
 {/if}
