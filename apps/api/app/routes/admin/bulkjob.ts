@@ -22,7 +22,7 @@ export const bulkTranslateJobSchema = z.object({
 	status: z.enum(["running", "done", "error"]),
 	// What the job translates. Absent on pre-kind jobs, which are all page
 	// jobs — parse them as "pages" so old docs stay listable.
-	kind: z.enum(["pages", "metadata"]).default("pages"),
+	kind: z.enum(["pages", "metadata", "changelog"]).default("pages"),
 	total: z.number(),
 	done: z.number(),
 	translated: z.number(),

@@ -5,6 +5,7 @@ import type { Context } from "koa";
 import Router from "koa-router";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
+import { changelogSourceHash, changelogSourceStrings } from "../../models/changelog-i18n.ts";
 import { metadataNeedsTranslation, metadataSourceHash, metadataSourceStrings } from "../../models/gameinfo-i18n.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { translateMarkdown } from "../../services/translate.ts";
@@ -26,12 +27,13 @@ function canManagePage(user: Context["state"]["user"], pageName: string): boolea
 // the pages × locales status matrix, the game-metadata × locale presence
 // grid, and every bulk-translate job. Read-only.
 router.get("/overview", async (ctx) => {
-	const [pages, metadatas, jobs] = await Promise.all([
+	const [pages, metadatas, changelogs, jobs] = await Promise.all([
 		colls.pages.find({}, { projection: { _id: 1, title: 1, updatedAt: 1, translatedFrom: 1 } }).toArray(),
 		colls.gameMetadatas
 			.find({}, { projection: { _id: 1, label: 1, alias: 1, description: 1, rules: 1, credits: 1, translations: 1 } })
 			.sort({ _id: 1 })
 			.toArray(),
+		colls.changelogs.find({ published: true }, { projection: { content: 1, details: 1, translations: 1 } }).toArray(),
 		listBulkJobs(),
 	]);
 
@@ -106,11 +108,37 @@ router.get("/overview", async (ctx) => {
 		};
 	});
 
+	// Changelog coverage (#306 follow-up): entries are too many (and too
+	// short-lived) for a per-entry matrix — one summary row, per-locale counts
+	// over the PUBLISHED entries (drafts are translated on publish). Statuses
+	// mirror the metadata grid; "unknown" = an unstamped overlay (manual db
+	// write). Translation itself is driven from the changelog admin routes
+	// (permission "changelog"); this dashboard just surfaces coverage.
+	const changelogCells = Object.fromEntries(
+		metaLangs.map((lang) => {
+			const cell = { ok: 0, outdated: 0, missing: 0, unknown: 0 };
+			for (const entry of changelogs) {
+				const overlay = entry.translations?.[lang];
+				if (!overlay) {
+					cell.missing++;
+				} else if (!overlay.translatedFrom?.hash) {
+					cell.unknown++;
+				} else if (overlay.translatedFrom.hash === changelogSourceHash(changelogSourceStrings(entry))) {
+					cell.ok++;
+				} else {
+					cell.outdated++;
+				}
+			}
+			return [lang, cell];
+		}),
+	);
+
 	ctx.body = {
 		locales,
 		metaLangs,
 		pages: pageRows,
 		games: gameRows,
+		changelog: { total: changelogs.length, cells: changelogCells },
 		jobs: jobs.map(({ jobId, job }) => ({ jobId, ...job })),
 	};
 });

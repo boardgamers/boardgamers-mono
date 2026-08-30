@@ -119,7 +119,7 @@ export const api = {
 export interface BulkTranslateJob {
 	status: "running" | "done" | "error";
 	// What the job translates; absent on pre-kind jobs, which are all page jobs.
-	kind?: "pages" | "metadata";
+	kind?: "pages" | "metadata" | "changelog";
 	total: number;
 	done: number;
 	translated: number;
@@ -148,6 +148,12 @@ export interface TranslationsOverview {
 		// freshness can't be told from the data).
 		cells: Record<string, { status: "ok" | "outdated" | "missing" | "unknown"; fields: string[] }>;
 	}[];
+	// Changelog coverage (#306 follow-up): per-locale counts over the published
+	// entries (a summary row, not a per-entry matrix).
+	changelog: {
+		total: number;
+		cells: Record<string, { ok: number; outdated: number; missing: number; unknown: number }>;
+	};
 	jobs: ListedBulkTranslateJob[];
 }
 
@@ -169,15 +175,29 @@ export async function startMetadataBulkTranslate(body: { targetLang?: string } =
 	return jobId;
 }
 
+// Bulk changelog translation (#306 follow-up) — same flow again. {entryId}
+// translates one entry into all languages (the changelog page's per-entry
+// button); {targetLang} one language across all published entries; {} every
+// missing/outdated pair. Returns the job id and the pair count (0 = nothing
+// to do). Requires the "changelog" permission.
+export async function startChangelogBulkTranslate(
+	body: { targetLang?: string; entryId?: string } = {},
+): Promise<{ jobId: string; total: number }> {
+	return api.post<{ jobId: string; total: number }>("/admin/changelog/translate-bulk", body);
+}
+
+// `pollPath` defaults to the pages poll route; changelog admins (who may not
+// hold "pages") poll their jobs through their own mount instead.
 export function pollBulkTranslateJob(
 	jobId: string,
 	onProgress?: (job: BulkTranslateJob) => void,
 	intervalMs = 1500,
+	pollPath = "/admin/page/translate-bulk",
 ): Promise<BulkTranslateJob> {
 	return new Promise((resolve, reject) => {
 		const tick = async () => {
 			try {
-				const job = await api.get<BulkTranslateJob>(`/admin/page/translate-bulk/${jobId}`);
+				const job = await api.get<BulkTranslateJob>(`${pollPath}/${jobId}`);
 				onProgress?.(job);
 				if (job.status !== "running") {
 					resolve(job);

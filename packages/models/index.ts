@@ -26,8 +26,8 @@ export type { ApiErrorDoc, ApiErrorFront } from "./api-error.ts";
 export { apiErrorSchema, API_ERRORS_COLLECTION, apiErrorIndexes, apiErrorsCollectionOptions } from "./api-error.ts";
 
 // --- Changelog ---
-export type { ChangelogDoc, ChangelogFront } from "./changelog.ts";
-export { changelogSchema, CHANGELOGS_COLLECTION, changelogIndexes } from "./changelog.ts";
+export type { ChangelogDoc, ChangelogFront, ChangelogTranslations } from "./changelog.ts";
+export { changelogSchema, changelogTranslationsSchema, CHANGELOGS_COLLECTION, changelogIndexes } from "./changelog.ts";
 
 // --- Chat Message ---
 export type { ChatMessageDoc, ChatMessageFront } from "./chatmessage.ts";
