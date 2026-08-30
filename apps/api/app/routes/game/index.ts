@@ -837,6 +837,9 @@ router.delete("/:gameId", loggedIn, async (ctx) => {
 	if (!canUserManageGame(ctx.state.user, game.game.name)) {
 		throw createError(403, "You need to be admin");
 	}
+	// Serialize with moves/lifecycle transitions (#423): deleting mid-move would let
+	// the in-flight actor's replaceOne resurrect the doc.
+	await using _lock = await locks.lockWait("game", game._id);
 	await colls.games.deleteOne({ _id: game._id });
 	ctx.status = 200;
 });

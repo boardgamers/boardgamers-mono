@@ -24,7 +24,10 @@ const LOCK_POLL_MS = 100;
 
 async function lockWait(...keys: (string | number)[]) {
 	const key = keys.join(":");
-	const deadline = Date.now() + LOCK_WAIT_CAP_MS;
+	// Cap overridable via env (read per call so specs can flip it mid-run): the
+	// 423-path specs would otherwise have to hold a lock for the full 30s.
+	const capMs = Number(process.env.LOCK_WAIT_CAP_MS) || LOCK_WAIT_CAP_MS;
+	const deadline = Date.now() + capMs;
 	for (;;) {
 		const acquired = await manager.lock(key);
 		if (acquired) {

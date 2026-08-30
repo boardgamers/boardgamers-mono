@@ -35,15 +35,23 @@ export async function addMessage(gameId: string, message: string) {
 }
 
 export async function startNextGame(): Promise<boolean> {
-	const notification = await colls.gameNotifications.findOne({ kind: "gameStarted", processed: false });
+	// Skip-and-continue over the pending notifications (#423): one game whose
+	// `game:<id>` lock is held (worst case orphaned, aging out via the TTL monitor)
+	// must not head-of-line-block every other pending start behind a full lockWait.
+	// The non-blocking lock skips the contended game for this pass; its notification
+	// stays unprocessed, so the next pass retries it.
+	const notifications = await colls.gameNotifications
+		.find({ kind: "gameStarted", processed: false })
+		.limit(1000)
+		.toArray();
 
-	if (!notification) {
-		return false;
-	}
+	for (const notification of notifications) {
+		try {
+			await using lock = await locks.lock("game", notification.game);
 
-	try {
-		{
-			await using _lock = await locks.lockWait("game", notification.game);
+			if (!lock) {
+				continue;
+			}
 
 			const game = await colls.games.findOne({ _id: notification.game });
 
@@ -143,11 +151,14 @@ export async function startNextGame(): Promise<boolean> {
 			scheduleBotMoves(game._id);
 
 			return true;
+		} catch (err) {
+			// A failing start (e.g. a broken engine init) must not block the other
+			// pending starts — move on; the next pass retries this one.
+			console.error(err);
 		}
-	} catch (err) {
-		console.error(err);
-		return false;
 	}
+
+	return false;
 }
 
 export async function processQuit(notification: GameNotificationDoc) {

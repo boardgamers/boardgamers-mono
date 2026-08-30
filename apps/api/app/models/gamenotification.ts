@@ -46,33 +46,45 @@ export async function processGameEnded() {
 	const notifications = await col.find({ kind: "gameEnded", processed: false }).toArray();
 
 	for (const notification of notifications) {
-		const game = await colls.games.findOne(
-			{ _id: notification.game },
-			{ projection: { players: 1, "game.name": 1, cancelled: 1 } },
-		);
-
-		if (!game) {
-			await col.updateOne({ _id: notification._id }, { $set: { processed: true, updatedAt: new Date() } });
-			continue;
-		}
-
-		if (!game.cancelled) {
-			await colls.users.updateMany(
-				{ _id: { $in: game.players.filter((pl) => !pl.dropped && !pl.isBot).map((pl) => pl._id) } },
-				[{ $set: { "account.karma": { $min: [{ $add: ["$account.karma", 1] }, maxKarma] } } }],
+		try {
+			// Per-game lock (#423): the Elo write-back reads players/rankings and then
+			// $sets players.<i>.elo.* by index — racing an admin replay (which replaces
+			// the whole doc under game:<id>, possibly reordering outcomes) could apply
+			// deltas computed from a state the replay just rewrote. Serializing on the
+			// same key means the elo update always sees the settled post-replay doc.
+			await using _gameLock = await locks.lockWait("game", notification.game);
+			const game = await colls.games.findOne(
+				{ _id: notification.game },
+				{ projection: { players: 1, "game.name": 1, cancelled: 1 } },
 			);
+
+			if (!game) {
+				await col.updateOne({ _id: notification._id }, { $set: { processed: true, updatedAt: new Date() } });
+				continue;
+			}
+
+			if (!game.cancelled) {
+				await colls.users.updateMany(
+					{ _id: { $in: game.players.filter((pl) => !pl.dropped && !pl.isBot).map((pl) => pl._id) } },
+					[{ $set: { "account.karma": { $min: [{ $add: ["$account.karma", 1] }, maxKarma] } } }],
+				);
+			}
+
+			await processEloForGame(game);
+
+			await Promise.all([
+				col.updateOne({ _id: notification._id }, { $set: { processed: true, updatedAt: new Date() } }),
+				colls.logs.insertOne({
+					kind: "processGameEnded",
+					data: { game: notification.game },
+					createdAt: new Date(),
+				}),
+			]);
+		} catch (err) {
+			// A contended game (423) must not abort the batch — the notification stays
+			// unprocessed and the next tick retries it.
+			console.error(err);
 		}
-
-		await processEloForGame(game);
-
-		await Promise.all([
-			col.updateOne({ _id: notification._id }, { $set: { processed: true, updatedAt: new Date() } }),
-			colls.logs.insertOne({
-				kind: "processGameEnded",
-				data: { game: notification.game },
-				createdAt: new Date(),
-			}),
-		]);
 	}
 }
 

@@ -20,6 +20,7 @@ import {
 import { sendAuthInfo } from "../account/index.ts";
 import { z } from "zod";
 import { grantSatisfies, isGameAdminGrant, userPermissions, type AdminPermission } from "@bgs/models";
+import locks from "../../config/locks.ts";
 import { requirePermission } from "../utils.ts";
 import changelogRouter from "./changelog.ts";
 import feedbackRouter from "./feedback.ts";
@@ -492,6 +493,9 @@ router.post("/load-games", requirePermission("serverinfo"), async (ctx) => {
 		const gameId = file.replace(/\.json$/, "");
 		const json = JSON.parse(fs.readFileSync(path.join(dirPath, file)).toString("utf-8"));
 
+		// Per-game lock (#423): the read-modify-replace below must not interleave with
+		// moves or lifecycle transitions on the same game.
+		await using _lock = await locks.lockWait("game", gameId);
 		const game = await colls.games.findOne({ _id: gameId });
 		if (!game) {
 			continue;
