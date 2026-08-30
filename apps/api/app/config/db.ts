@@ -8,6 +8,8 @@ import {
 	CHANGELOGS_COLLECTION,
 	type ChatMessageDoc,
 	CHAT_MESSAGES_COLLECTION,
+	type ChatReactionDoc,
+	CHAT_REACTIONS_COLLECTION,
 	type DeletedUserDoc,
 	DELETED_USERS_COLLECTION,
 	type FeedbackRequestDoc,
@@ -75,6 +77,7 @@ export const colls = {} as {
 	apiErrors: Collection<ApiErrorDoc>;
 	changelogs: Collection<ChangelogDoc>;
 	chatMessages: Collection<ChatMessageDoc>;
+	chatReactions: Collection<ChatReactionDoc>;
 	deletedUsers: Collection<DeletedUserDoc>;
 	feedbackRequests: Collection<FeedbackRequestDoc>;
 	feedbackRequestLikes: Collection<FeedbackRequestLikeDoc>;
@@ -105,6 +108,7 @@ function initColls(database: Db) {
 		apiErrors: withAutoUpdatedAt(database.collection<ApiErrorDoc>(API_ERRORS_COLLECTION)),
 		changelogs: withAutoUpdatedAt(database.collection<ChangelogDoc>(CHANGELOGS_COLLECTION)),
 		chatMessages: database.collection<ChatMessageDoc>(CHAT_MESSAGES_COLLECTION),
+		chatReactions: withAutoUpdatedAt(database.collection<ChatReactionDoc>(CHAT_REACTIONS_COLLECTION)),
 		deletedUsers: database.collection<DeletedUserDoc>(DELETED_USERS_COLLECTION),
 		feedbackRequests: withAutoUpdatedAt(database.collection<FeedbackRequestDoc>(FEEDBACK_REQUESTS_COLLECTION)),
 		feedbackRequestLikes: withAutoUpdatedAt(

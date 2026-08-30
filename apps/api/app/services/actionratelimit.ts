@@ -45,6 +45,9 @@ export const ACTION_RATE_LIMITS: Record<string, ActionRateLimitOptions> = {
 	"feedback/create": { max: 10, windowMs: 24 * 60 * 60 * 1000 },
 	// PUT/DELETE /feedback/:id/like — idempotent set/unset, mirrors boardgame/like.
 	"feedback/like": { max: 60, windowMs: 60 * 1000 },
+	// PUT/DELETE /game/:gameId/chat/:messageId/reaction/:emoji (#438) — idempotent
+	// set/unset, mirrors boardgame/like.
+	"game/chat-reaction": { max: 60, windowMs: 60 * 1000 },
 	// POST /admin/page/:name/:lang/translate (#306) — every call is two paid LLM
 	// completions (title + content), so cap it per admin. Site admins
 	// (authority === "admin") are exempt — see SITE_ADMIN_BYPASSED_ACTIONS.

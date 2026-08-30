@@ -1,7 +1,17 @@
 import { browser } from "$app/environment";
 import { get as getStore } from "svelte/store";
 import { mintToken } from "./api";
-import { account, activeGames, chatMessages, currentGameId, lastGameUpdate, playerStatus, room } from "./stores.svelte";
+import type { ChatReactionAggregate } from "@bgs/models";
+import {
+	account,
+	activeGames,
+	chatMessages,
+	chatReactions,
+	currentGameId,
+	lastGameUpdate,
+	playerStatus,
+	room,
+} from "./stores.svelte";
 
 let ws: WebSocket | null = null;
 let interval: ReturnType<typeof setInterval>;
@@ -116,6 +126,19 @@ function connect() {
 			chatMessages.update((msgs) =>
 				msgs.map((msg) => obj.messages.find((updated: { _id: string }) => updated._id === msg._id) ?? msg),
 			);
+		} else if (obj.command === "chat:reactions") {
+			// Full per-message aggregates: an empty list clears the message's entry.
+			chatReactions.update((current) => {
+				const next = { ...current };
+				for (const update of obj.updates as ChatReactionAggregate[]) {
+					if (update.reactions.length > 0) {
+						next[update.message] = update.reactions;
+					} else {
+						delete next[update.message];
+					}
+				}
+				return next;
+			});
 		} else if (obj.command === "game:lastUpdate" && obj.game === getStore(currentGameId)) {
 			lastGameUpdate.set(new Date(obj.lastUpdate));
 		} else if (obj.command === "game:playerStatus") {
