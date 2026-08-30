@@ -45,11 +45,19 @@ const roomPath = (room: string, rest = "") => `/api/room/${encodeURIComponent(ro
 
 describe("Public (per-boardgame) room chat API", () => {
 	const publicRoom = boardgameRoomId("chat-public-game");
+	const mixedRoom = boardgameRoomId("chat-mixed-game");
+	const betaRoom = boardgameRoomId("chat-beta-game");
 	// Two users NOT sharing any game — public rooms must not require game participation.
 	const aliceId = new ObjectId();
 	const bobId = new ObjectId();
+	// A beta grantee (access.maxVersion on chat-beta-game) and an admin — beta rooms
+	// are only accessible to users who can access the boardgame itself.
+	const granteeId = new ObjectId();
+	const adminId = new ObjectId();
 	let aliceHeaders: Record<string, string> = {};
 	let bobHeaders: Record<string, string> = {};
+	let granteeHeaders: Record<string, string> = {};
+	let adminHeaders: Record<string, string> = {};
 
 	function roomMessage(overrides: Partial<ChatMessageDoc> = {}): ChatMessageDoc & { _id: ObjectId } {
 		return {
@@ -81,14 +89,39 @@ describe("Public (per-boardgame) room chat API", () => {
 			public: true,
 			meta: { archived: true },
 		});
+		// A game with a public version AND a newer private one: the room is open to
+		// everyone — "public" means ANY version public, not the picked-latest (#427).
+		await colls.gameInfos.insertOne({
+			_id: { game: "chat-mixed-game", version: 1 },
+			viewer: { url: "//test.com/chat-mixed-game" },
+			public: true,
+		});
+		await colls.gameInfos.insertOne({
+			_id: { game: "chat-mixed-game", version: 2 },
+			viewer: { url: "//test.com/chat-mixed-game" },
+			public: false,
+		});
 		await colls.users.insertOne(
 			testUser({ _id: aliceId, account: { username: "lobbyalice", email: "lobbyalice@test.com" } }),
 		);
 		await colls.users.insertOne(
 			testUser({ _id: bobId, account: { username: "lobbybob", email: "lobbybob@test.com" } }),
 		);
+		await colls.users.insertOne(
+			testUser({ _id: granteeId, account: { username: "lobbygrantee", email: "lobbygrantee@test.com" } }),
+		);
+		await colls.users.insertOne(
+			testUser({ _id: adminId, account: { username: "lobbyadmin", email: "lobbyadmin@test.com" }, authority: "admin" }),
+		);
+		await colls.gamePreferences.insertOne({
+			user: granteeId,
+			game: "chat-beta-game",
+			access: { maxVersion: 1 },
+		});
 		aliceHeaders = await makeAuthHeaders(aliceId);
 		bobHeaders = await makeAuthHeaders(bobId);
+		granteeHeaders = await makeAuthHeaders(granteeId);
+		adminHeaders = await makeAuthHeaders(adminId);
 	});
 
 	it("rejects a logged-out post", async () => {
@@ -111,9 +144,9 @@ describe("Public (per-boardgame) room chat API", () => {
 		assert.strictEqual(res.status, 200, errorMessage(res.data));
 	});
 
-	it("404s rooms outside the public namespace or without a public version", async () => {
+	it("404s rooms outside the public namespace or the requester can't access", async () => {
 		for (const room of [
-			boardgameRoomId("chat-beta-game"), // exists, but no public version
+			boardgameRoomId("chat-beta-game"), // no public version, requester has no grant
 			boardgameRoomId("chat-archived-game"), // only public version is archived
 			boardgameRoomId("no-such-game"), // unknown boardgame
 			"some-game-id", // game-id-shaped: game rooms live under /game, not /room
@@ -124,6 +157,84 @@ describe("Public (per-boardgame) room chat API", () => {
 			const lastRead = await api("GET", roomPath(room, "/lastRead"), undefined, aliceHeaders);
 			assert.strictEqual(lastRead.status, 404, room);
 		}
+	});
+
+	it("opens the room when ANY version is public, not just the picked-latest (#427 bug class)", async () => {
+		// chat-mixed-game's latest version (2) is private — the room must still be
+		// open to everyone, mirroring the web's FAB-visibility check.
+		const res = await api("POST", roomPath(mixedRoom), { type: "text", data: { text: "mixed hello" } }, bobHeaders);
+		assert.strictEqual(res.status, 200, errorMessage(res.data));
+	});
+
+	it("opens a fully-private boardgame's room to its beta grantees", async () => {
+		const res = await api("POST", roomPath(betaRoom), { type: "text", data: { text: "beta hello" } }, granteeHeaders);
+		assert.strictEqual(res.status, 200, errorMessage(res.data));
+
+		const message = await colls.chatMessages.findOne({ room: betaRoom, "data.text": "beta hello" });
+		assert.ok(message);
+		assert.strictEqual(message.author?.name, "lobbygrantee");
+
+		// The grantee can use the whole room API — edit their message, react, lastRead.
+		const edit = await api(
+			"PATCH",
+			roomPath(betaRoom, `/${message._id.toString()}`),
+			{ data: { text: "beta hello (fixed)" } },
+			granteeHeaders,
+		);
+		assert.strictEqual(edit.status, 200, errorMessage(edit.data));
+
+		const reaction = await api(
+			"PUT",
+			roomPath(betaRoom, `/${message._id.toString()}/reaction/${encodeURIComponent("👍")}`),
+			undefined,
+			granteeHeaders,
+		);
+		assert.strictEqual(reaction.status, 200, errorMessage(reaction.data));
+
+		const lastRead = Date.now();
+		const set = await api("POST", roomPath(betaRoom, "/lastRead"), { lastRead }, granteeHeaders);
+		assert.strictEqual(set.status, 200, errorMessage(set.data));
+		const read = await api("GET", roomPath(betaRoom, "/lastRead"), undefined, granteeHeaders);
+		assert.strictEqual(read.data, lastRead);
+	});
+
+	it("opens a fully-private boardgame's room to admins", async () => {
+		const res = await api("POST", roomPath(betaRoom), { type: "text", data: { text: "admin here" } }, adminHeaders);
+		assert.strictEqual(res.status, 200, errorMessage(res.data));
+	});
+
+	it("keeps a fully-private boardgame's room hidden from everyone else", async () => {
+		// Logged-in without a grant: the room doesn't exist for them.
+		const bob = await api("POST", roomPath(betaRoom), { type: "text", data: { text: "hi" } }, bobHeaders);
+		assert.strictEqual(bob.status, 404);
+		// Logged out: same 404 (the room validator runs before the login check).
+		const anon = await api("POST", roomPath(betaRoom), { type: "text", data: { text: "hi" } });
+		assert.strictEqual(anon.status, 404);
+		const anonRead = await api("GET", roomPath(betaRoom, "/lastRead"));
+		assert.strictEqual(anonRead.status, 404);
+		// A grant on some OTHER game doesn't help — access is per boardgame.
+		const otherGrantId = new ObjectId();
+		await colls.users.insertOne(
+			testUser({ _id: otherGrantId, account: { username: "lobbyother", email: "lobbyother@test.com" } }),
+		);
+		await colls.gamePreferences.insertOne({ user: otherGrantId, game: "chat-mixed-game", access: { maxVersion: 2 } });
+		const other = await api(
+			"POST",
+			roomPath(betaRoom),
+			{ type: "text", data: { text: "hi" } },
+			await makeAuthHeaders(otherGrantId),
+		);
+		assert.strictEqual(other.status, 404);
+	});
+
+	it("doesn't open a room on an unknown boardgame, even for admins", async () => {
+		const res = await api(
+			"POST",
+			roomPath(boardgameRoomId("no-such-game")),
+			{ type: "text", data: { text: "hi" } },
+			adminHeaders,
+		);
+		assert.strictEqual(res.status, 404);
 	});
 
 	it("rejects an unconfirmed user's post", async () => {
