@@ -128,7 +128,9 @@ router.post("/new-game", loggedIn, isConfirmed, async (ctx) => {
 	} = body;
 	const options: Record<string, string | boolean> = {};
 
-	// Chat rooms are keyed by game id, and public rooms (lobby, #91) reserve theirs.
+	// Chat rooms are keyed by game id. Boardgame rooms ("boardgame:<slug>", #91)
+	// can't collide by construction (gameIdPattern forbids ":"); the dormant
+	// "lobby" room id is reserved here for free.
 	assert(!isPublicChatRoom(gameId), `'${gameId}' is a reserved id`);
 
 	const [versionDoc, metadata] = await Promise.all([

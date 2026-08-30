@@ -5,12 +5,14 @@ import { dateFromObjectId } from "./time";
 
 /**
  * API base path of a chat room's routes: game rooms live under /game/:gameId,
- * public rooms (lobby, #91) under /room/:roomId. Both bases expose the same
- * /chat, /chat/:messageId, /chat/:messageId/reaction/:emoji and /chat/lastRead
- * sub-routes (see the api's chat-handlers.ts).
+ * public rooms (per-boardgame "boardgame:<slug>" + the dormant lobby, #91) under
+ * /room/:roomId. Both bases expose the same /chat, /chat/:messageId,
+ * /chat/:messageId/reaction/:emoji and /chat/lastRead sub-routes (see the api's
+ * chat-handlers.ts). Public room ids carry a ":" — encoded for the path segment;
+ * game ids never need encoding (/^[A-Za-z0-9_-]+$/), kept verbatim.
  */
 export function chatApiBase(room: string): string {
-	return isPublicChatRoom(room) ? `/room/${room}` : `/game/${room}`;
+	return isPublicChatRoom(room) ? `/room/${encodeURIComponent(room)}` : `/game/${room}`;
 }
 
 /**

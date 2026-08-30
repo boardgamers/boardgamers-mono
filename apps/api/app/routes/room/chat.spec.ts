@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { ObjectId } from "mongodb";
-import { LOBBY_ROOM, type ChatMessageDoc } from "@bgs/models";
+import { LOBBY_ROOM, boardgameRoomId, type ChatMessageDoc } from "@bgs/models";
 import env from "../../config/env.ts";
 import { colls, db } from "../../config/db.ts";
 import { testUser } from "../../config/test-helpers.ts";
@@ -40,17 +40,21 @@ async function makeAuthHeaders(userId: ObjectId) {
 	return { Authorization: `Bearer ${token}` };
 }
 
-describe("Lobby (public room) chat API", () => {
-	// Two users NOT sharing any game — the lobby must not require game participation.
+// The room id carries a ":" — always URL-encoded in paths, like the web client.
+const roomPath = (room: string, rest = "") => `/api/room/${encodeURIComponent(room)}/chat${rest}`;
+
+describe("Public (per-boardgame) room chat API", () => {
+	const publicRoom = boardgameRoomId("chat-public-game");
+	// Two users NOT sharing any game — public rooms must not require game participation.
 	const aliceId = new ObjectId();
 	const bobId = new ObjectId();
 	let aliceHeaders: Record<string, string> = {};
 	let bobHeaders: Record<string, string> = {};
 
-	function lobbyMessage(overrides: Partial<ChatMessageDoc> = {}): ChatMessageDoc & { _id: ObjectId } {
+	function roomMessage(overrides: Partial<ChatMessageDoc> = {}): ChatMessageDoc & { _id: ObjectId } {
 		return {
 			_id: new ObjectId(),
-			room: LOBBY_ROOM,
+			room: publicRoom,
 			author: { _id: aliceId, name: "lobbyalice" },
 			data: { text: "original" },
 			type: "text",
@@ -59,6 +63,24 @@ describe("Lobby (public room) chat API", () => {
 	}
 
 	before(async () => {
+		// A public boardgame (open room), a beta one (no public version → no room),
+		// and one whose only public version is archived (excluded like the listing).
+		await colls.gameInfos.insertOne({
+			_id: { game: "chat-public-game", version: 1 },
+			viewer: { url: "//test.com/chat-public-game" },
+			public: true,
+		});
+		await colls.gameInfos.insertOne({
+			_id: { game: "chat-beta-game", version: 1 },
+			viewer: { url: "//test.com/chat-beta-game" },
+			public: false,
+		});
+		await colls.gameInfos.insertOne({
+			_id: { game: "chat-archived-game", version: 1 },
+			viewer: { url: "//test.com/chat-archived-game" },
+			public: true,
+			meta: { archived: true },
+		});
 		await colls.users.insertOne(
 			testUser({ _id: aliceId, account: { username: "lobbyalice", email: "lobbyalice@test.com" } }),
 		);
@@ -70,33 +92,37 @@ describe("Lobby (public room) chat API", () => {
 	});
 
 	it("rejects a logged-out post", async () => {
-		const res = await api("POST", `/api/room/${LOBBY_ROOM}/chat`, { type: "text", data: { text: "hi" } });
+		const res = await api("POST", roomPath(publicRoom), { type: "text", data: { text: "hi" } });
 		assert.strictEqual(res.status, 401);
 	});
 
-	it("lets any logged-in user post — no game-participant check", async () => {
-		const res = await api(
-			"POST",
-			`/api/room/${LOBBY_ROOM}/chat`,
-			{ type: "text", data: { text: "hello lobby" } },
-			aliceHeaders,
-		);
+	it("lets any logged-in user post to a public boardgame's room — no game-participant check", async () => {
+		const res = await api("POST", roomPath(publicRoom), { type: "text", data: { text: "hello room" } }, aliceHeaders);
 		assert.strictEqual(res.status, 200, errorMessage(res.data));
 
-		const message = await colls.chatMessages.findOne({ room: LOBBY_ROOM, "data.text": "hello lobby" });
+		const message = await colls.chatMessages.findOne({ room: publicRoom, "data.text": "hello room" });
 		assert.ok(message);
 		assert.strictEqual(message.author?.name, "lobbyalice");
 		assert.strictEqual(message.type, "text");
 	});
 
-	it("404s on a room outside the public allow-list", async () => {
-		for (const path of [
-			"/api/room/not-a-room/chat",
-			"/api/room/not-a-room/chat/lastRead",
-			`/api/room/${new ObjectId().toString()}/chat`,
+	it("keeps the dormant lobby room valid (no UI mounts it)", async () => {
+		const res = await api("POST", roomPath(LOBBY_ROOM), { type: "text", data: { text: "hi lobby" } }, aliceHeaders);
+		assert.strictEqual(res.status, 200, errorMessage(res.data));
+	});
+
+	it("404s rooms outside the public namespace or without a public version", async () => {
+		for (const room of [
+			boardgameRoomId("chat-beta-game"), // exists, but no public version
+			boardgameRoomId("chat-archived-game"), // only public version is archived
+			boardgameRoomId("no-such-game"), // unknown boardgame
+			"some-game-id", // game-id-shaped: game rooms live under /game, not /room
+			"boardgame:", // empty slug
 		]) {
-			const res = await api("POST", path, { type: "text", data: { text: "hi" } }, aliceHeaders);
-			assert.strictEqual(res.status, 404, path);
+			const res = await api("POST", roomPath(room), { type: "text", data: { text: "hi" } }, aliceHeaders);
+			assert.strictEqual(res.status, 404, room);
+			const lastRead = await api("GET", roomPath(room, "/lastRead"), undefined, aliceHeaders);
+			assert.strictEqual(lastRead.status, 404, room);
 		}
 	});
 
@@ -110,11 +136,11 @@ describe("Lobby (public room) chat API", () => {
 			}),
 		);
 		const headers = await makeAuthHeaders(unconfirmedId);
-		const res = await api("POST", `/api/room/${LOBBY_ROOM}/chat`, { type: "text", data: { text: "hi" } }, headers);
+		const res = await api("POST", roomPath(publicRoom), { type: "text", data: { text: "hi" } }, headers);
 		assert.strictEqual(res.status, 403);
 	});
 
-	it("rate limits lobby posts per user (game chat stays unlimited)", async () => {
+	it("rate limits public-room posts per user (game chat stays unlimited)", async () => {
 		const limitedId = new ObjectId();
 		await colls.users.insertOne(
 			testUser({ _id: limitedId, account: { username: "lobbylimited", email: "lobbylimited@test.com" } }),
@@ -127,12 +153,12 @@ describe("Lobby (public room) chat API", () => {
 		ACTION_RATE_LIMITS["room/chat-message"] = { max: 2, windowMs: 60 * 1000 };
 		try {
 			for (const text of ["one", "two"]) {
-				const res = await api("POST", `/api/room/${LOBBY_ROOM}/chat`, { type: "text", data: { text } }, limitedHeaders);
+				const res = await api("POST", roomPath(publicRoom), { type: "text", data: { text } }, limitedHeaders);
 				assert.strictEqual(res.status, 200, errorMessage(res.data));
 			}
 			const limited = await api(
 				"POST",
-				`/api/room/${LOBBY_ROOM}/chat`,
+				roomPath(publicRoom),
 				{ type: "text", data: { text: "three" } },
 				limitedHeaders,
 			);
@@ -142,14 +168,16 @@ describe("Lobby (public room) chat API", () => {
 		}
 	});
 
-	it("lets the author edit their lobby message, and nobody else", async () => {
-		const message = lobbyMessage();
+	it("lets the author edit their room message, and nobody else", async () => {
+		const message = roomMessage();
 		await colls.chatMessages.insertOne(message);
 
 		const hijack = await api(
 			"PATCH",
-			`/api/room/${LOBBY_ROOM}/chat/${message._id.toString()}`,
-			{ data: { text: "hijack" } },
+			roomPath(publicRoom, `/${message._id.toString()}`),
+			{
+				data: { text: "hijack" },
+			},
 			bobHeaders,
 		);
 		assert.strictEqual(hijack.status, 422);
@@ -157,8 +185,10 @@ describe("Lobby (public room) chat API", () => {
 
 		const res = await api(
 			"PATCH",
-			`/api/room/${LOBBY_ROOM}/chat/${message._id.toString()}`,
-			{ data: { text: "fixed" } },
+			roomPath(publicRoom, `/${message._id.toString()}`),
+			{
+				data: { text: "fixed" },
+			},
 			aliceHeaders,
 		);
 		assert.strictEqual(res.status, 200, errorMessage(res.data));
@@ -168,22 +198,24 @@ describe("Lobby (public room) chat API", () => {
 	});
 
 	it("404s an edit of a message from another room, even with a matching id", async () => {
-		const elsewhere = lobbyMessage({ room: "some-game" });
+		const elsewhere = roomMessage({ room: "some-game" });
 		await colls.chatMessages.insertOne(elsewhere);
 		const res = await api(
 			"PATCH",
-			`/api/room/${LOBBY_ROOM}/chat/${elsewhere._id.toString()}`,
-			{ data: { text: "x" } },
+			roomPath(publicRoom, `/${elsewhere._id.toString()}`),
+			{
+				data: { text: "x" },
+			},
 			aliceHeaders,
 		);
 		assert.strictEqual(res.status, 404);
 	});
 
-	it("lets any logged-in user react to a lobby message", async () => {
-		const message = lobbyMessage();
+	it("lets any logged-in user react to a room message", async () => {
+		const message = roomMessage();
 		await colls.chatMessages.insertOne(message);
 
-		const url = `/api/room/${LOBBY_ROOM}/chat/${message._id.toString()}/reaction/${encodeURIComponent("👍")}`;
+		const url = roomPath(publicRoom, `/${message._id.toString()}/reaction/${encodeURIComponent("👍")}`);
 		const res = await api("PUT", url, undefined, bobHeaders);
 		assert.strictEqual(res.status, 200, errorMessage(res.data));
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- test responses are unvalidated JSON
@@ -204,27 +236,31 @@ describe("Lobby (public room) chat API", () => {
 		assert.strictEqual(anon.status, 401);
 	});
 
-	it("tracks lastRead per room — the lobby marker doesn't leak into game rooms", async () => {
+	it("tracks lastRead per room — one boardgame's marker doesn't leak elsewhere", async () => {
 		const lastRead = Date.now();
-		const set = await api("POST", `/api/room/${LOBBY_ROOM}/chat/lastRead`, { lastRead }, aliceHeaders);
+		const set = await api("POST", roomPath(publicRoom, "/lastRead"), { lastRead }, aliceHeaders);
 		assert.strictEqual(set.status, 200, errorMessage(set.data));
 
-		const lobby = await api("GET", `/api/room/${LOBBY_ROOM}/chat/lastRead`, undefined, aliceHeaders);
-		assert.strictEqual(lobby.data, lastRead);
+		const room = await api("GET", roomPath(publicRoom, "/lastRead"), undefined, aliceHeaders);
+		assert.strictEqual(room.data, lastRead);
 
-		// Same user, different room: unaffected.
-		const gameRoom = await api("GET", "/api/game/lobby-isolation-game/chat/lastRead", undefined, aliceHeaders);
+		// Same user, other rooms (a game room, the lobby): unaffected.
+		const gameRoom = await api("GET", "/api/game/room-isolation-game/chat/lastRead", undefined, aliceHeaders);
 		assert.strictEqual(gameRoom.data, 0);
+		const lobby = await api("GET", roomPath(LOBBY_ROOM, "/lastRead"), undefined, aliceHeaders);
+		assert.strictEqual(lobby.data, 0);
 
 		// Same room, different user: unaffected.
-		const bob = await api("GET", `/api/room/${LOBBY_ROOM}/chat/lastRead`, undefined, bobHeaders);
+		const bob = await api("GET", roomPath(publicRoom, "/lastRead"), undefined, bobHeaders);
 		assert.strictEqual(bob.data, 0);
 
-		const anon = await api("GET", `/api/room/${LOBBY_ROOM}/chat/lastRead`);
+		const anon = await api("GET", roomPath(publicRoom, "/lastRead"));
 		assert.strictEqual(anon.status, 401);
 	});
 
 	it("reserves public room ids: new-game rejects them", async () => {
+		// "boardgame:<slug>" ids can't even pass the gameId regex (no ":"), so the
+		// only reservable plain id is the dormant lobby's.
 		const res = await api(
 			"POST",
 			"/api/game/new-game",

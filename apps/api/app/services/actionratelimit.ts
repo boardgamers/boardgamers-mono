@@ -51,10 +51,11 @@ export const ACTION_RATE_LIMITS: Record<string, ActionRateLimitOptions> = {
 	// PUT/DELETE /game/:gameId/chat/:messageId/reaction/:emoji (#438) — idempotent
 	// set/unset, mirrors boardgame/like.
 	"game/chat-reaction": { max: 60, windowMs: 60 * 1000 },
-	// POST /room/:roomId/chat (#91) — public-room (lobby) posts. Deliberately
-	// asymmetric with game chat, which stays unlimited: a game room only reaches
-	// its handful of participants, while a lobby message fans out to everyone on
-	// the site, so the public rooms get a per-user cap.
+	// POST /room/:roomId/chat (#91) — public-room posts (per-boardgame rooms +
+	// the dormant lobby). Deliberately asymmetric with game chat, which stays
+	// unlimited: a game room only reaches its handful of participants, while a
+	// public-room message fans out to everyone watching it, so posts get a
+	// per-user cap.
 	"room/chat-message": { max: 30, windowMs: 60 * 1000 },
 	// PUT/DELETE /room/:roomId/chat/:messageId/reaction/:emoji (#91) — mirrors
 	// game/chat-reaction, counted separately per room kind.
