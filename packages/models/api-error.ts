@@ -16,8 +16,8 @@ export const apiErrorSchema = z.object({
 		body: z.string(),
 		status: z.number().optional(),
 		id: z.string().optional(),
-		// Request-context extras for diagnostics (e.g. secure-cookie-over-insecure):
-		// how the request reached the api, behind which proxy headers.
+		// Request-context extras for diagnostics: how the request reached the api,
+		// behind which proxy headers.
 		path: z.string().optional(),
 		protocol: z.string().optional(),
 		hostname: z.string().optional(),

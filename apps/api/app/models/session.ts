@@ -1,9 +1,7 @@
 import type { Context } from "koa";
 import net from "node:net";
 import { z } from "zod";
-import { logEvent } from "@bgs/utils/log";
 import { env } from "../config/index.ts";
-import { colls } from "../config/db.ts";
 
 /** Long-lived session cookie name (holds the refresh-token code). */
 export const SESSION_COOKIE = "refreshToken";
@@ -40,82 +38,11 @@ function isLocalhost(ctx: Context): boolean {
 	return ctx.hostname === "localhost" || net.isIP(ctx.hostname) !== 0;
 }
 
-/**
- * Prod is HTTPS-only, so the session cookie must stay `Secure` — but prod logs a
- * chronic "Cannot send secure cookie over unencrypted connection" (~25–56/day +
- * bursts), meaning some requests reach the api with `ctx.secure === false`
- * (bypassing the https vhost, or X-Forwarded-Proto dropped/mangled somewhere).
- * We do NOT know the source yet, and a prior "just drop Secure on http" fix was
- * rejected (it would weaken the cookie for an https site). This captures the full
- * request context — one structured log line (greppable as
- * `secure-cookie-over-insecure`) + one `apierrors` record (meta.source =
- * "secure-cookie", visible on the admin health page) — so the culprit can be
- * identified and the real root cause fixed.
- */
-export function recordSecureCookieDiagnostic(ctx: Context, trigger: "sliding-session" | "login"): void {
-	// Fields degrade gracefully: tests call setRefreshCookie with partial ctx stubs
-	// (auth.spec.ts's social-flow stub has no get/ips/app), and a diagnostic must
-	// never break the request it observes. ctx.get returns "" for absent headers;
-	// filter those so the log line and db record omit them instead of storing "".
-	const header = (name: string): string | undefined =>
-		typeof ctx.get === "function" ? ctx.get(name) || undefined : undefined;
-	const context = {
-		secure: !!ctx.secure,
-		protocol: ctx.protocol ?? "",
-		hostname: ctx.hostname ?? "",
-		ip: ctx.ip ?? "",
-		ips: ctx.ips ?? [],
-		method: ctx.method ?? "",
-		url: ctx.originalUrl ?? "",
-		path: ctx.path ?? "",
-		headers: Object.fromEntries(
-			(["x-forwarded-proto", "x-forwarded-host", "host", "user-agent", "referer", "origin"] as const)
-				.map((name) => [name, header(name)] as const)
-				.filter((entry): entry is [(typeof entry)[0], string] => !!entry[1]),
-		),
-		proxy: !!ctx.app?.proxy,
-	};
-	logEvent("warn", "secure-cookie-over-insecure", {
-		source: "api",
-		trigger,
-		requestId: ctx.state.requestId,
-		...context,
-	});
-	colls.apiErrors
-		.insertOne({
-			error: {
-				name: "SecureCookieOverInsecure",
-				message: "Setting a Secure session cookie on an insecure request",
-				stack: [],
-			},
-			request: {
-				url: context.url,
-				method: context.method,
-				body: "",
-				id: ctx.state.requestId,
-				path: context.path,
-				protocol: context.protocol,
-				hostname: context.hostname,
-				secure: context.secure,
-				ip: context.ip,
-				ips: context.ips,
-				headers: context.headers,
-			},
-			user: ctx.state.user?._id,
-			meta: { source: "secure-cookie", userAgent: context.headers["user-agent"], proxy: context.proxy },
-			createdAt: new Date(),
-		})
-		.catch((err) => logEvent("error", "secure-cookie-diagnostic-failed", { source: "api", error: String(err) }));
-}
-
 /** Set the session cookie (JSON { code, expiresAt }), sliding the expiry forward. */
-export function setRefreshCookie(ctx: Context, code: string, trigger: "sliding-session" | "login" = "login") {
+export function setRefreshCookie(ctx: Context, code: string) {
 	const expiresAt = Date.now() + refreshTokenDuration();
 	const value = JSON.stringify({ code, expiresAt });
 	const local = isLocalhost(ctx);
-	if (!local && !ctx.secure) {
-		recordSecureCookieDiagnostic(ctx, trigger);
-	}
 	ctx.cookies.set(SESSION_COOKIE, value, {
 		httpOnly: true,
 		expires: new Date(expiresAt),

@@ -10,10 +10,6 @@ Avatars uploaded before the S3 migration keep their blob in mongo — the boot m
 
 Previews restore a sanitized prod dump that **includes** `images` docs — metadata-only (`s3: true`, no blob) for post-#224 uploads. Preview containers have no S3 creds; if they have `S3_BUCKET` + `S3_PUBLIC_ENDPOINT` (non-secret) they 302 to the public Scaleway gateway like prod (avatar objects are public-read). Without those vars, `serveUploadedAvatar` falls back to the DiceBear generated avatar so previews never 500/broken-image on a missing blob. Blob-bearing (pre-#224) avatars always serve from the dumped mongo bytes regardless.
 
-## secure-cookie-over-insecure diagnostic (`app/models/session.ts`)
-
-Prod logs a chronic "Cannot send secure cookie over unencrypted connection" from `setRefreshCookie` (~25–56/day + bursts): some requests reach the api with `ctx.secure === false` even though prod is HTTPS-only and nginx sets `X-Forwarded-Proto` on the api vhost. The source is **unknown** (internal caller? crawler over http? a route/XFP gap?), and a "drop Secure on http" fix was rejected — the cookie must stay `Secure`. Until the culprit is found, `setRefreshCookie` records the full request context (secure/protocol/hostname/ip/ips, X-Forwarded-*/host/user-agent/referer/origin headers, `app.proxy`) as a `secure-cookie-over-insecure` warn log line **and** an `apierrors` record (`meta.source: "secure-cookie"`, surfaced by `GET /api/admin/errors` → admin health page). Behavior is unchanged — the cookie set still throws, still 500s. Once the root cause is identified and fixed, this diagnostic can be removed.
-
 ## Legacy `Domain=` session-cookie cleanup during the host-only migration (`app/app.ts`, `app/models/session.ts`)
 
 A host-only `refreshToken` cookie and a `Domain=boardgamers.space` one are distinct cookies to the browser, and the host-only one sorts **first** in the `Cookie` header — whichever of the two is stale shadows the fresh one and can lock the user out of login until it expires (120-day lifetime). This hazard has bitten from both directions:
@@ -49,7 +45,7 @@ Covered by `app/routes/user/index.spec.ts`. Keep this note until we migrate off 
 
 `/api/admin/loki/query/:key` proxies pre-built LogQL queries to Loki at `process.env.lokiUrl || "http://127.0.0.1:3100"`. This works because the Loki container and the API run on the same host (coyo). If Loki ever moves to a separate host, set `lokiUrl` in the env. The route is intentionally query-key-only (no raw LogQL from the client) to prevent LogQL injection — the `QUERIES` map in `loki.ts` is the allow-list. New dashboard queries should be added there.
 
-The route inherits `router.use(isAdmin)` from the admin router (`app/routes/admin/index.ts:25`), so it's protected by the existing JWT → `authority === "admin"` check with no additional auth code.
+The route is mounted with `requirePermission("loki")` in the admin router (`app/routes/admin/index.ts`), so it's protected by the admin permission system with no additional auth code in `loki.ts` itself.
 
 ### `fetch()` errors and the `isLokiDown` helper
 
