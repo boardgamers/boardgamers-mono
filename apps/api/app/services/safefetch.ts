@@ -243,6 +243,12 @@ export interface SafeFetchResponse {
 	body: string;
 }
 
+export interface SafeFetchBufferResponse {
+	statusCode: number;
+	headers: Record<string, string | string[] | undefined>;
+	body: Buffer;
+}
+
 /**
  * SSRF-safe request to a user-supplied URL: validates the scheme, resolves and
  * blocklists special-use addresses, pins the connection to them, never follows
@@ -251,6 +257,12 @@ export interface SafeFetchResponse {
  * mean for them).
  */
 export async function safeFetch(url: string, options: SafeFetchOptions = {}): Promise<SafeFetchResponse> {
+	const response = await safeFetchBuffer(url, options);
+	return { ...response, body: response.body.toString("utf-8") };
+}
+
+/** safeFetch for binary payloads (e.g. copying a social avatar): same protections, Buffer body. */
+export async function safeFetchBuffer(url: string, options: SafeFetchOptions = {}): Promise<SafeFetchBufferResponse> {
 	const parsed = new URL(url);
 	assertSafeUrlScheme(parsed);
 	const addresses = await resolveAllowedAddresses(parsed.hostname);
@@ -283,7 +295,7 @@ export async function safeFetch(url: string, options: SafeFetchOptions = {}): Pr
 		return {
 			statusCode: response.statusCode,
 			headers: response.headers,
-			body: Buffer.concat(chunks).toString("utf-8"),
+			body: Buffer.concat(chunks),
 		};
 	} finally {
 		clearTimeout(timer);

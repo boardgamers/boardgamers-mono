@@ -43,6 +43,7 @@ import sharp from "sharp";
 import { loggedIn, loggedOut, rateLimitAttempt } from "../utils.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { resolveAllowedAddresses, assertSafeUrlScheme } from "../../services/safefetch.ts";
+import { fetchSocialAvatar } from "../../services/socialavatar.ts";
 import { putAvatar, s3Enabled } from "../../services/s3.ts";
 import { sendAuthInfo } from "./utils.ts";
 
@@ -286,13 +287,12 @@ router.delete("/social/:provider", loggedIn, actionRateLimit("account/social/unl
 	ctx.body = updatedUser ? stripSensitiveFields(updatedUser) : updatedUser;
 });
 
-router.post("/avatar", loggedIn, async (ctx) => {
-	const parts = [];
-	for await (const chunk of ctx.req) {
-		parts.push(chunk);
-	}
-
-	const input = Buffer.concat(parts);
+/**
+ * The shared custom-avatar pipeline (uploads AND copied social avatars): re-encode
+ * the input as webp in all three sizes, store in S3 (mongo fallback) and flip
+ * account.avatar to "upload". sharp throws on non-image input → 400/500 upstream.
+ */
+async function storeCustomAvatar(userId: ObjectId, input: Buffer): Promise<void> {
 	const image = sharp(input);
 
 	const mime = "image/webp";
@@ -313,12 +313,10 @@ router.post("/avatar", loggedIn, async (ctx) => {
 	if (s3Enabled()) {
 		s3Stored = true;
 		for (const [size, data] of Object.entries(imagesObj)) {
-			s3Stored = (await putAvatar(ctx.state.user!._id.toHexString(), size, data.raw!)) && s3Stored;
+			s3Stored = (await putAvatar(userId.toHexString(), size, data.raw!)) && s3Stored;
 		}
 		if (!s3Stored) {
-			console.warn(
-				`avatar S3 write incomplete for ${ctx.state.user!._id.toHexString()} — storing blobs in mongo instead`,
-			);
+			console.warn(`avatar S3 write incomplete for ${userId.toHexString()} — storing blobs in mongo instead`);
 		}
 	}
 
@@ -329,7 +327,7 @@ router.post("/avatar", loggedIn, async (ctx) => {
 	}
 
 	await colls.images.updateOne(
-		{ ref: ctx.state.user!._id, key: "avatar", refType: "User" },
+		{ ref: userId, key: "avatar", refType: "User" },
 		{
 			$set: {
 				images: imagesObj,
@@ -339,9 +337,49 @@ router.post("/avatar", loggedIn, async (ctx) => {
 		},
 		{ upsert: true },
 	);
-	await colls.users.updateOne({ _id: ctx.state.user!._id }, { $set: { "account.avatar": "upload" } });
+	await colls.users.updateOne({ _id: userId }, { $set: { "account.avatar": "upload" } });
+}
+
+router.post("/avatar", loggedIn, async (ctx) => {
+	const parts = [];
+	for await (const chunk of ctx.req) {
+		parts.push(chunk);
+	}
+
+	await storeCustomAvatar(ctx.state.user!._id, Buffer.concat(parts));
 
 	ctx.status = 200;
+});
+
+/**
+ * Copy the user's avatar from a connected social provider (Codeberg #34) into the
+ * regular avatar storage — the same pipeline as an upload, so afterwards it behaves
+ * exactly like an uploaded avatar: no dependency on the provider's CDN staying alive,
+ * and unlinking the provider doesn't affect it.
+ *
+ * The source URL is the one captured into socialMeta at OAuth link/login time; the
+ * server-side fetch is SSRF-guarded (provider CDN host whitelist re-checked here,
+ * special-use IP blocklist + DNS pinning, no redirects, timeout, size cap,
+ * content-type check — services/socialavatar.ts). Rate-limited: each call triggers
+ * an outbound fetch + image re-encode.
+ */
+router.post("/avatar/social", loggedIn, actionRateLimit("account/avatar/social"), async (ctx) => {
+	const { provider } = z.object({ provider: z.enum(socialProviders) }).parse(ctx.request.body);
+	const user = ctx.state.user!;
+
+	if (!user.account.social?.[provider]) {
+		throw createError(404, `No ${provider} account connected`);
+	}
+	const avatarUrl = user.account.socialMeta?.[provider]?.avatarUrl;
+	if (!avatarUrl) {
+		throw createError(404, `No ${provider} avatar available — try reconnecting the account`);
+	}
+
+	const bytes = await fetchSocialAvatar(provider, avatarUrl);
+	await storeCustomAvatar(user._id, bytes);
+
+	const updatedUser = await colls.users.findOne({ _id: user._id });
+	ctx.body = updatedUser ? stripSensitiveFields(updatedUser) : updatedUser;
 });
 
 // Per-user cap on the email-change action itself (#195), counted in mongo —

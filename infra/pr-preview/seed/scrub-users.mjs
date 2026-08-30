@@ -8,7 +8,9 @@
 const { BSON } = await import(process.env.MONGODB_STORE);
 
 // `account.social` and `account.socialMeta` are intentionally NOT whitelisted: provider
-// account ids and public profile handles/URLs identify the person, so previews drop them.
+// account ids and public profile handles/URLs/avatar URLs identify the person, so
+// previews drop them. (Copied social avatars are fine: they live in the images
+// collection as regular uploads, with no link back to the provider.)
 const KEEP_ACCOUNT = new Set(["username", "karma", "termsAndConditions", "avatar", "bio", "country"]);
 const KEEP_SECURITY = new Set(["slug", "confirmed", "lastActive", "lastOnline", "lastSeen"]);
 const KEEP_SETTINGS = new Set(["game", "home"]);

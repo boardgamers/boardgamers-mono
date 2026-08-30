@@ -31,6 +31,7 @@
 	"account.profile": "प्रोफ़ाइल",
 	"account.socialAccounts": "सोशल लॉगिन",
 	"account.socialAccountsHelp": "जुड़े हुए खातों से एक क्लिक में लॉगिन किया जा सकता है।",
+	"account.socialAvatar": "मेरा {provider} अवतार उपयोग करें",
 	"account.socialConnect": "जोड़ें",
 	"account.socialConnected": "जुड़ा हुआ",
 	"account.socialDisconnect": "हटाएँ",

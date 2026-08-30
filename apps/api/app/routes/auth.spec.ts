@@ -16,7 +16,7 @@ type SocialFeedback = {
 	createSocialAccount: boolean;
 	provider: string;
 	id: string;
-	socialMeta?: { username: string; url: string };
+	socialMeta?: { username: string; url: string; avatarUrl?: string };
 };
 
 function isSocialFeedback(user: unknown): asserts user is SocialFeedback {
@@ -39,7 +39,13 @@ async function verifySocial(
 	provider: "discord" | "google" | "facebook" | "github" | "huggingface",
 	profileId: string,
 	currentUser?: WithId<UserDoc>,
-	profile?: { username?: string; profileUrl?: string },
+	profile?: {
+		username?: string;
+		profileUrl?: string;
+		photos?: { value: string }[];
+		avatar?: string | null;
+		avatarUrl?: string;
+	},
 ): Promise<{ err?: unknown; user?: unknown }> {
 	try {
 		const user = await verifySocialProfile(provider, { user: currentUser }, { id: profileId, ...profile });
@@ -200,6 +206,98 @@ describe("Account API — Hugging Face social auth (CIMD)", () => {
 		isUserDoc(user);
 		const doc = await colls.users.findOne({ "account.username": "hfuser" });
 		assert.deepStrictEqual(user._id, doc?._id);
+	});
+
+	after(() => db().dropDatabase());
+});
+
+describe("Account API — social avatar URL capture (Codeberg #34)", () => {
+	const link = async (username: string) => {
+		const doc = await colls.users.insertOne(testUser({ account: { username, email: `${username}@test.com` } }));
+		const current = await colls.users.findOne({ _id: doc.insertedId });
+		return { userId: doc.insertedId, current: current! };
+	};
+
+	it("builds the discord avatar URL from the CDN hash on link", async () => {
+		const { userId, current } = await link("avcap1");
+		const { err } = await verifySocial("discord", "d-av-1", current, { username: "gamer", avatar: "abc123" });
+		assert.ifError(err);
+		const stored = await colls.users.findOne({ _id: userId });
+		assert.deepStrictEqual(stored?.account.socialMeta?.discord, {
+			username: "gamer",
+			url: "https://discord.com/users/d-av-1",
+			avatarUrl: "https://cdn.discordapp.com/avatars/d-av-1/abc123.png?size=256",
+		});
+	});
+
+	it("stores no avatarUrl for a default discord avatar (null hash)", async () => {
+		const { userId, current } = await link("avcap2");
+		const { err } = await verifySocial("discord", "d-av-2", current, { username: "gamer2", avatar: null });
+		assert.ifError(err);
+		const stored = await colls.users.findOne({ _id: userId });
+		assert.deepStrictEqual(stored?.account.socialMeta?.discord, {
+			username: "gamer2",
+			url: "https://discord.com/users/d-av-2",
+		});
+	});
+
+	it("captures the google avatar from the passport photos convention (no profile URL needed)", async () => {
+		const { userId, current } = await link("avcap3");
+		const { err } = await verifySocial("google", "g-av-1", current, {
+			photos: [{ value: "https://lh3.googleusercontent.com/a/token=s96-c" }],
+		});
+		assert.ifError(err);
+		const stored = await colls.users.findOne({ _id: userId });
+		assert.deepStrictEqual(stored?.account.socialMeta?.google, {
+			username: "g-av-1",
+			avatarUrl: "https://lh3.googleusercontent.com/a/token=s96-c",
+		});
+	});
+
+	it("drops avatar URLs that are not https on the provider's known CDN", async () => {
+		const { userId, current } = await link("avcap4");
+		const { err } = await verifySocial("github", "gh-av-1", current, {
+			username: "octocat",
+			profileUrl: "https://github.com/octocat",
+			avatarUrl: "https://evil.example/avatar.png",
+		});
+		assert.ifError(err);
+		const stored = await colls.users.findOne({ _id: userId });
+		assert.deepStrictEqual(stored?.account.socialMeta?.github, {
+			username: "octocat",
+			url: "https://github.com/octocat",
+		});
+	});
+
+	it("drops a huggingface avatar URL outside the known /avatars/ path at capture", async () => {
+		// Bare huggingface.co also serves arbitrary user repo content — only the
+		// default-avatar path shape from the OIDC `picture` claim is acceptable.
+		const { userId, current } = await link("avcap6");
+		const { err } = await verifySocial("huggingface", "hf-av-1", current, {
+			username: "hfuser6",
+			avatarUrl: "https://huggingface.co/someuser/somerepo/resolve/main/payload.png",
+		});
+		assert.ifError(err);
+		const stored = await colls.users.findOne({ _id: userId });
+		assert.deepStrictEqual(stored?.account.socialMeta?.huggingface, {
+			username: "hfuser6",
+			url: "https://huggingface.co/hfuser6",
+		});
+	});
+
+	it("refreshes stale meta on login (rotated discord avatar hash)", async () => {
+		const { userId, current } = await link("avcap5");
+		await verifySocial("discord", "d-av-5", current, { username: "gamer5", avatar: "oldhash" });
+
+		// Login (no current user) with a new hash: the stored URL must follow.
+		const { err, user } = await verifySocial("discord", "d-av-5", undefined, { username: "gamer5", avatar: "newhash" });
+		assert.ifError(err);
+		isUserDoc(user);
+		const stored = await colls.users.findOne({ _id: userId });
+		assert.strictEqual(
+			stored?.account.socialMeta?.discord?.avatarUrl,
+			"https://cdn.discordapp.com/avatars/d-av-5/newhash.png?size=256",
+		);
 	});
 
 	after(() => db().dropDatabase());
@@ -527,7 +625,12 @@ describe("Account API — PKCE OAuth round-trip", () => {
 		);
 		const state = await createOAuthState({ codeVerifier: "v", expiresAt: new Date(Date.now() + 60000) });
 
-		mockPkceEndpoints({ id: "gh-e2e-old", login: "ghuser2", html_url: "https://github.com/ghuser2" });
+		mockPkceEndpoints({
+			id: "gh-e2e-old",
+			login: "ghuser2",
+			html_url: "https://github.com/ghuser2",
+			avatar_url: "https://avatars.githubusercontent.com/u/9919?v=4",
+		});
 		try {
 			const res = await pkceCallbackReq("github", state);
 			assert.strictEqual(res.status, 303, `expected 303, got ${res.status}`);
@@ -536,6 +639,13 @@ describe("Account API — PKCE OAuth round-trip", () => {
 		} finally {
 			restoreFetch();
 		}
+
+		// The userinfo's avatar_url was captured (backfilled on login) into socialMeta.
+		const stored = await colls.users.findOne({ "account.social.github": "gh-e2e-old" });
+		assert.strictEqual(
+			stored?.account.socialMeta?.github?.avatarUrl,
+			"https://avatars.githubusercontent.com/u/9919?v=4",
+		);
 	});
 
 	it("a NEW GitHub user completes the handshake → 303 to /signup?ticket=", async () => {

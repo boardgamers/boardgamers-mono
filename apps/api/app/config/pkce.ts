@@ -44,7 +44,7 @@ export type PkceProviderConfig = {
 	userinfoUrl: string;
 	scope: string[];
 	/** Map the provider's userinfo JSON to our SocialProfile shape. */
-	parseUserinfo: (json: unknown) => { id: string; username?: string; profileUrl?: string };
+	parseUserinfo: (json: unknown) => { id: string; username?: string; profileUrl?: string; avatarUrl?: string };
 };
 
 export type PkceStartResult = {
@@ -99,7 +99,7 @@ export async function pkceCallback(
 	code: string,
 	state: string,
 	clientSecret?: string,
-): Promise<{ id: string; username?: string; profileUrl?: string }> {
+): Promise<{ id: string; username?: string; profileUrl?: string; avatarUrl?: string }> {
 	const provider = config.authorizationUrl.includes("github") ? "github" : "huggingface";
 
 	// Single-use state verification (deletes the doc).
@@ -166,9 +166,10 @@ export const githubConfig: PkceProviderConfig = {
 				id: z.union([z.string(), z.number()]).transform(String),
 				login: z.string().optional(),
 				html_url: z.string().optional(),
+				avatar_url: z.string().optional(),
 			})
 			.parse(json);
-		return { id: parsed.id, username: parsed.login, profileUrl: parsed.html_url };
+		return { id: parsed.id, username: parsed.login, profileUrl: parsed.html_url, avatarUrl: parsed.avatar_url };
 	},
 };
 
@@ -182,12 +183,14 @@ export const huggingfaceConfig: PkceProviderConfig = {
 			.object({
 				sub: z.union([z.string(), z.number()]).transform(String),
 				preferred_username: z.string().optional(),
+				picture: z.string().optional(),
 			})
 			.parse(json);
 		return {
 			id: parsed.sub,
 			username: parsed.preferred_username,
 			profileUrl: parsed.preferred_username ? `https://huggingface.co/${parsed.preferred_username}` : undefined,
+			avatarUrl: parsed.picture,
 		};
 	},
 };

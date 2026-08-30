@@ -15,7 +15,9 @@ const socialFeedbackSchema = z.object({
 	createSocialAccount: z.boolean(),
 	provider: z.string(),
 	id: z.string(),
-	socialMeta: z.object({ username: z.string(), url: z.string() }).optional(),
+	socialMeta: z
+		.object({ username: z.string(), url: z.string().optional(), avatarUrl: z.string().optional() })
+		.optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -192,7 +194,7 @@ async function redirectToSignup(
 	ctx: Context,
 	provider: string,
 	socialId: string,
-	socialMeta?: { username: string; url: string },
+	socialMeta?: { username: string; url?: string; avatarUrl?: string },
 ): Promise<void> {
 	const ticket = await createPendingSignup({
 		provider,

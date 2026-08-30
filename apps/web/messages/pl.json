@@ -31,6 +31,7 @@
 	"account.profile": "Profil",
 	"account.socialAccounts": "Logowanie społecznościowe",
 	"account.socialAccountsHelp": "Połączone konta pozwalają logować się jednym kliknięciem.",
+	"account.socialAvatar": "Użyj mojego awatara {provider}",
 	"account.socialConnect": "Połącz",
 	"account.socialConnected": "Połączono",
 	"account.socialDisconnect": "Odłącz",

@@ -15,6 +15,7 @@
 	import { useLoggedIn } from "@/lib/auth-guards.svelte";
 	import UserAvatar from "@/components/User/UserAvatar.svelte";
 	import SocialConnections from "@/components/Account/SocialConnections.svelte";
+	import SocialAvatars from "@/components/Account/SocialAvatars.svelte";
 	import CountrySelect from "@/components/Form/CountrySelect.svelte";
 	import { logoClick, live, avatarVersion, bumpAvatarVersion } from "@/lib/stores.svelte";
 	import { m } from "@/lib/i18n/messages";
@@ -288,6 +289,15 @@
 							onclick={() => selectArt("upload")}
 						/>
 					</div>
+					<SocialAvatars
+						{user}
+						onselected={() => {
+							editingAvatar = false;
+							customAvatarError = false;
+							bumpAvatarVersion();
+							logoClick();
+						}}
+					/>
 					{#each avatarStyles as art (art)}
 						<UserAvatar {art} username={user.account.username} role="button" onclick={() => selectArt(art)} />
 					{/each}
