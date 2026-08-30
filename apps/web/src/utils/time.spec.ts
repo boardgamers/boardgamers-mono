@@ -1,8 +1,64 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isRestrictedTimerWindow, timerTimeInTz, timerWindow, timerWindowInTz } from "./time";
+import { setLocale } from "@/lib/i18n/messages.svelte";
+import { defaultLocale } from "@/lib/i18n/locales";
+import {
+	compactDuration,
+	isRestrictedTimerWindow,
+	shortDuration,
+	timerTimeInTz,
+	timerWindow,
+	timerWindowInTz,
+} from "./time";
 
 afterEach(() => {
 	vi.useRealTimers();
+	setLocale(defaultLocale);
+});
+
+// compactDuration/shortDuration render unit letters through Intl narrow units
+// so they follow the UI language (CLDR data, no catalog entries) — "4d" in
+// English is "4j" in French and "4 д." in Russian. Exact strings (including
+// spacing) come from the runtime's ICU data; these pin the common cases.
+describe("compactDuration", () => {
+	it("formats the largest whole unit with an English narrow unit", () => {
+		expect(compactDuration(30 * 60)).toBe("30m");
+		expect(compactDuration(2 * 3600)).toBe("2h");
+		expect(compactDuration(4 * 86400)).toBe("4d");
+	});
+
+	it("clamps below one minute to 1m", () => {
+		expect(compactDuration(10)).toBe("1m");
+	});
+
+	it("localizes unit letters in French", () => {
+		setLocale("fr");
+		expect(compactDuration(30 * 60)).toBe("30min");
+		expect(compactDuration(2 * 3600)).toBe("2h");
+		expect(compactDuration(4 * 86400)).toBe("4j");
+	});
+
+	it("localizes unit letters in Russian (non-Latin)", () => {
+		setLocale("ru");
+		expect(compactDuration(2 * 3600)).toBe("2 ч");
+		expect(compactDuration(4 * 86400)).toBe("4 д.");
+	});
+});
+
+describe("shortDuration", () => {
+	it("renders the two-unit form with English narrow units", () => {
+		expect(shortDuration(3 * 86400 + 4 * 3600)).toBe("3d 4h");
+	});
+
+	it("localizes the two-unit form in French and Russian", () => {
+		setLocale("fr");
+		expect(shortDuration(3 * 86400 + 4 * 3600)).toBe("3j 4h");
+		setLocale("ru");
+		expect(shortDuration(3 * 86400 + 4 * 3600)).toBe("3 д. 4 ч");
+	});
+
+	it("keeps the localized long form for a single unit", () => {
+		expect(shortDuration(3 * 86400)).toBe("3 days");
+	});
 });
 
 // A game's daily clock window (timer.start–timer.end, UTC seconds-since-midnight)
