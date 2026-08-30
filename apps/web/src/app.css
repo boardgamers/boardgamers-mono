@@ -332,6 +332,16 @@
 	right: calc(var(--fab-right) + var(--sidebar-width));
 }
 
+/* Pages without a sidebar FAB (home/lobby chat): no 4em compensation — the chat
+   button (and its modal) sit in the standard bottom-right corner slot. */
+.sidebar-fab.chat-button.chat-corner {
+	right: var(--fab-right);
+}
+
+.chat-modal.chat-corner {
+	right: var(--fab-right);
+}
+
 .sidebar-fab.chat-button .badge {
 	position: absolute;
 	bottom: -3px;
@@ -344,8 +354,11 @@
    the sidebar is a full-screen overlay there anyway. Safe-area padding keeps the
    header/close button clear of the notch and the footer clear of the home bar. */
 @media screen and (max-width: 600px) {
+	/* .chat-corner listed too: its desktop `right` override has higher specificity
+	   than the bare .chat-modal here and would otherwise shrink the mobile sheet. */
 	.chat-modal,
-	.chat-modal.sidebar-open {
+	.chat-modal.sidebar-open,
+	.chat-modal.chat-corner {
 		left: 0.5rem;
 		right: 0.5rem;
 		max-width: none;

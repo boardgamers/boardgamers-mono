@@ -7,6 +7,7 @@
 	import IconPencil from "@/components/icons/IconPencil.svelte";
 	import {
 		canEditMessage,
+		chatApiBase,
 		countUnreadMessages,
 		dateFromObjectId,
 		handleError,
@@ -28,11 +29,17 @@
 		isOpen = !isOpen;
 	};
 	let lastRead = $state(0);
-	let { room }: { room: string } = $props();
+	// `title` defaults to the room id (the game id) — the lobby passes a translated label.
+	// `corner`: game pages offset the FAB left so it coexists with the sidebar FAB;
+	// pages without one (home/lobby) take the standard bottom-right corner slot.
+	let { room, title, corner = false }: { room: string; title?: string; corner?: boolean } = $props();
+
+	// Game rooms → /game/:gameId/chat…, public rooms (lobby) → /room/:roomId/chat….
+	let apiBase = $derived(chatApiBase(room));
 
 	const sendMessage = async (msg: string) => {
 		// Mark message as delivered? by adding meta: 'Delivered'
-		return post(`/game/${room}/chat`, {
+		return post(`${apiBase}/chat`, {
 			author: "me",
 			data: {
 				text: msg,
@@ -75,7 +82,7 @@
 			return;
 		}
 		// No optimistic update: the ws poller re-sends the edited message within ~250ms.
-		return patch(`/game/${room}/chat/${id}`, { data: { text } }).catch(handleError);
+		return patch(`${apiBase}/chat/${id}`, { data: { text } }).catch(handleError);
 	};
 
 	let messagesContainer: HTMLDivElement;
@@ -94,7 +101,7 @@
 
 	async function loadLastRead() {
 		if (userId) {
-			lastRead = await get(`/game/${room}/chat/lastRead`);
+			lastRead = await get(`${apiBase}/chat/lastRead`);
 		} else {
 			lastRead = 0;
 		}
@@ -120,7 +127,7 @@
 		lastRead = Date.now();
 
 		if (userId) {
-			await post(`/game/${room}/chat/lastRead`, { lastRead }).catch(handleError);
+			await post(`${apiBase}/chat/lastRead`, { lastRead }).catch(handleError);
 		}
 	}
 
@@ -191,11 +198,11 @@
 	transitionType={fly}
 	transitionOptions={{ y: -300 }}
 	modalClassName="chat-modal-root"
-	class={"chat-modal" + ($sidebarOpen ? " sidebar-open" : "")}
+	class={"chat-modal" + (corner ? " chat-corner" : "") + ($sidebarOpen ? " sidebar-open" : "")}
 >
 	<ModalHeader {toggle} class="shrink-0 gap-2">
 		<IconChat size="1.25rem" class="shrink-0 text-gray-400" />
-		<span class="truncate font-semibold">{$currentGameId}</span>
+		<span class="truncate font-semibold">{title ?? $currentGameId}</span>
 	</ModalHeader>
 	<div class="chat-messages thin-scrollbar" bind:this={messagesContainer}>
 		{#each $chatMessages as message (message._id)}
@@ -290,7 +297,9 @@
 <Button
 	color="primary"
 	onclick={toggle}
-	class={"!rounded-full sidebar-fab chat-button" + ($sidebarOpen ? " sidebar-open" : "")}
+	class={"!rounded-full sidebar-fab chat-button" +
+		(corner ? " chat-corner" : "") +
+		($sidebarOpen ? " sidebar-open" : "")}
 >
 	<IconChat size="1.5rem" />
 	{#if unreadMessages}

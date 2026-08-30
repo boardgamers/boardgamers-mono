@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { del, put } from "@/lib/api";
 	import { account, chatReactions } from "@/lib/stores.svelte";
-	import { handleError } from "@/utils";
+	import { chatApiBase, handleError } from "@/utils";
 	// Subpath import: the @bgs/models root pulls mongodb into the browser bundle.
 	import { CHAT_REACTION_EMOJI, CHAT_REACTION_QUICK, type ChatReactionAggregate } from "@bgs/models/chatreaction-emoji";
 	import IconEmojiSmile from "@/components/icons/IconEmojiSmile.svelte";
@@ -46,7 +46,7 @@
 			return;
 		}
 		const set = !ownReaction(reactions.find((group) => group.emoji === emoji));
-		const url = `/game/${room}/chat/${messageId}/reaction/${encodeURIComponent(emoji)}`;
+		const url = `${chatApiBase(room)}/chat/${messageId}/reaction/${encodeURIComponent(emoji)}`;
 		// The websocket pushes the same aggregate to everyone in the room; applying
 		// the response too just makes the toggler's own click feel instant.
 		const updated = await (set ? put<ChatReactionAggregate>(url) : del<ChatReactionAggregate>(url)).catch(handleError);

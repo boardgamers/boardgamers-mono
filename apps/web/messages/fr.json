@@ -145,6 +145,7 @@
 	"chat.emoji.searchResults": "Résultats de recherche",
 	"chat.emoji.smileys": "Smileys",
 	"chat.emoji.symbols": "Symboles",
+	"chat.lobbyTitle": "Chat du lobby",
 	"chat.moreReactions": "Plus de réactions",
 	"chat.placeholder": "Écris un message…",
 	"chat.reactionTooltip": "Réaction {emoji} : {names}",

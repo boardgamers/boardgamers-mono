@@ -145,6 +145,7 @@
 	"chat.emoji.searchResults": "Результаты поиска",
 	"chat.emoji.smileys": "Смайлики",
 	"chat.emoji.symbols": "Символы",
+	"chat.lobbyTitle": "Чат лобби",
 	"chat.moreReactions": "Больше реакций",
 	"chat.placeholder": "Напишите сообщение…",
 	"chat.reactionTooltip": "Реакция {emoji}: {names}",
