@@ -46,6 +46,16 @@ export function canEditMessage(message: ChatMessageFront, userId?: string, now =
 }
 
 /**
+ * Whether the moderation delete affordance should be offered for this message:
+ * site admins only (mirrors the API's admin-only DELETE route). System messages
+ * are excluded — they're game-generated, not user content, and render without
+ * hover controls anyway.
+ */
+export function canDeleteMessage(message: ChatMessageFront, authority?: string): boolean {
+	return authority === "admin" && message.type !== "system" && !!message._id;
+}
+
+/**
  * The message ArrowUp-in-an-empty-input should edit (Discord-style): the user's most
  * recent editable message, skipping the one already being edited (`editingId`).
  */

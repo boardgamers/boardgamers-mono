@@ -26,6 +26,8 @@ type WsPayload = {
 	command: string;
 	room?: string;
 	messages?: Array<{ _id?: string; data?: { text?: string }; editedAt?: string; room?: string }>;
+	messageIds?: string[];
+	chatDisabled?: boolean;
 };
 
 // Collects every message a socket receives, so a test can both await a command
@@ -121,6 +123,47 @@ describe("Websocket chat poller", () => {
 
 		// Room isolation: the bystander in another room saw neither broadcast.
 		assert.ok(!bystanderReceived.some((msg) => msg.command === "newMessages" || msg.command === "updatedMessages"));
+
+		for (const socket of sockets) {
+			socket.close();
+		}
+	});
+
+	it("broadcasts admin deletions as deletedMessages (tombstone-driven — the doc itself is gone)", async () => {
+		const ws = await connect();
+		sockets.push(ws);
+		const received = record(ws);
+		ws.send(JSON.stringify({ room }));
+		const list = await waitFor(received, "messageList");
+		// Room-wide moderation off-state travels with the room join (default: enabled).
+		assert.strictEqual(list.chatDisabled, false);
+
+		const bystander = await connect();
+		sockets.push(bystander);
+		const bystanderReceived = record(bystander);
+		bystander.send(JSON.stringify({ room: otherRoom }));
+		await waitFor(bystanderReceived, "messageList");
+
+		// What the admin DELETE route does: hard-delete + tombstone. The poller only
+		// ever sees the tombstone.
+		const messageId = new ObjectId();
+		await colls.chatMessages.insertOne({
+			_id: messageId,
+			room,
+			author: { _id: new ObjectId(), name: "poller" },
+			data: { text: "to be removed" },
+			type: "text",
+		});
+		await waitFor(received, "newMessages");
+		await colls.chatMessages.deleteOne({ _id: messageId });
+		await colls.chatDeletions.insertOne({ _id: new ObjectId(), room, message: messageId, deletedAt: new Date() });
+
+		const deleted = await waitFor(received, "deletedMessages");
+		assert.strictEqual(deleted.room, room);
+		assert.deepStrictEqual(deleted.messageIds, [messageId.toString()]);
+
+		// Room isolation again: the bystander saw no deletion.
+		assert.ok(!bystanderReceived.some((msg) => msg.command === "deletedMessages"));
 
 		for (const socket of sockets) {
 			socket.close();

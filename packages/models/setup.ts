@@ -10,6 +10,7 @@ import {
 	chatMessagesCollectionOptions,
 	chatMessageSchema,
 } from "./chatmessage.ts";
+import { CHAT_DELETIONS_COLLECTION, chatDeletionIndexes, chatDeletionSchema } from "./chatdeletion.ts";
 import { CHAT_REACTIONS_COLLECTION, chatReactionIndexes, chatReactionSchema } from "./chatreaction.ts";
 import { GAMES_COLLECTION, gameIndexes, gameSchema } from "./game.ts";
 import { GAME_INFOS_COLLECTION, GAME_METADATAS_COLLECTION, gameVersionSchema, gameMetadataSchema } from "./gameinfo.ts";
@@ -508,6 +509,7 @@ export const declaredIndexes: [string, IndexDescription[]][] = [
 	[USERS_COLLECTION, userIndexes],
 	[API_ERRORS_COLLECTION, apiErrorIndexes],
 	[CHANGELOGS_COLLECTION, changelogIndexes],
+	[CHAT_DELETIONS_COLLECTION, chatDeletionIndexes],
 	[CHAT_MESSAGES_COLLECTION, chatMessageIndexes],
 	[CHAT_REACTIONS_COLLECTION, chatReactionIndexes],
 	[GAME_LIKES_COLLECTION, gameLikeIndexes],
@@ -582,6 +584,7 @@ export async function ensureValidation(db: Db) {
 		[ADMIN_TOKENS_COLLECTION, adminTokenSchema],
 		[API_ERRORS_COLLECTION, apiErrorSchema],
 		[CHANGELOGS_COLLECTION, changelogSchema],
+		[CHAT_DELETIONS_COLLECTION, chatDeletionSchema],
 		[CHAT_MESSAGES_COLLECTION, chatMessageSchema],
 		[CHAT_REACTIONS_COLLECTION, chatReactionSchema],
 		[GAMES_COLLECTION, gameSchema],

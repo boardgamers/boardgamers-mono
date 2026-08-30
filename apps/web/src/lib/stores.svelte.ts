@@ -222,12 +222,17 @@ export const chatMessages = clientWritable<ChatMessageFront[]>("chatMessages", [
 // pushes, NOT part of chatMessages (reactions aren't messages: they must not
 // affect the unread count or scroll behaviour).
 export const chatReactions = clientWritable<Record<string, ChatReactionAggregate["reactions"]>>("chatReactions", {});
+// Room-wide "chat is off" state (moderation: kill switch / per-boardgame flag),
+// snapshotted by the server into the websocket's messageList on room join — the
+// chat UI shows a disabled notice instead of the input while set.
+export const chatRoomDisabled = clientWritable<boolean>("chatRoomDisabled", false);
 
 if (browser) {
 	currentGameId.subscribe((val) => room.set(val));
 	room.subscribe(() => {
 		chatMessages.set([]);
 		chatReactions.set({});
+		chatRoomDisabled.set(false);
 	});
 }
 

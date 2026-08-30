@@ -7,6 +7,7 @@ import {
 	activeGames,
 	chatMessages,
 	chatReactions,
+	chatRoomDisabled,
 	currentGameId,
 	lastGameUpdate,
 	playerStatus,
@@ -119,6 +120,10 @@ function connect() {
 			pongReceived = true;
 		} else if (obj.command === "messageList") {
 			chatMessages.set(obj.messages);
+			// Older servers don't send the flag — leave the reset default (enabled).
+			if (typeof obj.chatDisabled === "boolean") {
+				chatRoomDisabled.set(obj.chatDisabled);
+			}
 		} else if (obj.command === "newMessages") {
 			chatMessages.update((msg) => [...msg, ...obj.messages]);
 		} else if (obj.command === "updatedMessages") {
@@ -126,6 +131,17 @@ function connect() {
 			chatMessages.update((msgs) =>
 				msgs.map((msg) => obj.messages.find((updated: { _id: string }) => updated._id === msg._id) ?? msg),
 			);
+		} else if (obj.command === "deletedMessages") {
+			// Admin-deleted messages (moderation): drop them (and their reactions) by id.
+			const ids = new Set<string>(obj.messageIds);
+			chatMessages.update((msgs) => msgs.filter((msg) => !msg._id || !ids.has(msg._id)));
+			chatReactions.update((current) => {
+				const next = { ...current };
+				for (const id of ids) {
+					delete next[id];
+				}
+				return next;
+			});
 		} else if (obj.command === "chat:reactions") {
 			// Full per-message aggregates: an empty list clears the message's entry.
 			chatReactions.update((current) => {

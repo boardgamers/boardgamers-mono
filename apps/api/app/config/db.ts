@@ -8,6 +8,8 @@ import {
 	API_ERRORS_COLLECTION,
 	type ChangelogDoc,
 	CHANGELOGS_COLLECTION,
+	type ChatDeletionDoc,
+	CHAT_DELETIONS_COLLECTION,
 	type ChatMessageDoc,
 	CHAT_MESSAGES_COLLECTION,
 	type ChatReactionDoc,
@@ -79,6 +81,7 @@ export const colls = {} as {
 	adminTokens: Collection<AdminTokenDoc>;
 	apiErrors: Collection<ApiErrorDoc>;
 	changelogs: Collection<ChangelogDoc>;
+	chatDeletions: Collection<ChatDeletionDoc>;
 	chatMessages: Collection<ChatMessageDoc>;
 	chatReactions: Collection<ChatReactionDoc>;
 	deletedUsers: Collection<DeletedUserDoc>;
@@ -111,6 +114,7 @@ function initColls(database: Db) {
 		adminTokens: database.collection<AdminTokenDoc>(ADMIN_TOKENS_COLLECTION),
 		apiErrors: withAutoUpdatedAt(database.collection<ApiErrorDoc>(API_ERRORS_COLLECTION)),
 		changelogs: withAutoUpdatedAt(database.collection<ChangelogDoc>(CHANGELOGS_COLLECTION)),
+		chatDeletions: database.collection<ChatDeletionDoc>(CHAT_DELETIONS_COLLECTION),
 		chatMessages: database.collection<ChatMessageDoc>(CHAT_MESSAGES_COLLECTION),
 		chatReactions: withAutoUpdatedAt(database.collection<ChatReactionDoc>(CHAT_REACTIONS_COLLECTION)),
 		deletedUsers: database.collection<DeletedUserDoc>(DELETED_USERS_COLLECTION),

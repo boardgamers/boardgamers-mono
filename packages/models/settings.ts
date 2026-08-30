@@ -25,4 +25,13 @@ export const SettingsKey = {
 	// Last time the dead-user cleanup ran (ISO string in `value`) — lets the cron
 	// survive restarts/deploys instead of counting 24h from process boot.
 	CleanupDeadUsersLastRun: "cleanupDeadUsersLastRun",
+	// Site-wide chat kill switch (`value` is a ChatKillSwitchMode). Escalation
+	// hatch above the per-boardgame `chatDisabled` flag: "public" stops posting
+	// in every public room (game chat keeps working), "all" stops every chat
+	// post/edit/reaction site-wide. History stays readable either way. Missing
+	// doc = "off". Enforced in the api's shared chat handlers.
+	ChatKillSwitch: "chatKillSwitch",
 } as const;
+
+export const chatKillSwitchModeSchema = z.enum(["off", "public", "all"]);
+export type ChatKillSwitchMode = z.output<typeof chatKillSwitchModeSchema>;

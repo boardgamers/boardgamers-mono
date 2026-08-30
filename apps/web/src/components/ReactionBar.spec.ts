@@ -199,4 +199,23 @@ describe("ReactionBar", () => {
 		});
 		unmount(instance);
 	});
+
+	// The add button is an absolute overlay at the bubble's side — the same spot
+	// where the row renders the edit pencil / admin delete button (flex siblings).
+	// Each side affordance shifts it further away so nothing overlaps.
+	it("shifts the add-reaction button clear of the edit/delete side buttons", () => {
+		account.set({ _id: "u1" } as never);
+		const cases: [Record<string, unknown>, string][] = [
+			[{ mine: false }, "ml-1"],
+			[{ mine: false, deleteAffordance: true }, "ml-8"],
+			[{ mine: true, editAffordance: true }, "mr-8"],
+			[{ mine: true, editAffordance: true, deleteAffordance: true }, "mr-14"],
+		];
+		for (const [props, expected] of cases) {
+			const { target, instance } = mountBar(props);
+			const overlay = target.querySelector<HTMLDivElement>("div.absolute");
+			expect(overlay?.className, JSON.stringify(props)).toContain(expected);
+			unmount(instance);
+		}
+	});
 });

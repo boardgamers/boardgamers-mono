@@ -51,6 +51,10 @@ export {
 	isPublicChatRoom,
 } from "./chatroom.ts";
 
+// --- Chat Deletion (admin moderation tombstones) ---
+export type { ChatDeletionDoc } from "./chatdeletion.ts";
+export { chatDeletionSchema, CHAT_DELETIONS_COLLECTION, chatDeletionIndexes } from "./chatdeletion.ts";
+
 // --- Chat Reaction ---
 export type { ChatReactionDoc, ChatReactionAggregate } from "./chatreaction.ts";
 export {
@@ -190,12 +194,25 @@ export type { RoomMetaDataDoc } from "./roommetadata.ts";
 export { roomMetaDataSchema, ROOM_METADATA_COLLECTION, roomMetaDataIndexes } from "./roommetadata.ts";
 
 // --- Settings ---
-export type { SettingsDoc, Announcement } from "./settings.ts";
-export { settingsSchema, SETTINGS_COLLECTION, SettingsKey, announcementSchema } from "./settings.ts";
+export type { SettingsDoc, Announcement, ChatKillSwitchMode } from "./settings.ts";
+export {
+	settingsSchema,
+	SETTINGS_COLLECTION,
+	SettingsKey,
+	announcementSchema,
+	chatKillSwitchModeSchema,
+} from "./settings.ts";
 
 // --- User ---
-export type { UserDoc, UserFront } from "./user.ts";
-export { userSchema, socialMetaEntrySchema, USERS_COLLECTION, userIndexes } from "./user.ts";
+export type { UserDoc, UserFront, ChatMuteDuration } from "./user.ts";
+export {
+	userSchema,
+	socialMetaEntrySchema,
+	USERS_COLLECTION,
+	userIndexes,
+	CHAT_MUTE_DURATIONS,
+	chatMuteDurationSchema,
+} from "./user.ts";
 
 // --- User Action (per-user action rate-limit counters) ---
 export type { UserActionDoc } from "./useraction.ts";

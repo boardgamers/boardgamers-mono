@@ -30,7 +30,7 @@ import {
 } from "../../services/option-translations.ts";
 import { gameBundleS3Key, publicObjectUrl, putObject, s3Enabled } from "../../services/s3.ts";
 import { TranslationError, translateMarkdown } from "../../services/translate.ts";
-import { auditLog } from "./audit.ts";
+import { auditLog, requireFullAdmin } from "./audit.ts";
 
 const router = new Router<Application.DefaultState, Context>();
 
@@ -138,7 +138,8 @@ router.put("/:game/meta", async (ctx) => {
 	// when `unlisted` changes), never taken from the form.
 	// `translations`/`optionTranslations` are owned by the translate routes —
 	// the loose schema would otherwise let a scripted round-trip of the GET
-	// response $set them back with a stale snapshot.
+	// response $set them back with a stale snapshot — and `chatDisabled` is a
+	// moderation flag owned by the dedicated site-admin route below.
 	const body = omit(
 		metadataBodySchema.parse(ctx.request.body),
 		"_id",
@@ -150,6 +151,7 @@ router.put("/:game/meta", async (ctx) => {
 		"optionTranslations",
 		"sourceHash",
 		"translationNeeds",
+		"chatDisabled",
 	);
 
 	// Guard against orphan metadata docs (typo'd game name in scripted use): the
@@ -190,6 +192,28 @@ router.put("/:game/meta", async (ctx) => {
 	}
 
 	ctx.body = doc;
+});
+
+// PUT /:game/chat-disabled — moderation toggle for the boardgame's public chat
+// room (posting/edit/react 403 while set; history stays readable). Site admins
+// only — deliberately NOT part of the metadata form (whose PUT above strips the
+// field), so per-boardgame gameinfo grantees can't flip it and a stale form
+// can't clobber it.
+router.put("/:game/chat-disabled", requireFullAdmin, async (ctx) => {
+	const game = ctx.params.game;
+	const { disabled } = z.object({ disabled: z.boolean() }).parse(ctx.request.body);
+
+	const exists = await colls.gameMetadatas.findOne({ _id: game }, { projection: { _id: 1 } });
+	if (!exists) {
+		throw createError(404, `No game metadata for ${game}`);
+	}
+
+	await colls.gameMetadatas.updateOne(
+		{ _id: game },
+		disabled ? { $set: { chatDisabled: true } } : { $unset: { chatDisabled: true } },
+	);
+	auditLog(ctx, "gameinfo.setChatDisabled", { kind: "boardgame", id: game }, { disabled });
+	ctx.body = { chatDisabled: disabled };
 });
 
 // POST /:game/meta/translate — LLM-translate the game's free-text metadata

@@ -269,6 +269,13 @@ export const gameMetadataSchema = z.object({
 	// Linked NodeBB topic id (Comments & Feedback category) — stored/returned when
 	// set; the actual topic creation is wired separately.
 	forumTid: z.number().int().optional(),
+	// Chat moderation: disables posting in this boardgame's PUBLIC chat room
+	// (history stays readable; game chat between participants is unaffected).
+	// Deliberately NOT in GAME_METADATA_FIELDS and not accepted by the metadata
+	// form's PUT — it's a moderation flag, toggled only through the dedicated
+	// site-admin route, so a stale metadata form can't clobber it (same
+	// protection `translations`/`likeCount` rely on). Not translatable.
+	chatDisabled: z.boolean().optional(),
 	createdAt: zDate().optional(),
 	updatedAt: zDate().optional(),
 });
