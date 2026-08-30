@@ -3,6 +3,7 @@
 
 	let {
 		value = $bindable(""),
+		element = $bindable(undefined),
 		type = "text",
 		id = undefined,
 		placeholder = undefined,
@@ -24,6 +25,7 @@
 		...rest
 	}: {
 		value?: any;
+		element?: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 		type?: string;
 		id?: string;
 		placeholder?: string;
@@ -61,6 +63,7 @@
 {#if type === "select"}
 	<select
 		bind:value
+		bind:this={element}
 		{id}
 		class={classnames(inputClass, "cursor-pointer")}
 		{required}
@@ -80,6 +83,7 @@
 	<!-- svelte-ignore a11y_autofocus -->
 	<textarea
 		bind:value
+		bind:this={element}
 		{id}
 		{placeholder}
 		{required}
@@ -101,6 +105,7 @@
 	<input
 		{type}
 		bind:value
+		bind:this={element}
 		{id}
 		{placeholder}
 		{required}

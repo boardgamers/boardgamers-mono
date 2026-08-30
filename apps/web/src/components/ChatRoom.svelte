@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { account, currentGameId, sidebarOpen, chatMessages } from "@/lib/stores.svelte";
 	import { get, post } from "@/lib/api";
-	import { Modal, ModalHeader, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
+	import { Modal, ModalHeader, ModalFooter, Button, Badge } from "@/modules/cdk";
 	import IconChat from "@/components/icons/IconChat.svelte";
 	import { countUnreadMessages, dateFromObjectId, handleError } from "@/utils";
 	import { fly } from "svelte/transition";
 	import UserAvatar from "./User/UserAvatar.svelte";
 	import UsernameLink from "./User/UsernameLink.svelte";
+	import ChatInput from "./ChatInput.svelte";
 	import { m } from "@/lib/i18n/messages";
 
 	let isOpen = $state(false);
@@ -16,13 +17,7 @@
 	let lastRead = $state(0);
 	let { room }: { room: string } = $props();
 
-	let currentMessage = $state("");
-
-	const sendMessage = async () => {
-		console.log("send message");
-		const msg = currentMessage;
-		currentMessage = "";
-
+	const sendMessage = async (msg: string) => {
 		// Mark message as delivered? by adding meta: 'Delivered'
 		return post(`/game/${room}/chat`, {
 			author: "me",
@@ -92,7 +87,8 @@
 	});
 	let unreadMessages = $derived(countUnreadMessages($chatMessages, lastRead, userId));
 
-	// Close on Escape while the chat is open.
+	// Close on Escape while the chat is open. (Escapes pressed while the emoji
+	// picker is open with focus in the input row are swallowed there.)
 	$effect(() => {
 		if (!isOpen) return;
 		const onKey = (e: KeyboardEvent) => e.key === "Escape" && (isOpen = false);
@@ -162,19 +158,7 @@
 		{/each}
 	</div>
 	<ModalFooter class="shrink-0 p-3">
-		<form
-			onsubmit={(e) => {
-				e.preventDefault();
-				sendMessage();
-			}}
-			class="w-full"
-		>
-			<InputGroup>
-				<!-- text-base: iOS Safari zooms the page on focus of inputs smaller than 16px -->
-				<Input type="text" bind:value={currentMessage} placeholder={m.chat_placeholder()} class="text-base" />
-				<Button type="submit" color="primary">{m.chat_send()}</Button>
-			</InputGroup>
-		</form>
+		<ChatInput onsend={sendMessage} />
 	</ModalFooter>
 </Modal>
 
