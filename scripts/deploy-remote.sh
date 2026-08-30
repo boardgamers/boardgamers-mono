@@ -95,19 +95,134 @@ pnpm --filter @bgs/web exec playwright install chromium ||
 # produced SAME-name SAME-content chunks a few seconds apart, and keeping only
 # the new one would have reset a still-referenced chunk's 30-day clock.
 deploy_carry_over_immutable() {
-  local prev="$1" dest="$2" f rel
+  local prev="$1" dest="$2" f rel rc
   [ -d "$prev" ] || return 0
   find "$prev" -type f | while read -r f; do
     rel="${f#"$prev"/}"
     if [ ! -e "$dest/$rel" ]; then
       mkdir -p "$(dirname "$dest/$rel")"
       cp -p "$f" "$dest/$rel"
-    elif ! cmp -s "$f" "$dest/$rel"; then
-      echo ":: WARNING: chunk '$rel' exists in the new build with different content — keeping the new build's file (see #421/#422)"
     else
-      cp -p "$f" "$dest/$rel"
+      rc=0
+      cmp -s "$f" "$dest/$rel" || rc=$?
+      if [ "$rc" -eq 0 ]; then
+        cp -p "$f" "$dest/$rel"
+      elif [ "$rc" -eq 1 ]; then
+        echo ":: WARNING: chunk '$rel' exists in the new build with different content — keeping the new build's file (see #421/#422)"
+      else
+        # cmp exit >1 is a real error (I/O, unreadable file), not "differs" —
+        # abort the deploy (we're pre-swap, the old build stays live).
+        echo "::error::cmp failed for chunk '$rel' (exit $rc)"
+        exit 1
+      fi
     fi
   done
+}
+
+# --- Server (SSR) chunk carry-over -------------------------------------------
+# The OLD pm2 workers keep serving through the graceful `pm2 reload` window
+# (plus their in-flight requests) with the OLD manifest in memory, and
+# SvelteKit lazy-imports route modules on first hit — so a request to a route
+# an old worker hasn't loaded yet resolves an old hashed filename against the
+# just-swapped build dir and 500s with ERR_MODULE_NOT_FOUND (observed in prod:
+# "Cannot find module .../build/server/chunks/nodes/23.js-<hash>.js imported
+# from .../manifest.js-<hash>.js"). Everything the server lazy-imports lives
+# under server/chunks/ (nodes/, entries/, shared chunks — the manifest's
+# import() targets); the top-level index.js/handler.js/env.js/shims.js are
+# loaded at boot and don't need carrying.
+#
+# Retention is by deploy GENERATION, not wall-clock mtime: each deploy records
+# the file list of its own (pre-carry) build output under
+# server/.carry-generations/<id>.list, lists travel forward across deploys,
+# and the newest DEPLOY_SERVER_CHUNK_GENERATIONS previous lists' files are
+# carried regardless of age. Chunks keep their original mtime (cp -p), so an
+# mtime prune here would be WRONG: the previous build's chunks are exactly
+# what the still-running workers reference, and after a ≥N-day deploy gap
+# (a routine Friday→Monday cadence) an "-mtime +N" prune would delete every
+# one of them right after carrying — recreating the 500 this exists to fix.
+#
+# Old workers only need to outlive one reload window, so 1 previous
+# generation would normally do; 2 also covers a worker from generation N-2
+# still draining its in-flight requests when back-to-back merges deploy N-1
+# and N within seconds. Growth is bounded: dropped generations' files simply
+# stop being carried (the new build dir starts from scratch every deploy).
+DEPLOY_SERVER_CHUNK_GENERATIONS=2
+
+# Copy one previous chunks tree into the new one, filtered by the retained
+# generations' file union.
+# $1: previous build's server/chunks dir, $2: new build's, $3: keep-list file
+# (one relative path per line — only listed files are carried).
+#
+# On a name collision with different content the new build wins (same rule as
+# #421/#422, same WARNING as deploy_carry_over_immutable). An old worker
+# lazy-importing such a chunk mid-window would get new-build content — a
+# theoretical SSR mismatch, but it requires the #421/#422 rollback scenario
+# and is strictly better than the 500.
+deploy_carry_over_server_chunks() {
+  local prev="$1" dest="$2" keep="$3" f rel rc
+  [ -d "$prev" ] || return 0
+  find "$prev" -type f | while read -r f; do
+    rel="${f#"$prev"/}"
+    grep -qxF "$rel" "$keep" || continue # not referenced by a retained generation
+    if [ ! -e "$dest/$rel" ]; then
+      mkdir -p "$(dirname "$dest/$rel")"
+      cp -p "$f" "$dest/$rel"
+    else
+      rc=0
+      cmp -s "$f" "$dest/$rel" || rc=$?
+      if [ "$rc" -eq 1 ]; then
+        echo ":: WARNING: server chunk '$rel' exists in the new build with different content — keeping the new build's file (see #421/#422)"
+      elif [ "$rc" -ne 0 ]; then
+        # cmp exit >1 is a real error (I/O, unreadable file), not "differs" —
+        # abort the deploy (we're pre-swap, the old build stays live).
+        echo "::error::cmp failed for server chunk '$rel' (exit $rc)"
+        exit 1
+      fi
+    fi
+  done
+}
+
+# Record the new build's generation list, bring the previous builds' lists
+# forward, rotate old generations out, and carry the retained chunks.
+# $1: the web app dir holding build/, build-old/ and build-new/ (apps/web).
+deploy_web_carry_server_chunks() {
+  local root="$1" gen_dir prev l stale keep
+  gen_dir="$root/build-new/server/.carry-generations"
+  mkdir -p "$gen_dir"
+  # %s%N (nanoseconds): sim/back-to-back-safe uniqueness; fixed width until
+  # 2286, so lexical sort == chronological.
+  (cd "$root/build-new/server/chunks" && find . -type f | sed 's|^\./||' | sort) \
+    >"$gen_dir/$(date +%s%N).list"
+
+  for prev in "$root/build-old" "$root/build"; do
+    if [ -d "$prev/server/.carry-generations" ]; then
+      for l in "$prev/server/.carry-generations"/*.list; do
+        [ -e "$l" ] || continue
+        [ -e "$gen_dir/$(basename "$l")" ] || cp -p "$l" "$gen_dir/"
+      done
+    elif [ -d "$prev/server/chunks" ]; then
+      # Transitional shim (see apps/web/WORKAROUNDS.md): the previous build
+      # predates generation lists — synthesize one from its whole chunks tree
+      # so its still-running workers are protected. The "0-" prefix sorts it
+      # older than any epoch id; relative order between the two legacy names
+      # never matters (≤2 legacy lists + the current one all fit in the
+      # retention window).
+      (cd "$prev/server/chunks" && find . -type f | sed 's|^\./||' | sort) \
+        >"$gen_dir/0-legacy-$(basename "$prev").list"
+    fi
+  done
+
+  # Rotate: keep the current list plus the newest DEPLOY_SERVER_CHUNK_GENERATIONS.
+  find "$gen_dir" -name '*.list' | sort | head -n -$((DEPLOY_SERVER_CHUNK_GENERATIONS + 1)) |
+    while read -r stale; do rm -- "$stale"; done
+
+  keep=$(mktemp)
+  sort -u "$gen_dir"/*.list >"$keep"
+  # build-old first, same as the client carry (it exists only if a previous
+  # deploy died mid-swap).
+  deploy_carry_over_server_chunks "$root/build-old/server/chunks" "$root/build-new/server/chunks" "$keep"
+  deploy_carry_over_server_chunks "$root/build/server/chunks" "$root/build-new/server/chunks" "$keep"
+  rm -f "$keep"
 }
 
 echo ":: building web (SvelteKit SSR)"
@@ -121,10 +236,20 @@ WEB_ADAPTER_OUT=build-new pnpm --filter @bgs/web build
 deploy_carry_over_immutable apps/web/build-old/client/_app/immutable apps/web/build-new/client/_app/immutable
 deploy_carry_over_immutable apps/web/build/client/_app/immutable apps/web/build-new/client/_app/immutable
 find apps/web/build-new/client/_app/immutable -type f -mtime +30 -delete
+find apps/web/build-new/client/_app/immutable -mindepth 1 -type d -empty -delete
+
+# Keep SSR chunks from the last DEPLOY_SERVER_CHUNK_GENERATIONS deploys so old
+# workers survive the reload window (see the server chunk carry-over section
+# above — generation-based on purpose, an mtime prune breaks after a multi-day
+# deploy gap).
+deploy_web_carry_server_chunks apps/web
 
 # Atomically swap the new build into place, then reload PM2.
 # PM2 runs index.js from cwd ./apps/web/build in cluster mode,
-# so reload picks up the new files with zero downtime.
+# so reload picks up the new files with zero downtime. Old workers keep
+# serving until the reload replaces them; the carry-overs above keep both the
+# client and server chunks their in-memory manifest references on disk
+# through that window.
 rm -rf apps/web/build-old
 if [ -d apps/web/build ]; then mv apps/web/build apps/web/build-old; fi
 mv apps/web/build-new apps/web/build
@@ -137,9 +262,11 @@ echo ":: building admin (SPA)"
 ADMIN_ADAPTER_OUT=dist-new pnpm --filter @bgs/admin build
 
 # Same immutable-chunk retention as the web app (nginx serves dist/ directly).
+# No server-chunk carry-over here: admin is a static SPA, there is no SSR.
 deploy_carry_over_immutable apps/admin/dist-old/_app/immutable apps/admin/dist-new/_app/immutable
 deploy_carry_over_immutable apps/admin/dist/_app/immutable apps/admin/dist-new/_app/immutable
 find apps/admin/dist-new/_app/immutable -type f -mtime +30 -delete
+find apps/admin/dist-new/_app/immutable -mindepth 1 -type d -empty -delete
 
 rm -rf apps/admin/dist-old
 if [ -d apps/admin/dist ]; then mv apps/admin/dist apps/admin/dist-old; fi
