@@ -779,3 +779,241 @@ describe("Admin bulk metadata translation (#306 follow-up)", () => {
 		}
 	});
 });
+
+describe("Admin bulk metadata translation covers option labels (#306 follow-up)", () => {
+	let adminHeaders: Record<string, string>;
+	let llm: http.Server;
+	let labelBatches: Record<string, string>[] = [];
+	let markdownPrompts: string[] = [];
+
+	interface OptionCell {
+		status: "ok" | "outdated" | "missing" | "unknown";
+		fields: string[];
+		optionStrings?: { total: number; fresh: number };
+	}
+
+	interface OptionOverview extends Omit<Overview, "games"> {
+		games: (Overview["games"][number] & { optionStrings: number; cells: Record<string, OptionCell> })[];
+	}
+
+	async function overview(): Promise<OptionOverview> {
+		const res = await api("GET", "/api/admin/translations/overview", adminHeaders);
+		assert.strictEqual(res.status, 200);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		return res.data as OptionOverview;
+	}
+
+	async function waitForJob(jobId: string): Promise<OverviewJob> {
+		for (let i = 0; i < 200; i++) {
+			const poll = await api("GET", `/api/admin/page/translate-bulk/${jobId}`, adminHeaders);
+			assert.strictEqual(poll.status, 200);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			const job = poll.data as OverviewJob;
+			if (job.status !== "running") {
+				return job;
+			}
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		}
+		assert.fail(`job ${jobId} still running after 10s`);
+	}
+
+	before(async () => {
+		await Promise.all([
+			colls.gameMetadatas.deleteMany({}),
+			colls.gameInfos.deleteMany({}),
+			colls.settings.deleteMany({ _id: { $regex: "^bulkTranslateJob:" } }),
+		]);
+		await insertFixtureUsers();
+		adminHeaders = await makeAuthHeaders(adminId);
+
+		// ovopt: markdown source + option labels. The non-public v2 exists to
+		// prove the SOURCE version pick prefers the latest PUBLIC version.
+		await colls.gameInfos.insertOne({
+			_id: { game: "ovopt", version: 1 },
+			viewer: { url: "//v1" },
+			public: true,
+			meta: {},
+			options: [{ name: "map", label: "Map layout", type: "select", items: [{ name: "random", label: "Random" }] }],
+			expansions: [{ name: "cities", label: "The Cities" }],
+		});
+		await colls.gameInfos.insertOne({
+			_id: { game: "ovopt", version: 2 },
+			viewer: { url: "//v2" },
+			public: false,
+			meta: {},
+			options: [{ name: "beta-only", label: "Beta only", type: "checkbox" }],
+		});
+		await colls.gameMetadatas.insertOne({ _id: "ovopt", label: "OV Opt", players: [2], description: "A game" });
+		// ovonly: option labels but NO markdown source.
+		await colls.gameInfos.insertOne({
+			_id: { game: "ovonly", version: 1 },
+			viewer: { url: "//v1" },
+			public: true,
+			meta: {},
+			settings: [{ name: "autoplay", label: "Auto-play", type: "checkbox" }],
+		});
+		await colls.gameMetadatas.insertOne({ _id: "ovonly", label: "OV Only", players: [2] });
+		// ovmd: markdown only — its cells must stay byte-identical to the
+		// pre-option-labels shape (no optionStrings key).
+		await colls.gameMetadatas.insertOne({ _id: "ovmd", label: "OV Md", players: [2], description: "Md only" });
+
+		llm = http.createServer((req, res) => {
+			let raw = "";
+			req.on("data", (chunk) => (raw += chunk));
+			req.on("end", () => {
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse is any; fields are defaulted below
+				const body = JSON.parse(raw) as { messages: { role: string; content: string }[] };
+				const user = body.messages.find((m) => m.role === "user")?.content ?? "";
+				res.setHeader("content-type", "application/json");
+				let content: string;
+				if (user.includes("Respond with ONLY a JSON object")) {
+					// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the label prompt embeds a JSON string map
+					const labels = JSON.parse(user.split("\n\n").at(-1)!) as Record<string, string>;
+					labelBatches.push(labels);
+					content = JSON.stringify(Object.fromEntries(Object.entries(labels).map(([k, v]) => [k, `[t] ${v}`])));
+				} else {
+					markdownPrompts.push(user);
+					content = `[t] ${user.split("\n\n").at(-1)}`;
+				}
+				res.end(JSON.stringify({ choices: [{ message: { content }, finish_reason: "stop" }] }));
+			});
+		});
+		await new Promise<void>((resolve) => llm.listen(0, "127.0.0.1", resolve));
+		env.translation.apiKey = "test-key";
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- listen(0, "127.0.0.1") binds a TCP port, so the address is an AddressInfo
+		env.translation.baseUrl = `http://127.0.0.1:${(llm.address() as AddressInfo).port}`;
+		env.translation.timeoutMs = 2000;
+		ACTION_RATE_LIMITS["admin/translate-metadata-bulk"] = { max: 100, windowMs: 60 * 60 * 1000 };
+	});
+
+	after(async () => {
+		env.translation.apiKey = "";
+		env.translation.baseUrl = "https://openrouter.ai/api/v1";
+		env.translation.timeoutMs = 180_000;
+		await new Promise((resolve) => llm.close(resolve));
+		await db().dropDatabase();
+	});
+
+	it("the overview folds option-label coverage into the metadata cells", async () => {
+		const data = await overview();
+		const ovopt = data.games.find((g) => g.game === "ovopt");
+		// Source = the latest PUBLIC version (v1): map + item + expansion = 3
+		// strings; the non-public v2's "beta-only" is not the source.
+		assert.strictEqual(ovopt?.optionStrings, 3);
+		assert.deepEqual(ovopt?.cells.fr, {
+			status: "missing",
+			fields: [],
+			optionStrings: { total: 3, fresh: 0 },
+		});
+		// Option-only game: missing too (no markdown part to report).
+		const ovonly = data.games.find((g) => g.game === "ovonly");
+		assert.strictEqual(ovonly?.optionStrings, 1);
+		assert.strictEqual(ovonly?.cells.fr.status, "missing");
+		// Markdown-only game: byte-identical to the pre-option-labels cell.
+		const ovmd = data.games.find((g) => g.game === "ovmd");
+		assert.strictEqual(ovmd?.optionStrings, 0);
+		assert.deepEqual(ovmd?.cells.fr, { status: "missing", fields: [] });
+	});
+
+	it("a bulk run translates markdown AND option labels, stamping per-string hashes", async () => {
+		const res = await api("POST", "/api/admin/translations/translate-metadata-bulk", adminHeaders, {
+			targetLang: "fr",
+		});
+		assert.strictEqual(res.status, 202, JSON.stringify(res.data));
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const { jobId, total } = res.data as { jobId: string; total: number };
+		// ovopt (md + labels), ovonly (labels only), ovmd (md only).
+		assert.strictEqual(total, 3);
+		const job = await waitForJob(jobId);
+		assert.equal(job.status, "done");
+		assert.equal(job.translated, 3);
+		assert.deepEqual(job.errors, []);
+
+		const ovopt = await colls.gameMetadatas.findOne({ _id: "ovopt" });
+		assert.equal(ovopt?.translations?.fr?.description, "[t] A game");
+		assert.equal(ovopt?.optionTranslations?.fr?.["options.map"]?.label, "[t] Map layout");
+		assert.equal(ovopt?.optionTranslations?.fr?.["options.map.items.random"]?.label, "[t] Random");
+		assert.equal(ovopt?.optionTranslations?.fr?.["expansions.cities"]?.label, "[t] The Cities");
+		for (const [key, entry] of Object.entries(ovopt?.optionTranslations?.fr ?? {})) {
+			assert.ok(entry.translatedFrom?.hash, `stamp for ${key}`);
+		}
+		const ovonly = await colls.gameMetadatas.findOne({ _id: "ovonly" });
+		assert.equal(ovonly?.optionTranslations?.fr?.["settings.autoplay"]?.label, "[t] Auto-play");
+		assert.equal(ovonly?.translations, undefined, "no markdown source → no markdown overlay");
+
+		// Cells read ok, with full label coverage.
+		const data = await overview();
+		const row = data.games.find((g) => g.game === "ovopt");
+		assert.deepEqual(row?.cells.fr, { status: "ok", fields: ["description"], optionStrings: { total: 3, fresh: 3 } });
+		assert.equal(data.games.find((g) => g.game === "ovonly")?.cells.fr.status, "ok");
+		assert.equal(data.games.find((g) => g.game === "ovmd")?.cells.fr.status, "ok");
+
+		// Nothing left to do for fr.
+		const again = await api("POST", "/api/admin/translations/translate-metadata-bulk", adminHeaders, {
+			targetLang: "fr",
+		});
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		assert.strictEqual((again.data as { total: number }).total, 0);
+	});
+
+	it("a reworded option label flips the cell to outdated and re-pays ONLY that string", async () => {
+		// Simulate an engine-version upload rewording one label (same name).
+		await colls.gameInfos.updateOne(
+			{ _id: { game: "ovopt", version: 1 } },
+			{ $set: { "options.0.label": "Board layout" } },
+		);
+
+		const pre = await overview();
+		const cell = pre.games.find((g) => g.game === "ovopt")?.cells.fr;
+		assert.equal(cell?.status, "outdated", "one stale string makes the whole cell outdated");
+		assert.deepEqual(cell?.optionStrings, { total: 3, fresh: 2 });
+
+		labelBatches = [];
+		markdownPrompts = [];
+		const res = await api("POST", "/api/admin/translations/translate-metadata-bulk", adminHeaders, {
+			targetLang: "fr",
+		});
+		assert.strictEqual(res.status, 202);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const { jobId, total } = res.data as { jobId: string; total: number };
+		assert.strictEqual(total, 1, "only ovopt needs work");
+		const job = await waitForJob(jobId);
+		assert.equal(job.status, "done");
+		assert.equal(job.translated, 1);
+
+		// Only the stale key was translated; the fresh markdown was not re-paid.
+		assert.deepEqual(labelBatches, [{ "options.map": "Board layout" }]);
+		assert.deepEqual(markdownPrompts, []);
+
+		const ovopt = await colls.gameMetadatas.findOne({ _id: "ovopt" });
+		assert.equal(ovopt?.optionTranslations?.fr?.["options.map"]?.label, "[t] Board layout");
+		assert.equal(ovopt?.optionTranslations?.fr?.["expansions.cities"]?.label, "[t] The Cities", "carried over");
+		assert.equal(ovopt?.translations?.fr?.description, "[t] A game", "markdown overlay untouched");
+
+		const post = await overview();
+		assert.deepEqual(post.games.find((g) => g.game === "ovopt")?.cells.fr, {
+			status: "ok",
+			fields: ["description"],
+			optionStrings: { total: 3, fresh: 3 },
+		});
+	});
+
+	it("a renamed option drops the old entry from the overlay on the next translation", async () => {
+		// v1's "map" renamed to "board" (engine upload replaces the version doc arrays).
+		await colls.gameInfos.updateOne(
+			{ _id: { game: "ovopt", version: 1 } },
+			{ $set: { options: [{ name: "board", label: "Board layout", type: "select" }] } },
+		);
+		const res = await api("POST", "/api/admin/translations/translate-metadata-bulk", adminHeaders, {
+			targetLang: "fr",
+		});
+		assert.strictEqual(res.status, 202);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const job = await waitForJob((res.data as { jobId: string }).jobId);
+		assert.equal(job.status, "done");
+		const ovopt = await colls.gameMetadatas.findOne({ _id: "ovopt" });
+		assert.equal(ovopt?.optionTranslations?.fr?.["options.board"]?.label, "[t] Board layout");
+		assert.equal(ovopt?.optionTranslations?.fr?.["options.map"], undefined, "renamed-away key dropped");
+		assert.equal(ovopt?.optionTranslations?.fr?.["expansions.cities"]?.label, "[t] The Cities", "kept");
+	});
+});

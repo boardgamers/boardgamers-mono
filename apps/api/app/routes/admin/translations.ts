@@ -6,8 +6,21 @@ import Router from "koa-router";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
 import { changelogSourceHash, changelogSourceStrings } from "../../models/changelog-i18n.ts";
-import { metadataNeedsTranslation, metadataSourceHash, metadataSourceStrings } from "../../models/gameinfo-i18n.ts";
+import {
+	metadataNeedsTranslation,
+	metadataSourceHash,
+	metadataSourceStrings,
+	metadataTargetLangs,
+	optionKeysNeedingTranslation,
+	optionSourceStrings,
+} from "../../models/gameinfo-i18n.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
+import {
+	gameNeedsTranslation,
+	optionSourceVersion,
+	optionSourceVersions,
+	translateOptionLabels,
+} from "../../services/option-translations.ts";
 import { translateMarkdown } from "../../services/translate.ts";
 import { auditLog } from "./audit.ts";
 import { type BulkTranslateJob, listBulkJobs, startBulkJob, writeBulkJob } from "./bulkjob.ts";
@@ -28,14 +41,29 @@ function canManagePage(user: Context["state"]["user"], pageName: string): boolea
 // the pages × locales status matrix, the game-metadata × locale presence
 // grid, and every bulk-translate job. Read-only.
 router.get("/overview", async (ctx) => {
-	const [pages, metadatas, changelogs, jobs] = await Promise.all([
+	const [pages, metadatas, changelogs, jobs, sourceVersions] = await Promise.all([
 		colls.pages.find({}, { projection: { _id: 1, title: 1, updatedAt: 1, translatedFrom: 1 } }).toArray(),
 		colls.gameMetadatas
-			.find({}, { projection: { _id: 1, label: 1, alias: 1, description: 1, rules: 1, credits: 1, translations: 1 } })
+			.find(
+				{},
+				{
+					projection: {
+						_id: 1,
+						label: 1,
+						alias: 1,
+						description: 1,
+						rules: 1,
+						credits: 1,
+						translations: 1,
+						optionTranslations: 1,
+					},
+				},
+			)
 			.sort({ _id: 1 })
 			.toArray(),
 		colls.changelogs.find({ published: true }, { projection: { content: 1, details: 1, translations: 1 } }).toArray(),
 		listBulkJobs(),
+		optionSourceVersions(),
 	]);
 
 	// Pages matrix: one row per page name, one cell per supported locale.
@@ -82,22 +110,53 @@ router.get("/overview", async (ctx) => {
 		? metadatas
 		: metadatas.filter((m) => canUserManageGame(ctx.state.user, m._id));
 	const gameRows = visibleGames.map((meta) => {
-		const sourceHash = metadataSourceHash(metadataSourceStrings(meta));
+		const source = metadataSourceStrings(meta);
+		const sourceHash = metadataSourceHash(source);
+		// Option/setting/preference/expansion labels (#306 follow-up) fold into
+		// the same cell: the source strings come from the game's source version
+		// doc (latest public, else latest — optionSourceVersions) and freshness
+		// is per-STRING (optionLabelHash stamps). The cell keeps ONE status —
+		// a separate column per part would double the grid for little gain —
+		// so a cell is "outdated" as soon as ANY constituent string (markdown
+		// field or option label) is stale or missing while others exist.
+		const optionSource = optionSourceStrings(sourceVersions.get(meta._id) ?? null);
+		const optionTotal = Object.keys(optionSource).length;
 		const cells = Object.fromEntries(
 			metaLangs.map((lang) => {
 				const overlay = meta.translations?.[lang];
-				if (!overlay) {
-					return [lang, { status: "missing", fields: [] }];
-				}
 				// Non-text overlay keys (translatedFrom) are not translated fields.
-				const fields = (["description", "rules", "credits"] as const).filter((f) => !!overlay[f]);
+				const fields = overlay ? (["description", "rules", "credits"] as const).filter((f) => !!overlay[f]) : [];
 				// `?.hash` is defensive: schema-invalid stamps (validation is "warn")
 				// degrade to "unknown" instead of a crash or a false "ok".
-				const stampedHash = overlay.translatedFrom?.hash;
-				if (!stampedHash) {
-					return [lang, { status: "unknown", fields }];
+				const stampedHash = overlay?.translatedFrom?.hash;
+				const mdStatus = !overlay
+					? "missing"
+					: !stampedHash
+						? "unknown"
+						: stampedHash === sourceHash
+							? "ok"
+							: "outdated";
+				if (optionTotal === 0) {
+					// No option strings: byte-identical to the pre-#306-follow-up cell.
+					return [lang, { status: mdStatus, fields }];
 				}
-				return [lang, { status: stampedHash === sourceHash ? "ok" : "outdated", fields }];
+				const optionOverlay = meta.optionTranslations?.[lang];
+				const fresh = optionTotal - optionKeysNeedingTranslation(optionSource, optionOverlay).length;
+				const present = Object.keys(optionSource).filter((key) => optionOverlay?.[key]).length;
+				// Per-part status, then the pessimistic combine below. Stamp-less
+				// option entries count as needing work (like "unknown" overlays —
+				// re-translated once, then stamped).
+				const optStatus = fresh === optionTotal ? "ok" : present === 0 ? "missing" : "outdated";
+				// A game without markdown source text contributes no md part —
+				// fully-translated options must read "ok", not "missing forever".
+				const mdPart = !overlay && Object.keys(source).length === 0 ? null : mdStatus;
+				const status =
+					mdPart === null || mdPart === optStatus
+						? optStatus
+						: mdPart === "unknown" && optStatus === "ok"
+							? "unknown"
+							: "outdated";
+				return [lang, { status, fields, optionStrings: { total: optionTotal, fresh } }];
 			}),
 		);
 		return {
@@ -105,6 +164,7 @@ router.get("/overview", async (ctx) => {
 			label: meta.label,
 			alias: meta.alias,
 			sourceFields: (["description", "rules", "credits"] as const).filter((f) => !!meta[f]),
+			optionStrings: optionTotal,
 			cells,
 		};
 	});
@@ -146,22 +206,16 @@ router.get("/overview", async (ctx) => {
 
 // -- Bulk metadata translation (#306 follow-up) -------------------------------
 
-// The languages metadata translates into: base subtags of every supported UI
-// locale except English (the source). Same target set as the per-game
-// translate-all route and the metadata grid's columns.
-function metadataTargetLangs(): string[] {
-	return [...new Set(locales.map((l) => l.split("-")[0]))].filter((l) => l !== "en");
-}
-
 // The source strings/hash/predicate helpers are shared with the per-game
 // translate routes and the overview above: models/gameinfo-i18n.ts
 // (metadataSourceStrings, metadataSourceHash, metadataNeedsTranslation — a
 // pair needs translation when its overlay is missing, outdated, or a legacy
-// stamp-less "unknown" one).
+// stamp-less "unknown" one) plus the option-label side (optionSourceStrings,
+// optionKeysNeedingTranslation) combined by gameNeedsTranslation.
 
 // Defensive cap on (game, language) pairs per bulk run — every pair is up to
-// three paid LLM completions. Sized so a full-language refresh of the catalog
-// fits in one run.
+// three paid markdown completions plus the (batched) option-label ones. Sized
+// so a full-language refresh of the catalog fits in one run.
 const BULK_METADATA_MAX_PAIRS = 200;
 
 const metadataBulkSchema = z.object({
@@ -187,31 +241,39 @@ router.post("/translate-metadata-bulk", actionRateLimit("admin/translate-metadat
 	}
 	const { targetLang } = metadataBulkSchema.parse(ctx.request.body ?? {});
 
-	const metadatas = await colls.gameMetadatas
-		.find(
-			{},
-			{
-				projection: {
-					_id: 1,
-					label: 1,
-					description: 1,
-					rules: 1,
-					credits: 1,
-					translations: 1,
+	const [metadatas, sourceVersions] = await Promise.all([
+		colls.gameMetadatas
+			.find(
+				{},
+				{
+					projection: {
+						_id: 1,
+						label: 1,
+						description: 1,
+						rules: 1,
+						credits: 1,
+						translations: 1,
+						optionTranslations: 1,
+					},
 				},
-			},
-		)
-		.sort({ _id: 1 })
-		.toArray();
+			)
+			.sort({ _id: 1 })
+			.toArray(),
+		optionSourceVersions(),
+	]);
 
 	// Count only pairs that will actually be translated (source text present,
-	// overlay missing / outdated / stamp-less) so the progress total isn't
-	// inflated — the job loop re-checks each pair with the same predicate as a
-	// safety net against concurrent edits.
+	// overlay missing / outdated / stamp-less — markdown OR option labels,
+	// gameNeedsTranslation) so the progress total isn't inflated — the job
+	// loop re-checks each pair with the same predicate as a safety net against
+	// concurrent edits.
 	const targetLangs = targetLang ? [targetLang] : metadataTargetLangs();
-	const pairs = metadatas.flatMap((doc) =>
-		targetLangs.filter((lang) => metadataNeedsTranslation(doc, lang)).map((lang) => ({ item: doc._id, lang })),
-	);
+	const pairs = metadatas.flatMap((doc) => {
+		const optionSource = optionSourceStrings(sourceVersions.get(doc._id) ?? null);
+		return targetLangs
+			.filter((lang) => gameNeedsTranslation(doc, optionSource, lang))
+			.map((lang) => ({ item: doc._id, lang }));
+	});
 	if (pairs.length > BULK_METADATA_MAX_PAIRS) {
 		throw createError(400, `Too many (game, language) pairs: ${pairs.length} > ${BULK_METADATA_MAX_PAIRS}`);
 	}
@@ -229,38 +291,53 @@ router.post("/translate-metadata-bulk", actionRateLimit("admin/translate-metadat
 	await writeBulkJob(jobId, job);
 	auditLog(ctx, "translations.translateMetadataBulk", undefined, { jobId, total: pairs.length, targetLang });
 	startBulkJob(jobId, job, pairs, async ({ item: game, lang }) => {
-		const doc = await colls.gameMetadatas.findOne(
-			{ _id: game },
-			{ projection: { label: 1, description: 1, rules: 1, credits: 1, translations: 1 } },
-		);
+		const [doc, sourceVersion] = await Promise.all([
+			colls.gameMetadatas.findOne(
+				{ _id: game },
+				{ projection: { label: 1, description: 1, rules: 1, credits: 1, translations: 1, optionTranslations: 1 } },
+			),
+			optionSourceVersion(game),
+		]);
 		// In-loop re-check, same predicate as job creation: an overlay can have
 		// been written or the source edited (per-game translate-all, another
 		// bulk run) in between — a pair that became fresh skip-counts instead
-		// of being re-paid.
-		if (!doc || !metadataNeedsTranslation(doc, lang)) {
+		// of being re-paid. Within a pair, each PART is only paid when it needs
+		// it: fresh markdown + two new option labels = two label strings, no
+		// markdown completions.
+		const optionSource = optionSourceStrings(sourceVersion);
+		if (!doc || !gameNeedsTranslation(doc, optionSource, lang)) {
 			return "skipped";
 		}
-		const source = metadataSourceStrings(doc);
-		const overlay = Object.fromEntries(
-			await Promise.all(
-				Object.entries(source).map(async ([field, text]) => [
-					field,
-					await translateMarkdown({
-						text,
-						sourceLang: "en",
-						targetLang: lang,
-						context: `${field} of the boardgame "${doc.label ?? game}"`,
-					}),
-				]),
-			),
-		);
-		// Same $set overlay path — and the same translatedFrom.hash stamp — as
-		// the per-game translate routes, so bulk-translated overlays get
-		// outdated-tracking too.
-		await colls.gameMetadatas.updateOne(
-			{ _id: game },
-			{ $set: { [`translations.${lang}`]: { ...overlay, translatedFrom: { hash: metadataSourceHash(source) } } } },
-		);
+		if (metadataNeedsTranslation(doc, lang)) {
+			const source = metadataSourceStrings(doc);
+			const overlay = Object.fromEntries(
+				await Promise.all(
+					Object.entries(source).map(async ([field, text]) => [
+						field,
+						await translateMarkdown({
+							text,
+							sourceLang: "en",
+							targetLang: lang,
+							context: `${field} of the boardgame "${doc.label ?? game}"`,
+						}),
+					]),
+				),
+			);
+			// Same $set overlay path — and the same translatedFrom.hash stamp — as
+			// the per-game translate routes, so bulk-translated overlays get
+			// outdated-tracking too.
+			await colls.gameMetadatas.updateOne(
+				{ _id: game },
+				{ $set: { [`translations.${lang}`]: { ...overlay, translatedFrom: { hash: metadataSourceHash(source) } } } },
+			);
+		}
+		await translateOptionLabels({
+			game,
+			gameLabel: doc.label ?? game,
+			source: optionSource,
+			existingOverlay: doc.optionTranslations?.[lang],
+			targetLang: lang,
+		});
 		return "translated";
 	});
 

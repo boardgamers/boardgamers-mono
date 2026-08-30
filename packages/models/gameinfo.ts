@@ -178,6 +178,41 @@ export const gameMetadataTranslationsSchema = z.record(
 
 export type GameMetadataTranslations = z.output<typeof gameMetadataTranslationsSchema>;
 
+// Per-language translations of the engine-defined option/setting/preference/
+// expansion LABELS (#306 follow-up). GAME-level (on the metadata doc, like
+// `translations`) even though the labels themselves live on VERSION docs:
+// version docs are replaced wholesale on engine-version uploads, so anything
+// stored there would be wiped — while option/item NAMES are stable engine
+// identifiers, which is what the inner record is keyed by:
+//   "options.<name>", "options.<name>.items.<itemName>",
+//   "settings.<name>", "preferences.<name>", … and "expansions.<name>".
+// (Keys contain literal dots — fine as Mongo document VALUES since 3.6; they
+// are only ever written whole-language, never addressed by dotted update path.)
+// `translatedFrom.hash` is a content hash of the ENGLISH label the entry was
+// translated from — per-STRING, unlike the metadata overlay's whole-overlay
+// hash, because option labels change independently of each other across engine
+// versions. An entry is OUTDATED when the current English label hashes
+// differently. Like `translations`, deliberately NOT in GAME_METADATA_FIELDS
+// and NOT picked onto `gameInfoSchema`: the api resolves the request language
+// at merge time and serves the winning label in the regular
+// options/settings/preferences/expansions slots, so clients stay unchanged.
+export const gameOptionTranslationsSchema = z.record(
+	z.string().regex(/^[a-z]{2,3}$/, "language keys must be base subtags (2–3 lowercase letters)"),
+	z.record(
+		z.string(),
+		z.object({
+			label: z.string(),
+			translatedFrom: z
+				.object({
+					hash: z.string(),
+				})
+				.optional(),
+		}),
+	),
+);
+
+export type GameOptionTranslations = z.output<typeof gameOptionTranslationsSchema>;
+
 export const gameMetadataSchema = z.object({
 	_id: z.string(),
 	label: z.string(),
@@ -194,6 +229,8 @@ export const gameMetadataSchema = z.object({
 	credits: z.string().optional(),
 	// See gameMetadataTranslationsSchema above.
 	translations: gameMetadataTranslationsSchema.optional(),
+	// See gameOptionTranslationsSchema above.
+	optionTranslations: gameOptionTranslationsSchema.optional(),
 	links: z
 		.object({
 			source: z.string().optional(),

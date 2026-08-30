@@ -1,6 +1,6 @@
 import type { GameInfoDoc, GameMetadataDoc, GameVersionDoc } from "@bgs/models";
 import { colls } from "../config/db.ts";
-import { applyGameInfoTranslation } from "./gameinfo-i18n.ts";
+import { applyGameInfoTranslation, applyGameOptionTranslations } from "./gameinfo-i18n.ts";
 
 /**
  * Merge a version doc with its game's metadata doc into the `GameInfo` shape the
@@ -32,11 +32,15 @@ export function mergeGameInfo(
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- a bare version doc is a valid (metadata-less) GameInfo
 		return version as GameInfoDoc;
 	}
-	const { _id: _metadataId, translations, ...metadataFields } = metadata;
+	const { _id: _metadataId, translations, optionTranslations, ...metadataFields } = metadata;
 	const merged: GameInfoDoc = { ...version, ...metadataFields };
-	// `translations` is storage, not response shape: the merged doc serves the
-	// RESOLVED text in the regular description/rules/credits slots (#306).
-	return lang ? applyGameInfoTranslation(merged, translations, lang) : merged;
+	// `translations`/`optionTranslations` are storage, not response shape: the
+	// merged doc serves the RESOLVED text in the regular description/rules/
+	// credits slots and the RESOLVED labels in the regular options/settings/
+	// preferences/expansions slots (#306).
+	return lang
+		? applyGameOptionTranslations(applyGameInfoTranslation(merged, translations, lang), optionTranslations, lang)
+		: merged;
 }
 
 export async function findGameInfoWithVersion(

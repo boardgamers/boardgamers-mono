@@ -2,9 +2,14 @@ import { api } from "$lib/api.ts";
 import type { GameInfoFront, GameMetadataDoc } from "@bgs/models";
 
 // The meta GET adds `sourceHash` (content hash of the current
-// description/rules/credits, null when there's no source text) so the page can
-// tell which overlays need translation with the server's own rule.
-export type GameMetadataWithHash = GameMetadataDoc & { sourceHash?: string | null };
+// description/rules/credits, null when there's no source text) and
+// `translationNeeds` (the languages whose overlay needs translation by the
+// server's combined markdown + option-label predicate) so the page shows the
+// server's own rule instead of re-deriving it client-side.
+export type GameMetadataWithHash = GameMetadataDoc & {
+	sourceHash?: string | null;
+	translationNeeds?: string[];
+};
 
 export interface VersionTab {
 	version: number;

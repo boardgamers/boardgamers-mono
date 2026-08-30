@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { gameMetadataSchema, gameMetadataTranslationsSchema } from "./gameinfo.ts";
+import { gameMetadataSchema, gameMetadataTranslationsSchema, gameOptionTranslationsSchema } from "./gameinfo.ts";
 
 describe("gameMetadataSchema translations (#306)", () => {
 	const baseDoc = { _id: "splendor", label: "💎 Splendor", players: [2, 3, 4] };
@@ -55,5 +55,34 @@ describe("gameMetadataSchema translations (#306)", () => {
 			false,
 		);
 		assert.strictEqual(gameMetadataTranslationsSchema.safeParse({ de: { translatedFrom: {} } }).success, false);
+	});
+});
+
+describe("gameMetadataSchema optionTranslations (#306 follow-up)", () => {
+	const baseDoc = { _id: "splendor", label: "💎 Splendor", players: [2, 3, 4] };
+
+	it("accepts a per-language map of dotted overlay keys with per-string stamps", () => {
+		const doc = gameMetadataSchema.parse({
+			...baseDoc,
+			optionTranslations: {
+				fr: {
+					"options.balanced": { label: "Équilibré", translatedFrom: { hash: "0123456789abcdef" } },
+					"options.map.items.random": { label: "Aléatoire", translatedFrom: { hash: "fedcba9876543210" } },
+					"expansions.cities": { label: "Les Cités" }, // stamp-less (manual write)
+				},
+			},
+		});
+		assert.strictEqual(doc.optionTranslations?.fr?.["options.balanced"]?.label, "Équilibré");
+		assert.strictEqual(doc.optionTranslations?.fr?.["options.balanced"]?.translatedFrom?.hash, "0123456789abcdef");
+		assert.strictEqual(doc.optionTranslations?.fr?.["expansions.cities"]?.translatedFrom, undefined);
+	});
+
+	it("rejects non-base-subtag language keys and junk entries", () => {
+		assert.strictEqual(
+			gameOptionTranslationsSchema.safeParse({ "fr-CA": { "options.x": { label: "y" } } }).success,
+			false,
+		);
+		assert.strictEqual(gameOptionTranslationsSchema.safeParse({ fr: { "options.x": "y" } }).success, false);
+		assert.strictEqual(gameOptionTranslationsSchema.safeParse({ fr: { "options.x": { label: 42 } } }).success, false);
 	});
 });
