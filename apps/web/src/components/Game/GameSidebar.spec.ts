@@ -67,8 +67,7 @@ describe("GameSidebar rules link", () => {
 		for (const rulesPage of [true, false] as GameContext["rulesPage"][]) {
 			const { target, instance } = mountSidebar(rulesPage);
 
-			// resolve() doesn't strip the (app) group segment in the vitest env.
-			const link = target.querySelector<HTMLAnchorElement>('a[href="/(app)/boardgame/powergrid"]');
+			const link = target.querySelector<HTMLAnchorElement>('a[href="/boardgame/powergrid"]');
 			expect(link).not.toBeNull();
 			expect(link?.textContent).toContain("Game page");
 

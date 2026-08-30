@@ -16,6 +16,7 @@
 	import type { GameFront, UserFront } from "@bgs/models";
 	import { peekGames, gameListParams } from "@/lib/games.svelte";
 	import { m } from "@/lib/i18n/messages";
+	import HeroTagline from "@/components/HeroTagline.svelte";
 	import type { PageProps } from "./$types";
 
 	let { data }: PageProps = $props();
@@ -91,26 +92,7 @@
 	<div class="container mx-auto px-4">
 		<!-- Hero -->
 		<header class="py-6 text-center">
-			<p class="text-lg font-light">
-				Play <a
-					class="no-link font-semibold text-accent dark:text-accent-lighter"
-					href={resolve("/(app)/boardgame/[boardgameId]", { boardgameId: "gaia-project" })}>Gaia Project</a
-				>,
-				<a
-					class="no-link font-semibold text-accent dark:text-accent-lighter"
-					href={resolve("/(app)/boardgame/[boardgameId]", { boardgameId: "powergrid" })}>Powergrid</a
-				>,
-				<a
-					class="no-link font-semibold text-accent dark:text-accent-lighter"
-					href={resolve("/(app)/boardgame/[boardgameId]", { boardgameId: "take6" })}>6nimmt</a
-				>
-				and
-				<a
-					class="no-link font-semibold text-accent dark:text-accent-lighter"
-					href={resolve("/(app)/boardgame/[boardgameId]", { boardgameId: "container" })}>Container</a
-				>
-				online
-			</p>
+			<HeroTagline />
 			<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
 				{m.home_hero_discord()} <a href="https://discord.gg/EgqK3rD">{m.home_hero_discordLink()}</a>!
 			</p>

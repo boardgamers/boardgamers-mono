@@ -3,6 +3,7 @@
 // substitutes `[param]` segments. Only the IDs actually exercised by specs are mapped.
 const routes: Record<string, string> = {
 	"/(app)": "/",
+	"/(app)/boardgame/[boardgameId]": "/boardgame/[boardgameId]",
 	"/(app)/games": "/games",
 	"/(app)/login": "/login",
 	// `[...part2]` is spelled `[part2]` here so the substitution below (which only
