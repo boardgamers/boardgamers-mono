@@ -293,7 +293,6 @@ async function run() {
 			}
 		}
 
-
 		const gameConditions = uniqBy(
 			sortBy([...clients()], (c) => String(c.gameUpdate ?? "")),
 			(c) => c.game,

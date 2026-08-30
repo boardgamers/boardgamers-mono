@@ -88,11 +88,14 @@
 </script>
 
 {#if userId}
-	<div bind:this={container} 		class="absolute top-1/2 -translate-y-1/2 {mine
+	<div
+		bind:this={container}
+		class="absolute top-1/2 -translate-y-1/2 {mine
 			? editAffordance
 				? 'right-full mr-8'
 				: 'right-full mr-1'
-			: 'left-full ml-1'}">
+			: 'left-full ml-1'}"
+	>
 		<button
 			type="button"
 			class="rounded-full p-1 text-gray-400 transition-opacity hover:text-gray-600 focus-visible:opacity-100 dark:text-gray-500 dark:hover:text-gray-300 pointer-coarse:opacity-70 {pickerOpen

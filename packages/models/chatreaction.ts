@@ -36,10 +36,9 @@ export type ChatReactionDoc = z.output<typeof chatReactionSchema>;
 export const CHAT_REACTIONS_COLLECTION = "chatreactions";
 
 export const chatReactionIndexes: IndexDescription[] = [
-	// One doc per (message, user, emoji); also the toggle's upsert target
+	// One doc per (message, user, emoji); also the toggle's upsert target and the
+	// prefix every aggregate fetch ($in on message ids) walks
 	{ key: { message: 1, user: 1, emoji: 1 }, unique: true },
-	// Fetching a room's reactions when a client joins (message ids are $in-ed)
-	{ key: { room: 1, message: 1 } },
 	// Websocket watermark poll for live delivery (ws.ts)
 	{ key: { updatedAt: 1 } },
 ];
