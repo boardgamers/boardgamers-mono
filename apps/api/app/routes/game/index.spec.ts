@@ -8,6 +8,7 @@ import { ObjectId } from "mongodb";
 import { db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { colls } from "../../config/db.ts";
+import locks from "../../config/locks.ts";
 import { testUser, testGame, testGamePrefs } from "../../config/test-helpers.ts";
 import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
 
@@ -837,6 +838,100 @@ describe("Game API", () => {
 			const game = await colls.games.findOne({ _id: "cancel-overdue-voter" });
 			assert.strictEqual(game?.status, "ended", "The caller's own vote is the required real vote");
 			assert.strictEqual(game?.cancelled, true);
+		});
+	});
+
+	describe("game lock serialization (#280)", () => {
+		// cancel/quit/drop used to lock `game-cancel:<id>` while game-server moves
+		// lock `game:<id>` — different keys, so a cancel could interleave with an
+		// in-flight move. They now block on the shared `game:<id>` key.
+		async function assertWaitsForGameLock(gameId: string, request: () => Promise<{ status: number; data: unknown }>) {
+			const gameLock = await locks.lock("game", gameId);
+			assert.ok(gameLock, "the test acquired the game lock");
+			try {
+				let settled = false;
+				const pending = request().finally(() => {
+					settled = true;
+				});
+
+				await new Promise((r) => setTimeout(r, 400));
+				assert.strictEqual(settled, false, "the route waits while game:<id> is held");
+
+				await gameLock.free();
+				const res = await pending;
+				assert.strictEqual(res.status, 200, JSON.stringify(res.data));
+			} finally {
+				await gameLock.free();
+			}
+		}
+
+		it("cancel waits for the game:<id> lock", async () => {
+			await colls.games.insertOne(
+				testGame({
+					_id: "lock-cancel",
+					creator: userId,
+					status: "active",
+					players: [
+						{ _id: userId, name: "human" },
+						{ _id: new ObjectId(), name: "Rob (bot 1)", isBot: true },
+					],
+					game: { name: "test", version: 1 },
+				}),
+			);
+
+			await assertWaitsForGameLock("lock-cancel", () => api("POST", "/api/game/lock-cancel/cancel", {}, authHeaders));
+
+			const game = await colls.games.findOne({ _id: "lock-cancel" });
+			assert.strictEqual(game?.cancelled, true, "The cancel was applied once the lock was released");
+		});
+
+		it("quit waits for the game:<id> lock", async () => {
+			await colls.games.insertOne(
+				testGame({
+					_id: "lock-quit",
+					creator: userId,
+					status: "active",
+					players: [
+						{ _id: userId, name: "human1" },
+						{ _id: joinerId, name: "human2" },
+					],
+					game: { name: "test", version: 1 },
+				}),
+			);
+
+			await assertWaitsForGameLock("lock-quit", () => api("POST", "/api/game/lock-quit/quit", {}, joinerAuthHeaders));
+
+			assert.ok(
+				await colls.gameNotifications.findOne({ game: "lock-quit", kind: "playerQuit", user: joinerId }),
+				"The quit notification was emitted once the lock was released",
+			);
+		});
+
+		it("drop waits for the game:<id> lock", async () => {
+			await colls.games.insertOne(
+				testGame({
+					_id: "lock-drop",
+					creator: userId,
+					status: "active",
+					players: [
+						{ _id: userId, name: "human1" },
+						{ _id: joinerId, name: "overdue" },
+					],
+					currentPlayers: [
+						{ _id: joinerId, timerStart: new Date(Date.now() - 3600_000), deadline: new Date(Date.now() - 60_000) },
+					],
+					game: { name: "test", version: 1 },
+				}),
+			);
+
+			await assertWaitsForGameLock("lock-drop", () =>
+				api("POST", `/api/game/lock-drop/drop/${joinerId.toHexString()}`, {}, authHeaders),
+			);
+
+			assert.ok(
+				await colls.gameNotifications.findOne({ game: "lock-drop", kind: "dropPlayer", user: joinerId }),
+				"The drop notification was emitted once the lock was released",
+			);
 		});
 	});
 

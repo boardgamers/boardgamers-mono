@@ -61,7 +61,7 @@ async function runBotMoves(gameId: string): Promise<void> {
 		let played = false;
 
 		{
-			await using _lock = await locks.lock("game", gameId);
+			await using _lock = await locks.lockWait("game", gameId);
 			const game = await colls.games.findOne({ _id: gameId });
 
 			if (!game || game.status !== "active") {

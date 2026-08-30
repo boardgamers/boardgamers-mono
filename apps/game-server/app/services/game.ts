@@ -43,7 +43,7 @@ export async function startNextGame(): Promise<boolean> {
 
 	try {
 		{
-			await using _lock = await locks.lock("game", notification.game);
+			await using _lock = await locks.lockWait("game", notification.game);
 
 			const game = await colls.games.findOne({ _id: notification.game });
 
@@ -153,7 +153,7 @@ export async function startNextGame(): Promise<boolean> {
 export async function processQuit(notification: GameNotificationDoc) {
 	try {
 		{
-			await using _lock = await locks.lock("game", notification.game);
+			await using _lock = await locks.lockWait("game", notification.game);
 
 			const game = await colls.games.findOne({ _id: notification.game });
 

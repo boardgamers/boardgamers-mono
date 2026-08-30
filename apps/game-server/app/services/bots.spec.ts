@@ -6,7 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { ObjectId } from "mongodb";
-import { colls, closeDb } from "../config/db.ts";
+import { colls, closeDb, db } from "../config/db.ts";
+import locks from "../config/locks.ts";
 import { engineRunner } from "./engine-runner.ts";
 import { engineKey } from "./engines.ts";
 import { processQuit, startNextGame } from "./game.ts";
@@ -146,11 +147,23 @@ describe("bot driver", () => {
 		// concurrently against the same test db, and a dropDatabase() here would wipe
 		// another file's state mid-run.
 		await colls.games.deleteMany({
-			_id: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel", "bot-game-log"] },
+			_id: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel", "bot-game-log", "bot-game-lock"] },
 		});
 		await colls.gameNotifications.deleteMany({
-			game: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel", "bot-game-log"] },
+			game: { $in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel", "bot-game-log", "bot-game-lock"] },
 		});
+		// A force-exited previous run can orphan this suite's `game:<id>` lock docs
+		// (they only age out via the 60s TTL); game mutations block on them since
+		// #280, so a poisoned leftover would stall startGame for the whole TTL.
+		await db()
+			.collection("locks")
+			.deleteMany({
+				action: {
+					$in: ["bot-game-1", "bot-game-2", "bot-game-noai", "bot-game-cancel", "bot-game-log", "bot-game-lock"].map(
+						(id) => `game:${id}`,
+					),
+				},
+			});
 		await colls.gameInfos.deleteMany({ "_id.game": { $in: [ENGINE_NAME, "bot-test-noai", "bot-test-log"] } });
 		// Register the engine: getEngine/enginePath resolve via gameInfos.
 		await colls.gameInfos.insertOne({
@@ -299,6 +312,41 @@ describe("bot driver", () => {
 		assert.ok(game);
 		assert.strictEqual(game.cancelled, true, "Bot auto-consents to the human's cancel vote");
 		assert.strictEqual(game.players[1].dropped, true);
+	});
+
+	it("processQuit blocks while another actor holds the game:<id> lock (#280)", async () => {
+		// The api's cancel/quit/drop routes now hold the same `game:<id>` key —
+		// this proves the game-server side waits for it instead of interleaving.
+		const quitter = humanPlayer("quitter");
+		await insertGame("bot-game-lock", [quitter, humanPlayer("other")]);
+		await startGame("bot-game-lock");
+
+		const gameLock = await locks.lock("game", "bot-game-lock");
+		assert.ok(gameLock, "the test acquired the game lock");
+		try {
+			let settled = false;
+			const pending = processQuit({
+				kind: "playerQuit",
+				game: "bot-game-lock",
+				user: quitter._id,
+				processed: false,
+			}).finally(() => {
+				settled = true;
+			});
+
+			await new Promise((r) => setTimeout(r, 400));
+			assert.strictEqual(settled, false, "processQuit waits while game:<id> is held");
+			const held = await colls.games.findOne({ _id: "bot-game-lock" });
+			assert.strictEqual(held?.players[0].quit, false, "No quit was applied while the lock was held");
+
+			await gameLock.free();
+			await pending;
+		} finally {
+			await gameLock.free();
+		}
+
+		const game = await colls.games.findOne({ _id: "bot-game-lock" });
+		assert.strictEqual(game?.players[0].quit, true, "The quit was applied once the lock was released");
 	});
 
 	it("derives the last-move text from powergrid-style object log entries, and falls back to raw notation on an empty slice", async () => {

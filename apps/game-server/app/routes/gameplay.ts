@@ -28,7 +28,7 @@ router.post("/batch/replay", isAdmin, async (ctx) => {
 
 router.post("/:gameId/edit-data", isAdmin, async (ctx) => {
 	{
-		await using _lock = await locks.lock("game", ctx.params.gameId);
+		await using _lock = await locks.lockWait("game", ctx.params.gameId);
 		const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
 		if (!game) {
@@ -45,7 +45,7 @@ router.post("/:gameId/edit-data", isAdmin, async (ctx) => {
 
 router.post("/:gameId/replay", isAdmin, async (ctx) => {
 	{
-		await using _lock = await locks.lock("game", ctx.params.gameId);
+		await using _lock = await locks.lockWait("game", ctx.params.gameId);
 		const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
 		if (!game) {
@@ -84,7 +84,7 @@ router.post("/:gameId/replay", isAdmin, async (ctx) => {
 
 router.post("/:gameId/move", loggedIn, async (ctx) => {
 	{
-		await using _lock = await locks.lock("game", ctx.params.gameId);
+		await using _lock = await locks.lockWait("game", ctx.params.gameId);
 		const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
 		if (!game) {
@@ -252,7 +252,7 @@ router.post("/:gameId/settings", loggedIn, async (ctx) => {
 	assert(engine.setPlayerSettings, "This game does not support custom settings");
 
 	{
-		await using _lock = await locks.lock("game", ctx.params.gameId);
+		await using _lock = await locks.lockWait("game", ctx.params.gameId);
 		const freshGame = await colls.games.findOne({ _id: ctx.params.gameId });
 		assert(freshGame, "Game not found");
 

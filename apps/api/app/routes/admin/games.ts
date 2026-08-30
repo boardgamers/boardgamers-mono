@@ -30,7 +30,7 @@ function requireGameAccess(ctx: Context, game: string) {
 }
 
 router.post("/:gameId/cancel", async (ctx) => {
-	await using _lock = await locks.lock("game-cancel", ctx.params.gameId);
+	await using _lock = await locks.lockWait("game", ctx.params.gameId);
 	const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
 	if (!game) {
