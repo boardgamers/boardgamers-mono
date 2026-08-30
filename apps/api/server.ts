@@ -5,7 +5,6 @@ import { gracefulShutdown, installProcessHandlers, logEvent, pm2Ready, type Clos
 import { startEventLoopGuard } from "@bgs/utils/watchdog";
 import { listen as listenResources } from "./app/resources.ts";
 import type { Server } from "node:http";
-import type { WebSocketServer } from "ws";
 
 installProcessHandlers("api");
 
@@ -24,13 +23,14 @@ const serving = !env.cron || !env.isProduction;
 
 let apiServer: Server | undefined;
 let resourcesServer: Server | undefined;
-let wss: WebSocketServer | undefined;
+let wsShutdown: Closable | undefined;
 let cron: Closable | undefined;
 
 if (serving) {
 	apiServer = await listen().catch(handleError);
 	resourcesServer = await listenResources().catch(handleError);
-	({ wss } = await import("./app/ws.ts"));
+	// wsShutdown (not the raw wss) so shutdown closes chat sockets with 1001 — see ws.ts.
+	({ wsShutdown } = await import("./app/ws.ts"));
 	// In-process hang detector (see @bgs/utils/watchdog): each cluster worker exits on a
 	// wedged event loop so PM2 restarts it — the case the external watchdog can miss.
 	startEventLoopGuard("api");
@@ -43,7 +43,7 @@ if (env.cron) {
 	({ cron } = await import("./app/services/cron.ts"));
 }
 
-gracefulShutdown("api", () => [apiServer, resourcesServer, wss, cron]);
+gracefulShutdown("api", () => [apiServer, resourcesServer, wsShutdown, cron]);
 
 // Signal PM2 (wait_ready) that we're up and listening — reload only swaps in a new
 // worker once it reports ready, so a worker still connecting to the DB gets no traffic.
