@@ -31,6 +31,9 @@ export const ACTION_RATE_LIMITS: Record<string, ActionRateLimitOptions> = {
 	// to a user-supplied URL (#85/#33); cap it so the api can't be used to fan
 	// out request volume.
 	"account/webhook/test": { max: 10, windowMs: 60 * 60 * 1000 },
+	// DELETE /account/social/:provider — unlinking a login method is sensitive
+	// (account-takeover cleanup path); cap it like account/email.
+	"account/social/unlink": { max: 5, windowMs: 60 * 60 * 1000 },
 	// POST/DELETE /boardgame/:game/like — idempotent set/unset; the cap only bites
 	// rapid like-spam across many games (the like itself is a cheap unique-keyed upsert).
 	"boardgame/like": { max: 60, windowMs: 60 * 1000 },

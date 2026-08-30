@@ -606,7 +606,11 @@ export async function sendGameNotificationEmail(user: WithId<UserDoc>) {
 }
 
 export function stripSensitiveFields(user: WithId<UserDoc>): WithId<UserDoc> {
-	const { password: _password, ...account } = user.account;
+	const { password: _password, ...accountRest } = user.account;
+	// hasPassword mirrors hasWebhook below: a serialization-only hint (never stored)
+	// so the UI can tell whether unlinking a social login would drop the last login
+	// method without ever seeing the hash.
+	const account = { ...accountRest, ...(user.account.password ? { hasPassword: true } : {}) };
 	if (!user.security) {
 		return { ...user, account: { ...account } };
 	}

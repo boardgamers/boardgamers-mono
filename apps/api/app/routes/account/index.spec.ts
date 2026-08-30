@@ -867,3 +867,99 @@ describe("Account API — session cookie over a TLS-terminating proxy", () => {
 
 	after(() => db().dropDatabase());
 });
+
+describe("Account API — social unlink (#427)", () => {
+	// Fresh user + session per test: each case needs a different mix of login methods.
+	async function makeUser(overrides: { password?: string; social?: Record<string, string> }) {
+		const userId = new ObjectId();
+		await colls.users.insertOne(
+			testUser({
+				_id: userId,
+				account: {
+					...(overrides.password ? { password: await bcrypt.hash(overrides.password, 8) } : {}),
+					...(overrides.social
+						? {
+								social: overrides.social,
+								socialMeta: Object.fromEntries(
+									Object.keys(overrides.social).map((p) => [
+										p,
+										{ username: `meta-${p}`, url: `https://example.com/${p}` },
+									]),
+								),
+							}
+						: {}),
+				},
+			}),
+		);
+		const code = generateRefreshCode();
+		const tokenDoc = { user: userId, codeHash: hashRefreshCode(code), createdAt: new Date() };
+		await colls.jwtRefreshTokens.insertOne(tokenDoc);
+		const token = await createAccessToken(tokenDoc, ["all"], false);
+		return { userId, authHeaders: { Authorization: `Bearer ${token}` } };
+	}
+
+	it("unlinks a provider when the user has a password", async () => {
+		const { userId, authHeaders } = await makeUser({ password: "password", social: { discord: "d-1" } });
+
+		const res = await api("DELETE", "/api/account/social/discord", undefined, authHeaders);
+		assert.strictEqual(res.status, 200);
+
+		const body = z
+			.object({
+				account: z.object({ social: z.record(z.string(), z.string()).optional(), hasPassword: z.boolean().optional() }),
+			})
+			.parse(res.data);
+		assert.strictEqual(body.account.social?.discord, undefined);
+		assert.strictEqual(body.account.hasPassword, true);
+
+		const stored = await colls.users.findOne({ _id: userId });
+		assert.strictEqual(stored?.account.social?.discord, undefined);
+		assert.strictEqual(stored?.account.socialMeta?.discord, undefined);
+
+		const log = await colls.logs.findOne({ kind: "socialUnlink", "data.player": userId });
+		assert.strictEqual(log?.data.provider, "discord");
+	});
+
+	it("unlinks a provider when another social connection remains", async () => {
+		const { userId, authHeaders } = await makeUser({ social: { discord: "d-2", github: "g-2" } });
+
+		const res = await api("DELETE", "/api/account/social/discord", undefined, authHeaders);
+		assert.strictEqual(res.status, 200);
+
+		const stored = await colls.users.findOne({ _id: userId });
+		assert.strictEqual(stored?.account.social?.discord, undefined);
+		assert.strictEqual(stored?.account.social?.github, "g-2");
+	});
+
+	it("refuses to unlink the last login method", async () => {
+		const { userId, authHeaders } = await makeUser({ social: { discord: "d-3" } });
+
+		const res = await api("DELETE", "/api/account/social/discord", undefined, authHeaders);
+		assert.strictEqual(res.status, 400);
+		assert.match(JSON.stringify(res.data), /only way to log in/);
+
+		// Nothing changed, nothing logged.
+		const stored = await colls.users.findOne({ _id: userId });
+		assert.strictEqual(stored?.account.social?.discord, "d-3");
+		assert.strictEqual(await colls.logs.findOne({ kind: "socialUnlink", "data.player": userId }), null);
+	});
+
+	it("404s when the provider is not connected", async () => {
+		const { authHeaders } = await makeUser({ password: "password" });
+		const res = await api("DELETE", "/api/account/social/discord", undefined, authHeaders);
+		assert.strictEqual(res.status, 404);
+	});
+
+	it("rejects unknown providers", async () => {
+		const { authHeaders } = await makeUser({ password: "password", social: { discord: "d-4" } });
+		const res = await api("DELETE", "/api/account/social/twitter", undefined, authHeaders);
+		assert.strictEqual(res.status, 400);
+	});
+
+	it("requires login", async () => {
+		const res = await api("DELETE", "/api/account/social/discord");
+		assert.strictEqual(res.status, 401);
+	});
+
+	after(() => db().dropDatabase());
+});
