@@ -1,12 +1,21 @@
 <script lang="ts">
 	import type { ChatMessageFront } from "@bgs/models";
-	import { account, currentGameId, sidebarOpen, chatMessages } from "@/lib/stores.svelte";
+	import { account, currentGameId, sidebarOpen, chatMessages, chatReactions } from "@/lib/stores.svelte";
 	import { get, patch, post } from "@/lib/api";
 	import { Modal, ModalHeader, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
 	import IconChat from "@/components/icons/IconChat.svelte";
 	import IconPencil from "@/components/icons/IconPencil.svelte";
-	import { canEditMessage, countUnreadMessages, dateFromObjectId, handleError, lastEditableMessage } from "@/utils";
-	import { flushSync } from "svelte";
+	import {
+		canEditMessage,
+		countUnreadMessages,
+		dateFromObjectId,
+		handleError,
+		isPinnedToBottom,
+		lastEditableMessage,
+		shouldScrollChatToBottom,
+		type ChatScrollState,
+	} from "@/utils";
+	import { flushSync, tick } from "svelte";
 	import { fly } from "svelte/transition";
 	import ReactionBar from "./ReactionBar.svelte";
 	import UserAvatar from "./User/UserAvatar.svelte";
@@ -116,10 +125,31 @@
 	}
 
 	let userId = $derived($account?._id);
+	// Force-scroll to the bottom only when the chat opens or a NEW message lands
+	// at the end — never for in-place updates (edits re-pushed by the ws), which
+	// must not yank the view down while the user reads history.
+	let scrollState: ChatScrollState | undefined;
 	$effect(() => {
+		const next: ChatScrollState = { lastId: $chatMessages.at(-1)?._id, open: isOpen };
+		if (shouldScrollChatToBottom(scrollState, next)) {
+			onMessagesChanged();
+		}
+		scrollState = next;
+	});
+	// Reactions/edits growing a message row must not detach the bottom anchor:
+	// measured BEFORE the DOM updates ($effect.pre), a view pinned to the bottom
+	// is re-pinned after the update (chips on the last message would otherwise be
+	// clipped below the fold). When scrolled up, scrollTop is left alone.
+	// jsdom has no layout (scroll metrics are all 0), so this is browser-verified.
+	$effect.pre(() => {
+		$chatReactions;
 		$chatMessages;
-		isOpen;
-		onMessagesChanged();
+		const el = messagesContainer;
+		if (el && isPinnedToBottom(el)) {
+			tick().then(() => {
+				el.scrollTop = el.scrollHeight;
+			});
+		}
 	});
 	$effect(() => {
 		userId;
