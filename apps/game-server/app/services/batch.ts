@@ -25,7 +25,7 @@ export async function batchReplay(cond: Filter<GameDoc>) {
 			}
 
 			{
-				await using _lock = await locks.lock("game", game._id);
+				await using _lock = await locks.lockWait("game", game._id);
 
 				let gameData = await engine.replay(game.data);
 

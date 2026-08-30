@@ -101,7 +101,7 @@ export async function processUnreadyGames() {
 
 	for (const toFetch of gamesList) {
 		try {
-			await using _lock = await locks.lock("game", toFetch._id);
+			await using _lock = await locks.lockWait("game", toFetch._id);
 			const game = await colls.games.findOne({ _id: toFetch._id }, { projection: { status: 1 } });
 
 			if (game?.status === "open") {
@@ -124,7 +124,7 @@ function activeHumanPlayers(game: Pick<GameDoc, "players">): PlayerInfo[] {
 }
 
 export async function processStalledGame(gameId: string): Promise<void> {
-	await using _lock = await locks.lock("game-cancel", gameId);
+	await using _lock = await locks.lockWait("game", gameId);
 	const game = await colls.games.findOne({ _id: gameId });
 
 	if (!game || game.status !== "active") {

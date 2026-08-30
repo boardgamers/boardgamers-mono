@@ -425,7 +425,7 @@ router.post("/:gameId/invite", loggedIn, async (ctx) => {
 	const { userId } = z.object({ userId: zObjectId() }).parse(ctx.request.body);
 
 	{
-		await using _lock = await locks.lock("game", ctx.params.gameId);
+		await using _lock = await locks.lockWait("game", ctx.params.gameId);
 		const game = await colls.games.findOne({
 			_id: ctx.params.gameId,
 			status: "open",
@@ -498,7 +498,7 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
 	}
 
 	{
-		await using _lock = await locks.lock("game", ctx.params.gameId);
+		await using _lock = await locks.lockWait("game", ctx.params.gameId);
 		const game = await colls.games.findOne({
 			_id: ctx.params.gameId,
 			status: "open",
@@ -548,7 +548,7 @@ router.post("/:gameId/join", loggedIn, isConfirmed, async (ctx) => {
 router.post("/:gameId/unjoin", loggedIn, async (ctx) => {
 	const user = ctx.state.user!;
 	{
-		await using _lock = await locks.lock("game", ctx.params.gameId);
+		await using _lock = await locks.lockWait("game", ctx.params.gameId);
 		const game = await colls.games.findOne({ _id: ctx.params.gameId, status: "open" });
 
 		if (!game) {
@@ -582,7 +582,7 @@ router.post("/:gameId/unjoin", loggedIn, async (ctx) => {
 router.post("/:gameId/start", loggedIn, async (ctx) => {
 	const user = ctx.state.user!;
 	{
-		await using _lock = await locks.lock("game", ctx.params.gameId);
+		await using _lock = await locks.lockWait("game", ctx.params.gameId);
 		const game = await colls.games.findOne({
 			_id: ctx.params.gameId,
 			status: "open",
@@ -629,7 +629,7 @@ router.post("/:gameId/cancel", loggedIn, async (ctx) => {
 	);
 
 	{
-		await using _lock = await locks.lock("game-cancel", ctx.params.gameId);
+		await using _lock = await locks.lockWait("game", ctx.params.gameId);
 		const game = await colls.games.findOne({ _id: ctx.params.gameId });
 
 		assert(game, createError(404));
@@ -707,7 +707,7 @@ router.post("/:gameId/quit", loggedIn, async (ctx) => {
 	);
 
 	{
-		await using _lock = await locks.lock("game-cancel", ctx.params.gameId);
+		await using _lock = await locks.lockWait("game", ctx.params.gameId);
 		const game = await colls.games.findOne<Pick<GameDoc, "_id" | "players" | "status">>(
 			{ _id: ctx.params.gameId },
 			{ projection: { players: 1, status: 1 } },
@@ -748,7 +748,7 @@ router.post("/:gameId/drop/:userId", loggedIn, async (ctx) => {
 	);
 
 	{
-		await using _lock = await locks.lock("game-cancel", ctx.params.gameId);
+		await using _lock = await locks.lockWait("game", ctx.params.gameId);
 		const game = await colls.games.findOne<Pick<GameDoc, "_id" | "currentPlayers" | "players" | "status">>(
 			{ _id: ctx.params.gameId },
 			{ projection: { currentPlayers: 1, players: 1, status: 1 } },

@@ -34,6 +34,12 @@ async function doSetup() {
 	// duplicate-key bugs sail through the suite undetected.
 	await ensureIndexes(db());
 
+	// The drop above also killed the `locks` indexes, which mongo-locks creates
+	// (fire-and-forget) only once at init — without the unique index, locks don't
+	// mutually exclude and the #280 serialization specs would pass vacuously.
+	await db().collection("locks").createIndex({ action: 1 }, { unique: true });
+	await db().collection("locks").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 	env.listen.port.api = 0;
 	// Bind explicitly to 127.0.0.1 so the address the tests fetch (also 127.0.0.1
 	// via "localhost") matches the one the server is bound to. Otherwise on hosts
