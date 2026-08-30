@@ -5,6 +5,7 @@ import type { Context } from "koa";
 import Router from "koa-router";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
+import { metadataSourceHash, metadataSourceStrings } from "../../models/gameinfo-i18n.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { translateMarkdown } from "../../services/translate.ts";
 import { type BulkTranslateJob, listBulkJobs, startBulkJob, writeBulkJob } from "./bulkjob.ts";
@@ -28,21 +29,7 @@ router.get("/overview", async (ctx) => {
 	const [pages, metadatas, jobs] = await Promise.all([
 		colls.pages.find({}, { projection: { _id: 1, title: 1, updatedAt: 1, translatedFrom: 1 } }).toArray(),
 		colls.gameMetadatas
-			.find(
-				{},
-				{
-					projection: {
-						_id: 1,
-						label: 1,
-						alias: 1,
-						description: 1,
-						rules: 1,
-						credits: 1,
-						translations: 1,
-						updatedAt: 1,
-					},
-				},
-			)
+			.find({}, { projection: { _id: 1, label: 1, alias: 1, description: 1, rules: 1, credits: 1, translations: 1 } })
 			.sort({ _id: 1 })
 			.toArray(),
 		listBulkJobs(),
@@ -78,17 +65,21 @@ router.get("/overview", async (ctx) => {
 
 	// Game metadata: per game × locale base subtag, the translations overlay's
 	// status and which fields it covers. Status mirrors the pages matrix, with
-	// one extra state: "missing" (no overlay), "outdated" (the source's
-	// updatedAt is newer than the overlay's translatedFrom stamp), "ok"
-	// (stamped and fresh), and "unknown" (overlay predates translatedFrom
-	// tracking — no stamp, so freshness can't be told either way). The tracked
-	// unit is the whole overlay: per-field outdatedness would need per-field
-	// source timestamps, which don't exist (updatedAt is doc-level).
+	// one extra state: "missing" (no overlay), "outdated" (the current source
+	// text hashes differently than the overlay's translatedFrom.hash stamp),
+	// "ok" (stamped and fresh), and "unknown" (overlay predates translatedFrom
+	// tracking — no stamp, so freshness can't be told either way). Content
+	// hash, NOT doc.updatedAt: the doc's updatedAt bumps on every write (likes,
+	// status recomputes, the overlay write itself), so a timestamp comparison
+	// would self-invalidate — see metadataSourceHash. The tracked unit is the
+	// whole overlay: per-field outdatedness would need per-field hashes; the
+	// pragmatic unit is the source text as a whole.
 	const metaLangs = metadataTargetLangs();
 	const visibleGames = canUser(ctx.state.user, "pages")
 		? metadatas
 		: metadatas.filter((m) => canUserManageGame(ctx.state.user, m._id));
 	const gameRows = visibleGames.map((meta) => {
+		const sourceHash = metadataSourceHash(metadataSourceStrings(meta));
 		const cells = Object.fromEntries(
 			metaLangs.map((lang) => {
 				const overlay = meta.translations?.[lang];
@@ -97,11 +88,13 @@ router.get("/overview", async (ctx) => {
 				}
 				// Non-text overlay keys (translatedFrom) are not translated fields.
 				const fields = (["description", "rules", "credits"] as const).filter((f) => !!overlay[f]);
-				if (!overlay.translatedFrom) {
+				// `?.hash` is defensive: schema-invalid stamps (validation is "warn")
+				// degrade to "unknown" instead of a crash or a false "ok".
+				const stampedHash = overlay.translatedFrom?.hash;
+				if (!stampedHash) {
 					return [lang, { status: "unknown", fields }];
 				}
-				const outdated = !!(meta.updatedAt && meta.updatedAt > overlay.translatedFrom.updatedAt);
-				return [lang, { status: outdated ? "outdated" : "ok", fields }];
+				return [lang, { status: stampedHash === sourceHash ? "ok" : "outdated", fields }];
 			}),
 		);
 		return {

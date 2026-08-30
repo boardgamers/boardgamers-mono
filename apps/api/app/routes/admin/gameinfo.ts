@@ -13,6 +13,7 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { canUserManageGame, isGameAdminGrant, locales, userPermissions } from "@bgs/models";
 import { colls } from "../../config/db.ts";
+import { metadataSourceHash, metadataSourceStrings } from "../../models/gameinfo-i18n.ts";
 import { findByEmail, findByUsername, findGameInfoWithVersion } from "../../models/index.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { deriveGameMetaStatus, lastAccessibleVersion } from "../../services/gameinfo.ts";
@@ -141,32 +142,15 @@ router.put("/:game/meta", async (ctx) => {
 	ctx.body = doc;
 });
 
-// The base (English) description/rules/credits that have a non-empty string —
-// the source every translate call below works from. Typed so callers don't
-// need a cast.
-function metadataSourceStrings(doc: {
-	description?: string;
-	rules?: string;
-	credits?: string;
-}): Record<string, string> {
-	const source: Record<string, string> = {};
-	for (const field of ["description", "rules", "credits"] as const) {
-		const value = doc[field];
-		if (typeof value === "string" && value) {
-			source[field] = value;
-		}
-	}
-	return source;
-}
-
 // POST /:game/meta/translate — LLM-translate the game's free-text metadata
 // (description/rules/credits) into `targetLang`, storing the result in the
 // `translations` overlay (#306). The base (English) fields are the source and
 // stay untouched; the api serves the winning per-language string at read time
-// (models/gameinfo-i18n.ts). The overlay is stamped with `translatedFrom` =
-// the source doc's updatedAt so the translations dashboard can flag it
-// outdated after a later source edit. Rate-limited per admin: every call is
-// up to three paid LLM completions.
+// (models/gameinfo-i18n.ts). The overlay is stamped with `translatedFrom.hash`
+// = the content hash of the source strings, so the translations dashboard can
+// flag it outdated after a later source TEXT edit (a hash, not updatedAt —
+// see metadataSourceHash). Rate-limited per admin: every call is up to three
+// paid LLM completions.
 const metadataTranslateSchema = z.object({
 	targetLang: z
 		.string()
@@ -217,7 +201,7 @@ router.post("/:game/meta/translate", actionRateLimit("admin/translate-gameinfo")
 		{ _id: game },
 		{
 			$set: {
-				[`translations.${targetLang}`]: { ...translated, translatedFrom: { updatedAt: doc.updatedAt ?? new Date() } },
+				[`translations.${targetLang}`]: { ...translated, translatedFrom: { hash: metadataSourceHash(source) } },
 			},
 		},
 		{ returnDocument: "after" },
@@ -274,7 +258,7 @@ router.post("/:game/meta/translate-all", actionRateLimit("admin/translate-gamein
 				{ _id: game },
 				{
 					$set: {
-						[`translations.${targetLang}`]: { ...overlay, translatedFrom: { updatedAt: doc.updatedAt ?? new Date() } },
+						[`translations.${targetLang}`]: { ...overlay, translatedFrom: { hash: metadataSourceHash(source) } },
 					},
 				},
 			);

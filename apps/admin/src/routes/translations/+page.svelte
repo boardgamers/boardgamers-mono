@@ -282,12 +282,12 @@
 			</div>
 			<div class="flex gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
 				<span
-					><span class="inline-block w-3 h-3 rounded bg-emerald-200 dark:bg-emerald-900/60 align-middle"></span> ok</span
+					><span class="inline-block w-3 h-3 rounded bg-emerald-100 dark:bg-emerald-900/60 align-middle"></span> ok</span
 				>
 				<span
-					><span class="inline-block w-3 h-3 rounded bg-amber-200 dark:bg-amber-900/60 align-middle"></span> outdated</span
+					><span class="inline-block w-3 h-3 rounded bg-amber-100 dark:bg-amber-900/60 align-middle"></span> outdated</span
 				>
-				<span><span class="inline-block w-3 h-3 rounded bg-gray-200 dark:bg-gray-800 align-middle"></span> missing</span
+				<span><span class="inline-block w-3 h-3 rounded bg-gray-100 dark:bg-gray-800 align-middle"></span> missing</span
 				>
 			</div>
 		</section>
@@ -363,15 +363,15 @@
 			</div>
 			<div class="flex gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
 				<span
-					><span class="inline-block w-3 h-3 rounded bg-emerald-200 dark:bg-emerald-900/60 align-middle"></span> ok</span
+					><span class="inline-block w-3 h-3 rounded bg-emerald-100 dark:bg-emerald-900/60 align-middle"></span> ok</span
 				>
 				<span
-					><span class="inline-block w-3 h-3 rounded bg-amber-200 dark:bg-amber-900/60 align-middle"></span> outdated</span
+					><span class="inline-block w-3 h-3 rounded bg-amber-100 dark:bg-amber-900/60 align-middle"></span> outdated</span
 				>
 				<span
-					><span class="inline-block w-3 h-3 rounded bg-sky-200 dark:bg-sky-900/60 align-middle"></span> unknown (pre-tracking)</span
+					><span class="inline-block w-3 h-3 rounded bg-sky-100 dark:bg-sky-900/60 align-middle"></span> unknown (pre-tracking)</span
 				>
-				<span><span class="inline-block w-3 h-3 rounded bg-gray-200 dark:bg-gray-800 align-middle"></span> missing</span
+				<span><span class="inline-block w-3 h-3 rounded bg-gray-100 dark:bg-gray-800 align-middle"></span> missing</span
 				>
 			</div>
 		</section>

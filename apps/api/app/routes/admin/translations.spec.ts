@@ -9,6 +9,7 @@ import { ObjectId } from "mongodb";
 import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { testUser } from "../../config/test-helpers.ts";
+import { metadataSourceHash, metadataSourceStrings } from "../../models/gameinfo-i18n.ts";
 import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
 import { ACTION_RATE_LIMITS } from "../../services/actionratelimit.ts";
 
@@ -208,19 +209,17 @@ describe("Admin translations overview + bulk job lifecycle (#306)", () => {
 	});
 
 	it("reports ok / outdated for stamped metadata overlays, flipping on a source edit", async () => {
-		const t1 = new Date(Date.now() - 60_000);
-		const t2 = new Date();
+		const sourceHash = metadataSourceHash(metadataSourceStrings({ description: "A game" }));
 		await colls.gameMetadatas.insertOne({
 			_id: "ovstamp",
 			label: "OV Stamped",
 			players: [2],
 			description: "A game",
-			updatedAt: t2,
 			translations: {
-				// Translated against the current source → ok.
-				de: { description: "Ein Spiel", translatedFrom: { updatedAt: t2 } },
-				// Translated against an older source → outdated.
-				fr: { description: "Un jeu", translatedFrom: { updatedAt: t1 } },
+				// Translated against the current source text → ok.
+				de: { description: "Ein Spiel", translatedFrom: { hash: sourceHash } },
+				// Translated against different (older) source text → outdated.
+				fr: { description: "Un jeu", translatedFrom: { hash: "0000000000000000" } },
 			},
 		});
 
@@ -234,14 +233,70 @@ describe("Admin translations overview + bulk job lifecycle (#306)", () => {
 		assert.equal(game.cells.fr.status, "outdated");
 		assert.equal(game.cells.ru.status, "missing");
 
-		// A source edit bumps the doc's updatedAt (withAutoUpdatedAt) → the
-		// previously-fresh de overlay flips to outdated.
+		// A source text edit changes the source hash → the previously-fresh de
+		// overlay flips to outdated.
 		await colls.gameMetadatas.updateOne({ _id: "ovstamp" }, { $set: { description: "An edited game" } });
 		const resAfter = await api("GET", "/api/admin/translations/overview", adminHeaders);
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
 		const flipped = (resAfter.data as Overview).games.find((g) => g.game === "ovstamp");
 		assert.equal(flipped?.cells.de.status, "outdated");
 		assert.equal(flipped?.cells.fr.status, "outdated");
+	});
+
+	it("end-to-end: translate → ok; likes don't flip it; a source edit does; a revert restores ok", async () => {
+		// Realistic fixture: a doc that already has an updatedAt and likes —
+		// regression guard for the two #415 review blockers (self-invalidation
+		// via the overlay write's own updatedAt bump; like-bumps reading as
+		// outdated).
+		await colls.gameInfos.insertOne({
+			_id: { game: "ove2e", version: 1 },
+			viewer: { url: "//v1" },
+			public: true,
+			meta: {},
+		});
+		await colls.gameMetadatas.insertOne({
+			_id: "ove2e",
+			label: "OV E2E",
+			players: [2],
+			description: "The original description.",
+			likeCount: 3,
+			createdAt: new Date(Date.now() - 86_400_000),
+			updatedAt: new Date(Date.now() - 3600_000),
+		});
+
+		const statusOf = async () => {
+			const res = await api("GET", "/api/admin/translations/overview", adminHeaders);
+			assert.strictEqual(res.status, 200);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			return (res.data as Overview).games.find((g) => g.game === "ove2e")?.cells.de.status;
+		};
+
+		// The real translate endpoint (against the suite's LLM stub) stamps the
+		// overlay; the write itself bumps updatedAt (withAutoUpdatedAt), which
+		// must NOT read as outdated.
+		const translate = await api("POST", "/api/admin/gameinfo/ove2e/meta/translate", adminHeaders, {
+			targetLang: "de",
+		});
+		assert.strictEqual(translate.status, 200, JSON.stringify(translate.data));
+		assert.equal(await statusOf(), "ok");
+
+		// A like bumps updatedAt through the same wrapper the gamelike service
+		// uses — the translation is still fresh.
+		await colls.gameMetadatas.updateOne({ _id: "ove2e" }, { $inc: { likeCount: 1 } });
+		assert.equal(await statusOf(), "ok");
+
+		// A real source edit through the metadata form flips it.
+		const edit = await api("PUT", "/api/admin/gameinfo/ove2e/meta", adminHeaders, {
+			description: "The edited description.",
+		});
+		assert.strictEqual(edit.status, 200);
+		assert.equal(await statusOf(), "outdated");
+
+		// Edit-then-revert: the content hash matches the stamp again → ok.
+		await api("PUT", "/api/admin/gameinfo/ove2e/meta", adminHeaders, {
+			description: "The original description.",
+		});
+		assert.equal(await statusOf(), "ok");
 	});
 
 	it("lists every bulk job, newest first, with lifecycle timestamps", async () => {
