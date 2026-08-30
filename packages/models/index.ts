@@ -42,6 +42,9 @@ export {
 	chatMessagesCollectionOptions,
 } from "./chatmessage.ts";
 
+// --- Chat Rooms (public / lobby) ---
+export { LOBBY_ROOM, PUBLIC_CHAT_ROOMS, isPublicChatRoom } from "./chatroom.ts";
+
 // --- Chat Reaction ---
 export type { ChatReactionDoc, ChatReactionAggregate } from "./chatreaction.ts";
 export {

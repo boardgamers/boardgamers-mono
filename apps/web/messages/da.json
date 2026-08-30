@@ -145,6 +145,7 @@
 	"chat.emoji.searchResults": "Søgeresultater",
 	"chat.emoji.smileys": "Smileys",
 	"chat.emoji.symbols": "Symboler",
+	"chat.lobbyTitle": "Lobbychat",
 	"chat.moreReactions": "Flere reaktioner",
 	"chat.placeholder": "Skriv en besked…",
 	"chat.reactionTooltip": "Reagerede med {emoji}: {names}",

@@ -2,7 +2,7 @@
 	import { resolve } from "$app/paths";
 	import type { Pathname } from "$app/types";
 	import SanitizedHtml from "@/components/SanitizedHtml.svelte";
-	import { GameListSidebar, SetupOptionsFilter } from "@/components";
+	import { GameListSidebar, LobbyChat, SetupOptionsFilter } from "@/components";
 	import { Button } from "@/modules/cdk";
 	import marked from "marked";
 	import GameList from "@/components/Game/GameList.svelte";
@@ -164,6 +164,8 @@
 		</div>
 	</div>
 </div>
+
+<LobbyChat />
 
 <style>
 	:global(.announcement-content p) {

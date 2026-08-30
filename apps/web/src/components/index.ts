@@ -2,6 +2,7 @@ export { default as BoardgameElo } from "./BoardgameElo.svelte";
 export { default as BoardgameLinks } from "./BoardgameLinks.svelte";
 export { default as BoardgameRequests } from "./BoardgameRequests.svelte";
 export { default as ChatRoom } from "./ChatRoom.svelte";
+export { default as LobbyChat } from "./LobbyChat.svelte";
 export * from "./Game";
 export { default as GameLikeButton } from "./GameLikeButton.svelte";
 export { default as GameName } from "./GameName.svelte";

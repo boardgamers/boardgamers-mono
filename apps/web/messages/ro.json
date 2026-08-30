@@ -145,6 +145,7 @@
 	"chat.emoji.searchResults": "Rezultatele căutării",
 	"chat.emoji.smileys": "Fețe zâmbitoare",
 	"chat.emoji.symbols": "Simboluri",
+	"chat.lobbyTitle": "Chat în lobby",
 	"chat.moreReactions": "Mai multe reacții",
 	"chat.placeholder": "Scrie un mesaj…",
 	"chat.reactionTooltip": "Reacție {emoji}: {names}",

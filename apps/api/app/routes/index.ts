@@ -8,6 +8,7 @@ import feedback from "./feedback/index.ts";
 import game from "./game/index.ts";
 import oauth2 from "./oauth2/index.ts";
 import page from "./pages/index.ts";
+import room from "./room/index.ts";
 import site from "./site/index.ts";
 import user from "./user/index.ts";
 
@@ -27,6 +28,7 @@ router.use("/api/account", account.routes(), account.allowedMethods());
 router.use("/api/admin", admin.routes(), admin.allowedMethods());
 router.use("/api/oauth2", oauth2.routes(), oauth2.allowedMethods());
 router.use("/api/game", game.routes(), game.allowedMethods());
+router.use("/api/room", room.routes(), room.allowedMethods());
 router.use("/api/user", user.routes(), user.allowedMethods());
 router.use("/api/site", site.routes(), site.allowedMethods());
 router.use("/api/page", page.routes(), page.allowedMethods());

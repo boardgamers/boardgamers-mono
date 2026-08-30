@@ -1,8 +1,10 @@
 import type { ChatMessageFront } from "@bgs/models";
+import { LOBBY_ROOM } from "@bgs/models/chatroom";
 import { describe, expect, it } from "vitest";
 import {
 	CHAT_EDIT_WINDOW_MS,
 	canEditMessage,
+	chatApiBase,
 	countUnreadMessages,
 	isPinnedToBottom,
 	lastEditableMessage,
@@ -24,6 +26,13 @@ function msg(overrides: Partial<ChatMessageFront> & { at: number }): ChatMessage
 		...rest,
 	};
 }
+
+describe("chatApiBase", () => {
+	it("routes public rooms under /room and game rooms under /game", () => {
+		expect(chatApiBase(LOBBY_ROOM)).toBe("/room/lobby");
+		expect(chatApiBase("some-game-id")).toBe("/game/some-game-id");
+	});
+});
 
 describe("countUnreadMessages", () => {
 	it("counts messages after lastRead", () => {
