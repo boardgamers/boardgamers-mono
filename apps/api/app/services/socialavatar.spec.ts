@@ -18,7 +18,7 @@ describe("validSocialAvatarUrl — provider CDN whitelist", () => {
 			["github", "https://avatars.githubusercontent.com/u/123?v=4"],
 			["github", "https://avatars0.githubusercontent.com/u/123"],
 			["huggingface", "https://cdn-avatars.huggingface.co/v1/production/uploads/x.jpeg"],
-			["huggingface", "https://huggingface.co/avatars/abc.svg"],
+			["huggingface", "https://huggingface.co/avatars/abc.png"],
 		] as const) {
 			assert.strictEqual(validSocialAvatarUrl(provider, url), url, `${provider} should accept ${url}`);
 		}
@@ -40,6 +40,18 @@ describe("validSocialAvatarUrl — provider CDN whitelist", () => {
 		]) {
 			assert.strictEqual(validSocialAvatarUrl("discord", url), undefined, `should reject ${url}`);
 		}
+	});
+
+	it("anchors bare huggingface.co to the /avatars/ path (it also serves arbitrary repo content)", () => {
+		for (const url of [
+			"https://huggingface.co/someuser/somerepo/resolve/main/payload.png",
+			"https://huggingface.co/datasets/x/y/resolve/main/z.png",
+			"https://huggingface.co/avatarsfake/x.png",
+		]) {
+			assert.strictEqual(validSocialAvatarUrl("huggingface", url), undefined, `should reject ${url}`);
+		}
+		const ok = "https://huggingface.co/avatars/abc123.png";
+		assert.strictEqual(validSocialAvatarUrl("huggingface", ok), ok);
 	});
 
 	it("rejects explicit ports and URL credentials", () => {
@@ -91,6 +103,10 @@ describe("fetchSocialAvatarBytes — transport guards (local server; loopback al
 				res.writeHead(200, { "content-type": "text/html" });
 				res.end("<html>not an image</html>");
 				return;
+			case "/vector.svg":
+				res.writeHead(200, { "content-type": "image/svg+xml" });
+				res.end('<svg xmlns="http://www.w3.org/2000/svg"/>');
+				return;
 			case "/redirect":
 				res.writeHead(302, { location: `${baseUrl}/ok.png` });
 				res.end();
@@ -123,7 +139,11 @@ describe("fetchSocialAvatarBytes — transport guards (local server; loopback al
 	});
 
 	it("rejects a non-image content-type", async () => {
-		await assert.rejects(fetchSocialAvatarBytes(`${baseUrl}/page.html`), /non-image content-type/);
+		await assert.rejects(fetchSocialAvatarBytes(`${baseUrl}/page.html`), /non-raster-image content-type/);
+	});
+
+	it("rejects SVG (raster whitelist — no untrusted XML through librsvg)", async () => {
+		await assert.rejects(fetchSocialAvatarBytes(`${baseUrl}/vector.svg`), /non-raster-image content-type/);
 	});
 
 	it("does not follow redirects (a 302 is a failure, not a hop)", async () => {

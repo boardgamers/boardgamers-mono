@@ -14,27 +14,36 @@ import { safeFetchBuffer } from "./safefetch.ts";
  *    stored) and again at fetch time (defense in depth for stored docs);
  *  - the fetch itself goes through safeFetchBuffer: special-use/loopback IP
  *    blocklist with DNS pinning, no redirects, 10s timeout, hard size cap;
- *  - the response must be 200 with an image/* content-type, and sharp re-encodes
- *    it — the original bytes are never stored or served.
+ *  - the response must be 200 with a whitelisted RASTER image content-type (no
+ *    SVG — no untrusted XML through librsvg), and sharp re-encodes it — the
+ *    original bytes are never stored or served.
  */
 
 export type SocialAvatarProvider = "google" | "facebook" | "discord" | "github" | "huggingface";
 
-// Known avatar CDN hosts per provider. Deliberately strict: a miss only means the
-// user can't one-click-copy that avatar, while a stray entry widens what the api
-// can be told to fetch.
-const AVATAR_HOSTS: Record<SocialAvatarProvider, RegExp[]> = {
-	google: [/^lh\d+\.googleusercontent\.com$/],
+// Known avatar CDN locations per provider. Deliberately strict: a miss only means
+// the user can't one-click-copy that avatar, while a stray entry widens what the
+// api can be told to fetch. `path` (when present) anchors the pathname too — bare
+// huggingface.co also serves arbitrary user repo content, so only its known
+// avatar path shape (/avatars/…, the default-avatar URLs in the OIDC `picture`
+// claim) is allowed.
+const AVATAR_SOURCES: Record<SocialAvatarProvider, { host: RegExp; path?: RegExp }[]> = {
+	google: [{ host: /^lh\d+\.googleusercontent\.com$/ }],
 	// Facebook is being phased out (#99) and its passport profile carries no photo
-	// with the default fields — no hosts, so nothing is ever captured or fetched.
+	// with the default fields — no sources, so nothing is ever captured or fetched.
 	facebook: [],
-	discord: [/^cdn\.discordapp\.com$/],
-	github: [/^avatars\d*\.githubusercontent\.com$/],
-	huggingface: [/^cdn-avatars\.huggingface\.co$/, /^huggingface\.co$/],
+	discord: [{ host: /^cdn\.discordapp\.com$/ }],
+	github: [{ host: /^avatars\d*\.githubusercontent\.com$/ }],
+	huggingface: [{ host: /^cdn-avatars\.huggingface\.co$/ }, { host: /^huggingface\.co$/, path: /^\/avatars\// }],
 };
 
 export const SOCIAL_AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 const SOCIAL_AVATAR_TIMEOUT_MS = 10_000;
+
+// Raster formats only — deliberately NOT image/*: SVG would route untrusted XML
+// through librsvg (extra parser surface in sharp), and provider avatars are
+// always raster anyway.
+const ALLOWED_CONTENT_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif", "image/avif"]);
 
 /**
  * Validate a provider avatar URL: https only, host on the provider's known CDN
@@ -54,7 +63,7 @@ export function validSocialAvatarUrl(provider: SocialAvatarProvider, raw: string
 	if (url.protocol !== "https:" || url.port !== "" || url.username !== "" || url.password !== "") {
 		return undefined;
 	}
-	if (!AVATAR_HOSTS[provider].some((host) => host.test(url.hostname))) {
+	if (!AVATAR_SOURCES[provider].some((s) => s.host.test(url.hostname) && (!s.path || s.path.test(url.pathname)))) {
 		return undefined;
 	}
 	return url.toString();
@@ -71,8 +80,14 @@ export async function fetchSocialAvatarBytes(url: string): Promise<Buffer> {
 		maxBodyBytes: SOCIAL_AVATAR_MAX_BYTES,
 	});
 	assert(response.statusCode === 200, `avatar fetch failed (${response.statusCode})`);
-	const contentType = String(response.headers["content-type"] ?? "");
-	assert(contentType.startsWith("image/"), `avatar fetch returned a non-image content-type (${contentType})`);
+	const contentType = String(response.headers["content-type"] ?? "")
+		.split(";")[0]
+		.trim()
+		.toLowerCase();
+	assert(
+		ALLOWED_CONTENT_TYPES.has(contentType),
+		`avatar fetch returned a non-raster-image content-type (${contentType})`,
+	);
 	return response.body;
 }
 

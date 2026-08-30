@@ -269,6 +269,22 @@ describe("Account API — social avatar URL capture (Codeberg #34)", () => {
 		});
 	});
 
+	it("drops a huggingface avatar URL outside the known /avatars/ path at capture", async () => {
+		// Bare huggingface.co also serves arbitrary user repo content — only the
+		// default-avatar path shape from the OIDC `picture` claim is acceptable.
+		const { userId, current } = await link("avcap6");
+		const { err } = await verifySocial("huggingface", "hf-av-1", current, {
+			username: "hfuser6",
+			avatarUrl: "https://huggingface.co/someuser/somerepo/resolve/main/payload.png",
+		});
+		assert.ifError(err);
+		const stored = await colls.users.findOne({ _id: userId });
+		assert.deepStrictEqual(stored?.account.socialMeta?.huggingface, {
+			username: "hfuser6",
+			url: "https://huggingface.co/hfuser6",
+		});
+	});
+
 	it("refreshes stale meta on login (rotated discord avatar hash)", async () => {
 		const { userId, current } = await link("avcap5");
 		await verifySocial("discord", "d-av-5", current, { username: "gamer5", avatar: "oldhash" });
