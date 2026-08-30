@@ -954,7 +954,14 @@ describe("Admin gameinfo API — metadata translation (#306)", () => {
 				description: z.string(),
 				rules: z.string(),
 				translations: z
-					.record(z.string(), z.object({ description: z.string().optional(), rules: z.string().optional() }))
+					.record(
+						z.string(),
+						z.object({
+							description: z.string().optional(),
+							rules: z.string().optional(),
+							translatedFrom: z.object({ updatedAt: z.coerce.date() }).optional(),
+						}),
+					)
 					.optional(),
 			})
 			.parse(JSON.parse(resBody));
@@ -965,6 +972,10 @@ describe("Admin gameinfo API — metadata translation (#306)", () => {
 		assert.strictEqual(doc.translations?.de?.description, "[de] A **great** game.");
 		assert.strictEqual(doc.translations?.de?.rules, "[de] Build first.");
 		assert.strictEqual(doc.translations?.de && "credits" in doc.translations.de, false);
+		// Stamped with the source doc's updatedAt so the dashboard can track outdatedness.
+		const stored = await colls.gameMetadatas.findOne({ _id: "transgame" });
+		assert.ok(stored?.updatedAt, "the source doc has an updatedAt");
+		assert.strictEqual(doc.translations?.de?.translatedFrom?.updatedAt?.getTime(), stored.updatedAt.getTime());
 	});
 
 	it("translate-all fills every missing UI locale and skips existing ones", async () => {
@@ -987,6 +998,14 @@ describe("Admin gameinfo API — metadata translation (#306)", () => {
 		assert.strictEqual(doc?.translations?.de?.description, "[de] A **great** game.");
 		assert.strictEqual(doc?.translations?.fr?.description, "[de] A **great** game."); // stub echoes [de] regardless
 		assert.strictEqual(Object.keys(doc?.translations ?? {}).length, 9);
+		// Every overlay carries a translatedFrom stamp. It can't equal the doc's
+		// final updatedAt: each overlay write bumps it (withAutoUpdatedAt), so a
+		// stamp is the source's updatedAt as of that language's write.
+		assert.ok(doc?.updatedAt);
+		for (const [lang, overlay] of Object.entries(doc?.translations ?? {})) {
+			assert.ok(overlay.translatedFrom?.updatedAt, `stamp for ${lang}`);
+			assert.ok(overlay.translatedFrom.updatedAt.getTime() <= doc.updatedAt.getTime(), `stamp for ${lang}`);
+		}
 	});
 
 	it("rejects a scoped admin of a DIFFERENT game and an unauthenticated caller", async () => {

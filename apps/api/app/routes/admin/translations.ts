@@ -28,7 +28,21 @@ router.get("/overview", async (ctx) => {
 	const [pages, metadatas, jobs] = await Promise.all([
 		colls.pages.find({}, { projection: { _id: 1, title: 1, updatedAt: 1, translatedFrom: 1 } }).toArray(),
 		colls.gameMetadatas
-			.find({}, { projection: { _id: 1, label: 1, alias: 1, description: 1, rules: 1, credits: 1, translations: 1 } })
+			.find(
+				{},
+				{
+					projection: {
+						_id: 1,
+						label: 1,
+						alias: 1,
+						description: 1,
+						rules: 1,
+						credits: 1,
+						translations: 1,
+						updatedAt: 1,
+					},
+				},
+			)
 			.sort({ _id: 1 })
 			.toArray(),
 		listBulkJobs(),
@@ -62,9 +76,14 @@ router.get("/overview", async (ctx) => {
 		return { name, title, cells };
 	});
 
-	// Game metadata: per game × locale base subtag, whether a translations
-	// overlay exists and which fields it covers. There is no translatedFrom
-	// tracking here — presence is all the data there is.
+	// Game metadata: per game × locale base subtag, the translations overlay's
+	// status and which fields it covers. Status mirrors the pages matrix, with
+	// one extra state: "missing" (no overlay), "outdated" (the source's
+	// updatedAt is newer than the overlay's translatedFrom stamp), "ok"
+	// (stamped and fresh), and "unknown" (overlay predates translatedFrom
+	// tracking — no stamp, so freshness can't be told either way). The tracked
+	// unit is the whole overlay: per-field outdatedness would need per-field
+	// source timestamps, which don't exist (updatedAt is doc-level).
 	const metaLangs = metadataTargetLangs();
 	const visibleGames = canUser(ctx.state.user, "pages")
 		? metadatas
@@ -73,7 +92,16 @@ router.get("/overview", async (ctx) => {
 		const cells = Object.fromEntries(
 			metaLangs.map((lang) => {
 				const overlay = meta.translations?.[lang];
-				return [lang, { translated: !!overlay, fields: overlay ? Object.keys(overlay) : [] }];
+				if (!overlay) {
+					return [lang, { status: "missing", fields: [] }];
+				}
+				// Non-text overlay keys (translatedFrom) are not translated fields.
+				const fields = (["description", "rules", "credits"] as const).filter((f) => !!overlay[f]);
+				if (!overlay.translatedFrom) {
+					return [lang, { status: "unknown", fields }];
+				}
+				const outdated = !!(meta.updatedAt && meta.updatedAt > overlay.translatedFrom.updatedAt);
+				return [lang, { status: outdated ? "outdated" : "ok", fields }];
 			}),
 		);
 		return {

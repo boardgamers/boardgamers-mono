@@ -163,8 +163,10 @@ function metadataSourceStrings(doc: {
 // (description/rules/credits) into `targetLang`, storing the result in the
 // `translations` overlay (#306). The base (English) fields are the source and
 // stay untouched; the api serves the winning per-language string at read time
-// (models/gameinfo-i18n.ts). Rate-limited per admin: every call is up to three
-// paid LLM completions.
+// (models/gameinfo-i18n.ts). The overlay is stamped with `translatedFrom` =
+// the source doc's updatedAt so the translations dashboard can flag it
+// outdated after a later source edit. Rate-limited per admin: every call is
+// up to three paid LLM completions.
 const metadataTranslateSchema = z.object({
 	targetLang: z
 		.string()
@@ -213,7 +215,11 @@ router.post("/:game/meta/translate", actionRateLimit("admin/translate-gameinfo")
 
 	ctx.body = await colls.gameMetadatas.findOneAndUpdate(
 		{ _id: game },
-		{ $set: { [`translations.${targetLang}`]: translated } },
+		{
+			$set: {
+				[`translations.${targetLang}`]: { ...translated, translatedFrom: { updatedAt: doc.updatedAt ?? new Date() } },
+			},
+		},
 		{ returnDocument: "after" },
 	);
 });
@@ -264,7 +270,14 @@ router.post("/:game/meta/translate-all", actionRateLimit("admin/translate-gamein
 					]),
 				),
 			);
-			await colls.gameMetadatas.updateOne({ _id: game }, { $set: { [`translations.${targetLang}`]: overlay } });
+			await colls.gameMetadatas.updateOne(
+				{ _id: game },
+				{
+					$set: {
+						[`translations.${targetLang}`]: { ...overlay, translatedFrom: { updatedAt: doc.updatedAt ?? new Date() } },
+					},
+				},
+			);
 			translated.push(targetLang);
 		} catch (err) {
 			errors.push({ lang: targetLang, message: err instanceof Error ? err.message : String(err) });

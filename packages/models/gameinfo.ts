@@ -153,6 +153,21 @@ export const gameMetadataTranslationsSchema = z.record(
 		description: z.string().optional(),
 		rules: z.string().optional(),
 		credits: z.string().optional(),
+		// Stamped by the LLM translate endpoints (#306 follow-up): the source
+		// doc's `updatedAt` at translation time. The overlay is OUTDATED when
+		// the metadata doc's current `updatedAt` is newer. No `lang` (unlike
+		// the pages' translatedFrom): the source is always the top-level
+		// English fields. Absent on pre-tracking overlays — the dashboard
+		// surfaces those as "unknown" rather than guessing fresh/stale. The
+		// tracked unit is the whole overlay: per-field outdatedness would need
+		// per-field source timestamps, which don't exist (updatedAt is
+		// doc-level). The metadata form never round-trips `translations`, so a
+		// source edit bumps the doc's updatedAt without touching this stamp.
+		translatedFrom: z
+			.object({
+				updatedAt: zDate(),
+			})
+			.optional(),
 	}),
 );
 

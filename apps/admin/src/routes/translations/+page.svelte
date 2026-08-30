@@ -93,7 +93,24 @@
 		ok: "bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300",
 		outdated: "bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300",
 		missing: "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500",
+		unknown: "bg-sky-100 dark:bg-sky-900/60 text-sky-800 dark:text-sky-300",
 	};
+
+	const cellGlyph: Record<string, string> = { ok: "✓", outdated: "!", missing: "·", unknown: "?" };
+
+	function metaCellTitle(game: string, lang: string, cell?: { status: string; fields: string[] }): string {
+		const fields = cell?.fields.length ? ` (${cell.fields.join(", ")})` : "";
+		switch (cell?.status) {
+			case "ok":
+				return `${game} (${lang}): translated${fields}`;
+			case "outdated":
+				return `${game} (${lang}): outdated — the English source was edited after this translation${fields}`;
+			case "unknown":
+				return `${game} (${lang}): translated${fields} — translated before outdated-tracking existed, freshness unknown`;
+			default:
+				return `${game} (${lang}): no translation`;
+		}
+	}
 </script>
 
 <div class="p-6 max-w-6xl mx-auto">
@@ -291,8 +308,8 @@
 				{/if}
 			</div>
 			<p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
-				Whether each game has a translations overlay per locale (description / rules / credits). No outdated tracking
-				exists for metadata — presence only.
+				One cell per game × locale: the translations overlay's status (description / rules / credits). "unknown" =
+				translated before outdated-tracking existed, so freshness can't be told from the data.
 			</p>
 			<div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
 				<table class="text-sm">
@@ -330,14 +347,12 @@
 									{@const cell = row.cells[lang]}
 									<td class="px-1 py-1 text-center">
 										<span
-											title="{row.game} ({lang}): {cell?.translated
-												? `translated (${cell.fields.join(', ')})`
-												: 'no translation'}"
-											class="inline-block w-6 h-6 rounded text-[10px] leading-6 font-medium {cell?.translated
-												? cellCls.ok
-												: cellCls.missing}"
+											title={metaCellTitle(row.game, lang, cell)}
+											class="inline-block w-6 h-6 rounded text-[10px] leading-6 font-medium {cellCls[
+												cell?.status ?? 'missing'
+											]}"
 										>
-											{cell?.translated ? "✓" : "·"}
+											{cellGlyph[cell?.status ?? "missing"]}
 										</span>
 									</td>
 								{/each}
@@ -345,6 +360,19 @@
 						{/each}
 					</tbody>
 				</table>
+			</div>
+			<div class="flex gap-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
+				<span
+					><span class="inline-block w-3 h-3 rounded bg-emerald-200 dark:bg-emerald-900/60 align-middle"></span> ok</span
+				>
+				<span
+					><span class="inline-block w-3 h-3 rounded bg-amber-200 dark:bg-amber-900/60 align-middle"></span> outdated</span
+				>
+				<span
+					><span class="inline-block w-3 h-3 rounded bg-sky-200 dark:bg-sky-900/60 align-middle"></span> unknown (pre-tracking)</span
+				>
+				<span><span class="inline-block w-3 h-3 rounded bg-gray-200 dark:bg-gray-800 align-middle"></span> missing</span
+				>
 			</div>
 		</section>
 	{/if}

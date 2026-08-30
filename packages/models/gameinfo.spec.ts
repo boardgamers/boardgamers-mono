@@ -36,4 +36,26 @@ describe("gameMetadataSchema translations (#306)", () => {
 		assert.strictEqual(gameMetadataTranslationsSchema.safeParse({ de: { description: 42 } }).success, false);
 		assert.strictEqual(gameMetadataTranslationsSchema.safeParse("de").success, false);
 	});
+
+	it("accepts overlays with and without translatedFrom (outdated-tracking)", () => {
+		// zDate takes the wire shape (ISO string) and outputs a Date.
+		const stamped = new Date().toISOString();
+		const doc = gameMetadataSchema.parse({
+			...baseDoc,
+			translations: {
+				de: { description: "Deutsche Beschreibung", translatedFrom: { updatedAt: stamped } },
+				fr: { description: "Description française" }, // legacy overlay: no stamp
+			},
+		});
+		assert.strictEqual(doc.translations?.de?.translatedFrom?.updatedAt.getTime(), new Date(stamped).getTime());
+		assert.strictEqual(doc.translations?.fr?.translatedFrom, undefined);
+	});
+
+	it("rejects a malformed translatedFrom", () => {
+		assert.strictEqual(
+			gameMetadataTranslationsSchema.safeParse({ de: { translatedFrom: { updatedAt: "yesterday" } } }).success,
+			false,
+		);
+		assert.strictEqual(gameMetadataTranslationsSchema.safeParse({ de: { translatedFrom: {} } }).success, false);
+	});
 });
