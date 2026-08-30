@@ -27,8 +27,13 @@ function mountBar(props = {}) {
 	return { target, instance };
 }
 
+// The chips row is the only non-picker flex-wrap container (the picker carries role=menu).
+function chipsRow(target: HTMLElement): HTMLDivElement | null {
+	return target.querySelector<HTMLDivElement>('div.flex-wrap:not([role="menu"])');
+}
+
 function chips(target: HTMLElement): HTMLButtonElement[] {
-	return [...target.querySelectorAll<HTMLButtonElement>("div.mt-1 button")];
+	return [...(chipsRow(target)?.querySelectorAll<HTMLButtonElement>(":scope > button") ?? [])];
 }
 
 describe("ReactionBar", () => {
@@ -62,6 +67,26 @@ describe("ReactionBar", () => {
 		expect(rendered[1].textContent).toContain("🎉");
 		expect(rendered[1].textContent).toContain("1");
 		unmount(instance);
+	});
+
+	// Layout itself is browser-verified (jsdom has no layout) — assert the classes
+	// that implement the overlap: pulled up over the bubble's bottom edge, in flow,
+	// left-inset for received messages and mirrored bottom-right for own ones.
+	it("overlaps the bubble edge, mirrored for own messages", () => {
+		chatReactions.set({ m1: [{ emoji: "👍", users: [{ _id: "u1", name: "alice" }] }] });
+		const { target, instance } = mountBar();
+		const row = chipsRow(target)!;
+		expect(row.className).toContain("-mt-2.5");
+		expect(row.className).toContain("relative");
+		expect(row.className).toContain("ml-1.5");
+		expect(row.className).not.toContain("justify-end");
+		unmount(instance);
+
+		const { target: mineTarget, instance: mineInstance } = mountBar({ mine: true });
+		const mineRow = chipsRow(mineTarget)!;
+		expect(mineRow.className).toContain("justify-end");
+		expect(mineRow.className).toContain("mr-1.5");
+		unmount(mineInstance);
 	});
 
 	it("shows no add-reaction affordance and disabled chips when logged out", () => {

@@ -43,3 +43,27 @@ export function lastEditableMessage(
 ): ChatMessageFront | undefined {
 	return messages.findLast((msg) => canEditMessage(msg, userId, now) && msg._id !== editingId);
 }
+
+export type ChatScrollState = { lastId: string | undefined; open: boolean };
+
+/**
+ * Whether a chat update should force-scroll the message list to the bottom:
+ * first render, the chat (re)opening, or a new message landing at the end.
+ * In-place updates keep the same trailing id — edits re-pushed by the ws —
+ * and must NOT yank the view down while the user reads history.
+ */
+export function shouldScrollChatToBottom(prev: ChatScrollState | undefined, next: ChatScrollState): boolean {
+	return !prev || prev.lastId !== next.lastId || (next.open && !prev.open);
+}
+
+// Sub-pixel scroll positions (zoom, fractional row heights) leave scrollTop a
+// hair short of the exact maximum — treat "almost at the bottom" as pinned.
+const PINNED_TOLERANCE_PX = 8;
+
+/**
+ * Whether a scrollable chat container is effectively scrolled to the bottom,
+ * i.e. the view should stay anchored there when its content grows.
+ */
+export function isPinnedToBottom(el: Pick<Element, "scrollTop" | "clientHeight" | "scrollHeight">): boolean {
+	return el.scrollTop + el.clientHeight >= el.scrollHeight - PINNED_TOLERANCE_PX;
+}

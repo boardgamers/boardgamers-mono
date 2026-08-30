@@ -1,6 +1,13 @@
 import type { ChatMessageFront } from "@bgs/models";
 import { describe, expect, it } from "vitest";
-import { CHAT_EDIT_WINDOW_MS, canEditMessage, countUnreadMessages, lastEditableMessage } from "./chat";
+import {
+	CHAT_EDIT_WINDOW_MS,
+	canEditMessage,
+	countUnreadMessages,
+	isPinnedToBottom,
+	lastEditableMessage,
+	shouldScrollChatToBottom,
+} from "./chat";
 
 // ObjectId whose first 8 hex chars encode `seconds` — matches dateFromObjectId.
 function objectIdAt(seconds: number): string {
@@ -88,5 +95,31 @@ describe("lastEditableMessage (ArrowUp edit-last)", () => {
 		const tooOld = ownMsg(CHAT_EDIT_WINDOW_MS / 1000 + 60);
 		expect(lastEditableMessage([foreign, tooOld], "u1", null, NOW)).toBeUndefined();
 		expect(lastEditableMessage([], "u1", null, NOW)).toBeUndefined();
+	});
+});
+
+describe("shouldScrollChatToBottom", () => {
+	it("scrolls on first render, on open, and when a new message lands at the end", () => {
+		expect(shouldScrollChatToBottom(undefined, { lastId: "m1", open: false })).toBe(true);
+		expect(shouldScrollChatToBottom({ lastId: "m1", open: false }, { lastId: "m1", open: true })).toBe(true);
+		expect(shouldScrollChatToBottom({ lastId: "m1", open: true }, { lastId: "m2", open: true })).toBe(true);
+	});
+
+	it("does not scroll on in-place updates (edits keep the trailing id) or on close", () => {
+		expect(shouldScrollChatToBottom({ lastId: "m1", open: true }, { lastId: "m1", open: true })).toBe(false);
+		expect(shouldScrollChatToBottom({ lastId: "m1", open: true }, { lastId: "m1", open: false })).toBe(false);
+	});
+});
+
+describe("isPinnedToBottom", () => {
+	it("is pinned at (or within tolerance of) the bottom", () => {
+		expect(isPinnedToBottom({ scrollTop: 500, clientHeight: 300, scrollHeight: 800 })).toBe(true);
+		expect(isPinnedToBottom({ scrollTop: 494, clientHeight: 300, scrollHeight: 800 })).toBe(true);
+		expect(isPinnedToBottom({ scrollTop: 0, clientHeight: 300, scrollHeight: 200 })).toBe(true);
+	});
+
+	it("is not pinned when scrolled up past the tolerance", () => {
+		expect(isPinnedToBottom({ scrollTop: 400, clientHeight: 300, scrollHeight: 800 })).toBe(false);
+		expect(isPinnedToBottom({ scrollTop: 0, clientHeight: 300, scrollHeight: 800 })).toBe(false);
 	});
 });

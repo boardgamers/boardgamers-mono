@@ -146,17 +146,22 @@
 {/if}
 
 {#if reactions.length > 0}
-	<div class="mt-1 flex flex-wrap gap-1 {mine ? 'justify-end' : ''}">
+	<!-- Chips overlap the bubble's bottom edge (mock in #442): pulled up by half a
+	     chip so the first reaction only adds the protruding half to the row. Kept
+	     in normal flow (not absolute) so wrapped chips push the next message down
+	     instead of covering it. `relative` paints the chips above the bubble;
+	     mirrored to the bottom-right on own (right-aligned) bubbles. -->
+	<div class="relative -mt-2 flex flex-wrap gap-1 {mine ? 'mr-1.5 justify-end' : 'ml-1.5'}">
 		{#each reactions as group (group.emoji)}
 			<button
 				type="button"
 				class="flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs leading-none transition-colors {ownReaction(
 					group
 				)
-					? 'border-blue-400 bg-blue-100 dark:border-blue-500 dark:bg-blue-900/60'
+					? 'border-blue-400 bg-blue-100 dark:border-blue-500 dark:bg-blue-900'
 					: 'border-gray-300 bg-gray-100 dark:border-gray-600 dark:bg-gray-700'} {userId
 					? ownReaction(group)
-						? 'hover:bg-blue-200 dark:hover:bg-blue-900'
+						? 'hover:bg-blue-200 dark:hover:bg-blue-800'
 						: 'hover:bg-gray-200 dark:hover:bg-gray-600'
 					: 'cursor-default'}"
 				title={tooltip(group)}
