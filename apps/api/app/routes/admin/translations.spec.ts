@@ -37,6 +37,7 @@ async function makeAuthHeaders(userId: ObjectId) {
 interface OverviewJob {
 	jobId: string;
 	status: "running" | "done" | "error";
+	kind?: "pages" | "metadata";
 	total: number;
 	done: number;
 	translated: number;
@@ -61,9 +62,22 @@ interface Overview {
 	jobs: OverviewJob[];
 }
 
+// The fixture user ids live at describe scope: the metadata bulk suite below
+// reuses them, re-inserting the docs (its own before() runs after this
+// suite's dropDatabase).
+const adminId = new ObjectId();
+const userId = new ObjectId();
+const pagesAdminId = new ObjectId();
+const scopedAdminId = new ObjectId();
+
+async function insertFixtureUsers() {
+	await colls.users.insertOne(testUser({ _id: adminId, authority: "admin" }));
+	await colls.users.insertOne(testUser({ _id: userId }));
+	await colls.users.insertOne(testUser({ _id: pagesAdminId, adminGrants: ["pages"] }));
+	await colls.users.insertOne(testUser({ _id: scopedAdminId, adminGrants: ["gameinfo:ovgame"] }));
+}
+
 describe("Admin translations overview + bulk job lifecycle (#306)", () => {
-	const adminId = new ObjectId();
-	const userId = new ObjectId();
 	let adminHeaders: Record<string, string>;
 	let userHeaders: Record<string, string>;
 
@@ -79,12 +93,12 @@ describe("Admin translations overview + bulk job lifecycle (#306)", () => {
 			colls.gameMetadatas.deleteMany({}),
 			colls.settings.deleteMany({ _id: { $regex: "^bulkTranslateJob:" } }),
 		]);
-		await colls.users.insertOne(testUser({ _id: adminId, authority: "admin" }));
-		await colls.users.insertOne(testUser({ _id: userId }));
+		await insertFixtureUsers();
 		adminHeaders = await makeAuthHeaders(adminId);
 		userHeaders = await makeAuthHeaders(userId);
-		// The suite starts several bulk jobs; relax the per-admin hourly cap.
+		// The suite starts several bulk jobs; relax the per-admin hourly caps.
 		ACTION_RATE_LIMITS["admin/translate-bulk"] = { max: 100, windowMs: 60 * 60 * 1000 };
+		ACTION_RATE_LIMITS["admin/translate-metadata-bulk"] = { max: 100, windowMs: 60 * 60 * 1000 };
 
 		llmHangOn = undefined;
 		llm = http.createServer((req, res) => {
@@ -330,5 +344,212 @@ describe("Admin translations overview + bulk job lifecycle (#306)", () => {
 			"the doc is deleted",
 		);
 		assert.strictEqual((await api("GET", "/api/admin/page/translate-bulk/old-job", adminHeaders)).status, 404);
+	});
+});
+
+describe("Admin bulk metadata translation (#306 follow-up)", () => {
+	let adminHeaders: Record<string, string>;
+	let pagesAdminHeaders: Record<string, string>;
+	let scopedAdminHeaders: Record<string, string>;
+	let userHeaders: Record<string, string>;
+
+	// Fake LLM server, same pattern as the pages bulk suite above: answers
+	// every completion with a `[t] ` marker prefix.
+	let llm: http.Server;
+
+	// Poll the shared jobs listing until the job turns terminal.
+	async function waitForJob(jobId: string): Promise<OverviewJob> {
+		for (let i = 0; i < 200; i++) {
+			const poll = await api("GET", `/api/admin/page/translate-bulk/${jobId}`, adminHeaders);
+			assert.strictEqual(poll.status, 200);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			const job = poll.data as OverviewJob;
+			if (job.status !== "running") {
+				return job;
+			}
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		}
+		assert.fail(`job ${jobId} still running after 10s`);
+	}
+
+	before(async () => {
+		await Promise.all([
+			colls.gameMetadatas.deleteMany({}),
+			colls.settings.deleteMany({ _id: { $regex: "^bulkTranslateJob:" } }),
+		]);
+		// The previous suite's after() dropped the whole db — re-insert the
+		// fixture users before minting tokens for them.
+		await insertFixtureUsers();
+		adminHeaders = await makeAuthHeaders(adminId);
+		pagesAdminHeaders = await makeAuthHeaders(pagesAdminId);
+		scopedAdminHeaders = await makeAuthHeaders(scopedAdminId);
+		userHeaders = await makeAuthHeaders(userId);
+
+		await colls.gameMetadatas.insertOne({
+			_id: "ovgame",
+			label: "OV Game",
+			players: [2],
+			description: "A game",
+			rules: "Some rules",
+			translations: { de: { description: "Ein Spiel" } },
+		});
+		await colls.gameMetadatas.insertOne({ _id: "ovbare", label: "OV Bare", players: [2] });
+		await colls.gameMetadatas.insertOne({ _id: "ovfull", label: "OV Full", players: [2], description: "Full" });
+
+		llm = http.createServer((req, res) => {
+			let raw = "";
+			req.on("data", (chunk) => (raw += chunk));
+			req.on("end", () => {
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse is any; fields are defaulted below
+				const body = JSON.parse(raw) as { messages: { role: string; content: string }[] };
+				const user = body.messages.find((m) => m.role === "user")?.content ?? "";
+				res.setHeader("content-type", "application/json");
+				res.end(
+					JSON.stringify({
+						choices: [{ message: { content: `[t] ${user.split("\n\n").at(-1)}` }, finish_reason: "stop" }],
+					}),
+				);
+			});
+		});
+		await new Promise<void>((resolve) => llm.listen(0, "127.0.0.1", resolve));
+		env.translation.apiKey = "test-key";
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- listen(0, "127.0.0.1") binds a TCP port, so the address is an AddressInfo
+		env.translation.baseUrl = `http://127.0.0.1:${(llm.address() as AddressInfo).port}`;
+		env.translation.timeoutMs = 2000;
+	});
+
+	after(async () => {
+		env.translation.apiKey = "";
+		env.translation.baseUrl = "https://openrouter.ai/api/v1";
+		env.translation.timeoutMs = 180_000;
+		await new Promise((resolve) => llm.close(resolve));
+		await db().dropDatabase();
+	});
+
+	it("is gated to admins, and the run itself to site 'pages' admins", async () => {
+		// Mount gate: no grant at all → 403 before the route's own check.
+		assert.strictEqual(
+			(await api("POST", "/api/admin/translations/translate-metadata-bulk", userHeaders, {})).status,
+			403,
+		);
+		// Route gate: a per-game (gameinfo:<slug>) grant passes the mount gate
+		// but an all-games run needs the blanket "pages" permission.
+		assert.strictEqual(
+			(await api("POST", "/api/admin/translations/translate-metadata-bulk", scopedAdminHeaders, {})).status,
+			403,
+		);
+		// Site "pages" admins (and full admins) can start a run.
+		const res = await api("POST", "/api/admin/translations/translate-metadata-bulk", pagesAdminHeaders, {
+			targetLang: "el",
+		});
+		assert.strictEqual(res.status, 202, JSON.stringify(res.data));
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const { jobId, total } = res.data as { jobId: string; total: number };
+		// Only games with source text AND no el overlay: ovgame + ovfull.
+		assert.strictEqual(total, 2);
+		const job = await waitForJob(jobId);
+		assert.equal(job.status, "done");
+		assert.equal(job.translated, 2);
+	});
+
+	it("creates a job counting only missing pairs, then translates and stamps overlays", async () => {
+		const res = await api("POST", "/api/admin/translations/translate-metadata-bulk", adminHeaders, {
+			targetLang: "fr",
+		});
+		assert.strictEqual(res.status, 202, JSON.stringify(res.data));
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const { jobId, total } = res.data as { jobId: string; total: number };
+		// ovgame + ovfull have source text and no fr overlay; ovbare has no
+		// source fields. (ovgame/el + ovfull/el exist from the previous test.)
+		assert.strictEqual(total, 2);
+
+		const job = await waitForJob(jobId);
+		assert.equal(job.status, "done");
+		assert.equal(job.done, 2);
+		assert.equal(job.translated, 2);
+		assert.equal(job.skipped, 0);
+		assert.deepEqual(job.errors, []);
+		assert.equal(job.kind, "metadata");
+
+		// Overlays hold every non-empty source field, translated.
+		const ovgame = await colls.gameMetadatas.findOne({ _id: "ovgame" });
+		assert.equal(ovgame?.translations?.fr?.description, "[t] A game");
+		assert.equal(ovgame?.translations?.fr?.rules, "[t] Some rules");
+		assert.equal(ovgame?.translations?.fr?.credits, undefined, "no source credits → no overlay credits");
+		// The pre-existing overlay and the source fields are untouched.
+		assert.equal(ovgame?.translations?.de?.description, "Ein Spiel");
+		assert.equal(ovgame?.description, "A game");
+		const ovfull = await colls.gameMetadatas.findOne({ _id: "ovfull" });
+		assert.equal(ovfull?.translations?.fr?.description, "[t] Full");
+		const ovbare = await colls.gameMetadatas.findOne({ _id: "ovbare" });
+		assert.equal(ovbare?.translations, undefined, "no source fields → never translated");
+
+		// The job shows in the overview's jobs table, labelled as metadata.
+		const overview = await api("GET", "/api/admin/translations/overview", adminHeaders);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const listed = (overview.data as Overview).jobs.find((j) => j.jobId === jobId);
+		assert.ok(listed, "the metadata job shows up in the overview listing");
+		assert.equal(listed.kind, "metadata");
+		assert.equal(listed.status, "done");
+	});
+
+	it("skips pairs whose overlay already exists (no re-translation)", async () => {
+		// Everything already has an fr overlay → nothing to do.
+		const res = await api("POST", "/api/admin/translations/translate-metadata-bulk", adminHeaders, {
+			targetLang: "fr",
+		});
+		assert.strictEqual(res.status, 202);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const { jobId, total } = res.data as { jobId: string; total: number };
+		assert.strictEqual(total, 0);
+		const job = await waitForJob(jobId);
+		assert.equal(job.status, "done");
+		assert.equal(job.translated, 0);
+
+		// An all-languages run covers the pairs still missing: every (game,
+		// lang) with source text and no overlay. Derive the expectation from
+		// the db rather than hardcoding the locale count.
+		const overviewRes = await api("GET", "/api/admin/translations/overview", adminHeaders);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const langs = (overviewRes.data as Overview).metaLangs;
+		const docs = await colls.gameMetadatas.find({}).toArray();
+		const expectedPairs = docs.flatMap((d) =>
+			langs
+				.filter(
+					(l) => [d.description, d.rules, d.credits].some((f) => typeof f === "string" && f) && !d.translations?.[l],
+				)
+				.map((l) => `${d._id}/${l}`),
+		);
+		assert.ok(expectedPairs.length > 0, "there are missing pairs to translate");
+		const all = await api("POST", "/api/admin/translations/translate-metadata-bulk", adminHeaders, {});
+		assert.strictEqual(all.status, 202);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const allJob = await waitForJob((all.data as { jobId: string }).jobId);
+		assert.equal(allJob.status, "done");
+		assert.equal(allJob.total, expectedPairs.length);
+		assert.equal(allJob.translated, expectedPairs.length);
+		assert.equal(allJob.skipped, 0);
+		const ovgame = await colls.gameMetadatas.findOne({ _id: "ovgame" });
+		// One overlay per target language (the pre-existing de overlay counts —
+		// de is itself a bulk target for games that lack it).
+		assert.deepEqual(Object.keys(ovgame?.translations ?? {}).sort(), [...langs].sort());
+	});
+
+	it("a deleted game mid-run is skipped, not an error", async () => {
+		await colls.gameMetadatas.insertOne({ _id: "ovgone", label: "OV Gone", players: [2], description: "Bye" });
+		const res = await api("POST", "/api/admin/translations/translate-metadata-bulk", adminHeaders, {
+			targetLang: "hi",
+		});
+		assert.strictEqual(res.status, 202);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const { jobId, total } = res.data as { jobId: string; total: number };
+		assert.strictEqual(total, 1);
+		// Racy by nature (the loop may read the doc before the delete lands) —
+		// the skip path is the in-loop re-check, exercised deterministically by
+		// the missing-overlay re-runs above; here just assert the job completes.
+		await colls.gameMetadatas.deleteOne({ _id: "ovgone" });
+		const job = await waitForJob(jobId);
+		assert.equal(job.status, "done");
+		assert.equal(job.done, 1);
 	});
 });

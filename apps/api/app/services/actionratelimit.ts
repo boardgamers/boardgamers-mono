@@ -60,6 +60,12 @@ export const ACTION_RATE_LIMITS: Record<string, ActionRateLimitOptions> = {
 	// single-language variant (mirrors translate-bulk's 5/h). Site admins
 	// exempt — see SITE_ADMIN_BYPASSED_ACTIONS.
 	"admin/translate-gameinfo-bulk": { max: 5, windowMs: 60 * 60 * 1000 },
+	// POST /admin/translations/translate-metadata-bulk (#306 follow-up) — one
+	// run is up to BULK_METADATA_MAX_PAIRS × three paid LLM completions (a
+	// whole-language metadata refresh across every game), so only a few runs
+	// per hour (mirrors translate-bulk's 5/h). Site admins exempt — see
+	// SITE_ADMIN_BYPASSED_ACTIONS.
+	"admin/translate-metadata-bulk": { max: 5, windowMs: 60 * 60 * 1000 },
 };
 
 // Actions a site admin (authority === "admin") performs without hitting the
@@ -75,6 +81,7 @@ const SITE_ADMIN_BYPASSED_ACTIONS = new Set([
 	"admin/translate-bulk",
 	"admin/translate-gameinfo",
 	"admin/translate-gameinfo-bulk",
+	"admin/translate-metadata-bulk",
 ]);
 
 let testLimits: ActionRateLimitOptions | null = null;

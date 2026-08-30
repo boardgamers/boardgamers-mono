@@ -118,6 +118,8 @@ export const api = {
 // 202 + a job id; poll until the status turns terminal ("done" or "error").
 export interface BulkTranslateJob {
 	status: "running" | "done" | "error";
+	// What the job translates; absent on pre-kind jobs, which are all page jobs.
+	kind?: "pages" | "metadata";
 	total: number;
 	done: number;
 	translated: number;
@@ -153,6 +155,13 @@ export async function loadTranslationsOverview(): Promise<TranslationsOverview> 
 
 export async function startBulkTranslate(body: { targetLang: string } | { pageName: string }): Promise<string> {
 	const { jobId } = await api.post<{ jobId: string }>("/admin/page/translate-bulk", body);
+	return jobId;
+}
+
+// Bulk game-metadata translation (#306 follow-up) — same 202 + job id flow as
+// the pages variant; the job shows in the overview's jobs table.
+export async function startMetadataBulkTranslate(body: { targetLang?: string } = {}): Promise<string> {
+	const { jobId } = await api.post<{ jobId: string }>("/admin/translations/translate-metadata-bulk", body);
 	return jobId;
 }
 
