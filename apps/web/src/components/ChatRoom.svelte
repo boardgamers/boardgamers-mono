@@ -30,7 +30,9 @@
 	};
 	let lastRead = $state(0);
 	// `title` defaults to the room id (the game id) — the lobby passes a translated label.
-	let { room, title }: { room: string; title?: string } = $props();
+	// `corner`: game pages offset the FAB left so it coexists with the sidebar FAB;
+	// pages without one (home/lobby) take the standard bottom-right corner slot.
+	let { room, title, corner = false }: { room: string; title?: string; corner?: boolean } = $props();
 
 	// Game rooms → /game/:gameId/chat…, public rooms (lobby) → /room/:roomId/chat….
 	let apiBase = $derived(chatApiBase(room));
@@ -196,7 +198,7 @@
 	transitionType={fly}
 	transitionOptions={{ y: -300 }}
 	modalClassName="chat-modal-root"
-	class={"chat-modal" + ($sidebarOpen ? " sidebar-open" : "")}
+	class={"chat-modal" + (corner ? " chat-corner" : "") + ($sidebarOpen ? " sidebar-open" : "")}
 >
 	<ModalHeader {toggle} class="shrink-0 gap-2">
 		<IconChat size="1.25rem" class="shrink-0 text-gray-400" />
@@ -295,7 +297,9 @@
 <Button
 	color="primary"
 	onclick={toggle}
-	class={"!rounded-full sidebar-fab chat-button" + ($sidebarOpen ? " sidebar-open" : "")}
+	class={"!rounded-full sidebar-fab chat-button" +
+		(corner ? " chat-corner" : "") +
+		($sidebarOpen ? " sidebar-open" : "")}
 >
 	<IconChat size="1.5rem" />
 	{#if unreadMessages}

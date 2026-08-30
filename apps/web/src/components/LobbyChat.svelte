@@ -23,5 +23,7 @@
 </script>
 
 {#if $account}
-	<ChatRoom room={LOBBY_ROOM} title={m.chat_lobbyTitle()} />
+	<!-- `corner`: unlike game pages there's no sidebar FAB here, so the chat button
+	     takes the standard bottom-right corner slot instead of the offset one. -->
+	<ChatRoom room={LOBBY_ROOM} title={m.chat_lobbyTitle()} corner />
 {/if}
