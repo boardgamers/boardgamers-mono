@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { handleError, handleInfo, handleSuccess, confirm, niceDate, duration, createWatcher } from "@/utils";
 	import { Card, Button, FormGroup, Input, InputGroup, Checkbox } from "@/modules/cdk";
-	import { upperFirst, debounce } from "lodash";
+	import { debounce } from "lodash";
 	import { account } from "@/lib/account.svelte";
 	import { post, apiFetch } from "@/lib/api";
 	import type { UserFront } from "@bgs/models";
@@ -14,6 +14,7 @@
 	import { developerSettings } from "@/lib/stores.svelte";
 	import { useLoggedIn } from "@/lib/auth-guards.svelte";
 	import UserAvatar from "@/components/User/UserAvatar.svelte";
+	import SocialConnections from "@/components/Account/SocialConnections.svelte";
 	import CountrySelect from "@/components/Form/CountrySelect.svelte";
 	import { logoClick, live, avatarVersion, bumpAvatarVersion } from "@/lib/stores.svelte";
 	import { m } from "@/lib/i18n/messages";
@@ -338,22 +339,11 @@
 					>{user.security.confirmed ? m.account_emailConfirmed() : m.account_emailNotConfirmed()}</span
 				>
 			</FormGroup>
-			<p class="mb-3 flex flex-wrap items-center gap-2">
-				{m.account_connectWith()}
-
-				<!-- OAuth endpoints are not app routes: off-site navigation (rel="external"). -->
-				{#each ["google", "discord", "facebook", "github", "huggingface"] as const as social (social)}
-					<Button
-						color={social}
-						disabled={!!(user.account.social && user.account.social[social])}
-						href={`/auth/${social}` as Pathname}
-						aria-disabled={!!(user.account.social && user.account.social[social])}
-						rel="external"
-					>
-						{upperFirst(social)}
-					</Button>
-				{/each}
-			</p>
+			<div class="mb-3">
+				<p class="mb-2 text-sm font-semibold text-gray-600 dark:text-gray-300">{m.account_socialAccounts()}</p>
+				<p class="mb-2 text-xs text-gray-500 dark:text-gray-400">{m.account_socialAccountsHelp()}</p>
+				<SocialConnections {user} />
+			</div>
 			{#if !user.account.termsAndConditions}
 				<Checkbox bind:checked={tc} onchange={acceptTC} class="mb-3">
 					{m.account_agreeTerms()}
@@ -484,7 +474,17 @@
 				{#if webhookDisabled}
 					<span class="text-xs text-warning">{m.account_webhookDisabledWarning()}</span>
 				{:else}
-					<span class="text-xs">{m.account_webhookHelp()}</span>
+					<span class="text-xs">
+						{m.account_webhookHelp()}
+						{#if !webhookConfigured || webhookEditing}
+							{m.account_webhookDiscordHelp()}
+							<a
+								href="https://support.discord.com/hc/en-us/articles/228383668"
+								target="_blank"
+								rel="noopener noreferrer">{m.account_webhookDiscordGuide()}</a
+							>
+						{/if}
+					</span>
 				{/if}
 			</FormGroup>
 		</Card>

@@ -249,6 +249,43 @@ router.post("/webhook/test", loggedIn, actionRateLimit("account/webhook/test"), 
 	}
 });
 
+const socialProviders = ["google", "facebook", "discord", "github", "huggingface"] as const;
+
+/**
+ * Unlink a social provider from the account (#427). Refuses to remove the LAST
+ * login method: a user with no password and a single social connection would
+ * lock themselves out. Rate-limited like account/email — unlinking a login
+ * method is a sensitive account mutation.
+ */
+router.delete("/social/:provider", loggedIn, actionRateLimit("account/social/unlink"), async (ctx) => {
+	const provider = z.enum(socialProviders).parse(ctx.params.provider);
+	const user = ctx.state.user!;
+
+	if (!user.account.social?.[provider]) {
+		throw createError(404, `No ${provider} account connected`);
+	}
+
+	const otherLoginMethods =
+		(user.account.password ? 1 : 0) + socialProviders.filter((p) => p !== provider && user.account.social?.[p]).length;
+	if (otherLoginMethods === 0) {
+		throw createError(
+			400,
+			"You can't disconnect your only way to log in — set a password or connect another account first",
+		);
+	}
+
+	// Audit trail, like mailChange: unlinking matters when investigating account takeovers.
+	await colls.logs.insertOne({ kind: "socialUnlink", data: { player: user._id, provider } });
+
+	await colls.users.updateOne(
+		{ _id: user._id },
+		{ $unset: { [`account.social.${provider}`]: "", [`account.socialMeta.${provider}`]: "" } },
+	);
+
+	const updatedUser = await colls.users.findOne({ _id: user._id });
+	ctx.body = updatedUser ? stripSensitiveFields(updatedUser) : updatedUser;
+});
+
 router.post("/avatar", loggedIn, async (ctx) => {
 	const parts = [];
 	for await (const chunk of ctx.req) {

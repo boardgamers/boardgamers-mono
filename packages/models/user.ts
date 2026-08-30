@@ -36,6 +36,10 @@ export const userSchema = z.object({
 				huggingface: z.object({ username: z.string(), url: z.string() }).optional(),
 			})
 			.optional(),
+		// Serialization-only hint, computed by the api's stripSensitiveFields (never
+		// stored): tells the UI a password is set (the hash itself is stripped), so it
+		// can warn before unlinking the last social login.
+		hasPassword: z.boolean().optional(),
 		avatar: z.string().optional(),
 		bio: z.string().optional(),
 		// 2-letter ISO 3166-1 alpha-2 code, user-chosen, shown in rankings/profile

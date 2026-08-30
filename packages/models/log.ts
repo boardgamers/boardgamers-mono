@@ -3,11 +3,13 @@ import type { Jsonify } from "type-fest";
 import { zObjectId, zDate } from "./helpers.ts";
 
 export const logSchema = z.object({
-	kind: z.enum(["processGameEnded", "processPlayerDrop", "mailChange"]),
+	kind: z.enum(["processGameEnded", "processPlayerDrop", "mailChange", "socialUnlink"]),
 	data: z.object({
 		game: z.string().optional(),
 		player: zObjectId().optional(),
 		change: z.object({ from: z.string().optional(), to: z.string() }).optional(),
+		// socialUnlink: which provider was disconnected
+		provider: z.string().optional(),
 	}),
 	createdAt: zDate().optional(),
 });
