@@ -43,20 +43,39 @@ export const ACTION_RATE_LIMITS: Record<string, ActionRateLimitOptions> = {
 	// PUT/DELETE /feedback/:id/like — idempotent set/unset, mirrors boardgame/like.
 	"feedback/like": { max: 60, windowMs: 60 * 1000 },
 	// POST /admin/page/:name/:lang/translate (#306) — every call is two paid LLM
-	// completions (title + content), so cap it per admin.
+	// completions (title + content), so cap it per admin. Site admins
+	// (authority === "admin") are exempt — see SITE_ADMIN_BYPASSED_ACTIONS.
 	"admin/translate-page": { max: 20, windowMs: 60 * 60 * 1000 },
 	// POST /admin/page/translate-bulk (#306) — one run is up to
 	// BULK_TRANSLATE_MAX_PAIRS × two paid LLM completions (a whole language
 	// refresh, or one page into every locale), so only a few runs per hour.
+	// Site admins exempt — see SITE_ADMIN_BYPASSED_ACTIONS.
 	"admin/translate-bulk": { max: 5, windowMs: 60 * 60 * 1000 },
 	// POST /admin/gameinfo/:game/meta/translate (#306) — every call is up to
-	// three paid LLM completions (description/rules/credits).
+	// three paid LLM completions (description/rules/credits). Site admins
+	// exempt — see SITE_ADMIN_BYPASSED_ACTIONS.
 	"admin/translate-gameinfo": { max: 20, windowMs: 60 * 60 * 1000 },
 	// POST /admin/gameinfo/:game/meta/translate-all (#306) — one call is up to
 	// 9 languages × 3 paid completions, so a much lower cap than the
-	// single-language variant (mirrors translate-bulk's 5/h).
+	// single-language variant (mirrors translate-bulk's 5/h). Site admins
+	// exempt — see SITE_ADMIN_BYPASSED_ACTIONS.
 	"admin/translate-gameinfo-bulk": { max: 5, windowMs: 60 * 60 * 1000 },
 };
+
+// Actions a site admin (authority === "admin") performs without hitting the
+// rate limit, enforced in the actionRateLimit middleware. The four
+// admin/translate-* caps are an LLM-cost guard aimed at scoped admins
+// (per-boardgame "gameinfo:<slug>" and "pages" grantees), who stay capped;
+// the site owner pays the LLM bill and runs platform-wide translation
+// maintenance that would otherwise stall on the 5/h bulk caps. Deliberately
+// NOT extended to other actions: account/email, feedback, etc. keep applying
+// to everyone.
+const SITE_ADMIN_BYPASSED_ACTIONS = new Set([
+	"admin/translate-page",
+	"admin/translate-bulk",
+	"admin/translate-gameinfo",
+	"admin/translate-gameinfo-bulk",
+]);
 
 let testLimits: ActionRateLimitOptions | null = null;
 
@@ -148,6 +167,16 @@ export function actionRateLimit(action: string, options?: ActionRateLimitOptions
 		const userId = ctx.state.user?._id;
 		if (!userId) {
 			throw createError(401, "You need to be logged in");
+		}
+
+		// Site admins skip the translate caps (see SITE_ADMIN_BYPASSED_ACTIONS).
+		// ctx.state.user is reloaded from the db on every request (app.ts JWT /
+		// session / admin-token auth), so a revoked admin stops bypassing as
+		// soon as their next request lands. Scoped admins fall through to the
+		// counter like everyone else.
+		if (SITE_ADMIN_BYPASSED_ACTIONS.has(action) && ctx.state.user.authority === "admin") {
+			await next();
+			return;
 		}
 
 		const { allowed, retryAfterSeconds } = await recordUserAction(userId, action, limitFor(action, options));

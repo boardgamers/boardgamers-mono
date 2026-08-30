@@ -184,6 +184,61 @@ describe("actionRateLimit middleware", () => {
 	});
 });
 
+describe("actionRateLimit — site-admin bypass of the translate caps", () => {
+	// Same ctx stand-in as the middleware suite above, plus an authority field.
+	const hit = async (user: { _id: ObjectId; authority?: string }, action: string, max: number) => {
+		const middleware = actionRateLimit(action, { max, windowMs: 60_000 });
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- minimal ctx stand-in for the middleware under test
+		const ctx = { state: { user }, set: () => {} } as unknown as Parameters<typeof middleware>[0];
+		try {
+			await middleware(ctx, async () => {});
+			return 200;
+		} catch (err) {
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the middleware only throws http-errors
+			return (err as { statusCode?: number }).statusCode ?? 500;
+		}
+	};
+
+	it("a site admin exceeds the admin/translate-* caps without 429 and records no hits", async () => {
+		const admin = { _id: new ObjectId(), authority: "admin" };
+		for (const action of [
+			"admin/translate-page",
+			"admin/translate-bulk",
+			"admin/translate-gameinfo",
+			"admin/translate-gameinfo-bulk",
+		]) {
+			for (let i = 0; i < limit.max + 2; i++) {
+				assert.strictEqual(await hit(admin, action, limit.max), 200, `${action} hit ${i + 1} must pass`);
+			}
+			assert.strictEqual(
+				await colls.userActions.countDocuments({ userId: admin._id, action }),
+				0,
+				"exempt hits are not counted — an admin later demoted starts with a clean slate",
+			);
+		}
+	});
+
+	it("a scoped admin (gameinfo grant, no site authority) is still capped", async () => {
+		const scoped = { _id: new ObjectId(), adminGrants: ["gameinfo:gaia"] };
+		for (let i = 0; i < limit.max; i++) {
+			assert.strictEqual(await hit(scoped, "admin/translate-bulk", limit.max), 200, `hit ${i + 1} must pass`);
+		}
+		assert.strictEqual(await hit(scoped, "admin/translate-bulk", limit.max), 429);
+	});
+
+	it("the bypass does not leak to other actions, not even for a site admin", async () => {
+		const admin = { _id: new ObjectId(), authority: "admin" };
+		for (let i = 0; i < limit.max; i++) {
+			assert.strictEqual(await hit(admin, "account/email", limit.max), 200, `hit ${i + 1} must pass`);
+		}
+		assert.strictEqual(await hit(admin, "account/email", limit.max), 429);
+	});
+
+	after(async () => {
+		await colls.userActions.deleteMany({});
+	});
+});
+
 describe("POST /api/account/email — per-user action rate limit", () => {
 	it("throttles email changes after the cap (generic 429 + Retry-After)", async () => {
 		const { userId, authHeaders } = await makeAuthedUser("emailcapped");
