@@ -19,7 +19,14 @@ import {
 } from "../../models/index.ts";
 import { sendAuthInfo } from "../account/index.ts";
 import { z } from "zod";
-import { grantSatisfies, isGameAdminGrant, userPermissions, type AdminPermission } from "@bgs/models";
+import {
+	chatKillSwitchModeSchema,
+	grantSatisfies,
+	isGameAdminGrant,
+	SettingsKey,
+	userPermissions,
+	type AdminPermission,
+} from "@bgs/models";
 import locks from "../../config/locks.ts";
 import { requirePermission } from "../utils.ts";
 import auditRouter, { adminAuditTrail, auditLog, requireFullAdmin } from "./audit.ts";
@@ -93,6 +100,25 @@ router.use(
 // routes inside (/:userId/access/*) are reachable by per-boardgame admins —
 // everything else in the router is blanket-gated on "users".
 router.use("/users", requireSomeGrant("users"), usersRouter.routes(), usersRouter.allowedMethods());
+
+// -- Chat kill switch (moderation) ----------------------------------------------
+// Site-wide escalation hatch above the per-boardgame chatDisabled flag: "public"
+// stops posting in every public room (game chat keeps working), "all" stops every
+// chat post/edit/reaction site-wide. Enforced in the shared chat handlers; full
+// admins only.
+
+router.get("/chat-kill-switch", requireFullAdmin, async (ctx) => {
+	const setting = await colls.settings.findOne({ _id: SettingsKey.ChatKillSwitch });
+	const parsed = chatKillSwitchModeSchema.safeParse(setting?.value);
+	ctx.body = { mode: parsed.success ? parsed.data : "off" };
+});
+
+router.put("/chat-kill-switch", requireFullAdmin, async (ctx) => {
+	const { mode } = z.object({ mode: chatKillSwitchModeSchema }).parse(ctx.request.body);
+	await colls.settings.updateOne({ _id: SettingsKey.ChatKillSwitch }, { $set: { value: mode } }, { upsert: true });
+	auditLog(ctx, "site.chatKillSwitch", undefined, { mode });
+	ctx.body = { mode };
+});
 
 // GET /api/admin/me — the caller's own admin permissions (drives the admin
 // panel's gating). Any authenticated user may ask; non-admins get an empty set.

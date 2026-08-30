@@ -7,7 +7,7 @@
 	import { resolve } from "$app/paths";
 	import WebLink from "$components/WebLink.svelte";
 	import { ADMIN_PERMISSIONS, PERMISSION_LABELS, PERMISSION_NOTES, type AdminPermission } from "$lib/permissions.ts";
-	import type { UserFront } from "@bgs/models";
+	import type { UserFront, ChatMuteDuration } from "@bgs/models";
 	import type { PageProps } from "./$types";
 	import type { UserInfo, ArchivedUserInfo, ApiErrorItem, BetaAccess } from "./+page.ts";
 
@@ -192,6 +192,50 @@
 		} finally {
 			revoking = false;
 			showRevokeConfirm = false;
+		}
+	}
+
+	// Mirrors the api's CHAT_MUTE_DURATIONS keys (value import of @bgs/models/user
+	// would pull mongodb into the bundle — labels are admin-UI-only anyway).
+	const CHAT_MUTE_OPTIONS: { duration: ChatMuteDuration; label: string }[] = [
+		{ duration: "1h", label: "1 hour" },
+		{ duration: "1d", label: "1 day" },
+		{ duration: "7d", label: "7 days" },
+		{ duration: "permanent", label: "Permanent" },
+	];
+	let mutingChat = $state(false);
+	const chatMutedUntil = $derived(user?.chatMutedUntil ? new Date(user.chatMutedUntil) : null);
+	const chatMuted = $derived(!!chatMutedUntil && chatMutedUntil.getTime() > Date.now());
+	// A "permanent" mute is a far-future date (100 years) — display it as such.
+	const chatMutePermanent = $derived(
+		!!chatMutedUntil && chatMutedUntil.getTime() - Date.now() > 50 * 365 * 24 * 3600 * 1000
+	);
+
+	async function muteChat(duration: ChatMuteDuration) {
+		if (!user) return;
+		mutingChat = true;
+		try {
+			await api.post(`/admin/users/${user._id}/chat-mute`, { duration });
+			toast.success(`${user.account.username} muted from chat (${duration})`);
+			await invalidateAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed to mute");
+		} finally {
+			mutingChat = false;
+		}
+	}
+
+	async function unmuteChat() {
+		if (!user) return;
+		mutingChat = true;
+		try {
+			await api.del(`/admin/users/${user._id}/chat-mute`);
+			toast.success(`${user.account.username} unmuted`);
+			await invalidateAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed to unmute");
+		} finally {
+			mutingChat = false;
 		}
 	}
 
@@ -490,6 +534,41 @@
 						Cancel
 					</button>
 				{/if}
+			</div>
+			<!-- Chat mute (moderation): posting/editing/reacting 403s in every chat while muted -->
+			<div class="pt-3 border-t border-gray-200 dark:border-gray-800 space-y-2">
+				<div class="flex items-center gap-2 text-sm">
+					<span class="font-medium">Chat mute</span>
+					{#if chatMuted}
+						<span
+							class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+						>
+							{chatMutePermanent ? "Muted permanently" : `Muted until ${chatMutedUntil?.toLocaleString()}`}
+						</span>
+					{:else}
+						<span class="text-gray-500 dark:text-gray-400">Not muted</span>
+					{/if}
+				</div>
+				<div class="flex flex-wrap gap-2">
+					{#each CHAT_MUTE_OPTIONS as { duration, label } (duration)}
+						<button
+							onclick={() => muteChat(duration)}
+							disabled={mutingChat}
+							class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-medium disabled:opacity-50"
+						>
+							Mute {label.toLowerCase()}
+						</button>
+					{/each}
+					{#if chatMuted}
+						<button
+							onclick={unmuteChat}
+							disabled={mutingChat}
+							class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium disabled:opacity-50"
+						>
+							Unmute
+						</button>
+					{/if}
+				</div>
 			</div>
 		</div>
 

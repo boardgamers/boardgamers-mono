@@ -3,7 +3,7 @@ import Router from "koa-router";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import createError from "http-errors";
-import { adminGrantSchema, canUser, canUserManageGame } from "@bgs/models";
+import { adminGrantSchema, canUser, canUserManageGame, CHAT_MUTE_DURATIONS, chatMuteDurationSchema } from "@bgs/models";
 import { colls } from "../../config/db.ts";
 import { findGameInfoWithVersion, findByUsername } from "../../models/index.ts";
 import { queryCount } from "../utils.ts";
@@ -106,6 +106,38 @@ const requireUsersPermission = async (ctx: Context, next: Next) => {
 router.delete("/:userId/access/:game", requireUsersPermission);
 router.post("/:userId/access/grant", requireUsersPermission);
 router.use(requireUsersPermission);
+
+// -- Chat mute (moderation) -----------------------------------------------------
+// While `chatMutedUntil` is in the future, every chat post/edit/reaction 403s
+// (enforced in the shared chat handlers). Guarded by the blanket "users" gate above.
+
+// POST /api/admin/users/:userId/chat-mute — mute for a fixed duration
+// ("permanent" is a far-future date, see CHAT_MUTE_DURATIONS).
+router.post("/:userId/chat-mute", async (ctx) => {
+	const userId = new ObjectId(ctx.params.userId);
+	const { duration } = z.object({ duration: chatMuteDurationSchema }).parse(ctx.request.body);
+
+	const chatMutedUntil = new Date(Date.now() + CHAT_MUTE_DURATIONS[duration]);
+	const updated = await colls.users.updateOne({ _id: userId }, { $set: { chatMutedUntil } });
+	if (updated.matchedCount === 0) {
+		throw createError(404, "User not found");
+	}
+
+	auditLog(ctx, "user.chatMute", await userTarget(userId), { duration, until: chatMutedUntil.toISOString() });
+	ctx.body = { chatMutedUntil };
+});
+
+// DELETE /api/admin/users/:userId/chat-mute — lift the mute
+router.delete("/:userId/chat-mute", async (ctx) => {
+	const userId = new ObjectId(ctx.params.userId);
+	const updated = await colls.users.updateOne({ _id: userId }, { $unset: { chatMutedUntil: true } });
+	if (updated.matchedCount === 0) {
+		throw createError(404, "User not found");
+	}
+
+	auditLog(ctx, "user.chatUnmute", await userTarget(userId));
+	ctx.status = 200;
+});
 
 // GET /api/admin/users/admins — list all admin users (full admins and scoped
 // grant holders) with activity info

@@ -17,7 +17,9 @@ import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { getUserElo } from "../../services/elo.ts";
 import { mergeGameInfo } from "../../models/gameinfo.ts";
 import { isConfirmed, loggedIn } from "../utils.ts";
+import { adminAuditTrail, auditLog, requireFullAdmin } from "../admin/audit.ts";
 import {
+	deleteChatMessage,
 	editChatMessage,
 	getChatLastRead,
 	postChatLastRead,
@@ -416,10 +418,25 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
 		canUserManageGame(user, game.game.name) || game.players.some((pl) => pl._id.equals(user._id)),
 		"You must be a player of the game to chat!",
 	);
-	await postChatMessage(ctx, game._id);
+	await postChatMessage(ctx, game._id, "game");
 });
 
-router.patch("/:gameId/chat/:messageId", loggedIn, isConfirmed, (ctx) => editChatMessage(ctx, ctx.state.game!._id));
+router.patch("/:gameId/chat/:messageId", loggedIn, isConfirmed, (ctx) =>
+	editChatMessage(ctx, ctx.state.game!._id, "game"),
+);
+
+// Moderation: site admins hard-delete any game-chat message (no participant
+// check — moderation, not chatting). Not under /api/admin, so the audit-trail
+// middleware is mounted per-route (#437 pattern).
+router.delete("/:gameId/chat/:messageId", loggedIn, requireFullAdmin, adminAuditTrail, async (ctx) => {
+	const message = await deleteChatMessage(ctx, ctx.state.game!._id);
+	auditLog(
+		ctx,
+		"chat.deleteMessage",
+		{ kind: "chatMessage", id: ctx.params.messageId, label: message.author?.name },
+		{ room: ctx.state.game!._id, author: message.author?.name, text: message.data.text.slice(0, 200) },
+	);
+});
 
 async function handleChatReaction(ctx: Context, active: boolean) {
 	// Plain koa Context types `state` loosely — the router middlewares guarantee both.
@@ -429,7 +446,7 @@ async function handleChatReaction(ctx: Context, active: boolean) {
 		canUserManageGame(user, game.game.name) || game.players.some((pl) => pl._id.equals(user._id)),
 		"You must be a player of the game to react!",
 	);
-	await toggleChatReaction(ctx, game._id, active);
+	await toggleChatReaction(ctx, game._id, active, "game");
 }
 
 router.put(

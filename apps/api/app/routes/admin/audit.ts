@@ -69,9 +69,10 @@ export function auditLog(ctx: Context, action: string, target?: AuditTarget, met
 const UNAUDITED_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
- * Mounted once at the top of the /api/admin router: records every successful
- * mutating request. Failures to write the audit entry are logged but never
- * fail the request — the admin's action already happened.
+ * Mounted once at the top of the /api/admin router — plus per-route on the few
+ * admin-gated mutations living outside it (chat moderation deletes) — records
+ * every successful mutating request. Failures to write the audit entry are
+ * logged but never fail the request — the admin's action already happened.
  */
 export async function adminAuditTrail(ctx: Context, next: Next): Promise<void> {
 	// Capture the actor BEFORE the handler runs: /login-as reassigns

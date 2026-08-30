@@ -45,13 +45,24 @@ export interface HealthStatus {
 	level: "ok" | "warn" | "error" | "down";
 }
 
-export async function load(): Promise<{ serverInfo: ServerInfo | null; healthStatus: HealthStatus }> {
-	const [serverInfo, healthStatus] = await Promise.all([
+export type ChatKillSwitchMode = "off" | "public" | "all";
+
+export async function load(): Promise<{
+	serverInfo: ServerInfo | null;
+	healthStatus: HealthStatus;
+	chatKillSwitch: ChatKillSwitchMode | null;
+}> {
+	const [serverInfo, healthStatus, chatKillSwitch] = await Promise.all([
 		api.get<ServerInfo>("/admin/serverinfo").catch(() => null),
 		computeHealthStatus(),
+		// Full admins only — scoped admins get a 403 and no kill-switch card.
+		api
+			.get<{ mode: ChatKillSwitchMode }>("/admin/chat-kill-switch")
+			.then((res) => res.mode)
+			.catch(() => null),
 	]);
 
-	return { serverInfo, healthStatus };
+	return { serverInfo, healthStatus, chatKillSwitch };
 }
 
 async function computeHealthStatus(): Promise<HealthStatus> {

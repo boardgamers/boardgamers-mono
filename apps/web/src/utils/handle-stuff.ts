@@ -3,6 +3,20 @@ import { isPromise } from "@bgs/utils";
 import { notifier } from "@/lib/notifications.svelte";
 import { reportError } from "@/lib/report-error.svelte";
 
+// Some API error messages embed a machine timestamp (e.g. the chat-mute 403:
+// "…muted until 2026-09-06T21:26:23.386Z"). Localize it for the toast — the raw
+// error (kept for console/reporting) stays untouched.
+const ISO_TIMESTAMP = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})\b/g;
+
+export function humanizeIsoTimestamps(text: string): string {
+	return text.replace(ISO_TIMESTAMP, (iso) => {
+		const date = new Date(iso);
+		return Number.isNaN(date.getTime())
+			? iso
+			: date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+	});
+}
+
 export function handleError(err: Error | string | unknown): void {
 	if (!err || !browser) {
 		return;
@@ -12,9 +26,9 @@ export function handleError(err: Error | string | unknown): void {
 	reportError(err);
 
 	if (typeof err === "string") {
-		notifier.alert(err);
+		notifier.alert(humanizeIsoTimestamps(err));
 	} else if ("message" in (err as any)) {
-		notifier.alert((err as any).message);
+		notifier.alert(humanizeIsoTimestamps(String((err as any).message)));
 	} else {
 		notifier.alert("Unknown error");
 	}

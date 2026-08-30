@@ -97,6 +97,25 @@
 		}
 	}
 
+	// Chat moderation: per-boardgame public-room kill switch. Deliberately not part
+	// of the metadata form (the meta PUT strips the field server-side) — it has its
+	// own site-admin-only route, so it's hidden from scoped gameinfo admins.
+	let togglingChatDisabled = $state(false);
+	const chatDisabled = $derived(data.metadata?.chatDisabled === true);
+
+	async function setChatDisabled(disabled: boolean) {
+		togglingChatDisabled = true;
+		try {
+			await api.put(`/admin/gameinfo/${encodeURIComponent(gameId)}/chat-disabled`, { disabled });
+			toast.success(disabled ? `Chat disabled for ${gameId}` : `Chat re-enabled for ${gameId}`);
+			await invalidateAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed to toggle chat");
+		} finally {
+			togglingChatDisabled = false;
+		}
+	}
+
 	// LLM auto-translate of the game-level free text (description/rules/credits)
 	// into the `translations` overlay (#306). `data.metadata` carries the overlay
 	// (the GameInfoData `value` doesn't — translations is deliberately not picked
@@ -281,6 +300,30 @@
 					</button>
 				{/if}
 			</div>
+
+			{#if data.me?.fullAdmin}
+				<!-- Chat moderation (site admins only — matches the API gate) -->
+				<div class="flex flex-wrap items-center gap-2 text-sm">
+					<span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Moderation</span>
+					{#if chatDisabled}
+						<span
+							class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+						>
+							Public chat disabled
+						</span>
+					{/if}
+					<button
+						onclick={() => setChatDisabled(!chatDisabled)}
+						disabled={togglingChatDisabled}
+						title="Disables posting in this boardgame's public chat room (history stays readable; game chat between participants is unaffected)"
+						class="px-2 py-0.5 rounded border text-xs disabled:opacity-50 {chatDisabled
+							? 'border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950'
+							: 'border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950'}"
+					>
+						{togglingChatDisabled ? "…" : chatDisabled ? "Re-enable public chat" : "Disable public chat"}
+					</button>
+				</div>
+			{/if}
 		</section>
 
 		<!-- ===== Private beta (only while the latest version is not public) ===== -->

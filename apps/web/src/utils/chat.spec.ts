@@ -3,6 +3,7 @@ import { LOBBY_ROOM, boardgameRoomId } from "@bgs/models/chatroom";
 import { describe, expect, it } from "vitest";
 import {
 	CHAT_EDIT_WINDOW_MS,
+	canDeleteMessage,
 	canEditMessage,
 	chatApiBase,
 	countUnreadMessages,
@@ -80,6 +81,22 @@ describe("canEditMessage", () => {
 	it("rejects messages older than the edit window, and everything when logged out", () => {
 		expect(canEditMessage(ownMsg(CHAT_EDIT_WINDOW_MS / 1000 + 60), "u1", NOW)).toBe(false);
 		expect(canEditMessage(ownMsg(60), undefined, NOW)).toBe(false);
+	});
+});
+
+describe("canDeleteMessage (admin moderation)", () => {
+	it("offers deletion to site admins on any user message, regardless of author or age", () => {
+		expect(canDeleteMessage(ownMsg(60), "admin")).toBe(true);
+		expect(canDeleteMessage(ownMsg(60, { author: { _id: "u2", name: "them" } }), "admin")).toBe(true);
+		expect(canDeleteMessage(ownMsg(CHAT_EDIT_WINDOW_MS / 1000 + 999), "admin")).toBe(true);
+		expect(canDeleteMessage(ownMsg(60, { type: "emoji" }), "admin")).toBe(true);
+	});
+
+	it("hides it from non-admins, on system messages, and on unsaved messages", () => {
+		expect(canDeleteMessage(ownMsg(60), undefined)).toBe(false);
+		expect(canDeleteMessage(ownMsg(60), "")).toBe(false);
+		expect(canDeleteMessage(ownMsg(60, { type: "system", author: undefined }), "admin")).toBe(false);
+		expect(canDeleteMessage({ ...ownMsg(60), _id: undefined }, "admin")).toBe(false);
 	});
 });
 

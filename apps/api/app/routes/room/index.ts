@@ -11,7 +11,9 @@ import Router from "koa-router";
 import { isOpenPublicChatRoom } from "../../services/chatroom.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { isConfirmed, loggedIn } from "../utils.ts";
+import { adminAuditTrail, auditLog, requireFullAdmin } from "../admin/audit.ts";
 import {
+	deleteChatMessage,
 	editChatMessage,
 	getChatLastRead,
 	postChatLastRead,
@@ -31,18 +33,32 @@ router.param("roomId", async (roomId, ctx, next) => {
 // Rate-limited (room/chat-message) unlike game chat: public rooms are open to
 // every logged-in user — see ACTION_RATE_LIMITS for the rationale.
 router.post("/:roomId/chat", loggedIn, isConfirmed, actionRateLimit("room/chat-message"), (ctx) =>
-	postChatMessage(ctx, ctx.params.roomId),
+	postChatMessage(ctx, ctx.params.roomId, "public"),
 );
 
 // Author-only, same 15-minute window as game chat (enforced in the shared handler).
-router.patch("/:roomId/chat/:messageId", loggedIn, isConfirmed, (ctx) => editChatMessage(ctx, ctx.params.roomId));
+router.patch("/:roomId/chat/:messageId", loggedIn, isConfirmed, (ctx) =>
+	editChatMessage(ctx, ctx.params.roomId, "public"),
+);
+
+// Moderation: site admins hard-delete any public-room message. Not under
+// /api/admin, so the audit-trail middleware is mounted per-route (#437 pattern).
+router.delete("/:roomId/chat/:messageId", loggedIn, requireFullAdmin, adminAuditTrail, async (ctx) => {
+	const message = await deleteChatMessage(ctx, ctx.params.roomId);
+	auditLog(
+		ctx,
+		"chat.deleteMessage",
+		{ kind: "chatMessage", id: ctx.params.messageId, label: message.author?.name },
+		{ room: ctx.params.roomId, author: message.author?.name, text: message.data.text.slice(0, 200) },
+	);
+});
 
 router.put(
 	"/:roomId/chat/:messageId/reaction/:emoji",
 	loggedIn,
 	isConfirmed,
 	actionRateLimit("room/chat-reaction"),
-	(ctx) => toggleChatReaction(ctx, ctx.params.roomId, true),
+	(ctx) => toggleChatReaction(ctx, ctx.params.roomId, true, "public"),
 );
 
 router.delete(
@@ -50,7 +66,7 @@ router.delete(
 	loggedIn,
 	isConfirmed,
 	actionRateLimit("room/chat-reaction"),
-	(ctx) => toggleChatReaction(ctx, ctx.params.roomId, false),
+	(ctx) => toggleChatReaction(ctx, ctx.params.roomId, false, "public"),
 );
 
 router.get("/:roomId/chat/lastRead", loggedIn, (ctx) => getChatLastRead(ctx, ctx.params.roomId));

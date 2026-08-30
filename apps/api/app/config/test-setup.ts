@@ -4,7 +4,7 @@ import { listen } from "../app.ts";
 import initDb, { closeDb, db } from "./db.ts";
 import env from "./env.ts";
 import { setActionRateLimitsForTests } from "../services/actionratelimit.ts";
-import { ensureIndexes } from "@bgs/models";
+import { ensureCollections, ensureIndexes } from "@bgs/models";
 
 assert.strictEqual(process.env.NODE_ENV, "test");
 
@@ -28,10 +28,15 @@ async function doSetup() {
 	const collections = await db().listCollections().toArray();
 	await Promise.all(collections.map((c) => db().dropCollection(c.name)));
 
-	// Dropping the collections above also drops the indexes that initDb created via
-	// ensureIndexes. Re-create them so the test DB enforces the same unique constraints
-	// (e.g. account.social.*, account.username, account.email) as production — otherwise
-	// duplicate-key bugs sail through the suite undetected.
+	// Dropping the collections above also drops the CAPPED collections that initDb
+	// created via ensureCollections — and a plain insert would silently recreate
+	// them as regular ones, making every capped-collection behaviour spec (in-place
+	// edits per #433, moderation hard-deletes) pass vacuously. Recreate them capped
+	// first, then the indexes: ensureIndexes must run after so the same unique
+	// constraints (e.g. account.social.*, account.username, account.email) as
+	// production are enforced — otherwise duplicate-key bugs sail through the suite
+	// undetected.
+	await ensureCollections(db());
 	await ensureIndexes(db());
 
 	// The drop above also killed the `locks` indexes, which mongo-locks creates

@@ -3,7 +3,10 @@ import type { UserFront, GameFront, ApiErrorFront } from "@bgs/models";
 
 export type RecentGame = Pick<GameFront, "_id" | "game" | "status" | "lastMove" | "createdAt">;
 
-export type UserInfo = Pick<UserFront, "_id" | "account" | "security" | "authority" | "adminGrants" | "createdAt"> & {
+export type UserInfo = Pick<
+	UserFront,
+	"_id" | "account" | "security" | "authority" | "adminGrants" | "createdAt" | "chatMutedUntil"
+> & {
 	games?: Record<string, number>;
 	recentGames?: RecentGame[];
 };

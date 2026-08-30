@@ -11,6 +11,7 @@ import type { GameDoc } from "@bgs/models";
 import { colls } from "./config/db.ts";
 import { accessTokenPayloadSchema, findGamesWithPlayersTurn } from "./models/index.ts";
 import { chatReactionAggregates } from "./services/chatreaction.ts";
+import { isChatDisabledForRoom } from "./routes/chat-handlers.ts";
 
 export const wss = new WebSocketServer({ port: env.listen.port.ws, host: env.listen.host });
 
@@ -64,12 +65,19 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
 			if ("room" in data) {
 				ws.room = data.room;
 
-				const roomMessages = await colls.chatMessages
-					.find({ room: data.room })
-					.sort({ _id: -1 })
-					.limit(100)
-					.project({ _id: 1, author: 1, data: 1, type: 1, editedAt: 1 })
-					.toArray();
+				const [roomMessages, chatDisabled] = await Promise.all([
+					colls.chatMessages
+						.find({ room: data.room })
+						.sort({ _id: -1 })
+						.limit(100)
+						.project({ _id: 1, author: 1, data: 1, type: 1, editedAt: 1 })
+						.toArray(),
+					// Moderation: room-wide off state (kill switch / per-boardgame flag) —
+					// the client shows a "disabled" notice instead of the input. Snapshot at
+					// join time; toggles reach clients on their next (re)join, attempts in
+					// between get the handler's 403.
+					isChatDisabledForRoom(data.room),
+				]);
 
 				if (ws.readyState !== ws.OPEN) {
 					return;
@@ -80,6 +88,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
 						room: data.room,
 						command: "messageList",
 						messages: roomMessages.toReversed(),
+						chatDisabled,
 					}),
 				);
 
@@ -186,6 +195,7 @@ function sendActiveGames(ws: AugmentedWebSocket) {
 let lastChecked = ObjectId.createFromTime(Math.floor(Date.now() / 1000));
 let lastEditChecked = new Date();
 let lastReactionChecked = new Date();
+let lastDeletionChecked = ObjectId.createFromTime(Math.floor(Date.now() / 1000));
 
 const gameCache = new cache({ stdTTL: 24 * 3600 });
 
@@ -289,6 +299,31 @@ async function run() {
 			}
 
 			lastEditChecked = new Date(Math.max(...editedMessages.map((msg) => msg.editedAt!.getTime())));
+		}
+
+		// Admin-deleted messages (moderation): hard deletes are invisible to the two
+		// polls above, so the delete route drops a tombstone into `chatdeletions`
+		// (TTL'd, see @bgs/models) and clients remove the ids from their store.
+		// Old clients ignore unknown commands — deploy-safe like updatedMessages.
+		const deletions = await colls.chatDeletions.find({ _id: { $gt: lastDeletionChecked } }).toArray();
+
+		if (deletions.length > 0) {
+			const deletedPerRoom = Object.groupBy(deletions, (doc) => doc.room);
+
+			for (const ws of clients()) {
+				const deleted = ws.room && deletedPerRoom[ws.room];
+				if (deleted) {
+					ws.send(
+						JSON.stringify({
+							room: ws.room,
+							command: "deletedMessages",
+							messageIds: deleted.map((doc) => doc.message.toHexString()),
+						}),
+					);
+				}
+			}
+
+			lastDeletionChecked = deletions[deletions.length - 1]._id!;
 		}
 
 		// Reaction changes (#438): set/unset both bump `updatedAt` (unset flips

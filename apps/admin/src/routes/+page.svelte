@@ -3,7 +3,10 @@
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import { filesize, gameEmoji, timeAgo } from "$lib/utils.ts";
+	import { api } from "$lib/api.ts";
+	import { toast } from "$lib/toast.svelte.ts";
 	import type { BoardgameEntry } from "./+layout.ts";
+	import type { ChatKillSwitchMode } from "./+page.ts";
 	import WebLink from "$components/WebLink.svelte";
 	import type { PageProps } from "./$types";
 
@@ -31,6 +34,29 @@
 			await invalidateAll();
 		} finally {
 			refreshing = false;
+		}
+	}
+
+	// Chat kill switch (moderation escalation hatch; site admins only — the load
+	// leaves it null on 403 and the card is hidden).
+	const KILL_SWITCH_LABELS: Record<ChatKillSwitchMode, string> = {
+		off: "On (normal)",
+		public: "Public rooms disabled",
+		all: "All chat disabled",
+	};
+	let savingKillSwitch = $state(false);
+
+	async function setKillSwitch(mode: ChatKillSwitchMode) {
+		if (mode === data.chatKillSwitch) return;
+		savingKillSwitch = true;
+		try {
+			await api.put("/admin/chat-kill-switch", { mode });
+			toast.success(`Chat kill switch → ${KILL_SWITCH_LABELS[mode]}`);
+			await invalidateAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Failed to update kill switch");
+		} finally {
+			savingKillSwitch = false;
 		}
 	}
 </script>
@@ -257,5 +283,38 @@
 				<a href={resolve("/changelog")} class="text-blue-600 dark:text-blue-400 hover:underline">Changelog</a> page.
 			</p>
 		</div>
+
+		<!-- Chat kill switch (site admins only) -->
+		{#if data.chatKillSwitch !== null}
+			<div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 space-y-4">
+				<div class="flex items-center gap-2">
+					<h3 class="text-sm font-semibold">Chat</h3>
+					{#if data.chatKillSwitch !== "off"}
+						<span
+							class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+						>
+							{KILL_SWITCH_LABELS[data.chatKillSwitch]}
+						</span>
+					{/if}
+				</div>
+				<p class="text-sm text-gray-500 dark:text-gray-400">
+					Site-wide kill switch. "Public rooms" stops posting in public chat rooms (game chat keeps working); "all"
+					stops every chat post/edit/reaction. Reading history stays available either way.
+				</p>
+				<label class="flex items-center gap-2 text-sm">
+					<span class="text-gray-500 dark:text-gray-400">Chat is:</span>
+					<select
+						value={data.chatKillSwitch}
+						disabled={savingKillSwitch}
+						onchange={(e) => setKillSwitch(e.currentTarget.value as ChatKillSwitchMode)}
+						class="px-2 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+					>
+						{#each Object.entries(KILL_SWITCH_LABELS) as [mode, label] (mode)}
+							<option value={mode}>{label}</option>
+						{/each}
+					</select>
+				</label>
+			</div>
+		{/if}
 	</div>
 </div>

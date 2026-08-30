@@ -9,14 +9,37 @@
 
 	// Renders inside a `relative` flex-col wrapper around the message bubble, in a
 	// message row carrying the `group` class (hover reveals the add button).
-	// `editAffordance`: the row also shows the edit pencil beside the bubble (own
-	// editable messages) — shift the add button left so the two don't overlap.
+	// `editAffordance` / `deleteAffordance`: the row also shows the edit pencil
+	// and/or the admin delete button beside the bubble — shift the add button
+	// away so they don't overlap (they're flex siblings of the bubble column,
+	// this overlay is absolute at the same spot).
 	let {
 		messageId,
 		room,
 		mine = false,
 		editAffordance = false,
-	}: { messageId: string; room: string; mine?: boolean; editAffordance?: boolean } = $props();
+		deleteAffordance = false,
+	}: {
+		messageId: string;
+		room: string;
+		mine?: boolean;
+		editAffordance?: boolean;
+		deleteAffordance?: boolean;
+	} = $props();
+
+	// One row button ≈ 2rem of clearance; two need 3.5rem.
+	let sideButtons = $derived((editAffordance ? 1 : 0) + (deleteAffordance ? 1 : 0));
+	let addButtonOffset = $derived(
+		mine
+			? sideButtons === 2
+				? "right-full mr-14"
+				: sideButtons === 1
+					? "right-full mr-8"
+					: "right-full mr-1"
+			: sideButtons > 0
+				? "left-full ml-8"
+				: "left-full ml-1"
+	);
 
 	// Chips are out of flow (absolute), so a long list can't wrap into extra
 	// overlay lines — cap the row and fold the rest into a "+N" summary chip.
@@ -92,14 +115,7 @@
 </script>
 
 {#if userId}
-	<div
-		bind:this={container}
-		class="absolute top-1/2 -translate-y-1/2 {mine
-			? editAffordance
-				? 'right-full mr-8'
-				: 'right-full mr-1'
-			: 'left-full ml-1'}"
-	>
+	<div bind:this={container} class="absolute top-1/2 -translate-y-1/2 {addButtonOffset}">
 		<button
 			type="button"
 			class="rounded-full p-1 text-gray-400 transition-opacity hover:text-gray-600 focus-visible:opacity-100 dark:text-gray-500 dark:hover:text-gray-300 pointer-coarse:opacity-70 {pickerOpen

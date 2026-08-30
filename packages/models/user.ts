@@ -159,6 +159,10 @@ export const userSchema = z.object({
 		})
 		.optional(),
 	authority: z.string().optional(),
+	// Chat moderation: while this is in the future the user can't post/edit/react
+	// in ANY chat (game or public) — enforced in the api's shared chat handlers.
+	// A permanent mute is just a far-future date (see CHAT_MUTE_DURATIONS).
+	chatMutedUntil: zDate().optional(),
 	// Granular admin grants for scoped admins (global permissions + per-boardgame
 	// `gameinfo:<gameId>` entries). Meaningless for full admins: authority ===
 	// "admin" already implies every permission.
@@ -169,6 +173,18 @@ export const userSchema = z.object({
 
 export type UserDoc = z.output<typeof userSchema>;
 export type UserFront = Jsonify<UserDoc>;
+
+// Admin chat-mute duration picker. "permanent" is a far-future date rather
+// than a separate flag: one field, one comparison, trivially unmutable.
+export const chatMuteDurationSchema = z.enum(["1h", "1d", "7d", "permanent"]);
+export type ChatMuteDuration = z.output<typeof chatMuteDurationSchema>;
+
+export const CHAT_MUTE_DURATIONS: Record<ChatMuteDuration, number> = {
+	"1h": 60 * 60 * 1000,
+	"1d": 24 * 60 * 60 * 1000,
+	"7d": 7 * 24 * 60 * 60 * 1000,
+	permanent: 100 * 365 * 24 * 60 * 60 * 1000,
+};
 
 export const USERS_COLLECTION = "users";
 

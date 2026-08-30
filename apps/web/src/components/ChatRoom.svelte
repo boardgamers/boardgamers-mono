@@ -1,15 +1,25 @@
 <script lang="ts">
 	import type { ChatMessageFront } from "@bgs/models";
-	import { account, currentGameId, sidebarOpen, chatMessages, chatReactions } from "@/lib/stores.svelte";
-	import { get, patch, post } from "@/lib/api";
+	import {
+		account,
+		currentGameId,
+		sidebarOpen,
+		chatMessages,
+		chatReactions,
+		chatRoomDisabled,
+	} from "@/lib/stores.svelte";
+	import { del, get, patch, post } from "@/lib/api";
 	import { Modal, ModalHeader, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
 	import IconChat from "@/components/icons/IconChat.svelte";
 	import IconPencil from "@/components/icons/IconPencil.svelte";
+	import IconTrash from "@/components/icons/IconTrash.svelte";
 	import {
+		canDeleteMessage,
 		canEditMessage,
 		chatApiBase,
 		countUnreadMessages,
 		dateFromObjectId,
+		confirm,
 		handleError,
 		isPinnedToBottom,
 		lastEditableMessage,
@@ -73,6 +83,16 @@
 		startEdit(last);
 		return true;
 	}
+
+	// Moderation: site admins hard-delete any message. No optimistic update — the
+	// ws poller broadcasts a deletedMessages command within ~250ms (the store
+	// filter keeps the view stable via the same scroll anchoring as edits).
+	const deleteMessage = async (message: ChatMessageFront) => {
+		if (!message._id || !(await confirm(m.chat_deleteConfirm()))) {
+			return;
+		}
+		return del(`${apiBase}/chat/${message._id}`).catch(handleError);
+	};
 
 	const saveEdit = async () => {
 		const id = editingId;
@@ -270,6 +290,7 @@
 									{room}
 									mine={sent}
 									editAffordance={canEditMessage(message, userId)}
+									deleteAffordance={canDeleteMessage(message, $account?.authority)}
 								/>
 							{/if}
 						</div>
@@ -284,13 +305,30 @@
 								<IconPencil size="0.875rem" />
 							</button>
 						{/if}
+						{#if canDeleteMessage(message, $account?.authority)}
+							<button
+								type="button"
+								class="invisible shrink-0 self-center p-1 text-gray-400 group-hover:visible hover:text-red-600 focus-visible:visible dark:hover:text-red-400"
+								title={m.chat_delete()}
+								aria-label={m.chat_delete()}
+								onclick={() => deleteMessage(message)}
+							>
+								<IconTrash size="0.875rem" />
+							</button>
+						{/if}
 					{/if}
 				</div>
 			{/if}
 		{/each}
 	</div>
 	<ModalFooter class="shrink-0 p-3">
-		<ChatInput onsend={sendMessage} oneditlast={editLastMessage} />
+		{#if $chatRoomDisabled}
+			<div class="w-full py-2 text-center text-sm text-gray-500 italic dark:text-gray-400">
+				{m.chat_disabledNotice()}
+			</div>
+		{:else}
+			<ChatInput onsend={sendMessage} oneditlast={editLastMessage} />
+		{/if}
 	</ModalFooter>
 </Modal>
 
