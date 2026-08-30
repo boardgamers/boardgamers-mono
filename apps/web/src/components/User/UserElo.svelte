@@ -5,9 +5,17 @@
 	import { m } from "@/lib/i18n/messages";
 	import type { GamePreferencesFront } from "@bgs/models";
 	import IconInfoCircleFill from "@/components/icons/IconInfoCircleFill.svelte";
+	import { get } from "@/lib/api";
 
-	// SSR'd by the user/[username] load function — no client-side fetch needed.
-	let { gamePreferences }: { gamePreferences: GamePreferencesFront[] } = $props();
+	// PoC for #179: component-level await (experimental.async). The component fetches its
+	// own data — during SSR this uses the request-scoped event.fetch (AsyncLocalStorage via
+	// getRequestEvent in lib/api), and SSR blocks until it resolves, so the list is in the
+	// server HTML. $derived(await …) re-fetches when `userId` changes (profile navigation).
+	let { userId }: { userId: string } = $props();
+
+	const gamePreferences: GamePreferencesFront[] = $derived(
+		await get<GamePreferencesFront[]>(`/user/${userId}/games/elo`).catch(() => [])
+	);
 
 	// Game infos come from the root-provided context (set during SSR), so this resolves
 	// synchronously. Fall back to the raw game id if somehow missing.

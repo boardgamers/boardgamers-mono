@@ -97,7 +97,7 @@
 			<Card class="border-gray-300 mt-4 dark:border-gray-600" header={m.user_statistics()}>
 				<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
 					<div class="mb-3">
-						<UserElo gamePreferences={data.elo} />
+						<UserElo userId={data.user._id!} />
 					</div>
 					<div>
 						<h3 class="text-lg font-semibold">{m.user_tournaments()}</h3>

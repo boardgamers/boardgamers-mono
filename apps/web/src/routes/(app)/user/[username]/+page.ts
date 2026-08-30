@@ -3,7 +3,7 @@ import { get, toKitError } from "@/lib/api";
 import { loadGames, clearGamesCache, gameListParams } from "@/lib/games.svelte";
 import { shareImageUrl } from "@/lib/seo";
 import { dateFromObjectId } from "@/utils/time";
-import type { GamePreferencesFront, UserFront } from "@bgs/models";
+import type { UserFront } from "@bgs/models";
 
 // A boardgame the profile user liked, as returned by /user/:userId/liked-games.
 type LikedGame = { game: string; label: string; alias?: string; likeCount: number };
@@ -20,7 +20,7 @@ export const load: PageLoad = async ({ params, parent }) => {
 		get<UserFront>(`/user/infoByName/${encodeURIComponent(params.username)}`).catch(toKitError),
 	]);
 
-	const [, , , elo, likedGames] = await Promise.all([
+	const [, , , likedGames] = await Promise.all([
 		loadGames({ ...gameListParams({ userId: user._id, gameStatus: "active", perPage: 5 }), store: true }),
 		// viewerKarma (the SSR viewer's karma) keeps server prefetch + client read on the
 		// same cache key (#345) — the viewer is the requester for the karma filter.
@@ -29,8 +29,7 @@ export const load: PageLoad = async ({ params, parent }) => {
 			store: true,
 		}),
 		loadGames({ ...gameListParams({ userId: user._id, gameStatus: "ended", perPage: 5 }), store: true }),
-		// Public per-user elo ratings — SSR'd here so UserElo renders synchronously.
-		get<GamePreferencesFront[]>(`/user/${user._id}/games/elo`).catch(() => []),
+		// Elo is now fetched by UserElo itself (component-level await PoC for #179).
 		// Public: the boardgames this user liked (meeple + count on their profile).
 		get<LikedGame[]>(`/user/${user._id}/liked-games`).catch(() => []),
 	]);
@@ -41,7 +40,6 @@ export const load: PageLoad = async ({ params, parent }) => {
 
 	return {
 		user,
-		elo,
 		likedGames,
 		isOwnProfile: viewer?._id === user._id,
 		seo: {

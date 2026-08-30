@@ -27,6 +27,14 @@ const release =
 const config = {
 	preprocess: vitePreprocess(),
 
+	// PoC for #179: allow `await` in component script/markup/$derived, with async SSR
+	// (Svelte 5.39.3+ / Kit 2.43+). Experimental — see the investigation report on #179.
+	compilerOptions: {
+		experimental: {
+			async: true,
+		},
+	},
+
 	kit: {
 		adapter: adapter({
 			out: process.env.WEB_ADAPTER_OUT ?? "build",
