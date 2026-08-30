@@ -68,3 +68,15 @@ gaia-project viewers (`@gaia-project/viewer@5.12.0`, `@gaia-project/old-ui@1.0.0
 emit `{ name, auth, index }` where `index` can be undefined when the store lacks
 player data — the `name` path is load-bearing there — and the take6 3D viewer emits
 `{ index, name }`. Condition not met; keep.
+
+## Deploy: legacy generation-list synthesis for pre-#429 builds (`scripts/deploy-remote.sh`)
+
+The server-chunk carry-over (`deploy_web_carry_server_chunks`) retains SSR chunks by
+deploy generation, recorded as file lists in `build/server/.carry-generations/`. Builds
+produced before #429 have no such list, so the first deploy over one synthesizes a
+`0-legacy-*.list` from the previous build's whole `server/chunks` tree — otherwise the
+still-running workers of that build would lose their chunks in the swap (the exact 500
+the carry-over exists to fix). Removable once no deploy can start from a list-less
+build: #429 has been deployed AND every plausible rollback target (any commit a
+`git checkout <sha> && bash scripts/deploy-remote.sh` rollback might rebuild from)
+already contains #429.
