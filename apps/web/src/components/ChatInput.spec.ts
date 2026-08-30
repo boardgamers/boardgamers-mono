@@ -165,27 +165,95 @@ describe("ChatInput emoji picker", () => {
 		unmount(instance);
 	});
 
-	it("switches categories from the tab list", async () => {
+	it("renders all category sections in one scrollable list and jumps from the header row", async () => {
 		const { target, instance } = mountInput();
 		const pickerEl = await openPicker(target);
 
+		// All sections flow continuously (no recents: localStorage is clean).
+		const sections = [...pickerEl.querySelectorAll<HTMLElement>("[data-section]")];
+		expect(sections.map((s) => s.dataset.section)).toEqual([
+			"smileys",
+			"people",
+			"nature",
+			"food",
+			"activities",
+			"objects",
+			"symbols",
+		]);
+
 		const tabs = [...pickerEl.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
-		expect(tabs.length).toBeGreaterThan(3);
+		expect(tabs.length).toBe(7);
+		expect(tabs[0].getAttribute("aria-selected")).toBe("true");
 		tabs.at(-1)!.click();
 		flushSync();
+		// The jump highlights the target section (scroll spy takes over on scroll).
 		expect(tabs.at(-1)!.getAttribute("aria-selected")).toBe("true");
-		const options = [...pickerEl.querySelectorAll<HTMLButtonElement>('[role="option"]')];
-		expect(options.some((o) => o.textContent?.includes("❤️"))).toBe(true);
+		expect(tabs[0].getAttribute("aria-selected")).toBe("false");
 		unmount(instance);
 	});
 
-	it("shows a recently-used tab seeded from localStorage", async () => {
+	it("filters emoji as you type in the search input", async () => {
+		const { target, instance } = mountInput();
+		const pickerEl = await openPicker(target);
+
+		const search = pickerEl.querySelector<HTMLInputElement>('input[type="search"]')!;
+		search.value = "pizza";
+		search.dispatchEvent(new window.Event("input", { bubbles: true }));
+		flushSync();
+
+		const options = [...pickerEl.querySelectorAll<HTMLButtonElement>('[role="option"]')];
+		expect(options.map((o) => o.textContent?.trim())).toEqual(["🍕"]);
+		// The category sections are replaced by a single results section while searching.
+		const sections = [...pickerEl.querySelectorAll<HTMLElement>("[data-section]")];
+		expect(sections.map((s) => s.dataset.section)).toEqual(["search"]);
+
+		// Clearing the query brings the sections back.
+		search.value = "";
+		search.dispatchEvent(new window.Event("input", { bubbles: true }));
+		flushSync();
+		expect(pickerEl.querySelectorAll("[data-section]").length).toBe(7);
+		unmount(instance);
+	});
+
+	it("shows an empty state when the search matches nothing", async () => {
+		const { target, instance } = mountInput();
+		const pickerEl = await openPicker(target);
+
+		const search = pickerEl.querySelector<HTMLInputElement>('input[type="search"]')!;
+		search.value = "zzzzzz";
+		search.dispatchEvent(new window.Event("input", { bubbles: true }));
+		flushSync();
+		expect(pickerEl.querySelectorAll('[role="option"]').length).toBe(0);
+		expect(pickerEl.textContent).toContain("No emoji found");
+		unmount(instance);
+	});
+
+	it("picks the first search result on Enter without submitting the chat form", async () => {
+		const { target, instance, onsend } = mountInput();
+		const pickerEl = await openPicker(target);
+
+		const search = pickerEl.querySelector<HTMLInputElement>('input[type="search"]')!;
+		search.value = "trophy";
+		search.dispatchEvent(new window.Event("input", { bubbles: true }));
+		flushSync();
+		search.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+		flushSync();
+
+		await vi.waitFor(() => expect(chatInput(target).value).toBe("🏆"));
+		expect(onsend).not.toHaveBeenCalled();
+		expect(JSON.parse(localStorage.getItem("chat-emoji-recent")!)).toContain("🏆");
+		unmount(instance);
+	});
+
+	it("shows a recently-used section first, seeded from localStorage", async () => {
 		localStorage.setItem("chat-emoji-recent", JSON.stringify(["🎲", "🏆"]));
 		const { target, instance } = mountInput();
 		const pickerEl = await openPicker(target);
 
-		const options = [...pickerEl.querySelectorAll<HTMLButtonElement>('[role="option"]')];
-		expect(options.map((o) => o.textContent?.trim())).toEqual(["🎲", "🏆"]);
+		const sections = [...pickerEl.querySelectorAll<HTMLElement>("[data-section]")];
+		expect(sections[0].dataset.section).toBe("recent");
+		const recentOptions = [...sections[0].querySelectorAll<HTMLButtonElement>('[role="option"]')];
+		expect(recentOptions.map((o) => o.textContent?.trim())).toEqual(["🎲", "🏆"]);
 		unmount(instance);
 	});
 });
