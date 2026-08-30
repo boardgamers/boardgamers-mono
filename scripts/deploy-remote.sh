@@ -110,6 +110,45 @@ deploy_carry_over_immutable() {
   done
 }
 
+# Carry the previous build's SSR chunks into the new build dir. The OLD pm2
+# workers keep serving through the graceful `pm2 reload` window (plus their
+# in-flight requests) with the OLD manifest in memory, and SvelteKit
+# lazy-imports route modules on first hit — so a request to a route an old
+# worker hasn't loaded yet resolves an old hashed filename against the
+# just-swapped build dir and 500s with ERR_MODULE_NOT_FOUND (observed in prod:
+# "Cannot find module .../build/server/chunks/nodes/23.js-<hash>.js imported
+# from .../manifest.js-<hash>.js"). Everything the server lazy-imports lives
+# under server/chunks/ (nodes/, entries/, shared chunks — the manifest's
+# import() targets); the top-level index.js/handler.js/env.js/shims.js are
+# loaded at boot and don't need carrying.
+# $1: previous build's server/chunks dir, $2: new build's.
+#
+# Two deliberate differences from deploy_carry_over_immutable above:
+#   - Identical same-named files are NOT re-copied: cp -p would stamp the OLD
+#     mtime onto a file the NEW manifest references, and the short prune below
+#     (+2 days vs the client's +30) would then delete it out from under the
+#     live build. Server chunks only need to outlive the reload window, so a
+#     carried old-only file keeping its original mtime (and aging out ~2 days
+#     after the build that produced it) is exactly right.
+#   - On a name collision with different content the new build still wins
+#     (same rule as #421/#422). An old worker lazy-importing such a chunk
+#     mid-window would get new-build content — a theoretical SSR mismatch,
+#     but it requires the #421/#422 rollback scenario and is strictly better
+#     than the 500.
+deploy_carry_over_server_chunks() {
+  local prev="$1" dest="$2" f rel
+  [ -d "$prev" ] || return 0
+  find "$prev" -type f | while read -r f; do
+    rel="${f#"$prev"/}"
+    if [ ! -e "$dest/$rel" ]; then
+      mkdir -p "$(dirname "$dest/$rel")"
+      cp -p "$f" "$dest/$rel"
+    elif ! cmp -s "$f" "$dest/$rel"; then
+      echo ":: WARNING: server chunk '$rel' exists in the new build with different content — keeping the new build's file (see #421/#422)"
+    fi
+  done
+}
+
 echo ":: building web (SvelteKit SSR)"
 # Build into a temp dir so the live build/ is never half-written.
 WEB_ADAPTER_OUT=build-new pnpm --filter @bgs/web build
@@ -122,9 +161,21 @@ deploy_carry_over_immutable apps/web/build-old/client/_app/immutable apps/web/bu
 deploy_carry_over_immutable apps/web/build/client/_app/immutable apps/web/build-new/client/_app/immutable
 find apps/web/build-new/client/_app/immutable -type f -mtime +30 -delete
 
+# Keep SSR chunks from recent builds for ~2 days so old workers survive the
+# reload window (see deploy_carry_over_server_chunks). Days of retention is
+# overkill for a window of seconds, but it reuses the mtime-prune pattern and
+# costs a few MB. build-old is carried first for the same reason as above
+# (it exists only if a previous deploy died mid-swap).
+deploy_carry_over_server_chunks apps/web/build-old/server/chunks apps/web/build-new/server/chunks
+deploy_carry_over_server_chunks apps/web/build/server/chunks apps/web/build-new/server/chunks
+find apps/web/build-new/server/chunks -type f -mtime +2 -delete
+
 # Atomically swap the new build into place, then reload PM2.
 # PM2 runs index.js from cwd ./apps/web/build in cluster mode,
-# so reload picks up the new files with zero downtime.
+# so reload picks up the new files with zero downtime. Old workers keep
+# serving until the reload replaces them; the carry-overs above keep both the
+# client and server chunks their in-memory manifest references on disk
+# through that window.
 rm -rf apps/web/build-old
 if [ -d apps/web/build ]; then mv apps/web/build apps/web/build-old; fi
 mv apps/web/build-new apps/web/build
@@ -137,6 +188,7 @@ echo ":: building admin (SPA)"
 ADMIN_ADAPTER_OUT=dist-new pnpm --filter @bgs/admin build
 
 # Same immutable-chunk retention as the web app (nginx serves dist/ directly).
+# No server-chunk carry-over here: admin is a static SPA, there is no SSR.
 deploy_carry_over_immutable apps/admin/dist-old/_app/immutable apps/admin/dist-new/_app/immutable
 deploy_carry_over_immutable apps/admin/dist/_app/immutable apps/admin/dist-new/_app/immutable
 find apps/admin/dist-new/_app/immutable -type f -mtime +30 -delete
