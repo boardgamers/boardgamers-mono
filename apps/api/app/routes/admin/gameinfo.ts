@@ -11,12 +11,23 @@ import type { Context } from "koa";
 import Router from "koa-router";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
-import { canUserManageGame, isGameAdminGrant, locales, userPermissions } from "@bgs/models";
+import { canUserManageGame, isGameAdminGrant, userPermissions } from "@bgs/models";
 import { colls } from "../../config/db.ts";
-import { metadataNeedsTranslation, metadataSourceHash, metadataSourceStrings } from "../../models/gameinfo-i18n.ts";
+import {
+	metadataNeedsTranslation,
+	metadataSourceHash,
+	metadataSourceStrings,
+	metadataTargetLangs,
+	optionSourceStrings,
+} from "../../models/gameinfo-i18n.ts";
 import { findByEmail, findByUsername, findGameInfoWithVersion } from "../../models/index.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { deriveGameMetaStatus, lastAccessibleVersion } from "../../services/gameinfo.ts";
+import {
+	gameNeedsTranslation,
+	optionSourceVersion,
+	translateOptionLabels,
+} from "../../services/option-translations.ts";
 import { gameBundleS3Key, publicObjectUrl, putObject, s3Enabled } from "../../services/s3.ts";
 import { TranslationError, translateMarkdown } from "../../services/translate.ts";
 import { auditLog } from "./audit.ts";
@@ -91,7 +102,10 @@ const metadataBodySchema = z.looseObject({
 });
 
 router.get("/:game/meta", async (ctx) => {
-	const doc = await colls.gameMetadatas.findOne({ _id: ctx.params.game });
+	const [doc, sourceVersion] = await Promise.all([
+		colls.gameMetadatas.findOne({ _id: ctx.params.game }),
+		optionSourceVersion(ctx.params.game),
+	]);
 	if (!doc) {
 		ctx.body = null;
 		return;
@@ -101,9 +115,17 @@ router.get("/:game/meta", async (ctx) => {
 	// the same rule as the server's metadataNeedsTranslation, without
 	// re-implementing the hash client-side. The metadata PUT round-trips this
 	// response, but its schema strips unknown fields, so the extra key never
-	// lands in the db.
+	// lands in the db. `translationNeeds` is the combined per-language
+	// predicate (markdown metadata + option labels) — the option side is
+	// per-string against a version doc, so the client can't compute it from
+	// sourceHash alone.
 	const source = metadataSourceStrings(doc);
-	ctx.body = { ...doc, sourceHash: Object.keys(source).length > 0 ? metadataSourceHash(source) : null };
+	const optionSource = optionSourceStrings(sourceVersion);
+	ctx.body = {
+		...doc,
+		sourceHash: Object.keys(source).length > 0 ? metadataSourceHash(source) : null,
+		translationNeeds: metadataTargetLangs().filter((lang) => gameNeedsTranslation(doc, optionSource, lang)),
+	};
 });
 
 router.put("/:game/meta", async (ctx) => {
@@ -114,7 +136,21 @@ router.put("/:game/meta", async (ctx) => {
 	// the like/unlike service — a `$set` here would clobber it with a stale
 	// snapshot — and `status` is derived from the version docs (recomputed below
 	// when `unlisted` changes), never taken from the form.
-	const body = omit(metadataBodySchema.parse(ctx.request.body), "_id", "createdAt", "updatedAt", "likeCount", "status");
+	// `translations`/`optionTranslations` are owned by the translate routes —
+	// the loose schema would otherwise let a scripted round-trip of the GET
+	// response $set them back with a stale snapshot.
+	const body = omit(
+		metadataBodySchema.parse(ctx.request.body),
+		"_id",
+		"createdAt",
+		"updatedAt",
+		"likeCount",
+		"status",
+		"translations",
+		"optionTranslations",
+		"sourceHash",
+		"translationNeeds",
+	);
 
 	// Guard against orphan metadata docs (typo'd game name in scripted use): the
 	// game must exist as at least one version doc.
@@ -177,89 +213,28 @@ router.post("/:game/meta/translate", actionRateLimit("admin/translate-gameinfo")
 	requireGameAccess(ctx, game);
 	const { targetLang } = metadataTranslateSchema.parse(ctx.request.body ?? {});
 
-	const doc = await colls.gameMetadatas.findOne({ _id: game });
+	const [doc, sourceVersion] = await Promise.all([
+		colls.gameMetadatas.findOne({ _id: game }),
+		optionSourceVersion(game),
+	]);
 	if (!doc) {
 		throw createError(404, `No metadata for ${game}`);
 	}
 
 	// Only translate fields that have a base (English) source; the rest are left
-	// out of the overlay for this language.
+	// out of the overlay for this language. Option/setting/preference/expansion
+	// labels are covered too (#306 follow-up) — manual single-language translate
+	// is a FORCE: every current label is re-translated (same overwrite semantics
+	// as the markdown fields).
 	const source = metadataSourceStrings(doc);
-	if (Object.keys(source).length === 0) {
-		throw createError(400, `${game} has no description/rules/credits to translate`);
+	const optionSource = optionSourceStrings(sourceVersion);
+	if (Object.keys(source).length === 0 && Object.keys(optionSource).length === 0) {
+		throw createError(400, `${game} has no description/rules/credits or option labels to translate`);
 	}
 
-	let translated: Record<string, string>;
 	try {
-		translated = Object.fromEntries(
-			await Promise.all(
-				Object.entries(source).map(async ([field, text]) => [
-					field,
-					await translateMarkdown({
-						text,
-						sourceLang: "en",
-						targetLang,
-						context: `${field} of the boardgame "${doc.label ?? game}"`,
-					}),
-				]),
-			),
-		);
-	} catch (err) {
-		if (err instanceof TranslationError) {
-			throw createError(err.status, err.message);
-		}
-		throw err;
-	}
-
-	auditLog(ctx, "gameinfo.translateMeta", { kind: "boardgame", id: game }, { targetLang });
-	ctx.body = await colls.gameMetadatas.findOneAndUpdate(
-		{ _id: game },
-		{
-			$set: {
-				[`translations.${targetLang}`]: { ...translated, translatedFrom: { hash: metadataSourceHash(source) } },
-			},
-		},
-		{ returnDocument: "after" },
-	);
-});
-
-// POST /:game/meta/translate-all — bulk variant (#306): translate the metadata
-// into every supported UI locale whose overlay needs it — missing, outdated
-// (stale translatedFrom.hash), or legacy stamp-less — the same predicate as
-// the bulk metadata job (metadataNeedsTranslation), so the two paths don't
-// diverge. Synchronous
-// (unlike the page translate-bulk's 202+job+poll): per-language `$set` persists
-// incrementally and a retry skips completed languages, so a proxy/client
-// timeout mid-run self-heals on re-call. Sequential per language — a 9× burst
-// of paid completions against the provider is avoided and failures stay
-// isolated per language.
-router.post("/:game/meta/translate-all", actionRateLimit("admin/translate-gameinfo-bulk"), async (ctx) => {
-	const game = ctx.params.game;
-	requireGameAccess(ctx, game);
-
-	const doc = await colls.gameMetadatas.findOne({ _id: game });
-	if (!doc) {
-		throw createError(404, `No metadata for ${game}`);
-	}
-	const source = metadataSourceStrings(doc);
-	if (Object.keys(source).length === 0) {
-		throw createError(400, `${game} has no description/rules/credits to translate`);
-	}
-
-	// Base subtags of every supported UI locale except English (the source).
-	const allTargets = [...new Set(locales.map((l) => l.split("-")[0]))].filter((l) => l !== "en");
-	const targets = allTargets.filter((l) => metadataNeedsTranslation(doc, l));
-	const skipped = allTargets.length - targets.length;
-	if (targets.length === 0) {
-		ctx.body = { translated: 0, skipped, errors: [], langs: [] };
-		return;
-	}
-
-	const translated: string[] = [];
-	const errors: { lang: string; message: string }[] = [];
-	for (const targetLang of targets) {
-		try {
-			const overlay = Object.fromEntries(
+		if (Object.keys(source).length > 0) {
+			const translated = Object.fromEntries(
 				await Promise.all(
 					Object.entries(source).map(async ([field, text]) => [
 						field,
@@ -276,10 +251,105 @@ router.post("/:game/meta/translate-all", actionRateLimit("admin/translate-gamein
 				{ _id: game },
 				{
 					$set: {
-						[`translations.${targetLang}`]: { ...overlay, translatedFrom: { hash: metadataSourceHash(source) } },
+						[`translations.${targetLang}`]: { ...translated, translatedFrom: { hash: metadataSourceHash(source) } },
 					},
 				},
 			);
+		}
+		if (Object.keys(optionSource).length > 0) {
+			await translateOptionLabels({
+				game,
+				gameLabel: doc.label ?? game,
+				source: optionSource,
+				existingOverlay: doc.optionTranslations?.[targetLang],
+				targetLang,
+				force: true,
+			});
+		}
+	} catch (err) {
+		if (err instanceof TranslationError) {
+			throw createError(err.status, err.message);
+		}
+		throw err;
+	}
+
+	auditLog(ctx, "gameinfo.translateMeta", { kind: "boardgame", id: game }, { targetLang });
+	ctx.body = await colls.gameMetadatas.findOne({ _id: game });
+});
+
+// POST /:game/meta/translate-all — bulk variant (#306): translate the metadata
+// into every supported UI locale whose overlay needs it — missing, outdated
+// (stale translatedFrom.hash), or legacy stamp-less — the same predicate as
+// the bulk metadata job (metadataNeedsTranslation), so the two paths don't
+// diverge. Synchronous
+// (unlike the page translate-bulk's 202+job+poll): per-language `$set` persists
+// incrementally and a retry skips completed languages, so a proxy/client
+// timeout mid-run self-heals on re-call. Sequential per language — a 9× burst
+// of paid completions against the provider is avoided and failures stay
+// isolated per language.
+router.post("/:game/meta/translate-all", actionRateLimit("admin/translate-gameinfo-bulk"), async (ctx) => {
+	const game = ctx.params.game;
+	requireGameAccess(ctx, game);
+
+	const [doc, sourceVersion] = await Promise.all([
+		colls.gameMetadatas.findOne({ _id: game }),
+		optionSourceVersion(game),
+	]);
+	if (!doc) {
+		throw createError(404, `No metadata for ${game}`);
+	}
+	const source = metadataSourceStrings(doc);
+	const optionSource = optionSourceStrings(sourceVersion);
+	if (Object.keys(source).length === 0 && Object.keys(optionSource).length === 0) {
+		throw createError(400, `${game} has no description/rules/credits or option labels to translate`);
+	}
+
+	// A language needs work when its markdown overlay OR any option label does
+	// (gameNeedsTranslation); within a language, each part is only re-paid when
+	// it needs it — a lang whose markdown is fresh but has two new option
+	// labels translates two labels, not three markdown documents.
+	const allTargets = metadataTargetLangs();
+	const targets = allTargets.filter((l) => gameNeedsTranslation(doc, optionSource, l));
+	const skipped = allTargets.length - targets.length;
+	if (targets.length === 0) {
+		ctx.body = { translated: 0, skipped, errors: [], langs: [] };
+		return;
+	}
+
+	const translated: string[] = [];
+	const errors: { lang: string; message: string }[] = [];
+	for (const targetLang of targets) {
+		try {
+			if (metadataNeedsTranslation(doc, targetLang)) {
+				const overlay = Object.fromEntries(
+					await Promise.all(
+						Object.entries(source).map(async ([field, text]) => [
+							field,
+							await translateMarkdown({
+								text,
+								sourceLang: "en",
+								targetLang,
+								context: `${field} of the boardgame "${doc.label ?? game}"`,
+							}),
+						]),
+					),
+				);
+				await colls.gameMetadatas.updateOne(
+					{ _id: game },
+					{
+						$set: {
+							[`translations.${targetLang}`]: { ...overlay, translatedFrom: { hash: metadataSourceHash(source) } },
+						},
+					},
+				);
+			}
+			await translateOptionLabels({
+				game,
+				gameLabel: doc.label ?? game,
+				source: optionSource,
+				existingOverlay: doc.optionTranslations?.[targetLang],
+				targetLang,
+			});
 			translated.push(targetLang);
 		} catch (err) {
 			errors.push({ lang: targetLang, message: err instanceof Error ? err.message : String(err) });

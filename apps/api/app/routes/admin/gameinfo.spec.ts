@@ -1115,3 +1115,216 @@ describe("Admin gameinfo API — metadata translation (#306)", () => {
 		assert.strictEqual(empty.status, 400);
 	});
 });
+
+describe("Admin gameinfo API — option-label translation (#306 follow-up)", () => {
+	let headers: Record<string, string>;
+	let llm: http.Server;
+	// Every label batch the fake LLM answered, for asserting WHICH strings were
+	// (re-)paid for.
+	let labelBatches: Record<string, string>[] = [];
+	let markdownPrompts: string[] = [];
+
+	before(async () => {
+		headers = await makeAdminHeaders();
+		await colls.gameInfos.insertOne({
+			_id: { game: "optadmin", version: 1 },
+			viewer: { url: "//v1" },
+			public: true,
+			meta: {},
+			options: [
+				{
+					name: "map",
+					label: "Map layout",
+					type: "select",
+					items: [{ name: "random", label: "Random" }],
+				},
+				{ name: "secret", label: "Hidden knob", type: "hidden" },
+			],
+			expansions: [{ name: "cities", label: "The Cities" }],
+		});
+		await colls.gameMetadatas.insertOne({
+			_id: "optadmin",
+			label: "Opt Admin",
+			players: [2],
+			description: "A game.",
+		});
+		// A game with ONLY option labels (no description/rules/credits).
+		await colls.gameInfos.insertOne({
+			_id: { game: "optonly", version: 1 },
+			viewer: { url: "//v1" },
+			public: true,
+			meta: {},
+			settings: [{ name: "autoplay", label: "Auto-play", type: "checkbox" }],
+		});
+		await colls.gameMetadatas.insertOne({ _id: "optonly", label: "Opt Only", players: [2] });
+
+		// Fake LLM: markdown prompts echo `[t] <text>`; label-batch prompts
+		// (the JSON-in/JSON-out contract of translateLabels) answer the same
+		// keys with `[t] <label>` values.
+		llm = http.createServer((req, res) => {
+			let raw = "";
+			req.on("data", (chunk) => (raw += chunk));
+			req.on("end", () => {
+				// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse is any; fields are defaulted below
+				const body = JSON.parse(raw) as { messages: { role: string; content: string }[] };
+				const user = body.messages.find((m) => m.role === "user")?.content ?? "";
+				res.setHeader("content-type", "application/json");
+				let content: string;
+				if (user.includes("Respond with ONLY a JSON object")) {
+					// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the label prompt embeds a JSON string map
+					const labels = JSON.parse(user.split("\n\n").at(-1)!) as Record<string, string>;
+					labelBatches.push(labels);
+					content = JSON.stringify(Object.fromEntries(Object.entries(labels).map(([k, v]) => [k, `[t] ${v}`])));
+				} else {
+					markdownPrompts.push(user);
+					content = `[t] ${user.split("\n\n").at(-1)}`;
+				}
+				res.end(JSON.stringify({ choices: [{ message: { content }, finish_reason: "stop" }] }));
+			});
+		});
+		await new Promise<void>((resolve) => llm.listen(0, "127.0.0.1", resolve));
+		env.translation.apiKey = "test-key";
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- listen(0, "127.0.0.1") binds a TCP port, so the address is an AddressInfo
+		env.translation.baseUrl = `http://127.0.0.1:${(llm.address() as AddressInfo).port}`;
+	});
+
+	after(async () => {
+		env.translation.apiKey = "";
+		env.translation.baseUrl = "https://openrouter.ai/api/v1";
+		await new Promise((resolve) => llm.close(resolve));
+		await db().dropDatabase();
+	});
+
+	it("meta GET reports translationNeeds from the combined markdown + option predicate", async () => {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/optadmin/meta`, { headers });
+		assert.strictEqual(res.status, 200);
+		const body = z.object({ translationNeeds: z.array(z.string()) }).parse(await res.json());
+		// Nothing translated yet: every non-en target needs work.
+		assert.ok(body.translationNeeds.includes("fr"));
+		assert.ok(body.translationNeeds.length > 1);
+
+		// A game with only option labels needs work too (no markdown source).
+		const only = await fetch(`${baseURL()}/api/admin/gameinfo/optonly/meta`, { headers });
+		const onlyBody = z
+			.object({ sourceHash: z.string().nullable(), translationNeeds: z.array(z.string()) })
+			.parse(await only.json());
+		assert.strictEqual(onlyBody.sourceHash, null);
+		assert.ok(onlyBody.translationNeeds.includes("fr"));
+	});
+
+	it("meta/translate covers option labels: batched call, per-string stamps, hidden options skipped", async () => {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/optadmin/meta/translate`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ targetLang: "fr" }),
+		});
+		const resBody = await res.text();
+		assert.strictEqual(res.status, 200, resBody);
+
+		const doc = await colls.gameMetadatas.findOne({ _id: "optadmin" });
+		// Markdown overlay written as before.
+		assert.strictEqual(doc?.translations?.fr?.description, "[t] A game.");
+		// Option overlay: every visible label, keyed by stable path, stamped
+		// with the per-string hash of its English source label.
+		const overlay = doc?.optionTranslations?.fr;
+		assert.ok(overlay);
+		assert.deepEqual(Object.keys(overlay).sort(), ["expansions.cities", "options.map", "options.map.items.random"]);
+		assert.strictEqual(overlay["options.map"].label, "[t] Map layout");
+		assert.strictEqual(overlay["options.map.items.random"].label, "[t] Random");
+		assert.strictEqual(overlay["expansions.cities"].label, "[t] The Cities");
+		for (const [key, entry] of Object.entries(overlay)) {
+			assert.ok(entry.translatedFrom?.hash, `stamp for ${key}`);
+		}
+		// One batched completion carried all three labels (not three calls).
+		const batch = labelBatches.find((b) => "options.map" in b);
+		assert.ok(batch);
+		assert.strictEqual(Object.keys(batch).length, 3);
+
+		// The public serve resolves the translated labels for fr.
+		const served = await fetch(`${baseURL()}/api/boardgame/optadmin/info`, { headers: { Cookie: "lang=fr" } });
+		const info = z
+			.object({ options: z.array(z.object({ name: z.string(), label: z.string() })) })
+			.parse(await served.json());
+		assert.strictEqual(info.options[0].label, "[t] Map layout");
+
+		// translationNeeds no longer lists fr for this game.
+		const meta = await fetch(`${baseURL()}/api/admin/gameinfo/optadmin/meta`, { headers });
+		const needs = z.object({ translationNeeds: z.array(z.string()) }).parse(await meta.json()).translationNeeds;
+		assert.strictEqual(needs.includes("fr"), false);
+	});
+
+	it("a game with only option labels translates (no 400), md part untouched", async () => {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/optonly/meta/translate`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({ targetLang: "de" }),
+		});
+		assert.strictEqual(res.status, 200, await res.text());
+		const doc = await colls.gameMetadatas.findOne({ _id: "optonly" });
+		assert.strictEqual(doc?.optionTranslations?.de?.["settings.autoplay"]?.label, "[t] Auto-play");
+		assert.strictEqual(doc?.translations, undefined, "no markdown source → no markdown overlay");
+	});
+
+	it("translate-all re-pays ONLY stale strings after an engine upload changes one label", async () => {
+		// Bring optadmin fully up to date first.
+		const all = await fetch(`${baseURL()}/api/admin/gameinfo/optadmin/meta/translate-all`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({}),
+		});
+		assert.strictEqual(all.status, 200, await all.text());
+		const metaFresh = await fetch(`${baseURL()}/api/admin/gameinfo/optadmin/meta`, { headers });
+		assert.deepEqual(
+			z.object({ translationNeeds: z.array(z.string()) }).parse(await metaFresh.json()).translationNeeds,
+			[],
+		);
+
+		// An engine-version upload rewords one option label (same name).
+		await colls.gameInfos.updateOne(
+			{ _id: { game: "optadmin", version: 1 } },
+			{ $set: { "options.0.label": "Board layout" } },
+		);
+		const meta = await fetch(`${baseURL()}/api/admin/gameinfo/optadmin/meta`, { headers });
+		const needs = z.object({ translationNeeds: z.array(z.string()) }).parse(await meta.json()).translationNeeds;
+		assert.ok(needs.length > 0, "the reworded label flags every language again");
+
+		labelBatches = [];
+		markdownPrompts = [];
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/optadmin/meta/translate-all`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({}),
+		});
+		const body = z.object({ translated: z.number(), errors: z.array(z.unknown()) }).parse(await res.json());
+		assert.strictEqual(body.errors.length, 0);
+		assert.ok(body.translated > 0);
+		// Only the stale key was in the batches; the fresh markdown was NOT re-paid.
+		assert.ok(labelBatches.length > 0);
+		for (const batch of labelBatches) {
+			assert.deepEqual(Object.keys(batch), ["options.map"]);
+		}
+		assert.deepEqual(markdownPrompts, []);
+		// Fresh entries were carried over, the stale one replaced and re-stamped.
+		const doc = await colls.gameMetadatas.findOne({ _id: "optadmin" });
+		assert.strictEqual(doc?.optionTranslations?.fr?.["options.map"]?.label, "[t] Board layout");
+		assert.strictEqual(doc?.optionTranslations?.fr?.["expansions.cities"]?.label, "[t] The Cities");
+	});
+
+	it("a metadata PUT round-trip cannot clobber translations or optionTranslations", async () => {
+		const beforeDoc = await colls.gameMetadatas.findOne({ _id: "optadmin" });
+		const put = await fetch(`${baseURL()}/api/admin/gameinfo/optadmin/meta`, {
+			method: "PUT",
+			headers,
+			body: JSON.stringify({
+				label: "Opt Admin",
+				description: "A game.",
+				translations: { fr: { description: "stale snapshot" } },
+				optionTranslations: { fr: { "options.map": { label: "stale" } } },
+			}),
+		});
+		assert.strictEqual(put.status, 200);
+		const afterDoc = await colls.gameMetadatas.findOne({ _id: "optadmin" });
+		assert.deepEqual(afterDoc?.translations, beforeDoc?.translations);
+		assert.deepEqual(afterDoc?.optionTranslations, beforeDoc?.optionTranslations);
+	});
+});

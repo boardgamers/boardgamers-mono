@@ -101,19 +101,20 @@
 	// into the `translations` overlay (#306). `data.metadata` carries the overlay
 	// (the GameInfoData `value` doesn't — translations is deliberately not picked
 	// onto gameInfoSchema). After a translate we invalidateAll to refetch it.
-	const existingLangs = $derived(new Set(Object.keys(data.metadata?.translations ?? {})));
+	const existingLangs = $derived(
+		new Set([
+			...Object.keys(data.metadata?.translations ?? {}),
+			...Object.keys(data.metadata?.optionTranslations ?? {}),
+		])
+	);
 	// Base subtags of every supported UI locale except English (the source).
 	const targetLangs = $derived([...new Set(locales.map((l) => l.split("-")[0]))].filter((l) => l !== "en"));
-	// Languages translate-all would actually translate — the server's
-	// metadataNeedsTranslation rule, computed against the meta GET's
-	// sourceHash: the overlay is missing, outdated (stamped against different
-	// source text), or a stamp-less legacy one. No source text → nothing to
-	// translate (the endpoint would 400).
-	const needingLangs = $derived(
-		data.metadata?.sourceHash
-			? targetLangs.filter((l) => data.metadata?.translations?.[l]?.translatedFrom?.hash !== data.metadata?.sourceHash)
-			: []
-	);
+	// Languages translate-all would actually translate — the server's combined
+	// predicate (markdown metadata AND option/setting/preference/expansion
+	// labels), served by the meta GET as `translationNeeds`. Option-label
+	// freshness is per-string against a version doc, so it can't be re-derived
+	// client-side from sourceHash. Empty → nothing to translate.
+	const needingLangs = $derived(data.metadata?.translationNeeds ?? []);
 	// Chip labels are base subtags; the tooltip shows the full locale name, mapping
 	// a bare subtag to its regional default first (pt → pt-BR → "Português (Brasil)").
 	function langName(lang: string): string {

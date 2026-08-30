@@ -144,9 +144,22 @@ export interface TranslationsOverview {
 		label: string;
 		alias?: string;
 		sourceFields: string[];
+		// Number of translatable option/setting/preference/expansion labels on
+		// the game's source version (0 = the cell is markdown-only).
+		optionStrings: number;
 		// "unknown" = overlay predates translatedFrom tracking (no stamp, so
-		// freshness can't be told from the data).
-		cells: Record<string, { status: "ok" | "outdated" | "missing" | "unknown"; fields: string[] }>;
+		// freshness can't be told from the data). A cell's status folds in the
+		// option-label coverage: it reads "outdated" as soon as ANY constituent
+		// string (markdown field or option label) is stale/missing while others
+		// exist; `optionStrings` carries the per-language label counts.
+		cells: Record<
+			string,
+			{
+				status: "ok" | "outdated" | "missing" | "unknown";
+				fields: string[];
+				optionStrings?: { total: number; fresh: number };
+			}
+		>;
 	}[];
 	// Changelog coverage (#306 follow-up): per-locale counts over the published
 	// entries (a summary row, not a per-entry matrix).

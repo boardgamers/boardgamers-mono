@@ -121,17 +121,25 @@
 
 	const cellGlyph: Record<string, string> = { ok: "✓", outdated: "!", missing: "·", unknown: "?" };
 
-	function metaCellTitle(game: string, lang: string, cell?: { status: string; fields: string[] }): string {
+	function metaCellTitle(
+		game: string,
+		lang: string,
+		cell?: { status: string; fields: string[]; optionStrings?: { total: number; fresh: number } }
+	): string {
 		const fields = cell?.fields.length ? ` (${cell.fields.join(", ")})` : "";
+		// Option/setting/preference/expansion label coverage, when the game has any.
+		const options = cell?.optionStrings
+			? ` — option labels ${cell.optionStrings.fresh}/${cell.optionStrings.total}`
+			: "";
 		switch (cell?.status) {
 			case "ok":
-				return `${game} (${lang}): translated${fields}`;
+				return `${game} (${lang}): translated${fields}${options}`;
 			case "outdated":
-				return `${game} (${lang}): outdated — the English source was edited after this translation${fields}`;
+				return `${game} (${lang}): outdated — some strings were edited or never translated${fields}${options}`;
 			case "unknown":
-				return `${game} (${lang}): translated${fields} — translated before outdated-tracking existed, freshness unknown`;
+				return `${game} (${lang}): translated${fields}${options} — translated before outdated-tracking existed, freshness unknown`;
 			default:
-				return `${game} (${lang}): no translation`;
+				return `${game} (${lang}): no translation${options}`;
 		}
 	}
 </script>
@@ -323,7 +331,7 @@
 					<button
 						onclick={() => refreshMetadata("")}
 						disabled={!!metaRefreshing[""]}
-						title="LLM-translate every game-metadata overlay that is missing, outdated, or unknown (pre-tracking), every locale (description / rules / credits)"
+						title="LLM-translate every game-metadata overlay that is missing, outdated, or unknown (pre-tracking), every locale (description / rules / credits + option labels)"
 						class="text-xs rounded border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 px-2 py-0.5 hover:bg-violet-50 dark:hover:bg-violet-950 disabled:opacity-50"
 					>
 						{metaRefreshing[""] ? "starting…" : "refresh translations"}
@@ -331,9 +339,11 @@
 				{/if}
 			</div>
 			<p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
-				One cell per game × locale: the translations overlay's status (description / rules / credits). "unknown" =
-				translated before outdated-tracking existed, so freshness can't be told from the data — the translate buttons
-				re-translate those too (once; the new write is stamped).
+				One cell per game × locale: the translations overlay's status — description / rules / credits AND the game's
+				option / setting / preference / expansion labels (hover a cell for the label coverage). A cell is "outdated" as
+				soon as any constituent string is stale or missing while others exist. "unknown" = translated before
+				outdated-tracking existed, so freshness can't be told from the data — the translate buttons re-translate those
+				too (once; the new write is stamped).
 			</p>
 			<div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
 				<table class="text-sm">
