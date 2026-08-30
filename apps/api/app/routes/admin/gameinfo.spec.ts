@@ -7,6 +7,7 @@ import { z } from "zod";
 import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { testGame, testUser } from "../../config/test-helpers.ts";
+import { metadataSourceHash } from "../../models/gameinfo-i18n.ts";
 import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
 
 const baseURL = () => `http://${env.listen.host}:${env.listen.port.api}`;
@@ -954,7 +955,14 @@ describe("Admin gameinfo API — metadata translation (#306)", () => {
 				description: z.string(),
 				rules: z.string(),
 				translations: z
-					.record(z.string(), z.object({ description: z.string().optional(), rules: z.string().optional() }))
+					.record(
+						z.string(),
+						z.object({
+							description: z.string().optional(),
+							rules: z.string().optional(),
+							translatedFrom: z.object({ hash: z.string() }).optional(),
+						}),
+					)
 					.optional(),
 			})
 			.parse(JSON.parse(resBody));
@@ -965,6 +973,12 @@ describe("Admin gameinfo API — metadata translation (#306)", () => {
 		assert.strictEqual(doc.translations?.de?.description, "[de] A **great** game.");
 		assert.strictEqual(doc.translations?.de?.rules, "[de] Build first.");
 		assert.strictEqual(doc.translations?.de && "credits" in doc.translations.de, false);
+		// Stamped with the content hash of the source strings so the dashboard
+		// can track outdatedness (independent of updatedAt bumps).
+		assert.strictEqual(
+			doc.translations?.de?.translatedFrom?.hash,
+			metadataSourceHash({ description: "A **great** game.", rules: "Build first." }),
+		);
 	});
 
 	it("translate-all fills every missing UI locale and skips existing ones", async () => {
@@ -987,6 +1001,11 @@ describe("Admin gameinfo API — metadata translation (#306)", () => {
 		assert.strictEqual(doc?.translations?.de?.description, "[de] A **great** game.");
 		assert.strictEqual(doc?.translations?.fr?.description, "[de] A **great** game."); // stub echoes [de] regardless
 		assert.strictEqual(Object.keys(doc?.translations ?? {}).length, 9);
+		// Every overlay carries the content hash of the source strings.
+		const expectedHash = metadataSourceHash({ description: "A **great** game.", rules: "Build first." });
+		for (const [lang, overlay] of Object.entries(doc?.translations ?? {})) {
+			assert.strictEqual(overlay.translatedFrom?.hash, expectedHash, `stamp for ${lang}`);
+		}
 	});
 
 	it("rejects a scoped admin of a DIFFERENT game and an unauthenticated caller", async () => {

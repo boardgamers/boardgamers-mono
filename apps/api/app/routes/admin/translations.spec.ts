@@ -9,6 +9,7 @@ import { ObjectId } from "mongodb";
 import { colls, db } from "../../config/db.ts";
 import env from "../../config/env.ts";
 import { testUser } from "../../config/test-helpers.ts";
+import { metadataSourceHash, metadataSourceStrings } from "../../models/gameinfo-i18n.ts";
 import { createAccessToken, generateRefreshCode, hashRefreshCode } from "../../models/jwtrefreshtokens.ts";
 import { ACTION_RATE_LIMITS } from "../../services/actionratelimit.ts";
 
@@ -57,7 +58,7 @@ interface Overview {
 		game: string;
 		label: string;
 		sourceFields: string[];
-		cells: Record<string, { translated: boolean; fields: string[] }>;
+		cells: Record<string, { status: "ok" | "outdated" | "missing" | "unknown"; fields: string[] }>;
 	}[];
 	jobs: OverviewJob[];
 }
@@ -180,7 +181,9 @@ describe("Admin translations overview + bulk job lifecycle (#306)", () => {
 		}
 	});
 
-	it("reports game-metadata translation presence with the overlay's fields", async () => {
+	it("reports game-metadata translation status with the overlay's fields", async () => {
+		// Legacy overlays (no translatedFrom stamp — everything written before
+		// outdated-tracking existed) report "unknown".
 		await colls.gameMetadatas.insertOne({
 			_id: "ovgame",
 			label: "OV Game",
@@ -197,12 +200,103 @@ describe("Admin translations overview + bulk job lifecycle (#306)", () => {
 		const game = overview.games.find((g) => g.game === "ovgame");
 		assert.ok(game);
 		assert.deepEqual(game.sourceFields, ["description"]);
-		assert.deepEqual(game.cells.de, { translated: true, fields: ["description"] });
-		assert.deepEqual(game.cells.fr, { translated: true, fields: ["description", "rules"] });
-		assert.equal(game.cells.ru.translated, false);
+		assert.deepEqual(game.cells.de, { status: "unknown", fields: ["description"] });
+		assert.deepEqual(game.cells.fr, { status: "unknown", fields: ["description", "rules"] });
+		assert.equal(game.cells.ru.status, "missing");
 		const bare = overview.games.find((g) => g.game === "ovbare");
 		assert.ok(bare);
-		assert.equal(bare.cells.de.translated, false);
+		assert.equal(bare.cells.de.status, "missing");
+	});
+
+	it("reports ok / outdated for stamped metadata overlays, flipping on a source edit", async () => {
+		const sourceHash = metadataSourceHash(metadataSourceStrings({ description: "A game" }));
+		await colls.gameMetadatas.insertOne({
+			_id: "ovstamp",
+			label: "OV Stamped",
+			players: [2],
+			description: "A game",
+			translations: {
+				// Translated against the current source text → ok.
+				de: { description: "Ein Spiel", translatedFrom: { hash: sourceHash } },
+				// Translated against different (older) source text → outdated.
+				fr: { description: "Un jeu", translatedFrom: { hash: "0000000000000000" } },
+			},
+		});
+
+		const res = await api("GET", "/api/admin/translations/overview", adminHeaders);
+		assert.strictEqual(res.status, 200);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const overview = res.data as Overview;
+		const game = overview.games.find((g) => g.game === "ovstamp");
+		assert.ok(game);
+		assert.equal(game.cells.de.status, "ok");
+		assert.equal(game.cells.fr.status, "outdated");
+		assert.equal(game.cells.ru.status, "missing");
+
+		// A source text edit changes the source hash → the previously-fresh de
+		// overlay flips to outdated.
+		await colls.gameMetadatas.updateOne({ _id: "ovstamp" }, { $set: { description: "An edited game" } });
+		const resAfter = await api("GET", "/api/admin/translations/overview", adminHeaders);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const flipped = (resAfter.data as Overview).games.find((g) => g.game === "ovstamp");
+		assert.equal(flipped?.cells.de.status, "outdated");
+		assert.equal(flipped?.cells.fr.status, "outdated");
+	});
+
+	it("end-to-end: translate → ok; likes don't flip it; a source edit does; a revert restores ok", async () => {
+		// Realistic fixture: a doc that already has an updatedAt and likes —
+		// regression guard for the two #415 review blockers (self-invalidation
+		// via the overlay write's own updatedAt bump; like-bumps reading as
+		// outdated).
+		await colls.gameInfos.insertOne({
+			_id: { game: "ove2e", version: 1 },
+			viewer: { url: "//v1" },
+			public: true,
+			meta: {},
+		});
+		await colls.gameMetadatas.insertOne({
+			_id: "ove2e",
+			label: "OV E2E",
+			players: [2],
+			description: "The original description.",
+			likeCount: 3,
+			createdAt: new Date(Date.now() - 86_400_000),
+			updatedAt: new Date(Date.now() - 3600_000),
+		});
+
+		const statusOf = async () => {
+			const res = await api("GET", "/api/admin/translations/overview", adminHeaders);
+			assert.strictEqual(res.status, 200);
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+			return (res.data as Overview).games.find((g) => g.game === "ove2e")?.cells.de.status;
+		};
+
+		// The real translate endpoint (against the suite's LLM stub) stamps the
+		// overlay; the write itself bumps updatedAt (withAutoUpdatedAt), which
+		// must NOT read as outdated.
+		const translate = await api("POST", "/api/admin/gameinfo/ove2e/meta/translate", adminHeaders, {
+			targetLang: "de",
+		});
+		assert.strictEqual(translate.status, 200, JSON.stringify(translate.data));
+		assert.equal(await statusOf(), "ok");
+
+		// A like bumps updatedAt through the same wrapper the gamelike service
+		// uses — the translation is still fresh.
+		await colls.gameMetadatas.updateOne({ _id: "ove2e" }, { $inc: { likeCount: 1 } });
+		assert.equal(await statusOf(), "ok");
+
+		// A real source edit through the metadata form flips it.
+		const edit = await api("PUT", "/api/admin/gameinfo/ove2e/meta", adminHeaders, {
+			description: "The edited description.",
+		});
+		assert.strictEqual(edit.status, 200);
+		assert.equal(await statusOf(), "outdated");
+
+		// Edit-then-revert: the content hash matches the stamp again → ok.
+		await api("PUT", "/api/admin/gameinfo/ove2e/meta", adminHeaders, {
+			description: "The original description.",
+		});
+		assert.equal(await statusOf(), "ok");
 	});
 
 	it("lists every bulk job, newest first, with lifecycle timestamps", async () => {
@@ -484,13 +578,33 @@ describe("Admin bulk metadata translation (#306 follow-up)", () => {
 		const ovbare = await colls.gameMetadatas.findOne({ _id: "ovbare" });
 		assert.equal(ovbare?.translations, undefined, "no source fields → never translated");
 
-		// The job shows in the overview's jobs table, labelled as metadata.
+		// Bulk-written overlays carry the same translatedFrom.hash stamp as the
+		// per-game translate routes — the source hash at translation time.
+		assert.ok(ovgame);
+		assert.strictEqual(
+			ovgame.translations?.fr?.translatedFrom?.hash,
+			metadataSourceHash(metadataSourceStrings(ovgame)),
+		);
+		assert.ok(ovfull);
+		assert.strictEqual(
+			ovfull.translations?.fr?.translatedFrom?.hash,
+			metadataSourceHash(metadataSourceStrings(ovfull)),
+		);
+
+		// The job shows in the overview's jobs table, labelled as metadata; the
+		// bulk-translated cells read "ok" (stamped fresh), while the untouched
+		// pre-existing de overlay stays stamp-less → "unknown".
 		const overview = await api("GET", "/api/admin/translations/overview", adminHeaders);
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
-		const listed = (overview.data as Overview).jobs.find((j) => j.jobId === jobId);
+		const overviewData = overview.data as Overview;
+		const listed = overviewData.jobs.find((j) => j.jobId === jobId);
 		assert.ok(listed, "the metadata job shows up in the overview listing");
 		assert.equal(listed.kind, "metadata");
 		assert.equal(listed.status, "done");
+		const ovgameRow = overviewData.games.find((g) => g.game === "ovgame");
+		assert.equal(ovgameRow?.cells.fr.status, "ok");
+		assert.equal(ovgameRow?.cells.de.status, "unknown");
+		assert.equal(overviewData.games.find((g) => g.game === "ovfull")?.cells.fr.status, "ok");
 	});
 
 	it("skips pairs whose overlay already exists (no re-translation)", async () => {

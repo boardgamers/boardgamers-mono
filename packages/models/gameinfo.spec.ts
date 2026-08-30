@@ -36,4 +36,24 @@ describe("gameMetadataSchema translations (#306)", () => {
 		assert.strictEqual(gameMetadataTranslationsSchema.safeParse({ de: { description: 42 } }).success, false);
 		assert.strictEqual(gameMetadataTranslationsSchema.safeParse("de").success, false);
 	});
+
+	it("accepts overlays with and without translatedFrom (outdated-tracking)", () => {
+		const doc = gameMetadataSchema.parse({
+			...baseDoc,
+			translations: {
+				de: { description: "Deutsche Beschreibung", translatedFrom: { hash: "0123456789abcdef" } },
+				fr: { description: "Description française" }, // legacy overlay: no stamp
+			},
+		});
+		assert.strictEqual(doc.translations?.de?.translatedFrom?.hash, "0123456789abcdef");
+		assert.strictEqual(doc.translations?.fr?.translatedFrom, undefined);
+	});
+
+	it("rejects a malformed translatedFrom", () => {
+		assert.strictEqual(
+			gameMetadataTranslationsSchema.safeParse({ de: { translatedFrom: { hash: 42 } } }).success,
+			false,
+		);
+		assert.strictEqual(gameMetadataTranslationsSchema.safeParse({ de: { translatedFrom: {} } }).success, false);
+	});
 });

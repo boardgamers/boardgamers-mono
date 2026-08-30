@@ -153,6 +153,26 @@ export const gameMetadataTranslationsSchema = z.record(
 		description: z.string().optional(),
 		rules: z.string().optional(),
 		credits: z.string().optional(),
+		// Stamped by the LLM translate endpoints (#306 follow-up): a content
+		// hash of the source strings the overlay was translated from (the
+		// api's `metadataSourceHash`). The overlay is OUTDATED when the hash
+		// of the current top-level description/rules/credits differs. A hash,
+		// NOT a timestamp: the doc's `updatedAt` bumps on every write (likes,
+		// status recomputes, the overlay write itself), so a timestamp
+		// comparison would self-invalidate — the hash only moves when the
+		// source text changes. No `lang` (unlike the pages' translatedFrom):
+		// the source is always the top-level English fields. Absent on
+		// pre-tracking overlays — the dashboard surfaces those as "unknown"
+		// rather than guessing fresh/stale. The tracked unit is the whole
+		// overlay: per-field outdatedness would need per-field hashes; the
+		// pragmatic unit is the source text as a whole. The metadata form
+		// never round-trips `translations`, so a source edit can't clobber
+		// this stamp.
+		translatedFrom: z
+			.object({
+				hash: z.string(),
+			})
+			.optional(),
 	}),
 );
 

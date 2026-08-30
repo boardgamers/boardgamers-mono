@@ -144,7 +144,9 @@ export interface TranslationsOverview {
 		label: string;
 		alias?: string;
 		sourceFields: string[];
-		cells: Record<string, { translated: boolean; fields: string[] }>;
+		// "unknown" = overlay predates translatedFrom tracking (no stamp, so
+		// freshness can't be told from the data).
+		cells: Record<string, { status: "ok" | "outdated" | "missing" | "unknown"; fields: string[] }>;
 	}[];
 	jobs: ListedBulkTranslateJob[];
 }

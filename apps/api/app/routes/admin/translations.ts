@@ -5,6 +5,7 @@ import type { Context } from "koa";
 import Router from "koa-router";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
+import { metadataSourceHash, metadataSourceStrings } from "../../models/gameinfo-i18n.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { translateMarkdown } from "../../services/translate.ts";
 import { type BulkTranslateJob, listBulkJobs, startBulkJob, writeBulkJob } from "./bulkjob.ts";
@@ -62,18 +63,38 @@ router.get("/overview", async (ctx) => {
 		return { name, title, cells };
 	});
 
-	// Game metadata: per game × locale base subtag, whether a translations
-	// overlay exists and which fields it covers. There is no translatedFrom
-	// tracking here — presence is all the data there is.
+	// Game metadata: per game × locale base subtag, the translations overlay's
+	// status and which fields it covers. Status mirrors the pages matrix, with
+	// one extra state: "missing" (no overlay), "outdated" (the current source
+	// text hashes differently than the overlay's translatedFrom.hash stamp),
+	// "ok" (stamped and fresh), and "unknown" (overlay predates translatedFrom
+	// tracking — no stamp, so freshness can't be told either way). Content
+	// hash, NOT doc.updatedAt: the doc's updatedAt bumps on every write (likes,
+	// status recomputes, the overlay write itself), so a timestamp comparison
+	// would self-invalidate — see metadataSourceHash. The tracked unit is the
+	// whole overlay: per-field outdatedness would need per-field hashes; the
+	// pragmatic unit is the source text as a whole.
 	const metaLangs = metadataTargetLangs();
 	const visibleGames = canUser(ctx.state.user, "pages")
 		? metadatas
 		: metadatas.filter((m) => canUserManageGame(ctx.state.user, m._id));
 	const gameRows = visibleGames.map((meta) => {
+		const sourceHash = metadataSourceHash(metadataSourceStrings(meta));
 		const cells = Object.fromEntries(
 			metaLangs.map((lang) => {
 				const overlay = meta.translations?.[lang];
-				return [lang, { translated: !!overlay, fields: overlay ? Object.keys(overlay) : [] }];
+				if (!overlay) {
+					return [lang, { status: "missing", fields: [] }];
+				}
+				// Non-text overlay keys (translatedFrom) are not translated fields.
+				const fields = (["description", "rules", "credits"] as const).filter((f) => !!overlay[f]);
+				// `?.hash` is defensive: schema-invalid stamps (validation is "warn")
+				// degrade to "unknown" instead of a crash or a false "ok".
+				const stampedHash = overlay.translatedFrom?.hash;
+				if (!stampedHash) {
+					return [lang, { status: "unknown", fields }];
+				}
+				return [lang, { status: stampedHash === sourceHash ? "ok" : "outdated", fields }];
 			}),
 		);
 		return {
@@ -103,28 +124,15 @@ function metadataTargetLangs(): string[] {
 	return [...new Set(locales.map((l) => l.split("-")[0]))].filter((l) => l !== "en");
 }
 
-// Metadata free-text fields, translated as one overlay per (game, lang).
-const METADATA_FIELDS = ["description", "rules", "credits"] as const;
-
-// The base (English) fields that have a non-empty string — the source every
-// metadata translation works from. Same predicate as the per-game routes
-// (metadataSourceStrings in gameinfo.ts).
-function metadataSourceStrings(doc: GameMetadataDoc): Record<string, string> {
-	const source: Record<string, string> = {};
-	for (const field of METADATA_FIELDS) {
-		const value = doc[field];
-		if (typeof value === "string" && value) {
-			source[field] = value;
-		}
-	}
-	return source;
-}
+// The source strings/hash helpers are shared with the per-game translate
+// routes and the overview above: models/gameinfo-i18n.ts
+// (metadataSourceStrings, metadataSourceHash).
 
 // A (game, lang) pair is worth a (paid) translation only when the game has
 // source text and no overlay for the language yet. Skip-if-overlay-exists —
-// outdated-overlay tracking (translatedFrom stamps) is a separate concern
-// (#306 follow-up); once it lands, treat an outdated overlay as needing
-// translation too, mirroring the pages' needsTranslation.
+// re-translating OUTDATED overlays (stale translatedFrom.hash) is a separate
+// follow-up; once taken, treat an outdated overlay as needing translation
+// too, mirroring the pages' needsTranslation.
 function metadataNeedsTranslation(doc: GameMetadataDoc, targetLang: string): boolean {
 	return Object.keys(metadataSourceStrings(doc)).length > 0 && !doc.translations?.[targetLang];
 }
@@ -219,8 +227,13 @@ router.post("/translate-metadata-bulk", actionRateLimit("admin/translate-metadat
 				]),
 			),
 		);
-		// Same $set overlay path as the per-game translate routes.
-		await colls.gameMetadatas.updateOne({ _id: game }, { $set: { [`translations.${lang}`]: overlay } });
+		// Same $set overlay path — and the same translatedFrom.hash stamp — as
+		// the per-game translate routes, so bulk-translated overlays get
+		// outdated-tracking too.
+		await colls.gameMetadatas.updateOne(
+			{ _id: game },
+			{ $set: { [`translations.${lang}`]: { ...overlay, translatedFrom: { hash: metadataSourceHash(source) } } } },
+		);
 		return "translated";
 	});
 
