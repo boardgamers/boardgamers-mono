@@ -7,6 +7,8 @@
  *   {"level":"info","msg":"request","method":"GET","path":"/api/account","status":200,"durationMs":12}
  */
 
+import { Server as HttpServer } from "node:http";
+
 type Level = "info" | "warn" | "error";
 
 // Structured logs are for deployed environments (collected into Loki); under
@@ -128,7 +130,9 @@ export function gracefulShutdown(label: string, getClosables: () => (Closable | 
 		// live worker (in-flight requests are never cut).
 		const sweep = setInterval(() => {
 			for (const s of list) {
-				(s as { closeIdleConnections?: () => void }).closeIdleConnections?.();
+				if (s instanceof HttpServer) {
+					s.closeIdleConnections();
+				}
 			}
 		}, 250);
 		sweep.unref();
