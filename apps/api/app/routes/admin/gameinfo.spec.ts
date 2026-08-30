@@ -981,8 +981,9 @@ describe("Admin gameinfo API — metadata translation (#306)", () => {
 		);
 	});
 
-	it("translate-all fills every missing UI locale and skips existing ones", async () => {
-		// de already exists from the previous test — translate-all must skip it.
+	it("translate-all fills every missing UI locale and skips fresh ones", async () => {
+		// de already exists (freshly stamped) from the previous test —
+		// translate-all must skip it.
 		const res = await fetch(`${baseURL()}/api/admin/gameinfo/transgame/meta/translate-all`, {
 			method: "POST",
 			headers,
@@ -1006,6 +1007,55 @@ describe("Admin gameinfo API — metadata translation (#306)", () => {
 		for (const [lang, overlay] of Object.entries(doc?.translations ?? {})) {
 			assert.strictEqual(overlay.translatedFrom?.hash, expectedHash, `stamp for ${lang}`);
 		}
+	});
+
+	it("translate-all re-translates outdated and stamp-less (unknown) overlays", async () => {
+		// Simulate a legacy pre-tracking overlay: strip fr's stamp.
+		await colls.gameMetadatas.updateOne({ _id: "transgame" }, { $unset: { "translations.fr.translatedFrom": "" } });
+		// A source edit flips every stamped overlay to outdated (stale hash) —
+		// same predicate as the bulk metadata job (metadataNeedsTranslation).
+		await colls.gameMetadatas.updateOne({ _id: "transgame" }, { $set: { description: "A **revised** game." } });
+
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/transgame/meta/translate-all`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({}),
+		});
+		const resBody = await res.text();
+		assert.strictEqual(res.status, 200, resBody);
+		const body = z
+			.object({ translated: z.number(), skipped: z.number(), errors: z.array(z.object({ lang: z.string() })) })
+			.parse(JSON.parse(resBody));
+		assert.strictEqual(body.errors.length, 0);
+		// All 9 targets: 8 stamped-stale + the unverifiable stamp-less fr.
+		assert.strictEqual(body.translated, 9);
+		assert.strictEqual(body.skipped, 0);
+
+		const doc = await colls.gameMetadatas.findOne({ _id: "transgame" });
+		assert.strictEqual(doc?.translations?.de?.description, "[de] A **revised** game.");
+		assert.strictEqual(doc?.translations?.fr?.description, "[de] A **revised** game.", "unknown re-translated too");
+		// Every overlay — including the previously stamp-less fr — carries a
+		// fresh stamp now, so the re-translation of unknowns is one-time.
+		const expectedHash = metadataSourceHash({ description: "A **revised** game.", rules: "Build first." });
+		for (const [lang, overlay] of Object.entries(doc?.translations ?? {})) {
+			assert.strictEqual(overlay.translatedFrom?.hash, expectedHash, `fresh stamp for ${lang}`);
+		}
+	});
+
+	it("the meta GET exposes sourceHash (null without source text) for the admin page's needing count", async () => {
+		const res = await fetch(`${baseURL()}/api/admin/gameinfo/transgame/meta`, { headers });
+		assert.strictEqual(res.status, 200);
+		const body = z.object({ sourceHash: z.string().nullable() }).parse(await res.json());
+		assert.strictEqual(
+			body.sourceHash,
+			metadataSourceHash({ description: "A **revised** game.", rules: "Build first." }),
+		);
+
+		// No description/rules/credits → null (nothing to translate).
+		await colls.gameMetadatas.insertOne({ _id: "hashless", label: "Hashless", players: [2] });
+		const bare = await fetch(`${baseURL()}/api/admin/gameinfo/hashless/meta`, { headers });
+		assert.strictEqual(bare.status, 200);
+		assert.strictEqual(z.object({ sourceHash: z.string().nullable() }).parse(await bare.json()).sourceHash, null);
 	});
 
 	it("rejects a scoped admin of a DIFFERENT game and an unauthenticated caller", async () => {

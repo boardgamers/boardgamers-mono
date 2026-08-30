@@ -607,8 +607,9 @@ describe("Admin bulk metadata translation (#306 follow-up)", () => {
 		assert.equal(overviewData.games.find((g) => g.game === "ovfull")?.cells.fr.status, "ok");
 	});
 
-	it("skips pairs whose overlay already exists (no re-translation)", async () => {
-		// Everything already has an fr overlay → nothing to do.
+	it("skips fresh pairs (stamped overlay, source unchanged)", async () => {
+		// Every fr overlay is freshly stamped (bulk-written above) and ovgame's
+		// stamp-less de overlay is not an fr pair → nothing to do.
 		const res = await api("POST", "/api/admin/translations/translate-metadata-bulk", adminHeaders, {
 			targetLang: "fr",
 		});
@@ -620,20 +621,24 @@ describe("Admin bulk metadata translation (#306 follow-up)", () => {
 		assert.equal(job.status, "done");
 		assert.equal(job.translated, 0);
 
-		// An all-languages run covers the pairs still missing: every (game,
-		// lang) with source text and no overlay. Derive the expectation from
+		// An all-languages run covers every pair still needing translation:
+		// source text present and the overlay missing OR not stamped with the
+		// current source hash — which pulls in ovgame's stamp-less de overlay
+		// too (nothing is outdated at this point). Derive the expectation from
 		// the db rather than hardcoding the locale count.
 		const overviewRes = await api("GET", "/api/admin/translations/overview", adminHeaders);
 		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
 		const langs = (overviewRes.data as Overview).metaLangs;
 		const docs = await colls.gameMetadatas.find({}).toArray();
-		const expectedPairs = docs.flatMap((d) =>
-			langs
-				.filter(
-					(l) => [d.description, d.rules, d.credits].some((f) => typeof f === "string" && f) && !d.translations?.[l],
-				)
-				.map((l) => `${d._id}/${l}`),
-		);
+		const expectedPairs = docs.flatMap((d) => {
+			const source = metadataSourceStrings(d);
+			if (Object.keys(source).length === 0) {
+				return [];
+			}
+			const hash = metadataSourceHash(source);
+			return langs.filter((l) => d.translations?.[l]?.translatedFrom?.hash !== hash).map((l) => `${d._id}/${l}`);
+		});
+		assert.ok(expectedPairs.includes("ovgame/de"), "the stamp-less legacy overlay counts as needing translation");
 		assert.ok(expectedPairs.length > 0, "there are missing pairs to translate");
 		const all = await api("POST", "/api/admin/translations/translate-metadata-bulk", adminHeaders, {});
 		assert.strictEqual(all.status, 202);
@@ -644,9 +649,16 @@ describe("Admin bulk metadata translation (#306 follow-up)", () => {
 		assert.equal(allJob.translated, expectedPairs.length);
 		assert.equal(allJob.skipped, 0);
 		const ovgame = await colls.gameMetadatas.findOne({ _id: "ovgame" });
-		// One overlay per target language (the pre-existing de overlay counts —
-		// de is itself a bulk target for games that lack it).
+		// One overlay per target language.
 		assert.deepEqual(Object.keys(ovgame?.translations ?? {}).sort(), [...langs].sort());
+		// The legacy stamp-less de overlay was re-translated and is now stamped
+		// (one-time cost: the next run sees it fresh).
+		assert.ok(ovgame);
+		assert.equal(ovgame.translations?.de?.description, "[t] A game");
+		assert.strictEqual(
+			ovgame.translations?.de?.translatedFrom?.hash,
+			metadataSourceHash(metadataSourceStrings(ovgame)),
+		);
 	});
 
 	it("a deleted game mid-run is skipped, not an error", async () => {
@@ -665,5 +677,105 @@ describe("Admin bulk metadata translation (#306 follow-up)", () => {
 		const job = await waitForJob(jobId);
 		assert.equal(job.status, "done");
 		assert.equal(job.done, 1);
+	});
+
+	it("unknown (stamp-less) overlays are re-translated and come out stamped — a one-time cost", async () => {
+		// Recreate a legacy pre-tracking overlay: strip the de stamp that the
+		// all-languages run above wrote.
+		await colls.gameMetadatas.updateOne({ _id: "ovgame" }, { $unset: { "translations.de.translatedFrom": "" } });
+		const pre = await api("GET", "/api/admin/translations/overview", adminHeaders);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		assert.equal((pre.data as Overview).games.find((g) => g.game === "ovgame")?.cells.de.status, "unknown");
+
+		const res = await api("POST", "/api/admin/translations/translate-metadata-bulk", adminHeaders, {
+			targetLang: "de",
+		});
+		assert.strictEqual(res.status, 202, JSON.stringify(res.data));
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const { jobId, total } = res.data as { jobId: string; total: number };
+		assert.strictEqual(total, 1, "only ovgame's stamp-less de overlay needs translation");
+		const job = await waitForJob(jobId);
+		assert.equal(job.status, "done");
+		assert.equal(job.translated, 1);
+		assert.equal(job.skipped, 0);
+
+		const ovgame = await colls.gameMetadatas.findOne({ _id: "ovgame" });
+		assert.ok(ovgame);
+		assert.equal(ovgame.translations?.de?.description, "[t] A game");
+		assert.strictEqual(
+			ovgame.translations?.de?.translatedFrom?.hash,
+			metadataSourceHash(metadataSourceStrings(ovgame)),
+		);
+
+		// The cell flips unknown → ok, and the re-translation is one-time: the
+		// overlay is stamped now, so the next run has nothing to do.
+		const post = await api("GET", "/api/admin/translations/overview", adminHeaders);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		assert.equal((post.data as Overview).games.find((g) => g.game === "ovgame")?.cells.de.status, "ok");
+		const again = await api("POST", "/api/admin/translations/translate-metadata-bulk", adminHeaders, {
+			targetLang: "de",
+		});
+		assert.strictEqual(again.status, 202);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		assert.strictEqual((again.data as { total: number }).total, 0);
+	});
+
+	it("re-translates outdated overlays (stale hash) and flips their cells to ok", async () => {
+		// A source edit flips every stamped ovfull overlay to outdated.
+		await colls.gameMetadatas.updateOne({ _id: "ovfull" }, { $set: { description: "Full v2" } });
+		const pre = await api("GET", "/api/admin/translations/overview", adminHeaders);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		assert.equal((pre.data as Overview).games.find((g) => g.game === "ovfull")?.cells.fr.status, "outdated");
+
+		const res = await api("POST", "/api/admin/translations/translate-metadata-bulk", adminHeaders, {
+			targetLang: "fr",
+		});
+		assert.strictEqual(res.status, 202);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const { jobId, total } = res.data as { jobId: string; total: number };
+		assert.strictEqual(total, 1, "ovfull/fr is outdated; ovgame/fr is fresh and not counted");
+		const job = await waitForJob(jobId);
+		assert.equal(job.status, "done");
+		assert.equal(job.translated, 1);
+		assert.equal(job.skipped, 0);
+
+		const ovfull = await colls.gameMetadatas.findOne({ _id: "ovfull" });
+		assert.equal(ovfull?.translations?.fr?.description, "[t] Full v2");
+		const overview = await api("GET", "/api/admin/translations/overview", adminHeaders);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const overviewData = overview.data as Overview;
+		const row = overviewData.games.find((g) => g.game === "ovfull");
+		assert.equal(row?.cells.fr.status, "ok");
+		assert.equal(row?.cells.de.status, "outdated", "other languages stay outdated until their own run");
+
+		// An all-languages run picks up the remaining outdated pairs — the
+		// total counts missing / outdated / stamp-less alike. Derive the
+		// expectation from the db with the same rule.
+		const docs = await colls.gameMetadatas.find({}).toArray();
+		const expected = docs.flatMap((d) => {
+			const source = metadataSourceStrings(d);
+			if (Object.keys(source).length === 0) {
+				return [];
+			}
+			const hash = metadataSourceHash(source);
+			return overviewData.metaLangs.filter((l) => d.translations?.[l]?.translatedFrom?.hash !== hash);
+		});
+		assert.ok(expected.length > 0, "there are outdated pairs to refresh");
+		const all = await api("POST", "/api/admin/translations/translate-metadata-bulk", adminHeaders, {});
+		assert.strictEqual(all.status, 202);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		const allJob = await waitForJob((all.data as { jobId: string }).jobId);
+		assert.equal(allJob.status, "done");
+		assert.equal(allJob.total, expected.length);
+		assert.equal(allJob.translated, expected.length);
+
+		// Nothing is outdated any more.
+		const final = await api("GET", "/api/admin/translations/overview", adminHeaders);
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- trusted own-endpoint shape
+		for (const g of (final.data as Overview).games) {
+			for (const [lang, cell] of Object.entries(g.cells)) {
+				assert.notEqual(cell.status, "outdated", `${g.game}/${lang} refreshed`);
+			}
+		}
 	});
 });

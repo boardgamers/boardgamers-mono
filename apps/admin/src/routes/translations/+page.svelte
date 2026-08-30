@@ -44,7 +44,8 @@
 		}
 	}
 
-	// Key "" = the global "all missing metadata" run.
+	// Key "" = the global "refresh all metadata translations" run (every overlay
+	// that is missing, outdated, or stamp-less pre-tracking).
 	async function refreshMetadata(key: string, targetLang?: string) {
 		if (metaRefreshing[key]) return;
 		metaRefreshing[key] = true;
@@ -300,16 +301,17 @@
 					<button
 						onclick={() => refreshMetadata("")}
 						disabled={!!metaRefreshing[""]}
-						title="LLM-translate every missing game-metadata overlay, every locale (description / rules / credits)"
+						title="LLM-translate every game-metadata overlay that is missing, outdated, or unknown (pre-tracking), every locale (description / rules / credits)"
 						class="text-xs rounded border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 px-2 py-0.5 hover:bg-violet-50 dark:hover:bg-violet-950 disabled:opacity-50"
 					>
-						{metaRefreshing[""] ? "starting…" : "translate all missing"}
+						{metaRefreshing[""] ? "starting…" : "refresh translations"}
 					</button>
 				{/if}
 			</div>
 			<p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
 				One cell per game × locale: the translations overlay's status (description / rules / credits). "unknown" =
-				translated before outdated-tracking existed, so freshness can't be told from the data.
+				translated before outdated-tracking existed, so freshness can't be told from the data — the translate buttons
+				re-translate those too (once; the new write is stamped).
 			</p>
 			<div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
 				<table class="text-sm">
@@ -325,7 +327,7 @@
 										<button
 											onclick={() => refreshMetadata(lang, lang)}
 											disabled={!!metaRefreshing[lang]}
-											title="LLM-translate every game's missing metadata into {lang}"
+											title="LLM-translate every game's missing, outdated, or unknown metadata into {lang}"
 											class="mt-0.5 text-[10px] font-normal normal-case rounded border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 px-1 py-px hover:bg-violet-50 dark:hover:bg-violet-950 disabled:opacity-50"
 										>
 											{metaRefreshing[lang] ? "…" : "translate"}

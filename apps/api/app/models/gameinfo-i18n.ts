@@ -54,6 +54,27 @@ export function metadataSourceHash(source: Record<string, string>): string {
 }
 
 /**
+ * Whether a (game, lang) pair is worth a (paid) translation. Shared by the
+ * bulk metadata endpoint and the per-game translate-all so the two paths never
+ * diverge: a pair needs translation when the game has source text and the
+ * overlay doesn't carry a `translatedFrom.hash` stamp matching the current
+ * source — i.e. it is MISSING, OUTDATED (stale stamp), or a legacy stamp-less
+ * overlay ("unknown" on the dashboard). Unknown overlays are unverifiable, so
+ * they count too: worst case a fine translation is re-paid once, and the new
+ * write stamps a hash, making it a one-time cost.
+ */
+export function metadataNeedsTranslation(
+	doc: Pick<GameMetadataDoc, "description" | "rules" | "credits" | "translations">,
+	targetLang: string,
+): boolean {
+	const source = metadataSourceStrings(doc);
+	if (Object.keys(source).length === 0) {
+		return false;
+	}
+	return doc.translations?.[targetLang]?.translatedFrom?.hash !== metadataSourceHash(source);
+}
+
+/**
  * Overlay `translations[lang]` onto a merged game-info-like doc, per field with
  * English/base fallback: description/rules/credits resolve to
  * `translations[lang]?.<field> ?? <base field>`. Returns the doc unchanged when

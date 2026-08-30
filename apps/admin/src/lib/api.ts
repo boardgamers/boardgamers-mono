@@ -161,7 +161,9 @@ export async function startBulkTranslate(body: { targetLang: string } | { pageNa
 }
 
 // Bulk game-metadata translation (#306 follow-up) — same 202 + job id flow as
-// the pages variant; the job shows in the overview's jobs table.
+// the pages variant; the job shows in the overview's jobs table. Covers every
+// overlay needing translation: missing, outdated, or stamp-less pre-tracking
+// ("unknown" — unverifiable, so re-translated once and stamped).
 export async function startMetadataBulkTranslate(body: { targetLang?: string } = {}): Promise<string> {
 	const { jobId } = await api.post<{ jobId: string }>("/admin/translations/translate-metadata-bulk", body);
 	return jobId;
