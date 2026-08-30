@@ -13,7 +13,7 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { canUserManageGame, isGameAdminGrant, locales, userPermissions } from "@bgs/models";
 import { colls } from "../../config/db.ts";
-import { metadataSourceHash, metadataSourceStrings } from "../../models/gameinfo-i18n.ts";
+import { metadataNeedsTranslation, metadataSourceHash, metadataSourceStrings } from "../../models/gameinfo-i18n.ts";
 import { findByEmail, findByUsername, findGameInfoWithVersion } from "../../models/index.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { deriveGameMetaStatus, lastAccessibleVersion } from "../../services/gameinfo.ts";
@@ -209,7 +209,11 @@ router.post("/:game/meta/translate", actionRateLimit("admin/translate-gameinfo")
 });
 
 // POST /:game/meta/translate-all — bulk variant (#306): translate the metadata
-// into every supported UI locale that doesn't have an overlay yet. Synchronous
+// into every supported UI locale whose overlay is missing or outdated (stale
+// translatedFrom.hash) — same predicate as the bulk metadata job, so the two
+// paths don't diverge. Stamp-less "unknown" overlays are skipped (see
+// metadataNeedsTranslation; the single-language translate above re-translates
+// unconditionally when one must be refreshed). Synchronous
 // (unlike the page translate-bulk's 202+job+poll): per-language `$set` persists
 // incrementally and a retry skips completed languages, so a proxy/client
 // timeout mid-run self-heals on re-call. Sequential per language — a 9× burst
@@ -230,7 +234,7 @@ router.post("/:game/meta/translate-all", actionRateLimit("admin/translate-gamein
 
 	// Base subtags of every supported UI locale except English (the source).
 	const allTargets = [...new Set(locales.map((l) => l.split("-")[0]))].filter((l) => l !== "en");
-	const targets = allTargets.filter((l) => !doc.translations?.[l]);
+	const targets = allTargets.filter((l) => metadataNeedsTranslation(doc, l));
 	const skipped = allTargets.length - targets.length;
 	if (targets.length === 0) {
 		ctx.body = { translated: 0, skipped, errors: [], langs: [] };

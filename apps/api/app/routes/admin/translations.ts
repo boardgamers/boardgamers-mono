@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { canUser, canUserManageGame, type GameMetadataDoc, locales, pageGameSlug } from "@bgs/models";
+import { canUser, canUserManageGame, locales, pageGameSlug } from "@bgs/models";
 import createError from "http-errors";
 import type { Context } from "koa";
 import Router from "koa-router";
 import { z } from "zod";
 import { colls } from "../../config/db.ts";
-import { metadataSourceHash, metadataSourceStrings } from "../../models/gameinfo-i18n.ts";
+import { metadataNeedsTranslation, metadataSourceHash, metadataSourceStrings } from "../../models/gameinfo-i18n.ts";
 import { actionRateLimit } from "../../services/actionratelimit.ts";
 import { translateMarkdown } from "../../services/translate.ts";
 import { type BulkTranslateJob, listBulkJobs, startBulkJob, writeBulkJob } from "./bulkjob.ts";
@@ -124,18 +124,11 @@ function metadataTargetLangs(): string[] {
 	return [...new Set(locales.map((l) => l.split("-")[0]))].filter((l) => l !== "en");
 }
 
-// The source strings/hash helpers are shared with the per-game translate
-// routes and the overview above: models/gameinfo-i18n.ts
-// (metadataSourceStrings, metadataSourceHash).
-
-// A (game, lang) pair is worth a (paid) translation only when the game has
-// source text and no overlay for the language yet. Skip-if-overlay-exists —
-// re-translating OUTDATED overlays (stale translatedFrom.hash) is a separate
-// follow-up; once taken, treat an outdated overlay as needing translation
-// too, mirroring the pages' needsTranslation.
-function metadataNeedsTranslation(doc: GameMetadataDoc, targetLang: string): boolean {
-	return Object.keys(metadataSourceStrings(doc)).length > 0 && !doc.translations?.[targetLang];
-}
+// The source strings/hash/predicate helpers are shared with the per-game
+// translate routes and the overview above: models/gameinfo-i18n.ts
+// (metadataSourceStrings, metadataSourceHash, metadataNeedsTranslation — a
+// pair needs translation when its overlay is missing or outdated; stamp-less
+// "unknown" overlays only under the includeUnknown opt-in).
 
 // Defensive cap on (game, language) pairs per bulk run — every pair is up to
 // three paid LLM completions. Sized so a full-language refresh of the catalog
@@ -149,11 +142,16 @@ const metadataBulkSchema = z.object({
 		.trim()
 		.regex(/^[a-z]{2,3}$/, "targetLang must be a base language subtag (2–3 lowercase letters)")
 		.optional(),
+	// Also re-translate legacy stamp-less ("unknown") overlays. Off by default:
+	// they're unverifiable but possibly fine, and each is paid LLM work — see
+	// metadataNeedsTranslation.
+	includeUnknown: z.boolean().optional().default(false),
 });
 
 // POST /translate-metadata-bulk — kick off a bulk metadata translation run:
-// {targetLang} for "every game missing a metadata overlay in that language",
-// {} for "every missing (game, language) overlay". Job-based like the pages'
+// {targetLang} for "every game whose metadata overlay in that language is
+// missing or outdated", {} for every such (game, language) pair. Job-based
+// like the pages'
 // translate-bulk (202 + job id, same settings-doc shape, same dashboard jobs
 // table) — a run is many games × 3 paid LLM completions, way past a request's
 // budget. Site "pages" admins only: the run spans every game, so per-game
@@ -162,7 +160,7 @@ router.post("/translate-metadata-bulk", actionRateLimit("admin/translate-metadat
 	if (!canUser(ctx.state.user, "pages")) {
 		throw createError(403, "Missing admin permission: pages");
 	}
-	const { targetLang } = metadataBulkSchema.parse(ctx.request.body ?? {});
+	const { targetLang, includeUnknown } = metadataBulkSchema.parse(ctx.request.body ?? {});
 
 	const metadatas = await colls.gameMetadatas
 		.find(
@@ -182,11 +180,14 @@ router.post("/translate-metadata-bulk", actionRateLimit("admin/translate-metadat
 		.toArray();
 
 	// Count only pairs that will actually be translated (source text present,
-	// no overlay yet) so the progress total isn't inflated — the job loop
-	// re-checks each pair as a safety net against concurrent edits.
+	// overlay missing or outdated — plus unknown under the opt-in) so the
+	// progress total isn't inflated — the job loop re-checks each pair with the
+	// same predicate as a safety net against concurrent edits.
 	const targetLangs = targetLang ? [targetLang] : metadataTargetLangs();
 	const pairs = metadatas.flatMap((doc) =>
-		targetLangs.filter((lang) => metadataNeedsTranslation(doc, lang)).map((lang) => ({ item: doc._id, lang })),
+		targetLangs
+			.filter((lang) => metadataNeedsTranslation(doc, lang, { includeUnknown }))
+			.map((lang) => ({ item: doc._id, lang })),
 	);
 	if (pairs.length > BULK_METADATA_MAX_PAIRS) {
 		throw createError(400, `Too many (game, language) pairs: ${pairs.length} > ${BULK_METADATA_MAX_PAIRS}`);
@@ -208,9 +209,11 @@ router.post("/translate-metadata-bulk", actionRateLimit("admin/translate-metadat
 			{ _id: game },
 			{ projection: { label: 1, description: 1, rules: 1, credits: 1, translations: 1 } },
 		);
-		// In-loop re-check, same predicate as job creation: an overlay can have
-		// been written (per-game translate-all, another bulk run) in between.
-		if (!doc || !metadataNeedsTranslation(doc, lang)) {
+		// In-loop re-check, same predicate (and includeUnknown mode) as job
+		// creation: an overlay can have been written or the source edited
+		// (per-game translate-all, another bulk run) in between — a pair that
+		// became fresh skip-counts instead of being re-paid.
+		if (!doc || !metadataNeedsTranslation(doc, lang, { includeUnknown })) {
 			return "skipped";
 		}
 		const source = metadataSourceStrings(doc);

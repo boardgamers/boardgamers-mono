@@ -44,12 +44,16 @@
 		}
 	}
 
-	// Key "" = the global "all missing metadata" run.
+	// Opt-in: also re-translate "unknown" (stamp-less pre-tracking) overlays —
+	// paid LLM work for possibly-fine translations, so default off.
+	let includeUnknown = $state(false);
+
+	// Key "" = the global "all missing/outdated metadata" run.
 	async function refreshMetadata(key: string, targetLang?: string) {
 		if (metaRefreshing[key]) return;
 		metaRefreshing[key] = true;
 		try {
-			await startMetadataBulkTranslate(targetLang ? { targetLang } : {});
+			await startMetadataBulkTranslate({ ...(targetLang ? { targetLang } : {}), includeUnknown });
 			await invalidateAll();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : "Bulk metadata translation failed");
@@ -300,11 +304,18 @@
 					<button
 						onclick={() => refreshMetadata("")}
 						disabled={!!metaRefreshing[""]}
-						title="LLM-translate every missing game-metadata overlay, every locale (description / rules / credits)"
+						title="LLM-translate every missing or outdated game-metadata overlay, every locale (description / rules / credits)"
 						class="text-xs rounded border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 px-2 py-0.5 hover:bg-violet-50 dark:hover:bg-violet-950 disabled:opacity-50"
 					>
-						{metaRefreshing[""] ? "starting…" : "translate all missing"}
+						{metaRefreshing[""] ? "starting…" : "translate missing + outdated"}
 					</button>
+					<label
+						class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400"
+						title="Also re-translate overlays written before outdated-tracking existed (freshness unknown) — extra LLM cost for translations that may be fine"
+					>
+						<input type="checkbox" bind:checked={includeUnknown} class="accent-violet-600" />
+						include unknown
+					</label>
 				{/if}
 			</div>
 			<p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
@@ -325,7 +336,7 @@
 										<button
 											onclick={() => refreshMetadata(lang, lang)}
 											disabled={!!metaRefreshing[lang]}
-											title="LLM-translate every game's missing metadata into {lang}"
+											title="LLM-translate every game's missing or outdated metadata into {lang}"
 											class="mt-0.5 text-[10px] font-normal normal-case rounded border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 px-1 py-px hover:bg-violet-50 dark:hover:bg-violet-950 disabled:opacity-50"
 										>
 											{metaRefreshing[lang] ? "…" : "translate"}
