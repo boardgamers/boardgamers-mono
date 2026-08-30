@@ -7,6 +7,8 @@
  *   {"level":"info","msg":"request","method":"GET","path":"/api/account","status":200,"durationMs":12}
  */
 
+import { Server as HttpServer } from "node:http";
+
 type Level = "info" | "warn" | "error";
 
 // Structured logs are for deployed environments (collected into Loki); under
@@ -119,6 +121,22 @@ export function gracefulShutdown(label: string, getClosables: () => (Closable | 
 
 		const list = getClosables().filter((s): s is Closable => !!s);
 
+		// Keep-alive drain: node's server.close() only closes connections idle *at that
+		// instant*. An upstream that keeps reusing an established keep-alive connection
+		// (nginx `keepalive 8` per upstream in prod) is never idle at close time, so the
+		// worker would linger until the force-cap below and then cut the socket abruptly
+		// mid-keep-alive. Sweep closeIdleConnections() instead: each connection is closed
+		// as soon as its in-flight response finishes, and nginx transparently moves to a
+		// live worker (in-flight requests are never cut).
+		const sweep = setInterval(() => {
+			for (const s of list) {
+				if (s instanceof HttpServer) {
+					s.closeIdleConnections();
+				}
+			}
+		}, 250);
+		sweep.unref();
+
 		// Never hang past the cap even if a connection or lock is held open.
 		const force = setTimeout(() => {
 			logEvent("warn", "shutdownTimeout", { source: label, timeoutMs });
@@ -138,6 +156,7 @@ export function gracefulShutdown(label: string, getClosables: () => (Closable | 
 					}),
 			),
 		).then(() => {
+			clearInterval(sweep);
 			clearTimeout(force);
 			process.exit(0);
 		});

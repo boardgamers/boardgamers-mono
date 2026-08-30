@@ -6,6 +6,7 @@ import cache from "node-cache";
 import WebSocket, { WebSocketServer } from "ws";
 import "./config/db.ts";
 import env from "./config/env.ts";
+import type { Closable } from "@bgs/utils/log";
 import type { GameDoc } from "@bgs/models";
 import { colls } from "./config/db.ts";
 import { accessTokenPayloadSchema, findGamesWithPlayersTurn } from "./models/index.ts";
@@ -203,6 +204,37 @@ export function stopWs() {
 		ws.terminate();
 	}
 }
+
+/**
+ * Graceful-shutdown closable for PM2 reload (registered in server.ts). ws's
+ * WebSocketServer.close() never closes existing client sockets — its callback only
+ * fires once every client is gone — so registering the raw wss would stall every
+ * reload with connected chat clients until gracefulShutdown's force-cap, and the
+ * sockets would then die abruptly at process.exit (no close frame). Instead close
+ * each client with 1001 "going away": browsers fire onclose immediately and the web
+ * client reconnects ~2s later (apps/web/src/lib/websocket.svelte.ts) to a live
+ * worker. Clients that never ack the close frame get terminated after a short grace
+ * so the drain still finishes well under PM2's kill_timeout.
+ */
+export const wsShutdown: Closable = {
+	close(cb) {
+		stopped = true;
+		clearInterval(pingInterval);
+		for (const ws of wss.clients) {
+			ws.close(1001, "server restarting");
+		}
+		const stragglers = setTimeout(() => {
+			for (const ws of wss.clients) {
+				ws.terminate();
+			}
+		}, 2000);
+		stragglers.unref();
+		wss.close(() => {
+			clearTimeout(stragglers);
+			cb?.();
+		});
+	},
+};
 
 async function run() {
 	// oxlint-disable-next-line no-unmodified-loop-condition -- flipped by stopWs() (test hook)
