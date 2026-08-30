@@ -29,7 +29,11 @@
 		}
 		try {
 			const parsed = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
-			return Array.isArray(parsed) ? parsed.filter((e) => typeof e === "string").slice(0, RECENT_MAX) : [];
+			// Dedup defensively: duplicate keys in the keyed {#each} are a Svelte
+			// runtime error, so tampered/legacy storage would brick the picker.
+			return Array.isArray(parsed)
+				? [...new Set(parsed.filter((e) => typeof e === "string"))].slice(0, RECENT_MAX)
+				: [];
 		} catch {
 			return [];
 		}
@@ -149,7 +153,15 @@
 		} else {
 			next = current === -1 ? 0 : current + moves[e.key];
 		}
-		if (next < 0 || next >= buttons.length) {
+		if (next < 0) {
+			// ArrowUp from the first row hands focus back to the search input.
+			if (e.key === "ArrowUp") {
+				e.preventDefault();
+				searchEl?.focus();
+			}
+			return;
+		}
+		if (next >= buttons.length) {
 			return;
 		}
 		e.preventDefault();

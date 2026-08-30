@@ -245,6 +245,29 @@ describe("ChatInput emoji picker", () => {
 		unmount(instance);
 	});
 
+	it("survives duplicate entries in stored recents (dedup — duplicate {#each} keys throw)", async () => {
+		localStorage.setItem("chat-emoji-recent", JSON.stringify(["🎲", "🏆", "🎲", "🏆", "🎲"]));
+		const { target, instance } = mountInput();
+		const pickerEl = await openPicker(target);
+
+		const recent = pickerEl.querySelector<HTMLElement>('[data-section="recent"]')!;
+		const options = [...recent.querySelectorAll<HTMLButtonElement>('[role="option"]')];
+		expect(options.map((o) => o.textContent?.trim())).toEqual(["🎲", "🏆"]);
+		unmount(instance);
+	});
+
+	it("hands focus back to the search input on ArrowUp from the first grid row", async () => {
+		const { target, instance } = mountInput();
+		const pickerEl = await openPicker(target);
+
+		const firstOption = pickerEl.querySelector<HTMLButtonElement>('[role="option"]')!;
+		firstOption.focus();
+		firstOption.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true }));
+		flushSync();
+		expect(document.activeElement).toBe(pickerEl.querySelector('input[type="search"]'));
+		unmount(instance);
+	});
+
 	it("shows a recently-used section first, seeded from localStorage", async () => {
 		localStorage.setItem("chat-emoji-recent", JSON.stringify(["🎲", "🏆"]));
 		const { target, instance } = mountInput();
