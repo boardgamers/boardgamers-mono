@@ -419,6 +419,39 @@ router.post("/:gameId/chat", loggedIn, isConfirmed, async (ctx) => {
 	ctx.status = 200;
 });
 
+// Editing your own text messages, within a window: long enough to fix typos or a wrong
+// mention, short enough that the conversation others replied to isn't rewritten under them.
+export const CHAT_EDIT_WINDOW_MS = 15 * 60 * 1000;
+
+router.patch("/:gameId/chat/:messageId", loggedIn, isConfirmed, async (ctx) => {
+	const user = ctx.state.user!;
+	const game = ctx.state.game!;
+	const body = z
+		.object({
+			data: z.object({ text: z.string().min(1, "Empty chat message") }),
+		})
+		.parse(ctx.request.body);
+
+	assert(ObjectId.isValid(ctx.params.messageId), "Invalid message id");
+	const messageId = new ObjectId(ctx.params.messageId);
+
+	const message = await colls.chatMessages.findOne({ _id: messageId, room: game._id });
+	if (!message) {
+		throw createError(404, "Message not found");
+	}
+	assert(message.type === "text", "Only text messages can be edited");
+	assert(message.author?._id.equals(user._id), "You can only edit your own messages");
+	assert(Date.now() - messageId.getTimestamp().getTime() <= CHAT_EDIT_WINDOW_MS, "The edit window has passed");
+
+	// Capped collection: size-changing updates are fine on MongoDB ≥ 5.0 (see @bgs/models).
+	// editedAt drives both the "(edited)" marker and the ws poller's update broadcast.
+	await colls.chatMessages.updateOne(
+		{ _id: messageId },
+		{ $set: { "data.text": body.data.text, editedAt: new Date() } },
+	);
+	ctx.status = 200;
+});
+
 router.post("/:gameId/invite", loggedIn, async (ctx) => {
 	const user = ctx.state.user!;
 	assert(user._id.equals(ctx.state.game!.creator), "You must be the creator of the game to invite other players");

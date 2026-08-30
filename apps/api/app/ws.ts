@@ -66,7 +66,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
 					.find({ room: data.room })
 					.sort({ _id: -1 })
 					.limit(100)
-					.project({ _id: 1, author: 1, data: 1, type: 1 })
+					.project({ _id: 1, author: 1, data: 1, type: 1, editedAt: 1 })
 					.toArray();
 
 				if (ws.readyState !== ws.OPEN) {
@@ -147,7 +147,7 @@ wss.on("connection", (ws: AugmentedWebSocket) => {
 });
 
 // Check if sockets are alive, close them otherwise
-setInterval(function ping() {
+const pingInterval = setInterval(function ping() {
 	for (const ws of clients()) {
 		if (!ws.isAlive) {
 			ws.terminate();
@@ -173,14 +173,29 @@ function sendActiveGames(ws: AugmentedWebSocket) {
 }
 
 let lastChecked = ObjectId.createFromTime(Math.floor(Date.now() / 1000));
+let lastEditChecked = new Date();
 
 const gameCache = new cache({ stdTTL: 24 * 3600 });
 
 /**
  * Check periodically for new messages in db and send them to clients
  */
+let stopped = false;
+
+// Test hook: stops the poll loop before the shared test db closes, so the loop's
+// error path (which exits the process) can't race the runner's teardown.
+export function stopWs() {
+	stopped = true;
+	clearInterval(pingInterval);
+	wss.close();
+	for (const ws of wss.clients) {
+		ws.terminate();
+	}
+}
+
 async function run() {
-	while (1) {
+	// oxlint-disable-next-line no-unmodified-loop-condition -- flipped by stopWs() (test hook)
+	while (!stopped) {
 		// Find new messages
 		const messages = await colls.chatMessages.find({ _id: { $gt: lastChecked } }).toArray();
 		const messagesPerRooms = Object.groupBy(messages, (msg) => msg.room.toString());
@@ -208,6 +223,29 @@ async function run() {
 
 		if (messages.length > 0) {
 			lastChecked = messages[messages.length - 1]._id;
+		}
+
+		// Edited messages keep their _id, so the poll above never sees them — track them by
+		// editedAt (partial index, see @bgs/models) and re-send so open clients refresh in place.
+		const editedMessages = await colls.chatMessages.find({ editedAt: { $gt: lastEditChecked } }).toArray();
+
+		if (editedMessages.length > 0) {
+			const editedPerRoom = Object.groupBy(editedMessages, (msg) => msg.room.toString());
+
+			for (const ws of clients()) {
+				const edited = ws.room && editedPerRoom[ws.room];
+				if (edited) {
+					ws.send(
+						JSON.stringify({
+							room: ws.room,
+							messages: edited.map(({ room: _room, ...rest }) => rest),
+							command: "updatedMessages",
+						}),
+					);
+				}
+			}
+
+			lastEditChecked = new Date(Math.max(...editedMessages.map((msg) => msg.editedAt!.getTime())));
 		}
 
 		const gameConditions = uniqBy(
