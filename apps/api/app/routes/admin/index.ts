@@ -308,7 +308,7 @@ router.get("/errors", requirePermission("serverinfo"), async (ctx) => {
 					"request.url": 1,
 					"request.status": 1,
 					"request.id": 1,
-					// Diagnostic context (secure-cookie-over-insecure): how the request
+					// Request-context diagnostics (when recorded): how the request
 					// reached the api — proto/host/ip and the forwarding headers.
 					"request.protocol": 1,
 					"request.hostname": 1,

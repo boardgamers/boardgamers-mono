@@ -10,10 +10,6 @@ Avatars uploaded before the S3 migration keep their blob in mongo — the boot m
 
 Previews restore a sanitized prod dump that **includes** `images` docs — metadata-only (`s3: true`, no blob) for post-#224 uploads. Preview containers have no S3 creds; if they have `S3_BUCKET` + `S3_PUBLIC_ENDPOINT` (non-secret) they 302 to the public Scaleway gateway like prod (avatar objects are public-read). Without those vars, `serveUploadedAvatar` falls back to the DiceBear generated avatar so previews never 500/broken-image on a missing blob. Blob-bearing (pre-#224) avatars always serve from the dumped mongo bytes regardless.
 
-## secure-cookie-over-insecure diagnostic (`app/models/session.ts`)
-
-Prod logs a chronic "Cannot send secure cookie over unencrypted connection" from `setRefreshCookie` (~25–56/day + bursts): some requests reach the api with `ctx.secure === false` even though prod is HTTPS-only and nginx sets `X-Forwarded-Proto` on the api vhost. The source is **unknown** (internal caller? crawler over http? a route/XFP gap?), and a "drop Secure on http" fix was rejected — the cookie must stay `Secure`. Until the culprit is found, `setRefreshCookie` records the full request context (secure/protocol/hostname/ip/ips, X-Forwarded-*/host/user-agent/referer/origin headers, `app.proxy`) as a `secure-cookie-over-insecure` warn log line **and** an `apierrors` record (`meta.source: "secure-cookie"`, surfaced by `GET /api/admin/errors` → admin health page). Behavior is unchanged — the cookie set still throws, still 500s. Once the root cause is identified and fixed, this diagnostic can be removed.
-
 ## Legacy `Domain=` session-cookie cleanup during the host-only migration (`app/app.ts`, `app/models/session.ts`)
 
 A host-only `refreshToken` cookie and a `Domain=boardgamers.space` one are distinct cookies to the browser, and the host-only one sorts **first** in the `Cookie` header — whichever of the two is stale shadows the fresh one and can lock the user out of login until it expires (120-day lifetime). This hazard has bitten from both directions:
