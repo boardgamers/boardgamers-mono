@@ -1,7 +1,12 @@
 <script lang="ts">
 	import { invalidateAll } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import { loadTranslationsOverview, startBulkTranslate, type ListedBulkTranslateJob } from "$lib/api.ts";
+	import {
+		loadTranslationsOverview,
+		startBulkTranslate,
+		startMetadataBulkTranslate,
+		type ListedBulkTranslateJob,
+	} from "$lib/api.ts";
 	import { can } from "$lib/permissions.ts";
 	import { toast } from "$lib/toast.svelte.ts";
 	import { timeAgo } from "$lib/utils.ts";
@@ -24,6 +29,7 @@
 
 	let expandedJobs = $state<Record<string, boolean>>({});
 	let refreshing = $state<Record<string, boolean>>({});
+	let metaRefreshing = $state<Record<string, boolean>>({});
 
 	async function refreshLang(lang: string) {
 		if (refreshing[lang]) return;
@@ -37,6 +43,34 @@
 			refreshing[lang] = false;
 		}
 	}
+
+	// Key "" = the global "all missing metadata" run.
+	async function refreshMetadata(key: string, targetLang?: string) {
+		if (metaRefreshing[key]) return;
+		metaRefreshing[key] = true;
+		try {
+			await startMetadataBulkTranslate(targetLang ? { targetLang } : {});
+			await invalidateAll();
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : "Bulk metadata translation failed");
+		} finally {
+			metaRefreshing[key] = false;
+		}
+	}
+
+	// Jobs table pagination: client-side (the list is small — terminal jobs
+	// are lazily reaped after 24h). Running jobs are pinned ahead of the
+	// newest-first rest, so they're always on page 1 regardless of age.
+	const JOBS_PER_PAGE = 10;
+	let jobsPage = $state(1);
+	const sortedJobs = $derived(
+		[...(overview?.jobs ?? [])].sort((a, b) => Number(b.status === "running") - Number(a.status === "running"))
+	);
+	const jobsPageCount = $derived(Math.max(1, Math.ceil(sortedJobs.length / JOBS_PER_PAGE)));
+	const currentJobsPage = $derived(Math.min(jobsPage, jobsPageCount));
+	const visibleJobs = $derived(
+		sortedJobs.slice((currentJobsPage - 1) * JOBS_PER_PAGE, currentJobsPage * JOBS_PER_PAGE)
+	);
 
 	function statusBadge(job: ListedBulkTranslateJob): { label: string; cls: string } {
 		const interrupted = job.status === "error" && job.errors.some((e) => e.message.includes("interrupted"));
@@ -70,7 +104,26 @@
 	{:else}
 		<!-- Jobs -->
 		<section class="mb-10">
-			<h2 class="text-lg font-semibold mb-3">Bulk translation jobs</h2>
+			<div class="flex items-baseline gap-3 mb-3">
+				<h2 class="text-lg font-semibold">Bulk translation jobs</h2>
+				{#if jobsPageCount > 1}
+					<nav class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+						<button
+							onclick={() => (jobsPage = currentJobsPage - 1)}
+							disabled={currentJobsPage <= 1}
+							class="rounded border border-gray-300 dark:border-gray-700 px-1.5 py-px hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40"
+							>‹ prev</button
+						>
+						<span class="tabular-nums">page {currentJobsPage}/{jobsPageCount}</span>
+						<button
+							onclick={() => (jobsPage = currentJobsPage + 1)}
+							disabled={currentJobsPage >= jobsPageCount}
+							class="rounded border border-gray-300 dark:border-gray-700 px-1.5 py-px hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40"
+							>next ›</button
+						>
+					</nav>
+				{/if}
+			</div>
 			{#if overview.jobs.length === 0}
 				<p class="text-sm text-gray-500 dark:text-gray-400">No bulk translation jobs yet.</p>
 			{:else}
@@ -81,6 +134,7 @@
 								class="text-left text-xs uppercase tracking-wider text-gray-400 border-b border-gray-200 dark:border-gray-800"
 							>
 								<th class="px-3 py-2">Status</th>
+								<th class="px-3 py-2">Kind</th>
 								<th class="px-3 py-2">Progress</th>
 								<th class="px-3 py-2">Translated</th>
 								<th class="px-3 py-2">Skipped</th>
@@ -91,7 +145,7 @@
 							</tr>
 						</thead>
 						<tbody>
-							{#each overview.jobs as job (job.jobId)}
+							{#each visibleJobs as job (job.jobId)}
 								{@const badge = statusBadge(job)}
 								<tr class="border-b border-gray-100 dark:border-gray-800/60 align-top">
 									<td class="px-3 py-2">
@@ -99,6 +153,7 @@
 											>{badge.label}</span
 										>
 									</td>
+									<td class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">{job.kind ?? "pages"}</td>
 									<td class="px-3 py-2 tabular-nums">{job.done}/{job.total}</td>
 									<td class="px-3 py-2 tabular-nums">{job.translated}</td>
 									<td class="px-3 py-2 tabular-nums">{job.skipped}</td>
@@ -131,7 +186,7 @@
 								</tr>
 								{#if expandedJobs[job.jobId] && job.errors.length > 0}
 									<tr class="border-b border-gray-100 dark:border-gray-800/60 bg-gray-50 dark:bg-gray-900/40">
-										<td colspan="8" class="px-4 py-2">
+										<td colspan="9" class="px-4 py-2">
 											<ul class="text-xs space-y-1">
 												{#each job.errors as err, i (i)}
 													<li>
@@ -222,7 +277,19 @@
 
 		<!-- Game metadata -->
 		<section>
-			<h2 class="text-lg font-semibold mb-1">Game metadata</h2>
+			<div class="flex items-baseline gap-3 mb-1">
+				<h2 class="text-lg font-semibold">Game metadata</h2>
+				{#if can(me, "pages")}
+					<button
+						onclick={() => refreshMetadata("")}
+						disabled={!!metaRefreshing[""]}
+						title="LLM-translate every missing game-metadata overlay, every locale (description / rules / credits)"
+						class="text-xs rounded border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 px-2 py-0.5 hover:bg-violet-50 dark:hover:bg-violet-950 disabled:opacity-50"
+					>
+						{metaRefreshing[""] ? "starting…" : "translate all missing"}
+					</button>
+				{/if}
+			</div>
 			<p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
 				Whether each game has a translations overlay per locale (description / rules / credits). No outdated tracking
 				exists for metadata — presence only.
@@ -235,7 +302,19 @@
 						>
 							<th class="px-3 py-2 sticky left-0 bg-white dark:bg-gray-900">Game</th>
 							{#each overview.metaLangs as lang (lang)}
-								<th class="px-2 py-2 text-center">{lang}</th>
+								<th class="px-2 py-2 text-center">
+									<div>{lang}</div>
+									{#if can(me, "pages")}
+										<button
+											onclick={() => refreshMetadata(lang, lang)}
+											disabled={!!metaRefreshing[lang]}
+											title="LLM-translate every game's missing metadata into {lang}"
+											class="mt-0.5 text-[10px] font-normal normal-case rounded border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 px-1 py-px hover:bg-violet-50 dark:hover:bg-violet-950 disabled:opacity-50"
+										>
+											{metaRefreshing[lang] ? "…" : "translate"}
+										</button>
+									{/if}
+								</th>
 							{/each}
 						</tr>
 					</thead>
