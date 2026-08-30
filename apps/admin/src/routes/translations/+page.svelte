@@ -64,11 +64,13 @@
 	const JOBS_PER_PAGE = 10;
 	let jobsPage = $state(1);
 	const sortedJobs = $derived(
-		[...(overview?.jobs ?? [])].sort((a, b) => Number(b.status === "running") - Number(a.status === "running")),
+		[...(overview?.jobs ?? [])].sort((a, b) => Number(b.status === "running") - Number(a.status === "running"))
 	);
 	const jobsPageCount = $derived(Math.max(1, Math.ceil(sortedJobs.length / JOBS_PER_PAGE)));
 	const currentJobsPage = $derived(Math.min(jobsPage, jobsPageCount));
-	const visibleJobs = $derived(sortedJobs.slice((currentJobsPage - 1) * JOBS_PER_PAGE, currentJobsPage * JOBS_PER_PAGE));
+	const visibleJobs = $derived(
+		sortedJobs.slice((currentJobsPage - 1) * JOBS_PER_PAGE, currentJobsPage * JOBS_PER_PAGE)
+	);
 
 	function statusBadge(job: ListedBulkTranslateJob): { label: string; cls: string } {
 		const interrupted = job.status === "error" && job.errors.some((e) => e.message.includes("interrupted"));
