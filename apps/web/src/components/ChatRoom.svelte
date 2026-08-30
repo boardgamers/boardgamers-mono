@@ -5,7 +5,8 @@
 	import { Modal, ModalHeader, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
 	import IconChat from "@/components/icons/IconChat.svelte";
 	import IconPencil from "@/components/icons/IconPencil.svelte";
-	import { countUnreadMessages, dateFromObjectId, handleError } from "@/utils";
+	import { canEditMessage, countUnreadMessages, dateFromObjectId, handleError, lastEditableMessage } from "@/utils";
+	import { flushSync } from "svelte";
 	import { fly } from "svelte/transition";
 	import UserAvatar from "./User/UserAvatar.svelte";
 	import UsernameLink from "./User/UsernameLink.svelte";
@@ -30,24 +31,30 @@
 		}).catch(handleError);
 	};
 
-	// Mirrors the API's edit window — the pencil hides when a PATCH would be rejected anyway.
-	const EDIT_WINDOW_MS = 15 * 60 * 1000;
-
 	let editingId = $state<string | null>(null);
 	let editText = $state("");
-
-	function canEdit(message: ChatMessageFront): boolean {
-		return (
-			message.type === "text" &&
-			!!message._id &&
-			message.author?._id === userId &&
-			Date.now() - dateFromObjectId(message._id).getTime() < EDIT_WINDOW_MS
-		);
-	}
+	let editInputElement = $state<HTMLInputElement | HTMLTextAreaElement>();
 
 	function startEdit(message: ChatMessageFront) {
 		editingId = message._id ?? null;
 		editText = message.data.text;
+		// Render the editor now, then move focus into it with the caret at the end.
+		flushSync();
+		// Always a text <input> here (no instanceof: jsdom tests run cross-realm).
+		const el = editInputElement as HTMLInputElement | undefined;
+		el?.focus();
+		el?.setSelectionRange(editText.length, editText.length);
+	}
+
+	// Discord-style ArrowUp in the (empty) chat input: edit the most recent editable
+	// message that isn't already being edited. Returns whether an editor was opened.
+	function editLastMessage(): boolean {
+		const last = lastEditableMessage($chatMessages, userId, editingId);
+		if (!last) {
+			return false;
+		}
+		startEdit(last);
+		return true;
 	}
 
 	const saveEdit = async () => {
@@ -190,7 +197,7 @@
 								<Input
 									type="text"
 									bind:value={editText}
-									autofocus
+									bind:element={editInputElement}
 									class="text-base"
 									onkeydown={(e: KeyboardEvent) => {
 										if (e.key === "Escape") {
@@ -216,7 +223,7 @@
 								<span class="ml-1 text-xs italic opacity-70">{m.chat_edited()}</span>
 							{/if}
 						</div>
-						{#if canEdit(message)}
+						{#if canEditMessage(message, userId)}
 							<button
 								type="button"
 								class="invisible shrink-0 self-center p-1 text-gray-400 group-hover:visible hover:text-gray-600 focus-visible:visible dark:hover:text-gray-200"
@@ -233,7 +240,7 @@
 		{/each}
 	</div>
 	<ModalFooter class="shrink-0 p-3">
-		<ChatInput onsend={sendMessage} />
+		<ChatInput onsend={sendMessage} oneditlast={editLastMessage} />
 	</ModalFooter>
 </Modal>
 

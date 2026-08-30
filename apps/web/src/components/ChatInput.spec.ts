@@ -14,10 +14,10 @@ vi.mock("@/modules/cdk", async () => ({
 
 import ChatInput from "./ChatInput.svelte";
 
-function mountInput(onsend = vi.fn()) {
+function mountInput(onsend = vi.fn(), oneditlast?: () => boolean) {
 	const target = document.createElement("div");
 	document.body.appendChild(target);
-	const instance = mount(ChatInput as never, { target, props: { onsend } });
+	const instance = mount(ChatInput as never, { target, props: { onsend, oneditlast } });
 	flushSync();
 	return { target, instance, onsend };
 }
@@ -277,6 +277,58 @@ describe("ChatInput emoji picker", () => {
 		expect(sections[0].dataset.section).toBe("recent");
 		const recentOptions = [...sections[0].querySelectorAll<HTMLButtonElement>('[role="option"]')];
 		expect(recentOptions.map((o) => o.textContent?.trim())).toEqual(["🎲", "🏆"]);
+		unmount(instance);
+	});
+});
+
+describe("ChatInput ArrowUp edit-last (Discord-style)", () => {
+	beforeEach(() => {
+		document.body.innerHTML = "";
+		localStorage.clear();
+	});
+
+	function arrowUp(input: HTMLInputElement): KeyboardEvent {
+		const event = new window.KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true });
+		input.dispatchEvent(event);
+		flushSync();
+		return event;
+	}
+
+	it("calls oneditlast and consumes the key when the input is empty", () => {
+		const oneditlast = vi.fn(() => true);
+		const { target, instance } = mountInput(vi.fn(), oneditlast);
+
+		const event = arrowUp(chatInput(target));
+		expect(oneditlast).toHaveBeenCalledTimes(1);
+		expect(event.defaultPrevented).toBe(true);
+		unmount(instance);
+	});
+
+	it("keeps native caret behavior when the input has text", () => {
+		const oneditlast = vi.fn(() => true);
+		const { target, instance } = mountInput(vi.fn(), oneditlast);
+		setInputValue(target, "draft in progress");
+
+		const event = arrowUp(chatInput(target));
+		expect(oneditlast).not.toHaveBeenCalled();
+		expect(event.defaultPrevented).toBe(false);
+		unmount(instance);
+	});
+
+	it("is a no-op when oneditlast declines (no editable message)", () => {
+		const oneditlast = vi.fn(() => false);
+		const { target, instance } = mountInput(vi.fn(), oneditlast);
+
+		const event = arrowUp(chatInput(target));
+		expect(oneditlast).toHaveBeenCalledTimes(1);
+		expect(event.defaultPrevented).toBe(false);
+		unmount(instance);
+	});
+
+	it("is a no-op without the prop", () => {
+		const { target, instance } = mountInput();
+		const event = arrowUp(chatInput(target));
+		expect(event.defaultPrevented).toBe(false);
 		unmount(instance);
 	});
 });
