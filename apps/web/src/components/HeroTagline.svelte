@@ -1,15 +1,17 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
-	import { useLatestGameInfos } from "@/lib/game-info.svelte";
+	import { gameInfosState } from "@/lib/game-info.svelte";
 	import { heroGames, heroListParts, taglineParts } from "@/lib/hero-tagline";
 	import { m } from "@/lib/i18n/messages";
 	import { currentLocale } from "@/lib/i18n/messages.svelte";
 	import { getLocale } from "@/lib/paraglide/runtime.js";
 
-	// Most-liked public games (alias-aware names), each linking to its boardgame page.
-	// `$derived.by` because useLatestGameInfos reads reactive state — a like toggle
-	// re-derives the list.
-	let games = $derived.by(() => heroGames(useLatestGameInfos()));
+	// Most-liked publicly playable games, each linking to its boardgame page. EVERY map
+	// entry is passed (not just the `/latest` picks): for a beta tester the picked latest
+	// can be their private-beta version while older public versions exist, and heroGames
+	// must see those to keep the game cited. `$derived.by` because gameInfosState reads
+	// reactive state — a like toggle re-derives the list.
+	let games = $derived.by(() => heroGames(Object.values(gameInfosState())));
 	let tagline = $derived(taglineParts(m.home_hero_tagline));
 	// Localized "A, B and C" separators. Same pattern as the `m` proxy: the tracked
 	// currentLocale() read makes a client-side language switch re-derive; getLocale()

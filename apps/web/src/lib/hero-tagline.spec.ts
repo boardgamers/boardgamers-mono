@@ -50,12 +50,50 @@ describe("heroGames", () => {
 		expect(games.map((g) => g.id)).toEqual(["a", "m", "z"]);
 	});
 
-	it("shows the alias when one is set (#106) and strips the label emoji", () => {
+	it("strips the label emoji in the sentence", () => {
 		const games = heroGames([
-			info("gem-trader", { label: "💎 Splendor", alias: "Gem Trader", likeCount: 3 }),
+			info("powergrid", { label: "⚡ Powergrid", likeCount: 2 }),
+			info("container", { label: "Container", likeCount: 1 }),
+		]);
+		expect(games.map((g) => g.name)).toEqual(["Powergrid", "Container"]);
+	});
+
+	it("cites a game whose latest version is private-beta when an older version is public", () => {
+		// A beta tester's game-info list holds their private grant version ON TOP of the
+		// public ones — the game is publicly playable, so it keeps its hero slot.
+		const games = heroGames([
+			info("gaia-project", { label: "Gaia Project", likeCount: 9, public: false }),
+			info("gaia-project", { label: "Gaia Project", likeCount: 9 }),
+			info("powergrid", { label: "Powergrid", likeCount: 5 }),
+		]);
+		expect(games.map((g) => g.id)).toEqual(["gaia-project", "powergrid"]);
+	});
+
+	it("never cites a pure-beta game (no public version anywhere), even to its testers", () => {
+		const games = heroGames([
+			info("secret", { label: "Secret", likeCount: 50, public: false }),
+			info("secret", { label: "Secret", likeCount: 50, public: false }),
+			info("released", { label: "Released", likeCount: 1 }),
+		]);
+		expect(games.map((g) => g.id)).toEqual(["released"]);
+	});
+
+	it("excludes aliased games even when they are the most liked (trademark discretion)", () => {
+		const games = heroGames([
+			info("gem-trader", { label: "💎 Splendor", alias: "Gem Trader", likeCount: 100 }),
 			info("powergrid", { label: "⚡ Powergrid", likeCount: 2 }),
 		]);
-		expect(games.map((g) => g.name)).toEqual(["Gem Trader", "Powergrid"]);
+		expect(games.map((g) => g.id)).toEqual(["powergrid"]);
+	});
+
+	it("applies the no-alias rule to the fallback four too", () => {
+		// The only liked game is aliased → fallback; a historical id that has since gained
+		// an alias is dropped rather than replaced.
+		const games = heroGames([
+			info("gem-trader", { alias: "Gem Trader", likeCount: 5 }),
+			info("take6", { label: "6nimmt", alias: "Six Takes" }),
+		]);
+		expect(games.map((g) => g.id)).toEqual(["gaia-project", "powergrid", "container"]);
 	});
 });
 

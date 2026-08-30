@@ -2,13 +2,18 @@ import { gameDisplayName } from "@/utils/game-label";
 
 /**
  * The homepage hero tagline ("Play X, Y and Z online"): the cited games are the
- * most-liked PUBLIC games, each silently linking to its boardgame page, rendered
- * inside a translated sentence.
+ * most-liked publicly playable games, each silently linking to its boardgame page,
+ * rendered inside a translated sentence.
  */
 
 export type HeroGame = { id: string; name: string };
 
-/** The minimal slice of a game-info the hero needs (loose so tests build fixtures inline). */
+/**
+ * The minimal slice of a game-info the hero needs (loose so tests build fixtures inline).
+ * The input list may hold SEVERAL entries per game (one per listed version) — heroGames
+ * collapses them itself, because "is this game public?" must look at every version, not
+ * one picked entry.
+ */
 export type HeroGameInfo = {
 	_id: { game: string };
 	label: string;
@@ -18,8 +23,10 @@ export type HeroGameInfo = {
 };
 
 /**
- * The historical hardcoded four — the fallback when no public game has a like yet
- * (fresh install, likes wiped), so the hero never renders "Play  online".
+ * The historical hardcoded four — the fallback when no citable game has a like yet
+ * (fresh install, likes wiped), so the hero never renders "Play  online". The no-alias
+ * rule applies here too: should one of the four ever gain an alias, the hero cites
+ * whatever remains rather than substituting another game.
  */
 export const FALLBACK_HERO_GAMES: readonly HeroGame[] = [
 	{ id: "gaia-project", name: "Gaia Project" },
@@ -30,20 +37,36 @@ export const FALLBACK_HERO_GAMES: readonly HeroGame[] = [
 
 export const HERO_GAME_COUNT = 4;
 
-/** Plain-text display name: alias precedence (#106), no emoji in a sentence. */
+/** Plain-text display name (no emoji in a sentence); aliased games never get this far. */
 const heroName = (info: HeroGameInfo) => gameDisplayName(info, { emoji: false });
 
 /**
- * The games the hero cites: top `count` public games by like count. Deterministic
- * tie-break on the display name (codepoint order, not localeCompare — SSR and the
- * client must produce the identical list regardless of their default locale).
+ * The games the hero cites: top `count` citable games by like count. Citable means:
+ *
+ * - ANY listed version is public — for a beta tester, the newest version of a game can be
+ *   their private-beta grant while older public versions exist; the game is still publicly
+ *   playable and belongs in the hero (everyone must see the same list, beta grant or not).
+ *   Pure-beta games (no public version anywhere) stay out, even for their testers.
+ * - No alias: aliased games (e.g. gem-trader → "Gem Trader") run under a discreet public
+ *   name for trademark reasons — the homepage must not advertise them.
+ *
+ * Deterministic tie-break on the display name (codepoint order, not localeCompare — SSR
+ * and the client must produce the identical list regardless of their default locale).
  */
 export function heroGames(infos: readonly HeroGameInfo[], count = HERO_GAME_COUNT): readonly HeroGame[] {
-	const publicGames = infos.filter((info) => info.public);
-	if (!publicGames.some((info) => (info.likeCount ?? 0) > 0)) {
-		return FALLBACK_HERO_GAMES;
+	// Collapse version entries to one per game. Display metadata (label/alias/likeCount)
+	// is game-level and identical across versions; the first entry wins (the game-info
+	// map lists versions newest-first), only `public` merges across versions.
+	const byGame = new Map<string, HeroGameInfo>();
+	for (const info of infos) {
+		const existing = byGame.get(info._id.game);
+		byGame.set(info._id.game, existing ? { ...existing, public: existing.public || info.public } : info);
 	}
-	return publicGames
+	const citable = [...byGame.values()].filter((info) => info.public && !info.alias);
+	if (!citable.some((info) => (info.likeCount ?? 0) > 0)) {
+		return FALLBACK_HERO_GAMES.filter((game) => !byGame.get(game.id)?.alias);
+	}
+	return citable
 		.slice()
 		.sort((a, b) => {
 			const byLikes = (b.likeCount ?? 0) - (a.likeCount ?? 0);
