@@ -323,7 +323,7 @@
 	"newGame.scheduledStart": "Planlagt start (valgfrit)",
 	"newGame.seedHelp": "Spil med samme seed deler konfiguration.",
 	"newGame.seedPlaceholder": "Tilfældigt seed",
-	"newGame.setup": "Opret et nyt spil. Kun det væsentlige er påkrævet — alt andet har en fornuftig standardværdi.",
+	"newGame.setup": "Opret et nyt spil.",
 	"newGame.suggest": "Foreslå det",
 	"newGame.time": "Tid",
 	"newGame.timePerGame": "Tid pr. spiller pr. spil",

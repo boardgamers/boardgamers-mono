@@ -323,7 +323,7 @@
 	"newGame.scheduledStart": "Zaplanowany start (opcjonalnie)",
 	"newGame.seedHelp": "Gry z tym samym ziarnem mają tę samą konfigurację.",
 	"newGame.seedPlaceholder": "Losowe ziarno",
-	"newGame.setup": "Skonfiguruj nową grę. Wymagane są tylko podstawy — wszystko inne ma sensowne wartości domyślne.",
+	"newGame.setup": "Skonfiguruj nową grę.",
 	"newGame.suggest": "Zaproponuj ją",
 	"newGame.time": "Czas",
 	"newGame.timePerGame": "Czas na gracza na grę",

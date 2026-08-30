@@ -323,7 +323,7 @@
 	"newGame.scheduledStart": "Scheduled start (optional)",
 	"newGame.seedHelp": "Games with the same seed share configuration.",
 	"newGame.seedPlaceholder": "Random seed",
-	"newGame.setup": "Set up a new game. Only the essentials are required — everything else has a sensible default.",
+	"newGame.setup": "Set up a new game.",
 	"newGame.suggest": "Suggest it",
 	"newGame.time": "Time",
 	"newGame.timePerGame": "Time per player per game",

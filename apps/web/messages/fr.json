@@ -323,7 +323,7 @@
 	"newGame.scheduledStart": "Début planifié (optionnel)",
 	"newGame.seedHelp": "Les parties avec la même seed partagent la même configuration.",
 	"newGame.seedPlaceholder": "Seed aléatoire",
-	"newGame.setup": "Configure une nouvelle partie. Seul l'essentiel est requis — tout le reste a une valeur par défaut raisonnable.",
+	"newGame.setup": "Configure une nouvelle partie.",
 	"newGame.suggest": "Propose-le",
 	"newGame.time": "Heure",
 	"newGame.timePerGame": "Temps par joueur et par partie",

@@ -323,7 +323,7 @@
 	"newGame.scheduledStart": "निर्धारित शुरुआत (वैकल्पिक)",
 	"newGame.seedHelp": "एक ही सीड वाले खेलों की कॉन्फ़िगरेशन समान होती है।",
 	"newGame.seedPlaceholder": "यादृच्छिक सीड",
-	"newGame.setup": "नया खेल सेट करें। केवल आवश्यक चीज़ें ही ज़रूरी हैं — बाकी सबका समझदार डिफ़ॉल्ट है।",
+	"newGame.setup": "नया खेल सेट करें।",
 	"newGame.suggest": "इसका सुझाव दें",
 	"newGame.time": "समय",
 	"newGame.timePerGame": "प्रति खिलाड़ी प्रति खेल समय",
