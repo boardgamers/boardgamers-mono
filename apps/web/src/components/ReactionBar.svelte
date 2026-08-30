@@ -151,7 +151,7 @@
 	     in normal flow (not absolute) so wrapped chips push the next message down
 	     instead of covering it. `relative` paints the chips above the bubble;
 	     mirrored to the bottom-right on own (right-aligned) bubbles. -->
-	<div class="relative -mt-2.5 flex flex-wrap gap-1 {mine ? 'mr-1.5 justify-end' : 'ml-1.5'}">
+	<div class="relative -mt-2 flex flex-wrap gap-1 {mine ? 'mr-1.5 justify-end' : 'ml-1.5'}">
 		{#each reactions as group (group.emoji)}
 			<button
 				type="button"
