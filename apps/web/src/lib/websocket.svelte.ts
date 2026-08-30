@@ -111,6 +111,11 @@ function connect() {
 			chatMessages.set(obj.messages);
 		} else if (obj.command === "newMessages") {
 			chatMessages.update((msg) => [...msg, ...obj.messages]);
+		} else if (obj.command === "updatedMessages") {
+			// Edited messages: replace in place by _id, ignore updates for messages not loaded
+			chatMessages.update((msgs) =>
+				msgs.map((msg) => obj.messages.find((updated: { _id: string }) => updated._id === msg._id) ?? msg),
+			);
 		} else if (obj.command === "game:lastUpdate" && obj.game === getStore(currentGameId)) {
 			lastGameUpdate.set(new Date(obj.lastUpdate));
 		} else if (obj.command === "game:playerStatus") {

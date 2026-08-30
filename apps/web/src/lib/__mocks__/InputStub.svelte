@@ -11,6 +11,7 @@
 		required = false,
 		disabled = false,
 		class: className = "",
+		onkeydown = undefined,
 	}: {
 		value?: unknown;
 		element?: HTMLInputElement | HTMLTextAreaElement;
@@ -20,11 +21,13 @@
 		required?: boolean;
 		disabled?: boolean;
 		class?: string;
+		onkeydown?: (e: KeyboardEvent) => void;
 	} = $props();
 </script>
 
 {#if type === "textarea"}
-	<textarea {id} class={className} {placeholder} {required} {disabled} bind:value bind:this={element}></textarea>
+	<textarea {id} class={className} {placeholder} {required} {disabled} bind:value bind:this={element} {onkeydown}
+	></textarea>
 {:else}
-	<input {type} {id} class={className} {placeholder} {required} {disabled} bind:value bind:this={element} />
+	<input {type} {id} class={className} {placeholder} {required} {disabled} bind:value bind:this={element} {onkeydown} />
 {/if}

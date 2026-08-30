@@ -3,7 +3,16 @@
 	import { m } from "@/lib/i18n/messages";
 	import { flushSync } from "svelte";
 
-	let { onsend }: { onsend: (text: string) => void } = $props();
+	let {
+		onsend,
+		oneditlast,
+	}: {
+		onsend: (text: string) => void;
+		// Discord-style ArrowUp-to-edit hook: called on ArrowUp in an empty input; returns
+		// whether it consumed the key (the owner opened an editor). Optional — ChatInput
+		// stays agnostic of chat messages.
+		oneditlast?: () => boolean;
+	} = $props();
 
 	let currentMessage = $state("");
 
@@ -86,6 +95,12 @@
 			bind:element={inputElement}
 			placeholder={m.chat_placeholder()}
 			class="text-base"
+			onkeydown={(e: KeyboardEvent) => {
+				// Empty input only — with text present ArrowUp keeps its native caret behavior.
+				if (e.key === "ArrowUp" && currentMessage === "" && !pickerOpen && oneditlast?.()) {
+					e.preventDefault();
+				}
+			}}
 		/>
 		<Button type="submit" color="primary">{m.chat_send()}</Button>
 	</InputGroup>

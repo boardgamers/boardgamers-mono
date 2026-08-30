@@ -1,9 +1,12 @@
 <script lang="ts">
+	import type { ChatMessageFront } from "@bgs/models";
 	import { account, currentGameId, sidebarOpen, chatMessages } from "@/lib/stores.svelte";
-	import { get, post } from "@/lib/api";
-	import { Modal, ModalHeader, ModalFooter, Button, Badge } from "@/modules/cdk";
+	import { get, patch, post } from "@/lib/api";
+	import { Modal, ModalHeader, ModalFooter, Input, InputGroup, Button, Badge } from "@/modules/cdk";
 	import IconChat from "@/components/icons/IconChat.svelte";
-	import { countUnreadMessages, dateFromObjectId, handleError } from "@/utils";
+	import IconPencil from "@/components/icons/IconPencil.svelte";
+	import { canEditMessage, countUnreadMessages, dateFromObjectId, handleError, lastEditableMessage } from "@/utils";
+	import { flushSync } from "svelte";
 	import { fly } from "svelte/transition";
 	import UserAvatar from "./User/UserAvatar.svelte";
 	import UsernameLink from "./User/UsernameLink.svelte";
@@ -26,6 +29,43 @@
 			},
 			type: "text",
 		}).catch(handleError);
+	};
+
+	let editingId = $state<string | null>(null);
+	let editText = $state("");
+	let editInputElement = $state<HTMLInputElement | HTMLTextAreaElement>();
+
+	function startEdit(message: ChatMessageFront) {
+		editingId = message._id ?? null;
+		editText = message.data.text;
+		// Render the editor now, then move focus into it with the caret at the end.
+		flushSync();
+		// Always a text <input> here (no instanceof: jsdom tests run cross-realm).
+		const el = editInputElement as HTMLInputElement | undefined;
+		el?.focus();
+		el?.setSelectionRange(editText.length, editText.length);
+	}
+
+	// Discord-style ArrowUp in the (empty) chat input: edit the most recent editable
+	// message that isn't already being edited. Returns whether an editor was opened.
+	function editLastMessage(): boolean {
+		const last = lastEditableMessage($chatMessages, userId, editingId);
+		if (!last) {
+			return false;
+		}
+		startEdit(last);
+		return true;
+	}
+
+	const saveEdit = async () => {
+		const id = editingId;
+		const text = editText.trim();
+		editingId = null;
+		if (!id || !text) {
+			return;
+		}
+		// No optimistic update: the ws poller re-sends the edited message within ~250ms.
+		return patch(`/game/${room}/chat/${id}`, { data: { text } }).catch(handleError);
 	};
 
 	let messagesContainer: HTMLDivElement;
@@ -133,7 +173,7 @@
 				</div>
 			{:else}
 				{@const sent = message.author?._id === userId}
-				<div class="mb-3 flex items-end gap-2 {sent ? 'flex-row-reverse' : ''}">
+				<div class="group mb-3 flex items-end gap-2 {sent ? 'flex-row-reverse' : ''}">
 					{#if message.author}
 						<UsernameLink
 							username={message.author.name}
@@ -145,20 +185,62 @@
 							<UserAvatar userId={message.author._id} username={message.author.name} size="2.5rem" />
 						</UsernameLink>
 					{/if}
-					<div
-						class="max-w-[75%] rounded-2xl px-3 py-2 text-sm leading-snug whitespace-pre-wrap {sent
-							? 'rounded-br-md bg-blue-500 text-white'
-							: 'rounded-bl-md bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100'}"
-						title={m.chat_sentAt({ time: chatTime(message._id) })}
-					>
-						{message.data.text}
-					</div>
+					{#if editingId === message._id}
+						<form
+							class="max-w-[75%] flex-1"
+							onsubmit={(e) => {
+								e.preventDefault();
+								saveEdit();
+							}}
+						>
+							<InputGroup>
+								<Input
+									type="text"
+									bind:value={editText}
+									bind:element={editInputElement}
+									class="text-base"
+									onkeydown={(e: KeyboardEvent) => {
+										if (e.key === "Escape") {
+											// Don't let the modal's document-level Escape handler close the chat
+											e.stopPropagation();
+											editingId = null;
+										}
+									}}
+								/>
+								<Button type="submit" color="primary">{m.common_save()}</Button>
+								<Button type="button" color="secondary" onclick={() => (editingId = null)}>{m.common_cancel()}</Button>
+							</InputGroup>
+						</form>
+					{:else}
+						<div
+							class="max-w-[75%] rounded-2xl px-3 py-2 text-sm leading-snug whitespace-pre-wrap {sent
+								? 'rounded-br-md bg-blue-500 text-white'
+								: 'rounded-bl-md bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100'}"
+							title={m.chat_sentAt({ time: chatTime(message._id) })}
+						>
+							{message.data.text}
+							{#if message.editedAt}
+								<span class="ml-1 text-xs italic opacity-70">{m.chat_edited()}</span>
+							{/if}
+						</div>
+						{#if canEditMessage(message, userId)}
+							<button
+								type="button"
+								class="invisible shrink-0 self-center p-1 text-gray-400 group-hover:visible hover:text-gray-600 focus-visible:visible dark:hover:text-gray-200"
+								title={m.common_edit()}
+								aria-label={m.common_edit()}
+								onclick={() => startEdit(message)}
+							>
+								<IconPencil size="0.875rem" />
+							</button>
+						{/if}
+					{/if}
 				</div>
 			{/if}
 		{/each}
 	</div>
 	<ModalFooter class="shrink-0 p-3">
-		<ChatInput onsend={sendMessage} />
+		<ChatInput onsend={sendMessage} oneditlast={editLastMessage} />
 	</ModalFooter>
 </Modal>
 
