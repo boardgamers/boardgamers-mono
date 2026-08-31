@@ -16,7 +16,10 @@ permissions:
 jobs:
   preview:
     runs-on: ubuntu-latest
-    if: github.repository == 'boardgamers/boardgamers-mono'
+    # server_url: Forgejo (Codeberg) would fall through to .github/workflows if
+    # .forgejo/workflows were ever removed — this gate keeps that safe (the Forgejo
+    # port of this workflow lives in PR #440).
+    if: github.server_url == 'https://github.com' && github.repository == 'boardgamers/boardgamers-mono'
     timeout-minutes: 15
     steps:
       - name: Check gate (MEMBER or preview label)

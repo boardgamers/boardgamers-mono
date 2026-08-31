@@ -27,11 +27,15 @@ jobs:
   # class of error is caught before merge.
   web:
     runs-on: docker
+    # Image pinned per job so CI does not depend on the runner's default-image
+    # mapping for the "docker" label; node:24-bookworm ships node + corepack.
+    container:
+      image: docker.io/library/node:24-bookworm
     defaults:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
+      - uses: https://data.forgejo.org/actions/checkout@v4
       - run: corepack enable
       - run: pnpm install --filter {./}...
       # svelte-kit sync generates .svelte-kit/tsconfig.json (gitignored) — the build
@@ -51,11 +55,13 @@ jobs:
   # Same production-build guard for the admin panel.
   admin:
     runs-on: docker
+    container:
+      image: docker.io/library/node:24-bookworm
     defaults:
       run:
         working-directory: apps/admin
     steps:
-      - uses: actions/checkout@v4
+      - uses: https://data.forgejo.org/actions/checkout@v4
       - run: corepack enable
       - run: pnpm install --filter {./}...
       - run: npx svelte-kit sync
@@ -72,6 +78,8 @@ jobs:
   # from a runtime @bgs/models root import (see scripts/check-client-bundle.mjs).
   smoke:
     runs-on: docker
+    container:
+      image: docker.io/library/node:24-bookworm
     env:
       # No playwright CDN download of chromium (the job installs Debian's).
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
@@ -79,7 +87,7 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
+      - uses: https://data.forgejo.org/actions/checkout@v4
       - run: corepack enable
       - run: pnpm install --filter {./}...
       - run: npx svelte-kit sync

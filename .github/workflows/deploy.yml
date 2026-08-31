@@ -16,7 +16,10 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: github.repository == 'boardgamers/boardgamers-mono'
+    # server_url: Forgejo (Codeberg) would fall through to .github/workflows if
+    # .forgejo/workflows were ever removed — this gate keeps that safe;
+    # .forgejo/workflows/deploy.yml carries the Codeberg equivalent.
+    if: github.server_url == 'https://github.com' && github.repository == 'boardgamers/boardgamers-mono'
     timeout-minutes: 10
     environment: deploy
     steps:

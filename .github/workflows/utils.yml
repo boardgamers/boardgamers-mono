@@ -18,6 +18,10 @@ defaults:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    # Forgejo (Codeberg) would fall through to .github/workflows if .forgejo/workflows
+    # were ever removed — this gate keeps that safe (on Forgejo, server_url is the
+    # instance URL); .forgejo/workflows/ carries the Codeberg equivalents.
+    if: github.server_url == 'https://github.com'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

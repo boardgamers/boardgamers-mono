@@ -27,6 +27,10 @@ jobs:
   # class of error is caught before merge.
   web:
     runs-on: ubuntu-latest
+    # Forgejo (Codeberg) would fall through to .github/workflows if .forgejo/workflows
+    # were ever removed — this gate keeps that safe (on Forgejo, server_url is the
+    # instance URL); .forgejo/workflows/ carries the Codeberg equivalents.
+    if: github.server_url == 'https://github.com'
     defaults:
       run:
         working-directory: apps/web
@@ -54,6 +58,7 @@ jobs:
   # Same production-build guard for the admin panel.
   admin:
     runs-on: ubuntu-latest
+    if: github.server_url == 'https://github.com'
     defaults:
       run:
         working-directory: apps/admin
@@ -78,6 +83,7 @@ jobs:
   # from a runtime @bgs/models root import (see scripts/check-client-bundle.mjs).
   smoke:
     runs-on: ubuntu-latest
+    if: github.server_url == 'https://github.com'
     env:
       # No playwright CDN download of chromium (the job installs Ubuntu's).
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
